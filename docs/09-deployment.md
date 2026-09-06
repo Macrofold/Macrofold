@@ -1,6 +1,6 @@
 # Hosting, scaling and recovery architecture
 
-The exact account, callback, secret and release commands are in [18-launch-guide.md](18-launch-guide.md). [22-deployment.md](22-deployment.md) describes both container targets and scheduler portability. This document explains operating decisions, not imaginary deploy commands.
+The exact account, callback, secret and release commands are in [launch guide](18-launch-guide.md). [deployment reference](22-deployment.md) describes both container targets and scheduler portability. This document explains operating decisions, not imaginary deploy commands.
 
 ## Default topology
 
@@ -9,7 +9,7 @@ The exact account, callback, secret and release commands are in [18-launch-guide
 | Next.js dashboard/REST/auth/SSE/docs/brokers | Vercel Pro, `iad1` | Git deployment, HTTPS, Function limits, edge abuse protection |
 | Durable scheduler | Vercel Workflow + authenticated minutely Cron | Wake bounded steps, repair dispatch and maintenance |
 | Isolated agent processes | Vercel Sandbox + private immutable VCR image | One run identity, egress policy, provider quota and recovery snapshots |
-| Product/financial state | Neon PostgreSQL 17 | Restricted login/pooling, backups/PITR, capacity |
+| Product/financial state | Neon PostgreSQL 18.6, AWS Ohio (local fixture: 17) | Restricted login/pooling, backups/PITR, capacity |
 | Encrypted file content | Private Cloudflare R2 | Bucket policies, staging CORS/lifecycle, independent backups |
 | Identity email | Resend | Domain verification and delivery reputation |
 | Payments | Stripe | Verified business, prices/portal, signed event delivery |
@@ -17,9 +17,11 @@ The exact account, callback, secret and release commands are in [18-launch-guide
 
 There is no required E2B, Railway, Redis, SeaweedFS, restic, Connect or AI Gateway account. Local development uses Docker PostgreSQL/Mailpit, encrypted local objects and a simulator. The standalone alternative hosts the same web image plus SQL worker on a conventional Node/Docker host, initially still using Vercel Sandbox/R2 in production.
 
+The current Sandbox adapter uses Vercel OIDC. Real execution on a non-Vercel control-plane host still needs the [static-credential adapter work and acceptance](22-deployment.md#alternative-standalone-control-plane); the presence of token/team/project environment fields does not implement that path. This does not change the chosen Vercel-first launch.
+
 ## Capacity controls
 
-Per-plan concurrency is two/ten active runs. `GLOBAL_CONCURRENT_RUN_LIMIT` defaults to 50 and serializes claims across all schedulers. One workspace has one active writer; queued continuations have an independent ten-message/session cap and one-hour expiry. Run maximum is two hours. These are application controls, not inferred provider entitlements. Start below the actual vendor sandbox quota.
+Per-plan concurrency is 2/10/50 active runs for Starter/Pro/Scale; maximum run windows are 30/60/120 minutes. See the authoritative [plan and scheduler limits](25-scheduling.md). `GLOBAL_CONCURRENT_RUN_LIMIT` defaults to 50 and serializes claims across all schedulers. One workspace has one active writer; queued continuations have an independent ten-message/session cap and one-hour expiry. Run maximum is two hours. These are application controls, not inferred provider entitlements. The private launch worksheet starts with a global cap of **5**. Start below the actual vendor sandbox quota and measure before offering larger concurrent cohorts.
 
 `API_RATE_LIMIT_PER_MINUTE` defaults to 300 per credential/organization. Protect unauthenticated auth/API routes with the hosting platform's edge controls and allowlist expected webhook/runtime paths appropriately. Do not turn an upstream outage into unlimited automatic retries. Unknown external effects require reconciliation. Model bounds, prepaid reservations and provider spending alerts independently limit financial exposure.
 

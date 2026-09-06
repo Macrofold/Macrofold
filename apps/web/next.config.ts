@@ -2,7 +2,9 @@ import { withWorkflow } from 'workflow/next';
 import type { NextConfig } from 'next';
 import path from 'node:path';
 const config: NextConfig = {
-  output: 'standalone',
+  // Vercel's adapter packages Functions; standalone copying is only for self-hosting.
+  // Next 16.3 skips the server trace with an adapter, so requesting both fails the build.
+  output: process.env.VERCEL === '1' ? undefined : 'standalone',
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   outputFileTracingExcludes: {
     '/*': [

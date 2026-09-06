@@ -35,108 +35,141 @@ export async function sendMail(to: string, subject: string, text: string) {
     if (result.error) throw new Error('Email delivery failed');
   }
 }
-export const auth = betterAuth({
-  database: authPool,
-  baseURL: config.origin,
-  basePath: '/auth',
-  secret: config.secret,
-  trustedOrigins: [config.origin],
-  appName: config.name,
-  // Node's production build mode must not change the unpaid local fixture profile.
-  // Persist production counters across Functions instead of per-instance memory.
-  rateLimit: { enabled: !isLocal(), storage: 'database' },
-  advanced: {
-    database: { generateId: () => id() },
-    cookies: { session_token: { name: isLocal() ? 'platform.session' : '__Secure-session' } },
-  },
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true,
-    minPasswordLength: 12,
-    sendResetPassword: async ({ user, url }) =>
-      sendMail(user.email, 'Reset your password', `Reset your password: ${url}`),
-  },
-  emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) =>
-      sendMail(user.email, 'Verify your email', `Verify your email to start using ${config.name}: ${url}`),
-  },
-  socialProviders: process.env.GITHUB_CLIENT_ID
-    ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET! } }
-    : {},
-  databaseHooks: {
-    user: {
-      create: {
-        before: async (user) => {
-          if (process.env.PUBLIC_SIGNUP_ENABLED === 'false')
-            // Better Auth intentionally masks 403 signup denials as synthetic success
-            // to prevent account enumeration. Maintenance is a global 503 condition.
-            throw new APIError('SERVICE_UNAVAILABLE', {
-              message: 'Registration is temporarily paused. Please contact the operator.',
+const createAuth = () =>
+  betterAuth({
+    database: authPool,
+    baseURL: config.origin,
+    basePath: '/auth',
+    secret: config.secret,
+    trustedOrigins: [config.origin],
+    appName: config.name,
+    // Node's production build mode must not change the unpaid local fixture profile.
+    // Persist production counters across Functions instead of per-instance memory.
+    rateLimit: { enabled: !isLocal(), storage: 'database' },
+    advanced: {
+      database: { generateId: () => id() },
+      cookies: { session_token: { name: isLocal() ? 'platform.session' : '__Secure-session' } },
+    },
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: true,
+      minPasswordLength: 12,
+      sendResetPassword: async ({ user, url }) =>
+        sendMail(user.email, 'Reset your password', `Reset your password: ${url}`),
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) =>
+        sendMail(user.email, 'Verify your email', `Verify your email to start using ${config.name}: ${url}`),
+    },
+    socialProviders: process.env.GITHUB_CLIENT_ID
+      ? {
+          github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET! },
+        }
+      : {},
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (process.env.PUBLIC_SIGNUP_ENABLED === 'false')
+              // Better Auth intentionally masks 403 signup denials as synthetic success
+              // to prevent account enumeration. Maintenance is a global 503 condition.
+              throw new APIError('SERVICE_UNAVAILABLE', {
+                message: 'Registration is temporarily paused. Please contact the operator.',
+              });
+            return { data: user };
+          },
+          after: async (user) => {
+            const org = id();
+            await transaction(null, async (tx) => {
+              await tx.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [
+                org,
+                `${user.name.split(' ')[0]}'s workspace`,
+              ]);
+              await tx.query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'owner')", [
+                org,
+                user.id,
+              ]);
+              await tx.query(
+                "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'user.registered')",
+                [id(), org, user.id],
+              );
             });
-          return { data: user };
-        },
-        after: async (user) => {
-          const org = id();
-          await transaction(null, async (tx) => {
-            await tx.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [
-              org,
-              `${user.name.split(' ')[0]}'s workspace`,
-            ]);
-            await tx.query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'owner')", [
-              org,
-              user.id,
-            ]);
-            await tx.query(
-              "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'user.registered')",
-              [id(), org, user.id],
-            );
-          });
+          },
         },
       },
     },
+    plugins: [
+      twoFactor({
+        issuer: config.name,
+        skipVerificationOnEnable: false,
+        accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 900 },
+      }),
+      jwt(),
+      oauthProvider({
+        // Opaque tokens use Better Auth's persisted revocation checks on every request.
+        // Locally verifying a JWT signature alone would keep revoked grants usable until expiry.
+        disableJwtPlugin: true,
+        storeClientSecret: {
+          encrypt: async (value) => seal(value),
+          decrypt: async (value) => unseal<string>(value),
+        },
+        storeTokens: { hash: async (value) => sha256(value) },
+        loginPage: '/login',
+        consentPage: '/consent',
+        // Only signed, unexpired authorization requests can retrieve pre-login metadata.
+        allowPublicClientPrelogin: true,
+        scopes: [...customerScopes, ...operatorScopes],
+        resources: [
+          { identifier: `${config.origin}/v1`, allowedScopes: customerScopes },
+          { identifier: `${config.origin}/admin/v1`, allowedScopes: operatorScopes },
+          { identifier: `${config.origin}/admin/mcp`, allowedScopes: operatorScopes },
+        ],
+        accessTokenExpiresIn: 900,
+        refreshTokenExpiresIn: 30 * 86400,
+        clientPrivileges: async ({ user }) =>
+          Boolean(user && config.operatorEmails.includes(user.email.toLowerCase())),
+        resourcePrivileges: async ({ user }) =>
+          Boolean(user && config.operatorEmails.includes(user.email.toLowerCase())),
+      }),
+      oauthDeviceAuthorization({
+        verificationUri: `${config.origin}/device`,
+        expiresIn: '10m',
+        interval: '5s',
+      }),
+    ],
+  });
+let authInstance: ReturnType<typeof createAuth> | undefined;
+function getAuth() {
+  return (authInstance ??= createAuth());
+}
+// OAuth initialization seeds database resources. Defer it until auth is used so
+// importing routes/scopes during a build never requires database access. Forward
+// the complete typed public surface, including the Next.js handler and CLI APIs.
+export const auth: ReturnType<typeof createAuth> = {
+  get handler() {
+    return getAuth().handler;
   },
-  plugins: [
-    twoFactor({
-      issuer: config.name,
-      skipVerificationOnEnable: false,
-      accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 900 },
-    }),
-    jwt(),
-    oauthProvider({
-      // Opaque tokens use Better Auth's persisted revocation checks on every request.
-      // Locally verifying a JWT signature alone would keep revoked grants usable until expiry.
-      disableJwtPlugin: true,
-      storeClientSecret: {
-        encrypt: async (value) => seal(value),
-        decrypt: async (value) => unseal<string>(value),
-      },
-      storeTokens: { hash: async (value) => sha256(value) },
-      loginPage: '/login',
-      consentPage: '/consent',
-      // Only signed, unexpired authorization requests can retrieve pre-login metadata.
-      allowPublicClientPrelogin: true,
-      scopes: [...customerScopes, ...operatorScopes],
-      resources: [
-        { identifier: `${config.origin}/v1`, allowedScopes: customerScopes },
-        { identifier: `${config.origin}/admin/v1`, allowedScopes: operatorScopes },
-        { identifier: `${config.origin}/admin/mcp`, allowedScopes: operatorScopes },
-      ],
-      accessTokenExpiresIn: 900,
-      refreshTokenExpiresIn: 30 * 86400,
-      clientPrivileges: async ({ user }) =>
-        Boolean(user && config.operatorEmails.includes(user.email.toLowerCase())),
-      resourcePrivileges: async ({ user }) =>
-        Boolean(user && config.operatorEmails.includes(user.email.toLowerCase())),
-    }),
-    oauthDeviceAuthorization({
-      verificationUri: `${config.origin}/device`,
-      expiresIn: '10m',
-      interval: '5s',
-    }),
-  ],
-});
+  get fetch() {
+    return getAuth().fetch;
+  },
+  get api() {
+    return getAuth().api;
+  },
+  get options() {
+    return getAuth().options;
+  },
+  get $context() {
+    return getAuth().$context;
+  },
+  get $ERROR_CODES() {
+    return getAuth().$ERROR_CODES;
+  },
+  get $Infer() {
+    return getAuth().$Infer;
+  },
+};
 export type Principal = {
   id: string;
   userId?: string;

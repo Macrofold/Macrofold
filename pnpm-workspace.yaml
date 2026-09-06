@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+  - sdk/typescript
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - opencode-ai
+overrides:
+  # Stryker's HTTP client pins a qs release with known denial-of-service findings.
+  'typed-rest-client>qs': 6.16.0
+  'undici@7.28.0': 7.29.0
+  'nanoid@5.1.6': 5.1.16

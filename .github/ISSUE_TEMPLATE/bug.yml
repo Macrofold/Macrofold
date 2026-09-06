@@ -1,0 +1,15 @@
+name: Bug report
+description: Report a reproducible product problem
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Include reproduction steps and app/CLI versions. Remove secrets, private files and customer prompts.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Safe diagnostic evidence
+      description: Request ID, error code, operating system and provider mode. Use private security reporting for vulnerabilities.

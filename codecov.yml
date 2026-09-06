@@ -1,0 +1,21 @@
+coverage:
+  precision: 2
+  round: down
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.1%
+    patch:
+      default:
+        target: 80%
+        # UI and subprocess coverage are not instrumented by Vitest yet.
+        # Show missing changed-line coverage without pretending it is measured.
+        informational: true
+comment:
+  layout: reach,diff,flags,files
+  behavior: default
+  require_changes: true
+flags:
+  typescript:
+    carryforward: false

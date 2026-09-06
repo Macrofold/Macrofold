@@ -1,0 +1,13 @@
+CREATE SCHEMA reporting;
+CREATE VIEW reporting.runs WITH (security_barrier=true) AS SELECT id,organization_id,project_id,workspace_id,status,created_at,started_at,completed_at,heartbeat_at,deadline,cost_micro_usd,config->>'harness' AS harness,config->>'model' AS model,result->>'failure_code' AS failure_code,result->>'persistence_status' AS persistence_status FROM public.runs;
+CREATE VIEW reporting.usage WITH (security_barrier=true) AS SELECT organization_id,run_id,provider,model,billing_mode,input_tokens,output_tokens,cost_micro_usd,completeness,created_at FROM public.model_usage;
+CREATE VIEW reporting.activity WITH (security_barrier=true) AS SELECT organization_id,user_id,action,created_at FROM public.actor_activity;
+CREATE VIEW reporting.accounts WITH (security_barrier=true) AS SELECT o.id,o.name,o.created_at,o.plan,o.balance_micro_usd,o.reserved_micro_usd,count(m.user_id)::text AS member_count FROM organizations o LEFT JOIN memberships m ON m.organization_id=o.id GROUP BY o.id;
+CREATE VIEW reporting.requests WITH (security_barrier=true) AS SELECT request_id,organization_id,principal_type,principal_id,method,route,status,duration_ms,client_type,created_at FROM api_requests;
+CREATE TABLE rate_limits (key text PRIMARY KEY, bucket bigint NOT NULL, count integer NOT NULL);
+CREATE TABLE github_installations (installation_id text PRIMARY KEY,organization_id uuid NOT NULL REFERENCES organizations(id),account_login text NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE service_clients (client_id text PRIMARY KEY,enabled boolean NOT NULL DEFAULT true,scopes text[] NOT NULL);
+CREATE FUNCTION immutable_journal() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Financial journal rows are immutable'; END $$;
+CREATE TRIGGER ledger_immutable BEFORE UPDATE OR DELETE ON ledger FOR EACH ROW EXECUTE FUNCTION immutable_journal();
+CREATE UNIQUE INDEX unique_workspace_branch ON workspaces(project_id,(data->>'branch')) WHERE COALESCE(data->>'deleted','false')='false';
+ALTER TABLE organizations ADD CONSTRAINT balance_nonnegative CHECK(balance_micro_usd>=0);

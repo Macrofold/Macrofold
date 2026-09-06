@@ -1,24 +1,22 @@
-# Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
-
-# Logs
-logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# dotenv environment variable files
+node_modules/
+.next/
 .env
-.env.development
-.env.test
-.env.production
-
-# temp directory
-.temp
-.tmp
+.env.*
+!.env.example
+!.env.test.example
+.data/
+coverage/
+.stryker-tmp/
+reports/mutation/
+stryker.log
+test-results/
+playwright-report/
+*.tsbuildinfo
+.DS_Store
+dist/
+*.tgz
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+/sdk/python/build/

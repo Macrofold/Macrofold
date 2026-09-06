@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "paths": {
+      "@platform/core/*": ["./packages/core/src/*"],
+      "@platform/providers/*": ["./packages/providers/src/*"],
+      "@platform/db": ["./packages/db/index.ts"],
+      "@/*": ["./apps/web/*"]
+    },
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "sdk/typescript/**/*.ts"
+  ],
+  "exclude": ["node_modules", "apps/web/.next"]
+}

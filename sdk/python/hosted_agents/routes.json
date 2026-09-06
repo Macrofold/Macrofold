@@ -1,0 +1,418 @@
+{
+  "listProjects": {
+    "method": "GET",
+    "path": "/v1/projects"
+  },
+  "createProject": {
+    "method": "POST",
+    "path": "/v1/projects"
+  },
+  "getProject": {
+    "method": "GET",
+    "path": "/v1/projects/{project_id}"
+  },
+  "updateProject": {
+    "method": "PATCH",
+    "path": "/v1/projects/{project_id}"
+  },
+  "deleteProject": {
+    "method": "DELETE",
+    "path": "/v1/projects/{project_id}"
+  },
+  "listWorkspaces": {
+    "method": "GET",
+    "path": "/v1/projects/{project_id}/workspaces"
+  },
+  "createWorkspace": {
+    "method": "POST",
+    "path": "/v1/projects/{project_id}/workspaces"
+  },
+  "getWorkspace": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}"
+  },
+  "deleteWorkspace": {
+    "method": "DELETE",
+    "path": "/v1/workspaces/{workspace_id}"
+  },
+  "updateWorkspace": {
+    "method": "PATCH",
+    "path": "/v1/workspaces/{workspace_id}"
+  },
+  "listFiles": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/files"
+  },
+  "readFile": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/file"
+  },
+  "writeFile": {
+    "method": "PUT",
+    "path": "/v1/workspaces/{workspace_id}/file"
+  },
+  "deleteFile": {
+    "method": "DELETE",
+    "path": "/v1/workspaces/{workspace_id}/file"
+  },
+  "listCheckpoints": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/checkpoints"
+  },
+  "createCheckpoint": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/checkpoints"
+  },
+  "restoreWorkspace": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/restore"
+  },
+  "getSync": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/sync"
+  },
+  "syncWorkspace": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/sync"
+  },
+  "listAgents": {
+    "method": "GET",
+    "path": "/v1/agents"
+  },
+  "createAgent": {
+    "method": "POST",
+    "path": "/v1/agents"
+  },
+  "getAgent": {
+    "method": "GET",
+    "path": "/v1/agents/{agent_id}"
+  },
+  "updateAgent": {
+    "method": "PATCH",
+    "path": "/v1/agents/{agent_id}"
+  },
+  "deleteAgent": {
+    "method": "DELETE",
+    "path": "/v1/agents/{agent_id}"
+  },
+  "listSessions": {
+    "method": "GET",
+    "path": "/v1/sessions"
+  },
+  "createSession": {
+    "method": "POST",
+    "path": "/v1/sessions"
+  },
+  "getSession": {
+    "method": "GET",
+    "path": "/v1/sessions/{session_id}"
+  },
+  "continueSession": {
+    "method": "POST",
+    "path": "/v1/sessions/{session_id}/messages"
+  },
+  "listRuns": {
+    "method": "GET",
+    "path": "/v1/runs"
+  },
+  "createRun": {
+    "method": "POST",
+    "path": "/v1/runs"
+  },
+  "getRun": {
+    "method": "GET",
+    "path": "/v1/runs/{run_id}"
+  },
+  "cancelRun": {
+    "method": "POST",
+    "path": "/v1/runs/{run_id}/cancel"
+  },
+  "submitRunInput": {
+    "method": "POST",
+    "path": "/v1/runs/{run_id}/input"
+  },
+  "getRunResult": {
+    "method": "GET",
+    "path": "/v1/runs/{run_id}/result"
+  },
+  "listRunEvents": {
+    "method": "GET",
+    "path": "/v1/runs/{run_id}/events"
+  },
+  "streamRun": {
+    "method": "GET",
+    "path": "/v1/runs/{run_id}/stream"
+  },
+  "listArtifacts": {
+    "method": "GET",
+    "path": "/v1/runs/{run_id}/artifacts"
+  },
+  "downloadArtifact": {
+    "method": "GET",
+    "path": "/v1/artifacts/{artifact_id}/download"
+  },
+  "listConnections": {
+    "method": "GET",
+    "path": "/v1/connections"
+  },
+  "createConnection": {
+    "method": "POST",
+    "path": "/v1/connections"
+  },
+  "getConnection": {
+    "method": "GET",
+    "path": "/v1/connections/{connection_id}"
+  },
+  "updateConnection": {
+    "method": "PATCH",
+    "path": "/v1/connections/{connection_id}"
+  },
+  "deleteConnection": {
+    "method": "DELETE",
+    "path": "/v1/connections/{connection_id}"
+  },
+  "authorizeConnection": {
+    "method": "POST",
+    "path": "/v1/connections/{connection_id}/authorize"
+  },
+  "testConnection": {
+    "method": "POST",
+    "path": "/v1/connections/{connection_id}/test"
+  },
+  "listConnectionTools": {
+    "method": "GET",
+    "path": "/v1/connections/{connection_id}/tools"
+  },
+  "listApiKeys": {
+    "method": "GET",
+    "path": "/v1/api-keys"
+  },
+  "createApiKey": {
+    "method": "POST",
+    "path": "/v1/api-keys"
+  },
+  "revokeApiKey": {
+    "method": "DELETE",
+    "path": "/v1/api-keys/{key_id}"
+  },
+  "listWebhookEndpoints": {
+    "method": "GET",
+    "path": "/v1/webhook-endpoints"
+  },
+  "createWebhookEndpoint": {
+    "method": "POST",
+    "path": "/v1/webhook-endpoints"
+  },
+  "updateWebhookEndpoint": {
+    "method": "PATCH",
+    "path": "/v1/webhook-endpoints/{endpoint_id}"
+  },
+  "deleteWebhookEndpoint": {
+    "method": "DELETE",
+    "path": "/v1/webhook-endpoints/{endpoint_id}"
+  },
+  "listWebhookDeliveries": {
+    "method": "GET",
+    "path": "/v1/webhook-deliveries"
+  },
+  "replayWebhookDelivery": {
+    "method": "POST",
+    "path": "/v1/webhook-deliveries/{delivery_id}/replay"
+  },
+  "getUsage": {
+    "method": "GET",
+    "path": "/v1/usage"
+  },
+  "listRequests": {
+    "method": "GET",
+    "path": "/v1/requests"
+  },
+  "getBilling": {
+    "method": "GET",
+    "path": "/v1/billing"
+  },
+  "createCheckout": {
+    "method": "POST",
+    "path": "/v1/billing/checkout"
+  },
+  "createBillingPortal": {
+    "method": "POST",
+    "path": "/v1/billing/portal"
+  },
+  "listHarnesses": {
+    "method": "GET",
+    "path": "/v1/harnesses"
+  },
+  "listModels": {
+    "method": "GET",
+    "path": "/v1/models"
+  },
+  "getOperation": {
+    "method": "GET",
+    "path": "/v1/operations/{operation_id}"
+  },
+  "getGrowthMetrics": {
+    "method": "GET",
+    "path": "/admin/v1/metrics/growth"
+  },
+  "getPlatformUsageMetrics": {
+    "method": "GET",
+    "path": "/admin/v1/metrics/usage"
+  },
+  "listAccounts": {
+    "method": "GET",
+    "path": "/admin/v1/accounts"
+  },
+  "getAccountSummary": {
+    "method": "GET",
+    "path": "/admin/v1/accounts/{account_id}"
+  },
+  "listPlatformRequests": {
+    "method": "GET",
+    "path": "/admin/v1/requests"
+  },
+  "getRunDiagnostics": {
+    "method": "GET",
+    "path": "/admin/v1/runs/{run_id}/diagnostics"
+  },
+  "getInfrastructureHealth": {
+    "method": "GET",
+    "path": "/admin/v1/infrastructure/health"
+  },
+  "getCapacityReport": {
+    "method": "GET",
+    "path": "/admin/v1/infrastructure/capacity"
+  },
+  "getOperatingReport": {
+    "method": "GET",
+    "path": "/admin/v1/reports/operating"
+  },
+  "getConnectionGrants": {
+    "method": "GET",
+    "path": "/v1/connections/{connection_id}/grants"
+  },
+  "setConnectionGrants": {
+    "method": "PUT",
+    "path": "/v1/connections/{connection_id}/grants"
+  },
+  "updateCheckpointRetention": {
+    "method": "PATCH",
+    "path": "/v1/checkpoints/{checkpoint_id}"
+  },
+  "rotateWebhookSecret": {
+    "method": "POST",
+    "path": "/v1/webhook-endpoints/{endpoint_id}/rotate-secret"
+  },
+  "getIdentity": {
+    "method": "GET",
+    "path": "/v1/me"
+  },
+  "getWorkspaceDiff": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/diff"
+  },
+  "createTransfer": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/transfers"
+  },
+  "listTransfers": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/transfers"
+  },
+  "getTransfer": {
+    "method": "GET",
+    "path": "/v1/transfers/{transfer_id}"
+  },
+  "applyTransfer": {
+    "method": "POST",
+    "path": "/v1/transfers/{transfer_id}/apply"
+  },
+  "exportCheckpoint": {
+    "method": "POST",
+    "path": "/v1/checkpoints/{checkpoint_id}/exports"
+  },
+  "listGithubInstallations": {
+    "method": "GET",
+    "path": "/v1/integrations/github/installations"
+  },
+  "listGithubRepositories": {
+    "method": "GET",
+    "path": "/v1/integrations/github/repositories"
+  },
+  "disconnectGithub": {
+    "method": "DELETE",
+    "path": "/v1/projects/{project_id}/github"
+  },
+  "listStdioPackages": {
+    "method": "GET",
+    "path": "/v1/stdio-packages"
+  },
+  "createOrganization": {
+    "method": "POST",
+    "path": "/v1/organizations"
+  },
+  "updateOrganization": {
+    "method": "PATCH",
+    "path": "/v1/organization"
+  },
+  "listMembers": {
+    "method": "GET",
+    "path": "/v1/organization/members"
+  },
+  "updateMember": {
+    "method": "PATCH",
+    "path": "/v1/organization/members/{user_id}"
+  },
+  "removeMember": {
+    "method": "DELETE",
+    "path": "/v1/organization/members/{user_id}"
+  },
+  "listInvitations": {
+    "method": "GET",
+    "path": "/v1/organization/invitations"
+  },
+  "createInvitation": {
+    "method": "POST",
+    "path": "/v1/organization/invitations"
+  },
+  "revokeInvitation": {
+    "method": "DELETE",
+    "path": "/v1/organization/invitations/{invitation_id}"
+  },
+  "listOrganizationAudit": {
+    "method": "GET",
+    "path": "/v1/organization/audit"
+  },
+  "getStorage": {
+    "method": "GET",
+    "path": "/v1/storage"
+  },
+  "updateStoragePolicy": {
+    "method": "PATCH",
+    "path": "/v1/storage"
+  },
+  "scheduleProjectDeletion": {
+    "method": "POST",
+    "path": "/v1/projects/{project_id}/deletion"
+  },
+  "cancelProjectDeletion": {
+    "method": "DELETE",
+    "path": "/v1/projects/{project_id}/deletion"
+  },
+  "listReportSnapshots": {
+    "method": "GET",
+    "path": "/admin/v1/reports/snapshots"
+  },
+  "getExecutionPolicy": {
+    "method": "GET",
+    "path": "/v1/organization/execution-policy"
+  },
+  "updateExecutionPolicy": {
+    "method": "PATCH",
+    "path": "/v1/organization/execution-policy"
+  },
+  "listConnectorCatalog": {
+    "method": "GET",
+    "path": "/v1/connector-catalog"
+  }
+}

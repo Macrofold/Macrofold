@@ -1,0 +1,20 @@
+name: hosted-agent-platform
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: platform_owner
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: platform
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform_owner -d platform"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  mail:
+    image: axllent/mailpit:v1.29
+    ports: ["127.0.0.1:58025:8025", "127.0.0.1:51025:1025"]
+volumes:
+  database:

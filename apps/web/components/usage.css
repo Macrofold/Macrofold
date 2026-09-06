@@ -1,0 +1,207 @@
+.usage-chart-card {
+  margin-top: 26px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 3px 14px #172b4d04;
+  overflow: hidden;
+}
+.usage-chart-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 25px 28px 8px;
+}
+.usage-chart-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.usage-chart-header h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.usage-chart-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 30px;
+  letter-spacing: -1px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.usage-chart-total > span {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.chart-measures {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  background: #f5f6f9;
+  padding: 4px;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+}
+.chart-measures button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 7px 11px;
+  transition:
+    background 150ms,
+    box-shadow 150ms,
+    color 150ms;
+}
+.chart-measures button[aria-pressed='true'] {
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 1px 4px #172b4d14;
+}
+.usage-chart-plot {
+  height: 280px;
+  min-width: 0;
+  margin: 16px 26px 14px 12px;
+  position: relative;
+}
+.usage-chart-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: white;
+  box-shadow: 0 8px 26px #172b4d1a;
+}
+.usage-chart-tooltip span,
+.usage-chart-tooltip small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.usage-chart-tooltip strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.usage-chart-footer {
+  border-top: 1px solid #f0f1f5;
+  padding: 13px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.usage-chart-footer > span,
+.usage-chart-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.usage-chart-footer i {
+  width: 7px;
+  height: 7px;
+  background: #5870e8;
+  border-radius: 2px;
+}
+.usage-chart-footer button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 5px 0;
+  white-space: nowrap;
+}
+.usage-chart-footer button:hover {
+  color: var(--blue);
+}
+.usage-daily-table {
+  max-height: 300px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.usage-chart-loading {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+}
+.usage-chart-empty {
+  position: absolute;
+  inset: 10px 0 20px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffffb3;
+  pointer-events: none;
+}
+.usage-chart-empty svg {
+  color: #8b99cb;
+  margin-bottom: 4px;
+}
+.usage-chart-empty strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.usage-chart-empty span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.usage-requests {
+  margin-top: 32px;
+}
+@media (max-width: 800px) {
+  .usage-chart-header {
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px 20px 8px;
+  }
+  .usage-chart-footer {
+    padding: 12px 20px;
+  }
+}
+@media (max-width: 480px) {
+  .usage-chart-plot {
+    margin: 12px 10px 12px 0;
+    height: 230px;
+  }
+  .chart-measures {
+    width: 100%;
+  }
+  .chart-measures button {
+    flex: 1;
+    padding: 7px;
+    font-size: 11px;
+  }
+  .usage-chart-footer {
+    align-items: flex-start;
+  }
+  .usage-chart-header {
+    padding: 20px 16px 4px;
+  }
+  .usage-chart-empty span {
+    max-width: 160px;
+    text-align: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-measures button {
+    transition: none;
+  }
+}

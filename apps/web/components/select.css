@@ -1,0 +1,121 @@
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px #172b4d05;
+  font-size: 13px;
+  text-align: left;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms,
+    background 150ms;
+}
+.select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger:hover:not(:disabled) {
+  border-color: #bfc7d8;
+  background: #fcfcfe;
+}
+.select-trigger[data-state='open'] {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px #4263ed16;
+}
+.select-chevron {
+  display: flex;
+  color: var(--muted);
+  transition: transform 160ms;
+}
+.select-trigger[data-state='open'] .select-chevron {
+  transform: rotate(180deg);
+}
+.field .select-trigger {
+  width: 100%;
+}
+.select-content {
+  z-index: 100;
+  min-width: var(--radix-select-trigger-width);
+  max-width: min(480px, calc(100vw - 24px));
+  max-height: min(320px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  padding: 5px;
+  border: 1px solid #e2e6ef;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow:
+    0 16px 48px #172b4d1c,
+    0 3px 10px #172b4d0c;
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: select-enter 150ms ease-out;
+}
+.select-viewport {
+  padding: 0;
+}
+.select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 37px;
+  padding: 8px 34px 8px 11px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.select-item[data-highlighted] {
+  background: #f0f3ff;
+  color: #304cbc;
+}
+.select-item[data-state='checked'] {
+  font-weight: 600;
+}
+.select-item[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.select-check {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  color: var(--blue);
+}
+.select-scroll {
+  display: grid;
+  place-items: center;
+  height: 22px;
+  color: var(--muted);
+}
+@keyframes select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-content {
+    animation: none;
+  }
+  .select-trigger,
+  .select-chevron {
+    transition: none;
+  }
+}

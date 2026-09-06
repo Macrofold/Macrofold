@@ -1,0 +1,10 @@
+ALTER TABLE product_events ADD COLUMN exported_at timestamptz;
+ALTER TABLE product_events ADD COLUMN export_attempts integer NOT NULL DEFAULT 0;
+ALTER TABLE product_events ADD COLUMN export_due_at timestamptz NOT NULL DEFAULT now();
+CREATE INDEX product_event_export_due ON product_events(export_due_at) WHERE exported_at IS NULL;
+ALTER TABLE storage_state ADD COLUMN health_code text;
+ALTER TABLE storage_state ADD COLUMN checked_at timestamptz;
+GRANT SELECT ON storage_state TO platform_reporting;
+CREATE POLICY reporting_read ON storage_state FOR SELECT TO platform_reporting USING(true);
+CREATE VIEW reporting.storage AS SELECT organization_id,observed_at,checked_at,health_code,physical_bytes,object_count FROM storage_state;
+ALTER VIEW reporting.storage OWNER TO platform_reporting;

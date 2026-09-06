@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/.next
+.git
+.env*
+.data
+test-results
+playwright-report
+coverage
+.stryker-tmp
+reports/mutation
+stryker.log
+**/.DS_Store

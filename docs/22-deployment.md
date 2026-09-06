@@ -1,0 +1,44 @@
+# Reproducible deployment and portability
+
+This document supplements the operator checklist in [18-launch-guide.md](18-launch-guide.md). The default production topology is Vercel + Neon PostgreSQL + R2 + Vercel Sandbox. No production account or paid resource has been created by this implementation session.
+
+## Build artifacts
+
+- `pnpm install --frozen-lockfile`, Node 24.13.0 and pnpm 10.33.0 reproduce the JavaScript dependency graph. Commit the lockfile. Runtime harness binaries are pinned separately in `packages/runtime/package.json`.
+- `pnpm build` produces a Next.js standalone server and the Vercel Workflow entrypoints. The API reference and its request/response schemas are versioned with the app.
+- `infra/control-plane.Dockerfile` has separate `web` and `worker` targets. The web image runs as the unprivileged Node user and copies the standalone trace and static assets. The worker uses the same checked-in domain code, PostgreSQL queue and adapters. No secrets are build arguments; `.dockerignore` excludes environment files and local customer objects.
+- `infra/runtime.Dockerfile` uses a dedicated pnpm deployment lockfile to copy only the runtime dependency graph. It is a different trust boundary: the supervisor runs as root, native harness processes as UID 10001, and control files are inaccessible to that UID. It is uploaded to the Vercel Container Registry only during operator deployment. Runtime images must be selected by immutable digest.
+- `.github/workflows/verify.yml` supplies local PostgreSQL, browser, SDK, CLI and network-disabled native acceptance. Adding this workflow to GitHub can consume Actions minutes; it has not been remotely executed. It receives no cloud/model secrets, including on pull requests.
+
+## Default: Vercel Workflow
+
+Set `ORCHESTRATION_BACKEND=workflow` (the default), `PLATFORM_MODE=production`, `EXECUTION_PROVIDER=vercel`. Vercel deploys the Next.js application and its generated Workflow endpoints. The public run mutation first commits a run/outbox record, then dispatches Workflow after the response. The authenticated minutely maintenance cron also dispatches any durable pending work. Workflow calls one bounded `advanceCloudRun` step at a time, sleeping for the requested interval.
+
+PostgreSQL owns the run state machine, leases, event sequence and execution identity. Workflow is a scheduling implementation, not the sole copy of customer state. Losing a dispatch acknowledgement may create an extra scheduler instance; it must not create a second native execution or repeat an ambiguous external action. Domain leases, stable VM identity and the runtime launch marker fence this behavior.
+
+Keep the application/database/object store in compatible regions. Configure Vercel's database connection pooling and inspect the per-instance pool maximum: five domain connections plus three identity connections and two independent credential-refresh connections. Concurrency multiplies those limits. Do not configure a transaction pool that drops a transaction's session settings midway through that transaction. Tenant identity uses `SET LOCAL` inside each transaction.
+
+## Alternative: standalone control plane
+
+The portable path uses a conventional long-lived SQL poller, **not an unconfigured local Workflow World**. This is a deliberate revision of the earlier PostgreSQL-World recommendation. The state machine already persists each bounded step in SQL; adding a second Workflow database would duplicate recovery state and operational setup. Vercel Workflow remains the preferred deployment for the initial SaaS.
+
+1. Complete production database migrations and identity/OAuth provisioning from the launch guide. Configure R2, public HTTPS, email, and the Vercel Sandbox account/image. Self-hosting the control plane does not replace Sandbox.
+2. Put runtime environment variables in a file outside the checkout, accessible only to the deployment user. Set `PLATFORM_MODE=production`, `EXECUTION_PROVIDER=vercel`, `ORCHESTRATION_BACKEND=poller`, `APP_ORIGIN=https://your-domain`, and the configured production credentials. Leave `ALLOW_PAID_EXECUTION=false` until the operator is ready for paid smoke tests.
+3. Build both targets: `docker build -f infra/control-plane.Dockerfile --target web -t platform-web:0.1.0 .` and the same command with `--target worker -t platform-worker:0.1.0`.
+4. Set `CONTROL_ENV_FILE` to the absolute environment-file path and run `docker compose -f infra/compose.control-plane.yml up -d --build`. The example binds the web server to host loopback; terminate public HTTPS in your host's managed load balancer or reverse proxy. Forward request bodies without rewriting webhook bytes, disable response buffering for SSE, and allow connections to stream for at least 60 seconds. Route every dashboard/API/auth/integration/runtime path to the application. Keep the object bucket private.
+5. Check `/health`, then sign in and run the unpaid checks. The worker performs maintenance every fifteen seconds and dispatches bounded cloud steps with `WORKER_CONCURRENCY=4` by default. Multiple workers claim due SQL jobs using SKIP LOCKED. Scale worker replicas only after measuring database contention, queue age and the provider's actual sandbox quota.
+6. Set restart policies, monitoring, TLS renewal, backups and alerts in the host's own control plane. A healthy web process alone does not prove the worker is running: monitor due-job age and maintenance observations through the operator API.
+
+Migration from Workflow to the poller requires a drain: pause admission, let native work finish or explicitly cancel it, verify checkpoints, stop the old scheduler, deploy the new orchestration setting, then resume admission. Keep one production scheduler configuration at a time. Reversing the switch follows the same procedure. Provider-native VM snapshots, credentials and native session compatibility require separate consideration if compute is migrated later.
+
+## Release and rollback
+
+Migrations run with the migration owner before the app is promoted; requests use a non-owner role that cannot bypass RLS. Do not put owner credentials on the web server or native runtime. Migrations use one advisory lock and one transaction. Existing numbered files are immutable after release. Add a new forward migration for corrections.
+
+Deploy an immutable app/image revision. Test authentication, one read-only API request, SSE replay and the operator health report before routing customers. A schema-compatible app rollback restores the previous app image without restoring the database. A data restore is an incident recovery procedure, never a routine deployment rollback. Keep old vault keys and runtime images for every retained backup/session that requires them.
+
+## Validation limits
+
+The repository records executed checks in [16-implementation-status.md](16-implementation-status.md). A Dockerfile or CI workflow existing is not evidence that its build ran successfully. Local standalone web and worker images passed API/file/SSE and queued simulator execution acceptance. The first build encountered host disk exhaustion; only this project's generated caches were reclaimed. See the verification record for the latest source/image checks. Live Vercel deployment, R2 policy enforcement, provider billing and email delivery still require the operator's accounts and controlled smoke tests.
+
+References: [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [Next.js self-hosting](https://nextjs.org/docs/app/guides/self-hosting), [official Docker Next.js guide](https://docs.docker.com/guides/nextjs/). The pinned package's local documentation was consulted for tracing, static assets and runtime environment behavior.

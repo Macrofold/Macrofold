@@ -1,0 +1,27 @@
+{
+  "name": "@hosted-agents/sdk",
+  "version": "0.1.0",
+  "description": "Typed API client and durable event streaming for hosted agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').copyFileSync('src/schema.d.ts','dist/schema.d.ts')\""
+  },
+  "license": "Apache-2.0"
+}

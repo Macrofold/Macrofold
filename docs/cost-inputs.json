@@ -1,0 +1,95 @@
+{
+  "assumptions_date": "2026-09-06",
+  "qualification": "Editable planning rates. Reconfirm current provider/account/region pricing. Model and connector rates are workload assumptions. GB is decimal; retail GiB is binary. Token categories must not overlap.",
+  "per_run": {
+    "seconds": 300,
+    "vcpus": 2,
+    "memory_gb": 4,
+    "cpu_utilization": 0.2,
+    "byok_fraction": 0,
+    "token_categories": [
+      {
+        "category": "uncached_input",
+        "count": 40000,
+        "usd_per_million": 2
+      },
+      {
+        "category": "cached_input",
+        "count": 0,
+        "usd_per_million": 0.2
+      },
+      {
+        "category": "output_including_reasoning",
+        "count": 4000,
+        "usd_per_million": 10
+      }
+    ],
+    "searches": 2,
+    "connector_calls": 0,
+    "workflow_events": 600,
+    "other_control_plane_usd": 0.005,
+    "sandbox_network_gb": 0
+  },
+  "monthly": {
+    "runs": 1000,
+    "r2_gb": 100,
+    "r2_class_a": 100000,
+    "r2_class_b": 1000000,
+    "snapshot_gb": 10,
+    "workflow_written_gb": 1,
+    "workflow_retained_gb": 1,
+    "maintenance_recovery_usd": 10,
+    "fixed_services_usd": 75,
+    "confirmed_eligible_credit_usd": 0,
+    "payment_volume_usd": 250,
+    "payment_transactions": 10,
+    "payment_fee_fraction": 0.029,
+    "payment_fixed_fee_usd": 0.3,
+    "billable_storage_gib_month": 0
+  },
+  "vendor_rates": {
+    "cpu_per_active_vcpu_hour": 0.128,
+    "memory_per_gb_hour": 0.0212,
+    "sandbox_creation": 6e-07,
+    "search": 0.005,
+    "connector_call": 0.003,
+    "workflow_event": 2e-05,
+    "sandbox_network_per_gb": 0.15,
+    "r2_per_gb_month": 0.015,
+    "r2_class_a_per_million": 4.5,
+    "r2_class_b_per_million": 0.36,
+    "snapshot_per_gb_month": 0.08,
+    "workflow_written_per_gb": 0.5,
+    "workflow_retained_per_gb_month": 0.5
+  },
+  "retail": {
+    "sandbox_per_minute": 0.008,
+    "managed_model_markup": 0.2,
+    "search": 0.006,
+    "connector_call": 0.003,
+    "storage_per_gib_month": 0.1
+  },
+  "cases": {
+    "low": {
+      "duration_multiplier": 0.5,
+      "cpu_multiplier": 0.5,
+      "additional_attempt_ratio": 0,
+      "maintenance_multiplier": 0.5,
+      "fixed_multiplier": 0.8
+    },
+    "base": {
+      "duration_multiplier": 1,
+      "cpu_multiplier": 1,
+      "additional_attempt_ratio": 0.05,
+      "maintenance_multiplier": 1,
+      "fixed_multiplier": 1
+    },
+    "high": {
+      "duration_multiplier": 2,
+      "cpu_multiplier": 5,
+      "additional_attempt_ratio": 0.2,
+      "maintenance_multiplier": 3,
+      "fixed_multiplier": 2
+    }
+  }
+}

@@ -1,0 +1,13 @@
+node_modules
+pnpm-lock.yaml
+apps/web/.next
+packages/contracts/api.d.ts
+.data
+test-results
+playwright-report
+coverage
+.stryker-tmp
+reports/mutation
+docs/api/openapi.json
+sdk/typescript/src/routes.ts
+sdk/typescript/src/schema.d.ts

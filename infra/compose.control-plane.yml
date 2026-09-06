@@ -1,0 +1,35 @@
+# Optional portable control plane; production databases, R2 and Sandbox remain managed services.
+# Set CONTROL_ENV_FILE to an absolute path outside the checkout. See docs/22-deployment.md.
+name: hosted-control-plane
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: infra/control-plane.Dockerfile
+      target: web
+    env_file: ${CONTROL_ENV_FILE:?Set CONTROL_ENV_FILE to your server environment file}
+    environment:
+      ORCHESTRATION_BACKEND: poller
+    ports: ["127.0.0.1:3210:3210"]
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3210/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/control-plane.Dockerfile
+      target: worker
+    env_file: ${CONTROL_ENV_FILE:?Set CONTROL_ENV_FILE to your server environment file}
+    environment:
+      ORCHESTRATION_BACKEND: poller
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    stop_grace_period: 2m

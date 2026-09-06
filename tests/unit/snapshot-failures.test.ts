@@ -1,0 +1,101 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { captureSnapshot, relativePath, type SnapshotEntry } from '../../packages/runtime/src/manifest';
+import { restoreSnapshot } from '../../packages/runtime/src/restore';
+
+const directories: string[] = [];
+afterEach(async () => {
+  await Promise.all(
+    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
+async function fixture() {
+  const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-fault-'));
+  directories.push(root);
+  const source = { workspace: path.join(root, 'source'), home: path.join(root, 'home') };
+  await mkdir(source.workspace);
+  await mkdir(source.home);
+  await writeFile(path.join(source.workspace, 'file.txt'), 'verified new content');
+  const snapshot = path.join(root, 'snapshot');
+  const index = await captureSnapshot(source, snapshot);
+  const target = { workspace: path.join(root, 'target'), home: path.join(root, 'target-home') };
+  await mkdir(target.workspace);
+  await writeFile(path.join(target.workspace, 'file.txt'), 'retained content');
+  const publish = () => writeFile(path.join(snapshot, 'page-0.json'), JSON.stringify(index.entries));
+  await publish();
+  return { root, source, snapshot, index, target, publish };
+}
+
+describe('checkpoint validation and atomic file publication', () => {
+  it.each(['', '/absolute', '../escape', 'a/../escape', './a', 'a//b', 'a/', 'a\\b', 'a\0b'])(
+    'rejects unsafe snapshot path %j',
+    (value) => {
+      expect(() => relativePath(value)).toThrow('unsafe_snapshot_path');
+    },
+  );
+  it.each(['hello.txt', '.git/objects/aa/value', 'notes/🌍.md'])('retains legitimate path %s', (value) => {
+    expect(relativePath(value)).toBe(value);
+  });
+  it.each(['bytes', 'chunk-size', 'file-size', 'file-hash', 'missing-chunk', 'chunk-path'] as const)(
+    'preserves the destination when %s verification fails',
+    async (fault) => {
+      const f = await fixture();
+      const entry = f.index.entries[0],
+        chunk = entry.chunks[0];
+      if (fault === 'bytes') await writeFile(path.join(f.snapshot, 'chunks', chunk.hash), 'corrupt');
+      if (fault === 'chunk-size') chunk.size++;
+      if (fault === 'file-size') entry.size++;
+      if (fault === 'file-hash') entry.sha256 = '0'.repeat(64);
+      if (fault === 'missing-chunk') await rm(path.join(f.snapshot, 'chunks', chunk.hash));
+      if (fault === 'chunk-path') chunk.hash = '../../file.txt';
+      await f.publish();
+      await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow();
+      expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+      expect(await readFile(path.join(f.source.workspace, 'file.txt'), 'utf8')).toBe('verified new content');
+    },
+  );
+  it('rejects duplicate entries before publishing any file', async () => {
+    const f = await fixture();
+    f.index.entries.push(f.index.entries[0]);
+    await f.publish();
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Duplicate snapshot entry');
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  });
+  it('rejects unknown namespaces before resolving a destination', async () => {
+    const f = await fixture();
+    f.index.entries[0].namespace = 'outside' as SnapshotEntry['namespace'];
+    await f.publish();
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Invalid snapshot entry');
+  });
+  it('refuses a symlinked destination root without changing the linked files', async () => {
+    const f = await fixture();
+    const linkedRoot = path.join(f.root, 'linked-root');
+    await symlink(f.target.workspace, linkedRoot);
+    await expect(restoreSnapshot(f.snapshot, { ...f.target, workspace: linkedRoot })).rejects.toThrow(
+      'Restore parent is not a directory',
+    );
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  });
+  it('accepts an exact capture byte allowance and rejects one byte less without publishing an index', async () => {
+    const f = await fixture(),
+      bytes = Buffer.byteLength('verified new content');
+    const exact = await captureSnapshot(f.source, path.join(f.root, 'exact'), { bytes, entries: 1 });
+    expect(exact.totalBytes).toBe(bytes);
+    const rejected = path.join(f.root, 'rejected');
+    await expect(captureSnapshot(f.source, rejected, { bytes: bytes - 1, entries: 1 })).rejects.toThrow(
+      'checkpoint_storage_limit',
+    );
+    await expect(readFile(path.join(rejected, 'index.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+  it('rejects an extra entry without publishing a partial checkpoint index', async () => {
+    const f = await fixture();
+    await writeFile(path.join(f.source.home, 'session.txt'), 'session');
+    const output = path.join(f.root, 'entry-limit');
+    await expect(captureSnapshot(f.source, output, { bytes: 1000, entries: 1 })).rejects.toThrow(
+      'checkpoint_entry_limit',
+    );
+    await expect(readFile(path.join(output, 'index.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+});

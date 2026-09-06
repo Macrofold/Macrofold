@@ -1,0 +1,28 @@
+{
+  "name": "@hosted-agents/cli",
+  "version": "0.1.0",
+  "description": "Operate persistent hosted agents from your terminal",
+  "type": "module",
+  "bin": {
+    "agent": "dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsx ../../scripts/build-cli.ts"
+  },
+  "dependencies": {
+    "@oclif/core": "4.14.0",
+    "ink": "6.8.0",
+    "react": "19.2.8",
+    "zod": "4.5.0"
+  },
+  "license": "Apache-2.0"
+}

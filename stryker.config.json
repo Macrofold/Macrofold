@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": { "configFile": "vitest.mutation.config.ts" },
+  "mutate": ["packages/core/src/runtime-auth.ts"],
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "concurrency": 2,
+  "timeoutMS": 10000,
+  "timeoutFactor": 2,
+  "inPlace": false,
+  "ignorePatterns": [
+    ".env",
+    ".env.*",
+    ".data",
+    "coverage",
+    "test-results",
+    "playwright-report",
+    "**/.next",
+    "**/dist"
+  ],
+  "thresholds": { "high": 95, "low": 90, "break": 90 }
+}

@@ -25,7 +25,7 @@ jobs:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
-      - run: pnpm setup
+      - run: pnpm run setup
       - run: pnpm test:mutation:critical
       - name: Mutation evidence
         if: always()

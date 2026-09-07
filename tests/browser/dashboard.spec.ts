@@ -47,10 +47,10 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
     await route.continue();
   });
   try {
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await refresh;
     await expect(page.getByRole('button', { name: 'New file', exact: true }).first()).toBeDisabled();
     await expect(page.getByRole('button', { name: 'hello.md', exact: true })).toBeDisabled();
+    await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
   } finally {
     releaseRefresh();
     await page.unrouteAll({ behavior: 'wait' });

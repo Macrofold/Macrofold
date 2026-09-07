@@ -6,7 +6,6 @@ The implemented launch dashboard uses Next.js/React, Radix dialogs and controls,
 
 Navigation and content density take inspiration from Linear, Vercel and Stripe. Their assets and branding are not copied. [Linear design discussion](https://linear.app/now/behind-the-latest-design-refresh).
 
-
 ## Implemented navigation
 
 | Surface                                        | What a user can operate                                                                                                                                 |
@@ -37,7 +36,9 @@ The CLI is a client of these same sessions, workspaces and history. Explicit pus
 
 ## Files and persistence
 
-File creation and selection stay disabled while a save and its query refresh are pending. A save only closes the creation dialog when it belongs to that creation, and browser journeys wait for the pending interaction to finish before editing.
+Existing file edits use a two-second trailing debounce. The timer resets on typing, stops on unmount, and pauses while the workspace is busy or a save is in flight. New files still require explicit creation. An accessible icon/status reports Unsaved changes, Saving…, Saved, or Not saved. Errors retain the draft and require Retry save instead of repeating failed writes automatically.
+
+File creation and selection stay disabled while a save and its query refresh are pending. The editor keeps its draft until the saved revision has refreshed successfully, including when the refresh is delayed or fails. Typing during a save is preserved and schedules another debounced save afterward. A confirmed mutation updates the revision and seeds the file query before invalidation; Saved cannot be shown for newer unsaved text. A save only closes the creation dialog when it belongs to that creation.
 
 A workspace selector stays visible above the file view. A searchable, paged path list shows checkpoint-backed files beside a CodeMirror text editor. Binary files download as bytes; symlinks are represented safely. This is a path browser, not an unbounded recursive tree rendered in one request. Selecting a file never starts inference or a sandbox.
 

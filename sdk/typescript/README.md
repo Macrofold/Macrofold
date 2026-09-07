@@ -1,4 +1,4 @@
-# Hosted agents TypeScript SDK
+# Macrofold TypeScript SDK
 
 Typed requests, recoverable mutations, and durable event streaming for the hosted agent API. Requires Node.js 24 or a modern browser runtime. Keep API keys in server-side code.
 
@@ -11,7 +11,7 @@ From the repository root, run `pnpm install` and `pnpm sdk:build`. In your appli
 Set `AGENT_HOST` and `AGENT_API_KEY` in your server environment. Select an enabled model from the deployment catalog. Hosted execution can consume credits.
 
 ```ts
-import { Client } from '@hosted-agents/sdk';
+import { Client } from 'macrofold';
 const client = new Client({
   baseURL: process.env.AGENT_HOST!,
   token: process.env.AGENT_API_KEY!,

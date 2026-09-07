@@ -4,7 +4,7 @@ Start with the current run or operation ID and its error code. Preserve the requ
 
 ## Local setup fails
 
-Run `node --version`, `pnpm --version`, and `docker info`. Use Node 24 and pnpm 10, start Docker, and retry `pnpm setup`. If the web port is occupied, inspect the existing process before starting another copy. `pnpm doctor` checks the selected environment.
+Run `node --version`, `pnpm --version`, and `docker info`. Use Node 24 and pnpm 10, start Docker, and retry `pnpm run setup`. If the web port is occupied, inspect the existing process before starting another copy. `pnpm doctor` checks the selected environment.
 
 A job that remains queued locally often means the second terminal is missing `pnpm worker`. Do not replace a local database URL with a production URL to fix setup.
 

@@ -9,7 +9,7 @@ Follow [local setup](docs/getting-started/local-development.md). It uses determi
 ```sh
 pnpm check
 pnpm test:domain
-python3 scripts/check-docs.py
+pnpm docs:check
 ```
 
 Domain tests use a disposable database and filesystem. For browser changes, use the isolated dashboard runner described in [testing and CI](docs/engineering/testing.md); do not attach tests to a shared preview or customer database.
@@ -20,7 +20,7 @@ Preserve provider boundaries, tenant authorization, durable execution identity, 
 
 Follow [testing rules](TESTING.md) and [documentation rules](.agents/rules/documentation.md). Documentation changes should help the intended reader accomplish a task and keep technical details in their owning guide.
 
-For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). They route implementation and review to focused rules for the affected layer, with no additional agent service or plugin required.
+For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). Read the complete shared baseline before implementation or review, then the affected feature guides and scoped instructions. No additional agent service or plugin is required.
 
 ## Open a pull request
 

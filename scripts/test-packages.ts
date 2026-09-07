@@ -35,7 +35,7 @@ try {
   if (version.data.version !== '0.1.0') throw new Error('Installed CLI entry point failed.');
   await writeFile(
     path.join(temporary, 'verify.mjs'),
-    "import {Client,ApiError} from '@hosted-agents/sdk'; if(typeof Client!=='function'||typeof ApiError!=='function')throw new Error('SDK exports missing'); console.log('SDK exports verified');\n",
+    "import {Client,ApiError} from 'macrofold'; if(typeof Client!=='function'||typeof ApiError!=='function')throw new Error('SDK exports missing'); console.log('SDK exports verified');\n",
   );
   await exec(process.execPath, ['verify.mjs'], { cwd: temporary });
   const artifacts = path.join(root, '.data/releases');

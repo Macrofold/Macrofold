@@ -9,7 +9,7 @@ import { GET as openapi } from '../../apps/web/app/openapi.json/route';
 
 it('serves current API metadata with the deployment origin', async () => {
   const response = await openapi().json();
-  expect(response.info.title).toBe('Hosted agents API');
+  expect(response.info.title).toBe('Macrofold API');
   expect(response.info.description).toContain('Manage persistent projects');
   expect(response.info.description).not.toContain('Design contract');
   expect(response.servers).toEqual([{ url: process.env.APP_ORIGIN || 'http://localhost:3210' }]);

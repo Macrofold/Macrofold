@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { once } from 'node:events';
 import { captureSnapshot, relativePath, type SnapshotEntry } from '../../packages/runtime/src/manifest';
 import { restoreSnapshot } from '../../packages/runtime/src/restore';
 
@@ -194,3 +195,63 @@ it.each(['prefix', 'suffix'])(
     expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
   },
 );
+
+async function crashAt(mode: string, snapshot: string, roots: { workspace: string; home: string }) {
+  const { fork } = await import('node:child_process');
+  const child = fork(
+    path.resolve('tests/fixtures/filesystem-crash.mjs'),
+    [mode, snapshot, roots.workspace, roots.home],
+    {
+      execArgv: ['--import', 'tsx'],
+      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+    },
+  );
+  const exited = once(child, 'exit');
+  const timeout = setTimeout(() => child.kill('SIGKILL'), 10000);
+  let output = '';
+  child.stderr!.on('data', (bytes) => {
+    output += bytes;
+  });
+  try {
+    const paused = await Promise.race([
+      once(child, 'message').then(([message]) => message),
+      exited.then(() => {
+        throw new Error('Crash fixture exited before barrier: ' + output);
+      }),
+    ]);
+    expect(paused).toEqual({ paused: true });
+  } finally {
+    clearTimeout(timeout);
+    child.kill('SIGKILL');
+    await exited;
+  }
+}
+it.each(['before-file', 'after-file'])(
+  'recovers a process killed %s publication in an unstarted replacement directory',
+  async (mode) => {
+    const f = await fixture();
+    f.index.entries.push({ ...f.index.entries[0], path: 'second.txt' });
+    await f.publish();
+    await crashAt(mode, f.snapshot, f.target);
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe(
+      mode === 'before-file' ? 'retained content' : 'verified new content',
+    );
+    await expect(readFile(path.join(f.target.workspace, 'second.txt'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    // Partial replacement state is never started. A subsequent restore verifies every file again.
+    await restoreSnapshot(f.snapshot, f.target);
+    for (const name of ['file.txt', 'second.txt'])
+      expect(await readFile(path.join(f.target.workspace, name), 'utf8')).toBe('verified new content');
+  },
+);
+it('does not publish a partial capture after process death and rebuilds its index on retry', async () => {
+  const f = await fixture(),
+    output = path.join(f.root, 'crashed-capture');
+  await crashAt('capture', output, f.source);
+  await expect(readFile(path.join(output, 'index.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+  const result = await captureSnapshot(f.source, output);
+  expect(JSON.parse(await readFile(path.join(output, 'index.json'), 'utf8'))).toEqual(result);
+  expect(result.entries[0].sha256).toBe(f.index.entries[0].sha256);
+  expect(await readFile(path.join(f.source.workspace, 'file.txt'), 'utf8')).toBe('verified new content');
+});

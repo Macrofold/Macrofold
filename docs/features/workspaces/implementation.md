@@ -30,11 +30,15 @@ Restore takes the workspace lock, refuses an active writer, preserves the curren
 
 The dashboard lists paginated file paths with server-side substring search, sizes and revisions, supports text editing with CodeMirror, uploads and downloads, and exposes checkpoints/restore. User HTML is never executed as a same-origin preview. Direct file requests are limited to 4 MiB; previews are bounded to 1 MiB. Staged transfer limits are 25 MiB per file, 1,000 files and 250 MiB per plan. Runtime internal checkpoints can be larger.
 
+The dashboard autosaves existing files after a two-second debounce. Editor saves retain the visible draft and disable competing actions until the saved revision finishes refreshing. A failed refresh does not clear the draft. Background refreshes preserve unsaved text and its original revision so a stale save receives an explicit conflict.
+
 Mutations require the observed workspace revision (`If-Match` or a body revision). Stale edits return 412; a busy writer returns 409. Push plans compare local, baseline and remote hashes; unknown baseline differs from known absent. Conflicts receive no destructive capability. PUT staging binds exact size/type/object identity; application publication verifies SHA-256. Raw staging has TLS/provider encryption until verified content is application-encrypted. The operator configures exact-origin R2 CORS and one-day staging expiration.
 
 Pull uses local preconditions and atomic per-file replacement; partial application is reported honestly. Symlink ancestors, traversal, reserved metadata paths and ambiguous platform filenames are rejected by the CLI. Deletion and ignored-file inclusion are explicit. Dry run produces a plan without upload grants. Plans expire after 30 minutes. Browser/CLI/API all use the same services.
 
 Exports produce a standard Git bundle or `workspace/` plus a separate root `manifest.json` in a portable tar archive. User `manifest.json` cannot overwrite export metadata. Confined relative symlinks retain their identity; escaping links fail export. Public exports expose authorized project content, not vault keys or arbitrary session credentials. The internal database/object restore preserves native sessions; the customer archive is a project-file export, not a universal conversation migration format.
+
+Diff pagination selects paths first. For each selected entry, combined checkpoint sizes must be below 512,000 bytes before either content object is read. Larger entries retain path/hash/change metadata and return `binary: null` without a patch. Small entries retain content verification and binary detection. This bounds content memory per selected diff entry; it does not make whole-workspace manifest indexing a streaming operation.
 
 ## Git implementation and synchronization
 

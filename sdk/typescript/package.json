@@ -1,5 +1,5 @@
 {
-  "name": "@hosted-agents/sdk",
+  "name": "macrofold",
   "version": "0.1.0",
   "description": "Typed API client and durable event streaming for hosted agents",
   "type": "module",

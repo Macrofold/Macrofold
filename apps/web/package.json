@@ -4,14 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm -w docs:generate && pnpm --filter @hosted-agents/sdk build && next dev -p 3210",
-    "build": "pnpm -w docs:generate && pnpm --filter @hosted-agents/sdk build && next build",
+    "dev": "pnpm -w docs:generate && pnpm --filter macrofold build && next dev -p 3210",
+    "build": "pnpm -w docs:generate && pnpm --filter macrofold build && next build",
     "start": "next start -p 3210"
   },
   "dependencies": {
     "next": "16.3.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@hosted-agents/sdk": "workspace:*"
+    "macrofold": "workspace:*"
   }
 }

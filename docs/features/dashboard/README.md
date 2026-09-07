@@ -28,7 +28,7 @@ Waiting runs show why they are waiting, how long they have waited, their expiry 
 
 ## Work with files
 
-Choose a project and workspace, search its files, and open a file in the editor. Save against the current revision. If another writer changes it, compare the latest version before retrying. Checkpoint restore is an explicit action; selecting history does not restore it.
+Choose a project and workspace, search its files, and open a file in the editor. Edits save automatically after you stop typing for two seconds. The status changes from **Unsaved changes** to **Saving…** to **Saved** after the save and refresh finish. A failed save keeps your draft and offers **Retry save**. If another writer changes it, compare the latest version before retrying. Checkpoint restore is an explicit action; selecting history does not restore it.
 
 ## Changes from other clients
 

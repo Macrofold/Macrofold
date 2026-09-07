@@ -4,7 +4,7 @@
 
 - [Documentation](docs/README.md): Build with persistent cloud agents from the dashboard, API, or terminal.
 - [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
-- [Run locally](docs/getting-started/local-development.md): Start the free local simulator with Node, pnpm, and Docker.
+- [Run locally](docs/getting-started/local-development.md): Start the free local simulator and test customer workflows.
 - [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
 - [Dashboard](docs/features/dashboard/README.md): Navigate projects, files, run history, access, and usage.
 - [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
@@ -16,8 +16,12 @@
 - [API conventions](docs/features/api/README.md): Authenticate requests, paginate results, handle errors, and retry mutations.
 - [Streaming and webhooks](docs/features/api/events.md): Reconnect to run events and verify reliable webhook delivery.
 - [Terminal CLI](docs/features/cli/README.md): Link a project, chat remotely, use worktrees, and transfer files.
+- [SDKs](docs/features/api/sdks/README.md): Choose a Macrofold client for TypeScript, Python, Go, Rust, or Java.
 - [TypeScript SDK](sdk/typescript/README.md): Use typed requests and recoverable event streams in TypeScript.
 - [Python SDK](sdk/python/README.md): Integrate runs and durable streams with the Python client.
+- [Go SDK](sdk/go/README.md): Make typed API requests and stream agent progress in Go.
+- [Rust SDK](sdk/rust/README.md): Make typed API requests and stream agent progress in Rust.
+- [Java SDK](sdk/java/README.md): Make typed API requests and stream agent progress in Java.
 - [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
 - [Deploy on Vercel](docs/operations/launch-guide.md): Configure and deploy the application, database, storage, and native runtime.
 - [Environment configuration](docs/operations/launch-environment.md): Keep local, runtime, and migration configuration separate.

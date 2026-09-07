@@ -1,5 +1,7 @@
 # Engineering guide
 
+For a first contribution: [run locally](../getting-started/local-development.md), find the owner in the [codebase map](../architecture/codebase.md), and follow [contributing](../../CONTRIBUTING.md). Use the references below when you need more detail.
+
 - [Delivery scope](delivery.md): implemented capabilities and release acceptance.
 - [Testing and CI](testing.md): suites, gates and evidence boundaries; [mandatory testing rules](../../TESTING.md).
 - [Working with coding agents](agent-guidance.md): instruction loading, implementation principles, and source research.

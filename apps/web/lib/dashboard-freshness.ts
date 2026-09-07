@@ -1,4 +1,4 @@
-import { sseFrames } from '@hosted-agents/sdk';
+import { sseFrames } from 'macrofold';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { dashboardCategories, type DashboardCategory } from '../../../packages/contracts/dashboard';
 

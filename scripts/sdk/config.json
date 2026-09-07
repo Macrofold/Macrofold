@@ -1,0 +1,34 @@
+{
+  "version": "7.24.0",
+  "sha256": "4b83ccc6fd43056c8c631cd0195e5100bd0550912502527bab09ac76152dab0c",
+  "targets": {
+    "go": {
+      "packageName": "macrofold",
+      "packageVersion": "0.1.0",
+      "gitUserId": "Macrofold",
+      "gitRepoId": "Macrofold/sdk/go",
+      "isGoSubmodule": true,
+      "modelNameMappings": {
+        "NewApiKey": "CreatedApiKey",
+        "NewWebhook": "CreatedWebhook"
+      }
+    },
+    "rust": {
+      "packageName": "macrofold",
+      "packageVersion": "0.1.0",
+      "packageAuthors": "Macrofold contributors",
+      "library": "reqwest",
+      "supportMiddleware": false
+    },
+    "java": {
+      "groupId": "dev.macrofold",
+      "artifactId": "macrofold",
+      "artifactVersion": "0.1.0",
+      "invokerPackage": "dev.macrofold",
+      "apiPackage": "dev.macrofold.api",
+      "modelPackage": "dev.macrofold.model",
+      "library": "native",
+      "openApiNullable": false
+    }
+  }
+}

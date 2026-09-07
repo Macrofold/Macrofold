@@ -4,6 +4,10 @@ Use this policy when adding features, fixing bugs, or reviewing changes. It supp
 
 The current stack is strict TypeScript on Node 24, Next.js 16/React 19, Vitest 4 with V8 coverage, Playwright with axe, PostgreSQL with `pg`, and Stryker. The Python SDK uses pytest and HTTPX; cost checks use `unittest` and `Decimal`. Use the pinned dependencies and existing helpers. Official documentation can describe newer versions: check compatibility before copying APIs or configuration.
 
+Go, Rust, and Java SDK changes also require their HTTP/SSE transport fixtures and `pnpm test:sdks`, which creates a disposable database, actual API handler, and simulator worker. Install Go, Rust, JDK 21, and Maven first. API contract changes require `pnpm sdk:generate:all`; see [SDK ownership and testing](docs/features/api/sdks/implementation.md).
+
+When testing authentication libraries, explicitly enable the serving-mode protections being asserted: Better Auth disables origin checks under Vitest. Restore modified test context afterward. Crash-recovery tests should kill a real fixture process at a known publication boundary; thrown exceptions alone cannot demonstrate recovery after abrupt process death.
+
 ## When to add or update tests
 
 - **New or changed behavior:** include tests in the same pull request. Identify the observable success result, meaningful rejection/failure cases, and relevant boundaries before implementing. Cover existing behavior that the change could break.
@@ -123,7 +127,7 @@ pnpm check
 pnpm test:coverage
 
 # Documentation links and requirement evidence
-python3 scripts/check-docs.py
+pnpm docs:check
 ```
 
 Add `pnpm test:e2e` for browser workflows, `pnpm test:cli` for CLI behavior, `pnpm test:packages` for distributable clients, `pnpm test:native` for runtime changes, or `pnpm test:load` for scheduling/capacity changes. Browser and CLI journeys require an explicitly configured local app/worker with synthetic test data; they do not use the disposable domain wrapper. Use `pnpm build` when Next.js routing, server/client boundaries, or build configuration changes. See [CI](.github/workflows/verify.yml) for installation/restore, Python, POSIX terminal, and image-specific invocations and prerequisites.

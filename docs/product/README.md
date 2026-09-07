@@ -1,5 +1,7 @@
 # Product definition
 
+Read the [Design Language](design-language.md) for visual, interaction, copy, and documentation preferences. Explore the [marketing concepts](marketing/README.md) for ten visual directions, or read the product model below.
+
 ## Outcome and audience
 
 Provide an inference-like API whose unit of work is a full agent harness. A developer submits a task, the harness uses a cloud computer and authorized tools for multiple turns, and the developer polls, streams, or receives a completion webhook. A filesystem and conversation can survive between invocations.
@@ -22,7 +24,7 @@ Keep four concepts distinct: the sandbox supplies execution isolation; the harne
 
 ## Launch scope and boundaries
 
-Launch includes all three harnesses, native tools, Brave web search, arbitrary compatible remote MCPs, pinned stdio MCPs, organization authentication, API keys, subscriptions, prepaid credits, signed webhooks, TypeScript/Python SDKs, a streaming interactive CLI, public API docs, persistent files, GitHub integration, analytics, and operator reporting.
+Launch includes all three harnesses, native tools, Brave web search, arbitrary compatible remote MCPs, pinned stdio MCPs, organization authentication, API keys, subscriptions, prepaid credits, signed webhooks, TypeScript, Python, Go, Rust, and Java SDKs, a streaming interactive CLI, public API docs, persistent files, GitHub integration, analytics, and operator reporting.
 
 The initial dashboard has a useful file editor, not a full IDE or unrestricted browser terminal. The initial deployment is single-region. The application does not build its own VM scheduler, merge conflict AI, OAuth library, payment processor, analytics warehouse, or a general multi-provider fallback router. Enterprise SSO/SCIM, multi-region writes, other Git hosts, arbitrary custom machine images, and autonomous infrastructure mutations are subsequent additions rather than hidden launch requirements.
 
@@ -30,23 +32,23 @@ Operators can read and recommend through the management MCP. Tenant agents can a
 
 ## Defaults visible to users
 
-| Setting | Default |
-|---|---|
-| Project mode | Persistent |
-| Agent filesystem | Independent workspace and branch |
-| Workspace concurrency | One active writer |
-| Terminal execution | Remote; local linking and selection have no file side effects |
-| Chat while a run is busy | Explicit queued follow-up, up to 10 pending per session, 24-hour default queue deadline, user-shortenable |
-| Run timeout | 15 minutes, maximum 2 hours |
-| Run budget | $2, bounded by organization/platform caps |
-| Git integration | Optional automatic merge/push after explicit project enablement |
-| Conflict | Keep work; surface conflict; require a new resolution action |
-| BYOK failure | Surface error; no managed-credit fallback |
-| Public signup | Email verification required before execution |
-| Tool authority | Explicit grants, then autonomous execution within grants |
-| Product/operator timezone | UTC metrics; timestamps localized for display |
+| Setting                   | Default                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Project mode              | Persistent                                                                                                |
+| Agent filesystem          | Independent workspace and branch                                                                          |
+| Workspace concurrency     | One active writer                                                                                         |
+| Terminal execution        | Remote; local linking and selection have no file side effects                                             |
+| Chat while a run is busy  | Explicit queued follow-up, up to 10 pending per session, 24-hour default queue deadline, user-shortenable |
+| Run timeout               | 15 minutes, maximum 2 hours                                                                               |
+| Run budget                | $2, bounded by organization/platform caps                                                                 |
+| Git integration           | Optional automatic merge/push after explicit project enablement                                           |
+| Conflict                  | Keep work; surface conflict; require a new resolution action                                              |
+| BYOK failure              | Surface error; no managed-credit fallback                                                                 |
+| Public signup             | Email verification required before execution                                                              |
+| Tool authority            | Explicit grants, then autonomous execution within grants                                                  |
+| Product/operator timezone | UTC metrics; timestamps localized for display                                                             |
 
-Persist latest project files until explicit deletion. Keep terminal run/accounting identities separately from detailed content; final response and tool history follow their 30/90-day retention. Default detailed trace/artifact retention is 30 days for PAYG and 90 for Pro and Scale; show the expiration before users start work and allow exports. Older traces may be archived to R2 during their retention period. Historical filesystem checkpoints keep all for 24 hours, daily for 30 days, weekly for 12 weeks; always protect the latest verified checkpoint and explicit user-pinned checkpoints. User-pinned checkpoints count toward storage.
+Persist latest project files until explicit deletion. Keep terminal run/accounting identities separately from detailed content; final response and tool history follow their 30/90-day retention. Default detailed trace/artifact retention is 30 days for Starter and 90 for Pro and Scale; show the expiration before users start work and allow exports. Older traces may be archived to R2 during their retention period. Historical filesystem checkpoints keep all for 24 hours, daily for 30 days, weekly for 12 weeks; always protect the latest verified checkpoint and explicit user-pinned checkpoints. User-pinned checkpoints count toward storage.
 
 ## Success criteria
 

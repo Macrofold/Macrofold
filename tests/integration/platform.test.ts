@@ -520,3 +520,64 @@ it('limits diff content reads to returned paths while retaining truncation and p
     reads.mockRestore();
   }
 });
+
+it.each([
+  [255999, 256000, true],
+  [256000, 256000, false],
+  [256000, 256001, false],
+  [0, 1073741824, false],
+  [1073741824, 0, false],
+] as const)('checks diff sizes %i + %i before loading content', async (before, after, inspect) => {
+  const project = (await request('POST', '/v1/projects', { name: 'Diff size boundary' })).value;
+  const workspaceId = project.default_workspace_id;
+  // Publish fixture metadata directly: large objects deliberately do not exist. A read must fail.
+  const entry = async (size: number, byte: number): Promise<FileRecord[]> =>
+    size
+      ? [
+          {
+            ...(inspect
+              ? await saveContent(a.organizationId, Buffer.alloc(size, byte))
+              : {
+                  key: 'missing-large-object',
+                  sha256: String(byte).repeat(64).slice(0, 64),
+                  size_bytes: String(size),
+                }),
+            path: 'data.txt',
+            type: 'file',
+            modified_at: new Date().toISOString(),
+            git_ignored: false,
+          },
+        ]
+      : [];
+  const oldFiles = await entry(before, 1),
+    newFiles = await entry(after, 2);
+  const base = await transaction(a.organizationId, async (tx) => {
+    const cp = await resources.create(tx, 'checkpoints', a.organizationId, {
+      workspace_id: workspaceId,
+      project_id: project.id,
+      files: oldFiles,
+    });
+    await resources.update(tx, 'workspaces', workspaceId, { files: newFiles });
+    return cp.id;
+  });
+  const storage = await import('../../packages/providers/src/storage');
+  const reads = vi.spyOn(storage, 'readContent');
+  try {
+    const result = await request('GET', `/v1/workspaces/${workspaceId}/diff?base_checkpoint_id=${base}`);
+    expect(result.response.status).toBe(200);
+    check('WorkspaceDiff', result.value);
+    expect(result.value.data).toHaveLength(1);
+    expect(result.value.data[0]).toMatchObject({
+      path: 'data.txt',
+      change: before === 0 ? 'added' : after === 0 ? 'deleted' : 'modified',
+      before_sha256: oldFiles[0]?.sha256 ?? null,
+      after_sha256: newFiles[0]?.sha256 ?? null,
+      binary: inspect ? false : null,
+    });
+    expect(reads).toHaveBeenCalledTimes(inspect ? 2 : 0);
+    if (inspect) expect(result.value.data[0].patch).toContain('data.txt');
+    else expect(result.value.data[0]).not.toHaveProperty('patch');
+  } finally {
+    reads.mockRestore();
+  }
+});

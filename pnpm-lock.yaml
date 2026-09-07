@@ -254,7 +254,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@hosted-agents/sdk':
+      macrofold:
         specifier: workspace:*
         version: link:../../sdk/typescript
       next:

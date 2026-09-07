@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from hosted_agents import ApiError, Client, TransportError
+from macrofold import ApiError, Client, TransportError
 
 
 def test_mutation_reuses_idempotency_after_lost_response(monkeypatch):

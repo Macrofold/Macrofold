@@ -11,6 +11,41 @@ concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  sdks:
+    name: Generated SDK contracts and transports
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      RUSTUP_TOOLCHAIN: '1.94.1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.13.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: sdk/go/go.sum
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm sdk:generate:all
+      - name: Check generation drift
+        run: git diff --exit-code -- packages/contracts sdk
+      - run: rustup toolchain install 1.94.1 --profile minimal
+      - run: pnpm run setup
+      - run: pnpm test:sdks
+      - name: Stop SDK fixture infrastructure
+        if: always()
+        run: docker compose -f infra/compose.yml down -v
   acceptance:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -48,7 +83,7 @@ jobs:
           COVERAGE_FILE=coverage/python/.coverage python -m coverage json -o coverage/python/coverage.json
           pnpm docs:check
           pnpm contracts
-          git diff --exit-code -- packages/contracts/api.d.ts sdk/typescript/src/schema.d.ts sdk/typescript/src/routes.ts sdk/python/hosted_agents/routes.json
+          git diff --exit-code -- packages/contracts/api.d.ts sdk/typescript/src/schema.d.ts sdk/typescript/src/routes.ts sdk/python/macrofold/routes.json
           pnpm audit --audit-level high
       - name: Coverage report
         if: always()

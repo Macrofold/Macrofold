@@ -1,6 +1,7 @@
 import { lstat, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { release, defaultScopes } from './settings';
 import { Client, ApiError, serviceOrigin } from '../../../sdk/typescript/src/client';
 import { z } from 'zod';
@@ -169,13 +170,15 @@ export async function oauthRequest(
   origin: string,
   endpoint: string,
   params: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
+  signal?.throwIfAborted();
   const response = await fetch(serviceOrigin(origin) + endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(params),
     redirect: 'error',
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.any([AbortSignal.timeout(30000), ...(signal ? [signal] : [])]),
   });
   const result = z.record(z.string(), z.unknown()).parse(await response.json());
   if (!response.ok)
@@ -196,29 +199,38 @@ export async function deviceLogin(options: {
   const origin = serviceOrigin(options.origin);
   const scope = [...new Set([...defaultScopes, ...(options.scope || [])])];
   const device = deviceSchema.parse(
-    await oauthRequest(origin, '/auth/device/code', {
-      client_id: release.clientId,
-      scope: scope.join(' '),
-      resource: `${origin}/v1`,
-    }),
+    await oauthRequest(
+      origin,
+      '/auth/device/code',
+      { client_id: release.clientId, scope: scope.join(' '), resource: `${origin}/v1` },
+      options.signal,
+    ),
   );
   const verification = new URL(device.verification_uri_complete || device.verification_uri, origin);
   if (verification.origin !== origin)
     throw new Error('The server returned a verification URL outside the approved service origin.');
-  await options.onCode(verification.toString(), String(device.user_code));
-  let interval = Math.max(1, Number(device.interval) || 5);
-  const deadline = Date.now() + Math.min(1800, Number(device.expires_in) || 600) * 1000;
+  const deadline = Date.now() + device.expires_in * 1000;
+  await options.onCode(verification.toString(), device.user_code);
+  let interval = Math.max(1, device.interval ?? 5);
   while (Date.now() < deadline) {
     options.signal?.throwIfAborted();
-    await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+    await delay(Math.min(interval * 1000, deadline - Date.now()), undefined, { signal: options.signal });
+    if (Date.now() >= deadline) break;
+    const expiry = AbortSignal.timeout(Math.max(1, deadline - Date.now()));
+    const signal = AbortSignal.any([expiry, ...(options.signal ? [options.signal] : [])]);
     try {
       const tokens = tokenSchema.parse(
-        await oauthRequest(origin, '/auth/oauth2/token', {
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-          device_code: device.device_code,
-          client_id: release.clientId,
-          resource: `${origin}/v1`,
-        }),
+        await oauthRequest(
+          origin,
+          '/auth/oauth2/token',
+          {
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+            device_code: device.device_code,
+            client_id: release.clientId,
+            resource: `${origin}/v1`,
+          },
+          signal,
+        ),
       );
       const profile: Profile = {
         origin,
@@ -227,10 +239,13 @@ export async function deviceLogin(options: {
         expiresAt: Date.now() + Number(tokens.expires_in) * 1000,
         scopes: String(tokens.scope || scope.join(' ')).split(' '),
       };
-      await new Client({ baseURL: origin, token: profile.accessToken! }).request('getIdentity');
+      await new Client({ baseURL: origin, token: tokens.access_token }).request('getIdentity', { signal });
+      signal.throwIfAborted();
       await saveProfile(options.profile, profile);
       return;
     } catch (error) {
+      options.signal?.throwIfAborted();
+      if (expiry.aborted) break;
       if (error instanceof ApiError && error.code === 'authorization_pending') continue;
       if (error instanceof ApiError && error.code === 'slow_down') {
         interval += 5;

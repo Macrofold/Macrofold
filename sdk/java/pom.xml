@@ -1,0 +1,109 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>dev.macrofold</groupId>
+    <artifactId>macrofold</artifactId>
+    <packaging>jar</packaging>
+    <name>macrofold</name>
+    <version>0.1.0</version>
+    <url>https://github.com/Macrofold/Macrofold</url>
+    <description>Macrofold Java SDK</description>
+    <scm>
+        <connection>scm:git:git@github.com:Macrofold/Macrofold.git</connection>
+        <developerConnection>scm:git:git@github.com:Macrofold/Macrofold.git</developerConnection>
+        <url>https://github.com/Macrofold/Macrofold</url>
+    </scm>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Macrofold contributors</name>
+            
+            <organization>Macrofold</organization>
+            <organizationUrl>https://github.com/Macrofold</organizationUrl>
+        </developer>
+    </developers>
+
+    <build>
+        <resources>
+            <resource><directory>.</directory><includes><include>LICENSE</include><include>NOTICE</include></includes><targetPath>META-INF</targetPath></resource>
+        </resources>
+        <plugins>
+            <plugin><artifactId>maven-compiler-plugin</artifactId><version>3.10.1</version></plugin>
+            <plugin><artifactId>maven-surefire-plugin</artifactId><version>3.2.5</version></plugin>
+            <plugin><artifactId>maven-jar-plugin</artifactId><version>3.3.0</version></plugin>
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId><version>3.2.1</version>
+                <executions><execution><goals><goal>jar-no-fork</goal></goals></execution></executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+
+        <!-- JSON processing: jackson -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson-annotations-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openapitools</groupId>
+            <artifactId>jackson-databind-nullable</artifactId>
+            <version>${jackson-databind-nullable-version}</version>
+        </dependency>
+
+        <!-- @Nullable annotation -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>${jakarta-annotation-version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>11</maven.compiler.release>
+        <jackson-version>2.21.1</jackson-version>
+        <jackson-annotations-version>2.21</jackson-annotations-version>
+        <jackson-databind-nullable-version>0.2.10</jackson-databind-nullable-version>
+        <jakarta-annotation-version>1.3.5</jakarta-annotation-version>
+        <junit-version>5.10.2</junit-version>
+    </properties>
+</project>

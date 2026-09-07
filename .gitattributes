@@ -1,0 +1,7 @@
+# Collapse contract-generated SDK sources in reviews; keep maintained transports and tests visible.
+sdk/go/*.go linguist-generated=true
+sdk/go/macrofold*.go linguist-generated=false
+sdk/rust/src/apis/** linguist-generated=true
+sdk/rust/src/models/** linguist-generated=true
+sdk/java/src/main/java/** linguist-generated=true
+sdk/java/src/main/java/dev/macrofold/Client.java linguist-generated=false

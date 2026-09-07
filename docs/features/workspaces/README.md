@@ -8,7 +8,7 @@ A project groups related workspaces. Start with its main workspace, then create 
 
 ## Browse and edit files
 
-Open a project in the dashboard to browse, search, preview, edit, upload, and download files. Saves create a new persisted revision. During active execution, file views use the last published revision rather than a live mutable filesystem.
+Open a project in the dashboard to browse, search, preview, edit, upload, and download files. Existing files autosave after two seconds without typing; **Saved** confirms persistence and refresh. Creating a file remains an explicit action. Saves create a new persisted revision. During active execution, file views use the last published revision rather than a live mutable filesystem.
 
 Writes compare the revision you read with current state. A stale revision returns 412; an active writer returns 409. Refresh and reconcile changes before saving again.
 
@@ -20,6 +20,10 @@ Writes compare the revision you read with current state. A stale revision return
 | Transfer plan        | 1,000 files and 250 MiB total; expires after 30 minutes |
 
 CLI push and pull are explicit, version-checked transfers. Preview with `--dry-run`; ignored files and deletions require opt-in. See the [CLI guide](../cli/README.md).
+
+## Compare revisions
+
+The diff API lists changed paths between checkpoints. Inline text patches are available when both versions together are smaller than 512,000 bytes (500 KiB) and contain no binary marker. Larger files are identified from checkpoint metadata without loading their contents; binary classification is `null` when not inspected. File downloads remain available separately.
 
 ## Checkpoints and recovery
 

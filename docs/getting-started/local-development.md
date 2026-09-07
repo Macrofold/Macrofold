@@ -1,61 +1,70 @@
 # Run locally
 
-Start the dashboard, API, and worker on your own computer. The default profile uses simulated providers and makes no paid calls.
+Run the dashboard, API, and simulated agents without paid provider calls. You need Node 24, pnpm 10, Git, and Docker running.
 
-## Prerequisites
+## Start
 
-- Node.js 24; `.nvmrc` selects the repository's tested version if you use nvm.
-- pnpm 10; `package.json` pins the development toolchain.
-- Docker with its daemon running.
-- Git and two terminal windows.
-
-## Install and start
+From the repository root, in terminal 1:
 
 ```sh
-git clone https://github.com/Macrofold/Macrofold.git
-cd Macrofold
 pnpm install
-pnpm setup
+pnpm run setup
 pnpm dev
 ```
 
-From the same checkout in another terminal:
+In terminal 2, from the same directory:
 
 ```sh
 pnpm worker
 ```
 
-Open **http://localhost:3210** and sign in:
+Open **http://localhost:3210**. Local demo login: `demo@example.test` / `local-only-demo-2026`.
 
-| Field    | Local demo value       |
-| -------- | ---------------------- |
-| Email    | `demo@example.test`    |
-| Password | `local-only-demo-2026` |
+Setup handles PostgreSQL, migrations, demo data, and the [local email inbox](http://localhost:58025). It preserves your existing `.env`; keep that file configured for local simulation. The worker must stay running for jobs to execute. Simulated agents test the workflow, not actual model reasoning.
 
-These credentials work only with the local seeded fixture. Never use them for a hosted installation.
+## Test
 
-## What setup creates
+For everyday changes:
 
-`pnpm setup` creates `.env` from `.env.example` if it is absent, starts PostgreSQL and Mailpit, applies migrations, registers the CLI OAuth client, and seeds demo projects and credits. An existing `.env` is preserved. The worker dispatches queued runs and performs maintenance; the web process serves the dashboard and API.
+```sh
+pnpm check
+pnpm test:domain
+```
 
-The simulator exercises runs, streaming, persistence, and accounting with deterministic outputs. It does not perform real reasoning or authenticate external accounts. Provider integration and cloud deployment are separate from this local profile.
+For **customer journeys** through the browser, CLI, and Python SDK, install these extras once (Python 3.11+ required):
 
-## Configuration
+```sh
+pnpm exec playwright install chromium
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install ./sdk/python
+```
 
-Keep local settings in the repository's `.env`. Keep hosted runtime settings in your deployment's secret manager, and migration credentials in an administrative environment. Avoid additional `.env.local` overrides: Next.js and source scripts must agree about the active profile. The [environment reference](../operations/launch-environment.md) describes these boundaries.
+Then run:
 
-Use `pnpm doctor` to inspect configuration and readiness. Local Mailpit captures outgoing development email; find its UI port in [the Compose file](../../infra/compose.yml).
+```sh
+source .venv/bin/activate
+COVERAGE_DIR="$PWD/coverage/customer-$(uuidgen)" pnpm test:dashboard:isolated
+```
 
-## Stop and restart
+Keep PostgreSQL running. This test starts its own app, worker, and temporary database/files, then cleans them up without stopping your preview. Reports remain in the new coverage directory. Avoid editing source during the test build.
 
-Stop the web process and worker with Ctrl-C. To stop their local services without deleting data:
+`pnpm test:packages` separately checks CLI/TypeScript SDK installation into a temporary customer project; it is an installation smoke test.
+
+## Try the API
+
+Create a key in the dashboard's **API keys** page, then use the [interactive API reference](http://localhost:3210/reference). Choose `fixture-model` for local runs. [The API quickstart](../features/api/quickstart.md) walks through a complete request.
+
+Postman is optional: import [the OpenAPI file](../api/openapi.json), set the base URL to `http://localhost:3210`, and use your key as a Bearer token.
+
+## Stop
+
+Press Ctrl-C in both app terminals, then stop the database and email service without deleting data:
 
 ```sh
 docker compose -f infra/compose.yml stop
 ```
 
-Run `pnpm setup` to start services again, then start the web process and worker. The seeded credit uses an idempotent reference. Existing projects remain available.
+To restart, run `pnpm run setup`, `pnpm dev`, and `pnpm worker` again.
 
-## Develop and test
-
-Run `pnpm check` for strict types and `pnpm test:domain` for isolated domain tests. Follow [contributing](../../CONTRIBUTING.md) before changing code and [troubleshooting](troubleshooting.md) if setup fails.
+Need more? [Troubleshooting](troubleshooting.md) · [All tests](../engineering/testing.md) · [Environment configuration](../operations/launch-environment.md).

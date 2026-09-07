@@ -2,6 +2,8 @@
 
 Read `apps/web/AGENTS.md` and the relevant installed Next.js documentation before Next.js changes. Use the current React, TanStack Query, Radix, Tailwind/CSS, and component patterns; do not add a competing frontend or state library for a routine feature.
 
+Before changing visual design, product copy, or interaction patterns, read the [Design Language](../../docs/product/design-language.md). It owns design preferences and reference priorities; consult linked research as needed rather than copying those preferences into new rules.
+
 ## Boundaries and data
 
 Keep route handlers thin and authorize through the existing server/domain boundary. A layout, hidden button, middleware redirect, or client route guard is not resource authorization. Pass minimal safe data to client components; keep credentials and privileged objects server-side. Treat server actions, if added, as public mutation endpoints.
@@ -9,6 +11,8 @@ Keep route handlers thin and authorize through the existing server/domain bounda
 Use server components for noninteractive server-rendered content and client components where interaction requires them. Preserve the dashboard's existing query-driven shell. Do not rewrite a working client flow just to match a new tutorial. Scope caching by authorized data identity; never place tenant responses or mutable request state in an unscoped module/global cache.
 
 Query keys must distinguish organization, resource, and meaningful filters. Reuse query helpers and mutation invalidation. On identity/organization changes, prevent old requests and cached data from appearing in the new context. Show usable initial loading, background refresh, empty, error, retry, and pending-mutation states; preserve selections and unsaved work.
+
+When an editor mirrors query data, keep its draft protected until the post-save cache contains the saved revision. Test a delayed refresh; clearing the dirty flag before invalidation completes can restore stale content.
 
 ## React and interaction
 

@@ -2,11 +2,22 @@
 
 Build the smallest complete change that satisfies the request and preserves existing behavior. Prefer clear code and established tools over cleverness, speculative flexibility, or line-count targets. User instructions override repository guidance.
 
+## Temporary notes: pre-launch
+
+The product has never been deployed and has no real users or production runs. Existing local accounts and runs are development/test fixtures, not a deployed customer population.
+
+Do not add compatibility layers, legacy-data handling, warnings, or TODOs solely to accommodate hypothetical existing customers or production runs. Prefer the simplest correct pre-launch implementation. Continue to preserve local developer work and the running preview.
+
+Remove this section once the product is deployed and has real users; reassess compatibility and migration requirements then.
+
 ## Before working
 
-1. Inspect the working tree; preserve unrelated edits and the running preview. Read [implementation status](docs/status/README.md), the affected feature guide, and the relevant source/callers before choosing a fix. Use the [codebase map](docs/architecture/codebase.md) to locate ownership.
-2. **Read the applicable files in [the rules index](.agents/rules/README.md) with your file-reading tool.** Links are a loading instruction, not a claim that your harness automatically includes their content. For code changes or reviews, read implementation, architecture, and code-review rules, then the matching technology rules. Read scoped `AGENTS.md` files along the paths you touch, even when your session started at the repository root.
-3. Read [documentation rules](.agents/rules/documentation.md) before editing; use [TESTING.md](TESTING.md) to select checks for changed behavior. Do not load the entire research archive for routine work.
+1. Inspect the working tree; preserve unrelated edits and the running preview. Read [implementation status](docs/status/README.md) before choosing a change.
+2. **Before planning or making implementation changes, or reviewing code, read the full mandatory baseline with your file-reading tool:** the [implemented architecture](docs/architecture/README.md), [architecture decisions](docs/architecture/decisions.md), [codebase map](docs/architecture/codebase.md), [rules index](.agents/rules/README.md), **every rule file under `.agents/rules/` (including subdirectories)**, and [testing policy](TESTING.md). Enumerate the rules directory so newly added rules are included. This applies to application code, tests, scripts, migrations, and configuration. Do not select only the rules whose titles appear relevant.
+3. Read the affected feature guides and implementation details, relevant source/callers/tests, and scoped `AGENTS.md` files along every affected path, even when your session started at the repository root. Follow any additional reading requirements in those instructions, including installed framework documentation where required. Revisit scope-specific reading when the task expands to another layer.
+4. For documentation-only work, read [documentation rules](.agents/rules/documentation.md), the rules index, and any rules or guides whose instructions you are changing. Apply the rules to the requested work; reading the complete baseline is not permission to refactor unrelated code.
+
+Links are explicit reading instructions, not automatic imports. Read required files in full; a filename, search excerpt, or summary does not replace their contents. Read once per task unless a file changes or its instructions are no longer available in context. Background research and unrelated feature references remain optional unless a rule explicitly requires them.
 
 Trace the affected flow and correct the owning layer. Reuse existing code or maintained dependencies when they fit. Do not reduce requested functionality to make a diff smaller. New abstractions need a present purpose; existing security, provider, and recovery boundaries are present purposes.
 

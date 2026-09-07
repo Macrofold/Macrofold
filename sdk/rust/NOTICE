@@ -1,0 +1,12 @@
+Hosted agent platform
+Copyright 2026 the project contributors.
+
+This application's original code is licensed under Apache-2.0.
+Third-party packages and native agent programs retain their own licenses and terms.
+The application license does not grant rights to provider services, trademarks,
+model weights, or native harnesses distributed under separate terms.
+
+Dependency versions: pnpm-lock.yaml and packages/runtime/package.json.
+Architectural references and primary-source attribution: docs/architecture/research.md.
+A release must include the original third-party license files bundled in its
+installed dependencies. Do not strip those files from container or package builds.

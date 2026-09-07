@@ -202,7 +202,6 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     await expect(editor).toContainText('My unsaved draft');
     expect(await page.evaluate(() => window.scrollY)).toBe(scroll);
     await expect(page.getByRole('button', { name: 'live.txt', exact: true })).toHaveClass(/selected/);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.locator('[data-sonner-toast]').filter({ hasText: /revision|changed/i })).toBeVisible();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Discard', exact: true }).click();

@@ -6,6 +6,10 @@ import {
   Archive,
   ArrowLeft,
   Clock3,
+  Check,
+  CloudUpload,
+  CircleAlert,
+  LoaderCircle,
   Copy,
   Download,
   File,
@@ -15,14 +19,13 @@ import {
   Play,
   Plus,
   RotateCcw,
-  Save,
   Search,
   Trash2,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { api, relative, useApi, usePages, type Schema } from '../lib/client';
 import { ProjectCard, RunTable } from './dashboard-shared';
@@ -284,7 +287,7 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
       {chosen &&
         workspace.data &&
         (tab === 'files' ? (
-          <FileBrowser workspace={workspace.data} onDirtyChange={setHasDraft} />
+          <FileBrowser key={workspace.data.id} workspace={workspace.data} onDirtyChange={setHasDraft} />
         ) : tab === 'runs' ? (
           <WorkspaceRuns workspaceId={chosen} />
         ) : tab === 'checkpoints' ? (
@@ -356,10 +359,14 @@ function FileBrowser({
     [dirty, setDirty] = useState(false),
     [revision, setRevision] = useState(workspace.revision),
     [saving, setSaving] = useState(false),
+    [saveError, setSaveError] = useState(''),
     [newFile, setNewFile] = useState(false),
     [path, setPath] = useState(''),
     [search, setSearch] = useState(''),
     [deleteOpen, setDeleteOpen] = useState(false);
+  const draft = useRef('');
+  const savedText = useRef('');
+  const savingRef = useRef(false);
   const listing = usePages<Schema['FileEntry']>(
     `/v1/workspaces/${workspace.id}/files?limit=100&query=${encodeURIComponent(search)}`,
     false,
@@ -367,8 +374,8 @@ function FileBrowser({
   );
   const client = useQueryClient();
   useEffect(() => {
-    onDirtyChange(dirty);
-  }, [dirty, onDirtyChange]);
+    onDirtyChange(dirty || saving);
+  }, [dirty, saving, onDirtyChange]);
   useEffect(() => {
     if (!dirty) return;
     const unloading = (event: BeforeUnloadEvent) => {
@@ -431,14 +438,18 @@ function FileBrowser({
   useEffect(() => {
     // Query invalidation can deliver a newer checkpoint while a local draft is dirty.
     // Keep both the draft and its original revision so Save detects the conflict.
-    if (content.data && !dirty) {
+    if (content.data && !dirty && !saving) {
+      draft.current = savedText.current = content.data.text;
       setText(content.data.text);
       setRevision(content.data.revision);
       setDirty(false);
     }
-  }, [content.data, dirty]);
+  }, [content.data, dirty, saving]);
   async function save(filePath = selected, value = text, create = false) {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    setSaveError('');
     try {
       if (create) {
         // The visible listing can be filtered or paginated. Check the authoritative
@@ -453,21 +464,50 @@ function FileBrowser({
           );
         if (existing.status !== 404) throw new Error('Unable to check this path. No file was created.');
       }
-      await api(`/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`, 'PUT', value, {
-        'Content-Type': 'application/octet-stream',
-        'If-Match': filePath === selected ? revision : workspace.revision,
-      });
-      setDirty(false);
-      await client.invalidateQueries();
-      if (create) setNewFile(false);
-      setSelected(filePath);
-      toast.success('File saved and checkpointed');
+      const result = await api<Schema['Operation']>(
+        `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`,
+        'PUT',
+        value,
+        {
+          'Content-Type': 'application/octet-stream',
+          'If-Match': filePath === selected ? revision : workspace.revision,
+        },
+      );
+      const savedRevision = result.result?.revision;
+      if (result.status !== 'succeeded' || typeof savedRevision !== 'string')
+        throw new Error('Unable to confirm the saved revision. Reload the file before retrying.');
+      savedText.current = value;
+      setRevision(savedRevision);
+      // Seed the committed value before refresh; a late response must not restore the old draft.
+      await client.cancelQueries({ queryKey: ['file', workspace.id, filePath] });
+      client.setQueryData(['file', workspace.id, filePath], { text: value, revision: savedRevision });
+      await client.invalidateQueries(undefined, { throwOnError: true });
+      setDirty(!create && draft.current !== value);
+      if (create) {
+        draft.current = value;
+        setText(value);
+        setNewFile(false);
+        setSelected(filePath);
+        toast.success('File created and checkpointed');
+      }
     } catch (error) {
+      if (!create) setSaveError((error as Error).message);
       toast.error((error as Error).message);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
+  const autosave = useEffectEvent(() => {
+    void save();
+  });
+  useEffect(() => {
+    if (!dirty || saving || saveError || !selected || workspace.status === 'busy') return;
+    const timer = setTimeout(autosave, 2000);
+    return () => clearTimeout(timer);
+  }, [text, dirty, saving, saveError, selected, workspace.status]);
+  const saveLabel = saving ? 'Saving…' : saveError ? 'Not saved' : dirty ? 'Unsaved changes' : 'Saved';
+  const SaveIcon = saving ? LoaderCircle : saveError ? CircleAlert : dirty ? CloudUpload : Check;
   if (listing.error) return <ErrorState error={listing.error} />;
   return (
     <>
@@ -543,6 +583,7 @@ function FileBrowser({
                       disabled={saving}
                       onClick={() => {
                         if (window.confirm('Discard your unsaved changes and reload the saved file?')) {
+                          setSaveError('');
                           setDirty(false);
                           void content.refetch();
                         }
@@ -566,17 +607,24 @@ function FileBrowser({
                   >
                     <Trash2 size={15} />
                   </button>
-                  <Button
-                    variant="secondary"
-                    busy={saving}
-                    disabled={!dirty || workspace.status === 'busy'}
-                    onClick={() => save()}
-                  >
-                    <Save size={14} />
-                    Save
-                  </Button>
+                  <span className="file-save-status" role="status" aria-live="polite">
+                    <SaveIcon size={14} className={saving ? 'spin' : undefined} aria-hidden="true" />
+                    {saveLabel}
+                  </span>
                 </div>
               </div>
+              {saveError && (
+                <div className="form-error" role="alert">
+                  {saveError} Your draft is still here.
+                  <Button
+                    variant="ghost"
+                    disabled={saving || workspace.status === 'busy'}
+                    onClick={() => void save()}
+                  >
+                    Retry save
+                  </Button>
+                </div>
+              )}
               {Number(listing.data?.data.find((f) => f.path === selected)?.size_bytes || 0) >
               4 * 1024 * 1024 ? (
                 <Empty
@@ -615,10 +663,11 @@ function FileBrowser({
                   value={text}
                   height="480px"
                   extensions={selected.endsWith('.md') ? [markdown()] : []}
-                  editable={workspace.status !== 'busy' && !saving}
+                  editable={workspace.status !== 'busy'}
                   onChange={(value) => {
+                    draft.current = value;
                     setText(value);
-                    setDirty(value !== content.data?.text);
+                    setDirty(savingRef.current || value !== savedText.current);
                   }}
                   basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true }}
                   onCreateEditor={(view) => view.contentDOM.setAttribute('aria-label', 'File editor')}
@@ -630,7 +679,9 @@ function FileBrowser({
                   {workspace.status === 'busy' ? 'Read only while an agent is working' : 'UTF-8'} ·{' '}
                   {selected.split('.').pop()?.toUpperCase()}
                 </span>
-                <span>{dirty ? 'Unsaved changes' : `Saved · revision ${revision}`}</span>
+                <span>
+                  {dirty ? 'Autosaves after 2 seconds of inactivity' : `Saved · revision ${revision}`}{' '}
+                </span>
               </div>
             </>
           ) : (

@@ -1,4 +1,4 @@
-import { Client, type Schema } from '@hosted-agents/sdk';
+import { Client, type Schema } from 'macrofold';
 
 /** Use the same durable stream implementation as terminal/API customers. The
  * dashboard authenticates only with its same-origin cookie, never a browser key. */

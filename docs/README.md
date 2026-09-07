@@ -25,7 +25,7 @@ Start with the [API quickstart](features/api/quickstart.md) or [terminal CLI](fe
 
 - [API guide](features/api/README.md) and [OpenAPI reference](api/openapi.json).
 - [Streaming and webhooks](features/api/events.md).
-- [TypeScript SDK](../sdk/typescript/README.md) and [Python SDK](../sdk/python/README.md).
+- [SDKs](features/api/sdks/README.md) for TypeScript, Python, Go, Rust, and Java.
 - [Agent-readable documentation](getting-started/agents.md) and [CLI command schema](api/cli.json).
 
 ## Deploy and contribute

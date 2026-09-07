@@ -233,3 +233,138 @@ it('does not deadlock credential refresh behind storage maintenance waiting for 
     await maintenance;
   }
 });
+
+async function pendingAuthorization() {
+  const owner = await fixtureAccount('MCP failure boundary');
+  const resource = await transaction(owner.p.organizationId, (tx) =>
+    saveConnection(tx, owner.p, {
+      name: 'Failure fixture',
+      kind: 'mcp_remote',
+      auth_method: 'oauth',
+      url: endpoint,
+    }),
+  );
+  const started = await startMcpOAuth(
+    browserRequest(
+      `${config.origin}/integrations/mcp/install?connection_id=${resource.id}&organization_id=${owner.p.organizationId}`,
+      { headers: { cookie: owner.cookie } },
+    ),
+    transport,
+  );
+  expect(started.status).toBe(302);
+  const state = new URL(started.headers.get('location')!).searchParams.get('state')!;
+  const cookie = started.headers.get('set-cookie')!.split(';')[0];
+  const callback = () =>
+    browserRequest(
+      `${config.origin}/integrations/mcp/callback?code=fixture-code&state=${encodeURIComponent(state)}`,
+      { headers: { cookie: owner.cookie + '; ' + cookie } },
+    );
+  return { owner, resource, state, cookie, callback };
+}
+
+it.each(['expired', 'wrong-browser', 'wrong-user', 'revoked-owner'] as const)(
+  'rejects an OAuth callback with %s before exchanging its code',
+  async (fault) => {
+    const f = await pendingAuthorization();
+    let request = f.callback();
+    const before = exchanges;
+    if (fault === 'expired') {
+      const data = unseal<{ attempt: string }>(f.state);
+      expect(
+        (
+          await transaction(f.owner.p.organizationId, (tx) =>
+            tx.query("UPDATE oauth_attempts SET expires_at=now()-interval '1 second' WHERE id=$1", [
+              data.attempt,
+            ]),
+          )
+        ).rowCount,
+      ).toBe(1);
+    }
+    if (fault === 'wrong-browser')
+      request = new Request(request.url, { headers: { cookie: f.owner.cookie + '; mcp-state=wrong' } });
+    if (fault === 'wrong-user') {
+      const other = await fixtureAccount('Other OAuth browser');
+      await pool.query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'member')", [
+        f.owner.p.organizationId,
+        other.p.userId,
+      ]);
+      request = new Request(request.url, { headers: { cookie: other.cookie + '; ' + f.cookie } });
+    }
+    if (fault === 'revoked-owner')
+      await transaction(f.owner.p.organizationId, (tx) =>
+        resources.update(tx, 'connections', f.resource.id, { owner_subject_id: account.p.userId }),
+      );
+    await expect(finishMcpOAuth(request, transport)).rejects.toMatchObject({
+      code: fault === 'revoked-owner' ? 'forbidden' : 'invalid_oauth_state',
+    });
+    expect(exchanges).toBe(before);
+    const stored = await transaction(f.owner.p.organizationId, (tx) =>
+      resources.get(tx, 'connections', f.resource.id),
+    );
+    expect(stored.status).not.toBe('healthy');
+    expect(stored.oauth_ciphertext).toBeUndefined();
+  },
+);
+
+it.each(['invalid_grant', 'lost-response'] as const)(
+  'consumes the authorization code before %s and requires new consent',
+  async (fault) => {
+    const f = await pendingAuthorization();
+    let attempts = 0;
+    const failed: typeof fetch = async (input, init) => {
+      if (new URL(String(input)).pathname === '/token') {
+        attempts++;
+        if (fault === 'lost-response') throw new Error('Connection lost after token exchange');
+        return Response.json({ error: 'invalid_grant' }, { status: 400 });
+      }
+      return transport(input, init);
+    };
+    await expect(finishMcpOAuth(f.callback(), failed)).rejects.toThrow();
+    const initialExchanges = attempts;
+    expect(initialExchanges).toBeGreaterThan(0);
+    // The SDK may retry a definitive invalid_grant once; our consumed callback cannot replay either outcome.
+    await expect(finishMcpOAuth(f.callback(), failed)).rejects.toMatchObject({ code: 'invalid_oauth_state' });
+    expect(attempts).toBe(initialExchanges);
+    const current = await transaction(f.owner.p.organizationId, (tx) =>
+      resources.get(tx, 'connections', f.resource.id),
+    );
+    expect(current.status).not.toBe('healthy');
+    expect(current.oauth_ciphertext).toBeUndefined();
+  },
+);
+
+it('marks revoked upstream refresh credentials expired without executing a tool or replaying refresh', async () => {
+  const f = await pendingAuthorization();
+  expect((await finishMcpOAuth(f.callback(), transport)).status).toBe(302);
+  const current = await transaction(f.owner.p.organizationId, (tx) =>
+    resources.get(tx, 'connections', f.resource.id),
+  );
+  const data = unseal<Record<string, unknown>>(String(current.oauth_ciphertext));
+  data.expires = Date.now() - 1;
+  await transaction(f.owner.p.organizationId, (tx) =>
+    resources.update(tx, 'connections', current.id, { oauth_ciphertext: seal(data) }),
+  );
+  let calls = 0;
+  vi.mocked(network.safeFetch).mockImplementation(async (input, init) => {
+    if (new URL(String(input)).pathname === '/token') {
+      calls++;
+      return Response.json({ error: 'invalid_grant' }, { status: 400 });
+    }
+    return transport(input, init);
+  });
+  const tool = vi.fn(async () => 'must not execute');
+  try {
+    await expect(withConnectionOAuth(current, tool)).rejects.toThrow();
+    expect(tool).not.toHaveBeenCalled();
+    expect(calls).toBe(1);
+    const saved = await transaction(f.owner.p.organizationId, (tx) =>
+      resources.get(tx, 'connections', current.id),
+    );
+    expect(saved.status).toBe('expired');
+    expect(unseal<Record<string, unknown>>(String(saved.oauth_ciphertext)).tokens).toBeUndefined();
+    await expect(withConnectionOAuth(current, tool)).rejects.toMatchObject({ code: 'connection_expired' });
+    expect(calls).toBe(1);
+  } finally {
+    vi.mocked(network.safeFetch).mockImplementation(transport);
+  }
+});

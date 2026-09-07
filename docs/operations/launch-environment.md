@@ -6,7 +6,7 @@ Keep one configuration source per environment. Local development, serving proces
 
 | Location                                        | Purpose                                                        |
 | ----------------------------------------------- | -------------------------------------------------------------- |
-| Repository `.env`                               | Local simulation; created by `pnpm setup`                      |
+| Repository `.env`                               | Local simulation; created by `pnpm run setup`                  |
 | Hosting secret manager or private `runtime.env` | One staging or production runtime environment                  |
 | Private `migration.env`                         | Owner database credential for administrative commands only     |
 | Provider consoles                               | Account-level quotas, callbacks, domains, and billing controls |

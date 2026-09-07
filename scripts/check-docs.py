@@ -10,7 +10,7 @@ from urllib.parse import unquote
 root = pathlib.Path(__file__).resolve().parent.parent
 failures = []
 files = list((root / 'docs').rglob('*.md')) + list(root.glob('*.md')) + list((root / '.agents/rules').rglob('*.md'))
-files += [root / p for p in ['packages/cli/README.md', 'sdk/typescript/README.md', 'sdk/python/README.md']]
+files += [root / 'packages/cli/README.md', *root.glob('sdk/*/README.md')]
 # Git's inventory includes new instruction files without traversing dependencies, builds, or private artifacts.
 instruction_paths = subprocess.run(
     ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--',

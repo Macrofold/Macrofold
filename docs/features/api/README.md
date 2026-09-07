@@ -30,7 +30,7 @@ The table shows route families; use OpenAPI for exact parameter names, required 
 
 Supply a unique `Idempotency-Key` for each intended mutation. Reuse it with the identical request when recovering a lost response. The server retains fingerprints and results for 30 days. Reusing a key with a different body returns `409 idempotency_conflict`.
 
-Run creation, session messages, checkout, file mutations, restore, sync, transfer planning/apply, and exports require idempotency. SDKs create and preserve keys across bounded retries; supply your own key to recover across process restarts.
+Run creation, session messages, checkout, file mutations, restore, sync, transfer planning/apply, and exports require idempotency. TypeScript and Python clients create and preserve keys across bounded retries; supply your own key to recover across process restarts. Go, Rust, and Java require explicit keys and make single-attempt REST requests.
 
 ## Asynchronous work
 
@@ -62,6 +62,6 @@ Do not automatically repeat an external side effect whose outcome is uncertain. 
 
 ## Streaming, clients, and protocols
 
-Read [streaming and webhooks](events.md), the [TypeScript SDK](../../../sdk/typescript/README.md), or [Python SDK](../../../sdk/python/README.md).
+Read [streaming and webhooks](events.md) and the [SDK guides](sdks/README.md) for TypeScript, Python, Go, Rust, and Java.
 
 [Protocol details](implementation.md) cover transfer preconditions, OAuth discovery, event delivery, and endpoint inventory. Customer REST, authentication protocols, provider webhooks, and [operator MCP](../operations/README.md) are separate authorization surfaces.

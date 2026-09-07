@@ -15,6 +15,12 @@ Find the source module that owns a behavior, then read its feature guide before 
 | [packages/contracts](../../packages/contracts), [docs/api](../api)   | Generated public types and machine-readable contracts; private dashboard signal types are separate | [API contracts](../features/api/README.md)                                                                 |
 | [tests](../../tests), [scripts](../../scripts), [infra](../../infra) | Local acceptance, setup, migration, maintenance and deployable images                              | [Engineering](../engineering/README.md), [operations](../operations/README.md)                             |
 
+## Product presentation
+
+The [ten marketing concepts](../product/marketing/README.md) share server-rendered product content, route-scoped SVG/CSS artwork, and small interactive controls. They live under `apps/web/app/concepts` and `apps/web/components/concepts`; the production homepage is independent.
+
 ## Design and contribution
 
 See [architecture](README.md), [engineering](../engineering/README.md), and [contributing](../../CONTRIBUTING.md).
+
+The [SDK architecture](../features/api/sdks/implementation.md) connects the shared OpenAPI contract to five public clients. Generated REST sources live under `sdk/`; maintained transports, stream helpers, and protocol fixtures stay separate.

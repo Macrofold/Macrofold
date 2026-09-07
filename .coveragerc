@@ -1,10 +1,10 @@
 [run]
 branch = True
 relative_files = True
-source = sdk/python/hosted_agents,scripts
+source = sdk/python/macrofold,scripts
 
 [report]
-include = sdk/python/hosted_agents/*.py,scripts/estimate-costs.py
+include = sdk/python/macrofold/*.py,scripts/estimate-costs.py
 show_missing = True
 fail_under = 90
 

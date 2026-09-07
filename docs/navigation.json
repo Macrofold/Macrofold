@@ -18,7 +18,7 @@
     "source": "docs/getting-started/local-development.md",
     "title": "Run locally",
     "section": "Start here",
-    "description": "Start the free local simulator with Node, pnpm, and Docker."
+    "description": "Start the free local simulator and test customer workflows."
   },
   {
     "slug": "concepts",
@@ -98,6 +98,13 @@
     "description": "Link a project, chat remotely, use worktrees, and transfer files."
   },
   {
+    "slug": "sdk",
+    "source": "docs/features/api/sdks/README.md",
+    "title": "SDKs",
+    "section": "Build with the API",
+    "description": "Choose a Macrofold client for TypeScript, Python, Go, Rust, or Java."
+  },
+  {
     "slug": "sdk/typescript",
     "source": "sdk/typescript/README.md",
     "title": "TypeScript SDK",
@@ -110,6 +117,27 @@
     "title": "Python SDK",
     "section": "Build with the API",
     "description": "Integrate runs and durable streams with the Python client."
+  },
+  {
+    "slug": "sdk/go",
+    "source": "sdk/go/README.md",
+    "title": "Go SDK",
+    "section": "Build with the API",
+    "description": "Make typed API requests and stream agent progress in Go."
+  },
+  {
+    "slug": "sdk/rust",
+    "source": "sdk/rust/README.md",
+    "title": "Rust SDK",
+    "section": "Build with the API",
+    "description": "Make typed API requests and stream agent progress in Rust."
+  },
+  {
+    "slug": "sdk/java",
+    "source": "sdk/java/README.md",
+    "title": "Java SDK",
+    "section": "Build with the API",
+    "description": "Make typed API requests and stream agent progress in Java."
   },
   {
     "slug": "self-hosting",

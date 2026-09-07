@@ -12,7 +12,7 @@ The product is implemented locally; live hosting, model billing and external acc
 | Tools | Direct MCP OAuth/bearer, Composio identity/grants, reviewed sandbox stdio, budgeted Brave search |
 | Commerce | Managed/BYOK separation, integer reservations/ledger, Stripe credit/subscription/refund/dispute facts, debt/expiration/reconciliation |
 | Dashboard | Public home/pricing/docs, account/MFA/team, projects/files/uploads/checkpoints, live/history, connections/keys/webhooks, usage/billing/operator |
-| Terminal/SDKs | Forty-command oclif/Ink CLI, device login/profiles, worktrees/chat/stream, explicit transfers/local review; Fetch and Python/httpx clients |
+| Terminal/SDKs | Forty-command oclif/Ink CLI, device login/profiles, worktrees/chat/stream, explicit transfers/local review; TypeScript/Fetch, Python/HTTPX, Go, Rust, and Java clients |
 | Operations | Request/activity facts, cohorts, usage dimensions, daily snapshots, metadata-only optional PostHog, read-only admin REST/MCP |
 | Deployment | Vercel build, standalone web/worker Docker targets, immutable native image recipe, CI, fresh installation/rotation/backup restoration |
 
@@ -23,7 +23,7 @@ The release excludes enterprise SSO/SCIM, multi-region writes, a browser desktop
 1. `pnpm install --frozen-lockfile` and `pnpm run setup` create only local fixture infrastructure. Use Node 24 and Docker.
 2. `pnpm check` and `pnpm test:domain` verify types and use a disposable database/object store. Fault tests own their run transitions independently of the preview worker.
 3. `pnpm exec tsx scripts/test-install.ts` creates and removes two disposable databases and object copies, applies all migrations, provisions identity, rotates keys, restores and continues a session.
-4. `pnpm build` compiles the optimized Next.js/Workflow/standalone app. `pnpm contracts` regenerates types/client operation maps; compare generated files in CI.
+4. `pnpm build` compiles the optimized Next.js/Workflow/standalone app. `pnpm sdk:generate:all` regenerates all five clients with JDK 21; compare generated files in CI. Run `pnpm test:sdks` with Go, Rust, and Maven installed for isolated API/simulator acceptance.
 5. Start web/worker; run `pnpm test:e2e`, `pnpm test:cli`, `python3 scripts/test-terminal.py`, `pnpm test:packages` and Python SDK tests. Browser journeys include desktop accessibility and mobile overflow checks.
 6. Build the runtime image and run `pnpm test:native --image-only`. Actual pinned native binaries use a loopback protocol fixture inside `--network none`; no inference account is called. OpenCode interactive-question and stdio fixtures have explicit script modes.
 7. Build standalone web/worker targets and run `scripts/test-standalone.ts` against the configured local container origin, including `--execute` with its worker.

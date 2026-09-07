@@ -22,7 +22,7 @@ Install [Node.js 24](https://nodejs.org/), [pnpm 10](https://pnpm.io/installatio
 git clone https://github.com/Macrofold/Macrofold.git
 cd Macrofold
 pnpm install
-pnpm setup
+pnpm run setup
 pnpm dev
 ```
 
@@ -43,7 +43,7 @@ Continue with [your first run](docs/getting-started/quickstart.md), or use [loca
 | I want to…                                          | Start here                                                                                                                        |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Understand projects, workspaces, sessions, and runs | [Core concepts](docs/getting-started/concepts.md)                                                                                 |
-| Integrate an application                            | [API quickstart](docs/features/api/quickstart.md), [TypeScript SDK](sdk/typescript/README.md), [Python SDK](sdk/python/README.md) |
+| Integrate an application                            | [API quickstart](docs/features/api/quickstart.md), [SDKs in five languages](docs/features/api/sdks/README.md) |
 | Use a remote agent from my terminal                 | [CLI guide](docs/features/cli/README.md)                                                                                          |
 | Connect tools or bring my own API key               | [Connections](docs/features/identity-integrations/README.md)                                                                      |
 | Host the service                                    | [Deployment guide](docs/operations/launch-guide.md)                                                                               |

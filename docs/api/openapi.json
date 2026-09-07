@@ -2,9 +2,13 @@
   "openapi": "3.1.0",
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
-    "title": "Hosted agents API",
+    "title": "Macrofold API",
     "version": "0.9.0",
-    "description": "Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts."
+    "description": "Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    }
   },
   "servers": [
     {
@@ -10980,7 +10984,11 @@
             "description": "SHA-256 of a regular file; null means absent."
           },
           "binary": {
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether inspected content contains binary bytes. Null means inspection was skipped because the two recorded file sizes total 512,000 bytes or more; no file content is loaded and no patch is returned."
           },
           "patch": {
             "type": "string",

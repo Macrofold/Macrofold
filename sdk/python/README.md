@@ -1,4 +1,4 @@
-# Python SDK
+# Macrofold Python SDK
 
 A synchronous Python client for the hosted agent API, with recoverable mutations and durable event streams. Requires Python 3.11 or later.
 
@@ -16,22 +16,23 @@ Set `AGENT_HOST`, `AGENT_API_KEY`, `WORKSPACE_ID`, and `AGENT_MODEL` in your env
 
 ```python
 import os
-from hosted_agents import Client
+from macrofold import Client
 
-with Client(os.environ["AGENT_HOST"], os.environ["AGENT_API_KEY"]) as client:
-    projects = client.request("listProjects", query={"limit": 20})
-    print(projects)
-    # A real deployment charges for execution. Select an approved model and budget.
-    run = client.request("createRun", body={
-        "workspace_id": os.environ["WORKSPACE_ID"],
-        "prompt": "Update the report and save your work",
-        "harness": "codex", "model": os.environ["AGENT_MODEL"],
-        "billing_mode": "managed",
-        "limits": {"timeout_seconds": 900, "max_cost_micro_usd": "2000000"},
-    })
-    for event in client.stream(run["run_id"]):
-        print(event)
-    result = client.request("getRunResult", path={"run_id": run["run_id"]})
+client = Client(os.environ["AGENT_HOST"], os.environ["AGENT_API_KEY"])
+projects = client.request("listProjects", query={"limit": 20})
+print(projects)
+# A real deployment charges for execution. Select an approved model and budget.
+run = client.request("createRun", body={
+    "workspace_id": os.environ["WORKSPACE_ID"],
+    "prompt": "Update the report and save your work",
+    "harness": "codex", "model": os.environ["AGENT_MODEL"],
+    "billing_mode": "managed",
+    "limits": {"timeout_seconds": 900, "max_cost_micro_usd": "2000000"},
+})
+for event in client.stream(run["run_id"]):
+    print(event)
+result = client.request("getRunResult", path={"run_id": run["run_id"]})
+client.close()
 ```
 
 ## Requests

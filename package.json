@@ -24,7 +24,7 @@
     "cli": "tsx packages/cli/src/index.ts",
     "contracts": "openapi-typescript docs/api/openapi.json -o packages/contracts/api.d.ts && tsx scripts/generate-sdk.ts",
     "sdk:generate": "tsx scripts/generate-sdk.ts",
-    "sdk:build": "pnpm --filter @hosted-agents/sdk build",
+    "sdk:build": "pnpm --filter macrofold build",
     "test:domain": "tsx scripts/test-domain.ts",
     "test:coverage": "tsx scripts/test-domain.ts tests/unit tests/integration tests/git.test.ts tests/git-sync.test.ts --coverage",
     "test:mutation": "stryker run",
@@ -36,7 +36,9 @@
     "test:mutation:critical": "tsx scripts/test-mutation.ts",
     "test:live": "tsx scripts/test-live.ts",
     "docs:generate": "tsx scripts/docs/generate.ts",
-    "docs:check": "tsx scripts/docs/generate.ts --check && python3 scripts/check-docs.py"
+    "docs:check": "tsx scripts/docs/generate.ts --check && python3 scripts/check-docs.py",
+    "sdk:generate:all": "pnpm contracts && tsx scripts/sdk/generate.ts",
+    "test:sdks": "tsx scripts/test-sdks.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.261",

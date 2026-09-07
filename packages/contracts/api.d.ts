@@ -2319,7 +2319,8 @@ export interface components {
             before_sha256: string | null;
             /** @description SHA-256 of a regular file; null means absent. */
             after_sha256: string | null;
-            binary: boolean;
+            /** @description Whether inspected content contains binary bytes. Null means inspection was skipped because the two recorded file sizes total 512,000 bytes or more; no file content is loaded and no patch is returned. */
+            binary: boolean | null;
             patch?: string;
         };
         WorkspaceDiff: {

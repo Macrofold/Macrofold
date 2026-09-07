@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hosted-agents"
+name = "macrofold"
 version = "0.1.0"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -13,7 +13,10 @@ requires-python = ">=3.11"
 dependencies = ["httpx>=0.28,<1"]
 
 [tool.setuptools.package-data]
-hosted_agents = ["routes.json", "py.typed"]
+macrofold = ["routes.json", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["macrofold"]

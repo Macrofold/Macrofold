@@ -10,5 +10,5 @@ await writeFile(
   `// Generated from docs/api/openapi.json. Run pnpm sdk:generate after contract changes.\nexport const routes = ${JSON.stringify(routes, null, 2)} as const;\n`,
 );
 await writeFile('sdk/typescript/src/schema.d.ts', await readFile('packages/contracts/api.d.ts', 'utf8'));
-await mkdir('sdk/python/hosted_agents', { recursive: true });
-await writeFile('sdk/python/hosted_agents/routes.json', JSON.stringify(routes, null, 2) + '\n');
+await mkdir('sdk/python/macrofold', { recursive: true });
+await writeFile('sdk/python/macrofold/routes.json', JSON.stringify(routes, null, 2) + '\n');

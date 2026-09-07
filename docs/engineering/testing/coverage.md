@@ -12,6 +12,8 @@ The combined report overlays exact source locations onto that canonical inventor
 
 The pinned Workflow compiler sometimes labels intermediate JavaScript as original TypeScript in server maps. Those mappings receive no supplemental credit, even when build provenance proves the revision. They are listed under `unmappedSources`; their canonical files and domain coverage remain in the report. Indexed Turbopack maps are flattened before conversion. The TypeScript SDK emits maps with embedded source so browser/CLI execution can be attributed through its compiled package.
 
+Build-time static rendering is outside this runtime coverage collection. Static marketing routes and SVG artwork therefore remain uncredited in the application denominator even though browser tests verify their rendered output. Do not exclude them or substitute artificial direct calls to inflate the aggregate.
+
 ## Test surfaces
 
 | Surface              | Collection                                                                                          | Important limit                                                                                                                                                                                                                                                                                |

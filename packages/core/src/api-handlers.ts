@@ -683,16 +683,18 @@ export const handlers: Record<string, Handler> = {
     for (const path of paths.slice(0, limit)) {
       const a = previousFiles.get(path),
         b = currentFiles.get(path);
-      const old = a ? await readContent(a.key, a.sha256) : Buffer.alloc(0),
-        next = b ? await readContent(b.key, b.sha256) : Buffer.alloc(0);
-      const binary = old.includes(0) || next.includes(0);
+      // Verified checkpoint sizes let us skip large objects before allocating their contents.
+      const inspect = BigInt(a?.size_bytes || '0') + BigInt(b?.size_bytes || '0') < 512000n;
+      const old = inspect && a ? await readContent(a.key, a.sha256) : Buffer.alloc(0),
+        next = inspect && b ? await readContent(b.key, b.sha256) : Buffer.alloc(0);
+      const binary = inspect ? old.includes(0) || next.includes(0) : null;
       diff.push({
         path,
         change: !a ? 'added' : !b ? 'deleted' : 'modified',
         before_sha256: a?.sha256 || null,
         after_sha256: b?.sha256 || null,
         binary,
-        ...(!binary && old.length + next.length < 512000
+        ...(inspect && !binary && old.length + next.length < 512000
           ? { patch: createTwoFilesPatch(path, path, old.toString(), next.toString()) }
           : {}),
       });

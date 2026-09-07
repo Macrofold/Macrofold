@@ -12,6 +12,8 @@ Keep prose concise and generally high-level: purpose, user behavior, ownership, 
 
 Write public guides to the person using or hosting the product. Lead with the outcome, prerequisites, a short working path, and the expected result; introduce advanced concepts through links. Use descriptive headings and stable anchors. Keep the README brief and welcoming, with source installation commands that work today. Reserve frozen-lockfile installs for reproducible CI and release builds.
 
+Verify package-script commands against `package.json` and the installed package manager. Use explicit `pnpm run <script>` when a name conflicts with a built-in command; this repository's setup command is `pnpm run setup`. Keep documentation and CI invocations consistent.
+
 Do not publish owner-directed handoffs, local personal paths, account IDs, private worksheet dependencies, placeholder badges, or unsupported package/install claims. Keep unresolved release work in `docs/maintainers/TODO.md` and test evidence in linked maintainer/engineering records. Real user-impacting limits belong in the public guide even when they are inconvenient. Never hide a missing capability by presenting it as completed.
 
 `docs/navigation.json` is the explicit public publication list. All listed files are rendered into the application docs, search, Markdown exports, and agent indexes; do not include maintainer evidence or private configuration. Use ordinary GitHub-compatible Markdown, one H1, meaningful H2/H3 sections, and relative local links. Avoid raw HTML, executable MDX, duplicate headings, and manually maintained copies of the same guide. Run `pnpm docs:generate` after changing published content and `pnpm docs:check` before handoff. Generated content is never edited directly.

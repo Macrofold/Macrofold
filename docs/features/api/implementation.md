@@ -2,7 +2,7 @@
 
 Contributor reference. Start with the [feature guide](README.md) for user workflows.
 
-Implemented contract version 0.9.0. [OpenAPI](../../api/openapi.json) drives AJV request validation, public response projection, generated TypeScript types and operation maps for both SDKs. The running app serves `/openapi.json`, `/reference` (Scalar) and `/docs` (quickstart). Provider identity/webhook/internal protocols remain separate from customer REST.
+Implemented contract version 0.9.0. [OpenAPI](../../api/openapi.json) drives AJV request validation, public response projection, generated TypeScript types, TypeScript/Python operation maps, and typed Go/Rust/Java clients. The running app serves `/openapi.json`, `/reference` (Scalar) and `/docs` (quickstart). Provider identity/webhook/internal protocols remain separate from customer REST.
 
 ## Common behavior
 
@@ -58,7 +58,7 @@ BYOK requires a compatible provider connection. Managed mode requires an active 
 | Catalog          | GET /harnesses; GET /models                                                                                                                                                  |
 | Async operations | GET /operations/{id}                                                                                                                                                         |
 
-In this table routes inherit /v1. File PUT is binary-safe application/octet-stream up to 4 MiB with path and If-Match; larger files use staged object transfer up to 25 MiB per file; deletion also checks revision. If-Match uses the workspace revision returned by the file listing, including when creating a new path. Both return an asynchronous operation while durable persistence finishes. List/preview responses identify active versus checkpoint data and last verified checkpoint time.
+In this table routes inherit /v1. File PUT is binary-safe application/octet-stream up to 4 MiB with path and If-Match; larger files use staged object transfer up to 25 MiB per file; deletion also checks revision. If-Match uses the workspace revision returned by the file listing, including when creating a new path. Both return a completed operation after checkpoint persistence and revision publication; inspect its status and result. List/preview responses identify active versus checkpoint data and last verified checkpoint time.
 
 Connection grants use versioned structured subject/tools. Granting requires connection ownership or authorized organization administration. A run can select only a subset of those grants; it cannot escalate them by naming extra tools in run JSON.
 
@@ -78,7 +78,7 @@ Use a durable delivery outbox, 10-second request timeout, and retries at approxi
 
 Publish the bundled React quickstart, authentication/scopes, errors, limits, durable runs, project continuation, MCP authorization, files/Git, billing, metrics definitions, and webhook verification. Render generated reference with Scalar. Provide a request-ID copy button, CLI/cURL/TypeScript/Python examples, documented poll backoff, and complete failure examples.
 
-Generate TypeScript schema types with openapi-typescript and operation maps with `scripts/generate-sdk.ts`; maintained Fetch/httpx clients implement requests, operation polling and durable SSE. This keeps the public schema authoritative without a second generated client framework. Test SSE reconnection and async pagination rather than generating a client that only handles CRUD. Package names and API origin are release configuration. Examples use fake IDs and environment variables, never credentials or paid calls on import.
+Generate TypeScript schema types with openapi-typescript and operation maps with `scripts/generate-sdk.ts`; maintained Fetch/HTTPX clients implement requests, operation polling and durable SSE. Pinned OpenAPI Generator supplies Go/Rust/Java REST models and methods, with separately maintained incremental stream helpers. [SDK architecture](sdks/implementation.md) owns generation, proven generator adaptations, retries, and verification. Public packages use `macrofold`; API origins remain configurable. Examples use fake IDs and environment variables, never credentials or paid calls on import.
 
 Authentication provider protocol routes, provider webhook ingress, internal runtime ingestion, and management MCP JSON-RPC are separate contracts; they are not public customer-key endpoints. Their ownership and validation are defined in [security](../identity-integrations/README.md) and [operations](../operations/README.md).
 

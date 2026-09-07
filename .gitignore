@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.swc/
 .env
 .env.*
 !.env.example
@@ -25,3 +26,6 @@ __pycache__/
 
 .coverage
 .coverage.*
+
+/sdk/java/target/
+/sdk/rust/target/

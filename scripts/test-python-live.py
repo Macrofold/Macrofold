@@ -4,12 +4,13 @@ import os
 import pathlib
 import time
 import httpx
-from hosted_agents import Client
+from macrofold import Client
 
 origin = os.environ.get('APP_ORIGIN', 'http://localhost:3210')
 assert httpx.get(origin + '/health').json()['mode'] == 'local_simulation'
 seed = json.loads((pathlib.Path(os.environ.get('DATA_DIR', pathlib.Path(__file__).resolve().parent.parent / '.data')) / 'demo.json').read_text())
-with Client(origin, seed['api_key']) as client:
+client = Client(origin, seed['api_key'])
+try:
     assert client.request('getIdentity')
     project = client.request('createProject', body={'name': f'Python SDK {time.time_ns()}'})
     ws = client.request('getWorkspace', path={'workspace_id': project['default_workspace_id']})
@@ -23,4 +24,6 @@ with Client(origin, seed['api_key']) as client:
     followup = client.request('continueSession', path={'session_id': run['session_id']}, body={'prompt': 'Continue the same saved project.', 'queue_if_busy': True})
     assert list(client.stream(followup['run_id']))[-1]['type'] == 'run.succeeded'
     assert client.request('readFile', path={'workspace_id': ws['id']}, query={'path': 'python.txt'}) == content
+finally:
+    client.close()
 print('Python SDK: scoped identity, project/files, live local SSE and persisted session continuation passed. No paid provider call.')

@@ -8,8 +8,21 @@ This is the central list of unresolved release work. It is not part of the publi
 - [ ] Publish a monitored maintainer contact and community reporting route; update security and conduct policies together. Do not publish a personal email without its owner's approval.
 - [ ] Run the required GitHub Actions checks on the release revision and configure repository rulesets. Local passes are not evidence of hosted CI completion.
 - [ ] Connect Codecov, enable approved public uploads, and verify TypeScript/Python flags. Add live badges only after real default-branch reports exist.
-- [ ] Publish versioned CLI/SDK packages and immutable Linux AMD64 runtime artifacts with checksums/provenance. The public guides currently document installation from source.
+- [ ] Publish versioned CLI/SDK packages and immutable Linux AMD64 runtime artifacts with checksums/provenance. The public guides currently document installation from source. Reserve and verify `macrofold` on npm, PyPI, and crates.io, `dev.macrofold:macrofold` on Maven Central, and version the Go submodule. Verify clean consumer installs and real hosted endpoints for all five SDKs before registry publication.
 - [ ] Accept Windows CLI installation, ACL, and terminal behavior before advertising Windows support. Current documented targets are macOS and Linux.
+
+## Automated staging and production releases
+
+The current launch guide is an explicit deployment walkthrough. Implement and accept a separate release workflow before documenting automatic deployment as available. Reuse the existing verification jobs; this work does not replace the isolated staging and production environments.
+
+- [ ] Configure separate GitHub deployment environments with explicit Vercel team/project identities, environment-scoped secrets, and administrative migration credentials unavailable to the application. Keep deployment credentials out of fork and untrusted pull-request jobs.
+- [ ] Trigger a release from a reviewed immutable commit after every required verification job for that commit passes. Serialize releases and prevent a delayed older run from promoting over a newer release; do not cancel a migration or partially completed release blindly.
+- [ ] Rehearse and apply staging migrations, publish the matching native runtime image, deploy staging, then run deployed API/browser acceptance using synthetic accounts. Keep paid native/provider checks explicitly budgeted and distinguish them from free fixtures and metadata checks.
+- [ ] Apply only backward-compatible production migrations and prepare that same source revision with production settings and a ready immutable runtime digest. Verify image availability in the production project's registry; do not assume a staging image reference grants cross-project access.
+- [ ] Prepare the production deployment with `--prod --skip-domain`, run non-mutating readiness checks against its deployment URL, and promote that exact deployment only after success. This candidate already uses production resources. Keep destructive tests in isolated staging. See [Vercel promotion](https://vercel.com/docs/deployments/promoting-a-deployment).
+- [ ] Make promotion automatic after all gates pass, with an optional GitHub environment approval for operators who want it. Configure Vercel Git deployment/domain assignment so it cannot bypass those gates. Separate-project staging acceptance promotes a source revision; it does not move the staging deployment or test credentials into production.
+- [ ] Preserve running Workflow/native execution, historical replay, reservations and retained runtime images during release and rollback. Check deployed Workflow/Cron behavior around promotion and supported recovery paths. A domain switch does not roll back schema changes.
+- [ ] Test failed verification, failed deployment, failed readiness, interrupted release, overlapping releases and compatible rollback. Record commit, image digest, deployment IDs, target environment and results without secrets. Add an ordered one-time pipeline setup guide and update the launch walkthrough only after the workflow exists and hosted acceptance passes.
 
 ## Hosted application
 
@@ -32,6 +45,12 @@ This is the central list of unresolved release work. It is not part of the publi
 - [ ] Verify dashboard SSE flushing, server timeout/reconnect, permission revocation, cross-instance behavior, and connection costs through the deployed edge.
 - [ ] Validate sustained fairness and capacity on the deployed topology before increasing limits. The local 11-case suite passes eight/50-slot workloads on a quiet host; it does not validate 50 live sandboxes or deployed provider quotas.
 
+## Marketing publication
+
+- [ ] Choose a direction from the [ten marketing concepts](../product/marketing/README.md), confirm final brand copy, and promote it to the canonical homepage in a separate reviewed change. The gallery is public but noindexed; it does not run an A/B experiment.
+- [ ] Check the selected page on the deployed hostname, in Safari/Firefox and on physical mobile devices; local Chromium/accessibility checks do not establish conversion or usability.
+- [ ] Produce and validate the selected hero animation from its [motion study](../product/marketing/README.md). The ten generated posters are concept frames; measure the final media's loading, frame pacing, and reduced-motion behavior before publication.
+
 ## Documentation publication
 
 - [ ] Set the intended public `APP_ORIGIN` and `PRODUCT_NAME` at build time, rebuild, and verify canonical URLs, sitemap, raw Markdown, and social metadata on the real hostname.
@@ -42,10 +61,7 @@ This is the central list of unresolved release work. It is not part of the publi
 
 - [ ] Complete the third full repository review pass. The recorded work contains one full inventory review and one focused follow-up; acceptance tests do not replace another complete review.
 
-- [ ] Bound memory for diffs of very large individual files. Diff pagination now avoids reading omitted files; selected files are still read in full to preserve binary detection. Measure a representative large-file workload before introducing a streaming diff path.
-- [ ] Complete draft protection for browser Back/Forward and programmatic navigation, then consider session-local draft recovery. Current editor protection covers normal links, unloading, workspace changes, and refresh conflicts.
-- [ ] Test interruption during the CLI device-flow polling interval and requests. The current signal is checked between polls; process termination remains the immediate escape.
-- [ ] Before changing compute rates on an existing deployment, settle or inspect legacy accepted runs without a frozen compute-rate field. New admissions snapshot the rate; legacy records retain the environment-rate fallback.
+- [ ] Complete draft protection for browser Back/Forward and programmatic navigation, then consider session-local draft recovery. Two-second autosave reduces the unsaved window; current protection covers normal links, unloading, workspace changes, and refresh conflicts, but a Back action before the debounce still needs explicit recovery.
 
 ## Ongoing quality
 

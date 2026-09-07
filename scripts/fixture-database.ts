@@ -38,7 +38,7 @@ export async function withFixtureDatabase(run: (env: NodeJS.ProcessEnv) => Promi
       RUN_ADMISSION_ENABLED: 'true',
       PUBLIC_SIGNUP_ENABLED: 'true',
     };
-    await command(['--filter', '@hosted-agents/sdk', 'build'], env);
+    await command(['--filter', 'macrofold', 'build'], env);
     for (const script of ['migrate', 'auth-migrate', 'provision-cli'])
       await command(['exec', 'tsx', 'scripts/' + script + '.ts'], env);
     await run(env);

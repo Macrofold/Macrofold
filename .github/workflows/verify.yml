@@ -191,7 +191,7 @@ jobs:
           retention-days: 7
       - name: Publish public TypeScript coverage
         if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           files: coverage/full/merged/lcov.info
           flags: typescript
@@ -199,7 +199,7 @@ jobs:
           fail_ci_if_error: true
       - name: Publish separate Python coverage
         if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           files: coverage/python/coverage.xml
           flags: python

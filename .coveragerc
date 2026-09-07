@@ -1,0 +1,15 @@
+[run]
+branch = True
+relative_files = True
+source = sdk/python/hosted_agents,scripts
+
+[report]
+include = sdk/python/hosted_agents/*.py,scripts/estimate-costs.py
+show_missing = True
+fail_under = 90
+
+[xml]
+output = coverage/python/coverage.xml
+
+[html]
+directory = coverage/python/html

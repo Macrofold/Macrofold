@@ -1,0 +1,36 @@
+# Macrofold documentation
+
+> Persistent cloud agents with projects, files, Git, an API, and a terminal CLI.
+
+- [Documentation](docs/README.md): Build with persistent cloud agents from the dashboard, API, or terminal.
+- [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
+- [Run locally](docs/getting-started/local-development.md): Start the free local simulator with Node, pnpm, and Docker.
+- [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
+- [Dashboard](docs/features/dashboard/README.md): Navigate projects, files, run history, access, and usage.
+- [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
+- [Workspaces and Git](docs/features/workspaces/README.md): Persist files, create branches, restore checkpoints, and synchronize GitHub.
+- [Connections and access](docs/features/identity-integrations/README.md): Bring provider keys and grant agents access to applications and MCP tools.
+- [Web search](docs/features/identity-integrations/web-search.md): Configure a search provider and understand search behavior and billing.
+- [Billing and limits](docs/features/billing/README.md): Understand plans, concurrency, budgets, reserved credits, and retention.
+- [API quickstart](docs/features/api/quickstart.md): Create a project and stream your first API-triggered run.
+- [API conventions](docs/features/api/README.md): Authenticate requests, paginate results, handle errors, and retry mutations.
+- [Streaming and webhooks](docs/features/api/events.md): Reconnect to run events and verify reliable webhook delivery.
+- [Terminal CLI](docs/features/cli/README.md): Link a project, chat remotely, use worktrees, and transfer files.
+- [TypeScript SDK](sdk/typescript/README.md): Use typed requests and recoverable event streams in TypeScript.
+- [Python SDK](sdk/python/README.md): Integrate runs and durable streams with the Python client.
+- [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
+- [Deploy on Vercel](docs/operations/launch-guide.md): Configure and deploy the application, database, storage, and native runtime.
+- [Environment configuration](docs/operations/launch-environment.md): Keep local, runtime, and migration configuration separate.
+- [PostgreSQL and Neon](docs/operations/neon.md): Configure restricted roles, connection pooling, migrations, and recovery.
+- [Provider integrations](docs/operations/launch-integrations.md): Register models, tools, billing, storage, email, and GitHub.
+- [Usage and operator reporting](docs/features/operations/README.md): Read activity, execution demand, account metrics, and management MCP reports.
+- [Troubleshooting](docs/getting-started/troubleshooting.md): Recover from setup failures, access errors, interrupted streams, and conflicting edits.
+- [Read with an agent](docs/getting-started/agents.md): Discover Markdown guides, schemas, and navigation indexes for coding agents.
+
+## Contracts and contributors
+
+- [OpenAPI](docs/api/openapi.json)
+- [CLI commands](docs/api/cli.json)
+- [Management MCP](docs/api/admin-mcp.json)
+- [Codebase map](docs/architecture/codebase.md)
+- [Contributor instructions](AGENTS.md)

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authPool, pool, transaction } from '../../packages/db';
 import { admitRun, cancelRun, getRun, submitInput } from '../../packages/core/src/runs';
 import { claimRun } from '../../packages/core/src/engine';
@@ -6,12 +6,19 @@ import { createWorkspace } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import { fixtureAccount } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
+import { config } from '../../packages/core/src/config';
+import * as catalog from '../../packages/core/src/catalog';
+import { credit } from '../../packages/core/src/ledger';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
+const executionProvider = config.execution;
 beforeAll(async () => {
   account = await fixtureAccount('Run state boundaries');
 });
 afterEach(async () => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  config.execution = executionProvider;
   // These tests deliberately arrange intermediate states without starting a worker.
   // Retire them so later capacity tests never see a synthetic active execution.
   await transaction(account.p.organizationId, async (tx) => {
@@ -28,7 +35,7 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function queued() {
+async function queued(limits?: { timeout_seconds: number; max_cost_micro_usd: string }) {
   return transaction(account.p.organizationId, async (tx) => {
     const project = await resources.create(tx, 'projects', account.p.organizationId, {
       name: 'State fixture',
@@ -41,6 +48,7 @@ async function queued() {
       model: 'fixture-model',
       billing_mode: 'managed',
       prompt: 'Local state fixture',
+      limits,
     });
   });
 }
@@ -49,6 +57,33 @@ const query = (sql: string, values: unknown[]) =>
   transaction(account.p.organizationId, (tx) => tx.query(sql, values));
 
 describe('run state transitions and concurrent requests', () => {
+  it('rejects an unfunded compute window before admission and releases an exact-boundary reservation on cancel', async () => {
+    const models = catalog.models();
+    vi.spyOn(catalog, 'models').mockReturnValue(models);
+    config.execution = 'vercel';
+    vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
+    await transaction(account.p.organizationId, (tx) =>
+      credit(tx, account.p.organizationId, 100000n, `compute:${id()}`),
+    );
+    const before = await query('SELECT id FROM runs', []);
+    await expect(queued({ timeout_seconds: 60, max_cost_micro_usd: '7999' })).rejects.toMatchObject({
+      status: 400,
+      code: 'run_budget_too_small',
+    });
+    expect((await query('SELECT id FROM runs', [])).rows).toEqual(before.rows);
+    expect(
+      (await query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [account.p.organizationId]))
+        .rows[0].reserved_micro_usd,
+    ).toBe('0');
+
+    const accepted = await queued({ timeout_seconds: 60, max_cost_micro_usd: '8000' });
+    expect((await row(accepted.run_id)).reservation_micro_usd).toBe('8000');
+    await transaction(account.p.organizationId, (tx) => cancelRun(tx, account.p, accepted.run_id));
+    expect(
+      (await query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [account.p.organizationId]))
+        .rows[0].reserved_micro_usd,
+    ).toBe('0');
+  });
   it('cancels a queued run exactly once under competing requests', async () => {
     const run = await queued();
     const results = await Promise.all(
@@ -144,5 +179,25 @@ describe('run state transitions and concurrent requests', () => {
         submitInput(tx, account.p, run.run_id, { input_request_id: inputId, answer: { text: 'too late' } }),
       ),
     ).rejects.toMatchObject({ code: 'input_expired' });
+  });
+
+  it('rejects input after cancellation is requested without recording an answer', async () => {
+    const run = await queued(),
+      inputId = id();
+    await query("UPDATE runs SET status='waiting_for_input',input_request=$2 WHERE id=$1", [
+      run.run_id,
+      { id: inputId },
+    ]);
+    await transaction(account.p.organizationId, (tx) => cancelRun(tx, account.p, run.run_id));
+    await expect(
+      transaction(account.p.organizationId, (tx) =>
+        submitInput(tx, account.p, run.run_id, { input_request_id: inputId, answer: { text: 'too late' } }),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'input_expired' });
+    expect((await row(run.run_id)).input_request).toEqual({ id: inputId });
+    expect(
+      (await query("SELECT id FROM run_events WHERE run_id=$1 AND type='input.received'", [run.run_id]))
+        .rowCount,
+    ).toBe(0);
   });
 });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('dashboard → persistent files → streamed run → history', async ({ page }) => {
   const errors: string[] = [];
@@ -17,7 +17,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.getByRole('button', { name: 'Open in CLI', exact: true }).click();
   const handoff = page.getByRole('dialog');
-  await expect(handoff).toContainText("agent login --host 'http://localhost:3210'");
+  await expect(handoff).toContainText(`agent login --host '${fixtureOrigin}'`);
   await expect(handoff).toContainText('agent link ');
   await expect(handoff).toContainText('--workspace');
   await expect(handoff).not.toContainText('Bearer');
@@ -25,12 +25,47 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'File path' }).fill('hello.md');
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
-  await expect(page.locator('.cm-content')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.cm-content')).toBeEditable();
   await page
     .locator('.cm-content')
     .fill('# Persisted from the browser\n\nThis file should survive agent execution.');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('File saved and checkpointed')).toBeVisible();
+  // Hold the post-save file refresh: the write is done, but this editor still owns the pending action.
+  let releaseRefresh!: () => void;
+  let refreshStarted!: () => void;
+  const refresh = new Promise<void>((resolve) => {
+    refreshStarted = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  const fileURL = '**/v1/workspaces/*/file?path=hello.md';
+  await page.route(fileURL, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    refreshStarted();
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await refresh;
+    await expect(page.getByRole('button', { name: 'New file', exact: true }).first()).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'hello.md', exact: true })).toBeDisabled();
+  } finally {
+    releaseRefresh();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+  await expect(page.getByRole('button', { name: 'New file', exact: true }).first()).toBeEnabled();
+  await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
+  await page.getByRole('button', { name: 'New file', exact: true }).first().click();
+  await page.getByRole('textbox', { name: 'File path' }).fill('hello.md');
+  await page.getByRole('button', { name: 'Create file', exact: true }).click();
+  await expect(
+    page.getByText('A file already exists at this path. Choose another name or edit the existing file.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
+
   await page.getByRole('button', { name: 'New run', exact: true }).click();
   await page
     .getByRole('textbox', { name: 'What would you like to get done?' })

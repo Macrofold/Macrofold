@@ -1,4 +1,6 @@
 'use client';
+import { copyText } from '../lib/clipboard';
+import { dashboardIdentityChanged } from './dashboard-freshness';
 import { Select } from './select';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -233,12 +235,7 @@ export function TeamView() {
             <Field label="Invitation link">
               <input readOnly value={invite} />
             </Field>
-            <Button
-              onClick={async () => {
-                await navigator.clipboard.writeText(invite);
-                toast.success('Invitation link copied');
-              }}
-            >
+            <Button onClick={() => copyText(invite, 'Invitation link copied')}>
               <Copy size={16} />
               Copy invitation
             </Button>
@@ -261,6 +258,7 @@ export function TeamView() {
                     name: data.get('name'),
                   });
                   await api('/account/organization', 'POST', { organization_id: org.id });
+                  dashboardIdentityChanged();
                   location.assign('/team');
                 }
               });

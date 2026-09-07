@@ -88,6 +88,9 @@ export class CodexAdapter implements HarnessAdapter {
       resolve = yes;
       reject = no;
     });
+    // Startup RPCs can reject before we await completion. Observe that parallel
+    // rejection now; awaiting the original promise below still reports failures.
+    void completed.catch(() => {});
     rpc.onExit = reject;
     rpc.onMessage = async (message) => {
       if (message.id !== undefined && message.method) {

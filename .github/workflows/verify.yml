@@ -33,17 +33,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run setup
-      - run: pnpm check && pnpm build
+      - run: pnpm docs:check && pnpm check && pnpm build
       - name: Domain, contract and package acceptance
         run: |
-          pnpm test:coverage
+          python -m pip install './sdk/python' pytest 'coverage==7.13.5'
+          pnpm test:coverage:all
           pnpm test:load
           pnpm exec tsx scripts/test-install.ts
           pnpm test:packages
-          python -m pip install './sdk/python' pytest
-          python -m pytest sdk/python/tests
-          python tests/test_costs.py
-          python scripts/check-docs.py
+          mkdir -p coverage/python
+          COVERAGE_FILE=coverage/python/.coverage PYTHONPATH=sdk/python python -m coverage run -m pytest sdk/python/tests tests/test_costs.py
+          COVERAGE_FILE=coverage/python/.coverage python -m coverage report
+          COVERAGE_FILE=coverage/python/.coverage python -m coverage xml
+          COVERAGE_FILE=coverage/python/.coverage python -m coverage json -o coverage/python/coverage.json
+          pnpm docs:check
           pnpm contracts
           git diff --exit-code -- packages/contracts/api.d.ts sdk/typescript/src/schema.d.ts sdk/typescript/src/routes.ts sdk/python/hosted_agents/routes.json
           pnpm audit --audit-level high
@@ -55,29 +58,6 @@ jobs:
           path: coverage/
           if-no-files-found: warn
           retention-days: 7
-      - name: Publish public repository coverage
-        if: success() && vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
-        with:
-          files: coverage/lcov.info
-          flags: typescript
-          disable_search: true
-          fail_ci_if_error: true
-          # Enable tokenless public uploads in Codecov; no repository secrets
-          # or write-capable GitHub tokens are made available to fork tests.
-      - name: Dashboard and streaming CLI acceptance
-        run: |
-          pnpm start > /tmp/platform-web.log 2>&1 &
-          pnpm worker > /tmp/platform-worker.log 2>&1 &
-          trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 60); do
-            if curl -fsS http://localhost:3210/health >/dev/null; then break; fi
-            sleep 1
-          done
-          pnpm test:e2e
-          pnpm test:cli
-          python scripts/test-terminal.py
-          python scripts/test-python-live.py
       - name: Browser failure evidence
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -96,6 +76,7 @@ jobs:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
       ALLOW_PAID_EXECUTION: 'false'
+      NATIVE_COVERAGE_DIR: coverage/native
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -110,9 +91,17 @@ jobs:
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
           pnpm test:native --image-only
           pnpm test:native opencode --questions --image-only
-          docker run --rm --network none --mount type=bind,src="$PWD/tests/fixtures",dst=/tests,readonly platform-runtime:0.1.0 node /tests/stdio-native.mjs
+          pnpm test:native --stdio --image-only
+      - name: Native coverage observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-coverage
+          path: coverage/native/
+          if-no-files-found: error
+          retention-days: 7
   mutation:
-    name: Runtime capability mutation tests
+    name: Critical policy mutation tests
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -133,3 +122,51 @@ jobs:
           path: reports/mutation/
           if-no-files-found: warn
           retention-days: 7
+  coverage:
+    name: Combined coverage gates
+    needs: [acceptance, native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: typescript-coverage
+          path: coverage/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: native-coverage
+          path: coverage/full/native/
+      - run: pnpm coverage:merge
+        env:
+          COVERAGE_REQUIRED_SURFACES: browser,server,worker,cli,native
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: combined-coverage
+          path: |
+            coverage/full/merged/
+            coverage/python/
+          retention-days: 7
+      - name: Publish public TypeScript coverage
+        if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
+        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        with:
+          files: coverage/full/merged/lcov.info
+          flags: typescript
+          disable_search: true
+          fail_ci_if_error: true
+      - name: Publish separate Python coverage
+        if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
+        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        with:
+          files: coverage/python/coverage.xml
+          flags: python
+          disable_search: true
+          fail_ci_if_error: true

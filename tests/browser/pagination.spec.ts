@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
@@ -10,7 +10,7 @@ test.afterAll(async () => {
   await pool.end();
 });
 test('finds projects and files beyond the first page and exposes every cursor page', async ({ page }) => {
-  const headers = { Origin: 'http://localhost:3210', 'Idempotency-Key': randomUUID() },
+  const headers = { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     email = randomUUID() + '@example.test',
     password = 'local-pages-fixture-2026';
   const signup = await page.request.post('/auth/sign-up/email', {

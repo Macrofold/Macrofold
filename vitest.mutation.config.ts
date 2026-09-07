@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/runtime-capability.test.ts'],
+    include: ['tests/unit/runtime-capability.test.ts', 'tests/unit/execution-policy.test.ts'],
     testTimeout: 10000,
     fileParallelism: false,
     env: {

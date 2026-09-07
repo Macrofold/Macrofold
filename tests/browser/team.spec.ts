@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import pg from 'pg';
@@ -6,7 +6,7 @@ const pool = new pg.Pool({
   connectionString:
     process.env.DATABASE_URL || 'postgres://platform_app:local-app-only@127.0.0.1:55432/platform',
 });
-const origin = 'http://localhost:3210',
+const origin = fixtureOrigin,
   password = 'local-team-fixture-2026';
 test.afterAll(async () => {
   await pool.end();

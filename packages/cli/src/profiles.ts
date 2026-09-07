@@ -242,25 +242,26 @@ export async function deviceLogin(options: {
   throw new ApiError(401, 'device_code_expired', 'The login code expired. Start login again.');
 }
 export async function logout(name?: string) {
-  const { name: selected, profile } = await selectedProfile(name);
-  let revoked = false;
-  if (profile.refreshToken)
-    try {
-      await oauthRequest(profile.origin, '/auth/oauth2/revoke', {
-        token: profile.refreshToken,
-        client_id: release.clientId,
-        token_type_hint: 'refresh_token',
-      });
-      revoked = true;
-    } catch {
-      revoked = false;
-    }
-  await locked(async () => {
+  // Select, revoke and remove under the same lock used by refresh and login.
+  return locked(async () => {
+    const { name: selected, profile } = await selectedProfile(name);
+    let revoked = false;
+    if (profile.refreshToken)
+      try {
+        await oauthRequest(profile.origin, '/auth/oauth2/revoke', {
+          token: profile.refreshToken,
+          client_id: release.clientId,
+          token_type_hint: 'refresh_token',
+        });
+        revoked = true;
+      } catch {
+        // Local removal still works offline; the result reports unconfirmed revocation.
+      }
     const data = await store();
     delete data.profiles[selected];
     await writeStore(data);
+    return { removed: true, revoked };
   });
-  return { removed: true, revoked };
 }
 export async function profileSummaries() {
   const data = await store();

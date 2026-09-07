@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('operator sees usage, honest cohorts, account drilldown and searchable paginated accounts', async ({
   page,

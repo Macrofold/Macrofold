@@ -151,6 +151,7 @@ export async function writeFile(
     ...object,
     path: filePath,
     type: 'file',
+    mode: files.find((f) => f.path === filePath && f.type === 'file')?.mode,
     modified_at: new Date().toISOString(),
     git_ignored: filePath.split('/').some((x) => x.startsWith('.')),
   });

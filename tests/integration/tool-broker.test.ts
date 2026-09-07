@@ -12,7 +12,9 @@ import { createWorkspace } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
 import * as connections from '../../packages/core/src/connections';
-import { searchTool } from '../../packages/providers/src/search';
+import { searchTool } from '../../packages/contracts/search';
+import type { SearchProviderId } from '../../packages/contracts/search';
+import { searchFixtures } from '../fixtures/search';
 import { approvedStdio } from '../../packages/core/src/stdio-catalog';
 const original = { ...config },
   env = { ...process.env };
@@ -38,7 +40,11 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function prepared(kind: 'search' | 'mcp_remote' | 'mcp_stdio' = 'search', byok = false) {
+async function prepared(
+  kind: 'search' | 'mcp_remote' | 'mcp_stdio' = 'search',
+  byok = false,
+  provider: SearchProviderId = 'brave',
+) {
   // Install an outbound-deny stub before exercising any production branch.
   const http = vi.spyOn(network, 'safeFetch').mockImplementation(async () => {
     throw new Error('No fixture configured; outbound access denied');
@@ -73,7 +79,7 @@ async function prepared(kind: 'search' | 'mcp_remote' | 'mcp_stdio' = 'search', 
     const connection = await resources.create(tx, 'connections', p.organizationId, {
       name: 'Fixture',
       kind,
-      provider: 'brave',
+      provider,
       auth_method: byok ? 'api_key' : 'none',
       secret_ciphertext: byok ? seal('customer-fixture-key') : undefined,
       url: kind === 'mcp_remote' ? 'https://fixture.invalid/mcp' : undefined,
@@ -121,6 +127,47 @@ async function prepared(kind: 'search' | 'mcp_remote' | 'mcp_stdio' = 'search', 
   };
   return { ...result, p, cap, tool: { ...tool, granted: true }, http };
 }
+it.each(searchFixtures)(
+  '$provider BYOK search traverses the authorized broker and records one invocation on replay',
+  async (fixture) => {
+    const a = await prepared('search', true, fixture.provider);
+    a.http.mockImplementation(async (url, init) => {
+      expect(String(url)).toBe(fixture.url);
+      expect(new Headers(init?.headers).get(fixture.header)).toBe(
+        fixture.header === 'Authorization' ? 'Bearer customer-fixture-key' : 'customer-fixture-key',
+      );
+      return Response.json(fixture.response([fixture.row]));
+    });
+    const args = { query: 'docs & typescript', count: 2 };
+    const first = await executeGrantedTool(a.cap, a.connection.id, a.tool, args, 'provider-search');
+    expect(first).toEqual({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            query: args.query,
+            results: [{ title: 'Source', url: 'https://example.com', description: 'First\nSecond' }],
+          }),
+        },
+      ],
+    });
+    expect(await executeGrantedTool(a.cap, a.connection.id, a.tool, args, 'provider-search')).toEqual(first);
+    expect(a.http).toHaveBeenCalledOnce();
+    const invocations = await transaction(a.p.organizationId, (tx) =>
+      tx.query('SELECT status,cost_micro_usd FROM tool_invocations WHERE run_id=$1', [a.runId]),
+    );
+    expect(invocations.rows).toEqual([{ status: 'complete', cost_micro_usd: '0' }]);
+    await transaction(a.p.organizationId, (tx) =>
+      resources.update(tx, 'connections', a.connection.id, {
+        grants: { version: 2, subject_type: 'user', subject_id: a.p.userId, tools: [] },
+      }),
+    );
+    await expect(
+      executeGrantedTool(a.cap, a.connection.id, a.tool, args, 'revoked-search'),
+    ).rejects.toMatchObject({ code: 'tool_not_granted' });
+    expect(a.http).toHaveBeenCalledOnce();
+  },
+);
 it('search is scoped, budgeted, replay-safe and uses the selected funding key without fallback', async () => {
   const a = await prepared();
   let requests = 0;

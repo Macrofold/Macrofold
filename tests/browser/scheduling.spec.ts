@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';

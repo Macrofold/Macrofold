@@ -5,9 +5,10 @@ node_modules/
 !.env.example
 !.env.test.example
 .data/
-coverage/
+/coverage/
 .stryker-tmp/
 reports/mutation/
+reports/mutation-critical/
 stryker.log
 test-results/
 playwright-report/
@@ -20,3 +21,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 /sdk/python/build/
+.neon
+
+.coverage
+.coverage.*

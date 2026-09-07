@@ -1,6 +1,6 @@
 # Testing rules for contributors and coding agents
 
-Use this policy when adding features, fixing bugs, or reviewing changes. It supplements [AGENTS.md](AGENTS.md); the [testing and CI reference](docs/24-testing-ci.md) describes commands, report scope, configured gates, and release verification. Requirements below apply to the behavior affected by a change, rather than requiring every suite for every edit.
+Use this policy when adding features, fixing bugs, or reviewing changes. It supplements [AGENTS.md](AGENTS.md); the [testing and CI reference](docs/engineering/testing.md) describes commands, report scope, configured gates, and release verification. Requirements below apply to the behavior affected by a change, rather than requiring every suite for every edit.
 
 The current stack is strict TypeScript on Node 24, Next.js 16/React 19, Vitest 4 with V8 coverage, Playwright with axe, PostgreSQL with `pg`, and Stryker. The Python SDK uses pytest and HTTPX; cost checks use `unittest` and `Decimal`. Use the pinned dependencies and existing helpers. Official documentation can describe newer versions: check compatibility before copying APIs or configuration.
 
@@ -41,7 +41,7 @@ Do not duplicate the full case matrix at every level. For example, a new cancel 
 
 ## Isolation, mocks, clocks, and concurrency
 
-Use provider ports or transport handlers for deterministic external fixtures. Do not mock the domain service whose behavior is under test. Integration checks should exercise real local database, filesystem, and Git behavior where those semantics matter. Reject unexpected outbound requests in fixture transports; synthetic credentials must never fall back to real credentials.
+Use provider ports or transport handlers for deterministic external fixtures. Do not mock the domain service whose behavior is under test. Integration checks should exercise real local database, filesystem, and Git behavior where those semantics matter. Reject unexpected outbound requests in fixture transports; synthetic credentials must never fall back to real credentials. Explicitly override optional live discovery credentials in fixture subprocesses as well; disabling paid execution alone does not isolate free metadata requests.
 
 Restore spies, replaced implementations, environment variables, globals, and timers after each test. Clearing a mock's call history does not restore its implementation. Be aware that `vi.mock` is hoisted before imports, and reset fake time with `vi.useRealTimers()`. Prefer explicit dependency injection over brittle import-order tricks. [Vitest mocking guidance](https://vitest.dev/guide/mocking.html).
 
@@ -72,6 +72,8 @@ For isolated TanStack Query tests, create a fresh `QueryClient` per test and dis
 For changed dashboard workflows, cover relevant loading, empty, success, error, and permission states. Test optimistic rollback and duplicate submission prevention when present. Check tenant/account changes cannot expose stale cached data. These are feature-specific cases, not a requirement to repeat every state for every presentational component.
 
 ### Playwright and accessibility
+
+When a test holds requests behind an async barrier, release the barrier and wait for in-flight route handlers before removing interception. Removing a route while its handler still owns the request can create a test-only double-continuation failure.
 
 Use role/accessible-name or label locators. Prefer `await expect(locator).toBeVisible()` and similar retrying assertions over immediate booleans. Avoid structural CSS selectors, positional selectors without a semantic reason, and fixed sleeps. Isolate browser contexts and account data, and investigate failure traces before changing timeouts or retries. [Playwright best practices](https://playwright.dev/docs/best-practices).
 
@@ -104,13 +106,13 @@ Treat coverage as a map of missing evidence. Inspect changed lines and branches,
 
 Preserve the enforced global and module floors in [Vitest configuration](vitest.config.ts). Aim for at least **90% branch coverage of new or substantially changed critical logic**, with explicit tests of its invariants. This is a review target; it does not change current CI thresholds or impose 90% across the existing repository. Explain meaningful gaps and raise module floors as stronger evidence becomes stable. Do not lower gates, exclude application code, or add assertion-free tests to improve the score.
 
-Run the complete `pnpm test:coverage` command when evaluating aggregate coverage; a targeted run is not a comparable baseline. Untouched application files remain included. [Vitest coverage guidance](https://vitest.dev/guide/coverage.html). Separate browser, CLI subprocess, native image, and Python execution are not credited in this report. Label those evidence scopes accurately; [the CI reference](docs/24-testing-ci.md) explains reporting limitations and the currently informational Codecov patch target.
+Run the complete `pnpm test:coverage` command when evaluating aggregate coverage; a targeted run is not a comparable baseline. Untouched application files remain included. [Vitest coverage guidance](https://vitest.dev/guide/coverage.html). The fast report covers in-process TypeScript. Use `pnpm test:coverage:all` for source-mapped browser, application server, worker and CLI observations, and add the native fixture observations as documented. Python remains a separate report. Label those evidence scopes accurately; [the CI reference](docs/engineering/testing.md) explains reporting limitations and the currently informational Codecov patch target.
 
-Run `pnpm test:mutation` when changing its configured target or related tests. Current [Stryker scope](stryker.config.json) is runtime capability validation, with a 90% score gate; CI runs this focused job. Review surviving and uncovered mutants for missing assertions. Record equivalent behavior or non-contract wording changes when they do not merit tests. Investigate timeouts/errors separately instead of treating them as demonstrated defect detection. Broaden mutation scope deliberately with deterministic fixtures; never mutate shared source or preview/production data. [Stryker configuration](https://stryker-mutator.io/docs/stryker-js/configuration/).
+Run `pnpm test:mutation` when changing its configured target or related tests. The fast [Stryker scope](stryker.config.json) covers runtime capabilities and execution-plan policy with a 90% gate. The separate scheduled/manual [critical scope](stryker.critical.config.json) covers delegated authority, financial logic and the restore routine with disposable PostgreSQL/files and an 85% gate. Review surviving and uncovered mutants for missing assertions. Record equivalent behavior or non-contract wording changes when they do not merit tests. Investigate timeouts/errors separately instead of treating them as demonstrated defect detection. Broaden mutation scope deliberately with deterministic fixtures; never mutate shared source or preview/production data. [Stryker configuration](https://stryker-mutator.io/docs/stryker-js/configuration/).
 
 ## Contributor workflow and completion
 
-After [local setup](README.md#get-it-running), start with the affected test file, then broaden to the suites justified by the change:
+After [local setup](README.md#try-it-locally), start with the affected test file, then broaden to the suites justified by the change:
 
 ```sh
 # Example: isolated database-backed regression checks
@@ -135,4 +137,4 @@ A pull request should state:
 - Remaining reproducible gaps or flaky failures with a concrete follow-up. Do not silently skip tests, weaken assertions, or add retries to conceal failures.
 - Contract, migration, recovery, or provider-acceptance implications when applicable.
 
-Default verification must make no paid model, sandbox, search, or connector calls and must need no production secrets. Live tests must be explicitly cost-free, isolated, and labeled separately from protocol fixtures. If credentials or spending authorization prevent vendor acceptance, record the exact operation, setup, expected result, and evidence still needed in the [pre-deployment checklist](docs/21-pre-deployment-checklist.md). Passing simulation tests must never be reported as live provider verification.
+Default verification must make no paid model, sandbox, search, or connector calls and must need no production secrets. Live tests must be explicitly cost-free, isolated, and labeled separately from protocol fixtures. If credentials or spending authorization prevent vendor acceptance, record the exact operation, setup, expected result, and evidence still needed in the [pre-deployment checklist](docs/operations/pre-deployment.md). Passing simulation tests must never be reported as live provider verification.

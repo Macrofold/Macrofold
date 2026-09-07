@@ -9,6 +9,7 @@ import { admitRun, getRun } from '../../packages/core/src/runs';
 import { handleModelRequest } from '../../packages/core/src/model-gateway';
 import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { credit, reserve } from '../../packages/core/src/ledger';
+import { saveConnection } from '../../packages/core/src/connections';
 
 let p: Principal;
 const original = { ...config };
@@ -130,6 +131,241 @@ async function prepared() {
   return { runId, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it.each(['openai', 'anthropic', 'openrouter'])(
+    'uses encrypted %s BYOK credentials and refuses local revocation without managed fallback',
+    async (provider) => {
+      const s = await prepared();
+      const connectionId = await transaction(p.organizationId, async (tx) => {
+        const connection = await saveConnection(tx, p, {
+          name: 'BYOK contract',
+          kind: 'model',
+          provider,
+          auth_method: 'api_key',
+          secret: 'customer-fixture-key',
+        });
+        await tx.query('UPDATE runs SET config=config||$2::jsonb WHERE id=$1', [
+          s.runId,
+          JSON.stringify({
+            billing_mode: 'byok',
+            provider_connection_id: connection.id,
+            rate_card: { ...model, provider },
+          }),
+        ]);
+        return connection.id;
+      });
+      process.env[provider.toUpperCase() + '_API_KEY'] = 'managed-fixture-must-not-be-used';
+      s.fetch.mockImplementation(async (_url, init) => {
+        const headers = new Headers(init?.headers);
+        expect(headers.get(provider === 'anthropic' ? 'x-api-key' : 'authorization')).toBe(
+          provider === 'anthropic' ? 'customer-fixture-key' : 'Bearer customer-fixture-key',
+        );
+        return Response.json(
+          provider === 'anthropic'
+            ? { type: 'message', usage: { input_tokens: 11, output_tokens: 3 } }
+            : { usage: { prompt_tokens: 11, completion_tokens: 3 } },
+        );
+      });
+      const path =
+        provider === 'anthropic'
+          ? 'v1/messages'
+          : provider === 'openrouter'
+            ? 'v1/chat/completions'
+            : 'v1/responses';
+      const response = await s.call({ stream: false }, path);
+      expect(response.status).toBe(200);
+      await response.text();
+      const saved = await transaction(p.organizationId, async (tx) => ({
+        budget: (
+          await tx.query(
+            'SELECT cost_micro_usd,budget_used_micro_usd,model_reserved_micro_usd FROM runs WHERE id=$1',
+            [s.runId],
+          )
+        ).rows[0],
+        usage: (
+          await tx.query('SELECT billing_mode,cost_micro_usd,completeness FROM model_usage WHERE run_id=$1', [
+            s.runId,
+          ])
+        ).rows,
+      }));
+      expect(saved).toEqual({
+        budget: { cost_micro_usd: '0', budget_used_micro_usd: '17', model_reserved_micro_usd: '0' },
+        usage: [{ billing_mode: 'byok', cost_micro_usd: '17', completeness: 'complete' }],
+      });
+      await transaction(p.organizationId, (tx) =>
+        resources.update(tx, 'connections', connectionId, { status: 'error' }),
+      );
+      expect((await s.call({ stream: false }, path)).status).toBe(403);
+      expect(s.fetch).toHaveBeenCalledOnce();
+    },
+  );
+  it.each([
+    {
+      provider: 'anthropic',
+      path: 'v1/messages',
+      input: 673,
+      output: 33,
+      inputRate: '1000000',
+      outputRate: '5000000',
+      cost: '838',
+      frames: [
+        {
+          type: 'message_start',
+          message: {
+            usage: {
+              input_tokens: 673,
+              output_tokens: 1,
+              cache_creation_input_tokens: 0,
+              cache_read_input_tokens: 0,
+            },
+          },
+        },
+        { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"value":"ok"}' } },
+        { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 33 } },
+        { type: 'message_stop' },
+      ],
+    },
+    {
+      provider: 'openrouter',
+      path: 'v1/chat/completions',
+      input: 58,
+      output: 6,
+      inputRate: '100000',
+      outputRate: '400000',
+      cost: '9',
+      frames: [
+        {
+          object: 'chat.completion.chunk',
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: 'fixture-call',
+                    type: 'function',
+                    function: { name: 'probe', arguments: '{"value":"ok"}' },
+                  },
+                ],
+              },
+            },
+          ],
+          usage: null,
+        },
+        {
+          object: 'chat.completion.chunk',
+          choices: [],
+          usage: {
+            prompt_tokens: 58,
+            completion_tokens: 6,
+            total_tokens: 64,
+            prompt_tokens_details: { cached_tokens: 0 },
+            cost: 0.0000082,
+          },
+        },
+      ],
+    },
+  ])('settles the live-observed $provider stream envelope exactly once', async (fixture) => {
+    const s = await prepared();
+    process.env[fixture.provider.toUpperCase() + '_API_KEY'] = 'fixture-key-no-provider-account';
+    await transaction(p.organizationId, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{rate_card}',$2::jsonb) WHERE id=$1", [
+        s.runId,
+        JSON.stringify({
+          ...model,
+          provider: fixture.provider,
+          input_micro_usd_per_million: fixture.inputRate,
+          output_micro_usd_per_million: fixture.outputRate,
+        }),
+      ]),
+    );
+    const frames =
+      fixture.frames.map((event) => 'data: ' + JSON.stringify(event) + '\n\n').join('') +
+      (fixture.provider === 'openrouter' ? 'data: [DONE]\n\n' : '');
+    s.fetch.mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(String(init?.body));
+      if (fixture.provider === 'openrouter') {
+        expect(payload.max_tokens).toBeUndefined();
+        expect(payload.max_completion_tokens).toBe(100);
+        expect(payload.stream_options).toEqual({ include_usage: true });
+      }
+      // Transport chunks are deliberately unrelated to SSE frame boundaries.
+      const bytes = new TextEncoder().encode(frames);
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            for (let offset = 0; offset < bytes.length; offset += 7)
+              controller.enqueue(bytes.slice(offset, offset + 7));
+            controller.close();
+          },
+        }),
+        { headers: { 'content-type': 'text/event-stream' } },
+      );
+    });
+    const response = await s.call(
+      { messages: [{ role: 'user', content: 'Fixture' }], max_tokens: 100 },
+      fixture.path,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(frames);
+    const saved = await transaction(p.organizationId, async (tx) => ({
+      usage: (
+        await tx.query(
+          'SELECT input_tokens,output_tokens,cost_micro_usd,completeness FROM model_usage WHERE run_id=$1',
+          [s.runId],
+        )
+      ).rows,
+      budget: (
+        await tx.query('SELECT model_reserved_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [
+          s.runId,
+        ])
+      ).rows[0],
+    }));
+    expect(saved.usage).toEqual([
+      {
+        input_tokens: String(fixture.input),
+        output_tokens: String(fixture.output),
+        cost_micro_usd: fixture.cost,
+        completeness: 'complete',
+      },
+    ]);
+    expect(saved.budget).toEqual({ model_reserved_micro_usd: '0', budget_used_micro_usd: fixture.cost });
+    expect(s.fetch).toHaveBeenCalledOnce();
+  });
+  it('authenticates Anthropic token counting without creating a billable request or consuming a reservation', async () => {
+    const s = await prepared();
+    process.env.ANTHROPIC_API_KEY = 'fixture-key-no-provider-account';
+    await transaction(p.organizationId, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{rate_card}',$2::jsonb) WHERE id=$1", [
+        s.runId,
+        JSON.stringify({ ...model, provider: 'anthropic' }),
+      ]),
+    );
+    s.fetch.mockImplementation(async (url, init) => {
+      expect(String(url)).toBe('https://api.anthropic.com/v1/messages/count_tokens');
+      const headers = new Headers(init?.headers);
+      expect(headers.get('x-api-key')).toBe('fixture-key-no-provider-account');
+      expect(headers.get('anthropic-version')).toBe('2023-06-01');
+      return Response.json({ input_tokens: 647 });
+    });
+    const response = await s.call({ stream: false }, 'v1/messages/count_tokens');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ input_tokens: 647 });
+    const saved = await transaction(p.organizationId, async (tx) => ({
+      requests: (await tx.query('SELECT id FROM gateway_requests WHERE run_id=$1', [s.runId])).rows,
+      usage: (await tx.query('SELECT id FROM model_usage WHERE run_id=$1', [s.runId])).rows,
+      budget: (
+        await tx.query(
+          'SELECT model_reserved_micro_usd,budget_used_micro_usd,reservation_micro_usd FROM runs WHERE id=$1',
+          [s.runId],
+        )
+      ).rows[0],
+    }));
+    expect(saved).toEqual({
+      requests: [],
+      usage: [],
+      budget: { model_reserved_micro_usd: '0', budget_used_micro_usd: '0', reservation_micro_usd: '2000000' },
+    });
+  });
   it('holds a conservative bound and settles the exact observed token usage once', async () => {
     const s = await prepared();
     s.fetch.mockImplementation(async (url, init) => {

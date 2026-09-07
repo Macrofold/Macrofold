@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "vitest.mutation-critical.config.ts"
+  },
+  "mutate": [
+    "packages/core/src/actor-authorization.ts",
+    "packages/core/src/ledger.ts",
+    "packages/runtime/src/restore.ts:7:0-78:1"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "concurrency": 1,
+  "timeoutMS": 15000,
+  "timeoutFactor": 2,
+  "inPlace": false,
+  "ignorePatterns": [
+    ".env",
+    ".env.*",
+    ".data",
+    "coverage",
+    "test-results",
+    "playwright-report",
+    "**/.next",
+    "**/dist",
+    ".claude",
+    ".codex",
+    ".neon"
+  ],
+  "thresholds": {
+    "high": 90,
+    "low": 85,
+    "break": 85
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation-critical/mutation.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation-critical/mutation.json"
+  }
+}

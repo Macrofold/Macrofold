@@ -1,0 +1,7 @@
+# Composio integration verification
+
+Setup requires a safe provider action returning real data and a nonempty Composio log ID through the intended execution path. CLI login, catalog discovery and a consent link are intermediate checks. Confirm the selected account, pinned version, invocation/usage record and grant revocation. Check vendor allowances before making a live action.
+
+The supplied project key now authenticates. Live GitHub auth-config creation and retrieval succeeded, including verification of the requested `read:user` scope. The application's catalog adapter and SDK executed the discovered public `HACKERNEWS_GET_ITEM` tool with explicit version `20260708_00`, returning real data and a nonempty log ID. The SDK retrieves the pinned tool schema before executing, maps `userId` to `user_id`, and maps the provider's `log_id` to `logId`. Execution uses its no-retry client. Credential and HTTP-contract regressions exercise the real SDK with intercepted transports.
+
+Public tools require no connected account; Composio rejects creating an auth configuration for Hacker News. That successful public-data probe does not establish private-account authorization through the application broker. Authenticated toolkit registration, consent, public HTTPS callback identity verification and the first granted private-account read remain in the [pre-deployment checklist](../../operations/pre-deployment.md). See [live acceptance](../../engineering/testing/live-integrations.md) for request scope, spending and rerun commands.

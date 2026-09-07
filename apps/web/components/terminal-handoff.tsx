@@ -1,7 +1,7 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import { useState } from 'react';
 import { Copy, Terminal } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button, Modal } from './ui';
 
 export function TerminalHandoff({ projectId, workspaceId }: { projectId: string; workspaceId: string }) {
@@ -27,17 +27,7 @@ export function TerminalHandoff({ projectId, workspaceId }: { projectId: string;
         </p>
         <pre className="code-block">{commands}</pre>
         <div className="dialog-actions">
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(commands);
-                toast.success('Terminal commands copied');
-              } catch {
-                toast.error('Clipboard unavailable. Select and copy the commands above.');
-              }
-            }}
-          >
+          <Button variant="secondary" onClick={() => copyText(commands, 'Terminal commands copied')}>
             <Copy size={15} /> Copy commands
           </Button>
         </div>

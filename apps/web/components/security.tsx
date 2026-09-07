@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ShieldCheck, KeyRound, Laptop, LogOut, Copy } from 'lucide-react';
@@ -297,11 +298,7 @@ export function SecurityView() {
             <pre className="recovery-codes">{enrollment.backupCodes.join('\n')}</pre>
             <Button
               variant="secondary"
-              onClick={() =>
-                navigator.clipboard
-                  .writeText(enrollment.backupCodes.join('\n'))
-                  .then(() => toast.success('Recovery codes copied'))
-              }
+              onClick={() => copyText(enrollment.backupCodes.join('\n'), 'Recovery codes copied')}
             >
               <Copy size={15} />
               Copy recovery codes

@@ -99,3 +99,98 @@ describe('checkpoint validation and atomic file publication', () => {
     await expect(readFile(path.join(output, 'index.json'))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
+
+describe('checkpoint transfer and symlink failure branches', () => {
+  it('rejects malformed page JSON before changing the destination', async () => {
+    const f = await fixture();
+    await writeFile(path.join(f.snapshot, 'page-0.json'), '[{"truncated":');
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow(SyntaxError);
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  });
+  it('rejects a child beneath a recorded symlink before publishing any file', async () => {
+    const f = await fixture();
+    f.index.entries.push(
+      { ...f.index.entries[0], path: 'linked', type: 'symlink' },
+      { ...f.index.entries[0], path: 'linked/child' },
+    );
+    await f.publish();
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow(
+      'Snapshot entry descends through a symlink',
+    );
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  });
+  it('rejects an oversized verified symlink target without replacing the existing file', async () => {
+    const f = await fixture();
+    const { createHash } = await import('node:crypto');
+    const bytes = Buffer.alloc(4097, 97),
+      hash = createHash('sha256').update(bytes).digest('hex');
+    await writeFile(path.join(f.snapshot, 'chunks', hash), bytes);
+    Object.assign(f.index.entries[0], {
+      type: 'symlink',
+      size: bytes.length,
+      sha256: hash,
+      chunks: [{ hash, size: bytes.length }],
+    });
+    await f.publish();
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Symlink target too long');
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  });
+  it('preserves the destination when an expected chunk has not finished transferring', async () => {
+    const f = await fixture(),
+      chunk = f.index.entries[0].chunks[0];
+    await writeFile(path.join(f.snapshot, 'chunks', chunk.hash), 'verified');
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Restore chunk integrity failure');
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+    await writeFile(path.join(f.snapshot, 'chunks', chunk.hash), 'verified new content');
+    await restoreSnapshot(f.snapshot, f.target);
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('verified new content');
+  });
+});
+
+it('reads multi-digit pages and ignores files that only resemble page names', async () => {
+  const f = await fixture();
+  await writeFile(
+    path.join(f.snapshot, 'page-10.json'),
+    JSON.stringify([{ ...f.index.entries[0], path: 'nested/second.txt' }]),
+  );
+  for (const name of ['prefix-page-1.json', 'page-2.json.partial'])
+    await writeFile(path.join(f.snapshot, name), 'invalid JSON');
+  await restoreSnapshot(f.snapshot, f.target);
+  expect(await readFile(path.join(f.target.workspace, 'nested/second.txt'), 'utf8')).toBe(
+    'verified new content',
+  );
+});
+
+it('validates entry paths at the restore boundary before writing outside a namespace', async () => {
+  const f = await fixture();
+  f.index.entries[0].path = '../escape';
+  await f.publish();
+  await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('unsafe_snapshot_path');
+  await expect(readFile(path.join(f.root, 'escape'))).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('checks each chunk hash independently of a matching declared full-file hash', async () => {
+  const f = await fixture(),
+    entry = f.index.entries[0];
+  const { createHash } = await import('node:crypto');
+  const tampered = Buffer.alloc(entry.size, 88);
+  await writeFile(path.join(f.snapshot, 'chunks', entry.chunks[0].hash), tampered);
+  entry.sha256 = createHash('sha256').update(tampered).digest('hex');
+  await f.publish();
+  await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Restore chunk integrity failure');
+  expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+});
+
+it.each(['prefix', 'suffix'])(
+  'rejects a chunk digest with an extra %s even when bytes exist',
+  async (side) => {
+    const f = await fixture(),
+      chunk = f.index.entries[0].chunks[0];
+    const bytes = await readFile(path.join(f.snapshot, 'chunks', chunk.hash));
+    chunk.hash = side === 'prefix' ? 'x' + chunk.hash : chunk.hash + 'x';
+    await writeFile(path.join(f.snapshot, 'chunks', chunk.hash), bytes);
+    await f.publish();
+    await expect(restoreSnapshot(f.snapshot, f.target)).rejects.toThrow('Invalid chunk hash');
+    expect(await readFile(path.join(f.target.workspace, 'file.txt'), 'utf8')).toBe('retained content');
+  },
+);

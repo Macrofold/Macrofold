@@ -2,14 +2,14 @@
   "openapi": "3.1.0",
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
-    "title": "Cloud agent platform \u2014 proposed API",
+    "title": "Hosted agents API",
     "version": "0.9.0",
-    "description": "Design contract, not an implemented service. See ../04-api.md and ../08-analytics-operations.md. Provider-owned OAuth, internal runtime ingress and MCP JSON-RPC use separate contracts. Examples use non-production domains. Includes Vercel-first remote CLI, device-client security, queued continuation and explicit transfer/export contracts."
+    "description": "Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts."
   },
   "servers": [
     {
-      "url": "https://api.example.com",
-      "description": "Placeholder; configure at deployment."
+      "url": "/",
+      "description": "Current deployment"
     }
   ],
   "paths": {
@@ -333,11 +333,11 @@
       },
       "delete": {
         "operationId": "deleteProject",
-        "summary": "Schedule project deletion",
+        "summary": "Archive a project",
         "tags": [
           "projects"
         ],
-        "description": "",
+        "description": "Archive a project once its runs finish. Files and history remain available. Use the project deletion endpoint to schedule permanent removal.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1056,7 +1056,7 @@
               "schema": {
                 "type": "string",
                 "format": "binary",
-                "description": "Default maximum 25 MiB."
+                "description": "Maximum 4 MiB. Use a staged transfer for files up to 25 MiB."
               }
             }
           }
@@ -6498,15 +6498,29 @@
         ],
         "security": [
           {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
             "CustomerOAuth": [
               "projects:write"
             ]
-          },
-          {
-            "ApiKey": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -6528,7 +6542,10 @@
               }
             }
           }
-        }
+        },
+        "x-required-scopes": [
+          "projects:write"
+        ]
       }
     },
     "/v1/integrations/github/repositories": {
@@ -6540,12 +6557,15 @@
         ],
         "security": [
           {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
             "CustomerOAuth": [
               "projects:write"
             ]
-          },
-          {
-            "ApiKey": []
           }
         ],
         "parameters": [
@@ -6557,6 +6577,16 @@
               "type": "string",
               "pattern": "^[0-9]+$"
             }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
           }
         ],
         "responses": {
@@ -6580,7 +6610,10 @@
               }
             }
           }
-        }
+        },
+        "x-required-scopes": [
+          "projects:write"
+        ]
       }
     },
     "/v1/projects/{project_id}/github": {
@@ -6592,12 +6625,15 @@
         ],
         "security": [
           {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
             "CustomerOAuth": [
               "projects:write"
             ]
-          },
-          {
-            "ApiKey": []
           }
         ],
         "parameters": [
@@ -6645,7 +6681,10 @@
               }
             }
           }
-        }
+        },
+        "x-required-scopes": [
+          "projects:write"
+        ]
       }
     },
     "/v1/stdio-packages": {
@@ -8537,8 +8576,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 7200,
-            "default": 900,
-            "description": "Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence."
+            "description": "Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap."
           },
           "max_cost_micro_usd": {
             "type": "string",
@@ -9495,7 +9533,8 @@
             ]
           },
           "provider": {
-            "type": "string"
+            "type": "string",
+            "description": "For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation."
           },
           "url": {
             "type": "string",
@@ -9572,7 +9611,8 @@
             ]
           },
           "provider": {
-            "type": "string"
+            "type": "string",
+            "description": "For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation."
           },
           "url": {
             "type": "string",
@@ -9650,7 +9690,8 @@
             ]
           },
           "provider": {
-            "type": "string"
+            "type": "string",
+            "description": "For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation."
           },
           "url": {
             "type": "string",

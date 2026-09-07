@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('project deletion has explicit confirmation, an archived view and a working undo', async ({ page }) => {
   await page.goto('/login');

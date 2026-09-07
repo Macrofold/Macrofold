@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import { markdown } from '@codemirror/lang-markdown';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -179,7 +180,7 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
   const project = useApi<Schema['Project']>(`/v1/projects/${projectId}`);
   const workspaces = usePages<Schema['Workspace']>(`/v1/projects/${projectId}/workspaces`);
   const chosen = workspaceId || project.data?.default_workspace_id || workspaces.data?.data[0]?.id;
-  const workspace = useApi<Schema['Workspace']>(chosen ? `/v1/workspaces/${chosen}` : undefined, 5000);
+  const workspace = useApi<Schema['Workspace']>(chosen ? `/v1/workspaces/${chosen}` : undefined);
   const client = useQueryClient(),
     router = useRouter();
   const [tab, setTab] = useState('files'),
@@ -194,6 +195,10 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
   }, []);
   if (project.isPending || workspaces.isPending) return <Loading />;
   if (project.error || workspaces.error) return <ErrorState error={(project.error || workspaces.error)!} />;
+  if (chosen && workspace.isPending) return <Loading />;
+  if (workspace.error) return <ErrorState error={workspace.error} retry={() => void workspace.refetch()} />;
+  if (workspace.data && workspace.data.project_id !== projectId)
+    return <ErrorState error={new Error('This workspace belongs to a different project.')} />;
   return (
     <div className="page project-detail">
       <Link className="back-link" href="/projects">
@@ -357,7 +362,7 @@ function FileBrowser({
     [deleteOpen, setDeleteOpen] = useState(false);
   const listing = usePages<Schema['FileEntry']>(
     `/v1/workspaces/${workspace.id}/files?limit=100&query=${encodeURIComponent(search)}`,
-    15000,
+    false,
     'entries',
   );
   const client = useQueryClient();
@@ -432,16 +437,29 @@ function FileBrowser({
       setDirty(false);
     }
   }, [content.data, dirty]);
-  async function save(filePath = selected, value = text) {
+  async function save(filePath = selected, value = text, create = false) {
     setSaving(true);
     try {
+      if (create) {
+        // The visible listing can be filtered or paginated. Check the authoritative
+        // path; If-Match below rejects a write if it changes after this check.
+        const existing = await fetch(
+          `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`,
+        );
+        await existing.body?.cancel();
+        if (existing.ok)
+          throw new Error(
+            'A file already exists at this path. Choose another name or edit the existing file.',
+          );
+        if (existing.status !== 404) throw new Error('Unable to check this path. No file was created.');
+      }
       await api(`/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`, 'PUT', value, {
         'Content-Type': 'application/octet-stream',
         'If-Match': filePath === selected ? revision : workspace.revision,
       });
       setDirty(false);
       await client.invalidateQueries();
-      setNewFile(false);
+      if (create) setNewFile(false);
       setSelected(filePath);
       toast.success('File saved and checkpointed');
     } catch (error) {
@@ -457,12 +475,12 @@ function FileBrowser({
         <div className="file-tree">
           <div className="file-tree-heading">
             <strong>Explorer</strong>
-            <FileUpload workspace={workspace} disabled={workspace.status === 'busy' || dirty} />
+            <FileUpload workspace={workspace} disabled={workspace.status === 'busy' || dirty || saving} />
             <button
               className="icon-button"
               title="New file"
               aria-label="New file"
-              disabled={workspace.status === 'busy' || dirty}
+              disabled={workspace.status === 'busy' || dirty || saving}
               onClick={() => setNewFile(true)}
             >
               <Plus size={16} />
@@ -483,6 +501,7 @@ function FileBrowser({
               <button
                 className={`file-row ${selected === file.path ? 'selected' : ''}`}
                 key={file.path}
+                disabled={saving}
                 onClick={() => {
                   if (dirty) {
                     toast.error('Save your changes before opening another file.');
@@ -521,6 +540,7 @@ function FileBrowser({
                   {dirty && (
                     <Button
                       variant="ghost"
+                      disabled={saving}
                       onClick={() => {
                         if (window.confirm('Discard your unsaved changes and reload the saved file?')) {
                           setDirty(false);
@@ -542,7 +562,7 @@ function FileBrowser({
                     className="icon-button"
                     aria-label="Delete selected file"
                     onClick={() => setDeleteOpen(true)}
-                    disabled={workspace.status === 'busy' || dirty}
+                    disabled={workspace.status === 'busy' || dirty || saving}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -619,7 +639,11 @@ function FileBrowser({
               title="Your files live here"
               description="Create a file to give your agent some context."
               action={
-                <Button variant="secondary" onClick={() => setNewFile(true)}>
+                <Button
+                  variant="secondary"
+                  disabled={saving || workspace.status === 'busy'}
+                  onClick={() => setNewFile(true)}
+                >
                   <Plus size={15} />
                   New file
                 </Button>
@@ -637,7 +661,7 @@ function FileBrowser({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void save(path, '');
+            void save(path, '', true);
           }}
         >
           <Field label="File path">
@@ -693,7 +717,7 @@ function FileBrowser({
   );
 }
 function WorkspaceRuns({ workspaceId }: { workspaceId: string }) {
-  const runs = usePages<Schema['Run']>(`/v1/runs?workspace_id=${workspaceId}`, 5000);
+  const runs = usePages<Schema['Run']>(`/v1/runs?workspace_id=${workspaceId}`);
   return runs.isPending ? (
     <Loading />
   ) : runs.error ? (
@@ -862,10 +886,7 @@ function ProjectSettings({ project }: { project: Schema['Project'] }) {
                 type="button"
                 className="icon-button"
                 aria-label="Copy project ID"
-                onClick={() => {
-                  navigator.clipboard.writeText(project.id);
-                  toast.success('Project ID copied');
-                }}
+                onClick={() => copyText(project.id, 'Project ID copied')}
               >
                 <Copy size={15} />
               </button>

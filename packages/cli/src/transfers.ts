@@ -24,7 +24,7 @@ async function readLocal(root: string, file: string) {
     if (!metadata.isFile()) throw new CliError(`Transfers require a regular file: ${file}`, 5);
     if (metadata.size > 25 * 1024 * 1024) throw new CliError(`File exceeds 25 MiB: ${file}`, 6);
     const bytes = await readFile(full);
-    return { bytes, hash: digest(bytes) };
+    return { bytes, hash: digest(bytes), mode: metadata.mode & 0o777 };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { bytes: undefined, hash: null };
     throw error;
@@ -171,7 +171,9 @@ export async function transferFiles(
         headers: action.required_headers,
         body: local.bytes,
         redirect: 'error',
+        signal: AbortSignal.timeout(300000),
       });
+      await response.body?.cancel();
       if (!response.ok)
         throw new CliError(
           `Could not stage ${action.path} (${response.status}). Remote files remain unchanged.`,
@@ -189,7 +191,7 @@ export async function transferFiles(
       const dest = await safeLocalPath(root, action.path);
       await mkdir(path.dirname(dest), { recursive: true });
       const temp = `${dest}.${crypto.randomUUID()}.download`;
-      await writeFile(temp, bytes, { flag: 'wx', mode: 0o600 });
+      await writeFile(temp, bytes, { flag: 'wx', mode: local.mode ?? 0o600 });
       // Recheck immediately before replacing; another editor may have saved during the download.
       if ((await readLocal(root, action.path)).hash !== action.local_sha256) {
         await unlink(temp);

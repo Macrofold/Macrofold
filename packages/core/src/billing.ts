@@ -25,6 +25,14 @@ export async function checkout(
   provider?: Pick<Stripe, 'customers' | 'checkout'>,
 ) {
   assert(p.role === 'owner', 403, 'forbidden', 'Only the organization owner can manage billing.');
+  const amount = input.kind === 'topup' ? BigInt(input.amount_micro_usd || '0') : 0n;
+  if (input.kind === 'topup')
+    assert(
+      amount >= 10000000n && amount <= 1000000000n && amount % 10000n === 0n,
+      400,
+      'invalid_amount',
+      'Choose $10–$1,000 in whole cents.',
+    );
   const plan = planFor(input.plan || 'pro');
   const priceId = process.env[`STRIPE_${plan.id.toUpperCase()}_PRICE_ID`];
   if (input.kind === 'subscription')
@@ -63,9 +71,16 @@ export async function checkout(
     client_reference_id: p.organizationId,
   };
   const orderId = base.metadata.order_id;
-  const existing = (await tx.query('SELECT checkout_url,status FROM billing_orders WHERE id=$1', [orderId]))
-    .rows[0];
-  if (existing?.checkout_url && existing.status === 'pending') return { url: existing.checkout_url };
+  const existing = (
+    await tx.query('SELECT checkout_url,status,expires_at FROM billing_orders WHERE id=$1', [orderId])
+  ).rows[0];
+  assert(
+    !existing || (existing.status === 'pending' && new Date(existing.expires_at).getTime() > Date.now()),
+    409,
+    'checkout_unavailable',
+    'This checkout is complete or expired. Start a new request with a new idempotency key.',
+  );
+  if (existing?.checkout_url) return { url: existing.checkout_url };
   if (input.kind === 'subscription') {
     assert(
       org.plan === 'payg',
@@ -95,20 +110,13 @@ export async function checkout(
       p.organizationId,
       key,
       input.kind,
-      input.kind === 'topup' ? input.amount_micro_usd || '0' : '0',
+      amount.toString(),
       customer,
       input.kind === 'subscription' ? plan.id : null,
     ],
   );
   let session: Stripe.Checkout.Session;
   if (input.kind === 'topup') {
-    const amount = BigInt(input.amount_micro_usd || '0');
-    assert(
-      amount >= 10000000n && amount <= 1000000000n && amount % 10000n === 0n,
-      400,
-      'invalid_amount',
-      'Choose $10–$1,000 in whole cents.',
-    );
     session = await client.checkout.sessions.create(
       {
         ...base,

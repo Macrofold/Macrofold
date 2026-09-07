@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @hosted-agents/sdk build && next dev -p 3210",
-    "build": "pnpm --filter @hosted-agents/sdk build && next build",
+    "dev": "pnpm -w docs:generate && pnpm --filter @hosted-agents/sdk build && next dev -p 3210",
+    "build": "pnpm -w docs:generate && pnpm --filter @hosted-agents/sdk build && next build",
     "start": "next start -p 3210"
   },
   "dependencies": {

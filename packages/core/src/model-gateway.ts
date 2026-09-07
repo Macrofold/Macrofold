@@ -4,7 +4,7 @@ import { assert, errorBody } from './errors';
 import { id, unseal } from './crypto';
 import { getRun } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
-import { models, type Model } from './catalog';
+import { models, computeMaximum, type Model } from './catalog';
 import * as resources from './resources';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
@@ -129,9 +129,6 @@ function requireClientTools(payload: Record<string, unknown>, provider: string, 
     'This model route accepts client-executed tools only. Use the platform tool broker for hosted tools.',
   );
 }
-export function computeMaximum(timeoutSeconds: number) {
-  return (BigInt(timeoutSeconds) * BigInt(process.env.COMPUTE_MICRO_USD_PER_MINUTE || '8000') + 59n) / 60n;
-}
 async function reserveRequest(cap: RuntimeCapability, payload: Record<string, unknown>, path: string) {
   return transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
@@ -227,7 +224,10 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     const budget = (
       await tx.query('SELECT budget_used_micro_usd,model_reserved_micro_usd FROM runs WHERE id=$1', [cap.run])
     ).rows[0];
-    const compute = computeMaximum(run.config.limits?.timeout_seconds || 900);
+    const compute = computeMaximum(
+      run.config.limits?.timeout_seconds || 900,
+      run.config.compute_rate_micro_usd_per_minute,
+    );
     assert(
       BigInt(budget.budget_used_micro_usd) + BigInt(budget.model_reserved_micro_usd) + reserved + compute <=
         BigInt(run.config.limits?.max_cost_micro_usd || '0'),

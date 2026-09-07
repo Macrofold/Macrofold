@@ -1,8 +1,8 @@
 {
   "contract_version": "0.5.0",
-  "status": "implemented-local-verification",
+  "status": "implemented",
   "executable": "agent",
-  "executable_is_placeholder": true,
+  "executable_is_placeholder": false,
   "node_version": "24 LTS",
   "implementation": {
     "commands": "oclif",
@@ -29,10 +29,17 @@
       "connections:read",
       "usage:read"
     ],
-    "additional_consent_scopes": ["connections:write"],
+    "additional_consent_scopes": [
+      "connections:write"
+    ],
     "ci_mode": "environment API key or --api-key-stdin",
     "token_storage": "permission-protected plaintext; no repository credentials",
-    "login_flags": ["host", "profile", "scope", "api-key-stdin"]
+    "login_flags": [
+      "host",
+      "profile",
+      "scope",
+      "api-key-stdin"
+    ]
   },
   "commands": [
     {
@@ -49,31 +56,42 @@
     },
     {
       "command": "whoami",
-      "operation_ids": ["getIdentity"],
+      "operation_ids": [
+        "getIdentity"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "project list",
-      "operation_ids": ["listProjects"],
+      "operation_ids": [
+        "listProjects"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "project create",
-      "operation_ids": ["createProject"],
+      "operation_ids": [
+        "createProject"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "project show",
-      "operation_ids": ["getProject"],
+      "operation_ids": [
+        "getProject"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "link",
-      "operation_ids": ["getProject", "getWorkspace"],
+      "operation_ids": [
+        "getProject",
+        "getWorkspace"
+      ],
       "local_only": false,
       "protocol_only": false
     },
@@ -85,31 +103,45 @@
     },
     {
       "command": "worktree list",
-      "operation_ids": ["listWorkspaces"],
+      "operation_ids": [
+        "listWorkspaces"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree create",
-      "operation_ids": ["createWorkspace", "getOperation"],
+      "operation_ids": [
+        "createWorkspace",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree use",
-      "operation_ids": ["getWorkspace"],
+      "operation_ids": [
+        "getWorkspace"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree remove",
-      "operation_ids": ["deleteWorkspace", "getOperation"],
+      "operation_ids": [
+        "deleteWorkspace",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree checkout",
-      "operation_ids": ["listCheckpoints", "exportCheckpoint", "getOperation"],
+      "operation_ids": [
+        "listCheckpoints",
+        "exportCheckpoint",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
@@ -128,133 +160,198 @@
     },
     {
       "command": "run",
-      "operation_ids": ["createRun", "streamRun", "getRunResult"],
+      "operation_ids": [
+        "createRun",
+        "streamRun",
+        "getRunResult"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "run list",
-      "operation_ids": ["listRuns"],
+      "operation_ids": [
+        "listRuns"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "run show",
-      "operation_ids": ["getRun", "getRunResult"],
+      "operation_ids": [
+        "getRun",
+        "getRunResult"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "run attach",
-      "operation_ids": ["getRun", "listRunEvents", "streamRun", "getRunResult"],
+      "operation_ids": [
+        "getRun",
+        "listRunEvents",
+        "streamRun",
+        "getRunResult"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "run cancel",
-      "operation_ids": ["cancelRun"],
+      "operation_ids": [
+        "cancelRun"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "session list",
-      "operation_ids": ["listSessions"],
+      "operation_ids": [
+        "listSessions"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "session resume",
-      "operation_ids": ["getSession", "listRuns", "listRunEvents", "continueSession", "streamRun"],
+      "operation_ids": [
+        "getSession",
+        "listRuns",
+        "listRunEvents",
+        "continueSession",
+        "streamRun"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "files list",
-      "operation_ids": ["listFiles"],
+      "operation_ids": [
+        "listFiles"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "files cat",
-      "operation_ids": ["readFile"],
+      "operation_ids": [
+        "readFile"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "files diff",
-      "operation_ids": ["getWorkspaceDiff", "createTransfer"],
+      "operation_ids": [
+        "getWorkspaceDiff",
+        "createTransfer"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "files push",
-      "operation_ids": ["createTransfer", "getTransfer", "applyTransfer", "getOperation"],
+      "operation_ids": [
+        "createTransfer",
+        "getTransfer",
+        "applyTransfer",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "files pull",
-      "operation_ids": ["createTransfer", "getTransfer", "applyTransfer", "getOperation"],
+      "operation_ids": [
+        "createTransfer",
+        "getTransfer",
+        "applyTransfer",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "checkpoint list",
-      "operation_ids": ["listCheckpoints"],
+      "operation_ids": [
+        "listCheckpoints"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "checkpoint create",
-      "operation_ids": ["createCheckpoint", "getOperation"],
+      "operation_ids": [
+        "createCheckpoint",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "checkpoint restore",
-      "operation_ids": ["restoreWorkspace", "getOperation"],
+      "operation_ids": [
+        "restoreWorkspace",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "git status",
-      "operation_ids": ["getSync"],
+      "operation_ids": [
+        "getSync"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "git sync",
-      "operation_ids": ["syncWorkspace", "getOperation"],
+      "operation_ids": [
+        "syncWorkspace",
+        "getOperation"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "connection list",
-      "operation_ids": ["listConnections"],
+      "operation_ids": [
+        "listConnections"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "connection add",
-      "operation_ids": ["createConnection"],
+      "operation_ids": [
+        "createConnection"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "connection authorize",
-      "operation_ids": ["authorizeConnection"],
+      "operation_ids": [
+        "authorizeConnection"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "connection tools",
-      "operation_ids": ["listConnectionTools"],
+      "operation_ids": [
+        "listConnectionTools"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "usage",
-      "operation_ids": ["getUsage", "getBilling"],
+      "operation_ids": [
+        "getUsage",
+        "getBilling"
+      ],
       "local_only": false,
       "protocol_only": false
     },
@@ -266,13 +363,19 @@
     },
     {
       "command": "doctor",
-      "operation_ids": ["getIdentity", "listHarnesses", "listModels"],
+      "operation_ids": [
+        "getIdentity",
+        "listHarnesses",
+        "listModels"
+      ],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "run input",
-      "operation_ids": ["submitRunInput"],
+      "operation_ids": [
+        "submitRunInput"
+      ],
       "local_only": false,
       "protocol_only": false
     },
@@ -283,8 +386,17 @@
       "protocol_only": false
     }
   ],
-  "selection_precedence": ["flags", "local link metadata", "explicit global default"],
-  "output_modes": ["interactive", "plain", "json", "jsonl"],
+  "selection_precedence": [
+    "flags",
+    "local link metadata",
+    "explicit global default"
+  ],
+  "output_modes": [
+    "interactive",
+    "plain",
+    "json",
+    "jsonl"
+  ],
   "stream": {
     "openapi_event_schema": "Event",
     "transport": "SSE",
@@ -296,7 +408,7 @@
     "opt_in_field": "queue_if_busy",
     "cli_chat_default": true,
     "max_pending_per_session": 10,
-    "expiry_seconds": 3600,
+    "expiry_seconds": 86400,
     "budget_reserved_at_admission": true
   },
   "transfers": {
@@ -310,7 +422,7 @@
   },
   "exit_codes": {
     "0": "success_or_accepted_detach",
-    "1": "execution_failed",
+    "1": "execution_or_persistence_failed",
     "2": "invalid_invocation_or_configuration",
     "3": "authentication_or_authorization",
     "4": "waiting_for_input",
@@ -344,7 +456,12 @@
     "queue-timeout",
     "scheduling"
   ],
-  "transfer_flags": ["dry-run", "yes", "include-ignored", "delete"],
+  "transfer_flags": [
+    "dry-run",
+    "yes",
+    "include-ignored",
+    "delete"
+  ],
   "scope_catalog": {
     "identity:read": "Inspect current principal and authorized organizations",
     "projects:read": "Read authorized projects/workspaces",
@@ -359,7 +476,11 @@
     "billing:write": "Manage authorized checkout and billing portal",
     "keys:write": "Manage API keys within creator authority",
     "webhooks:read": "Inspect authorized webhooks",
-    "webhooks:write": "Manage webhook subscriptions/deliveries"
+    "webhooks:write": "Manage webhook subscriptions/deliveries",
+    "offline_access": "Rotating refresh token",
+    "organizations:read": "Read team membership",
+    "organizations:write": "Manage organizations, roles and invitations",
+    "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)"
   },
   "json_output_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -392,15 +513,34 @@
             "description": "Recovery identity for a mutation whose response could not be confirmed; preserve it when retrying through the API or SDK."
           }
         },
-        "required": ["code", "message"],
+        "required": [
+          "code",
+          "message"
+        ],
         "additionalProperties": false
       },
       "exit_code": {
         "type": "integer",
-        "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 130]
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          130
+        ]
       }
     },
-    "required": ["schema_version", "command", "ok", "exit_code"],
+    "required": [
+      "schema_version",
+      "command",
+      "ok",
+      "exit_code"
+    ],
     "additionalProperties": false,
     "oneOf": [
       {
@@ -409,9 +549,13 @@
             "const": true
           }
         },
-        "required": ["data"],
+        "required": [
+          "data"
+        ],
         "not": {
-          "required": ["error"]
+          "required": [
+            "error"
+          ]
         }
       },
       {
@@ -420,7 +564,9 @@
             "const": false
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       }
     ]
   },

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 
 test('device approval issues a scoped API token and refresh/revocation remain enforceable', async ({
   page,
@@ -11,7 +11,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
     form: {
       client_id: 'hosted-agent-cli',
       scope: 'identity:read projects:read offline_access',
-      resource: 'http://localhost:3210/v1',
+      resource: fixtureOrigin + '/v1',
     },
   });
   expect(deviceResponse.ok()).toBeTruthy();
@@ -25,7 +25,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
       device_code: device.device_code,
       client_id: 'hosted-agent-cli',
-      resource: 'http://localhost:3210/v1',
+      resource: fixtureOrigin + '/v1',
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -46,7 +46,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
       grant_type: 'refresh_token',
       refresh_token: tokens.refresh_token,
       client_id: 'hosted-agent-cli',
-      resource: 'http://localhost:3210/v1',
+      resource: fixtureOrigin + '/v1',
     },
   });
   expect(refresh.ok(), await refresh.text()).toBeTruthy();
@@ -64,7 +64,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
       grant_type: 'refresh_token',
       refresh_token: rotated.refresh_token,
       client_id: 'hosted-agent-cli',
-      resource: 'http://localhost:3210/v1',
+      resource: fixtureOrigin + '/v1',
     },
   });
   expect(cannotRefresh.ok()).toBeFalsy();

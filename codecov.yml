@@ -9,8 +9,8 @@ coverage:
     patch:
       default:
         target: 80%
-        # UI and subprocess coverage are not instrumented by Vitest yet.
-        # Show missing changed-line coverage without pretending it is measured.
+        # Supplemental coverage uses conservative exact source-location matching.
+        # Keep patch reporting informational while this baseline is adopted.
         informational: true
 comment:
   layout: reach,diff,flags,files
@@ -18,4 +18,6 @@ comment:
   require_changes: true
 flags:
   typescript:
+    carryforward: false
+  python:
     carryforward: false

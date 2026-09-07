@@ -1,4 +1,4 @@
-import { it, expect, afterAll, afterEach } from 'vitest';
+import { it, expect, afterAll, afterEach, vi } from 'vitest';
 import Stripe from 'stripe';
 import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
@@ -43,8 +43,50 @@ const forbidden = async () => {
 const provider = {
   subscriptions: { retrieve: forbidden },
   charges: { retrieve: forbidden },
+  disputes: { retrieve: forbidden },
   invoicePayments: { list: forbidden },
-} as unknown as Pick<Stripe, 'subscriptions' | 'charges' | 'invoicePayments'>;
+} as unknown as Pick<Stripe, 'subscriptions' | 'charges' | 'disputes' | 'invoicePayments'>;
+it('validates top-up amounts before creating a Stripe customer or order', async () => {
+  const a = await fixtureAccount('Invalid top-up');
+  const create = vi.fn(forbidden);
+  const stub = { customers: { create }, checkout: { sessions: { create } } } as unknown as Pick<
+    Stripe,
+    'customers' | 'checkout'
+  >;
+  await expect(
+    transaction(a.p.organizationId, (tx) =>
+      checkout(tx, a.p, { kind: 'topup', amount_micro_usd: '1' }, id(), stub),
+    ),
+  ).rejects.toMatchObject({ code: 'invalid_amount' });
+  expect(create).not.toHaveBeenCalled();
+  expect(
+    (await transaction(a.p.organizationId, (tx) => tx.query('SELECT id FROM billing_orders'))).rowCount,
+  ).toBe(0);
+});
+it.each(['paid', 'expired'])(
+  'does not reopen a %s checkout when its request key is reused',
+  async (status) => {
+    const a = await fixtureAccount('Checkout identity'),
+      key = id();
+    const create = vi.fn(async () => ({
+      id: 'cs_' + id(),
+      url: 'https://checkout.stripe.com/fixture',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+    }));
+    const stub = {
+      customers: { create: async () => ({ id: 'cus_' + id() }) },
+      checkout: { sessions: { create } },
+    } as unknown as Pick<Stripe, 'customers' | 'checkout'>;
+    const open = () =>
+      transaction(a.p.organizationId, (tx) =>
+        checkout(tx, a.p, { kind: 'topup', amount_micro_usd: '10000000' }, key, stub),
+      );
+    await open();
+    await transaction(a.p.organizationId, (tx) => tx.query('UPDATE billing_orders SET status=$1', [status]));
+    await expect(open()).rejects.toMatchObject({ code: 'checkout_unavailable' });
+    expect(create).toHaveBeenCalledOnce();
+  },
+);
 it('uses approved tier prices and never reuses an open checkout for a different plan', async () => {
   process.env.STRIPE_PRO_PRICE_ID = 'price_pro_fixture';
   process.env.STRIPE_SCALE_PRICE_ID = 'price_scale_fixture';
@@ -210,19 +252,33 @@ it('caps overlapping refunds/disputes, freezes new work, ignores old dispute sta
   await processStripeEvent(refund, provider);
   await processStripeEvent(refund, provider);
   expect(await balance(o.p.organizationId)).toBe(15000000n);
-  const fake = { ...provider, charges: { retrieve: async () => charge } } as unknown as typeof provider;
   const dispute = { id: 'dp_' + id(), charge: charge.id, amount: 2000, status: 'needs_response' },
     opened = event('charge.dispute.created', dispute, 100),
     closed = event('charge.dispute.closed', { ...dispute, status: 'won' }, 200);
+  let currentDispute = { ...dispute };
+  const retrieve = vi.fn(async () => currentDispute);
+  const fake = {
+    ...provider,
+    charges: { retrieve: async () => charge },
+    disputes: { retrieve },
+  } as unknown as typeof provider;
   await processStripeEvent(opened, fake);
   expect(await balance(o.p.organizationId)).toBe(0n);
   await expect(
     transaction(o.p.organizationId, (tx) => reserve(tx, o.p.organizationId, 0n)),
   ).rejects.toMatchObject({ code: 'billing_hold' });
+  currentDispute = { ...dispute, status: 'won' };
+  retrieve.mockRejectedValueOnce(new Error('Dispute lookup interrupted'));
+  await expect(processStripeEvent(closed, fake)).rejects.toThrow('Dispute lookup interrupted');
+  expect(await balance(o.p.organizationId)).toBe(0n);
+  expect((await pool.query('SELECT id FROM billing_events WHERE id=$1', [closed.id])).rowCount).toBe(0);
   await processStripeEvent(closed, fake);
   expect(await balance(o.p.organizationId)).toBe(15000000n);
   await processStripeEvent(event('charge.dispute.updated', dispute, 150), fake);
   expect(await balance(o.p.organizationId)).toBe(15000000n);
+  await processStripeEvent(event('charge.dispute.updated', dispute, 200), fake);
+  expect(await balance(o.p.organizationId)).toBe(15000000n);
+  expect(retrieve).toHaveBeenCalledWith(dispute.id);
   await transaction(o.p.organizationId, (tx) => reserve(tx, o.p.organizationId, 0n));
 });
 it.each([

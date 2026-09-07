@@ -26,7 +26,9 @@ describe('portable filesystem checkpoints', () => {
       home: path.join(root, 'restored-home'),
     };
     await restoreSnapshot(output, restored);
-    expect(await readFile(path.join(restored.workspace, 'large.bin'))).toEqual(large);
+    // Compare every byte natively; a generic deep matcher walks millions of
+    // indexed properties and can exhaust the test deadline on a busy host.
+    expect((await readFile(path.join(restored.workspace, 'large.bin'))).equals(large)).toBe(true);
     expect((await stat(path.join(restored.workspace, 'large.bin'))).mode & 0o777).toBe(0o755);
     expect(await readlink(path.join(restored.workspace, 'external-link'))).toBe('/does/not/exist');
     expect(await readFile(path.join(restored.home, 'session.json'), 'utf8')).toBe('native history');

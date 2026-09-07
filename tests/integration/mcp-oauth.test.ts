@@ -10,6 +10,8 @@ import { saveConnection, connectionTools } from '../../packages/core/src/connect
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+const browserRequest = (url: string, init: RequestInit) =>
+  new Proxy(new Request(url, init), { get: (target, key) => Reflect.get(target, key, target) });
 const endpoint = 'https://mcp.example.test/mcp';
 let account: Awaited<ReturnType<typeof fixtureAccount>>, connection: resources.Document;
 let verifier = '',
@@ -112,7 +114,7 @@ afterAll(async () => {
 });
 it('uses real SDK discovery, DCR, PKCE, browser binding, token storage, tool discovery and refresh rotation', async () => {
   const started = await startMcpOAuth(
-    new Request(
+    browserRequest(
       `${config.origin}/integrations/mcp/install?connection_id=${connection.id}&organization_id=${account.p.organizationId}`,
       { headers: { cookie: account.cookie } },
     ),
@@ -129,7 +131,8 @@ it('uses real SDK discovery, DCR, PKCE, browser binding, token storage, tool dis
     finishMcpOAuth(new Request(callback, { headers: { cookie: account.cookie } }), transport),
   ).rejects.toMatchObject({ code: 'invalid_oauth_state' });
   expect(exchanges).toBe(0);
-  const request = () => new Request(callback, { headers: { cookie: account.cookie + '; ' + stateCookie } });
+  const request = () =>
+    browserRequest(callback, { headers: { cookie: account.cookie + '; ' + stateCookie } });
   expect((await finishMcpOAuth(request(), transport)).status).toBe(302);
   expect(
     Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))).toString(

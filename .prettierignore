@@ -5,9 +5,12 @@ packages/contracts/api.d.ts
 .data
 test-results
 playwright-report
-coverage
+/coverage
 .stryker-tmp
 reports/mutation
+reports/mutation-critical
 docs/api/openapi.json
 sdk/typescript/src/routes.ts
 sdk/typescript/src/schema.d.ts
+
+apps/web/lib/docs/generated.json

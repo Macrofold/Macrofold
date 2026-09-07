@@ -7,7 +7,11 @@ import { CliError, prompt, terminalText } from './output';
 
 export const outcomeExit = (result: Schema['RunResult']) =>
   result.execution_outcome === 'success'
-    ? 0
+    ? result.persistence_status === 'verified'
+      ? 0
+      : result.final
+        ? 1
+        : 4
     : result.execution_outcome === 'timed_out'
       ? 8
       : result.execution_outcome === 'cancelled'

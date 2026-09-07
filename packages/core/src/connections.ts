@@ -11,18 +11,22 @@ import { safeFetch, validatePublicURL } from '../../providers/src/network';
 import type { components } from '../../contracts/api';
 import { withConnectionOAuth } from './mcp-oauth';
 import { approvedStdio } from './stdio-catalog';
-import { searchKey, searchTool } from '../../providers/src/search';
+import { searchKey, searchIdentity } from './search';
+import { searchTool, searchProviders } from '../../contracts/search';
 import { collectToolPages } from '../../providers/src/tool-catalog';
 type Schema = components['schemas'];
 export function composio() {
+  const apiKey = process.env.COMPOSIO_API_KEY?.trim();
+  // Dashboard/session metadata can contain a masked key. Presence alone does
+  // not make that display value a usable server credential.
   assert(
-    process.env.COMPOSIO_API_KEY,
+    apiKey && !/\*|…|\.{3}/.test(apiKey),
     503,
     'integration_not_configured',
-    'The operator needs to configure Composio.',
+    'Configure a complete Composio project API key. Masked key values cannot authenticate.',
   );
   return new Composio({
-    apiKey: process.env.COMPOSIO_API_KEY,
+    apiKey,
     allowTracking: false,
     disableVersionCheck: true,
     fileUploadDirs: false,
@@ -56,17 +60,19 @@ export async function saveConnection(
   const merged = { ...existing, ...input };
   if (merged.url) await validatePublicURL(String(merged.url));
   if (merged.kind === 'search') {
+    const provider = searchIdentity(merged);
     assert(
-      merged.provider === 'brave' && !merged.url && ['api_key', 'none'].includes(String(merged.auth_method)),
+      !merged.url && !input.secret_headers,
       400,
       'invalid_search_connection',
-      'Choose Brave Search with your API key or managed funding.',
+      'Search connections use fixed provider endpoints and API key authentication.',
     );
     assert(
-      merged.auth_method !== 'api_key' || input.secret || existing?.secret_ciphertext,
+      merged.auth_method !== 'api_key' ||
+        (input.secret === undefined ? existing?.secret_ciphertext : input.secret.trim()),
       400,
       'credentials_required',
-      'Provide your Brave Search API key.',
+      `Provide your ${searchProviders[provider].name} API key.`,
     );
     assert(
       merged.auth_method !== 'none' || !input.secret,

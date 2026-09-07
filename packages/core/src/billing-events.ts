@@ -4,7 +4,7 @@ import { pool, transaction, lock, type Tx } from '../../db';
 import { stripe } from './billing';
 import { assert } from './errors';
 import { credit, debit, expireCredits } from './ledger';
-type BillingProvider = Pick<Stripe, 'subscriptions' | 'charges' | 'invoicePayments'>;
+type BillingProvider = Pick<Stripe, 'subscriptions' | 'charges' | 'disputes' | 'invoicePayments'>;
 const ref = (value: string | { id: string } | null | undefined) =>
   typeof value === 'string' ? value : value?.id;
 async function organization(customer: string | { id: string } | null | undefined) {
@@ -227,12 +227,16 @@ export async function processStripeEvent(event: Stripe.Event, provider: BillingP
         string,
         { created: number; amount: string; status: string }
       >;
-      if (dispute && (!disputes[dispute.id] || disputes[dispute.id].created <= event.created))
+      if (dispute) {
+        // Read under the organization lock: webhook timestamps have only second precision,
+        // and a state fetched before acquiring the lock could overwrite a newer outcome.
+        const current = await provider.disputes.retrieve(dispute.id);
         disputes[dispute.id] = {
           created: event.created,
-          amount: (BigInt(dispute.amount) * 10000n).toString(),
-          status: dispute.status,
+          amount: (BigInt(current.amount) * 10000n).toString(),
+          status: current.status,
         };
+      }
       let cashReversed =
         refunded +
         Object.values(disputes)

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 
 test('malformed sign-in links recover and a revoked event stream stops reconnecting', async ({ page }) => {
   const errors: string[] = [];

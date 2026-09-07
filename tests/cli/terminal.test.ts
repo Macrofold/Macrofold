@@ -5,6 +5,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { Client } from '../../sdk/typescript/src/client';
 import { terminalText } from '../../packages/cli/src/output';
+import { config } from '../../packages/core/src/config';
 import contract from '../../docs/api/cli.json';
 import { git } from '../../packages/cli/src/local-project';
 
@@ -18,9 +19,10 @@ async function command(
   return new Promise<{ code: number; stdout: string; stderr: string }>((resolve, reject) => {
     const env = {
       ...process.env,
-      AGENT_HOST: 'http://localhost:3210',
+      AGENT_HOST: config.origin,
       AGENT_CONFIG_DIR: configDirectory,
       AGENT_API_KEY: options.apiKey === null ? '' : options.apiKey || key,
+      NODE_V8_COVERAGE: process.env.CLI_V8_COVERAGE || '',
       NO_COLOR: '1',
     };
     const child = spawn(process.execPath, [executable, ...args], {
@@ -46,9 +48,9 @@ async function json(args: string[], options: Parameters<typeof command>[1] = {})
 beforeAll(async () => {
   directory = await mkdtemp(path.join(tmpdir(), 'hosted-cli-test-'));
   configDirectory = path.join(directory, 'credentials');
-  const seed = JSON.parse(await readFile(path.join(root, '.data/demo.json'), 'utf8'));
+  const seed = JSON.parse(await readFile(path.join(config.dataDir, 'demo.json'), 'utf8'));
   key = seed.api_key;
-  client = new Client({ baseURL: 'http://localhost:3210', token: key });
+  client = new Client({ baseURL: config.origin, token: key });
   await client.request('getIdentity');
 });
 afterAll(async () => {
@@ -143,6 +145,21 @@ describe('packaged CLI against the local API and worker', () => {
     await json(['files', 'pull', '--yes'], { cwd: repo });
     const diff = await json(['files', 'diff', '--local', 'local.txt'], { cwd: repo });
     expect(diff.actions.every((a: { action: string }) => a.action === 'unchanged')).toBe(true);
+    const beforePull = await client.request('getWorkspace', {
+      params: { path: { workspace_id: linked.workspaceId } },
+    });
+    await client.request('writeFile', {
+      params: {
+        path: { workspace_id: beforePull.id },
+        query: { path: 'local.txt' },
+        header: { 'If-Match': beforePull.revision },
+      },
+      body: new TextEncoder().encode('Remote update before pulling\n'),
+    });
+    await chmod(path.join(repo, 'local.txt'), 0o755);
+    await json(['files', 'pull', 'local.txt', '--yes'], { cwd: repo });
+    expect((await lstat(path.join(repo, 'local.txt'))).mode & 0o777).toBe(0o755);
+    expect(await readFile(path.join(repo, 'local.txt'), 'utf8')).toBe('Remote update before pulling\n');
     await writeFile(path.join(repo, 'local.txt'), 'Local edit\n');
     const workspace = await client.request('getWorkspace', {
       params: { path: { workspace_id: linked.workspaceId } },
@@ -167,10 +184,10 @@ describe('packaged CLI against the local API and worker', () => {
     expect(await readFile(path.join(repo, 'local.txt'), 'utf8')).toBe('Local edit\n');
   }, 120000);
   it('uses protected stdin credentials, redacts config and refuses symlinked metadata', async () => {
-    const login = await json(
-      ['login', '--host', 'http://localhost:3210', '--profile', 'ci', '--api-key-stdin'],
-      { stdin: key, apiKey: null },
-    );
+    const login = await json(['login', '--host', config.origin, '--profile', 'ci', '--api-key-stdin'], {
+      stdin: key,
+      apiKey: null,
+    });
     expect(login.profile).toBe('ci');
     expect((await lstat(path.join(configDirectory, 'profiles.json'))).mode & 0o077).toBe(0);
     const profiles = await command(['config', '--json'], { apiKey: null });

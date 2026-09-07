@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { Copy, KeyRound, Pause, Play, Plus, RefreshCw, Trash2, Webhook } from 'lucide-react';
 import { useState } from 'react';
@@ -221,9 +222,7 @@ export function WebhooksView() {
         {secret ? (
           <div className="form-stack">
             <pre className="secret-value break-anywhere">{secret}</pre>
-            <Button
-              onClick={() => navigator.clipboard.writeText(secret).then(() => toast.success('Secret copied'))}
-            >
+            <Button onClick={() => copyText(secret, 'Secret copied')}>
               <Copy size={15} />
               Copy secret
             </Button>

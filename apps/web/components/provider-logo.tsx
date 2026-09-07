@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { PlugZap } from 'lucide-react';
+import { isSearchProvider, searchProviders } from '../../../packages/contracts/search';
 
 const local: Record<string, string> = {
   openai: 'openai',
@@ -13,15 +14,16 @@ const local: Record<string, string> = {
   'claude-code': 'anthropic',
 };
 export const providerName = (provider: string) =>
-  ({
-    openai: 'OpenAI',
-    anthropic: 'Anthropic',
-    openrouter: 'OpenRouter',
-    brave: 'Brave Search',
-    gmail: 'Gmail',
-    googledrive: 'Google Drive',
-    github: 'GitHub',
-  })[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+  isSearchProvider(provider)
+    ? searchProviders[provider].name
+    : {
+        openai: 'OpenAI',
+        anthropic: 'Anthropic',
+        openrouter: 'OpenRouter',
+        gmail: 'Gmail',
+        googledrive: 'Google Drive',
+        github: 'GitHub',
+      }[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 
 /** Brand images are decorative alongside an accessible text label. Never inline
  * third-party SVG markup; the browser's image context isolates remote assets. */

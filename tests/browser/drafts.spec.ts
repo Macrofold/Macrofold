@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 import { randomUUID } from 'node:crypto';
 
 test('preserves an unsaved draft across focus, rejects stale save, and explicitly discards', async ({
@@ -7,7 +7,7 @@ test('preserves an unsaved draft across focus, rejects stale save, and explicitl
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
-  const headers = () => ({ Origin: 'http://localhost:3210', 'Idempotency-Key': randomUUID() });
+  const headers = () => ({ Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() });
   const created = await page.request.post('/v1/projects', {
     headers: headers(),
     data: { name: 'Draft preservation ' + Date.now() },

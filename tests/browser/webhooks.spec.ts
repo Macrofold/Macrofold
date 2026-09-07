@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('manages signed webhook endpoints and secrets on desktop and mobile', async ({ page }) => {
   await page.goto('/login');

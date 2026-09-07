@@ -14,6 +14,7 @@ import { customerScopes, type Principal } from './auth';
 import { getExecutionPolicy } from './plans';
 import { schedulerTurn, recordTurn, pendingRunCandidates } from './scheduling';
 import { actorAuthorized } from './actor-authorization';
+import { queueRetryAt } from './queue-wait';
 
 export function principalFor(row: RunRow): Principal {
   return {
@@ -42,11 +43,11 @@ export async function claimRun(org: string, runId: string) {
       );
       return null;
     }
-    // Rotate jobs blocked by another writer or tenant concurrency behind other eligible work.
-    await tx.query(
-      "UPDATE dispatch_jobs SET available_at=now()+interval '2 seconds' WHERE kind='run' AND resource_id=$1",
-      [runId],
-    );
+    // Waiting is durable SQL state, never an unbounded Workflow sleep loop.
+    await tx.query("UPDATE dispatch_jobs SET available_at=$2 WHERE kind='run' AND resource_id=$1", [
+      runId,
+      queueRetryAt(run, Date.now()),
+    ]);
     const denied = !(await actorAuthorized(tx, run));
     const workspace = await resources.get(tx, 'workspaces', run.workspace_id),
       project = await resources.get(tx, 'projects', run.project_id);

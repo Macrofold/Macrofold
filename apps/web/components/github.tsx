@@ -21,7 +21,7 @@ export function GitView({
   workspace: Schema['Workspace'];
 }) {
   const client = useQueryClient();
-  const sync = useApi<Schema['GitSync']>(`/v1/workspaces/${workspace.id}/sync`, 5000);
+  const sync = useApi<Schema['GitSync']>(`/v1/workspaces/${workspace.id}/sync`);
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [installation, setInstallation] = useState(''),

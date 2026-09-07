@@ -29,9 +29,15 @@ export const credentialPool = (globals.credentialPool ||= new pg.Pool({
 export async function transaction<T>(
   organization: string | null,
   fn: (tx: Tx) => Promise<T>,
-  options: { exclusiveStorage?: boolean } = {},
+  options: { exclusiveStorage?: boolean; statementTimeoutMs?: number } = {},
 ): Promise<T> {
-  return transact(pool, organization, fn, options.exclusiveStorage ? 'exclusive' : 'shared');
+  return transact(
+    pool,
+    organization,
+    fn,
+    options.exclusiveStorage ? 'exclusive' : 'shared',
+    options.statementTimeoutMs,
+  );
 }
 /** Credential rows have no filesystem objects. A refresh must not reacquire its caller's
  * storage lock behind waiting garbage collection, which would create a lock cycle. */
@@ -43,10 +49,15 @@ async function transact<T>(
   organization: string | null,
   fn: (tx: Tx) => Promise<T>,
   storageLock?: 'shared' | 'exclusive',
+  statementTimeoutMs?: number,
 ) {
   const tx = await connections.connect();
   try {
     await tx.query('BEGIN');
+    // Apply before lock acquisition too, so bounded metadata readers cannot wait
+    // indefinitely behind storage maintenance while their streams expire.
+    if (statementTimeoutMs !== undefined)
+      await tx.query("SELECT set_config('statement_timeout',$1,true)", [String(statementTimeoutMs)]);
     await tx.query("SELECT set_config('app.organization_id', $1, true)", [organization || '']);
     // Destructive storage maintenance excludes all tenant resource transactions. Ordinary
     // reads/writes share this lock; long-lived agent execution is also protected by its active run row.

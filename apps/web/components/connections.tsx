@@ -104,7 +104,7 @@ export function ConnectionsView() {
                   : c.kind === 'composio'
                     ? `${providerName(c.provider || '')} · Connected app`
                     : c.kind === 'search'
-                      ? `Brave Search · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
+                      ? `${providerName(c.provider || '')} · ${c.auth_method === 'api_key' ? 'Your API key' : 'Managed usage'}`
                       : c.kind === 'mcp_stdio'
                         ? `${c.package} · ${c.package_version}`
                         : c.url || c.kind}
@@ -211,8 +211,14 @@ function ConnectionTools({ connection, onClose }: { connection: Schema['Connecti
     >
       {tools.isPending || grants.isPending ? (
         <Loading />
-      ) : tools.error ? (
-        <ErrorState error={tools.error} />
+      ) : tools.error || grants.error ? (
+        <ErrorState
+          error={(tools.error || grants.error)!}
+          retry={() => {
+            void tools.refetch();
+            void grants.refetch();
+          }}
+        />
       ) : (
         <>
           <div className="tool-selection">

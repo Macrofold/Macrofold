@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 
 test('usage charts aggregate real daily totals, support keyboard controls and fit mobile', async ({

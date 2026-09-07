@@ -167,6 +167,15 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.11.1
         version: 4.13.0(playwright-core@1.63.0)
+      '@bcoe/v8-coverage':
+        specifier: 1.0.2
+        version: 1.0.2
+      '@jridgewell/trace-mapping':
+        specifier: 0.3.31
+        version: 0.3.31
+      '@neon/config':
+        specifier: 1.3.0
+        version: 1.3.0
       '@playwright/test':
         specifier: ^1.58.0
         version: 1.63.0
@@ -182,6 +191,15 @@ importers:
       '@types/diff':
         specifier: ^8.0.0
         version: 8.0.0
+      '@types/istanbul-lib-coverage':
+        specifier: 2.0.6
+        version: 2.0.6
+      '@types/istanbul-lib-report':
+        specifier: 3.0.3
+        version: 3.0.3
+      '@types/istanbul-reports':
+        specifier: 3.0.4
+        version: 3.0.4
       '@types/node':
         specifier: ^24.10.0
         version: 24.13.3
@@ -200,9 +218,21 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.11
         version: 4.1.11(vitest@4.1.11)
+      ast-v8-to-istanbul:
+        specifier: 0.3.12
+        version: 0.3.12
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
+      istanbul-lib-coverage:
+        specifier: 3.2.2
+        version: 3.2.2
+      istanbul-lib-report:
+        specifier: 3.0.1
+        version: 3.0.1
+      istanbul-reports:
+        specifier: 3.2.0
+        version: 3.2.0
       openapi-typescript:
         specifier: ^7.13.0
         version: 7.13.0(typescript@5.9.3)
@@ -1483,6 +1513,14 @@ packages:
     resolution: {integrity: sha512-xJIPs+bYuc9ASBl+cvGsKbGrJmS6fAKaSZCnT0lhahT5rhA2VVy9/EcIgd2JhtEuFOJNx7UHNn/qiTPTY4nrQw==}
     engines: {node: '>= 10'}
 
+  '@neon/config@1.3.0':
+    resolution: {integrity: sha512-gF3xQHUsx7nXX1xz/2dAeSIxY93oRDO8xGEOsqMRUslHG6v72phwpUH8ReDTThykl4N2mO8sCJhjSs+rHADDbA==}
+    engines: {node: '>=20.19.0'}
+
+  '@neon/sdk@3.1.0':
+    resolution: {integrity: sha512-yBdxG+RKWuDsEdgjZNuQUV9YfzXktaUb5pZPrzNmsUJPgNkL/jgiMKoYQorsSXDja1CNg6OvCPsEYbxYTYohZQ==}
+    engines: {node: '>=20.19.0'}
+
   '@nestjs/common@12.0.1':
     resolution: {integrity: sha512-v0zTaRCTV2K2xSnb3GnJoQKtaR6VxouJtm+P2gpr5w61dlXeWpXl1WVknCSzUqx2QwTV10tBkHETxvQvkf2Exg==}
     peerDependencies:
@@ -2563,6 +2601,15 @@ packages:
   '@types/http-cache-semantics@4.2.0':
     resolution: {integrity: sha512-L3LgimLHXtGkWikKnsPg0/VFx9OGZaC+eN1u4r+OB1XRqH3meBIAVC2zr1WdMH+RHmnRkqliQAOHNJ/E0j/e0Q==}
 
+  '@types/istanbul-lib-coverage@2.0.6':
+    resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
+
+  '@types/istanbul-lib-report@3.0.3':
+    resolution: {integrity: sha512-NQn7AHQnk/RSLOxrBbGyJM/aVQ+pjj5HCgasFxc0K/KhoATfQ/47AyUl15I2yBUpihjmas+a+VJBOqecrFH+uA==}
+
+  '@types/istanbul-reports@3.0.4':
+    resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
+
   '@types/jsesc@2.5.1':
     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
 
@@ -2912,6 +2959,9 @@ packages:
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
+
+  ast-v8-to-istanbul@0.3.12:
+    resolution: {integrity: sha512-BRRC8VRZY2R4Z4lFIL35MwNXmwVqBityvOIwETtsCSwvjl0IdgFsy9NhdaA6j74nUdtJJlIypeRhpDam19Wq3g==}
 
   ast-v8-to-istanbul@1.0.5:
     resolution: {integrity: sha512-UPAgKJFSEGMWSDr3LX4tqnAb4f7KGT8O40Tyx8wbYmmZ/yn58lNCm8h3svs3eXgiGd5AXxz8NDOvXWvicq+rJA==}
@@ -7225,6 +7275,14 @@ snapshots:
       '@napi-rs/nice-win32-x64-msvc': 1.1.1
     optional: true
 
+  '@neon/config@1.3.0':
+    dependencies:
+      '@neon/sdk': 3.1.0
+      jiti: 2.7.0
+      zod: 4.5.0
+
+  '@neon/sdk@3.1.0': {}
+
   '@nestjs/common@12.0.1(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -8309,6 +8367,16 @@ snapshots:
 
   '@types/http-cache-semantics@4.2.0': {}
 
+  '@types/istanbul-lib-coverage@2.0.6': {}
+
+  '@types/istanbul-lib-report@3.0.3':
+    dependencies:
+      '@types/istanbul-lib-coverage': 2.0.6
+
+  '@types/istanbul-reports@3.0.4':
+    dependencies:
+      '@types/istanbul-lib-report': 3.0.3
+
   '@types/jsesc@2.5.1': {}
 
   '@types/json-schema@7.0.15': {}
@@ -8887,6 +8955,12 @@ snapshots:
       tslib: 2.8.1
 
   assertion-error@2.0.1: {}
+
+  ast-v8-to-istanbul@0.3.12:
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      estree-walker: 3.0.3
+      js-tokens: 10.0.0
 
   ast-v8-to-istanbul@1.0.5:
     dependencies:

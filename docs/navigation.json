@@ -1,0 +1,170 @@
+[
+  {
+    "slug": "",
+    "source": "docs/README.md",
+    "title": "Documentation",
+    "section": "Start here",
+    "description": "Build with persistent cloud agents from the dashboard, API, or terminal."
+  },
+  {
+    "slug": "quickstart",
+    "source": "docs/getting-started/quickstart.md",
+    "title": "Quickstart",
+    "section": "Start here",
+    "description": "Create a project, start an agent, and review its saved work."
+  },
+  {
+    "slug": "local-development",
+    "source": "docs/getting-started/local-development.md",
+    "title": "Run locally",
+    "section": "Start here",
+    "description": "Start the free local simulator with Node, pnpm, and Docker."
+  },
+  {
+    "slug": "concepts",
+    "source": "docs/getting-started/concepts.md",
+    "title": "Core concepts",
+    "section": "Start here",
+    "description": "Understand projects, workspaces, sessions, runs, and checkpoints."
+  },
+  {
+    "slug": "dashboard",
+    "source": "docs/features/dashboard/README.md",
+    "title": "Dashboard",
+    "section": "Guides",
+    "description": "Navigate projects, files, run history, access, and usage."
+  },
+  {
+    "slug": "runs",
+    "source": "docs/features/execution/README.md",
+    "title": "Runs and agents",
+    "section": "Guides",
+    "description": "Select a harness, follow progress, continue work, and cancel safely."
+  },
+  {
+    "slug": "workspaces",
+    "source": "docs/features/workspaces/README.md",
+    "title": "Workspaces and Git",
+    "section": "Guides",
+    "description": "Persist files, create branches, restore checkpoints, and synchronize GitHub."
+  },
+  {
+    "slug": "connections",
+    "source": "docs/features/identity-integrations/README.md",
+    "title": "Connections and access",
+    "section": "Guides",
+    "description": "Bring provider keys and grant agents access to applications and MCP tools."
+  },
+  {
+    "slug": "search",
+    "source": "docs/features/identity-integrations/web-search.md",
+    "title": "Web search",
+    "section": "Guides",
+    "description": "Configure a search provider and understand search behavior and billing."
+  },
+  {
+    "slug": "billing",
+    "source": "docs/features/billing/README.md",
+    "title": "Billing and limits",
+    "section": "Guides",
+    "description": "Understand plans, concurrency, budgets, reserved credits, and retention."
+  },
+  {
+    "slug": "api/quickstart",
+    "source": "docs/features/api/quickstart.md",
+    "title": "API quickstart",
+    "section": "Build with the API",
+    "description": "Create a project and stream your first API-triggered run."
+  },
+  {
+    "slug": "api",
+    "source": "docs/features/api/README.md",
+    "title": "API conventions",
+    "section": "Build with the API",
+    "description": "Authenticate requests, paginate results, handle errors, and retry mutations."
+  },
+  {
+    "slug": "api/events",
+    "source": "docs/features/api/events.md",
+    "title": "Streaming and webhooks",
+    "section": "Build with the API",
+    "description": "Reconnect to run events and verify reliable webhook delivery."
+  },
+  {
+    "slug": "cli",
+    "source": "docs/features/cli/README.md",
+    "title": "Terminal CLI",
+    "section": "Build with the API",
+    "description": "Link a project, chat remotely, use worktrees, and transfer files."
+  },
+  {
+    "slug": "sdk/typescript",
+    "source": "sdk/typescript/README.md",
+    "title": "TypeScript SDK",
+    "section": "Build with the API",
+    "description": "Use typed requests and recoverable event streams in TypeScript."
+  },
+  {
+    "slug": "sdk/python",
+    "source": "sdk/python/README.md",
+    "title": "Python SDK",
+    "section": "Build with the API",
+    "description": "Integrate runs and durable streams with the Python client."
+  },
+  {
+    "slug": "self-hosting",
+    "source": "docs/operations/README.md",
+    "title": "Self-hosting",
+    "section": "Deploy and operate",
+    "description": "Understand the hosting components and choose a deployment guide."
+  },
+  {
+    "slug": "self-hosting/vercel",
+    "source": "docs/operations/launch-guide.md",
+    "title": "Deploy on Vercel",
+    "section": "Deploy and operate",
+    "description": "Configure and deploy the application, database, storage, and native runtime."
+  },
+  {
+    "slug": "self-hosting/environment",
+    "source": "docs/operations/launch-environment.md",
+    "title": "Environment configuration",
+    "section": "Deploy and operate",
+    "description": "Keep local, runtime, and migration configuration separate."
+  },
+  {
+    "slug": "self-hosting/database",
+    "source": "docs/operations/neon.md",
+    "title": "PostgreSQL and Neon",
+    "section": "Deploy and operate",
+    "description": "Configure restricted roles, connection pooling, migrations, and recovery."
+  },
+  {
+    "slug": "self-hosting/integrations",
+    "source": "docs/operations/launch-integrations.md",
+    "title": "Provider integrations",
+    "section": "Deploy and operate",
+    "description": "Register models, tools, billing, storage, email, and GitHub."
+  },
+  {
+    "slug": "operations",
+    "source": "docs/features/operations/README.md",
+    "title": "Usage and operator reporting",
+    "section": "Deploy and operate",
+    "description": "Read activity, execution demand, account metrics, and management MCP reports."
+  },
+  {
+    "slug": "troubleshooting",
+    "source": "docs/getting-started/troubleshooting.md",
+    "title": "Troubleshooting",
+    "section": "Resources",
+    "description": "Recover from setup failures, access errors, interrupted streams, and conflicting edits."
+  },
+  {
+    "slug": "agents",
+    "source": "docs/getting-started/agents.md",
+    "title": "Read with an agent",
+    "section": "Resources",
+    "description": "Discover Markdown guides, schemas, and navigation indexes for coding agents."
+  }
+]

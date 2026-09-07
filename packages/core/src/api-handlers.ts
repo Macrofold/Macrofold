@@ -667,12 +667,22 @@ export const handlers: Record<string, Handler> = {
       'Diff checkpoint must belong to this project.',
     );
     const before = (base?.files || []) as files.FileRecord[];
+    const previousFiles = new Map(before.map((file) => [file.path, file]));
+    const currentFiles = new Map(current.map((file) => [file.path, file]));
+    const selectedPath = c.query.get('path');
+    const paths = [...new Set([...previousFiles.keys(), ...currentFiles.keys()])]
+      .filter(
+        (path) =>
+          (!selectedPath || path === selectedPath) &&
+          previousFiles.get(path)?.sha256 !== currentFiles.get(path)?.sha256,
+      )
+      .sort();
+    const limit = Math.min(100, Number(c.query.get('limit')) || 100);
     const diff = [];
-    for (const path of [...new Set([...before.map((f) => f.path), ...current.map((f) => f.path)])].sort()) {
-      if (c.query.get('path') && path !== c.query.get('path')) continue;
-      const a = before.find((f) => f.path === path),
-        b = current.find((f) => f.path === path);
-      if (a?.sha256 === b?.sha256) continue;
+    // Decide which paths are returned before fetching their content.
+    for (const path of paths.slice(0, limit)) {
+      const a = previousFiles.get(path),
+        b = currentFiles.get(path);
       const old = a ? await readContent(a.key, a.sha256) : Buffer.alloc(0),
         next = b ? await readContent(b.key, b.sha256) : Buffer.alloc(0);
       const binary = old.includes(0) || next.includes(0);
@@ -687,14 +697,13 @@ export const handlers: Record<string, Handler> = {
           : {}),
       });
     }
-    const limit = Math.min(100, Number(c.query.get('limit')) || 100);
     return {
       workspace_id: workspace.id,
       base_checkpoint_id: baseId,
       revision: workspace.revision,
-      data: diff.slice(0, limit),
+      data: diff,
       next_cursor: null,
-      truncated: diff.length > limit,
+      truncated: paths.length > limit,
     };
   },
 };

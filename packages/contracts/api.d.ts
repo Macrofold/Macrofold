@@ -33,7 +33,10 @@ export interface paths {
         get: operations["getProject"];
         put?: never;
         post?: never;
-        /** Schedule project deletion */
+        /**
+         * Archive a project
+         * @description Archive a project once its runs finish. Files and history remain available. Use the project deletion endpoint to schedule permanent removal.
+         */
         delete: operations["deleteProject"];
         options?: never;
         head?: never;
@@ -1604,11 +1607,8 @@ export interface components {
             pull_request_url?: string;
         };
         Limits: {
-            /**
-             * @description Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence.
-             * @default 900
-             */
-            timeout_seconds: number;
+            /** @description Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap. */
+            timeout_seconds?: number;
             /**
              * @description Integer micro-USD as a decimal string.
              * @default 2000000
@@ -1903,6 +1903,7 @@ export interface components {
             name: string;
             /** @enum {string} */
             kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
             url?: string;
@@ -1926,6 +1927,7 @@ export interface components {
             name?: string;
             /** @enum {string} */
             kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
             url?: string;
@@ -1951,6 +1953,7 @@ export interface components {
             name: string;
             /** @enum {string} */
             kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
             url?: string;
@@ -5781,7 +5784,10 @@ export interface operations {
     listGithubInstallations: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -5812,7 +5818,10 @@ export interface operations {
             query: {
                 installation_id: string;
             };
-            header?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };

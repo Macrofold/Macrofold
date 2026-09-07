@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import { SchedulingReport } from './scheduling-report';
 import { ExecutionPolicy, PlanOptions } from './execution-policy';
 import { useQueryClient } from '@tanstack/react-query';
@@ -170,13 +171,7 @@ export function KeysView() {
           <>
             <div className="secret-display">
               <code>{secret}</code>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  navigator.clipboard.writeText(secret);
-                  toast.success('API key copied');
-                }}
-              >
+              <Button variant="secondary" onClick={() => copyText(secret, 'API key copied')}>
                 <Copy size={14} />
                 Copy
               </Button>
@@ -540,10 +535,7 @@ export function AgentsView() {
                 <button
                   aria-label="Copy agent ID"
                   className="icon-button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(a.id);
-                    toast.success('Agent ID copied');
-                  }}
+                  onClick={() => copyText(a.id, 'Agent ID copied')}
                 >
                   <Copy size={14} />
                 </button>

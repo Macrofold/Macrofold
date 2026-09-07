@@ -22,7 +22,11 @@ export async function startComposio(request: Request) {
   const url = new URL(request.url),
     organization = url.searchParams.get('organization_id') || '';
   const p = await identify(
-    new Request(request, { headers: new Headers([...request.headers, ['x-organization-id', organization]]) }),
+    // Next.js proxies route requests; construct from public fields instead of cloning private state.
+    new Request(request.url, {
+      method: request.method,
+      headers: new Headers([...request.headers, ['x-organization-id', organization]]),
+    }),
   );
   requireScopes(p, ['connections:write']);
   assert(p.kind === 'user', 403, 'browser_required', 'Sign in to connect your app account.');
@@ -98,7 +102,10 @@ export async function finishComposio(request: Request, transport: typeof fetch =
   }
   assert(state.expires > Date.now(), 400, 'oauth_expired', 'This connection attempt expired.');
   const p = await identify(
-    new Request(request, { headers: new Headers([...request.headers, ['x-organization-id', state.org]]) }),
+    new Request(request.url, {
+      method: request.method,
+      headers: new Headers([...request.headers, ['x-organization-id', state.org]]),
+    }),
   );
   requireScopes(p, ['connections:write']);
   assert(

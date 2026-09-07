@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('public discovery, pricing and quickstart work on desktop and mobile', async ({ page }) => {
   await page.goto('/');

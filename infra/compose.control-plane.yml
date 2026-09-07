@@ -1,5 +1,5 @@
 # Optional portable control plane; production databases, R2 and Sandbox remain managed services.
-# Set CONTROL_ENV_FILE to an absolute path outside the checkout. See docs/22-deployment.md.
+# Set CONTROL_ENV_FILE to an absolute path outside the checkout. See docs/operations/deployment.md.
 name: hosted-control-plane
 services:
   web:

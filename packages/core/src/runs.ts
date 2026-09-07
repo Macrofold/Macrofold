@@ -6,7 +6,7 @@ import { id } from './crypto';
 import { config, isLocal } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
 import { queueObservations } from './scheduling';
-import { models, type Model } from './catalog';
+import { models, computeRate, computeMaximum, type Model } from './catalog';
 import { emit } from './events';
 import * as resources from './resources';
 import { reserve, settle } from './ledger';
@@ -25,6 +25,7 @@ export type RunConfig = Schema['SessionCreate'] & {
   client_type?: string;
   scheduling_class?: 'background' | 'interactive';
   rate_card?: Model;
+  compute_rate_micro_usd_per_minute?: string;
   oauth_token_id?: string;
 };
 export type RunRow = {
@@ -288,8 +289,17 @@ export async function admitRun(
     limits: { ...(session.limits as Schema['Limits']), ...input.limits },
   } as unknown as Schema['SessionCreate']);
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);
-  const reservation =
-    isLocal() && config.execution === 'simulator' ? 0n : BigInt(configured.limits.max_cost_micro_usd);
+  const simulated = isLocal() && config.execution === 'simulator';
+  const rate = computeRate();
+  const minimum = computeMaximum(configured.limits.timeout_seconds, rate);
+  assert(
+    simulated || BigInt(configured.limits.max_cost_micro_usd) >= minimum,
+    400,
+    'run_budget_too_small',
+    'Increase the run budget or shorten its timeout to cover the compute window.',
+    { minimum_micro_usd: minimum.toString() },
+  );
+  const reservation = simulated ? 0n : BigInt(configured.limits.max_cost_micro_usd);
   await reserve(tx, p.organizationId, reservation);
   const runId = id();
   const runConfig: RunConfig = {
@@ -304,6 +314,7 @@ export async function admitRun(
     client_type: clientType,
     scheduling_class: input.scheduling_class || 'background',
     rate_card: models().find((m) => m.id === configured.model),
+    compute_rate_micro_usd_per_minute: rate,
   };
   await tx.query(
     "INSERT INTO runs(id,organization_id,workspace_id,session_id,project_id,status,config,reservation_micro_usd,queue_expires_at) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,now()+($8::integer*interval '1 second'))",
@@ -373,7 +384,9 @@ export async function submitInput(tx: Tx, p: Principal, runId: string, input: Sc
   await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
   const row = await getRun(tx, runId, p);
   assert(
-    row.status === 'waiting_for_input' && row.input_request?.id === input.input_request_id,
+    row.status === 'waiting_for_input' &&
+      !row.cancel_requested &&
+      row.input_request?.id === input.input_request_id,
     409,
     'input_expired',
     'This input request is no longer active.',

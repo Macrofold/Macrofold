@@ -17,10 +17,12 @@ export async function dispatchCloudPoller(provider: MachineProvider, concurrency
     claims.rows.map(async (job) => {
       try {
         const result = await advanceCloudRun(job.organization_id, job.resource_id, provider);
-        await pool.query(
-          "UPDATE dispatch_jobs SET available_at=now()+($2::integer*interval '1 second') WHERE id=$1 AND state<>'done'",
-          [job.id, Math.max(1, result.delaySeconds)],
-        );
+        // claimRun owns the precise, expiry-bounded queue retry timestamp.
+        if (!result.queued)
+          await pool.query(
+            "UPDATE dispatch_jobs SET available_at=now()+($2::integer*interval '1 second') WHERE id=$1 AND state<>'done'",
+            [job.id, Math.max(1, result.delaySeconds)],
+          );
       } catch {
         await pool.query(
           "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds',error='poller_advance_failed' WHERE id=$1 AND state<>'done'",

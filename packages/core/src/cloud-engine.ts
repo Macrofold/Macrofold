@@ -7,7 +7,7 @@ import { claimRun, principalFor } from './engine';
 import { getRun, terminal } from './runs';
 import { emit } from './events';
 import { settle } from './ledger';
-import { models } from './catalog';
+import { models, computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
 import * as resources from './resources';
 import { checkpoint, checkpointState, type FileRecord } from './files';
@@ -15,7 +15,8 @@ import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { describeContent, readContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
-import { computeMaximum, settleOrphanModelRequests } from './model-gateway';
+import { settleOrphanModelRequests } from './model-gateway';
+import { queueRetryAt } from './queue-wait';
 
 type Phase =
   | 'input'
@@ -85,7 +86,12 @@ export async function advanceCloudRun(
     const claimed = await claimRun(org, runId);
     if (!claimed) {
       const current = await transaction(org, (tx) => getRun(tx, runId));
-      return { done: terminal(current.status), delaySeconds: 5, queued: current.status === 'queued' };
+      const now = Date.now();
+      return {
+        done: terminal(current.status),
+        delaySeconds: Math.max(0, (queueRetryAt(current, now).getTime() - now) / 1000),
+        queued: current.status === 'queued',
+      };
     }
     run = claimed;
   }
@@ -443,7 +449,9 @@ async function publishCloudRun(org: string, runId: string, state: State) {
           ),
         )
       : 0;
-    const compute = state.machine ? computeMaximum(elapsed) : 0n;
+    const compute = state.machine
+      ? computeMaximum(elapsed, run.config.compute_rate_micro_usd_per_minute)
+      : 0n;
     const cost = BigInt(run.cost_micro_usd) + compute;
     assert(
       cost <= BigInt(run.reservation_micro_usd),

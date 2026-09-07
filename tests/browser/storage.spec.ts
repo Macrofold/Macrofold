@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
@@ -14,7 +14,7 @@ test('storage policy is an explicit budget, shows unmeasured state and remains u
 }) => {
   const email = randomUUID() + '@example.test',
     password = 'local-storage-fixture-2026',
-    headers = { Origin: 'http://localhost:3210' };
+    headers = { Origin: fixtureOrigin };
   const signed = await page.request.post('/auth/sign-up/email', {
     headers,
     data: { email, password, name: 'Storage owner' },

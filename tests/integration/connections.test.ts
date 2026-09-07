@@ -8,6 +8,11 @@ import * as resources from '../../packages/core/src/resources';
 import { disconnectConnection, cleanConnection } from '../../packages/core/src/connection-cleanup';
 let a: Awaited<ReturnType<typeof fixtureAccount>>, b: Awaited<ReturnType<typeof fixtureAccount>>;
 const oldEnv = { ...process.env };
+// Next.js wraps route requests in a proxy; native Request cloning cannot read its private state.
+const browserRequest = (url: string, init: RequestInit) =>
+  new Proxy(new Request(url, init), {
+    get: (target, key) => Reflect.get(target, key, target),
+  });
 beforeAll(async () => {
   a = await fixtureAccount('Connector owner');
   b = await fixtureAccount('Other connector user');
@@ -76,7 +81,7 @@ it('requires matching browser identity and Composio account binding before activ
     }),
   );
   const start = await startComposio(
-    new Request(
+    browserRequest(
       `${config.origin}/integrations/composio/install?connection_id=${c.id}&organization_id=${a.p.organizationId}`,
       { headers: { cookie: a.cookie } },
     ),
@@ -96,15 +101,19 @@ it('requires matching browser identity and Composio account binding before activ
   const callback =
     config.origin + '/integrations/composio/callback?session_uri=opaque-uri-not-a-fetch-target';
   await expect(
-    finishComposio(new Request(callback, { headers: { cookie: b.cookie + '; ' + state } }), transport),
+    finishComposio(browserRequest(callback, { headers: { cookie: b.cookie + '; ' + state } }), transport),
   ).rejects.toBeTruthy();
   expect(calls).toBe(0);
   expect(
-    (await finishComposio(new Request(callback, { headers: { cookie: a.cookie + '; ' + state } }), transport))
-      .status,
+    (
+      await finishComposio(
+        browserRequest(callback, { headers: { cookie: a.cookie + '; ' + state } }),
+        transport,
+      )
+    ).status,
   ).toBe(302);
   await expect(
-    finishComposio(new Request(callback, { headers: { cookie: a.cookie + '; ' + state } }), transport),
+    finishComposio(browserRequest(callback, { headers: { cookie: a.cookie + '; ' + state } }), transport),
   ).rejects.toMatchObject({ code: 'invalid_oauth_state' });
   expect(calls).toBe(1);
   expect(await transaction(a.p.organizationId, (tx) => resources.get(tx, 'connections', c.id))).toMatchObject(

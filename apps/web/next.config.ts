@@ -2,6 +2,16 @@ import { withWorkflow } from 'workflow/next';
 import type { NextConfig } from 'next';
 import path from 'node:path';
 const config: NextConfig = {
+  // Optional isolated local acceptance build; normal deployments keep .next.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Isolated acceptance must not type-check another build's generated route validators.
+  ...(process.env.NEXT_TYPECHECK_CONFIG
+    ? { typescript: { tsconfigPath: process.env.NEXT_TYPECHECK_CONFIG } }
+    : {}),
+  // Isolated coverage builds only; deployment artifacts do not publish application source maps.
+  ...(process.env.TEST_COVERAGE_BUILD === '1' && !process.env.VERCEL
+    ? { productionBrowserSourceMaps: true, experimental: { serverSourceMaps: true } }
+    : {}),
   // Vercel's adapter packages Functions; standalone copying is only for self-hosting.
   // Next 16.3 skips the server trace with an adapter, so requesting both fails the build.
   output: process.env.VERCEL === '1' ? undefined : 'standalone',

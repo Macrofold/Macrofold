@@ -42,7 +42,7 @@ export function PublicFrame({ name, children }: { name: string; children: React.
           <Link href="/docs">Quickstart</Link>
           <Link href="/reference">API reference</Link>
           <Link href="/pricing">Pricing</Link>
-          <Link href="/docs#data">Your data</Link>
+          <Link href="/docs/workspaces#retention-and-deletion">Your data</Link>
           {process.env.PRIVACY_URL?.startsWith('https://') && <a href={process.env.PRIVACY_URL}>Privacy</a>}
           {process.env.TERMS_URL?.startsWith('https://') && <a href={process.env.TERMS_URL}>Terms</a>}
           {process.env.SUPPORT_EMAIL && <a href={'mailto:' + process.env.SUPPORT_EMAIL}>Support</a>}
@@ -304,7 +304,7 @@ export function Pricing({
           Storage overage requires its own monthly budget. Projects can be exported or scheduled for deletion;
           detailed run retention is separate from the persistent native conversation state.
         </p>
-        <Link href="/docs#data">
+        <Link href="/docs/workspaces#retention-and-deletion">
           Read about persistence and retention
           <ArrowRight size={15} />
         </Link>

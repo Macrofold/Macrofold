@@ -1,13 +1,14 @@
-"""Exercise the installed Python client against the unpaid local web and worker."""
+"""Exercise the Python client against the unpaid local web and worker."""
 import json
+import os
 import pathlib
 import time
 import httpx
 from hosted_agents import Client
 
-origin = 'http://localhost:3210'
+origin = os.environ.get('APP_ORIGIN', 'http://localhost:3210')
 assert httpx.get(origin + '/health').json()['mode'] == 'local_simulation'
-seed = json.loads((pathlib.Path(__file__).resolve().parent.parent / '.data/demo.json').read_text())
+seed = json.loads((pathlib.Path(os.environ.get('DATA_DIR', pathlib.Path(__file__).resolve().parent.parent / '.data')) / 'demo.json').read_text())
 with Client(origin, seed['api_key']) as client:
     assert client.request('getIdentity')
     project = client.request('createProject', body={'name': f'Python SDK {time.time_ns()}'})
@@ -22,4 +23,4 @@ with Client(origin, seed['api_key']) as client:
     followup = client.request('continueSession', path={'session_id': run['session_id']}, body={'prompt': 'Continue the same saved project.', 'queue_if_busy': True})
     assert list(client.stream(followup['run_id']))[-1]['type'] == 'run.succeeded'
     assert client.request('readFile', path={'workspace_id': ws['id']}, query={'path': 'python.txt'}) == content
-print('Installed Python SDK: scoped identity, project/files, live local SSE and persisted session continuation passed. No paid provider call.')
+print('Python SDK: scoped identity, project/files, live local SSE and persisted session continuation passed. No paid provider call.')

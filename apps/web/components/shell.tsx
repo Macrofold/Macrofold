@@ -1,5 +1,6 @@
 'use client';
 import { clsx } from 'clsx';
+import { toast } from 'sonner';
 import {
   Activity,
   ArrowUpRight,
@@ -25,6 +26,7 @@ import { useEffect, useState } from 'react';
 import { api, useApi, type Schema } from '../lib/client';
 import { Select } from './select';
 import { Logo, Modal } from './ui';
+import { DashboardFreshness, dashboardIdentityChanged } from './dashboard-freshness';
 const navigation = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
@@ -77,6 +79,7 @@ export function Shell({
   ];
   return (
     <div className="app-shell">
+      <DashboardFreshness organization={identity.data?.organization_id} />
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -98,9 +101,9 @@ export function Shell({
               onValueChange={async (next) => {
                 try {
                   await api('/account/organization', 'POST', { organization_id: next });
+                  dashboardIdentityChanged();
                   location.assign('/');
                 } catch (error) {
-                  const { toast } = await import('sonner');
                   toast.error((error as Error).message);
                 }
               }}
@@ -180,9 +183,13 @@ export function Shell({
               className="icon-button"
               aria-label="Sign out"
               onClick={async () => {
-                await api('/auth/sign-out', 'POST', {});
-                router.push('/login');
-                router.refresh();
+                try {
+                  await api('/auth/sign-out', 'POST', {});
+                  dashboardIdentityChanged();
+                  location.assign('/login');
+                } catch (error) {
+                  toast.error((error as Error).message);
+                }
               }}
             >
               <LogOut size={16} />

@@ -295,11 +295,10 @@ it('cloud retries preserve waiting and explicitly finish expiry before touching 
       throw new Error('Queued work must not invoke the machine provider');
     },
   });
-  expect(await advanceCloudRun(a.p.organizationId, queued.run_id, machine)).toEqual({
-    done: false,
-    delaySeconds: 5,
-    queued: true,
-  });
+  const waiting = await advanceCloudRun(a.p.organizationId, queued.run_id, machine);
+  expect(waiting).toMatchObject({ done: false, queued: true });
+  expect(waiting.delaySeconds).toBeGreaterThan(0);
+  expect(waiting.delaySeconds).toBeLessThanOrEqual(60);
   await transaction(a.p.organizationId, async (tx) => {
     await tx.query("UPDATE runs SET queue_expires_at=now()-interval '1 second' WHERE id=$1", [queued.run_id]);
     const visible = await presentRuns(tx, [await getRun(tx, queued.run_id)]);
@@ -307,7 +306,7 @@ it('cloud retries preserve waiting and explicitly finish expiry before touching 
   });
   expect(await advanceCloudRun(a.p.organizationId, queued.run_id, machine)).toEqual({
     done: true,
-    delaySeconds: 5,
+    delaySeconds: 0,
     queued: false,
   });
   const final = await transaction(a.p.organizationId, (tx) => getRun(tx, queued.run_id));

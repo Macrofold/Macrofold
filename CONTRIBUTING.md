@@ -1,11 +1,37 @@
 # Contributing
 
-Read [AGENTS.md](AGENTS.md), [implementation status](docs/16-implementation-status.md) and [delivery plan](docs/10-delivery.md) first. The local setup uses only deterministic provider fixtures and does not call paid models or sandboxes.
+Help improve the platform with focused fixes, clearer documentation, and reproducible bug reports. Contributions are licensed under [Apache 2.0](LICENSE).
 
-Use Node 24 and the pinned pnpm version. Run `pnpm install --frozen-lockfile`, `pnpm run setup`, `pnpm dev`, and `pnpm worker`. The domain test wrapper creates a disposable database and does not require stopping the preview worker. Browser/CLI journeys require a configured local app and worker with synthetic test data. Follow [the testing rules](TESTING.md) to choose and write tests for your change. CI supplies a combined free-provider acceptance sequence.
+## Start developing
 
-Keep provider SDKs at adapter boundaries, authorize the tenant before accessing resources, preserve ambiguous execution outcomes and maintain balanced immutable financial records. Update OpenAPI and regenerate clients when contracts change. Add a forward SQL migration instead of modifying a released migration. Explain changes and evidence in the pull request. Screenshots must use synthetic accounts and contain no secrets, prompts or customer files.
+Follow [local setup](docs/getting-started/local-development.md). It uses deterministic providers and needs no paid account. Read [AGENTS.md](AGENTS.md) for repository boundaries and [the codebase map](docs/architecture/codebase.md) to find the module that owns your change.
 
-Contributions are made under Apache-2.0. Do not submit code, assets or data you lack permission to contribute. Third-party native harnesses and services have separate terms; do not imply they are covered by this repository's license.
+```sh
+pnpm check
+pnpm test:domain
+python3 scripts/check-docs.py
+```
 
-Run `pnpm test:coverage` for the isolated TypeScript suite with global and critical-module floors. Run `pnpm test:mutation` for runtime capability fault detection in a temporary source copy. See [testing and CI](docs/24-testing-ci.md) for scope, fork safety, required checks, badges, and releases. Preserve meaningful boundary assertions when changing security, budgets, or persistence.
+Domain tests use a disposable database and filesystem. For browser changes, use the isolated dashboard runner described in [testing and CI](docs/engineering/testing.md); do not attach tests to a shared preview or customer database.
+
+## Make a focused change
+
+Preserve provider boundaries, tenant authorization, durable execution identity, file recovery, and financial invariants. Add a regression test for changed behavior. Update OpenAPI and generated clients when the customer contract changes; use a forward migration for released database schemas.
+
+Follow [testing rules](TESTING.md) and [documentation rules](.agents/rules/documentation.md). Documentation changes should help the intended reader accomplish a task and keep technical details in their owning guide.
+
+For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). They route implementation and review to focused rules for the affected layer, with no additional agent service or plugin required.
+
+## Open a pull request
+
+Explain the problem, resulting behavior, and checks actually run. Link related issues. Include synthetic screenshots for interface changes and describe meaningful compatibility or deployment implications. Never include credentials, customer content, or private account configuration.
+
+CI runs strict checks, isolated acceptance, coverage gates, and targeted mutation tests. Forks receive no production secrets. Use `pnpm install --frozen-lockfile` when reproducing CI's exact dependency graph; ordinary first-time setup uses `pnpm install`.
+
+## Report a bug
+
+Include the affected revision, environment, minimal steps, expected behavior, and observed error or request ID. Use synthetic examples and redact sensitive information. Report security vulnerabilities using [SECURITY.md](SECURITY.md), not a public reproduction.
+
+## Community and licensing
+
+Follow the [code of conduct](CODE_OF_CONDUCT.md). Contribute only code and assets you have permission to share. External harnesses and services retain their own terms; see [NOTICE](NOTICE).

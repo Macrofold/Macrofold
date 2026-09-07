@@ -462,8 +462,8 @@
         "additionalProperties": false
       },
       "output_contract": {
-        "openapi_schema": "Report",
-        "paginated": false
+        "openapi_schema": "ReportSnapshot",
+        "paginated": true
       },
       "constraints": {
         "default_window": "trailing 7 days",

@@ -169,7 +169,7 @@ export function limits(flags: Options): Schema['Limits'] {
   if (cost && !/^\d+(?:\.\d{1,6})?$/.test(cost))
     throw new CliError('--max-cost is a USD amount with at most six decimal places.');
   return {
-    timeout_seconds: flags.timeout ? Number(flags.timeout) : 900,
+    timeout_seconds: flags.timeout ? Number(flags.timeout) : undefined,
     max_cost_micro_usd: cost
       ? (BigInt(cost.split('.')[0]) * 1000000n + BigInt((cost.split('.')[1] || '').padEnd(6, '0'))).toString()
       : '2000000',

@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import type { Tx } from '../../db';
 import { transaction } from '../../db';
 import { id } from './crypto';
@@ -90,48 +91,62 @@ export async function eventsAfter(org: string, run: string, after: string, limit
 }
 export async function streamEvents(org: string, run: string, after: string, signal: AbortSignal) {
   const encoder = new TextEncoder();
+  const lifetime = new AbortController();
   let cursor = after;
-  let closed = false;
+  let nextPoll = 0;
+  let close: () => void;
+  let cleanup: () => void;
   return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const deadline = Date.now() + 55000;
+    start(controller) {
+      const timeout = setTimeout(() => close(), 55000);
+      cleanup = () => {
+        clearTimeout(timeout);
+        signal.removeEventListener('abort', close);
+        lifetime.abort();
+      };
+      close = () => {
+        if (lifetime.signal.aborted) return;
+        cleanup();
+        controller.close();
+      };
+      if (signal.aborted) close();
+      else signal.addEventListener('abort', close, { once: true });
+    },
+    // Pull supplies at most one page ahead of the reader; a stalled client cannot
+    // make us load its entire history. Each query still releases its connection.
+    async pull(controller) {
       try {
-        while (!signal.aborted && !closed && Date.now() < deadline) {
-          const events = await eventsAfter(org, run, cursor);
-          for (const event of events) {
-            controller.enqueue(
-              encoder.encode(
-                `id: ${event.sequence}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
-              ),
-            );
-            cursor = event.sequence;
-          }
-          if (!events.length) controller.enqueue(encoder.encode(': heartbeat\n\n'));
-          const state = await transaction(
-            org,
-            async (tx) =>
-              (await tx.query('SELECT status,event_sequence FROM runs WHERE id=$1', [run])).rows[0],
+        const wait = nextPoll - Date.now();
+        if (wait > 0) await delay(wait, undefined, { signal: lifetime.signal });
+        if (lifetime.signal.aborted) return;
+        const events = await eventsAfter(org, run, cursor);
+        if (lifetime.signal.aborted) return;
+        for (const event of events) {
+          controller.enqueue(
+            encoder.encode(`id: ${event.sequence}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
           );
-          if (
-            state &&
-            ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(state.status) &&
-            BigInt(cursor) >= BigInt(state.event_sequence)
-          )
-            break;
-          await new Promise((resolve) => setTimeout(resolve, events.length ? 150 : 750));
+          cursor = event.sequence;
         }
+        if (!events.length) controller.enqueue(encoder.encode(': heartbeat\n\n'));
+        const state = await transaction(
+          org,
+          async (tx) => (await tx.query('SELECT status,event_sequence FROM runs WHERE id=$1', [run])).rows[0],
+        );
+        if (
+          state &&
+          ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(state.status) &&
+          BigInt(cursor) >= BigInt(state.event_sequence)
+        )
+          close();
+        nextPoll = Date.now() + (events.length ? 150 : 750);
       } catch {
-        if (!signal.aborted && !closed)
+        if (!lifetime.signal.aborted)
           controller.enqueue(encoder.encode('event: transport.error\ndata: {}\n\n'));
-      } finally {
-        if (!closed) {
-          closed = true;
-          controller.close();
-        }
+        close();
       }
     },
     cancel() {
-      closed = true;
+      cleanup();
     },
   });
 }

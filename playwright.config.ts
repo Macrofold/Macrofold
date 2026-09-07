@@ -12,8 +12,9 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:3210',
+    baseURL: config.origin,
     viewport: { width: 1440, height: 1000 },
+    launchOptions: { args: ['--host-resolver-rules=MAP localhost 127.0.0.1'] },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -29,3 +29,24 @@ class Costs(unittest.TestCase):
         self.s['monthly']['runs']=0
         self.assertEqual(D(costs.estimate(self.s,'base')['variable_vendor_cost_usd']),0)
 if __name__=='__main__':unittest.main()
+
+
+def test_cli_overrides_and_csv_preserve_exact_costs(monkeypatch, capsys):
+    monkeypatch.setattr('sys.argv', ['estimate-costs', '--runs', '0', '--byok', '1'])
+    costs.main()
+    result = json.loads(capsys.readouterr().out)
+    assert all(D(item['runs']) == 0 and D(item['variable_vendor_cost_usd']) == 0 for item in result)
+    monkeypatch.setattr('sys.argv', ['estimate-costs', '--runs', '1', '--csv'])
+    costs.main()
+    import csv, io
+    rows = list(csv.DictReader(io.StringIO(capsys.readouterr().out)))
+    assert rows and all(row['runs'] == '1' for row in rows)
+
+
+def test_cli_rejects_negative_volume_and_invalid_byok(monkeypatch):
+    import pytest
+    for args in [['--runs', '-1'], ['--byok', '1.1']]:
+        monkeypatch.setattr('sys.argv', ['estimate-costs', *args])
+        with pytest.raises(SystemExit) as error:
+            costs.main()
+        assert error.value.code == 2

@@ -7,6 +7,7 @@ import { api, useApi, type Schema } from '../lib/client';
 import { Button, ErrorState, Field, Modal, Select } from './ui';
 import { ConnectorBrowser } from './connector-browser';
 import { ProviderLabel, ProviderLogo, providerName } from './provider-logo';
+import { searchProviders, isSearchProvider } from '../../../packages/contracts/search';
 
 const kinds = [
   { id: 'composio', label: 'Apps', icon: Globe },
@@ -21,7 +22,7 @@ const descriptions: Record<Kind, string> = {
   model: 'Use your own provider account. Your API key stays encrypted on the server.',
   mcp_remote: 'Connect a remote MCP server and choose the tools your agents can use.',
   mcp_stdio: 'Run a reviewed MCP server inside your agent’s sandbox.',
-  search: 'Give your agents up-to-date information with Brave Search.',
+  search: 'Give your agents up-to-date information from your preferred search provider.',
 };
 export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
   const [kind, setKind] = useState<Kind>('composio');
@@ -53,7 +54,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
     setEnvironment({});
     setName('');
     setUrl('');
-    setProvider('openai');
+    setProvider(next === 'search' ? 'brave' : 'openai');
     setAuth(next === 'search' ? 'none' : 'bearer');
   }
   return (
@@ -122,7 +123,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                       : kind === 'model'
                         ? provider
                         : kind === 'search'
-                          ? 'brave'
+                          ? provider
                           : kind
                   }
                   name={selected?.name}
@@ -165,7 +166,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                             package_version: selectedPackage?.version,
                             secret_env: environment,
                           }
-                        : { provider: kind === 'search' ? 'brave' : provider }),
+                        : { provider }),
                     ...(secret ? { secret } : {}),
                   });
                   onClose();
@@ -231,19 +232,44 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                   </div>
                 </>
               ) : kind === 'search' ? (
-                <Field label="Search funding">
-                  <Select
-                    value={auth}
-                    onValueChange={(next) => {
-                      setAuth(next);
-                      setSecret('');
-                    }}
-                    options={[
-                      { value: 'none', label: 'Managed \u00B7 charged to your run budget' },
-                      { value: 'api_key', label: 'Bring your Brave Search API key' },
-                    ]}
-                  />
-                </Field>
+                <>
+                  <Field label="Search provider">
+                    <Select
+                      value={provider}
+                      onValueChange={(next) => {
+                        setProvider(next);
+                        setAuth('api_key');
+                        setSecret('');
+                        setError('');
+                      }}
+                      options={Object.entries(searchProviders).map(([value, info]) => ({
+                        value,
+                        label: info.name,
+                      }))}
+                    />
+                  </Field>
+                  <Field label="Search funding">
+                    <Select
+                      value={auth}
+                      onValueChange={(next) => {
+                        setAuth(next);
+                        setSecret('');
+                      }}
+                      options={[
+                        ...(isSearchProvider(provider) && searchProviders[provider].managed
+                          ? [{ value: 'none', label: 'Managed \u00B7 charged to your run budget' }]
+                          : []),
+                        { value: 'api_key', label: `Bring your ${providerName(provider)} API key` },
+                      ]}
+                    />
+                  </Field>
+                  {auth === 'api_key' && (
+                    <p className="field-hint">
+                      Search usage is billed by your provider. These charges are separate from your run
+                      budget.
+                    </p>
+                  )}
+                </>
               ) : kind === 'model' ? (
                 <Field label="Provider">
                   <Select
@@ -290,7 +316,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                     kind === 'model'
                       ? 'Provider API key'
                       : kind === 'search'
-                        ? 'Brave Search API key'
+                        ? `${providerName(provider)} API key`
                         : 'Bearer token'
                   }
                   hint="Encrypted on the server. Never returned after creation."

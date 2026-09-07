@@ -10,7 +10,7 @@ import { assert, errorBody } from './errors';
 import { id, seal, unseal, sha256 } from './crypto';
 import * as resources from './resources';
 import { connectionTools, composio, withMcp } from './connections';
-import { computeMaximum } from './model-gateway';
+import { computeMaximum } from './catalog';
 import { canonical } from './http-contract';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
@@ -18,7 +18,7 @@ import { boundedBody } from './body';
 import type { components } from '../../contracts/api';
 import { approvedStdio } from './stdio-catalog';
 import type { SandboxTools, MachineBinding } from './ports';
-import { searchWeb, searchKey } from '../../providers/src/search';
+import { searchWeb, searchKey } from './search';
 type Tool = components['schemas']['Tool'];
 const ajv = new Ajv({ strict: false });
 export const exposedToolName = (connectionId: string, name: string) =>
@@ -176,7 +176,7 @@ export async function executeGrantedTool(
       BigInt(budget.budget_used_micro_usd) +
         BigInt(budget.model_reserved_micro_usd) +
         fee +
-        computeMaximum(run.config.limits!.timeout_seconds!) <=
+        computeMaximum(run.config.limits!.timeout_seconds!, run.config.compute_rate_micro_usd_per_minute) <=
         BigInt(run.config.limits!.max_cost_micro_usd!),
       402,
       'run_budget_exhausted',
@@ -204,7 +204,11 @@ export async function executeGrantedTool(
   let result: Record<string, unknown>;
   try {
     if (connection.kind === 'search') {
-      result = await searchWeb(connection, args);
+      result = await searchWeb(
+        connection,
+        args,
+        AbortSignal.timeout(Math.max(0, run.deadline!.getTime() - Date.now())),
+      );
     } else if (connection.kind === 'mcp_stdio') {
       const entry = approvedStdio(connection.package, connection.package_version);
       const binding = (run.execution_binding as { machine?: MachineBinding } | null)?.machine;

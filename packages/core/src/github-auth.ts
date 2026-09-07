@@ -93,7 +93,7 @@ export async function finishGithub(request: Request, transport: typeof fetch = f
     .slice(1)
     .join('=');
   assert(
-    cookie && sameSecret(decodeURIComponent(cookie), state) && code,
+    cookie && sameSecret(cookie, encodeURIComponent(state)) && code,
     400,
     'invalid_oauth_state',
     'GitHub authorization state did not match. Start again.',
@@ -106,7 +106,7 @@ export async function finishGithub(request: Request, transport: typeof fetch = f
   }
   assert(data.expires > Date.now(), 400, 'oauth_expired', 'GitHub authorization expired.');
   const p = await identify(
-    new Request(request, { headers: new Headers([...request.headers, ['x-organization-id', data.org]]) }),
+    new Request(request.url, { headers: new Headers([...request.headers, ['x-organization-id', data.org]]) }),
   );
   githubManager(p);
   assert(

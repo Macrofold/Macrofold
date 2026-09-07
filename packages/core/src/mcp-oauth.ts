@@ -134,7 +134,7 @@ export async function startMcpOAuth(request: Request, transport: typeof fetch = 
     org = url.searchParams.get('organization_id') || '',
     connectionId = url.searchParams.get('connection_id') || '';
   const p = await identify(
-    new Request(request, { headers: new Headers([...request.headers, ['x-organization-id', org]]) }),
+    new Request(request.url, { headers: new Headers([...request.headers, ['x-organization-id', org]]) }),
   );
   return transaction(p.organizationId, async (tx) => {
     const connection = await resources.get(tx, 'connections', connectionId, p);
@@ -185,7 +185,7 @@ export async function finishMcpOAuth(request: Request, transport: typeof fetch =
     .find((v) => v.startsWith(cookieName() + '='))
     ?.slice(cookieName().length + 1);
   assert(
-    cookie && sameSecret(decodeURIComponent(cookie), state) && code,
+    cookie && sameSecret(cookie, encodeURIComponent(state)) && code,
     400,
     'invalid_oauth_state',
     'Authorization state did not match. Start again.',
@@ -198,7 +198,7 @@ export async function finishMcpOAuth(request: Request, transport: typeof fetch =
   }
   assert(data.expires > Date.now(), 400, 'oauth_expired', 'Authorization expired. Start again.');
   const p = await identify(
-    new Request(request, { headers: new Headers([...request.headers, ['x-organization-id', data.org]]) }),
+    new Request(request.url, { headers: new Headers([...request.headers, ['x-organization-id', data.org]]) }),
   );
   assert(
     p.userId === data.user,

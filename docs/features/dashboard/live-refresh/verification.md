@@ -1,0 +1,30 @@
+# Live refresh verification and deployment checks
+
+The [architecture](../live-refresh.md) defines the best-effort guarantee and operational limits. Acceptance uses synthetic accounts, real local PostgreSQL, independent Node processes, and simulated agents. No paid provider is invoked.
+
+## Repeatable evidence
+
+| Boundary                                   | Tests                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Committed state and cross-process delivery | [Integration cases](../../../../tests/integration/dashboard-freshness.test.ts) exercise public API admission, simulated execution, workspace/checkpoint/Git publication, an independent Node subscriber, rollback isolation, and retained detailed run events.                                                                                                                            |
+| Authorization                              | The same integration suite uses actual sessions and membership rows: missing cookies, bearer rejection, foreign organization, cross-origin request, revocation, demotion, expiry and unverified account. A replacement role binding cannot re-authorize an old stream.                                                                                                                    |
+| Bounded resources and failures             | [Deterministic tests](../../../../tests/unit/dashboard-freshness.test.ts) cover shared reads, subscriber/tenant caps, server timeout, slow readers, cancellation, database failure, retry/backoff and permanent authorization failure.                                                                                                                                                    |
+| Cache behavior                             | An isolated TanStack QueryClient verifies a 1,000-signal burst, active refetch, inactive staleness, retained visible data, changes arriving during a fetch and cleanup.                                                                                                                                                                                                                   |
+| Browser wiring                             | [Browser journeys](../../../../tests/browser/dashboard-freshness.spec.ts) cover external API runs, persistent subscription during navigation, detailed output, file/checkpoint/Git refresh, dirty drafts and selection/scroll, stale saves, reconnect recovery, recovery from an initially failed identity request, polling without SSE, and organization/logout propagation across tabs. |
+
+Run `pnpm test:domain tests/unit/dashboard-freshness.test.ts tests/integration/dashboard-freshness.test.ts tests/unit/dashboard-stream.test.ts`. Run `pnpm exec playwright test tests/browser/dashboard-freshness.spec.ts` against the local production web build and simulator worker. The fallback test advances only the browser clock. Reconnect fixtures verify missed-signal recovery separately from real cross-process SQL delivery. [Current release status](../../../status/README.md) records completed suite results.
+
+## Executed release result
+
+All 254 TypeScript cases in 47 files and all 27 browser journeys pass, including the five refresh journeys. Strict checking, the optimized standalone build, documentation hierarchy/links and formatting pass. Browser acceptance targeted production build `6RR0Ei_jMCIQDE8-YHhju` through a pinned IPv4 listener; a separate development server was left running. The database snapshot/authorization logic has 100% branch coverage. Hub branches are 91.30%, and browser transport/cache utility branches are 89.06%; React effects are exercised by browser journeys rather than credited to the V8 unit/integration report. Native images, public package installs and live Vercel/Neon were not revalidated for this change.
+
+## Required deployment acceptance
+
+1. Apply migration 025 on representative staging data before serving the new code. Verify existing rows load on initial connection and index creation fits the deployment window. Large tables may need separately staged concurrent indexes; this migration uses transactional index creation.
+2. With Vercel and the intended transaction-pooled Neon URL, verify immediate `ready` delivery, heartbeats, closure near 50 seconds and reconnection. Confirm the 60-second route duration and absence of CDN/proxy buffering.
+3. Use separate deployed app/worker instances to change a test account and observe refresh. Confirm pool checkouts return after reads instead of growing one connection per tab.
+4. Revoke membership/session and change roles during a stream. Verify closure/cache reset and repeat organization changes in two real browser tabs.
+5. Progressively increase tabs and organizations. Measure indexed-query latency, hub pass duration, reconnect/errors, Function CPU/memory and database pressure. The per-instance cap is 256 subscriptions/64 organizations; rejection must leave periodic API reconciliation usable.
+6. Interrupt the proxy/database, suspend a tab, then confirm current state recovers and detailed run replay still works. Review actual hosting/database charges before changing cadence or caps.
+
+Cloud topology, buffering, pooling, capacity and invoice behavior remain unverified locally. No new provider credential or messaging service is needed.

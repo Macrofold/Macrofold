@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
 test('adds sandbox MCP and BYOK search connections, then grants only selected tools', async ({ page }) => {
   let sandboxName = '';
@@ -24,7 +24,20 @@ test('adds sandbox MCP and BYOK search connections, then grants only selected to
       .locator('.connection-card')
       .filter({ has: page.getByRole('heading', { name, exact: true }) });
     await expect(card).toBeVisible();
-    await card.getByRole('button', { name: 'Tools', exact: true }).click();
+
+    if (kind === 'Sandbox MCP') {
+      await page.route('**/v1/connections/*/grants', (route) =>
+        route.fulfill({ status: 503, json: { error: { message: 'Grant service unavailable' } } }),
+      );
+      await card.getByRole('button', { name: 'Tools', exact: true }).click();
+      await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Grant service unavailable');
+      await expect(page.getByRole('button', { name: 'Save permissions' })).toHaveCount(0);
+      await page.unroute('**/v1/connections/*/grants');
+      await page.getByRole('button', { name: 'Try again' }).click();
+    } else {
+      await card.getByRole('button', { name: 'Tools', exact: true }).click();
+    }
+
     await page.getByRole('checkbox', { name: new RegExp(tool) }).check();
     await page.getByRole('button', { name: 'Save permissions' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);

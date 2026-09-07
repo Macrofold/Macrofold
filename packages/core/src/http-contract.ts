@@ -53,10 +53,14 @@ export function matchRoute(request: Request) {
   const route = routes.find((r) => r.method === request.method && r.pattern.test(path));
   assert(route, 404, 'not_found', 'API endpoint not found.');
   const matches = path.match(route.pattern)!;
-  return {
-    ...route,
-    params: Object.fromEntries(route.names.map((name, i) => [name, decodeURIComponent(matches[i + 1])])),
-  };
+  try {
+    return {
+      ...route,
+      params: Object.fromEntries(route.names.map((name, i) => [name, decodeURIComponent(matches[i + 1])])),
+    };
+  } catch {
+    assert(false, 400, 'invalid_request', 'Path parameters must use valid URL encoding.');
+  }
 }
 export function validateParameters(operation: Operation, request: Request, params: Record<string, string>) {
   const url = new URL(request.url);

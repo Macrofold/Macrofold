@@ -1,116 +1,16 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { auth, customerScopes, type Principal } from '../../packages/core/src/auth';
 import { authPool, pool, transaction } from '../../packages/db';
-import { id, sha256 } from '../../packages/core/src/crypto';
+import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
 import { createWorkspace, writeFile, type FileRecord } from '../../packages/core/src/files';
 import { admitRun, getRun } from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
 import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
-import type { MachineProvider, MachineBinding, RuntimeProbe } from '../../packages/core/src/ports';
-import type { SnapshotEntry } from '../../packages/runtime/src/manifest';
+import { FaultMachine } from '../fixtures/cloud-machine';
 import { readContent } from '../../packages/providers/src/storage';
 
-class FaultMachine implements MachineProvider {
-  starts = 0;
-  attempts = 0;
-  closes: boolean[] = [];
-  launched = false;
-  lostLaunch = false;
-  lostVM = false;
-  outcome: 'success' | 'failure' = 'success';
-  stageFiles = new Map<string, Buffer>();
-  bytes = Buffer.from('Changed by the native fixture.');
-  async provision(name: string): Promise<MachineBinding> {
-    return { name, sessionId: 'original-vm', createdAt: new Date().toISOString() };
-  }
-  async prepare() {}
-  async stage(_binding: MachineBinding, files: { path: string; content: Buffer }[]) {
-    for (const f of files) this.stageFiles.set(f.path, f.content);
-  }
-  async restore() {
-    return 'restore-command';
-  }
-  async restored() {
-    return 'success' as const;
-  }
-  async launch() {
-    this.attempts++;
-    if (!this.launched) {
-      this.launched = true;
-      this.starts++;
-      if (this.lostLaunch) throw new Error('Lost response after native dispatch');
-    }
-    return 'original-command';
-  }
-  async probe(_binding: MachineBinding, offset: number): Promise<RuntimeProbe> {
-    if (this.lostVM) throw new Error('Original VM unavailable');
-    return {
-      events: offset
-        ? []
-        : [
-            { sequence: 1, type: 'output.delta', data: { text: 'Completed.' } },
-            { sequence: 2, type: 'tool.completed', data: { tool_call_id: 'fixture-tool', result: 'saved' } },
-          ],
-      nextOffset: offset || 100,
-      status: { state: 'finished' },
-      input: null,
-      result: {
-        output: 'Completed.',
-        resumeId: 'native-session',
-        outcome: this.outcome,
-        persistence: 'captured',
-        completedAt: new Date().toISOString(),
-      },
-    };
-  }
-  async answer() {}
-  async cancel() {}
-  async snapshotPage(_binding: MachineBinding, offset: number) {
-    const hash = sha256(this.bytes);
-    const entries: SnapshotEntry[] = [
-      {
-        namespace: 'workspace',
-        path: 'durable.txt',
-        type: 'file',
-        size: this.bytes.length,
-        sha256: hash,
-        mode: 0o644,
-        modifiedAt: new Date().toISOString(),
-        chunks: [{ hash, size: this.bytes.length }],
-      },
-      {
-        namespace: 'workspace',
-        path: '.git/HEAD',
-        type: 'file',
-        size: this.bytes.length,
-        sha256: hash,
-        mode: 0o644,
-        modifiedAt: new Date().toISOString(),
-        chunks: [{ hash, size: this.bytes.length }],
-      },
-      {
-        namespace: 'home',
-        path: '.codex/state.json',
-        type: 'file',
-        size: this.bytes.length,
-        sha256: hash,
-        mode: 0o600,
-        modifiedAt: new Date().toISOString(),
-        chunks: [{ hash, size: this.bytes.length }],
-      },
-    ];
-    return { entries: entries.slice(offset), total: entries.length, totalBytes: this.bytes.length * 3 };
-  }
-  async chunk() {
-    return this.bytes;
-  }
-  async close(_binding: MachineBinding, preserve: boolean) {
-    this.closes.push(preserve);
-    return preserve ? { snapshotId: 'recovery-snapshot' } : {};
-  }
-}
 async function scenario() {
   const user = (
     await auth.api.signUpEmail({
@@ -159,7 +59,46 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 describe('durable cloud lifecycle with fault injection', () => {
+  it('settles with the admitted compute rate after operator pricing changes', async () => {
+    vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
+    const s = await scenario(),
+      provider = new FaultMachine();
+    for (let i = 0; i < 60; i++) {
+      await advanceCloudRun(s.org, s.runId, provider);
+      if ((await transaction(s.org, (tx) => getRun(tx, s.runId))).execution_binding?.phase === 'publish')
+        break;
+    }
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).execution_binding?.phase).toBe('publish');
+    const now = Date.now();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(now);
+    await transaction(s.org, (tx) =>
+      tx.query('UPDATE runs SET started_at=$2 WHERE id=$1', [s.runId, new Date(now - 60000)]),
+    );
+    vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000000');
+    for (let i = 0; i < 5; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    const saved = await transaction(s.org, async (tx) => ({
+      run: await getRun(tx, s.runId),
+      account: (
+        await tx.query('SELECT reserved_micro_usd,balance_micro_usd FROM organizations WHERE id=$1', [s.org])
+      ).rows[0],
+      charges: (
+        await tx.query("SELECT amount_micro_usd FROM ledger WHERE reference=$1 AND account='consumption'", [
+          `run:${s.runId}`,
+        ])
+      ).rows,
+    }));
+    expect(saved.run.status).toBe('succeeded');
+    expect(saved.run.cost_micro_usd).toBe('8000');
+    expect(saved.account).toEqual({ reserved_micro_usd: '0', balance_micro_usd: '9992000' });
+    expect(saved.charges).toEqual([{ amount_micro_usd: '8000' }]);
+    expect(provider.starts).toBe(1);
+  });
   it('recovers a lost launch acknowledgement without repeating the native prompt; persists workspace, Git, and session state', async () => {
     const s = await scenario(),
       provider = new FaultMachine();

@@ -1,1 +1,16 @@
-{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","lib":["dom","es2022"],"strict":true,"declaration":true,"outDir":"dist","rootDir":"src","skipLibCheck":true},"include":["src/**/*.ts"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["dom", "es2022"],
+    "strict": true,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "inlineSources": true
+  },
+  "include": ["src/**/*.ts"]
+}

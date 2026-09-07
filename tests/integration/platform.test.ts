@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import Ajv from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import { handleApi } from '../../packages/core/src/http';
@@ -11,6 +11,10 @@ import { credit, reserve, settle } from '../../packages/core/src/ledger';
 import { executeRun } from '../../packages/core/src/engine';
 import { emit, eventsAfter, streamEvents } from '../../packages/core/src/events';
 import { serveObject } from '../../packages/core/src/transfers';
+import { checkpoint, checkpointState, type FileRecord } from '../../packages/core/src/files';
+import * as resources from '../../packages/core/src/resources';
+import { saveContent, readContent } from '../../packages/providers/src/storage';
+import { withRepository } from '../../packages/providers/src/git-repository';
 import spec from '../../docs/api/openapi.json';
 
 let a: Principal, b: Principal, keyA: string, keyB: string;
@@ -81,6 +85,73 @@ afterAll(async () => {
   await authPool.end();
 });
 describe('tenant API and execution invariants', () => {
+  it.each(['editor', 'transfer'])(
+    'preserves executable permissions when %s replaces file content',
+    async (source) => {
+      const project = (await request('POST', '/v1/projects', { name: 'Executable file' })).value;
+      const workspace = await transaction(a.organizationId, async (tx) => {
+        const cp = await checkpoint(tx, a, project.default_workspace_id, 'Executable fixture', [
+          {
+            ...(await saveContent(a.organizationId, Buffer.from('original'))),
+            path: 'script.sh',
+            type: 'file',
+            mode: 0o755,
+            modified_at: new Date().toISOString(),
+            git_ignored: false,
+          },
+        ]);
+        return resources.update(tx, 'workspaces', project.default_workspace_id, checkpointState(cp));
+      });
+      if (source === 'editor') {
+        expect(
+          (
+            await request('PUT', `/v1/workspaces/${workspace.id}/file?path=script.sh`, 'changed', keyA, {
+              'Content-Type': 'application/octet-stream',
+              'If-Match': workspace.revision,
+            })
+          ).response.status,
+        ).toBe(202);
+      } else {
+        const plan = (
+          await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+            direction: 'push',
+            base_revision: workspace.revision,
+            paths: ['script.sh'],
+            manifest: [
+              {
+                path: 'script.sh',
+                local_sha256: sha256('changed'),
+                local_size_bytes: 7,
+                baseline_known: true,
+                baseline_sha256: sha256('original'),
+              },
+            ],
+          })
+        ).value;
+        const upload = new Request(plan.actions[0].url, { method: 'PUT', body: 'changed' });
+        expect(
+          (await serveObject(upload, decodeURIComponent(new URL(upload.url).pathname.split('/').pop()!)))
+            .status,
+        ).toBe(204);
+        expect(
+          (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: workspace.revision }))
+            .response.status,
+        ).toBe(202);
+      }
+      const saved = await transaction(a.organizationId, (tx) =>
+        resources.get(tx, 'workspaces', workspace.id),
+      );
+      const file = (saved.files as FileRecord[])[0];
+      expect(file.mode).toBe(0o755);
+      expect((await readContent(file.key, file.sha256)).toString()).toBe('changed');
+      expect(
+        await withRepository(
+          saved.git_files as FileRecord[],
+          async (repo) => (await repo.tree()).get('script.sh')?.mode,
+        ),
+      ).toBe('100755');
+    },
+  );
   it('replays admitted mutations, rejects changed payloads, and enforces tenant isolation at API and SQL layers', async () => {
     const token = id();
     const first = await request('POST', '/v1/projects', { name: 'Private project' }, keyA, {
@@ -412,4 +483,40 @@ describe('tenant API and execution invariants', () => {
     ).catch((e) => e);
     expect(failure.code).toBe('42501'); // SQL privileges reject mutation before the immutable-ledger trigger.
   });
+});
+
+it('limits diff content reads to returned paths while retaining truncation and path filtering', async () => {
+  const project = (await request('POST', '/v1/projects', { name: 'Bounded diff' })).value;
+  const workspaceId = project.default_workspace_id;
+  await transaction(a.organizationId, async (tx) => {
+    const files: FileRecord[] = [];
+    for (const name of ['a.txt', 'b.txt', 'c.txt'])
+      files.push({
+        ...(await saveContent(a.organizationId, Buffer.from(name))),
+        path: name,
+        type: 'file',
+        mode: 0o644,
+        modified_at: new Date().toISOString(),
+        git_ignored: false,
+      });
+    const cp = await checkpoint(tx, a, workspaceId, 'Diff fixture', files);
+    await resources.update(tx, 'workspaces', workspaceId, checkpointState(cp));
+  });
+  const storage = await import('../../packages/providers/src/storage');
+  const reads = vi.spyOn(storage, 'readContent');
+  try {
+    const result = await request('GET', `/v1/workspaces/${workspaceId}/diff?limit=1`);
+    expect(result.response.status).toBe(200);
+    expect(result.value).toMatchObject({
+      truncated: true,
+      data: [{ path: 'a.txt', change: 'added', binary: false, patch: expect.stringContaining('+a.txt') }],
+    });
+    expect(reads).toHaveBeenCalledTimes(1);
+    reads.mockClear();
+    const filtered = await request('GET', `/v1/workspaces/${workspaceId}/diff?limit=1&path=c.txt`);
+    expect(filtered.value).toMatchObject({ truncated: false, data: [{ path: 'c.txt' }] });
+    expect(reads).toHaveBeenCalledTimes(1);
+  } finally {
+    reads.mockRestore();
+  }
 });

@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import {
   Activity,
   ArrowRight,
@@ -16,7 +17,6 @@ import {
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { money, useApi, type Page, type Schema } from '../lib/client';
 import { ProjectCard, RunTable, Stat } from './dashboard-shared';
 import { RunComposer } from './run-composer';
@@ -85,7 +85,7 @@ export function Dashboard({ segments }: { segments: string[] }) {
 }
 function Overview({ onRun }: { onRun: () => void }) {
   const projects = useApi<Page<Schema['Project']>>('/v1/projects?archived=false&limit=4');
-  const runs = useApi<Page<Schema['Run']>>('/v1/runs?limit=100', 5000);
+  const runs = useApi<Page<Schema['Run']>>('/v1/runs?limit=100');
   const billing = useApi<Schema['Billing']>('/v1/billing');
   const usage = useApi<Schema['Report']>('/v1/usage');
   if (projects.isPending || runs.isPending) return <Loading />;
@@ -227,7 +227,7 @@ function Overview({ onRun }: { onRun: () => void }) {
 }
 function DevelopersView() {
   const origin = typeof window !== 'undefined' ? location.origin : 'https://your-domain.example';
-  const code = `curl ${origin}/v1/runs \\\n  -H "Authorization: Bearer $AGENT_API_KEY" \\\n  -H "Idempotency-Key: $(uuidgen)" \\\n  -H "Content-Type: application/json" \\\n  -d '{"project_id":"YOUR_PROJECT_ID","harness":"codex",\n       "model":"YOUR_MODEL","billing_mode":"managed",\n       "prompt":"Review this project and suggest the next step."}'`;
+  const code = `curl ${origin}/v1/runs \\\n  -H "Authorization: Bearer $AGENT_API_KEY" \\\n  -H "Idempotency-Key: $(uuidgen)" \\\n  -H "Content-Type: application/json" \\\n  -d '{"project_id":"YOUR_PROJECT_ID","harness":"codex",\n       "model":"YOUR_MODEL","billing_mode":"managed",\n       "prompt":"Review this project and suggest the next step.",\n       "limits":{"timeout_seconds":300,"max_cost_micro_usd":"1000000"}}'`;
   return (
     <div className="page narrow-page">
       <PageHeading
@@ -239,11 +239,11 @@ function DevelopersView() {
         <section className="panel">
           <SectionHeading title="01 · Connect from your terminal" />
           <p>
-            Build and install the CLI from this repository, then authenticate with the browser. For scripts
-            and CI, set a scoped API key.
+            Follow the <Link href="/docs/cli">CLI installation guide</Link>, then run these commands from your
+            local project folder. Browser sign-in connects the CLI to your hosted workspace.
           </p>
           <pre className="code-block">
-            {`pnpm --filter @hosted-agents/cli build\n(cd packages/cli && npm install -g .)\ncd /path/to/your/local/project\n\nagent login --host ${origin}\nagent project list\nagent link YOUR_PROJECT_ID\nagent worktree create exploration --from main --use\nagent doctor\nagent chat --harness codex --model YOUR_ENABLED_MODEL`}
+            {`agent login --host ${origin}\nagent project list\nagent link YOUR_PROJECT_ID\nagent worktree create exploration --from main --use\nagent doctor\nagent chat --harness codex --model YOUR_ENABLED_MODEL`}
           </pre>
           <Link href="/api-keys" className="text-link">
             Create an API key <ArrowUpRight size={14} />
@@ -253,13 +253,7 @@ function DevelopersView() {
           <SectionHeading
             title="02 · Start a run from your application"
             action={
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  navigator.clipboard.writeText(code);
-                  toast.success('Example copied');
-                }}
-              >
+              <Button variant="ghost" onClick={() => copyText(code, 'Example copied')}>
                 <Copy size={14} />
                 Copy
               </Button>
@@ -267,7 +261,8 @@ function DevelopersView() {
           />
           <p>
             Send a task, then reconnect to the event stream whenever you need an update. Keep your API key on
-            the server.
+            the server. The <Link href="/docs/api/quickstart">API quickstart</Link> walks through model
+            selection, spending limits, retries, and results.
           </p>
           <pre className="code-block">{code}</pre>
         </section>

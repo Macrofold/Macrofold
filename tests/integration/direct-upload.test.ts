@@ -171,14 +171,14 @@ it('uploads above Vercel body limits directly, verifies before atomic publicatio
     resources.get(tx, 'workspaces', workspace.id),
   );
   const file = (state.files as { key: string; sha256: string }[])[0]!;
-  expect(await readContent(file.key, file.sha256)).toEqual(bytes);
+  expect((await readContent(file.key, file.sha256)).equals(bytes)).toBe(true);
   // Reusing the still-live raw upload capability cannot mutate a published encrypted checkpoint.
   await fetch(action.url, {
     method: 'PUT',
     headers: action.required_headers,
     body: Buffer.alloc(bytes.length, 0),
   });
-  expect(await readContent(file.key, file.sha256)).toEqual(bytes);
+  expect((await readContent(file.key, file.sha256)).equals(bytes)).toBe(true);
   await transaction(account.p.organizationId, async (tx) => {
     await resources.update(tx, 'transfers', plan.id, {
       expires_at: new Date(Date.now() - 60000).toISOString(),
@@ -190,7 +190,7 @@ it('uploads above Vercel body limits directly, verifies before atomic publicatio
   });
   await cleanupTransfers(10000);
   expect(raw.has(url.pathname)).toBe(false);
-  expect(await readContent(file.key, file.sha256)).toEqual(bytes);
+  expect((await readContent(file.key, file.sha256)).equals(bytes)).toBe(true);
   // Multi-megabyte encryption and real Git checkpoints take longer under V8 coverage.
   // Keep the same payload and integrity assertions with a bounded instrumentation allowance.
 }, 180000);

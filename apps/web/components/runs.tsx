@@ -1,4 +1,5 @@
 'use client';
+import { copyText } from '../lib/clipboard';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,10 +27,7 @@ import { dashboardRunEvents } from '../lib/run-events';
 const isFinal = (status: string) => ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(status);
 export function RunsView({ onRun }: { onRun: () => void }) {
   const [filter, setFilter] = useState('all');
-  const query = usePages<Schema['Run']>(
-    `/v1/runs?limit=100${filter === 'all' ? '' : `&status=${filter}`}`,
-    5000,
-  );
+  const query = usePages<Schema['Run']>(`/v1/runs?limit=100${filter === 'all' ? '' : `&status=${filter}`}`);
   return (
     <div className="page">
       <PageHeading
@@ -278,13 +276,7 @@ export function RunDetail({ runId }: { runId: string }) {
                       ? 'Workspace checkpoint verified'
                       : 'Run history saved'}
                   </span>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      navigator.clipboard.writeText(output);
-                      toast.success('Output copied');
-                    }}
-                  >
+                  <Button variant="ghost" onClick={() => copyText(output, 'Output copied')}>
                     <Copy size={14} />
                     Copy output
                   </Button>
@@ -357,19 +349,17 @@ export function RunDetail({ runId }: { runId: string }) {
               <dt>Timeout</dt>
               <dd>{(run.limits?.timeout_seconds || 900) / 60} minutes</dd>
             </dl>
-            <button
-              className="text-link"
-              onClick={() => {
-                navigator.clipboard.writeText(runId);
-                toast.success('Run ID copied');
-              }}
-            >
+            <button className="text-link" onClick={() => copyText(runId, 'Run ID copied')}>
               Copy run ID <Copy size={13} />
             </button>
           </div>
           <div className="panel compact-panel">
             <h3>Workspace</h3>
-            <p>All changes are saved to this run’s persistent workspace.</p>
+            <p>
+              {run.persistence_status === 'verified'
+                ? 'Changes are saved to this run’s persistent workspace.'
+                : 'Browse the latest verified files. Run changes are available after persistence succeeds.'}
+            </p>
             <WorkspaceLink workspaceId={run.workspace_id} />
           </div>
           <div className="run-api-tip">

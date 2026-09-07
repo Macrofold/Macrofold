@@ -3,6 +3,22 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { main } from '../../packages/cli/src/index';
+import { outcomeExit } from '../../packages/cli/src/stream';
+import { limits } from '../../packages/cli/src/context';
+
+it('reports a failed checkpoint as an unsuccessful run even if native execution succeeded', () => {
+  expect(
+    outcomeExit({ run_id: 'run', final: true, execution_outcome: 'success', persistence_status: 'failed' }),
+  ).toBe(1);
+  expect(
+    outcomeExit({ run_id: 'run', final: true, execution_outcome: 'success', persistence_status: 'verified' }),
+  ).toBe(0);
+});
+
+it('lets the server choose a runtime within the account cap unless the user specifies one', () => {
+  expect(limits({}).timeout_seconds).toBeUndefined();
+  expect(limits({ timeout: 60 }).timeout_seconds).toBe(60);
+});
 
 it('exposes a lost mutation response identity in the CLI error envelope', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'cli-recovery-'));

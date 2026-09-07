@@ -384,6 +384,7 @@ export async function applyTransfer(
       next = next.filter((f) => f.path !== action.path);
       next.push({
         ...object,
+        mode: files.find((f) => f.path === action.path && f.type === 'file')?.mode,
         path: action.path,
         type: 'file',
         modified_at: new Date().toISOString(),

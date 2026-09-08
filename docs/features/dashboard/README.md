@@ -11,6 +11,8 @@ Use the dashboard to manage projects, follow agents, and control your organizati
 | Runs               | Filter current and historical runs and inspect their output     |
 | Agent presets      | Save reusable execution configuration                           |
 | Connections        | Add model keys, search providers, applications, and MCP servers |
+| Triggers           | Connect Slack channels and incoming webhooks to projects       |
+| Scheduled tasks    | Save recurring prompts, inspect history, pause or run now       |
 | API keys           | Create and revoke scoped credentials                            |
 | Webhooks           | Configure event destinations and inspect deliveries             |
 | Usage              | Inspect activity charts, token use, requests, and costs         |
@@ -35,3 +37,7 @@ Choose a project and workspace, search its files, and open a file in the editor.
 Runs started through the API, CLI, or another browser refresh relevant dashboard views. A shared signal stream updates active views and marks inactive views stale. It reconnects and periodically reconciles through the API.
 
 Refresh signals are best-effort hints. The API remains authoritative, and detailed run events retain their separate replay history. See [live refresh](live-refresh.md) for deployment behavior and [interface implementation](implementation.md) for contributor details.
+
+## Automate recurring and incoming work
+
+Use [Triggers and scheduled tasks](../triggers/README.md) to start agents from Slack, webhooks or a saved cadence. The same run pages display output, files and cancellation controls.

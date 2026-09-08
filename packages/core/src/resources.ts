@@ -24,7 +24,7 @@ export type Document = {
   revision: string;
   [field: string]: unknown;
 };
-function present(row: Record<string, unknown>): Document {
+function present(row: Record<string, unknown>, table: Table): Document {
   const data = row.data as Record<string, unknown>;
   return {
     ...data,
@@ -32,6 +32,7 @@ function present(row: Record<string, unknown>): Document {
     organization_id: String(row.organization_id),
     created_at: (row.created_at as Date).toISOString(),
     revision: String(row.revision),
+    ...(table === 'agents' ? { version: Number(row.revision) } : {}),
     ...(row.project_id ? { project_id: row.project_id } : {}),
     ...(row.workspace_id ? { workspace_id: row.workspace_id } : {}),
   };
@@ -39,7 +40,7 @@ function present(row: Record<string, unknown>): Document {
 export async function get(tx: Tx, table: Table, resourceId: string, p?: Principal): Promise<Document> {
   const result = await tx.query(`SELECT * FROM ${table} WHERE id=$1`, [resourceId]);
   assert(result.rowCount, 404, 'not_found', 'Resource not found.');
-  const doc = present(result.rows[0]);
+  const doc = present(result.rows[0], table);
   if (p) {
     assert(!doc.deleted, 404, 'not_found', 'Resource not found.');
     if (table === 'operations') {
@@ -102,7 +103,7 @@ export async function list(
     )
   ).rows;
   return {
-    data: rows.slice(0, limit).map(present),
+    data: rows.slice(0, limit).map((row) => present(row, table)),
     next_cursor: rows.length > limit ? rows[limit - 1].id : null,
   };
 }
@@ -127,7 +128,7 @@ export async function create(
     `INSERT INTO ${table} (${columns.join(',')}) VALUES (${values.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`,
     values,
   );
-  return present(rows.rows[0]);
+  return present(rows.rows[0], table);
 }
 export async function update(
   tx: Tx,
@@ -147,7 +148,7 @@ export async function update(
     values,
   );
   assert(result.rowCount, 412, 'stale_revision', 'This resource changed. Reload and retry.');
-  return present(result.rows[0]);
+  return present(result.rows[0], table);
 }
 export async function remove(tx: Tx, table: Table, resourceId: string) {
   await tx.query(`DELETE FROM ${table} WHERE id=$1`, [resourceId]);

@@ -5,6 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import configuration from './config.json';
+import { metadata } from './metadata';
+import { generatePythonResources } from './python';
+import { generateGoResources } from './go';
+import { generateRustResources } from './rust';
+import { generateJavaResources } from './java';
 
 // One reviewed OpenAPI contract; vendor output stays separate from maintained streaming helpers.
 const exec = promisify(execFile);
@@ -38,7 +43,15 @@ try {
   for (const [language, options] of Object.entries(configuration.targets)) {
     const output = path.join(temporary, language);
     const config = path.join(temporary, language + '.json');
-    await writeFile(config, JSON.stringify({ ...options, hideGenerationTimestamp: true }));
+    await writeFile(
+      config,
+      JSON.stringify({
+        ...options,
+        hideGenerationTimestamp: true,
+        templateDir: path.resolve('scripts/sdk'),
+        files: { 'metadata.mustache': { templateType: 'API', destinationFilename: '.sdkmeta.json' } },
+      }),
+    );
     try {
       await exec(
         java,
@@ -54,12 +67,16 @@ try {
           output,
           '-c',
           config,
-          ...(language === 'go'
+          ...(['go', 'python'].includes(language)
             ? [
-                '--model-name-mappings',
-                Object.entries(configuration.targets.go.modelNameMappings)
-                  .map(([from, to]) => `${from}=${to}`)
-                  .join(','),
+                ...(language === 'go'
+                  ? [
+                      '--model-name-mappings',
+                      Object.entries(configuration.targets.go.modelNameMappings)
+                        .map(([from, to]) => `${from}=${to}`)
+                        .join(','),
+                    ]
+                  : []),
                 '--openapi-normalizer',
                 'REMOVE_ANYOF_ONEOF_AND_KEEP_PROPERTIES_ONLY=true',
               ]
@@ -71,6 +88,14 @@ try {
       );
     } catch (error) {
       throw new Error(`Could not generate ${language}. Install JDK 21 and set JAVA_HOME.`, { cause: error });
+    }
+    if (language === 'go') {
+      // A successful zero-byte download still owns a usable temporary file.
+      await replaceOnce(
+        path.join(output, 'client.go'),
+        'if len(b) == 0 {\n\t\treturn nil\n\t}',
+        'if len(b) == 0 {\n\t\tif _, file := v.(**os.File); !file {\n\t\t\treturn nil\n\t\t}\n\t}',
+      );
     }
     if (language === 'java') {
       await replaceOnce(
@@ -96,11 +121,13 @@ try {
           continue;
         }
         const included =
-          language === 'go'
-            ? /\.go$/.test(file)
-            : language === 'rust'
-              ? file.startsWith('src/') && file !== 'src/lib.rs'
-              : file.startsWith('src/main/java/') && file.endsWith('.java');
+          language === 'python'
+            ? file.startsWith('macrofold/models/') && file.endsWith('.py')
+            : language === 'go'
+              ? /\.go$/.test(file)
+              : language === 'rust'
+                ? file.startsWith('src/') && file.endsWith('.rs') && file !== 'src/lib.rs'
+                : file.startsWith('src/main/java/') && file.endsWith('.java');
         if (!included) continue;
         await mkdir(path.dirname(path.join(destination, file)), { recursive: true });
         await copyFile(path.join(from, entry.name), path.join(destination, file));
@@ -108,6 +135,15 @@ try {
       }
     }
     await copy(output);
+    const generators = {
+      python: generatePythonResources,
+      go: generateGoResources,
+      rust: generateRustResources,
+      java: generateJavaResources,
+    };
+    generated.push(
+      ...(await generators[language as keyof typeof generators](await metadata(output), destination)),
+    );
     // Remove only paths recorded by the previous generation, never hand-maintained helpers/tests.
     const manifest = path.join(destination, '.generated-files.json');
     let previous: string[] = [];

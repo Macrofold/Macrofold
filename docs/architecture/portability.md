@@ -48,7 +48,7 @@ Changing workflow infrastructure normally drains old workflows and starts new ru
 
 ## Launch scope and proof
 
-Build one production sandbox adapter and one fixture/local adapter. Build the standalone Node application and prove core flows on the standalone SQL poller with simulated compute. This tests framework independence without implementing a second production cloud. A self-hosted installation initially still needs Vercel for Sandbox unless those adapters are replaced or an existing direct route is selected.
+Build one production sandbox adapter and one fixture/local adapter. Build the standalone Node application and prove core flows on the standalone SQL poller with simulated compute. This tests framework independence without implementing a second production cloud. Hosted production still uses Vercel Sandbox. The [local Docker provider](../engineering/development-modes.md) supports trusted contributor execution without Vercel; it is not a production isolation replacement.
 
 Run common adapter contracts for lifecycle, event replay, cancellation, filesystem export/import, grants, and spending. A migration fixture exports from one adapter instance, restores into another, and preserves public IDs and file hashes. Runtime capabilities such as memory snapshots, region placement, and supported models remain explicit; never silently degrade requested capabilities.
 

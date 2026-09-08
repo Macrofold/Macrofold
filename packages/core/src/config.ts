@@ -35,8 +35,22 @@ export function isLocal() {
     ['localhost', '127.0.0.1', '[::1]'].includes(new URL(config.origin).hostname)
   );
 }
+export function isSimulated() {
+  return isLocal() && config.execution === 'simulator';
+}
+/** Local infrastructure does not imply simulated inference. Keys alone never enable execution. */
+export function realExecutionEnabled() {
+  return config.allowPaid && (!isLocal() || config.execution === 'docker');
+}
 export function assertSecurityConfiguration() {
-  if (isLocal()) return;
+  if (isLocal()) {
+    if (
+      !['simulator', 'docker'].includes(config.execution) ||
+      (config.execution === 'docker' && config.orchestration !== 'poller')
+    )
+      throw new AppError(503, 'invalid_execution_profile', 'Local Docker execution requires the SQL poller.');
+    return;
+  }
   if (
     !process.env.DATABASE_URL ||
     !process.env.AUTH_SECRET ||
@@ -54,7 +68,14 @@ export function assertSecurityConfiguration() {
     );
 }
 export function readinessErrors() {
-  if (isLocal()) return [];
+  if (isLocal()) {
+    return [
+      !['simulator', 'docker'].includes(config.execution) && 'Local execution requires simulator or docker',
+      config.execution === 'docker' &&
+        config.orchestration !== 'poller' &&
+        'Local Docker execution requires the SQL poller',
+    ].filter((x): x is string => Boolean(x));
+  }
   return [
     !process.env.DATABASE_URL && 'DATABASE_URL is required',
     !process.env.AUTH_SECRET && 'AUTH_SECRET is required',

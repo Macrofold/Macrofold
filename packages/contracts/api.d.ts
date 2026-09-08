@@ -105,7 +105,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read file bytes */
+        /**
+         * Read file bytes
+         * @description Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+         */
         get: operations["readFile"];
         /**
          * Persist an atomic file replacement
@@ -1390,6 +1393,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/triggers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List triggers and scheduled tasks */
+        get: operations["listTriggers"];
+        put?: never;
+        /** Create a trigger or scheduled task */
+        post: operations["createTrigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect a trigger */
+        get: operations["getTrigger"];
+        put?: never;
+        post?: never;
+        /** Delete a trigger; preserve accepted runs */
+        delete: operations["deleteTrigger"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit or pause a trigger
+         * @description Only the creator can edit/resume. Organization administrators can pause. Editing configuration invalidates deliveries that have not yet become runs.
+         */
+        patch: operations["updateTrigger"];
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate the incoming webhook secret */
+        post: operations["rotateTriggerSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List trigger deliveries and linked runs */
+        get: operations["listTriggerDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a scheduled task now */
+        post: operations["runTrigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/deliveries/{delivery_id}/retry-reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed or uncertain Slack reply
+         * @description Check Slack for an existing message before retrying an uncertain reply. This never reruns the agent.
+         */
+        post: operations["retryTriggerReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slack-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List your Slack bot connections */
+        get: operations["listSlackConnections"];
+        put?: never;
+        /** Connect a customer-owned Slack bot */
+        post: operations["createSlackConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slack-connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect a Slack bot and pause its triggers */
+        delete: operations["deleteSlackConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slack-connections/{connection_id}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List channels the bot has joined */
+        get: operations["listSlackConnectionChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2646,6 +2812,141 @@ export interface components {
             source: "live" | "snapshot";
             /** Format: date-time */
             updated_at: string;
+        };
+        /** @description An incoming Slack/webhook trigger or durable scheduled task. A saved agent preset supplies harness, model, grants and billing. Cron requires five fields and an IANA timezone (UTC by default); Slack requires a connection and channel ID. */
+        TriggerCreate: {
+            name: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
+            prompt: string;
+            enabled?: boolean;
+            max_runs_per_day?: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id?: string;
+            channel_id?: string;
+        };
+        TriggerPatch: {
+            name?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: uuid */
+            agent_id?: string;
+            prompt?: string;
+            enabled?: boolean;
+            max_runs_per_day?: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id?: string;
+            channel_id?: string;
+        };
+        Trigger: {
+            name: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
+            prompt: string;
+            enabled: boolean;
+            max_runs_per_day: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id: string | null;
+            channel_id: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            next_fire_at: string | null;
+            last_error_code: string | null;
+            /** Format: date-time */
+            last_fired_at: string | null;
+            /** Format: uri */
+            webhook_url: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        NewTrigger: {
+            name: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
+            prompt: string;
+            enabled: boolean;
+            max_runs_per_day: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id: string | null;
+            channel_id: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            next_fire_at: string | null;
+            last_error_code: string | null;
+            /** Format: date-time */
+            last_fired_at: string | null;
+            /** Format: uri */
+            webhook_url: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description Returned once for a new webhook trigger. Send as Authorization: Bearer; never put it in the URL. */
+            webhook_secret?: string;
+        };
+        TriggerSecret: {
+            webhook_secret: string;
+        };
+        TriggerDelivery: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            trigger_id: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "failed" | "skipped";
+            /** Format: uuid */
+            run_id: string | null;
+            error_code: string | null;
+            /** Format: date-time */
+            received_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            reply_state: "none" | "pending" | "sending" | "sent" | "failed" | "uncertain";
+        };
+        SlackConnectionCreate: {
+            name: string;
+            bot_token: string;
+            signing_secret: string;
+        };
+        SlackConnection: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            team_id: string;
+            bot_user_id: string;
+            /** Format: uri */
+            events_url: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SlackChannel: {
+            id: string;
+            name: string;
         };
     };
     responses: never;
@@ -6504,6 +6805,495 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectorCatalog"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listTriggers: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                kind?: "slack" | "webhook" | "schedule";
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Trigger"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createTrigger: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewTrigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: boolean;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    rotateTriggerSecret: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerSecret"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listTriggerDeliveries: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TriggerDelivery"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    runTrigger: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerDelivery"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    retryTriggerReply: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerDelivery"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSlackConnections: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SlackConnection"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSlackConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlackConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteSlackConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: boolean;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSlackConnectionChannels: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SlackChannel"][];
+                        next_cursor: string | null;
+                    };
                 };
             };
             /** @description Error */

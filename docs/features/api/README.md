@@ -21,10 +21,11 @@ All customer routes start with `/v1`. JSON fields use snake_case, timestamps use
 | Execution             | `/runs`, `/sessions`, `/sessions/{id}/messages`                                     |
 | Status and output     | `/runs/{id}`, `/runs/{id}/result`, `/runs/{id}/stream`                              |
 | Recovery and Git      | `/workspaces/{id}/checkpoints`, `/workspaces/{id}/restore`, `/workspaces/{id}/sync` |
+| Triggers and schedules | `/triggers`, `/triggers/{id}/deliveries`, `/slack-connections` |
 | Tools and access      | `/connections`, `/api-keys`                                                         |
 | Usage and billing     | `/usage`, `/requests`, `/billing`                                                   |
 
-The table shows route families; use OpenAPI for exact parameter names, required fields, and operation IDs.
+The table shows route families; use OpenAPI for exact parameter names, required fields, and operation IDs. [Incoming triggers](../triggers/README.md) use separate signed Slack or bearer webhook endpoints under `/events`; those provider callbacks do not accept a normal Macrofold API key.
 
 ## Idempotency
 

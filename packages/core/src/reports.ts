@@ -5,7 +5,7 @@ import type { Principal } from './auth';
 import { requireScopes } from './auth';
 import { assert } from './errors';
 import { growthMetrics } from './growth';
-import { config, isLocal, readinessErrors } from './config';
+import { config, realExecutionEnabled, readinessErrors } from './config';
 import type { components } from '../../contracts/api';
 type Report = components['schemas']['Report'];
 type Metric = components['schemas']['Metric'];
@@ -440,7 +440,7 @@ export async function adminReport(
       ...states.map((r) => metric(`runs_${r.status}`, r.count)),
       metric('configuration_errors', errors.length),
       metric('provider_circuit_breakers', pausedModels),
-      metric('execution_enabled', !isLocal() && config.allowPaid ? 1 : 0, 'boolean'),
+      metric('execution_enabled', realExecutionEnabled() ? 1 : 0, 'boolean'),
       metric('dispatch_pending', queue.pending),
       metric('dispatch_oldest_due_seconds', queue.oldest_seconds, 'seconds'),
       metric('dispatch_exhausted', queue.exhausted),

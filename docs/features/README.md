@@ -12,3 +12,7 @@ Each feature owns a high-level overview and links to implementation or operation
 | [Identity and integrations](identity-integrations/README.md) | Authentication, tenant permissions, BYOK and connectors; [tool security](identity-integrations/tools-security.md) and [connector browser](identity-integrations/connectors.md) |
 | [Billing](billing/README.md)                                 | Plans, reservations, credits, BYOK accounting and cost assumptions                                                                                                             |
 | [Operations and analytics](operations/README.md)             | Growth, usage, capacity reporting and read-only administrator MCP                                                                                                              |
+
+## Triggered work
+
+[Triggers and scheduled tasks](triggers/README.md) connect Slack messages, incoming webhooks and recurring prompts to saved agents and persistent projects.

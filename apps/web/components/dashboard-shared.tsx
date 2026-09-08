@@ -91,7 +91,7 @@ export function RunTable({ runs }: { runs: Schema['Run'][] }) {
                           : 'OpenCode'}{' '}
                       run
                     </strong>
-                    <small>{run.id.slice(-8)}</small>
+                    <small>{run.id.slice(-8)}{['scheduled', 'slack', 'webhook'].includes(run.client_type || '') ? ` · ${run.client_type}` : ''}</small>
                   </span>
                 </Link>
               </td>

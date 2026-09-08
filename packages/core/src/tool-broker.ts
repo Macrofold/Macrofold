@@ -5,7 +5,7 @@ import Ajv from 'ajv';
 import { transaction } from '../../db';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { getRun } from './runs';
-import { config, isLocal } from './config';
+import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id, seal, unseal, sha256 } from './crypto';
 import * as resources from './resources';
@@ -79,7 +79,7 @@ export async function executeGrantedTool(
   sandboxTools?: SandboxTools,
 ) {
   assert(
-    config.allowPaid && !isLocal(),
+    realExecutionEnabled(),
     503,
     'paid_execution_disabled',
     'External connector actions are disabled in local simulation.',

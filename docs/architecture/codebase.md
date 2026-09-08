@@ -23,4 +23,8 @@ The [ten marketing concepts](../product/marketing/README.md) share server-render
 
 See [architecture](README.md), [engineering](../engineering/README.md), and [contributing](../../CONTRIBUTING.md).
 
-The [SDK architecture](../features/api/sdks/implementation.md) connects the shared OpenAPI contract to five public clients. Generated REST sources live under `sdk/`; maintained transports, stream helpers, and protocol fixtures stay separate.
+The [SDK architecture](../features/api/sdks/implementation.md) connects the shared OpenAPI contract to five public clients. Shared resource generation lives in `scripts/sdk/`; typed REST/model/resource sources live under `sdk/`. Maintained transports, constructors, stream helpers, and protocol fixtures stay separate. The generated [method index](../features/api/sdks/reference.md) maps every public operation across languages.
+
+## Trigger intake and scheduling
+
+[Trigger architecture](../features/triggers/implementation.md) maps the incoming HTTP routes, authorized configuration, encrypted receipts, existing SQL outbox, run admission and Slack reply phases. Scheduled tasks use the same maintenance path as existing background work.

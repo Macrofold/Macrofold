@@ -8,8 +8,16 @@ This is the central list of unresolved release work. It is not part of the publi
 - [ ] Publish a monitored maintainer contact and community reporting route; update security and conduct policies together. Do not publish a personal email without its owner's approval.
 - [ ] Run the required GitHub Actions checks on the release revision and configure repository rulesets. Local passes are not evidence of hosted CI completion.
 - [ ] Connect Codecov, enable approved public uploads, and verify TypeScript/Python flags. Add live badges only after real default-branch reports exist.
+- [ ] Activate the SDK default origin `https://app.macrofold.ai` in DNS and hosting, then verify authenticated requests and SSE with a synthetic account. Production configuration identifies this canonical origin; its DNS was still pointed at parking during SDK acceptance. See [resource SDK verification](../engineering/testing/sdk-resources.md).
 - [ ] Publish versioned CLI/SDK packages and immutable Linux AMD64 runtime artifacts with checksums/provenance. The public guides currently document installation from source. Reserve and verify `macrofold` on npm, PyPI, and crates.io, `dev.macrofold:macrofold` on Maven Central, and version the Go submodule. Verify clean consumer installs and real hosted endpoints for all five SDKs before registry publication.
 - [ ] Accept Windows CLI installation, ACL, and terminal behavior before advertising Windows support. Current documented targets are macOS and Linux.
+
+## Development modes and complete agent acceptance
+
+Follow the [implementation brief](../engineering/development-modes.md) and keep the [developer guides](../getting-started/local-development.md) aligned with actual capability.
+
+- [x] Connect local Docker through the existing provider port, SQL worker, gateway and checkpoint lifecycle, with explicit shared profile, budgeted inference and synthetic local compute accounting.
+- [ ] Run the implemented `pnpm test:journey:docker` on a responsive Docker daemon and Linux CI; its current attempt stopped at the bounded image probe. Then accept each reviewed live Docker/cloud harness/model route with `pnpm test:journey:live` under separately approved inference/infrastructure budgets. Confirm dashboard freshness, internal network host-gateway reachability, checkpoint recovery and sandbox cleanup; see [exact evidence and commands](../engineering/testing/development-modes.md).
 
 ## Automated staging and production releases
 
@@ -70,3 +78,9 @@ The [coverage gap audit](../engineering/testing/gaps.md) and [mutation record](.
 Live provider quotas/invoices, enterprise SSO/SCIM, arbitrary custom runtime images, a raw remote desktop/PTY, cross-harness conversation migration, and autonomous infrastructure mutation are outside the current product scope. They are not represented as working features in public guides.
 
 Use the [release checklist](../operations/pre-deployment.md) to record each acceptance result with its revision, environment, expected/observed behavior, cost, and evidence location.
+
+## Trigger release acceptance
+
+Restore the unchanged 38% domain function-coverage floor. The final trigger suite passes 571 tests and the other coverage floors, but function coverage is 37.35%. Keep the complete application inventory visible and add meaningful tests; see [trigger evidence](../engineering/testing/triggers.md#full-suite-result-and-coverage-gap). Browser/CLI acceptance passes separately and does not override this domain gate.
+
+Complete the [live Slack and cloud scheduling checks](../engineering/testing/triggers.md#remaining-live-acceptance). Measure callback latency, maintenance throughput and retained receipt growth before offering a delivery or start-time SLA.

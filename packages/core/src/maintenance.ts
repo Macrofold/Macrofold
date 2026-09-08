@@ -71,6 +71,9 @@ export async function dispatchOrganizationMaintenance() {
         await tx.query("DELETE FROM organization_invitations WHERE expires_at<now()-interval '30 days'");
         // Keep idempotency responses for 30 days; this includes one-time key/invitation secrets.
         await tx.query("DELETE FROM idempotency WHERE created_at<now()-interval '30 days'");
+        await tx.query(
+          "UPDATE trigger_deliveries SET prompt_ciphertext='' WHERE id IN (SELECT id FROM trigger_deliveries WHERE status IN ('failed','skipped') AND received_at<now()-interval '30 days' AND prompt_ciphertext<>'' LIMIT 1000)",
+        );
         // Activity is metadata, not accounting. Delete bounded batches so a long outage
         // cannot turn routine maintenance into an unbounded vacuum/locking workload.
         await tx.query(

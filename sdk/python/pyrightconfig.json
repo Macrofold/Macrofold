@@ -1,0 +1,7 @@
+{
+  "include": ["tests/types.py"],
+  "extraPaths": ["."],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "strict",
+  "reportUnnecessaryTypeIgnoreComment": "error"
+}

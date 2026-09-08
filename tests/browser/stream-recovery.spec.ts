@@ -1,6 +1,9 @@
 import { test, expect } from '../fixtures/browser';
 
-test('malformed sign-in links recover and a revoked event stream stops reconnecting', async ({ page }) => {
+test('malformed sign-in links recover and a revoked event stream stops reconnecting', async ({
+  page,
+  request,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/login?returnTo=' + encodeURIComponent('http://['));
@@ -11,6 +14,9 @@ test('malformed sign-in links recover and a revoked event stream stops reconnect
   expect(response.ok()).toBeTruthy();
   const run = (await response.json()).data[0];
   expect(run).toBeTruthy();
+  // This independent request context has no dashboard login cookie.
+  const anonymous = await request.get(`/v1/runs/${run.id}/stream`);
+  expect(anonymous.status()).toBe(401);
   let attempts = 0;
   await page.route(`**/v1/runs/${run.id}/stream**`, (route) => {
     attempts++;

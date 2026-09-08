@@ -53,8 +53,15 @@ await check('Vault keyring', async () => {
 });
 await check('Execution profile', async () => {
   if (isLocal()) {
-    if (config.execution !== 'simulator' || config.allowPaid) throw new Error('local spending enabled');
-    return 'Local simulator; no model or sandbox charges.';
+    if (config.execution === 'simulator' && !config.allowPaid)
+      return 'Local simulator; no model or sandbox charges.';
+    if (config.execution !== 'docker' || config.orchestration !== 'poller')
+      throw new Error('invalid local profile');
+    const { dockerCommand } = await import('../packages/providers/src/docker');
+    await dockerCommand(['image', 'inspect', process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0']);
+    const { models, computeRate } = await import('../packages/core/src/catalog');
+    if (config.allowPaid && !models().some((model) => model.enabled)) throw new Error('missing models');
+    return `Local Docker; inference ${config.allowPaid ? 'enabled (provider charges possible)' : 'disabled'}; compute rate ${computeRate()} micro-USD/minute.`;
   }
   const missing = readinessErrors();
   if (missing.length) throw new Error('incomplete');

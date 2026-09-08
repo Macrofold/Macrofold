@@ -7,6 +7,7 @@ import {
   BookOpen,
   Bot,
   ChartNoAxesCombined,
+  CalendarClock,
   FolderOpen,
   KeyRound,
   LayoutDashboard,
@@ -33,6 +34,8 @@ const navigation = [
   { href: '/runs', label: 'Runs', icon: Activity },
   { href: '/agents', label: 'Agent presets', icon: Bot },
   { href: '/connections', label: 'Connections', icon: PlugZap },
+  { href: '/triggers', label: 'Triggers', icon: Webhook },
+  { href: '/scheduled-tasks', label: 'Scheduled tasks', icon: CalendarClock },
 ];
 const manage = [
   { href: '/api-keys', label: 'API keys', icon: KeyRound },
@@ -45,13 +48,13 @@ const manage = [
 export function Shell({
   children,
   name,
-  local,
+  environment,
   user,
   operator,
 }: {
   children: React.ReactNode;
   name: string;
-  local: boolean;
+  environment: 'simulation' | 'docker' | 'cloud';
   user: { name: string; email: string };
   operator: boolean;
 }) {
@@ -214,9 +217,13 @@ export function Shell({
             </strong>
           </div>
           <div className="topbar-right">
-            <span className={clsx('environment', local && 'simulation')}>
+            <span className={clsx('environment', environment === 'simulation' && 'simulation')}>
               <span />
-              {local ? 'Local simulation' : 'Cloud workspace'}
+              {environment === 'simulation'
+                ? 'Local simulation'
+                : environment === 'docker'
+                  ? 'Local Docker'
+                  : 'Cloud workspace'}
             </span>
             <a href="/reference" target="_blank" rel="noreferrer" className="top-docs">
               Documentation <ArrowUpRight size={13} />

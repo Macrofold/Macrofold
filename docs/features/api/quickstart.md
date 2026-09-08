@@ -2,6 +2,10 @@
 
 Create a project, start a run, and read its result with cURL. Use a local simulator for a free first request or an authorized deployment for real agent execution.
 
+## Prefer an SDK?
+
+The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a project, and a saved agent preset. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; streams reconnect automatically.
+
 ## Before you begin
 
 You need cURL, [jq](https://jqlang.org/), `uuidgen`, and an API key created in the dashboard's **API keys** page. Grant project and run read/write scopes for this example. Store the key as `AGENT_API_KEY` using your shell or secret manager.

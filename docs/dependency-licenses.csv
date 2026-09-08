@@ -826,3 +826,5 @@ lightningcss-darwin-arm64,1.33.0,MPL-2.0,https://github.com/parcel-bundler/light
 opencode-darwin-arm64,1.18.29,Unknown,
 fast-sha256,1.3.0,Unlicense,https://github.com/dchest/fast-sha256-js#readme
 tweetnacl,1.0.3,Unlicense,https://tweetnacl.js.org
+cron-parser,5.10.0,MIT,https://github.com/harrisiirak/cron-parser#readme
+luxon,3.7.2,MIT,https://github.com/moment/luxon#readme

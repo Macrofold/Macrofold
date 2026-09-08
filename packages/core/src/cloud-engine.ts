@@ -32,7 +32,7 @@ type Phase =
   | 'close'
   | 'done';
 type State = {
-  provider: 'vercel';
+  provider: 'vercel' | 'docker';
   phase: Phase;
   machine?: MachineBinding;
   inputOffset?: number;
@@ -82,6 +82,8 @@ export async function advanceCloudRun(
   provider: MachineProvider,
 ): Promise<{ done: boolean; delaySeconds: number; queued?: boolean }> {
   let run = await transaction(org, (tx) => getRun(tx, runId));
+  if (run.config.execution_provider && run.config.execution_provider !== config.execution)
+    return { done: false, delaySeconds: 60, queued: run.status === 'queued' };
   if (run.status === 'queued') {
     const claimed = await claimRun(org, runId);
     if (!claimed) {
@@ -95,7 +97,10 @@ export async function advanceCloudRun(
     }
     run = claimed;
   }
-  let state = (run.execution_binding || { provider: 'vercel', phase: 'input' }) as State;
+  let state = (run.execution_binding || {
+    provider: config.execution === 'docker' ? 'docker' : 'vercel',
+    phase: 'input',
+  }) as State;
   if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
   const claim = id();

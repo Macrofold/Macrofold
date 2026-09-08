@@ -13,14 +13,28 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /** Authenticated typed API client. Redirects never forward its credential. */
-public final class Client extends ApiClient {
+public class Client extends Resources {
   private final String token;
+
+  public Client() {this(DEFAULT_ORIGIN,environmentKey());}
+  public Client(String apiKey) {this(DEFAULT_ORIGIN,apiKey);}
+  public static Builder builder(){return new Builder();}
+  public static final class Builder {
+    private String origin=DEFAULT_ORIGIN;
+    private String apiKey;
+    public Builder baseURL(String value){origin=value;return this;}
+    public Builder apiKey(String value){apiKey=value;return this;}
+    public Client build(){return new Client(origin,apiKey == null ? environmentKey() : apiKey);}
+  }
+  private static String environmentKey(){return System.getenv("MACROFOLD_API_KEY");}
 
   public Client(String origin, String token) {
     super(
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER),
         createDefaultObjectMapper(),
         validateOrigin(origin));
+    if(token == null || token.isBlank())
+      throw new IllegalArgumentException("Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.");
     this.token = token;
     setReadTimeout(Duration.ofSeconds(70));
     setConnectTimeout(Duration.ofSeconds(15));
@@ -52,6 +66,12 @@ public final class Client extends ApiClient {
    */
   public void stream(UUID runId, String after, Predicate<Event> receive)
       throws IOException, InterruptedException, ApiException {
+    streamInOrganization(runId, after, null, receive);
+  }
+
+  @Override
+  protected void streamInOrganization(UUID runId, String after, UUID organization, Predicate<Event> receive)
+      throws IOException, InterruptedException, ApiException {
     if (after == null || !after.matches("[0-9]+"))
       throw new IllegalArgumentException("Use a numeric event cursor");
     BigInteger cursor = new BigInteger(after);
@@ -61,18 +81,18 @@ public final class Client extends ApiClient {
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
     try {
       while (true) {
-        HttpRequest request =
+        HttpRequest.Builder request =
             HttpRequest.newBuilder(
                     URI.create(getBaseUri() + "/v1/runs/" + runId + "/stream?after=" + cursor))
                 .header("Authorization", "Bearer " + token)
                 .header("X-Client-Type", "sdk")
                 .header("Accept", "text/event-stream")
                 .header("Last-Event-ID", cursor.toString())
-                .timeout(Duration.ofSeconds(70))
-                .build();
+                .timeout(Duration.ofSeconds(70));
+        if (organization != null) request.header("X-Organization-Id", organization.toString());
         try {
           HttpResponse<InputStream> response =
-              getHttpClient().send(request, HttpResponse.BodyHandlers.ofInputStream());
+              getHttpClient().send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
           java.util.concurrent.ScheduledFuture<?> deadline =
               deadlines.schedule(
                   () -> {
@@ -141,10 +161,10 @@ public final class Client extends ApiClient {
           Thread.sleep(Math.min(10000, 250L << failures));
           continue;
         }
-        Run run = runs.getRun(runId, null);
+        Run run = runs.getRun(runId, organization);
         if (java.util.Set.of("succeeded", "failed", "cancelled", "timed_out")
                 .contains(run.getStatus().getValue())
-            && runs.listRunEvents(runId, cursor.toString(), null, 1, null).getData().isEmpty())
+            && runs.listRunEvents(runId, cursor.toString(), null, 1, organization).getData().isEmpty())
           return;
         Thread.sleep(250);
       }

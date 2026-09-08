@@ -84,7 +84,11 @@ type APIClient struct {
 
 	SessionsAPI *SessionsAPIService
 
+	SlackConnectionsAPI *SlackConnectionsAPIService
+
 	TransfersAPI *TransfersAPIService
+
+	TriggersAPI *TriggersAPIService
 
 	UsageAPI *UsageAPIService
 
@@ -128,7 +132,9 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.RequestsAPI = (*RequestsAPIService)(&c.common)
 	c.RunsAPI = (*RunsAPIService)(&c.common)
 	c.SessionsAPI = (*SessionsAPIService)(&c.common)
+	c.SlackConnectionsAPI = (*SlackConnectionsAPIService)(&c.common)
 	c.TransfersAPI = (*TransfersAPIService)(&c.common)
+	c.TriggersAPI = (*TriggersAPIService)(&c.common)
 	c.UsageAPI = (*UsageAPIService)(&c.common)
 	c.WebhookDeliveriesAPI = (*WebhookDeliveriesAPIService)(&c.common)
 	c.WebhookEndpointsAPI = (*WebhookEndpointsAPIService)(&c.common)
@@ -508,7 +514,9 @@ func (c *APIClient) prepareRequest(
 
 func (c *APIClient) decode(v interface{}, b []byte, contentType string) (err error) {
 	if len(b) == 0 {
-		return nil
+		if _, file := v.(**os.File); !file {
+			return nil
+		}
 	}
 	if s, ok := v.(*string); ok {
 		*s = string(b)

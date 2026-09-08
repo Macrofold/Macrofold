@@ -25,6 +25,7 @@ import { Button, Empty, ErrorState, Loading, PageHeading, SectionHeading } from 
 const loading = () => <Loading />;
 const UsageView = dynamic(() => import('./usage').then((m) => m.UsageView), { loading });
 const WebhooksView = dynamic(() => import('./webhooks').then((m) => m.WebhooksView), { loading });
+const TriggersView = dynamic(() => import('./triggers').then((m) => m.TriggersView), { loading });
 const SecurityView = dynamic(() => import('./security').then((m) => m.SecurityView), { loading });
 const TeamView = dynamic(() => import('./team').then((m) => m.TeamView), { loading });
 const ProjectsView = dynamic(() => import('./projects').then((m) => m.ProjectsView), { loading });
@@ -55,6 +56,8 @@ export function Dashboard({ segments }: { segments: string[] }) {
     );
   else if (route === 'connections') content = <ConnectionsView />;
   else if (route === 'webhooks') content = <WebhooksView />;
+  else if (route === 'triggers') content = <TriggersView key="triggers" />;
+  else if (route === 'scheduled-tasks') content = <TriggersView key="scheduled" scheduled />;
   else if (route === 'account') content = <SecurityView />;
   else if (route === 'team') content = <TeamView />;
   else if (route === 'api-keys') content = <KeysView />;

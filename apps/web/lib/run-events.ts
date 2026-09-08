@@ -10,7 +10,7 @@ export function dashboardRunEvents(
   const fetcher = options.fetch || fetch;
   const client = new Client({
     baseURL: origin,
-    token: '',
+    sessionAuth: true,
     fetch: async (url, init) => {
       const headers = new Headers(init?.headers);
       headers.delete('Authorization');

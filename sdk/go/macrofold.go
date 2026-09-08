@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -17,8 +18,20 @@ import (
 
 var eventCursor = regexp.MustCompile(`^[0-9]+$`)
 
-// NewClient configures a scoped client. API keys are sent only to the explicit origin; redirects are refused.
-func NewClient(origin, token string) (*APIClient, error) {
+// NewClient uses MACROFOLD_API_KEY and the hosted origin unless options override them.
+func NewClient(options ...ClientOption) (*Client, error) {
+	settings := clientOptions{origin: DefaultOrigin}
+	for _, option := range options {
+		option(&settings)
+	}
+	token := settings.apiKey
+	if !settings.keySet {
+		token = os.Getenv("MACROFOLD_API_KEY")
+	}
+	if strings.TrimSpace(token) == "" {
+		return nil, errors.New("missing Macrofold API key: use WithAPIKey or set MACROFOLD_API_KEY")
+	}
+	origin := settings.origin
 	u, err := url.Parse(origin)
 	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return nil, errors.New("use a service origin without a path, query, or credentials")
@@ -31,12 +44,16 @@ func NewClient(origin, token string) (*APIClient, error) {
 	cfg.DefaultHeader["Authorization"] = "Bearer " + token
 	cfg.DefaultHeader["X-Client-Type"] = "sdk"
 	cfg.HTTPClient = &http.Client{Timeout: 70 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	return NewAPIClient(cfg), nil
+	return resources(NewAPIClient(cfg)), nil
 }
 
 // Stream emits persisted events incrementally and reconnects from the last delivered sequence.
 // Cancel ctx or return an error from receive to detach; this never cancels the remote run.
-func (c *APIClient) Stream(ctx context.Context, runID, after string, receive func(Event) error) error {
+func (c *APIClient) Stream(ctx context.Context, runID, after string, receive func(Event) error, options ...RequestOption) error {
+	settings, err := requestOptions(options, false)
+	if err != nil {
+		return err
+	}
 	if after == "" {
 		after = "0"
 	}
@@ -51,6 +68,9 @@ func (c *APIClient) Stream(ctx context.Context, runID, after string, receive fun
 		}
 		for key, value := range c.cfg.DefaultHeader {
 			req.Header.Set(key, value)
+		}
+		if settings.organization != "" {
+			req.Header.Set("X-Organization-Id", settings.organization)
 		}
 		req.Header.Set("Accept", "text/event-stream")
 		req.Header.Set("Last-Event-ID", cursor.String())
@@ -95,14 +115,22 @@ func (c *APIClient) Stream(ctx context.Context, runID, after string, receive fun
 			return ctx.Err()
 		}
 		if err == nil {
-			run, response, e := c.RunsAPI.GetRun(ctx, runID).Execute()
+			status := c.RunsAPI.GetRun(ctx, runID)
+			if settings.organization != "" {
+				status = status.XOrganizationId(settings.organization)
+			}
+			run, response, e := status.Execute()
 			if e != nil && response != nil && response.StatusCode < 500 && response.StatusCode != 429 {
 				return e
 			}
 			if e != nil {
 				err = e
 			} else if run.Status == "succeeded" || run.Status == "failed" || run.Status == "cancelled" || run.Status == "timed_out" {
-				remaining, _, e := c.RunsAPI.ListRunEvents(ctx, runID).After(cursor.String()).Limit(1).Execute()
+				history := c.RunsAPI.ListRunEvents(ctx, runID).After(cursor.String()).Limit(1)
+				if settings.organization != "" {
+					history = history.XOrganizationId(settings.organization)
+				}
+				remaining, _, e := history.Execute()
 				if e != nil {
 					return e
 				}

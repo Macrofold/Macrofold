@@ -1649,7 +1649,7 @@ public class WorkspacesApi {
 
   /**
    * Read file bytes
-   * 
+   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
    * @param workspaceId  (required)
    * @param path  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
@@ -1663,7 +1663,7 @@ public class WorkspacesApi {
 
   /**
    * Read file bytes
-   * 
+   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
    * @param workspaceId  (required)
    * @param path  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
@@ -1679,7 +1679,7 @@ public class WorkspacesApi {
 
   /**
    * Read file bytes
-   * 
+   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
    * @param workspaceId  (required)
    * @param path  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
@@ -1693,7 +1693,7 @@ public class WorkspacesApi {
 
   /**
    * Read file bytes
-   * 
+   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
    * @param workspaceId  (required)
    * @param path  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)

@@ -240,6 +240,7 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
   }
   const tasks: [string, () => Promise<Record<string, number>>][] = [
     ['runs', async () => (await import('./engine')).maintainRuns()],
+    ['triggers', async () => (await import('./trigger-dispatch')).dispatchTriggers()],
     ['webhooks', dispatchWebhooks],
     ['analytics', async () => (await import('./analytics-export')).forwardProductEvents()],
     ['connections', dispatchConnectionCleanup],

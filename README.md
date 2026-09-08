@@ -10,6 +10,7 @@ Run Codex, Claude Code, and OpenCode in the cloud from an API, your terminal, or
 
 - **Keep work between runs.** Browse and edit files, restore checkpoints, and create independent workspaces for parallel tasks.
 - **Work from anywhere.** Start a run through the API, stream it in the terminal, and review its output and tool activity in the dashboard.
+- **Start work automatically.** Connect Slack messages, incoming webhooks, or [scheduled prompts](docs/features/triggers/README.md) to a saved agent.
 - **Connect your tools.** Add MCP servers, authorized applications, search providers, and your own model API keys.
 - **Control access and spending.** Use organizations, scoped keys, run budgets, concurrency limits, and usage reporting.
 - **Keep Git in the loop.** Connect a GitHub repository, review changes, and synchronize without force-pushing.
@@ -34,9 +35,9 @@ pnpm worker
 
 Open **http://localhost:3210**. Sign in with `demo@example.test` and `local-only-demo-2026`.
 
-Local setup uses simulated agents, a local database, and captured email. No provider account or paid API call is required. The simulator exercises the workflow; real model execution requires a [hosted deployment](docs/operations/launch-guide.md).
+Local setup uses simulated agents, a local database, and captured email. No provider account or paid API call is required. For real tasks, use [cloud staging](docs/getting-started/local-development/cloud.md). The [local Docker guide](docs/getting-started/local-development/docker.md) covers real harness fixtures and the API integration still needed for local agent execution.
 
-Continue with [your first run](docs/getting-started/quickstart.md), or use [local setup and troubleshooting](docs/getting-started/local-development.md) for more detail.
+Continue with [your first run](docs/getting-started/quickstart.md), or compare [the three development modes](docs/getting-started/local-development.md). The [simulator guide](docs/getting-started/local-development/simulation.md) has local API, testing, and shutdown instructions.
 
 ## Find your next step
 

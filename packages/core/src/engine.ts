@@ -94,6 +94,9 @@ export async function claimRun(org: string, runId: string) {
       );
       return null;
     }
+    // A simulator left running must never impersonate a newly admitted native execution.
+    // Cancellation and queue expiry above still settle work even under the wrong local profile.
+    if (run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
     // Capacity and weighted turns commit together under the existing global lock.
     // A Workflow retry for a specific run must obey the same scheduler as a poller.
     await lock(tx, 'capacity:global');

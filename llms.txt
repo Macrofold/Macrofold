@@ -4,11 +4,19 @@
 
 - [Documentation](docs/README.md): Build with persistent cloud agents from the dashboard, API, or terminal.
 - [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
-- [Run locally](docs/getting-started/local-development.md): Start the free local simulator and test customer workflows.
+- [Run and test](docs/getting-started/local-development.md): Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries.
+- [Local simulation](docs/getting-started/local-development/simulation.md): Start the local app and worker, invoke the API, and test customer journeys without paid agent calls.
+- [Local Docker agents](docs/getting-started/local-development/docker.md): Run real harness fixtures in Docker and understand the missing API-to-container integration.
+- [Cloud staging](docs/getting-started/local-development/cloud.md): Invoke real agents through a staging API and distinguish complete execution from provider-only tests.
 - [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
 - [Dashboard](docs/features/dashboard/README.md): Navigate projects, files, run history, access, and usage.
 - [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
+- [Triggers](docs/features/triggers/README.md): Start agents from Slack, incoming webhooks or recurring prompts.
+- [Slack bots](docs/features/triggers/slack.md): Connect a Slack bot to a persistent project and reply to messages.
+- [Incoming webhooks](docs/features/triggers/webhooks.md): Create authenticated incoming endpoints with safe event retries.
+- [Scheduled tasks](docs/features/triggers/scheduled-tasks.md): Save recurring prompts with cron, timezones, history and run-now controls.
 - [Workspaces and Git](docs/features/workspaces/README.md): Persist files, create branches, restore checkpoints, and synchronize GitHub.
+- [Read persisted files](docs/features/workspaces/read-files.md): Retrieve complete saved file contents by path through HTTP or any Macrofold SDK.
 - [Connections and access](docs/features/identity-integrations/README.md): Bring provider keys and grant agents access to applications and MCP tools.
 - [Web search](docs/features/identity-integrations/web-search.md): Configure a search provider and understand search behavior and billing.
 - [Billing and limits](docs/features/billing/README.md): Understand plans, concurrency, budgets, reserved credits, and retention.
@@ -22,6 +30,7 @@
 - [Go SDK](sdk/go/README.md): Make typed API requests and stream agent progress in Go.
 - [Rust SDK](sdk/rust/README.md): Make typed API requests and stream agent progress in Rust.
 - [Java SDK](sdk/java/README.md): Make typed API requests and stream agent progress in Java.
+- [SDK method reference](docs/features/api/sdks/reference.md): Find the resource method for every public operation in all five languages.
 - [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
 - [Deploy on Vercel](docs/operations/launch-guide.md): Configure and deploy the application, database, storage, and native runtime.
 - [Environment configuration](docs/operations/launch-environment.md): Keep local, runtime, and migration configuration separate.

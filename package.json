@@ -38,7 +38,12 @@
     "docs:generate": "tsx scripts/docs/generate.ts",
     "docs:check": "tsx scripts/docs/generate.ts --check && python3 scripts/check-docs.py",
     "sdk:generate:all": "pnpm contracts && tsx scripts/sdk/generate.ts",
-    "test:sdks": "tsx scripts/test-sdks.ts"
+    "test:sdks": "tsx scripts/test-sdks.ts",
+    "dev:docker": "tsx scripts/docker-profile.ts dev",
+    "worker:docker": "tsx scripts/docker-profile.ts worker",
+    "doctor:docker": "tsx scripts/docker-profile.ts doctor",
+    "test:journey:docker": "tsx scripts/test-docker-journey.ts",
+    "test:journey:live": "tsx scripts/test-live-journey.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.261",
@@ -66,6 +71,7 @@
     "better-auth": "1.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cron-parser": "5.10.0",
     "diff": "^9.0.0",
     "dotenv": "^17.3.1",
     "ink": "^6.8.0",

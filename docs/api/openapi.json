@@ -889,7 +889,7 @@
         "tags": [
           "workspaces"
         ],
-        "description": "",
+        "description": "Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -7946,6 +7946,1084 @@
           "connections:read"
         ]
       }
+    },
+    "/v1/triggers": {
+      "get": {
+        "operationId": "listTriggers",
+        "summary": "List triggers and scheduled tasks",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:read"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "slack",
+                "webhook",
+                "schedule"
+              ]
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Trigger"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next_cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTrigger",
+        "summary": "Create a trigger or scheduled task",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write",
+              "runs:write",
+              "runs:read",
+              "projects:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write",
+          "runs:write",
+          "runs:read",
+          "projects:read"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewTrigger"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/triggers/{trigger_id}": {
+      "get": {
+        "operationId": "getTrigger",
+        "summary": "Inspect a trigger",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:read"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trigger"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateTrigger",
+        "summary": "Edit or pause a trigger",
+        "description": "Only the creator can edit/resume. Organization administrators can pause. Editing configuration invalidates deliveries that have not yet become runs.",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trigger"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerPatch"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteTrigger",
+        "summary": "Delete a trigger; preserve accepted runs",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/triggers/{trigger_id}/rotate-secret": {
+      "post": {
+        "operationId": "rotateTriggerSecret",
+        "summary": "Rotate the incoming webhook secret",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerSecret"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/triggers/{trigger_id}/deliveries": {
+      "get": {
+        "operationId": "listTriggerDeliveries",
+        "summary": "List trigger deliveries and linked runs",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:read"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TriggerDelivery"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next_cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/triggers/{trigger_id}/run": {
+      "post": {
+        "operationId": "runTrigger",
+        "summary": "Run a scheduled task now",
+        "description": "",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerDelivery"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/triggers/{trigger_id}/deliveries/{delivery_id}/retry-reply": {
+      "post": {
+        "operationId": "retryTriggerReply",
+        "summary": "Retry a failed or uncertain Slack reply",
+        "description": "Check Slack for an existing message before retrying an uncertain reply. This never reruns the agent.",
+        "tags": [
+          "triggers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "triggers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "triggers:write"
+        ],
+        "parameters": [
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerDelivery"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/slack-connections": {
+      "get": {
+        "operationId": "listSlackConnections",
+        "summary": "List your Slack bot connections",
+        "description": "",
+        "tags": [
+          "slack-connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SlackConnection"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next_cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSlackConnection",
+        "summary": "Connect a customer-owned Slack bot",
+        "description": "",
+        "tags": [
+          "slack-connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackConnection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackConnectionCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/slack-connections/{connection_id}": {
+      "delete": {
+        "operationId": "deleteSlackConnection",
+        "summary": "Disconnect a Slack bot and pause its triggers",
+        "description": "",
+        "tags": [
+          "slack-connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/slack-connections/{connection_id}/channels": {
+      "get": {
+        "operationId": "listSlackConnectionChannels",
+        "summary": "List channels the bot has joined",
+        "description": "",
+        "tags": [
+          "slack-connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SlackChannel"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next_cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -12280,6 +13358,526 @@
             "format": "date-time"
           }
         }
+      },
+      "TriggerCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "slack",
+              "webhook",
+              "schedule"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_runs_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "cron": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slack_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel_id": {
+            "type": "string",
+            "pattern": "^[CG][A-Z0-9]+$",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "name",
+          "project_id",
+          "agent_id",
+          "kind",
+          "prompt"
+        ],
+        "additionalProperties": false,
+        "description": "An incoming Slack/webhook trigger or durable scheduled task. A saved agent preset supplies harness, model, grants and billing. Cron requires five fields and an IANA timezone (UTC by default); Slack requires a connection and channel ID."
+      },
+      "TriggerPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_runs_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "cron": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slack_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel_id": {
+            "type": "string",
+            "pattern": "^[CG][A-Z0-9]+$",
+            "maxLength": 40
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "Trigger": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "slack",
+              "webhook",
+              "schedule"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_runs_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "cron": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slack_connection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "next_fire_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_fired_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "webhook_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "project_id",
+          "agent_id",
+          "kind",
+          "prompt",
+          "enabled",
+          "max_runs_per_day",
+          "next_fire_at",
+          "last_error_code",
+          "last_fired_at",
+          "webhook_url",
+          "created_at",
+          "updated_at",
+          "slack_connection_id",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "NewTrigger": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "slack",
+              "webhook",
+              "schedule"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_runs_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "cron": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slack_connection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "next_fire_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_fired_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "webhook_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "webhook_secret": {
+            "type": "string",
+            "description": "Returned once for a new webhook trigger. Send as Authorization: Bearer; never put it in the URL."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "project_id",
+          "agent_id",
+          "kind",
+          "prompt",
+          "enabled",
+          "max_runs_per_day",
+          "next_fire_at",
+          "last_error_code",
+          "last_fired_at",
+          "webhook_url",
+          "created_at",
+          "updated_at",
+          "slack_connection_id",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "TriggerSecret": {
+        "type": "object",
+        "properties": {
+          "webhook_secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "webhook_secret"
+        ],
+        "additionalProperties": false
+      },
+      "TriggerDelivery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trigger_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "failed",
+              "skipped"
+            ]
+          },
+          "run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reply_state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "sending",
+              "sent",
+              "failed",
+              "uncertain"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "trigger_id",
+          "status",
+          "run_id",
+          "error_code",
+          "received_at",
+          "expires_at",
+          "reply_state"
+        ],
+        "additionalProperties": false
+      },
+      "SlackConnectionCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "bot_token": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000,
+            "writeOnly": true
+          },
+          "signing_secret": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 200,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "name",
+          "bot_token",
+          "signing_secret"
+        ],
+        "additionalProperties": false
+      },
+      "SlackConnection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          },
+          "bot_user_id": {
+            "type": "string"
+          },
+          "events_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "team_id",
+          "bot_user_id",
+          "events_url",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "SlackChannel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {
@@ -12428,7 +14026,9 @@
               "offline_access": "Rotating refresh token",
               "organizations:read": "Read team membership",
               "organizations:write": "Manage organizations, roles and invitations",
-              "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)"
+              "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)",
+              "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
+              "triggers:write": "Manage incoming triggers and scheduled tasks"
             }
           }
         }

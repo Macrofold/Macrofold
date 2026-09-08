@@ -1,10 +1,10 @@
 # Quickstart
 
-Create a project, run an agent, and inspect the files it saves. You can follow this guide on a deployment you have access to or with the [free local simulator](local-development.md).
+Create a project, run an agent, and inspect the files it saves. You can follow this guide on a deployment you have access to or with the [free local simulator](local-development/simulation.md).
 
 ## 1. Sign in
 
-Open the dashboard and create an account. Verify your email before using protected features. For local development, use the demo account from the [local setup guide](local-development.md).
+Open the dashboard and create an account. Verify your email before using protected features. For local development, use the demo account from the [local setup guide](local-development/simulation.md#start).
 
 Choose the organization you want to work in. Projects, API keys, and usage belong to that organization.
 

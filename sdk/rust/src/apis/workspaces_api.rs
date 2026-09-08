@@ -670,7 +670,7 @@ pub async fn list_transfers(configuration: &configuration::Configuration, worksp
     }
 }
 
-/// 
+/// Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
 pub async fn read_file(configuration: &configuration::Configuration, workspace_id: &str, path: &str, x_organization_id: Option<&str>, download: Option<bool>) -> Result<reqwest::Response, Error<ReadFileError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;

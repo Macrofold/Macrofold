@@ -1,5 +1,5 @@
 import { pool } from '@platform/db';
-import { isLocal, readinessErrors } from '@platform/core/config';
+import { isLocal, isSimulated, readinessErrors } from '@platform/core/config';
 export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
@@ -8,7 +8,7 @@ export async function GET() {
     return Response.json(
       {
         status: issues.length ? 'not_ready' : 'ok',
-        mode: isLocal() ? 'local_simulation' : 'production',
+        mode: isSimulated() ? 'local_simulation' : isLocal() ? 'local_docker' : 'production',
         configuration_ready: !issues.length,
       },
       { status: issues.length ? 503 : 200 },

@@ -1,4 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { generateTypeScriptResources } from './sdk/typescript';
+import { generateResourceReference } from './sdk/reference';
 const specification = JSON.parse(await readFile('docs/api/openapi.json', 'utf8'));
 const routes: Record<string, { method: string; path: string }> = {};
 for (const [path, methods] of Object.entries(specification.paths))
@@ -12,3 +14,5 @@ await writeFile(
 await writeFile('sdk/typescript/src/schema.d.ts', await readFile('packages/contracts/api.d.ts', 'utf8'));
 await mkdir('sdk/python/macrofold', { recursive: true });
 await writeFile('sdk/python/macrofold/routes.json', JSON.stringify(routes, null, 2) + '\n');
+await generateTypeScriptResources();
+await generateResourceReference();

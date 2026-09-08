@@ -21,6 +21,10 @@ Writes compare the revision you read with current state. A stale revision return
 
 CLI push and pull are explicit, version-checked transfers. Preview with `--dry-run`; ignored files and deletions require opt-in. See the [CLI guide](../cli/README.md).
 
+## Read files from your application
+
+Retrieve a complete persisted file by workspace ID and relative path through the [file-read API and SDK guide](read-files.md). Wait for run persistence before fetching an agent's edits.
+
 ## Compare revisions
 
 The diff API lists changed paths between checkpoints. Inline text patches are available when both versions together are smaller than 512,000 bytes (500 KiB) and contain no binary marker. Larger files are identified from checkpoint metadata without loading their contents; binary classification is `null` when not inspected. File downloads remain available separately.

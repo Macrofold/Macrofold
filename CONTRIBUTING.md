@@ -4,7 +4,7 @@ Help improve the platform with focused fixes, clearer documentation, and reprodu
 
 ## Start developing
 
-Follow [local setup](docs/getting-started/local-development.md). It uses deterministic providers and needs no paid account. Read [AGENTS.md](AGENTS.md) for repository boundaries and [the codebase map](docs/architecture/codebase.md) to find the module that owns your change.
+Start with [local simulation](docs/getting-started/local-development/simulation.md); it needs no paid account. The [development overview](docs/getting-started/local-development.md) explains when to use native Docker fixtures or real cloud staging and the missing API-to-Docker path. Read [AGENTS.md](AGENTS.md) for repository boundaries and [the codebase map](docs/architecture/codebase.md) to find the module that owns your change.
 
 ```sh
 pnpm check

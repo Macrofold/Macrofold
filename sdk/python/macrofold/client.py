@@ -6,12 +6,14 @@ import json
 import re
 import time
 import uuid
-from collections.abc import Callable, Iterator, Mapping
+import os
+from collections.abc import Callable, Generator, Mapping
 from importlib.resources import files
 from typing import Any
 from urllib.parse import quote, urlsplit
 
 import httpx
+from .resources import Resources, DEFAULT_ORIGIN
 
 ROUTES: dict[str, dict[str, str]] = json.loads(
     files("macrofold").joinpath("routes.json").read_text()
@@ -44,24 +46,31 @@ def _origin(value: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-class Client:
-    """Use every OpenAPI operation ID through request(); stream() reconnects with a cursor.
+class Client(Resources):
+    """Typed resource methods and resumable streaming over the public API.
 
     A callable token supplier can refresh OAuth credentials before each request. The SDK
-    never switches credential providers automatically. Close the client or use `with`.
+    never switches credential providers automatically. Call close() when finished.
     """
 
     def __init__(
         self,
-        base_url: str,
-        token: str | Callable[[], str],
+        base_url: str = DEFAULT_ORIGIN,
+        token: str | Callable[[], str] | None = None,
         *,
+        api_key: str | None = None,
         organization: str | None = None,
         retries: int = 2,
         transport: httpx.BaseTransport | None = None,
     ):
         self.base_url = _origin(base_url)
-        self._token, self.organization, self.retries = token, organization, retries
+        if token is not None and api_key is not None:
+            raise ValueError("Pass api_key or token, not both")
+        credential = api_key if api_key is not None else token if token is not None else os.environ.get("MACROFOLD_API_KEY", "")
+        if not callable(credential) and not credential.strip():
+            raise ValueError("Missing Macrofold API key. Pass api_key or set MACROFOLD_API_KEY.")
+        self._token, self.organization, self.retries = credential, organization, retries
+        self._init_resources(self)
         self._http = httpx.Client(
             timeout=httpx.Timeout(65, connect=15), follow_redirects=False, transport=transport
         )
@@ -85,6 +94,7 @@ class Client:
         headers: Mapping[str, str] | None = None,
         idempotency_key: str | None = None,
         stream: bool = False,
+        _deadline: float | None = None,
     ) -> httpx.Response:
         if operation not in ROUTES:
             raise ValueError(f"Unknown operation: {operation}")
@@ -100,8 +110,23 @@ class Client:
         mutation = route["method"] not in {"GET", "HEAD"}
         identity = idempotency_key or str(uuid.uuid4()) if mutation else None
         payload = body if isinstance(body, bytes) else json.dumps(body).encode() if body is not None else None
+        def remaining() -> float:
+            value = 65 if _deadline is None else _deadline - time.monotonic()
+            if value <= 0:
+                raise TimeoutError('Wait deadline expired')
+            return min(65, value)
+
+        def pause(seconds: float) -> None:
+            time.sleep(seconds if _deadline is None else min(seconds, remaining()))
+            if _deadline is not None:
+                remaining()
+
         for attempt in range(self.retries + 1):
+            if _deadline is not None:
+                remaining()
             token = self._token() if callable(self._token) else self._token
+            if not token or not token.strip():
+                raise ValueError("Missing Macrofold API key. Pass api_key or set MACROFOLD_API_KEY.")
             request_headers = {"X-Client-Type": "sdk", **(headers or {}), "Authorization": f"Bearer {token}"}
             if self.organization:
                 request_headers["X-Organization-Id"] = self.organization
@@ -112,12 +137,29 @@ class Client:
             request = self._http.build_request(
                 route["method"], self.base_url + endpoint, headers=request_headers,
                 params={k: str(v).lower() if isinstance(v, bool) else v for k, v in (query or {}).items() if v is not None}, content=payload,
+                **({'timeout': remaining()} if _deadline is not None else {}),
             )
             try:
-                response = self._http.send(request, stream=stream)
+                response = self._http.send(request, stream=stream or _deadline is not None)
+                if _deadline is not None and not response.is_stream_consumed:
+                    # Enforce the wait deadline while reading too, including a slowly arriving body.
+                    try:
+                        chunks = []
+                        for chunk in response.iter_raw():
+                            remaining()
+                            chunks.append(chunk)
+                        remaining()
+                        buffered = httpx.Response(response.status_code, headers=response.headers, content=b''.join(chunks), request=request)
+                    finally:
+                        response.close()
+                    response = buffered
+                if _deadline is not None:
+                    remaining()
             except httpx.TransportError as error:
+                if _deadline is not None:
+                    remaining()
                 if attempt < self.retries:
-                    time.sleep(0.2 * 2**attempt)
+                    pause(0.2 * 2**attempt)
                     continue
                 raise TransportError("Request outcome is unknown. Reuse the idempotency key for a mutation.", identity) from error
             if 200 <= response.status_code < 300:
@@ -128,7 +170,7 @@ class Client:
                 except ValueError:
                     retry_after = 0
                 response.close()
-                time.sleep(max(retry_after, 0.2 * 2**attempt))
+                pause(max(retry_after, 0.2 * 2**attempt))
                 continue
             try:
                 response.read()
@@ -165,7 +207,7 @@ class Client:
             time.sleep(0.75)
         raise TransportError(f"Operation {operation_id} is still pending; inspect its ID later")
 
-    def stream(self, run_id: str, *, after: str = "0") -> Iterator[dict[str, Any]]:
+    def stream(self, run_id: str, *, after: str = "0") -> Generator[dict[str, Any], None, None]:
         """Yield normalized durable events once per sequence; closing the iterator detaches."""
         if not re.fullmatch(r"\d+", after):
             raise ValueError("Use a numeric event cursor")

@@ -10,7 +10,7 @@ import * as reports from './reports';
 import * as payments from './billing';
 import { disconnectConnection } from './connection-cleanup';
 import { createKey, presentKey } from './keys';
-import { isLocal } from './config';
+import { isSimulated } from './config';
 import { id, token, seal } from './crypto';
 import { assert } from './errors';
 import { harnesses, models } from './catalog';
@@ -26,6 +26,8 @@ import { stdioCatalog } from './stdio-catalog';
 import * as organizations from './organizations';
 import { storageReport } from './storage-maintenance';
 import { requestProjectDeletion, cancelProjectDeletion } from './deletion';
+import * as triggers from './triggers';
+import * as triggerDeliveries from './trigger-deliveries';
 
 const list =
   (table: r.Table, filter: (c: Context) => Record<string, unknown> = () => ({})): Handler =>
@@ -53,6 +55,22 @@ export const capabilities = {
   max_file_bytes: 26214400,
 };
 export const handlers: Record<string, Handler> = {
+  listTriggers: (c) => triggers.listTriggers(c.tx, c.p, c.query),
+  createTrigger: (c) => triggers.saveTrigger(c.tx, c.p, input<'TriggerCreate'>(c)),
+  getTrigger: async (c) => triggers.presentTrigger(await triggers.getTrigger(c.tx, c.p, c.params.trigger_id)),
+  updateTrigger: (c) => triggers.patchTrigger(c.tx, c.p, c.params.trigger_id, input<'TriggerPatch'>(c)),
+  deleteTrigger: (c) => triggers.deleteTrigger(c.tx, c.p, c.params.trigger_id),
+  rotateTriggerSecret: (c) => triggers.rotateTriggerSecret(c.tx, c.p, c.params.trigger_id),
+  listTriggerDeliveries: (c) =>
+    triggerDeliveries.listTriggerDeliveries(c.tx, c.p, c.params.trigger_id, c.query),
+  runTrigger: (c) => triggerDeliveries.runTriggerNow(c.tx, c.p, c.params.trigger_id, c.idempotencyKey),
+  retryTriggerReply: (c) =>
+    triggerDeliveries.retryTriggerReply(c.tx, c.p, c.params.trigger_id, c.params.delivery_id),
+  listSlackConnections: (c) => triggers.listSlackConnections(c.tx, c.p),
+  createSlackConnection: (c) => triggers.saveSlackConnection(c.tx, c.p, input<'SlackConnectionCreate'>(c)),
+  deleteSlackConnection: (c) => triggers.disconnectSlack(c.tx, c.p, c.params.connection_id),
+  listSlackConnectionChannels: (c) =>
+    triggers.listSlackChannels(c.tx, c.p, c.params.connection_id, c.query.get('cursor') || undefined),
   listConnectorCatalog: () =>
     listConnectorCatalog(connectorCatalogSource(), {
       enabled:
@@ -320,7 +338,7 @@ export const handlers: Record<string, Handler> = {
       BigInt(file.size_bytes) <= 4n * 1024n * 1024n,
       413,
       'file_too_large',
-      'Use a staged file transfer to download files larger than 4 MiB.',
+      'Use download=true or a staged file transfer to download files larger than 4 MiB.',
     );
     c.headers.set('ETag', `"${workspace.revision}"`);
     c.headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path)}`);
@@ -614,7 +632,7 @@ export const handlers: Record<string, Handler> = {
     page(
       harnesses.map((h) => ({
         id: h.id,
-        version: isLocal()
+        version: isSimulated()
           ? 'simulation'
           : process.env[`${h.id.replace('-', '_').toUpperCase()}_VERSION`] || 'configured',
         enabled: true,

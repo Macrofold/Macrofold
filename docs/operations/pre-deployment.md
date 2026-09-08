@@ -4,6 +4,12 @@ Use this checklist for each hosted release after following the [deployment guide
 
 Each recorded check should identify the source revision, app deployment, runtime digest, environment, UTC time, expected and observed behavior, cost, and evidence location. Local fixtures verify application behavior; they do not establish hosted provider acceptance.
 
+Verify all five SDKs against the activated hosted origin, including typed requests/results, SSE replay/reconnection, and synthetic credential revocation. [Resource SDK acceptance](../engineering/testing/sdk-resources.md) records local proof and the unactivated canonical-origin boundary.
+
+After native checkpoint publication, verify path-based file reads in all five SDKs, including empty/binary files and foreign-project denial. Verify the `download=true` capability returns a complete file larger than 4 MiB from deployed storage without forwarding the API key. These pass with local encrypted objects; deployed R2/routing acceptance remains required.
+
+Use a saved preset to verify plain-text streaming and `wait()` through deployed execution/checkpoint publication. Confirm that failure/cancellation raises the SDK's typed run error, a wait deadline leaves execution active, and reconnecting never repeats a delivered sequence. These are local-fixture passes; deployed transport and native-agent acceptance remain separate.
+
 ## Configuration and identity
 
 - [ ] Staging and production have independent databases, buckets, credentials, callback origins, and financial ledgers.
@@ -20,6 +26,7 @@ Each recorded check should identify the source revision, app deployment, runtime
 
 - [ ] The immutable Linux AMD64 runtime image is ready and compatible with the selected model catalog and provider routes.
 - [ ] Each supported native harness performs a bounded task, emits usage/output, saves a checkpoint, and continues in a fresh sandbox.
+- [ ] Run `pnpm test:journey:docker` against the release image with scripted providers, then `pnpm test:journey:live` against isolated staging for each reviewed harness/model and funding route. Follow the [budgeted live guide](../getting-started/local-development/cloud.md#test-a-real-agent-journey); verify dashboard state, deployed Workflow handoff, storage writes and sandbox cleanup separately. Neither narrow native fixtures nor gateway-only live calls establish this complete journey.
 - [ ] Managed and BYOK calls use the intended credentials. Revoked BYOK never falls back to a platform key. Provider usage and application settlement reconcile.
 - [ ] Cancellation, input races, execution timeout, unknown launch acknowledgment, fencing, Workflow continuation, and worker recovery preserve one execution identity.
 - [ ] Queue expiry uses the accepted deadline, retains history, emits explicit failure, and releases reserved funds exactly once.
@@ -60,4 +67,8 @@ Each recorded check should identify the source revision, app deployment, runtime
 
 ## Current evidence
 
-Use [implementation status](../status/README.md), [testing and CI](../engineering/testing.md), [live integration results](../engineering/testing/live-integrations.md), [Workflow history](../features/execution/workflow-history.md), and [dashboard stream verification](../features/dashboard/live-refresh/verification.md). Record a pass only for the specific environment and behavior actually exercised.
+Use [implementation status](../status/README.md), [testing and CI](../engineering/testing.md), [development-mode acceptance](../engineering/testing/development-modes.md), [live integration results](../engineering/testing/live-integrations.md), [Workflow history](../features/execution/workflow-history.md), and [dashboard stream verification](../features/dashboard/live-refresh/verification.md). Record a pass only for the specific environment and behavior actually exercised.
+
+## Slack triggers and scheduled tasks
+
+Apply migration 028 and verify the existing maintenance worker/cron. Use the [Slack setup guide](../features/triggers/slack.md) with a synthetic test workspace and the [trigger acceptance checklist](../engineering/testing/triggers.md#remaining-live-acceptance). Verify the public HTTPS callback, signed challenge, bot/channel permissions, threaded reply and scheduled run before enabling customer automation. Local fixtures do not prove Slack callback timing or Vercel cron delivery. Real model execution requires a separately approved budget.

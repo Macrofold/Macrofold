@@ -1,0 +1,122 @@
+.trigger-explainer {
+  margin-bottom: 28px;
+}
+.trigger-explainer a {
+  white-space: nowrap;
+}
+.trigger-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 18px;
+}
+.trigger-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+  min-width: 0;
+}
+.trigger-card:hover {
+  border-color: var(--blue);
+  box-shadow: 0 8px 30px #1c254b08;
+}
+.trigger-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.trigger-symbol {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  color: #6253ae;
+  background: #efedf9;
+}
+.trigger-symbol.slack {
+  color: #996b27;
+  background: #f7f0e3;
+}
+.trigger-symbol.webhook {
+  color: #2d7c77;
+  background: #e9f4f1;
+}
+.trigger-card h2 {
+  font-size: 19px;
+  letter-spacing: -0.025em;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.trigger-prompt {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 0 20px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.trigger-details {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: auto;
+}
+.trigger-details code {
+  color: var(--ink);
+}
+.trigger-actions {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.trigger-endpoint {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 6px;
+}
+.trigger-endpoint code {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.trigger-reply-state {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.trigger-slack-list {
+  display: grid;
+  gap: 18px;
+  margin: 22px 0;
+}
+.trigger-slack-connection {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trigger-card {
+    transition: none;
+  }
+}

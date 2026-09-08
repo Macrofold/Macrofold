@@ -1,5 +1,7 @@
 import type { operations, components } from './schema.js';
 import { routes } from './routes.js';
+import { Resources, DEFAULT_ORIGIN } from './resources.js';
+export { DEFAULT_ORIGIN } from './resources.js';
 export type Schema = components['schemas'];
 export type Operation = keyof operations;
 type Value<T> = T[keyof T];
@@ -46,8 +48,11 @@ export class TransportError extends Error {
   }
 }
 export type ClientOptions = {
-  baseURL: string;
-  token: string | (() => Promise<string>);
+  baseURL?: string;
+  apiKey?: string;
+  token?: string | (() => Promise<string>);
+  /** Same-origin browser cookie authentication; API clients normally use apiKey. */
+  sessionAuth?: boolean;
   organization?: string;
   clientType?: 'sdk' | 'cli';
   fetch?: typeof fetch;
@@ -80,11 +85,25 @@ const delay = (ms: number, signal?: AbortSignal) =>
     };
     signal?.addEventListener('abort', abort, { once: true });
   });
-export class Client {
+export class Client extends Resources {
   readonly baseURL: string;
   private readonly fetcher: typeof fetch;
-  constructor(private options: ClientOptions) {
-    this.baseURL = serviceOrigin(options.baseURL);
+  private readonly token: string | (() => Promise<string>);
+  constructor(private options: ClientOptions = {}) {
+    super();
+    this.baseURL = serviceOrigin(options.baseURL ?? DEFAULT_ORIGIN);
+    if (options.apiKey !== undefined && options.token !== undefined)
+      throw new Error('Pass apiKey or token, not both.');
+    if (options.sessionAuth && (options.apiKey !== undefined || options.token !== undefined))
+      throw new Error('Session authentication cannot be combined with an API key.');
+    this.token = options.sessionAuth
+      ? ''
+      : (options.apiKey ??
+        options.token ??
+        (typeof process !== 'undefined' ? process.env.MACROFOLD_API_KEY : undefined) ??
+        '');
+    if (!options.sessionAuth && typeof this.token === 'string' && !this.token.trim())
+      throw new Error('Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.');
     this.fetcher = options.fetch || fetch;
   }
   async raw<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Response> {
@@ -111,10 +130,11 @@ export class Client {
           : JSON.stringify(options.body);
     for (let attempt = 0; ; attempt++) {
       options.signal?.throwIfAborted();
-      const token =
-        typeof this.options.token === 'function' ? await this.options.token() : this.options.token;
+      const token = typeof this.token === 'function' ? await this.token() : this.token;
+      if (!this.options.sessionAuth && !token.trim())
+        throw new Error('Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.');
       const headers = new Headers({
-        Authorization: `Bearer ${token}`,
+        ...(this.options.sessionAuth ? {} : { Authorization: `Bearer ${token}` }),
         'X-Client-Type': this.options.clientType || 'sdk',
         ...options.headers,
       });
@@ -135,6 +155,7 @@ export class Client {
           body: body as BodyInit | undefined,
           signal: options.signal,
           redirect: 'error',
+          ...(this.options.sessionAuth ? { credentials: 'same-origin' as const } : {}),
         });
       } catch (error) {
         if (options.signal?.aborted) throw options.signal.reason;

@@ -10,7 +10,16 @@ pub struct Client {
     configuration: Configuration,
 }
 impl Client {
-    pub fn new(origin: &str, token: &str) -> Result<Self, ClientError> {
+    pub fn new() -> Result<Self, ClientError> {
+        Self::builder().build()
+    }
+    pub fn builder() -> crate::ClientBuilder {
+        crate::ClientBuilder::default()
+    }
+    pub fn with_credentials(origin: &str, token: &str) -> Result<Self, ClientError> {
+        if token.trim().is_empty() {
+            return Err("missing Macrofold API key: use api_key or set MACROFOLD_API_KEY".into());
+        }
         let url = url::Url::parse(origin)?;
         let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
         if !url.username().is_empty()
@@ -51,6 +60,17 @@ impl Client {
         &self,
         run_id: &str,
         after: &str,
+        receive: impl FnMut(Event) -> bool,
+    ) -> Result<(), ClientError> {
+        self.stream_in_organization(run_id, after, None, receive)
+            .await
+    }
+
+    pub(crate) async fn stream_in_organization(
+        &self,
+        run_id: &str,
+        after: &str,
+        organization: Option<&str>,
         mut receive: impl FnMut(Event) -> bool,
     ) -> Result<(), ClientError> {
         if after.is_empty() || !after.bytes().all(|b| b.is_ascii_digit()) {
@@ -60,7 +80,9 @@ impl Client {
         let mut failures = 0u32;
         loop {
             let previous = cursor;
-            let attempt = self.connection(run_id, &mut cursor, &mut receive).await;
+            let attempt = self
+                .connection(run_id, &mut cursor, organization, &mut receive)
+                .await;
             if cursor > previous {
                 failures = 0;
             }
@@ -68,7 +90,7 @@ impl Client {
                 Ok(true) => return Ok(()),
                 Ok(false) => {
                     failures = 0;
-                    let run = runs_api::get_run(&self.configuration, run_id, None).await?;
+                    let run = runs_api::get_run(&self.configuration, run_id, organization).await?;
                     if matches!(
                         run.status,
                         Status::Succeeded | Status::Failed | Status::Cancelled | Status::TimedOut
@@ -79,7 +101,7 @@ impl Client {
                             Some(&cursor.to_string()),
                             None,
                             Some(1),
-                            None,
+                            organization,
                         )
                         .await?;
                         if remaining.data.is_empty() {
@@ -112,9 +134,10 @@ impl Client {
         &self,
         run_id: &str,
         cursor: &mut u64,
+        organization: Option<&str>,
         receive: &mut impl FnMut(Event) -> bool,
     ) -> Result<bool, ClientError> {
-        let response = self
+        let mut request = self
             .configuration
             .client
             .get(format!(
@@ -131,10 +154,11 @@ impl Client {
             .header("X-Client-Type", "sdk")
             .header("Accept", "text/event-stream")
             .header("Last-Event-ID", cursor.to_string())
-            .query(&[("after", cursor.to_string())])
-            .send()
-            .await?
-            .error_for_status()?;
+            .query(&[("after", cursor.to_string())]);
+        if let Some(organization) = organization {
+            request = request.header("X-Organization-Id", organization);
+        }
+        let response = request.send().await?.error_for_status()?;
         if response.status() != reqwest::StatusCode::OK {
             return Err(format!("event stream rejected: HTTP {}", response.status()).into());
         }

@@ -3,7 +3,7 @@ import type { Tx } from '../../db';
 import { lock } from '../../db';
 import { assert } from './errors';
 import { id } from './crypto';
-import { config, isLocal } from './config';
+import { config, isLocal, realExecutionEnabled } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
 import { queueObservations } from './scheduling';
 import { models, computeRate, computeMaximum, type Model } from './catalog';
@@ -27,6 +27,7 @@ export type RunConfig = Schema['SessionCreate'] & {
   rate_card?: Model;
   compute_rate_micro_usd_per_minute?: string;
   oauth_token_id?: string;
+  execution_provider?: string;
 };
 export type RunRow = {
   id: string;
@@ -193,6 +194,7 @@ export async function admitRun(
   p: Principal,
   input: Schema['RunCreate'] & { queue_if_busy?: boolean },
   clientType = 'api',
+  recordActivity = true,
 ) {
   assert(
     process.env.RUN_ADMISSION_ENABLED !== 'false',
@@ -203,7 +205,7 @@ export async function admitRun(
   await (await import('./storage-maintenance')).requireStorageCapacity(tx, p.organizationId);
   assert(p.userId, 403, 'forbidden', 'A run requires a current organization member.');
   assert(
-    isLocal() || config.allowPaid,
+    (isLocal() && config.execution === 'simulator') || realExecutionEnabled(),
     503,
     'execution_disabled',
     'Live execution is disabled until the operator enables paid execution.',
@@ -315,6 +317,7 @@ export async function admitRun(
     scheduling_class: input.scheduling_class || 'background',
     rate_card: models().find((m) => m.id === configured.model),
     compute_rate_micro_usd_per_minute: rate,
+    execution_provider: config.execution,
   };
   await tx.query(
     "INSERT INTO runs(id,organization_id,workspace_id,session_id,project_id,status,config,reservation_micro_usd,queue_expires_at) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,now()+($8::integer*interval '1 second'))",
@@ -342,7 +345,7 @@ export async function admitRun(
     p.organizationId,
     runId,
   ]);
-  if (p.kind === 'user')
+  if (recordActivity && p.kind === 'user')
     await tx.query(
       "INSERT INTO actor_activity(id,organization_id,user_id,action) VALUES($1,$2,$3,'run.created')",
       [id(), p.organizationId, p.userId],

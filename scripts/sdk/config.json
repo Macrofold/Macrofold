@@ -1,7 +1,13 @@
 {
+  "defaultOrigin": "https://app.macrofold.ai",
   "version": "7.24.0",
   "sha256": "4b83ccc6fd43056c8c631cd0195e5100bd0550912502527bab09ac76152dab0c",
   "targets": {
+    "python": {
+      "packageName": "macrofold",
+      "projectName": "macrofold",
+      "packageVersion": "0.1.0"
+    },
     "go": {
       "packageName": "macrofold",
       "packageVersion": "0.1.0",
@@ -10,7 +16,8 @@
       "isGoSubmodule": true,
       "modelNameMappings": {
         "NewApiKey": "CreatedApiKey",
-        "NewWebhook": "CreatedWebhook"
+        "NewWebhook": "CreatedWebhook",
+        "NewTrigger": "CreatedTrigger"
       }
     },
     "rust": {

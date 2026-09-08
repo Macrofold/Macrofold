@@ -11,7 +11,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Contracts             | OpenAPI 3.1, AJV, Zod, openapi-typescript, Scalar                      | Reviewed HTTP schema is authoritative; typed clients and runtime validation share it                                 |
 | Database              | PostgreSQL 17, node-postgres, numbered SQL migrations; Neon first      | Explicit locks, RLS and balanced journals are reviewable together; no redundant ORM schema                           |
 | Scheduling            | Vercel Workflow; PostgreSQL outbox and leases                          | Managed wakeups with application-owned recovery; standalone SQL poller reuses the same state machine                 |
-| Agent isolation       | Vercel Sandbox, immutable VCR image                                    | Managed microVM isolation; no untrusted code in a Function or shared worker process                                  |
+| Agent isolation       | Vercel Sandbox, immutable VCR image; Docker for local development                                    | Managed microVM isolation; no untrusted code in a Function or shared worker process                                  |
 | Harnesses             | Native Codex app-server, Claude Agent SDK, OpenCode SDK                | Exact sessions/tools/input semantics; more adapter maintenance than an experimental universal wrapper                |
 | Files                 | Encrypted content-addressed chunks and manifests in private R2         | Portable independent recovery and file browsing; owned reachability/retention logic instead of restic processes      |
 | Identity              | Better Auth email/password, MFA, OAuth provider                        | Established identity protocols; domain owns memberships, API keys and authorization                                  |
@@ -20,7 +20,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Clients               | oclif + Ink CLI, TypeScript SDK, Python/httpx SDK                      | Same public API and stream contract; no client database access                                                       |
 | Operations            | Indexed SQL facts, stored reports, optional PostHog                    | Native reports need no analytics subscription or inference                                                           |
 
-Exact versions are in the lockfile and runtime package. pnpm workspaces are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. Alternative sandbox providers require an adapter and acceptance work, not a configuration-name substitution.
+Exact versions are in the lockfile and runtime package. pnpm workspaces are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. The local Docker adapter shares the SQL poller and phase engine; hosted alternatives still require adapter and acceptance work. See [development modes](../engineering/development-modes.md).
 
 ## Component graph
 

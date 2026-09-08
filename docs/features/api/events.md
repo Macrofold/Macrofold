@@ -2,6 +2,8 @@
 
 Follow detailed run events over Server-Sent Events, or receive completion events at a registered webhook endpoint. The final result is independently retrievable through the API.
 
+The [SDKs](sdks/README.md) offer `runs.stream_text`/`streamText` for plain assistant text, `runs.wait` for the full response after execution and persistence, and `runs.events` for structured events. Text and wait helpers raise typed errors for failed/cancelled execution or persistence; detaching or timing out does not cancel the agent.
+
 ## Stream a run
 
 `GET /v1/runs/{id}/stream` emits durable event IDs. Record the last delivered ID and send it as `Last-Event-ID` when reconnecting. `GET /v1/runs/{id}/events` offers paginated history with an `after` cursor.

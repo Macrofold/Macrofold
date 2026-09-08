@@ -35,7 +35,17 @@ try {
   if (version.data.version !== '0.1.0') throw new Error('Installed CLI entry point failed.');
   await writeFile(
     path.join(temporary, 'verify.mjs'),
-    "import {Client,ApiError} from 'macrofold'; if(typeof Client!=='function'||typeof ApiError!=='function')throw new Error('SDK exports missing'); console.log('SDK exports verified');\n",
+    `import assert from 'node:assert/strict';
+import {Client, Macrofold, ApiError, RunFailedError, WaitTimeoutError} from 'macrofold';
+assert.equal(Macrofold, Client);
+for (const type of [ApiError, RunFailedError, WaitTimeoutError]) assert.equal(typeof type, 'function');
+const client = new Macrofold({apiKey: 'package-fixture', fetch: async () => {
+  throw new Error('This package check must not make network requests');
+}});
+for (const method of ['create', 'events', 'streamText', 'wait']) assert.equal(typeof client.runs[method], 'function');
+await assert.rejects(client.runs.wait('fixture-run', {timeoutMs:0}), WaitTimeoutError);
+console.log('SDK entrypoints, resource helpers, and typed errors verified');
+`,
   );
   await exec(process.execPath, ['verify.mjs'], { cwd: temporary });
   const artifacts = path.join(root, '.data/releases');

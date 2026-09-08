@@ -38,6 +38,10 @@ The runtime MCP broker presents only tools granted to both the session and the c
 
 The published compute rate currently covers the run's configured execution window. Bounded provisioning and checkpoint recovery overhead beyond that window is borne by the platform; it must be included in margin estimates and observed operationally. This is deliberately distinct from claiming the provider invoice has been measured. R2 request/storage expense, native snapshots, Workflow events and connector subscription fees remain operator costs until the billing integration records their actual dimensions.
 
+## Local Docker execution
+
+The [Docker development guide](../../getting-started/local-development/docker.md) connects public API admission to the same persisted phases through `DockerMachines` and the standalone SQL worker. Local infrastructure remains separate from simulated inference. The adapter keeps owned container identity, protected supervisor state, scoped gateway credentials and independent encrypted checkpoints. Successful runs remove their containers; failed persistence retains a stopped recovery layer. Docker is trusted contributor compute, while production retains Vercel microVM isolation. See [architecture and acceptance](../../engineering/development-modes.md).
+
 ## Validation boundary
 
 The local native tests run actual pinned binaries in Docker with `--network none` against a loopback mock model server. They exercise native protocol compatibility, tools, filesystem capture, portable restore, and session continuation without paid inference. Fault tests use a fake machine provider with real PostgreSQL and encrypted local object storage to test duplicate launch acknowledgements, failed-agent checkpoints and unavailable-machine recovery.

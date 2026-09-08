@@ -12,6 +12,7 @@ import { credit } from '../../packages/core/src/ledger';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 const executionProvider = config.execution;
+const paidExecution = config.allowPaid;
 beforeAll(async () => {
   account = await fixtureAccount('Run state boundaries');
 });
@@ -19,6 +20,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   config.execution = executionProvider;
+  config.allowPaid = paidExecution;
   // These tests deliberately arrange intermediate states without starting a worker.
   // Retire them so later capacity tests never see a synthetic active execution.
   await transaction(account.p.organizationId, async (tx) => {
@@ -60,7 +62,8 @@ describe('run state transitions and concurrent requests', () => {
   it('rejects an unfunded compute window before admission and releases an exact-boundary reservation on cancel', async () => {
     const models = catalog.models();
     vi.spyOn(catalog, 'models').mockReturnValue(models);
-    config.execution = 'vercel';
+    config.execution = 'docker';
+    config.allowPaid = true;
     vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
     await transaction(account.p.organizationId, (tx) =>
       credit(tx, account.p.organizationId, 100000n, `compute:${id()}`),

@@ -415,5 +415,57 @@ export const routes = {
   "listConnectorCatalog": {
     "method": "GET",
     "path": "/v1/connector-catalog"
+  },
+  "listTriggers": {
+    "method": "GET",
+    "path": "/v1/triggers"
+  },
+  "createTrigger": {
+    "method": "POST",
+    "path": "/v1/triggers"
+  },
+  "getTrigger": {
+    "method": "GET",
+    "path": "/v1/triggers/{trigger_id}"
+  },
+  "updateTrigger": {
+    "method": "PATCH",
+    "path": "/v1/triggers/{trigger_id}"
+  },
+  "deleteTrigger": {
+    "method": "DELETE",
+    "path": "/v1/triggers/{trigger_id}"
+  },
+  "rotateTriggerSecret": {
+    "method": "POST",
+    "path": "/v1/triggers/{trigger_id}/rotate-secret"
+  },
+  "listTriggerDeliveries": {
+    "method": "GET",
+    "path": "/v1/triggers/{trigger_id}/deliveries"
+  },
+  "runTrigger": {
+    "method": "POST",
+    "path": "/v1/triggers/{trigger_id}/run"
+  },
+  "retryTriggerReply": {
+    "method": "POST",
+    "path": "/v1/triggers/{trigger_id}/deliveries/{delivery_id}/retry-reply"
+  },
+  "listSlackConnections": {
+    "method": "GET",
+    "path": "/v1/slack-connections"
+  },
+  "createSlackConnection": {
+    "method": "POST",
+    "path": "/v1/slack-connections"
+  },
+  "deleteSlackConnection": {
+    "method": "DELETE",
+    "path": "/v1/slack-connections/{connection_id}"
+  },
+  "listSlackConnectionChannels": {
+    "method": "GET",
+    "path": "/v1/slack-connections/{connection_id}/channels"
   }
 } as const;

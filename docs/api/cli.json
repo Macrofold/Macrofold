@@ -480,7 +480,9 @@
     "offline_access": "Rotating refresh token",
     "organizations:read": "Read team membership",
     "organizations:write": "Manage organizations, roles and invitations",
-    "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)"
+    "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)",
+    "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
+    "triggers:write": "Manage incoming triggers and scheduled tasks"
   },
   "json_output_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

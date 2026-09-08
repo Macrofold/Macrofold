@@ -1,70 +1,49 @@
-# Run locally
+# Run and test the application
 
-Run the dashboard, API, and simulated agents without paid provider calls. You need Node 24, pnpm 10, Git, and Docker running.
+Choose where execution happens and whether you need real model reasoning. **New contributor? Start with [local simulation](local-development/simulation.md).** It needs no provider account and makes no paid agent calls.
+
+## Choose a development mode
+
+| Mode                                                       | Where the application and agent run                                                           | Accounts and costs                                                                 | Availability                                                       |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [Local simulation](local-development/simulation.md)        | Dashboard, API, database, and worker on your computer; scripted agent activity                | No cloud or model account; free agent runs                                         | Working default                                                    |
+| [Real agents in local Docker](local-development/docker.md) | Local application and Docker sandbox; real Codex, Claude Code, or OpenCode                    | No Vercel account; a model provider key and inference budget                       | Provider implemented; complete Docker acceptance pending           |
+| [Real agents in cloud staging](local-development/cloud.md) | Deployed application, database, storage, and Vercel Sandbox; clients can run on your computer | Access to a staging environment; cloud infrastructure and inference can cost money | Cloud adapter implemented; requires deployment and live acceptance |
+
+A **harness** is the agent software, such as Codex or Claude Code. A **model** supplies its reasoning. A **sandbox** is the isolated machine where its commands and file edits happen. A local sandbox can still call a remote, paid model.
 
 ## Start
 
-From the repository root, in terminal 1:
+Follow the [two-terminal simulator setup](local-development/simulation.md#start). It starts the actual dashboard and API at **http://localhost:3210**, with local PostgreSQL, captured email, and a separate worker.
 
-```sh
-pnpm install
-pnpm run setup
-pnpm dev
-```
+The default setup does not launch Vercel sandboxes. Installing Docker or adding a model key does not switch simulated runs to real agents.
 
-In terminal 2, from the same directory:
-
-```sh
-pnpm worker
-```
-
-Open **http://localhost:3210**. Local demo login: `demo@example.test` / `local-only-demo-2026`.
-
-Setup handles PostgreSQL, migrations, demo data, and the [local email inbox](http://localhost:58025). It preserves your existing `.env`; keep that file configured for local simulation. The worker must stay running for jobs to execute. Simulated agents test the workflow, not actual model reasoning.
-
-## Test
-
-For everyday changes:
-
-```sh
-pnpm check
-pnpm test:domain
-```
-
-For **customer journeys** through the browser, CLI, and Python SDK, install these extras once (Python 3.11+ required):
-
-```sh
-pnpm exec playwright install chromium
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install ./sdk/python
-```
-
-Then run:
-
-```sh
-source .venv/bin/activate
-COVERAGE_DIR="$PWD/coverage/customer-$(uuidgen)" pnpm test:dashboard:isolated
-```
-
-Keep PostgreSQL running. This test starts its own app, worker, and temporary database/files, then cleans them up without stopping your preview. Reports remain in the new coverage directory. Avoid editing source during the test build.
-
-`pnpm test:packages` separately checks CLI/TypeScript SDK installation into a temporary customer project; it is an installation smoke test.
+For real reasoning, choose the explicit [Docker profile](local-development/docker.md) or [cloud staging](local-development/cloud.md). Both require a reviewed model route and inference budget; staging also requires cloud resources.
 
 ## Try the API
 
-Create a key in the dashboard's **API keys** page, then use the [interactive API reference](http://localhost:3210/reference). Choose `fixture-model` for local runs. [The API quickstart](../features/api/quickstart.md) walks through a complete request.
+Use the same [API quickstart](../features/api/quickstart.md) in each implemented mode: create an API key and project, submit a run, stream events, and retrieve the result. Point the client at the local or staging origin. Select `fixture-model` only for simulation; real execution needs an enabled model compatible with the selected harness.
 
-Postman is optional: import [the OpenAPI file](../api/openapi.json), set the base URL to `http://localhost:3210`, and use your key as a Bearer token.
+Start with cURL or the interactive API reference. Postman is optional; import [OpenAPI](../api/openapi.json) and set your service origin and Bearer token. The CLI and SDKs use that same API.
+
+## Test
+
+Choose tests based on the boundary you changed:
+
+| Question                                               | Use                                                                                          | What a pass establishes                                                                      |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Does the application workflow work?                    | [Local domain and customer-journey tests](local-development/simulation.md#test-your-changes) | API, database, dashboard, and client behavior with simulated execution                       |
+| Can each real harness run tools and restore its files? | [Native Docker fixtures](local-development/docker.md#run-the-existing-native-tests)          | Actual harness software works with deterministic model responses                             |
+| Does our gateway speak to the actual provider?         | [Opt-in live provider tests](../engineering/testing/live-integrations.md)                    | Selected real provider protocols and accounting, without launching an agent sandbox          |
+| Does API-to-Docker work with free model fixtures?      | [Complete Docker journey](local-development/docker.md#test-the-complete-journey-for-free)    | Actual API, SQL worker, native tools, gateway, checkpoint and continuation                   |
+| Does the entire real-agent journey work?               | [Cloud staging acceptance](local-development/cloud.md#test-a-real-agent-journey)             | API admission through real sandbox execution, model calls, persisted files, and continuation |
+
+Development modes and test levels are different. Mocked model responses let real harnesses execute tools, but cannot prove live reasoning or provider compatibility. A successful provider request alone cannot prove sandbox startup. The complete journey needs both together.
 
 ## Stop
 
-Press Ctrl-C in both app terminals, then stop the database and email service without deleting data:
+Use the selected guide's shutdown steps: [simulation](local-development/simulation.md#stop-and-resume), [Docker fixtures](local-development/docker.md#cleanup), or [cloud staging](local-development/cloud.md#stop-new-work).
 
-```sh
-docker compose -f infra/compose.yml stop
-```
+## Further details
 
-To restart, run `pnpm run setup`, `pnpm dev`, and `pnpm worker` again.
-
-Need more? [Troubleshooting](troubleshooting.md) · [All tests](../engineering/testing.md) · [Environment configuration](../operations/launch-environment.md).
+[Testing and CI](../engineering/testing.md) owns the full suite catalog. [Implementation status](../status/README.md) records measured acceptance; [development-mode architecture](../engineering/development-modes.md) explains the shared execution integration and complete-journey acceptance boundary.

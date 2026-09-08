@@ -1486,7 +1486,7 @@ func (r ApiReadFileRequest) Execute() (*os.File, *http.Response, error) {
 /*
 ReadFile Read file bytes
 
-
+Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId

@@ -4,6 +4,7 @@ For a first contribution: [run locally](../getting-started/local-development.md)
 
 - [Delivery scope](delivery.md): implemented capabilities and release acceptance.
 - [Testing and CI](testing.md): suites, gates and evidence boundaries; [mandatory testing rules](../../TESTING.md).
+- [Development-mode implementation](development-modes.md): shared execution architecture, local Docker integration and complete real-agent acceptance across local and cloud environments.
 - [Working with coding agents](agent-guidance.md): instruction loading, implementation principles, and source research.
 - [Code review](code-review.md): recorded architecture and interface review; current policy lives in [review rules](../../.agents/rules/code-review.md).
 - [Dependency review](dependencies.md): package and license evidence.

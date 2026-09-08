@@ -50,6 +50,7 @@ export async function requestProjectDeletion(
     }
   }
   if (project.deletion_due_at) return project;
+  await tx.query('UPDATE triggers SET enabled=false,updated_at=now() WHERE project_id=$1', [projectId]);
   await tx.query(
     "UPDATE runs SET cancel_requested=true WHERE project_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input')",
     [projectId],
@@ -89,6 +90,22 @@ export async function purgeProjects(tx: Tx, at: Date) {
     )
   ).rows;
   for (const project of projects) {
+    const triggerIds = (await tx.query('SELECT id FROM triggers WHERE project_id=$1', [project.id])).rows.map(
+      (v) => v.id,
+    );
+    await tx.query(
+      "UPDATE triggers SET enabled=false,deleted_at=$2,prompt='[Deleted project]',secret_hash=NULL WHERE project_id=$1",
+      [project.id, at],
+    );
+    await tx.query('DELETE FROM trigger_routes WHERE id=ANY($1::uuid[])', [triggerIds]);
+    await tx.query(
+      "UPDATE trigger_deliveries SET prompt_ciphertext='',status=CASE WHEN status='pending' THEN 'failed' ELSE status END,error_code='project_deleted' WHERE trigger_id=ANY($1::uuid[])",
+      [triggerIds],
+    );
+    await tx.query(
+      "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE (kind='trigger_schedule' AND resource_id=ANY($1::uuid[])) OR (kind='trigger' AND resource_id IN (SELECT id FROM trigger_deliveries WHERE trigger_id=ANY($1::uuid[])))",
+      [triggerIds],
+    );
     const workspaceIds = (
       await tx.query('SELECT id FROM workspaces WHERE project_id=$1', [project.id])
     ).rows.map((v) => v.id);
@@ -114,7 +131,7 @@ export async function purgeProjects(tx: Tx, at: Date) {
     await redactRuns(tx, runIds, at);
     await tx.query('DELETE FROM execution_objects WHERE run_id=ANY($1::uuid[])', [runIds]);
     await tx.query('UPDATE runs SET execution_binding=NULL WHERE id=ANY($1::uuid[])', [runIds]);
-    await redactCached(tx, new Set([project.id, ...workspaceIds, ...runIds, ...sessionIds]));
+    await redactCached(tx, new Set([project.id, ...workspaceIds, ...runIds, ...sessionIds, ...triggerIds]));
     await tx.query(
       "UPDATE projects SET data=jsonb_build_object('deleted',true,'archived',true,'name','Deleted project','purged_at',$2::timestamptz),revision=revision+1,updated_at=$2 WHERE id=$1",
       [project.id, at],
@@ -148,6 +165,7 @@ async function redactCached(tx: Tx, identifiers: Set<string>) {
       ]);
 }
 async function redactRuns(tx: Tx, runIds: string[], at: Date) {
+  await tx.query("UPDATE trigger_deliveries SET prompt_ciphertext='' WHERE run_id=ANY($1::uuid[])", [runIds]);
   if (!runIds.length) return;
   await tx.query(
     "DELETE FROM run_events WHERE run_id=ANY($1::uuid[]) AND type NOT IN ('run.succeeded','run.failed','run.cancelled','run.timed_out')",

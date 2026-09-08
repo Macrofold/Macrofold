@@ -16,9 +16,30 @@
   {
     "slug": "local-development",
     "source": "docs/getting-started/local-development.md",
-    "title": "Run locally",
+    "title": "Run and test",
     "section": "Start here",
-    "description": "Start the free local simulator and test customer workflows."
+    "description": "Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries."
+  },
+  {
+    "slug": "local-development/simulation",
+    "source": "docs/getting-started/local-development/simulation.md",
+    "title": "Local simulation",
+    "section": "Development",
+    "description": "Start the local app and worker, invoke the API, and test customer journeys without paid agent calls."
+  },
+  {
+    "slug": "local-development/docker",
+    "source": "docs/getting-started/local-development/docker.md",
+    "title": "Local Docker agents",
+    "section": "Development",
+    "description": "Run real harness fixtures in Docker and understand the missing API-to-container integration."
+  },
+  {
+    "slug": "local-development/cloud",
+    "source": "docs/getting-started/local-development/cloud.md",
+    "title": "Cloud staging",
+    "section": "Development",
+    "description": "Invoke real agents through a staging API and distinguish complete execution from provider-only tests."
   },
   {
     "slug": "concepts",
@@ -42,11 +63,46 @@
     "description": "Select a harness, follow progress, continue work, and cancel safely."
   },
   {
+    "slug": "triggers",
+    "source": "docs/features/triggers/README.md",
+    "title": "Triggers",
+    "section": "Guides",
+    "description": "Start agents from Slack, incoming webhooks or recurring prompts."
+  },
+  {
+    "slug": "triggers/slack",
+    "source": "docs/features/triggers/slack.md",
+    "title": "Slack bots",
+    "section": "Guides",
+    "description": "Connect a Slack bot to a persistent project and reply to messages."
+  },
+  {
+    "slug": "triggers/webhooks",
+    "source": "docs/features/triggers/webhooks.md",
+    "title": "Incoming webhooks",
+    "section": "Guides",
+    "description": "Create authenticated incoming endpoints with safe event retries."
+  },
+  {
+    "slug": "triggers/scheduled-tasks",
+    "source": "docs/features/triggers/scheduled-tasks.md",
+    "title": "Scheduled tasks",
+    "section": "Guides",
+    "description": "Save recurring prompts with cron, timezones, history and run-now controls."
+  },
+  {
     "slug": "workspaces",
     "source": "docs/features/workspaces/README.md",
     "title": "Workspaces and Git",
     "section": "Guides",
     "description": "Persist files, create branches, restore checkpoints, and synchronize GitHub."
+  },
+  {
+    "slug": "workspaces/read-files",
+    "source": "docs/features/workspaces/read-files.md",
+    "title": "Read persisted files",
+    "section": "Build with the API",
+    "description": "Retrieve complete saved file contents by path through HTTP or any Macrofold SDK."
   },
   {
     "slug": "connections",
@@ -138,6 +194,13 @@
     "title": "Java SDK",
     "section": "Build with the API",
     "description": "Make typed API requests and stream agent progress in Java."
+  },
+  {
+    "slug": "sdk/reference",
+    "source": "docs/features/api/sdks/reference.md",
+    "title": "SDK method reference",
+    "section": "Build with the API",
+    "description": "Find the resource method for every public operation in all five languages."
   },
   {
     "slug": "self-hosting",

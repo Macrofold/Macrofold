@@ -2,6 +2,10 @@
 
 Keep one configuration source per environment. Local development, serving processes, and database administration have different credential needs.
 
+## Local Docker overlay
+
+Keep `.env` for free simulation. The separate `.env.docker` overlay is loaded only by `pnpm dev:docker`, `pnpm worker:docker`, and `pnpm doctor:docker`; exported variables take precedence. Use `.env.docker.example` for Docker/poller selection, zero local compute rate and initially disabled inference. `DOCKER_RUNTIME_IMAGE` selects a locally built runtime image; `DOCKER_NETWORK` optionally selects a local bridge. These settings do not replace production configuration. Follow the [Docker guide](../getting-started/local-development/docker.md) for model/BYOK setup, costs and acceptance.
+
 ## Where settings belong
 
 | Location                                        | Purpose                                                        |

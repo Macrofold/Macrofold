@@ -7,7 +7,7 @@ Build with persistent cloud agents. Start a task, follow its progress, and retur
 | Guide                                                 | What you will learn                                              |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | [Quickstart](getting-started/quickstart.md)           | Create a project and complete your first run                     |
-| [Run locally](getting-started/local-development.md)   | Start the free simulator from a source checkout                  |
+| [Run and test](getting-started/local-development.md)   | Choose simulation, local Docker, or cloud staging; see what works today |
 | [Core concepts](getting-started/concepts.md)          | Understand projects, workspaces, sessions, runs, and checkpoints |
 | [Troubleshooting](getting-started/troubleshooting.md) | Recover from setup, queue, connection, and file errors           |
 
@@ -30,7 +30,12 @@ Start with the [API quickstart](features/api/quickstart.md) or [terminal CLI](fe
 
 ## Deploy and contribute
 
+- [Development modes](getting-started/local-development.md): [local simulation](getting-started/local-development/simulation.md), [local Docker agents](getting-started/local-development/docker.md), and [cloud staging](getting-started/local-development/cloud.md).
 - [Self-hosting](operations/README.md): deployment, configuration, backup, and scaling.
 - [Operator reporting](features/operations/README.md): usage, customer activity, and the read-only management MCP.
 - [Architecture](architecture/README.md) and [codebase map](architecture/codebase.md): system responsibilities and design decisions.
 - [Contributing](../CONTRIBUTING.md) and [engineering](engineering/README.md): development, testing, and review.
+
+## Start work automatically
+
+[Triggers and scheduled tasks](features/triggers/README.md) connect Slack messages, incoming webhooks and recurring prompts to your agents. Follow the setup guide for your starting point.

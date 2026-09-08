@@ -78,6 +78,20 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await expect(page.getByText('tool.started').first()).toBeVisible();
   await page.getByRole('tab', { name: /Events/ }).click();
   await expect(page.getByText('run.succeeded', { exact: true })).toBeVisible();
+  // A fresh page must replay persisted tool/events with the login cookie alone.
+  const replayRequest = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/stream'));
+  await page.reload();
+  const replay = await replayRequest;
+  expect(await replay.headerValue('authorization')).toBeNull();
+  expect(Boolean(await replay.headerValue('cookie'))).toBe(true);
+  expect(await replay.headerValue('x-client-type')).toBe('dashboard');
+  expect(await replay.headerValue('last-event-id')).toBe('0');
+  await expect(page.locator('.markdown-output')).toContainText('Simulation completed');
+  await page.getByRole('tab', { name: /Tool calls/ }).click();
+  await expect(page.getByText('tool.started').first()).toBeVisible();
+  await page.getByRole('tab', { name: /Events/ }).click();
+  await expect(page.getByText('run.succeeded', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Missing Macrofold API key' })).toHaveCount(0);
   await page.getByRole('link', { name: 'main', exact: true }).click();
   await page.getByRole('button', { name: 'hello.md', exact: true }).click();
   await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');

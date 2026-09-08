@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { auth } from '@platform/core/auth';
-import { config, isLocal } from '@platform/core/config';
+import { config, isLocal, isSimulated } from '@platform/core/config';
 import { Shell } from '../../components/shell';
 export const dynamic = 'force-dynamic';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <Shell
       name={config.name}
-      local={isLocal()}
+      environment={isSimulated() ? 'simulation' : isLocal() ? 'docker' : 'cloud'}
       user={{ name: session.user.name, email: session.user.email }}
       operator={config.operatorEmails.includes(session.user.email.toLowerCase())}
     >

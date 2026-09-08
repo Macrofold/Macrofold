@@ -4,9 +4,12 @@ Follow [TESTING.md](../../TESTING.md) for test selection, isolation, failure ass
 
 ## Where to start
 
+- [Run and test](../getting-started/local-development.md): the short developer path, three execution environments, and what each test level proves. [Implementation](development-modes.md) and [acceptance evidence](testing/development-modes.md) cover the shared Docker/cloud journey runners.
 - [Coverage collection](testing/coverage.md): measured source inventory, browser/server/CLI/native collection, source-map validation, merging, fallback limits and commands.
 - [Repository review](testing/repository-review.md): review scope, corrections, local acceptance and deferred improvements.
 - [Gap audit](testing/gaps.md): existing protection, meaningful new tests and remaining failure paths.
+- [Resource SDK acceptance](testing/sdk-resources.md): generated methods in five languages, typed inputs/responses, constructor defaults, and local API journeys.
+- [Trigger acceptance](testing/triggers.md): signed Slack intake, authenticated webhooks, scheduled prompts, isolated dashboard journeys and remaining hosted checks.
 - [SDK and autosave acceptance](testing/sdk-and-draft-acceptance.md): current focused verification, installed packages, process-kill recovery, and remaining limits.
 - [Mutation testing](testing/mutation.md): fast versus scheduled scopes, assertions added from survivors and remaining equivalent or unproven cases.
 - [Live integration acceptance](testing/live-integrations.md): explicitly budgeted provider calls, measured adapter behavior, reusable commands and remaining account/deployment checks.
@@ -29,6 +32,10 @@ The domain wrapper creates and removes a disposable database and object director
 `coverage/domain` is the fast in-process report. A complete run writes canonical coverage, raw observations and `merged` HTML/LCOV/JSON beneath its `COVERAGE_DIR`. Python XML/JSON stays in `coverage/python`. Reports preserve untouched application files. See the collection reference for conservative matching and Chromium/native-worker limitations.
 
 ## Current focused verification
+
+The trigger follow-up passes **571 domain tests in 77 files**, including 33 focused trigger tests, all five local SDK journeys, three focused browser journeys plus preserved dashboard/stream coverage, four CLI subprocess cases, real terminal and Python HTTP/SSE continuation, and strict type checks. The domain report is **48.04% lines, 46.74% statements, 39.89% branches, and 37.35% functions**. The unchanged 38% function floor remains a CI blocker; other global/module floors pass. Browser observations were not merged and Python coverage was not recomputed. [Trigger acceptance](testing/triggers.md) records source isolation, successful reruns, report limits and live checks. [Resource SDK acceptance](testing/sdk-resources.md) retains the separate packaging, generation, streaming and Python coverage evidence.
+
+## Previous SDK and autosave verification
 
 The SDK, autosave, diff-memory, and failure-path changes pass **499 domain tests in 67 files**, eight focused dashboard journeys, four CLI subprocess cases, the real PTY journey, and Python HTTP/SSE continuation. Fresh Python installation passes 21 tests. Go/Rust/Java pass 7/6/4 tests respectively, including real local API/simulator execution. Strict TypeScript and the dashboard's production build pass. [Acceptance details](testing/sdk-and-draft-acceptance.md) record source scope, Docker/SMTP limitations, and concurrent marketing edits.
 
@@ -65,7 +72,7 @@ Negative checks deliberately zeroed the runtime-capability branches and then all
 | Job                                | Purpose                                                                                                                                                                                        |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `acceptance`                       | Strict TypeScript, production/coverage builds, domain and browser/CLI coverage, load/installation/package checks, Python and cost tests, documentation, generated contracts, dependency audit. |
-| `Generated SDK contracts and transports` | Pinned generation drift, Go/Rust/Java HTTP and SSE fixtures, and actual API/simulator execution on a disposable database. |
+| `Generated SDK contracts and transports` | Pinned generation drift, all five resource journeys, Python type checking, native HTTP/SSE fixtures, and actual API/simulator execution on a disposable database. |
 | `Native runtime image`             | Current Docker image, three real harnesses, restore/continuation, OpenCode input and stdio MCP with external networking disabled; native coverage observations.                                |
 | `Combined coverage gates`          | Merge observations from that workflow run, require mapped surfaces, enforce shared floors, retain reports and optionally upload distinct TypeScript/Python Codecov flags.                      |
 | `Critical policy mutation tests`   | Fast runtime-credential and execution-plan mutation checks on PR/push/merge-queue/manual events; 90% minimum.                                                                                  |

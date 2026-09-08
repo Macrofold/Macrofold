@@ -1,5 +1,5 @@
 import { transaction } from '../../db';
-import { config, isLocal } from './config';
+import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id, unseal } from './crypto';
 import { getRun } from './runs';
@@ -373,11 +373,16 @@ export async function settleOrphanModelRequests(org: string, runId: string) {
     );
   }
 }
-export async function handleModelRequest(request: Request, runId: string, path: string) {
+export async function handleModelRequest(
+  request: Request,
+  runId: string,
+  path: string,
+  transport: typeof fetch = fetch,
+) {
   const requestId = id();
   try {
     assert(
-      config.allowPaid && !isLocal(),
+      realExecutionEnabled(),
       503,
       'paid_execution_disabled',
       'Paid model requests are disabled in this environment.',
@@ -435,7 +440,7 @@ export async function handleModelRequest(request: Request, runId: string, path: 
         const beta = request.headers.get('anthropic-beta');
         if (beta) headers['anthropic-beta'] = beta;
       } else headers.Authorization = `Bearer ${admission.secret}`;
-      const upstream = await fetch(admission.url, {
+      const upstream = await transport(admission.url, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),

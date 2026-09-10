@@ -2,6 +2,8 @@
 
 Read the [Design Language](design-language.md) for visual, interaction, copy, and documentation preferences. Explore the [marketing concepts](marketing/README.md) for ten visual directions, or read the product model below.
 
+The [branding asset kit](../branding/README.md) contains the selected Saddle logos, final color treatments, Space Grotesk fonts, and usage guidance.
+
 ## Outcome and audience
 
 Provide an inference-like API whose unit of work is a full agent harness. A developer submits a task, the harness uses a cloud computer and authorized tools for multiple turns, and the developer polls, streams, or receives a completion webhook. A filesystem and conversation can survive between invocations.

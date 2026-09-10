@@ -1,0 +1,291 @@
+{
+  "name": "Macrofold",
+  "typeface": "Space Grotesk",
+  "weight": 400,
+  "trackingEm": -0.015,
+  "kerning": "Font GPOS pair and class kerning",
+  "kerningUnits": [
+    0,
+    -14,
+    0,
+    -18,
+    -20,
+    -24,
+    0,
+    0
+  ],
+  "styles": [
+    {
+      "id": "01-white",
+      "name": "White",
+      "color": "#FFFFFF",
+      "background": "#080D12"
+    },
+    {
+      "id": "02-cyan",
+      "name": "Cyan",
+      "color": "#91DBE5",
+      "background": "#080D12"
+    },
+    {
+      "id": "03-black",
+      "name": "Dark / black",
+      "color": "#080D12",
+      "background": "#F0F5F6"
+    },
+    {
+      "id": "04-cyan-white",
+      "name": "Cyan / white gradient",
+      "base": "#82D0DF",
+      "blooms": [
+        [
+          0.18,
+          0.14,
+          0.76,
+          0.96,
+          -28,
+          "#FFFFFF",
+          1,
+          0.28
+        ],
+        [
+          0.88,
+          0.3,
+          0.58,
+          0.78,
+          32,
+          "#58BCCC",
+          0.72,
+          0.08
+        ],
+        [
+          0.7,
+          0.94,
+          0.62,
+          0.64,
+          -35,
+          "#F5FFFF",
+          1,
+          0.14
+        ]
+      ],
+      "background": "#080D12"
+    },
+    {
+      "id": "05-cyan-black",
+      "name": "Cyan / black gradient",
+      "base": "#081319",
+      "blooms": [
+        [
+          0.14,
+          0.19,
+          0.71,
+          0.92,
+          -32,
+          "#A9ECF2",
+          1,
+          0.18
+        ],
+        [
+          0.88,
+          0.82,
+          0.6,
+          0.78,
+          28,
+          "#5DC0CF",
+          0.92,
+          0.12
+        ],
+        [
+          0.56,
+          0.14,
+          0.31,
+          0.65,
+          30,
+          "#061016",
+          0.85,
+          0.12
+        ]
+      ],
+      "background": "#F0F5F6"
+    },
+    {
+      "id": "06-metallic-light",
+      "name": "Gleaming metallic \u00b7 cyan / light",
+      "base": "#88BAC6",
+      "blooms": [
+        [
+          0.15,
+          0.22,
+          0.65,
+          0.78,
+          -32,
+          "#F2FFFF",
+          1,
+          0.26
+        ],
+        [
+          0.53,
+          0.16,
+          0.32,
+          0.72,
+          34,
+          "#397888",
+          0.92,
+          0.18
+        ],
+        [
+          0.76,
+          0.8,
+          0.6,
+          0.52,
+          -34,
+          "#D9F9FA",
+          1,
+          0.24
+        ],
+        [
+          0.25,
+          0.19,
+          0.44,
+          0.2,
+          -38,
+          "#FFFFFF",
+          1,
+          0.3
+        ],
+        [
+          0.78,
+          0.68,
+          0.38,
+          0.15,
+          -36,
+          "#FFFFFF",
+          1,
+          0.24
+        ],
+        [
+          0.95,
+          0.2,
+          0.35,
+          0.48,
+          25,
+          "#5EB8C9",
+          0.7,
+          0.1
+        ]
+      ],
+      "background": "#080D12"
+    },
+    {
+      "id": "07-metallic-dark",
+      "name": "Gleaming metallic \u00b7 cyan / dark",
+      "base": "#0B242D",
+      "blooms": [
+        [
+          0.17,
+          0.27,
+          0.58,
+          0.72,
+          -32,
+          "#63B2C3",
+          1,
+          0.18
+        ],
+        [
+          0.79,
+          0.77,
+          0.52,
+          0.66,
+          28,
+          "#5CB9C9",
+          0.94,
+          0.16
+        ],
+        [
+          0.54,
+          0.12,
+          0.32,
+          0.7,
+          34,
+          "#030C13",
+          1,
+          0.28
+        ],
+        [
+          0.23,
+          0.23,
+          0.39,
+          0.22,
+          -38,
+          "#D5FAFF",
+          1,
+          0.12
+        ],
+        [
+          0.22,
+          0.2,
+          0.27,
+          0.105,
+          -38,
+          "#FFFFFF",
+          0.98,
+          0.08
+        ],
+        [
+          0.8,
+          0.67,
+          0.39,
+          0.18,
+          -36,
+          "#D4F8FA",
+          1,
+          0.12
+        ],
+        [
+          0.82,
+          0.63,
+          0.25,
+          0.08,
+          -36,
+          "#F4FFFF",
+          0.92,
+          0.06
+        ]
+      ],
+      "background": "#F0F5F6"
+    },
+    {
+      "id": "08-outline-white",
+      "name": "Edge-only white",
+      "color": "#FFFFFF",
+      "outline": true,
+      "background": "#080D12"
+    },
+    {
+      "id": "09-outline-black",
+      "name": "Edge-only black",
+      "color": "#080D12",
+      "outline": true,
+      "background": "#F0F5F6"
+    },
+    {
+      "id": "10-outline-cyan",
+      "name": "Edge-only cyan",
+      "color": "#91DBE5",
+      "outline": true,
+      "background": "#080D12"
+    }
+  ],
+  "construction": "Selected Saddle as shared native Bezier paths with tangent-continuous smooth joins. Filled treatments cut extended transparent seams only into the rear faces, preserving the complete foreground plane. Mark and wordmark share the same finish; bloom gradients are normalized across each complete shape.",
+  "exports": [
+    "Transparent SVG, outlined lettering",
+    "Transparent PNG at 3x"
+  ],
+  "fonts": {
+    "desktop": "../fonts/SpaceGrotesk-400.ttf",
+    "web": "../fonts/SpaceGrotesk-400.woff2",
+    "variableSource": "../fonts/SpaceGrotesk-variable.ttf",
+    "license": "../fonts/OFL.txt"
+  }
+}

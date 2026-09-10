@@ -2,6 +2,8 @@
 
 This is the current design; [decision log](decisions.md) explains changes from the initial proposal. [Verification](../status/README.md) distinguishes local acceptance from live-provider checks.
 
+[Future architecture improvements](future-improvements.md) evaluates Vercel Workflow and Temporal for persistent agent coordination, with explicit criteria for revisiting the current scheduler.
+
 ## Technology decisions
 
 | Responsibility        | Implementation                                                         | Why / tradeoff                                                                                                       |

@@ -2,6 +2,8 @@
 
 This is the central list of unresolved release work. It is not part of the published documentation site's navigation, search index, or Markdown export. A checked-in adapter or a local simulation pass does not close a live deployment check.
 
+Future architecture proposals are tracked separately in [future improvements](../architecture/future-improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
+
 ## Public repository and distribution
 
 - [ ] Enable GitHub private vulnerability reporting. The public repository API currently reports it disabled. Verify the private report flow, then update SECURITY.md with its working direct link.

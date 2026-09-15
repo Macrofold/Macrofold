@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -33,7 +34,10 @@ class Model(BaseModel):
     enabled: StrictBool
     billing_modes: List[StrictStr]
     rate_card_version: StrictStr
-    __properties: ClassVar[List[str]] = ["id", "provider", "harnesses", "enabled", "billing_modes", "rate_card_version"]
+    name: StrictStr = Field(description="Display name of the reviewed model.")
+    input_micro_usd_per_million: Annotated[str, Field(strict=True)] = Field(description="Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot.")
+    output_micro_usd_per_million: Annotated[str, Field(strict=True)] = Field(description="Current retail micro-USD per million output tokens, including reported reasoning tokens.")
+    __properties: ClassVar[List[str]] = ["id", "provider", "harnesses", "enabled", "billing_modes", "rate_card_version", "name", "input_micro_usd_per_million", "output_micro_usd_per_million"]
 
     @field_validator('billing_modes')
     def billing_modes_validate_enum(cls, value):
@@ -41,6 +45,20 @@ class Model(BaseModel):
         for i in value:
             if i not in set(['byok', 'managed']):
                 raise ValueError("each list item must be one of ('byok', 'managed')")
+        return value
+
+    @field_validator('input_micro_usd_per_million', mode="before")
+    def input_micro_usd_per_million_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if isinstance(value, str) and not re.match(r"^[0-9]+$", value):
+            raise ValueError(r"must validate the regular expression /^[0-9]+$/")
+        return value
+
+    @field_validator('output_micro_usd_per_million', mode="before")
+    def output_micro_usd_per_million_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if isinstance(value, str) and not re.match(r"^[0-9]+$", value):
+            raise ValueError(r"must validate the regular expression /^[0-9]+$/")
         return value
 
     model_config = ConfigDict(
@@ -99,7 +117,10 @@ class Model(BaseModel):
             "harnesses": obj.get("harnesses"),
             "enabled": obj.get("enabled"),
             "billing_modes": obj.get("billing_modes"),
-            "rate_card_version": obj.get("rate_card_version")
+            "rate_card_version": obj.get("rate_card_version"),
+            "name": obj.get("name"),
+            "input_micro_usd_per_million": obj.get("input_micro_usd_per_million"),
+            "output_micro_usd_per_million": obj.get("output_micro_usd_per_million")
         })
         return _obj
 

@@ -1,0 +1,443 @@
+.assistant-launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 22px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--app-line-2, var(--line));
+  border-radius: 999px;
+  background: var(--app-surface, var(--paper));
+  color: var(--app-ink, var(--ink));
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--app-shadow-1);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.assistant-launcher:hover {
+  border-color: var(--app-accent);
+  background: var(--app-surface-2);
+}
+.assistant-launcher > svg {
+  color: var(--app-accent);
+}
+.assistant-launcher-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--app-ember);
+}
+.assistant-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #050c1259;
+}
+.assistant-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 22px;
+  z-index: 81;
+  width: min(448px, calc(100vw - 32px));
+  height: min(740px, calc(100dvh - 44px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-line-2, var(--line));
+  border-radius: 16px;
+  background: var(--app-surface, var(--paper));
+  color: var(--app-ink, var(--ink));
+  box-shadow: var(--app-shadow-2);
+  font-family: var(--app-font, inherit);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.assistant-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 20px 18px;
+}
+.assistant-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.assistant-heading h2 {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0 0 5px;
+}
+.assistant-heading p {
+  margin: 0;
+  color: var(--app-ink-2, var(--muted));
+  font-size: 12px;
+}
+.assistant-heading .icon-button {
+  flex-shrink: 0;
+  margin: -5px -8px 0 0;
+  color: var(--app-ink-2);
+}
+.assistant-symbol {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+  background: var(--app-ember-wash);
+  color: var(--app-ember);
+}
+.assistant-preview {
+  display: inline-flex;
+  padding: 1px 6px;
+  margin-left: 5px;
+  border-radius: 5px;
+  background: var(--app-ember-wash);
+  color: var(--app-ember);
+  font-size: 11px;
+  vertical-align: middle;
+}
+.assistant-tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.assistant-tab-list {
+  display: flex;
+  gap: 18px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--app-line, var(--line));
+}
+.assistant-tab-list > button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 0 10px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--app-ink-2);
+  font-size: 13px;
+}
+.assistant-tab-list > button[data-state='active'] {
+  color: var(--app-accent);
+  border-bottom-color: var(--app-accent);
+}
+.assistant-tab-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.assistant-tab-content[data-state='inactive'],
+.assistant-help[data-state='inactive'] {
+  display: none;
+}
+.assistant-conversation {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 20px;
+  flex: 1;
+  min-height: 0;
+}
+.assistant-intro {
+  padding: 8px 10px 22px;
+  text-align: center;
+}
+.assistant-intro-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 15px;
+  color: var(--app-ember);
+  background: radial-gradient(circle, var(--app-ember-wash), transparent 75%);
+}
+.assistant-intro h3 {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  margin: 0 0 9px;
+}
+.assistant-intro p {
+  color: var(--app-ink-2);
+  margin: 0;
+}
+.assistant-suggestions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.assistant-suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  text-align: left;
+  min-height: 55px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-line);
+  border-radius: 9px;
+  font-size: 12px;
+}
+.assistant-suggestions button > svg {
+  flex-shrink: 0;
+  color: var(--app-ink-2);
+}
+.assistant-suggestions button:hover {
+  background: var(--app-accent-wash);
+  border-color: var(--app-line-2);
+}
+.assistant-question {
+  margin: 8px 0 20px 28px;
+  padding: 12px 14px;
+  background: var(--app-surface-2);
+  border: 1px solid var(--app-line);
+  border-radius: 12px 12px 3px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistant-answer {
+  margin-bottom: 24px;
+}
+.assistant-answer-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--app-ink-2);
+  font-size: 11px;
+}
+.assistant-answer-label svg {
+  color: var(--app-ember);
+}
+.assistant-answer h4 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 7px;
+}
+.assistant-answer p {
+  margin: 0;
+  color: var(--app-ink-2);
+}
+.assistant-answer-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 13px;
+}
+.assistant-answer-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-accent);
+  font-weight: 500;
+  font-size: 12px;
+}
+.assistant-answer-actions a:hover,
+.assistant-prompt-card a:hover {
+  text-decoration: underline;
+}
+.assistant-prompt-card {
+  margin-top: 22px;
+  padding: 15px;
+  border: 1px solid var(--app-line);
+  border-radius: 11px;
+  background: var(--app-accent-wash);
+}
+.assistant-prompt-card > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.assistant-prompt-card > div svg {
+  color: var(--app-accent);
+}
+.assistant-prompt-card strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.assistant-prompt-card p {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--app-ink-2);
+}
+.assistant-prompt-card > .button {
+  min-height: 36px;
+  font-size: 12px;
+}
+.assistant-prompt-card a {
+  color: var(--app-accent);
+}
+.assistant-prompt-card [role='alert'] {
+  color: var(--app-danger);
+}
+.assistant-prompt-preview {
+  margin-top: 12px;
+}
+.assistant-prompt-preview summary {
+  cursor: pointer;
+  color: var(--app-ink-2);
+  font-size: 12px;
+}
+.assistant-prompt-preview textarea {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--app-line);
+  border-radius: 6px;
+  background: var(--app-surface);
+  color: var(--app-ink-2);
+  font-family: var(--app-mono);
+  font-size: 11px;
+  resize: vertical;
+}
+.assistant-composer {
+  padding: 14px 20px 12px;
+  border-top: 1px solid var(--app-line);
+}
+.assistant-composer-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--app-line-2);
+  border-radius: 11px;
+  background: var(--app-surface);
+}
+.assistant-composer-input:focus-within {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-wash);
+}
+.assistant-composer-input textarea {
+  padding: 3px;
+  min-width: 0;
+  flex: 1;
+  max-height: 140px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ink);
+  font: inherit;
+  resize: vertical;
+  outline: none;
+  box-shadow: none;
+}
+.assistant-composer-input textarea::placeholder {
+  color: var(--app-ink-2);
+}
+.assistant-composer-input .button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.assistant-composer > p {
+  margin: 8px 0 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--app-ink-2);
+}
+.assistant-help {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 20px;
+}
+.assistant-help h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+}
+.assistant-help > p {
+  color: var(--app-ink-2);
+  margin: 0 0 25px;
+}
+.assistant-help > a {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--app-line);
+}
+.assistant-help > a > svg:first-child {
+  color: var(--app-accent);
+}
+.assistant-help > a span {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+}
+.assistant-help strong {
+  font-weight: 500;
+}
+.assistant-help small {
+  color: var(--app-ink-2);
+  font-size: 12px;
+}
+.assistant-help > a:hover strong {
+  color: var(--app-accent);
+}
+.assistant-support-note {
+  margin-top: 28px;
+  padding: 15px;
+  border-radius: 10px;
+  background: var(--app-surface-2);
+}
+.assistant-support-note p {
+  color: var(--app-ink-2);
+  font-size: 12px;
+  margin: 7px 0 0;
+}
+.assistant-panel :is(button, a, summary):focus-visible,
+.assistant-launcher:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .assistant-launcher {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 42px;
+  }
+  .assistant-panel {
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: calc(100vw - 16px);
+    height: min(740px, calc(100dvh - 24px));
+    border-radius: 13px;
+  }
+  .assistant-heading {
+    padding: 18px 16px 15px;
+    gap: 9px;
+  }
+  .assistant-heading h2 {
+    font-size: 14px;
+  }
+  .assistant-heading .assistant-symbol {
+    width: 30px;
+    height: 30px;
+  }
+  .assistant-conversation,
+  .assistant-help {
+    padding: 20px 16px;
+  }
+  .assistant-composer {
+    padding: 12px 16px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-launcher {
+    transition: none;
+  }
+}

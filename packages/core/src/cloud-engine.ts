@@ -1,3 +1,5 @@
+import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
+import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
 import { transaction, type Tx } from '../../db';
 import { id, sha256 } from './crypto';
@@ -7,13 +9,14 @@ import { claimRun, principalFor } from './engine';
 import { getRun, terminal } from './runs';
 import { emit } from './events';
 import { settle } from './ledger';
-import { models, computeMaximum } from './catalog';
+import { computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
 import * as resources from './resources';
 import { checkpoint, checkpointState, type FileRecord } from './files';
 import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
+import { isNativeAuthPath } from '../../runtime/src/auth-paths';
 import { describeContent, readContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
@@ -31,7 +34,7 @@ type Phase =
   | 'publish'
   | 'close'
   | 'done';
-type State = {
+export type ExecutionState = {
   provider: 'vercel' | 'docker';
   phase: Phase;
   machine?: MachineBinding;
@@ -100,14 +103,14 @@ export async function advanceCloudRun(
   let state = (run.execution_binding || {
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
     phase: 'input',
-  }) as State;
+  }) as ExecutionState;
   if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
   const claim = id();
   const owns = await transaction(org, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
     const current = await getRun(tx, runId);
-    state = (current.execution_binding || state) as State;
+    state = (current.execution_binding || state) as ExecutionState;
     if (state.lock && (state.lockExpires || 0) > Date.now()) return false;
     state = { ...state, lock: claim, lockExpires: Date.now() + 120_000 };
     await tx.query('UPDATE runs SET execution_binding=$2,heartbeat_at=now() WHERE id=$1', [
@@ -131,10 +134,20 @@ export async function advanceCloudRun(
         const ws = await resources.get(tx, 'workspaces', run.workspace_id),
           session = await resources.get(tx, 'sessions', run.session_id);
         return [
-          ...((ws.files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'workspace' as const })),
-          ...((ws.git_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'workspace' as const })),
+          ...((ws.files || []) as FileRecord[])
+            .filter(
+              (f) =>
+                !guardedToolsRequired(run.config.permission_layers || []) ||
+                (f.type === 'file' && fileAllowed(run.config.permission_layers || [], 'read', f.path)),
+            )
+            .map((f) => ({ ...f, namespace: 'workspace' as const })),
+          ...(
+            (guardedToolsRequired(run.config.permission_layers || [])
+              ? []
+              : ws.git_files || []) as FileRecord[]
+          ).map((f) => ({ ...f, namespace: 'workspace' as const })),
           ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ];
+        ].filter((file) => !isNativeAuthPath(file.namespace, file.path));
       });
       const offset = state.inputOffset || 0;
       const entries: SnapshotEntry[] = [];
@@ -174,7 +187,7 @@ export async function advanceCloudRun(
         ]),
       );
       const session = await transaction(org, (tx) => resources.get(tx, 'sessions', run.session_id));
-      const model = run.config.rate_card || models().find((m) => m.id === run.config.model);
+      const model = run.config.rate_card;
       assert(model, 503, 'model_unavailable', 'The configured model is unavailable.');
       const configuration: NativeConfiguration = {
         runId,
@@ -196,6 +209,7 @@ export async function advanceCloudRun(
         deadline: run.deadline!.toISOString(),
         resumeId: session.native_session_id as string | undefined,
         toolGrants: Boolean(run.config.connection_grants?.length),
+        permissions: run.config.permission_layers,
       };
       await provider.prepare(state.machine, configuration);
       state.phase = 'hydrate';
@@ -299,6 +313,7 @@ export async function advanceCloudRun(
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
+          if (isNativeAuthPath(entry.namespace, entry.path)) continue;
           await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
           for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
         }
@@ -400,7 +415,7 @@ export async function advanceCloudRun(
   return { done: state.phase === 'done', delaySeconds };
 }
 
-async function publishCloudRun(org: string, runId: string, state: State) {
+async function publishCloudRun(org: string, runId: string, state: ExecutionState) {
   await transaction(org, (tx) =>
     tx.query(
       "UPDATE runs SET status='persisting' WHERE id=$1 AND status NOT IN ('succeeded','failed','cancelled','timed_out')",
@@ -423,15 +438,24 @@ async function publishCloudRun(org: string, runId: string, state: State) {
           'output_entry',
         ])
       ).rows as { data: SnapshotEntry & { record: FileRecord } }[];
-      const files = objects
+      let files = objects
         .filter((o) => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git'))
         .map((o) => o.data.record);
       const gitFiles = objects
         .filter((o) => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git'))
         .map((o) => o.data.record);
       const home = objects.filter((o) => o.data.namespace === 'home').map((o) => o.data.record);
+      if (guardedToolsRequired(run.config.permission_layers || []))
+        files = permissionOutput(run.config.permission_layers || [], ws.files || [], files);
       // Every object was read back and hash-verified before reaching this transaction.
-      const cp = await checkpoint(tx, principalFor(run), run.workspace_id, 'Agent run', files, gitFiles);
+      const cp = await checkpoint(
+        tx,
+        principalFor(run),
+        run.workspace_id,
+        'Agent run',
+        files,
+        guardedToolsRequired(run.config.permission_layers || []) ? ws.git_files : gitFiles,
+      );
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       checkpointId = cp.id;
       await resources.update(tx, 'workspaces', run.workspace_id, { ...checkpointState(cp), status: 'idle' });

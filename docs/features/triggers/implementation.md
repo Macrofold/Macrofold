@@ -56,3 +56,11 @@ Real Slack installation, HTTPS callback timing, provider permissions/rate limits
 ## Design references
 
 The prompt/cadence/history/pause/run-now interaction follows the documented [Claude Cowork scheduled task controls](https://support.claude.com/en/articles/13854387-schedule-recurring-tasks-in-claude-cowork). Unlike session-scoped CLI scheduling, tasks here live in PostgreSQL; [Claude Code’s scheduling guide](https://code.claude.com/docs/en/scheduled-tasks) distinguishes persistent scheduling from session loops. The Slack path follows official [fast acknowledgment and retry guidance](https://docs.slack.dev/apis/events-api/), [signature verification](https://docs.slack.dev/authentication/verifying-requests-from-slack/), and [channel pagination](https://docs.slack.dev/reference/methods/conversations.list/).
+
+## Connector policy admission
+
+Trigger dispatch calls the same run admission resolver with its saved project and preset. The session/run retains the preset ID and version, while the tool snapshot retains exact account binding and the accepted ceiling. Incoming payload fields are event data, never connection_access_overrides. Saved triggers expose no exception field. Current project/preset rules are evaluated anew for each admitted run; see [connector access implementation](../../engineering/testing/connection-access.md).
+
+## Saved definition quota
+
+Migration 033 stores one `trigger_policy.definition_limit` default and nullable `organizations.trigger_definition_limit` overrides. `trigger-quota.ts` computes the organization-wide count of non-deleted definitions (enabled or paused), limit and remaining capacity under tenant RLS. Creation checks it while holding the existing organization advisory lock, so concurrent requests cannot both take the last slot. Updates do not consume another slot; lowering a limit never modifies existing definitions. The serving role cannot mutate the deployment policy. `pnpm triggers:quota` uses the owner connection for operator configuration. `GET /v1/triggers` exposes a typed `quota` beside paginated results; filters never narrow the organization-wide quota count. See [scheduled tasks](scheduled-tasks.md) for commands and user behavior.

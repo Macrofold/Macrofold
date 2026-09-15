@@ -1,0 +1,313 @@
+/* Original motion for the existing Lucide SVGs; no animated-icon runtime required. */
+.sidebar-animated-icon,
+.sidebar-animated-icon > * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sidebar-animated-icon {
+  --sidebar-icon-animation: sidebar-icon-lift;
+  --sidebar-icon-duration: 560ms;
+}
+
+.sidebar-animated-icon > * {
+  --sidebar-part-animation: none;
+  --sidebar-part-delay: 0ms;
+}
+
+.sidebar-animated-icon:is(.lucide-layout-dashboard, .lucide-layout-grid) {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon:is(.lucide-layout-dashboard, .lucide-layout-grid) > rect {
+  --sidebar-part-animation: sidebar-icon-tile;
+}
+
+.sidebar-animated-icon:is(.lucide-layout-dashboard, .lucide-layout-grid) > :nth-child(2) {
+  --sidebar-part-delay: 45ms;
+}
+
+.sidebar-animated-icon:is(.lucide-layout-dashboard, .lucide-layout-grid) > :nth-child(3) {
+  --sidebar-part-delay: 90ms;
+}
+
+.sidebar-animated-icon:is(.lucide-layout-dashboard, .lucide-layout-grid) > :nth-child(4) {
+  --sidebar-part-delay: 135ms;
+}
+
+.sidebar-animated-icon.lucide-folder-open {
+  --sidebar-icon-animation: sidebar-icon-folder;
+  transform-origin: 35% 80%;
+}
+
+.sidebar-animated-icon.lucide-activity {
+  --sidebar-icon-animation: sidebar-icon-pulse;
+}
+
+.sidebar-animated-icon.lucide-bot {
+  --sidebar-icon-animation: sidebar-icon-hello;
+}
+
+.sidebar-animated-icon.lucide-bot > path:nth-last-child(-n + 2) {
+  --sidebar-part-animation: sidebar-icon-blink;
+}
+
+.sidebar-animated-icon.lucide-plug-zap {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon.lucide-plug-zap > path:last-child {
+  --sidebar-part-animation: sidebar-icon-spark;
+}
+
+.sidebar-animated-icon.lucide-webhook {
+  --sidebar-icon-animation: sidebar-icon-orbit;
+}
+
+.sidebar-animated-icon.lucide-calendar-clock {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon.lucide-calendar-clock > path:first-child {
+  --sidebar-part-animation: sidebar-icon-clock;
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+}
+
+.sidebar-animated-icon.lucide-key-round {
+  --sidebar-icon-animation: sidebar-icon-key;
+  transform-box: view-box;
+  transform-origin: 16.5px 7.5px;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined > path:not(:nth-child(4)) {
+  --sidebar-part-animation: sidebar-icon-bar;
+  transform-origin: center bottom;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined > :nth-child(1) {
+  --sidebar-part-delay: 60ms;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined > :nth-child(2) {
+  --sidebar-part-delay: 90ms;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined > :nth-child(3) {
+  --sidebar-part-delay: 120ms;
+}
+
+.sidebar-animated-icon.lucide-chart-no-axes-combined > :nth-child(6) {
+  --sidebar-part-delay: 30ms;
+}
+
+.sidebar-animated-icon.lucide-settings-2 {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon.lucide-settings-2 > circle {
+  --sidebar-part-animation: sidebar-icon-slide;
+  --sidebar-icon-shift: -2px;
+}
+
+.sidebar-animated-icon.lucide-settings-2 > circle:last-child {
+  --sidebar-icon-shift: 2px;
+}
+
+.sidebar-animated-icon.lucide-shield-check {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon.lucide-shield-check > path:last-child {
+  --sidebar-part-animation: sidebar-icon-check;
+}
+
+.sidebar-animated-icon.lucide-users > circle {
+  --sidebar-part-animation: sidebar-icon-hello;
+}
+
+.sidebar-animated-icon.lucide-sparkles {
+  --sidebar-icon-animation: sidebar-icon-spark;
+}
+
+.sidebar-animated-icon.lucide-book-open {
+  --sidebar-icon-animation: sidebar-icon-book;
+}
+
+.sidebar-animated-icon.lucide-search {
+  --sidebar-icon-animation: sidebar-icon-search;
+}
+
+.sidebar-animated-icon:is(.lucide-panel-left-open, .lucide-panel-left-close) {
+  --sidebar-icon-animation: none;
+}
+
+.sidebar-animated-icon:is(.lucide-panel-left-open, .lucide-panel-left-close) > path:last-child {
+  --sidebar-part-animation: sidebar-icon-slide;
+  --sidebar-icon-shift: 2px;
+}
+
+.sidebar-animated-icon.lucide-panel-left-close > path:last-child {
+  --sidebar-icon-shift: -2px;
+}
+
+/* Finite animations reset when both hover and keyboard focus leave the control. */
+
+html:not([data-dashboard-motion='paused'])
+  .sidebar
+  :is(a, button):is(:hover, :focus-visible)
+  > .sidebar-animated-icon {
+  animation: var(--sidebar-icon-animation) var(--sidebar-icon-duration) cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+html:not([data-dashboard-motion='paused'])
+  .sidebar
+  :is(a, button):is(:hover, :focus-visible)
+  > .sidebar-animated-icon
+  > * {
+  animation: var(--sidebar-part-animation) var(--sidebar-icon-duration) cubic-bezier(0.22, 1, 0.36, 1)
+    var(--sidebar-part-delay) 1;
+}
+
+@keyframes sidebar-icon-lift {
+  35% {
+    transform: translateY(-1.5px);
+  }
+  70% {
+    transform: translateY(0.5px);
+  }
+}
+
+@keyframes sidebar-icon-tile {
+  35% {
+    transform: translateY(-1px) scale(0.84);
+  }
+  70% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes sidebar-icon-folder {
+  35% {
+    transform: rotate(-8deg) scaleX(1.07);
+  }
+  70% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes sidebar-icon-pulse {
+  35% {
+    transform: scaleY(0.78);
+  }
+  65% {
+    transform: scaleY(1.1);
+  }
+}
+
+@keyframes sidebar-icon-hello {
+  35% {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+  70% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes sidebar-icon-blink {
+  25%,
+  45% {
+    transform: scaleY(0.15);
+  }
+  65% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes sidebar-icon-spark {
+  35% {
+    transform: rotate(-10deg) scale(1.15);
+  }
+  70% {
+    transform: rotate(5deg) scale(0.96);
+  }
+}
+
+@keyframes sidebar-icon-orbit {
+  40% {
+    transform: rotate(18deg);
+  }
+  75% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes sidebar-icon-clock {
+  45% {
+    transform: rotate(40deg);
+  }
+  75% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes sidebar-icon-key {
+  40% {
+    transform: rotate(-18deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes sidebar-icon-bar {
+  30% {
+    transform: scaleY(0.45);
+  }
+  70% {
+    transform: scaleY(1.08);
+  }
+}
+
+@keyframes sidebar-icon-slide {
+  40% {
+    transform: translateX(var(--sidebar-icon-shift));
+  }
+  75% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sidebar-icon-check {
+  0% {
+    stroke-dasharray: 14;
+    stroke-dashoffset: 14;
+  }
+  70%,
+  100% {
+    stroke-dasharray: 14;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sidebar-icon-book {
+  35% {
+    transform: scaleX(0.83);
+  }
+  70% {
+    transform: scaleX(1.06);
+  }
+}
+
+@keyframes sidebar-icon-search {
+  35% {
+    transform: translate(1px, -1px) rotate(-8deg);
+  }
+  70% {
+    transform: translate(-0.5px, 0.5px);
+  }
+}

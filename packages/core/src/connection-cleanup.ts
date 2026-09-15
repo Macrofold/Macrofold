@@ -7,19 +7,19 @@ import * as resources from './resources';
 import { safeFetch } from '../../providers/src/network';
 import { assert } from './errors';
 
-export async function disconnectConnection(tx: Tx, p: Principal, c: resources.Document) {
+export async function disconnectConnection(tx: Tx, p: Principal, c: resources.Document<'connections'>) {
+  await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [c.id]);
+  c = await resources.get(tx, 'connections', c.id, p);
   assertConnectionOwner(p, c);
   await resources.update(tx, 'connections', c.id, {
     deleted: true,
     status: 'error',
     cleanup_status: 'pending',
-    grants: {
-      version: Number((c.grants as { version: number }).version) + 1,
-      subject_type: 'user',
-      subject_id: p.userId,
-      tools: [],
-    },
   });
+  await tx.query(
+    "UPDATE connections SET access_tools='{}',access_organization_wide=false,access_version=access_version+1 WHERE id=$1",
+    [c.id],
+  );
   await tx.query(
     "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'connection_cleanup',$3) ON CONFLICT(kind,resource_id) DO NOTHING",
     [id(), p.organizationId, c.id],
@@ -56,7 +56,7 @@ export async function cleanConnection(
       )
     ).rows[0];
     if (!job || job.state === 'done') return;
-    let status = 'revoked';
+    let status: NonNullable<resources.Document<'connections'>['cleanup_status']> = 'revoked';
     try {
       if (c.kind === 'composio' && c.external_account_id) await deleteApp(String(c.external_account_id));
       else if (c.oauth_ciphertext) {

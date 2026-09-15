@@ -54,14 +54,14 @@ test('finds projects and files beyond the first page and exposes every cursor pa
     tx.release();
   }
   await page.goto('/projects');
-  await expect(page.locator('.project-card:not(.new-project)')).toHaveCount(25);
+  await expect(page.locator('.project-list-row')).toHaveCount(25);
   for (const count of [50, 75, 100, 106]) {
     await page.getByRole('button', { name: 'More projects', exact: true }).click();
-    await expect(page.locator('.project-card:not(.new-project)')).toHaveCount(count);
+    await expect(page.locator('.project-list-row')).toHaveCount(count);
   }
   await expect(page.getByRole('button', { name: 'More projects', exact: true })).toHaveCount(0);
   await page.getByLabel('Search projects').fill('research 104');
-  await expect(page.locator('.project-card:not(.new-project)')).toHaveCount(1);
+  await expect(page.locator('.project-list-row')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Archived research 104' })).toBeVisible();
   await page.getByLabel('Search projects').fill('Explorer project');
   await page.getByRole('heading', { name: 'Explorer project' }).click();
@@ -102,12 +102,16 @@ test('finds projects and files beyond the first page and exposes every cursor pa
     db.release();
   }
   await page.reload();
-  await expect(page.locator('.file-row')).toHaveCount(100);
-  await page.getByRole('button', { name: 'More files', exact: true }).click();
-  await expect(page.locator('.file-row')).toHaveCount(130);
+  const folder = page.getByRole('treeitem', { name: 'files', exact: true });
+  await expect(folder).toBeVisible();
+  await folder.click();
+  const tree = page.getByRole('tree', { name: 'Worktree files' });
+  await expect(tree.getByRole('treeitem').filter({ hasText: /record-\d{3}\.txt/ })).toHaveCount(100);
+  await tree.getByRole('treeitem', { name: 'Load more in files' }).click();
+  await expect(tree.getByRole('treeitem').filter({ hasText: /record-\d{3}\.txt/ })).toHaveCount(130);
   await page.getByLabel('Filter files').fill('RECORD-129');
-  await expect(page.locator('.file-row')).toHaveCount(1);
-  await page.locator('.file-row').click();
+  await expect(tree.getByRole('treeitem').filter({ hasText: /record-\d{3}\.txt/ })).toHaveCount(1);
+  await tree.getByRole('treeitem', { name: 'record-129.txt', exact: true }).click();
   await expect(page.locator('.cm-content')).toContainText('verified pagination fixture');
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(

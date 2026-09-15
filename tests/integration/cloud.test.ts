@@ -1,9 +1,10 @@
+import { writeFixtureFile } from '../fixtures/file-mutation';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { auth, customerScopes, type Principal } from '../../packages/core/src/auth';
 import { authPool, pool, transaction } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace, writeFile, type FileRecord } from '../../packages/core/src/files';
+import { createWorkspace, type FileRecord } from '../../packages/core/src/files';
 import { admitRun, getRun } from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
@@ -34,13 +35,17 @@ async function scenario() {
     projectIds: [],
     operator: false,
   };
-  return transaction(org, async (tx) => {
+  const ws = await transaction(org, async (tx) => {
     await credit(tx, org, 10_000_000n, `fixture:${id()}`);
     const project = await resources.create(tx, 'projects', org, { name: 'Cloud fixture' });
     const created = await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' });
     const workspaceId = (created.result as { workspace_id: string }).workspace_id;
     const ws = await resources.get(tx, 'workspaces', workspaceId);
-    await writeFile(tx, p, workspaceId, 'initial.txt', Buffer.from('Original checkpoint'), ws.revision);
+    return ws;
+  });
+  const workspaceId = ws.id;
+  await writeFixtureFile(p, workspaceId, 'initial.txt', Buffer.from('Original checkpoint'), ws.revision);
+  return transaction(org, async (tx) => {
     const run = await admitRun(tx, p, {
       workspace_id: workspaceId,
       harness: 'codex',
@@ -64,6 +69,77 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('durable cloud lifecycle with fault injection', () => {
+  it('waits for an owned execution phase lease and resumes after expiry without double launching', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await advanceCloudRun(s.org, s.runId, provider);
+    await transaction(s.org, async (tx) => {
+      const run = await getRun(tx, s.runId);
+      await tx.query('UPDATE runs SET execution_binding=$2 WHERE id=$1', [
+        s.runId,
+        { ...run.execution_binding, lock: 'other-worker', lockExpires: Date.now() + 60000 },
+      ]);
+    });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 5 });
+    expect(provider.starts).toBe(0);
+    await transaction(s.org, (tx) =>
+      tx.query(
+        "UPDATE runs SET execution_binding=jsonb_set(execution_binding,'{lockExpires}','0') WHERE id=$1",
+        [s.runId],
+      ),
+    );
+    for (let i = 0; i < 60; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).status).toBe('succeeded');
+    expect(provider.starts).toBe(1);
+  });
+  it('drops native authentication entries before reading or persisting their chunks', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const originalPage = provider.snapshotPage.bind(provider);
+    vi.spyOn(provider, 'snapshotPage').mockImplementation(async (binding, offset) => {
+      const page = await originalPage(binding, offset);
+      const credential = {
+        ...page.entries[0],
+        namespace: 'home' as const,
+        path: '.claude/.credentials.json',
+        sha256: 'a'.repeat(64),
+        chunks: [{ hash: 'a'.repeat(64), size: 11 }],
+      };
+      return { ...page, entries: [...page.entries, credential], total: page.total + 1 };
+    });
+    const chunk = vi.spyOn(provider, 'chunk');
+    for (let i = 0; i < 80; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    const saved = await transaction(s.org, async (tx) => {
+      const run = await getRun(tx, s.runId);
+      return { run, session: await resources.get(tx, 'sessions', run.session_id) };
+    });
+    expect(saved.run.status).toBe('succeeded');
+    expect(JSON.stringify(saved.session.state_files)).not.toContain('.credentials');
+    expect(chunk).not.toHaveBeenCalledWith(expect.anything(), 'a'.repeat(64));
+    expect(provider.starts).toBe(1);
+  });
+  it('fails a recovered gated subscription job without launching or losing its reservation', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await transaction(s.org, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{billing_mode}','\"subscription\"') WHERE id=$1", [
+        s.runId,
+      ]),
+    );
+    await advanceCloudRun(s.org, s.runId, provider);
+    const saved = await transaction(s.org, async (tx) => ({
+      run: await getRun(tx, s.runId),
+      balance: (await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [s.org])).rows[0],
+    }));
+    expect(saved.run).toMatchObject({
+      status: 'failed',
+      result: { failure_code: 'claude_subscription_unavailable' },
+    });
+    expect(saved.balance.reserved_micro_usd).toBe('0');
+    expect(provider.starts).toBe(0);
+    await advanceCloudRun(s.org, s.runId, provider);
+    expect(provider.starts).toBe(0);
+  });
   it('settles with the admitted compute rate after operator pricing changes', async () => {
     vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
     const s = await scenario(),

@@ -59,7 +59,7 @@ export class Context {
   async project(selector = stringOption(this.flags, 'project') || this.linked?.link.projectId) {
     if (this.projectValue && (!selector || [this.projectValue.id, this.projectValue.name].includes(selector)))
       return this.projectValue;
-    if (!selector) throw new CliError('Select a project with --project ID or run agent link PROJECT.');
+    if (!selector) throw new CliError('Select a project with --project ID or run macrofold link PROJECT.');
     let project: Schema['Project'] | undefined;
     if (uuid(selector))
       project = await this.client.request('getProject', { params: { path: { project_id: selector } } });
@@ -175,8 +175,10 @@ export function limits(flags: Options): Schema['Limits'] {
       : '2000000',
   };
 }
-export function execution(flags: Options) {
-  const grants = (Array.isArray(flags.connection) ? flags.connection : []).map((value) => {
+export function connectionSelection(flags: Options): Schema['Grant'][] | undefined {
+  if (flags['no-connections']) return [];
+  if (!Array.isArray(flags.connection) || !flags.connection.length) return undefined;
+  return flags.connection.map((value) => {
     const colon = value.indexOf(':');
     if (colon < 0)
       throw new CliError(
@@ -191,12 +193,16 @@ export function execution(flags: Options) {
       throw new CliError('Supply a valid connection ID and at least one tool.');
     return { connection_id, tools };
   });
+}
+
+export function execution(flags: Options) {
   return {
     harness: stringOption(flags, 'harness') as Schema['SessionCreate']['harness'] | undefined,
     model: stringOption(flags, 'model'),
-    billing_mode: (stringOption(flags, 'billing-mode') || 'managed') as 'managed' | 'byok',
+    billing_mode: (stringOption(flags, 'billing-mode') ||
+      'managed') as Schema['SessionCreate']['billing_mode'],
     provider_connection_id: stringOption(flags, 'provider-connection'),
-    connection_grants: grants,
+    connection_grants: connectionSelection(flags),
     limits: limits(flags),
   };
 }

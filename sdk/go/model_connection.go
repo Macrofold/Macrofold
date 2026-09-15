@@ -23,6 +23,7 @@ var _ MappedNullable = &Connection{}
 // Connection struct for Connection
 type Connection struct {
 	Id string `json:"id"`
+	// Editable display name. Does not change the stable connection ID or any agent selection.
 	Name string `json:"name"`
 	Kind string `json:"kind"`
 	// For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation.
@@ -35,6 +36,11 @@ type Connection struct {
 	CreatedAt time.Time `json:"created_at"`
 	Package *string `json:"package,omitempty"`
 	PackageVersion *string `json:"package_version,omitempty"`
+	// Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state.
+	AccountIdentity NullableString `json:"account_identity,omitempty"`
+	ApiFallback *ClaudeApiFallback `json:"api_fallback,omitempty"`
+	// Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
+	Availability *string `json:"availability,omitempty"`
 }
 
 type _Connection Connection
@@ -398,6 +404,112 @@ func (o *Connection) SetPackageVersion(v string) {
 	o.PackageVersion = &v
 }
 
+// GetAccountIdentity returns the AccountIdentity field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Connection) GetAccountIdentity() string {
+	if o == nil || IsNil(o.AccountIdentity.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.AccountIdentity.Get()
+}
+
+// GetAccountIdentityOk returns a tuple with the AccountIdentity field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Connection) GetAccountIdentityOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.AccountIdentity.Get(), o.AccountIdentity.IsSet()
+}
+
+// HasAccountIdentity returns a boolean if a field has been set.
+func (o *Connection) HasAccountIdentity() bool {
+	if o != nil && o.AccountIdentity.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetAccountIdentity gets a reference to the given NullableString and assigns it to the AccountIdentity field.
+func (o *Connection) SetAccountIdentity(v string) {
+	o.AccountIdentity.Set(&v)
+}
+// SetAccountIdentityNil sets the value for AccountIdentity to be an explicit nil
+func (o *Connection) SetAccountIdentityNil() {
+	o.AccountIdentity.Set(nil)
+}
+
+// UnsetAccountIdentity ensures that no value is present for AccountIdentity, not even an explicit nil
+func (o *Connection) UnsetAccountIdentity() {
+	o.AccountIdentity.Unset()
+}
+
+// GetApiFallback returns the ApiFallback field value if set, zero value otherwise.
+func (o *Connection) GetApiFallback() ClaudeApiFallback {
+	if o == nil || IsNil(o.ApiFallback) {
+		var ret ClaudeApiFallback
+		return ret
+	}
+	return *o.ApiFallback
+}
+
+// GetApiFallbackOk returns a tuple with the ApiFallback field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Connection) GetApiFallbackOk() (*ClaudeApiFallback, bool) {
+	if o == nil || IsNil(o.ApiFallback) {
+		return nil, false
+	}
+	return o.ApiFallback, true
+}
+
+// HasApiFallback returns a boolean if a field has been set.
+func (o *Connection) HasApiFallback() bool {
+	if o != nil && !IsNil(o.ApiFallback) {
+		return true
+	}
+
+	return false
+}
+
+// SetApiFallback gets a reference to the given ClaudeApiFallback and assigns it to the ApiFallback field.
+func (o *Connection) SetApiFallback(v ClaudeApiFallback) {
+	o.ApiFallback = &v
+}
+
+// GetAvailability returns the Availability field value if set, zero value otherwise.
+func (o *Connection) GetAvailability() string {
+	if o == nil || IsNil(o.Availability) {
+		var ret string
+		return ret
+	}
+	return *o.Availability
+}
+
+// GetAvailabilityOk returns a tuple with the Availability field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Connection) GetAvailabilityOk() (*string, bool) {
+	if o == nil || IsNil(o.Availability) {
+		return nil, false
+	}
+	return o.Availability, true
+}
+
+// HasAvailability returns a boolean if a field has been set.
+func (o *Connection) HasAvailability() bool {
+	if o != nil && !IsNil(o.Availability) {
+		return true
+	}
+
+	return false
+}
+
+// SetAvailability gets a reference to the given string and assigns it to the Availability field.
+func (o *Connection) SetAvailability(v string) {
+	o.Availability = &v
+}
+
 func (o Connection) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -431,6 +543,15 @@ func (o Connection) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.PackageVersion) {
 		toSerialize["package_version"] = o.PackageVersion
+	}
+	if o.AccountIdentity.IsSet() {
+		toSerialize["account_identity"] = o.AccountIdentity.Get()
+	}
+	if !IsNil(o.ApiFallback) {
+		toSerialize["api_fallback"] = o.ApiFallback
+	}
+	if !IsNil(o.Availability) {
+		toSerialize["availability"] = o.Availability
 	}
 	return toSerialize, nil
 }

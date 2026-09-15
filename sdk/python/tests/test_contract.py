@@ -102,8 +102,12 @@ def test_resource_http_contract(path, verb, operation):
             kwargs['content'] = body
         else:
             schema = resolve(request['content']['application/json']['schema'])
-            body = {key: example(value) for key, value in schema.get('properties', {}).items()}
-            kwargs.update({snake(key): value for key, value in body.items()})
+            if schema.get('oneOf') and not schema.get('properties'):
+                body = example(schema)
+                kwargs['input'] = body
+            else:
+                body = {key: example(value) for key, value in schema.get('properties', {}).items()}
+                kwargs.update({snake(key): value for key, value in body.items()})
     status, response = next((int(code), resolve(value)) for code, value in operation['responses'].items() if code.startswith('2'))
     content = response.get('content', {})
     output = example(content['application/json']['schema']) if 'application/json' in content else b'\x00download\xff' if content else None
@@ -140,5 +144,50 @@ def test_resource_http_contract(path, verb, operation):
                 if not isinstance(value, (dict, list)):
                     assert decoded[key] == value
         assert len(calls) == 1
+    finally:
+        client.close()
+
+
+def test_homepage_new_run_snippet(monkeypatch, capsys):
+    """Execute the actual published example through HTTPX and typed response parsing."""
+    import macrofold
+
+    source = (ROOT / 'apps/web/components/landing/examples.ts').read_text()
+    snippet = re.search(r'Python: `(.*?)`,', source, re.S).group(1)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        assert request.headers['Authorization'] == 'Bearer snippet-fixture'
+        if request.method == 'POST':
+            assert request.headers['Idempotency-Key']
+            assert json.loads(request.content) == {
+                'project_id': ID, 'harness': 'codex', 'model': 'gpt-5.4-mini',
+                'billing_mode': 'managed', 'prompt': 'Build a working prototype.',
+            }
+            return httpx.Response(202, json=example(SPEC['components']['schemas']['RunAccepted']))
+        if request.url.path.endswith('/stream'):
+            events = [
+                {'sequence': '1', 'type': 'output.delta', 'data': {'text': 'Working prototype'}},
+                {'sequence': '2', 'type': 'run.succeeded', 'data': {}},
+            ]
+            return httpx.Response(200, headers={'Content-Type': 'text/event-stream'},
+                                  text=''.join(f'data: {json.dumps({**example(SPEC["components"]["schemas"]["Event"]), **event})}\n\n' for event in events))
+        if request.url.path.endswith('/result'):
+            return httpx.Response(200, json={
+                'run_id': ID, 'final': True, 'execution_outcome': 'success',
+                'persistence_status': 'verified',
+            })
+        run = example(SPEC['components']['schemas']['Run'])
+        run['status'] = 'succeeded'
+        return httpx.Response(200, json=run)
+
+    client = macrofold.Macrofold(api_key='snippet-fixture', transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(macrofold, 'Macrofold', lambda: client)
+    try:
+        exec(compile(snippet, 'homepage-python-example', 'exec'), {'project_id': ID})
+        assert capsys.readouterr().out == 'Working prototype'
+        assert len(requests) == 4
+        assert client._http.is_closed
     finally:
         client.close()

@@ -9,6 +9,32 @@ use tokio::{
 const ID: &str = "00000000-0000-4000-8000-000000000001";
 
 #[test]
+fn typed_file_results_preserve_existing_export_and_sync_metadata() {
+    let result: macrofold::models::OperationResult = serde_json::from_value(serde_json::json!({
+        "project_id": ID,
+        "format": "git_bundle",
+        "download_url": "https://objects.example.test/workspace.bundle",
+        "manifest_url": "https://objects.example.test/manifest.json",
+        "source_commit": "source",
+        "sync": {"workspace_id": ID, "status": "synced", "updated_at": "2026-09-10T00:00:00Z", "target_commit": "target"}
+    })).unwrap();
+    assert_eq!(result.project_id.unwrap().to_string(), ID);
+    assert_eq!(
+        result.download_url.as_deref(),
+        Some("https://objects.example.test/workspace.bundle")
+    );
+    assert_eq!(
+        result.manifest_url.as_deref(),
+        Some("https://objects.example.test/manifest.json")
+    );
+    assert_eq!(result.source_commit.as_deref(), Some("source"));
+    assert_eq!(
+        result.sync.unwrap().target_commit.as_deref(),
+        Some("target")
+    );
+}
+
+#[test]
 fn credential_environment() {
     // Each environment case runs in its own process; other async tests cannot race env mutation.
     if let Ok(mode) = std::env::var("MACROFOLD_SDK_AUTH_PROBE") {
@@ -264,6 +290,7 @@ async fn mutation_and_binary_wire_contract() {
             WriteFileParams {
                 path: "notes/a + b.bin".into(),
                 if_match: "revision-1".into(),
+                create_only: Some(true),
             },
         )
         .await;
@@ -342,6 +369,56 @@ async fn application_workflow() {
         ))
         .await
         .unwrap();
+    let workspace_id = project.default_workspace_id.unwrap().to_string();
+    let workspace = client.workspaces().get(&workspace_id).await.unwrap();
+    let folder = client
+        .workspaces()
+        .create_folder(
+            &workspace_id,
+            macrofold::models::FolderCreate::new("examples".into()),
+            macrofold::resources::CreateFolderParams {
+                if_match: workspace.revision,
+            },
+        )
+        .await
+        .unwrap()
+        .result
+        .unwrap();
+    assert_eq!(
+        folder.entry.unwrap().r#type,
+        macrofold::models::file_entry::Type::Directory
+    );
+    let renamed = client
+        .workspaces()
+        .rename_file(
+            &workspace_id,
+            macrofold::models::FileRename::new("examples/renamed.txt".into()),
+            macrofold::resources::RenameFileParams {
+                path: "examples/.gitkeep".into(),
+                if_match: folder.revision.unwrap(),
+            },
+        )
+        .await
+        .unwrap()
+        .result
+        .unwrap();
+    assert_eq!(renamed.previous_path.as_deref(), Some("examples/.gitkeep"));
+    let listing = client
+        .workspaces()
+        .list_files(
+            &workspace_id,
+            macrofold::resources::ListFilesParams {
+                recursive: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(listing.entries.len(), 1);
+    assert_eq!(
+        listing.entries[0].r#type,
+        macrofold::models::file_entry::Type::Directory
+    );
     let mut body = macrofold::models::RunCreate::new("Verify Rust persisted execution.".into());
     let agent = client
         .agents()

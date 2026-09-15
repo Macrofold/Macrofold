@@ -18,7 +18,13 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function request(method: string, path: string, body?: unknown, key = a.key) {
+async function request(
+  method: string,
+  path: string,
+  body?: unknown,
+  key = a.key,
+  headers: Record<string, string> = {},
+) {
   return handleApi(
     new Request(config.origin + path, {
       method,
@@ -26,6 +32,7 @@ async function request(method: string, path: string, body?: unknown, key = a.key
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
         'Idempotency-Key': id(),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
@@ -56,12 +63,13 @@ it.each(Object.keys(searchProviders))(
     expect(await tools.json()).toMatchObject({
       data: [expect.objectContaining({ name: 'web_search', granted: false })],
     });
-    const grant = await request('PUT', `/v1/connections/${value.id}/grants`, {
-      version: 1,
-      subject_type: 'user',
-      subject_id: a.p.userId,
-      tools: ['web_search'],
-    });
+    const grant = await request(
+      'PATCH',
+      `/v1/connections/${value.id}/access`,
+      { tools: ['web_search'] },
+      a.key,
+      { 'If-Match': '"1"' },
+    );
     expect(grant.status).toBe(200);
     const granted = await request('GET', `/v1/connections/${value.id}/tools`);
     expect(await granted.json()).toMatchObject({

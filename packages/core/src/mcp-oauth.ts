@@ -102,7 +102,7 @@ export class ConnectionOAuth implements OAuthClientProvider {
       delete this.data.discovery;
   }
 }
-function stored(connection: resources.Document): Stored {
+function stored(connection: resources.Document<'connections'>): Stored {
   if (connection.oauth_ciphertext) return unseal<Stored>(String(connection.oauth_ciphertext));
   const clients = JSON.parse(process.env.MCP_OAUTH_CLIENTS_JSON || '{}') as Record<
     string,
@@ -110,7 +110,7 @@ function stored(connection: resources.Document): Stored {
   >;
   return { client: clients[new URL(String(connection.url)).origin] };
 }
-function own(p: Principal, connection: resources.Document) {
+function own(p: Principal, connection: resources.Document<'connections'>) {
   requireScopes(p, ['connections:write']);
   assert(
     p.kind === 'user' &&
@@ -251,7 +251,7 @@ export async function finishMcpOAuth(request: Request, transport: typeof fetch =
 /** Serialize refresh-token rotation per connection; persist rotated credentials even if a subsequent
  * tool request fails. Client secrets never enter the agent sandbox. */
 export async function withConnectionOAuth<T>(
-  connection: resources.Document,
+  connection: resources.Document<'connections'>,
   fn: (provider: ConnectionOAuth) => Promise<T>,
 ): Promise<T> {
   const result = await credentialTransaction(connection.organization_id, async (tx) => {

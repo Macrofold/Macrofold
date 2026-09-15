@@ -53,7 +53,7 @@ All five SDKs expose the same endpoint through generated resource methods:
 | [Rust](../../../sdk/rust/README.md#read-persisted-files)             | `client.workspaces().read_file(workspace_id, params).await`                                  | Response; consume with `.bytes().await` or `.text().await` |
 | [Java](../../../sdk/java/README.md#read-persisted-files)             | `client.workspaces().readFile(workspaceId, new Resources.ReadFileParams("hello.txt"))`       | Temporary `File`; delete after reading                     |
 
-See the linked language guides for executable-context examples and [API conventions](../api/README.md) for errors and authentication.
+See the linked language guides for executable-context examples and [API conventions](../api/conventions.md) for errors and authentication.
 
 ## Limits and errors
 

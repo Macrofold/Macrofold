@@ -2,6 +2,8 @@
 
 Typed resource methods and resumable run streams using Go's standard HTTP client. Requires Go 1.23 or later.
 
+Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
+
 ## Install from source
 
 In your application, add a local module replacement:
@@ -15,7 +17,7 @@ After adding the import below, run `go mod tidy`.
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key. Copy a project ID and a saved agent preset ID. The preset supplies harness/model/billing configuration; the project identifies persistent files. Managed execution uses credits; local simulation is free.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```go
 package main
@@ -32,7 +34,9 @@ func main() {
     ctx := context.Background()
     input := macrofold.NewRunCreate("Create hello.txt containing Hello world.")
     input.SetProjectId("YOUR_PROJECT_ID")
-    input.SetAgentId("YOUR_AGENT_ID")
+    input.SetHarness("codex")
+    input.SetModel("gpt-5.4-mini")
+    input.SetBillingMode("managed")
     run, err := client.Runs.Create(ctx, input)
     if err != nil { panic(err) }
     err = client.Runs.StreamText(ctx, run.RunId, "0", func(text string) error {
@@ -103,4 +107,8 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 Generated builders remain available through `client.APIClient`, including `client.ProjectsAPI.ListProjects(ctx).Execute()`. These expose status/headers directly and require explicit idempotency for mutations. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
 
-See [API conventions](../../docs/features/api/README.md) for permissions, asynchronous work, and errors.
+See [API conventions](../../docs/features/api/conventions.md) for permissions, asynchronous work, and errors.
+
+## Choose a harness
+
+The same run methods support `codex`, `claude-code`, `opencode`, `hermes`, `deepseek`, and `pi`. Select a compatible model from the catalog. See [harness capabilities and examples](../../docs/features/execution/harnesses.md).

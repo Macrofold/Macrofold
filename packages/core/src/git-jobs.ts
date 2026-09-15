@@ -1,3 +1,4 @@
+import { isSimulated } from './config';
 import { pool, transaction, type Tx } from '../../db';
 import { type Principal, requireScopes } from './auth';
 import { actorAuthorized } from './actor-authorization';
@@ -150,7 +151,7 @@ export async function executeGitJob(
         (ws.git_files || []) as FileRecord[],
         remote,
       );
-      const state = {
+      const state: import('./resource-models').ResourceModels['workspaces']['sync'] = {
         workspace_id: workspaceId,
         status: result.status,
         source_commit: result.source_commit,
@@ -158,7 +159,7 @@ export async function executeGitJob(
         conflicting_paths: result.conflicting_paths,
         error_code: result.error_code,
         updated_at: new Date().toISOString(),
-      } as Record<string, unknown>;
+      };
       const cp = await checkpoint(tx, p, workspaceId, 'Git synchronization', result.files, result.git_files);
       await resources.update(tx, 'workspaces', workspaceId, { ...checkpointState(cp), sync: state });
       if (
@@ -197,6 +198,8 @@ export async function executeGitJob(
         status: 'failed',
         error: {
           code,
+          request_id: operationId,
+          retryable: false,
           message:
             'Git sync stopped. Your files remain preserved. Check access, branch protection, and the remote branch before retrying.',
         },
@@ -249,6 +252,15 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
     ['finance', async () => (await import('./maintenance')).dispatchOrganizationMaintenance()],
     ['storage', async () => (await import('./storage-maintenance')).dispatchStorageMaintenance()],
     ['reports', async () => (await import('./report-snapshots')).snapshotReports()],
+    [
+      'models',
+      async () => {
+        if (isSimulated()) return { model_catalog_refreshed: 0 };
+        const { refreshModelCatalog } = await import('./model-catalog');
+        const { providerModelCatalog } = await import('../../providers/src/model-catalog');
+        return refreshModelCatalog(providerModelCatalog());
+      },
+    ],
   ];
   const result: Record<string, number> = { operations: jobs.rowCount || 0 };
   for (const [name, task] of tasks) {

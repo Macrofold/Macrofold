@@ -446,6 +446,9 @@ describe('model gateway metering without provider calls', () => {
       { type: 'mcp', server_url: 'https://example.test/mcp', server_label: 'external' },
       { type: 'shell', environment: { type: 'container_auto' } },
       { type: 'shell' },
+      { type: 'tool_search' },
+      { type: 'tool_search', execution: 'server' },
+      { type: 'tool_search', execution: 'future' },
       { type: 'namespace', name: 'hidden', tools: [{ type: 'code_interpreter' }] },
       { type: 'future_paid_tool' },
     ]) {
@@ -457,6 +460,7 @@ describe('model gateway metering without provider calls', () => {
       ['anthropic', 'v1/messages', { tools: [{ type: 'code_execution_20260120', name: 'code_execution' }] }],
       ['anthropic', 'v1/messages', { mcp_servers: [{ type: 'url', url: 'https://example.test/mcp' }] }],
       ['openrouter', 'v1/chat/completions', { plugins: [{ id: 'web' }] }],
+      ['openrouter', 'v1/chat/completions', { web_search_options: {} }],
       ['openai', 'v1/chat/completions', { web_search_options: {} }],
     ] as const) {
       await transaction(p.organizationId, (tx) =>
@@ -472,6 +476,56 @@ describe('model gateway metering without provider calls', () => {
       tx.query('SELECT id FROM gateway_requests WHERE run_id=$1', [s.runId]),
     );
     expect(requests.rowCount).toBe(0);
+  });
+  it('enforces accepted OpenRouter routing prices before any provider side effect', async () => {
+    const s = await prepared();
+    process.env.OPENROUTER_API_KEY = 'fixture-key-no-provider-account';
+    await transaction(p.organizationId, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{rate_card}',$2::jsonb) WHERE id=$1", [
+        s.runId,
+        JSON.stringify({ ...model, provider: 'openrouter' }),
+      ]),
+    );
+    for (const [extra, status, code] of [
+      [{ models: ['unapproved-model'] }, 403, 'model_not_authorized'],
+      [{ models: 'unapproved-model' }, 403, 'model_not_authorized'],
+      [{ provider: 'invalid-preferences' }, 400, 'invalid_request'],
+      [{ provider: [] }, 400, 'invalid_request'],
+    ] as const) {
+      const response = await s.call(extra, 'v1/chat/completions');
+      expect(response.status).toBe(status);
+      expect((await response.json()).error.code).toBe(code);
+    }
+    expect(s.fetch).not.toHaveBeenCalled();
+    expect(
+      (
+        await transaction(p.organizationId, (tx) =>
+          tx.query('SELECT id FROM gateway_requests WHERE run_id=$1', [s.runId]),
+        )
+      ).rowCount,
+    ).toBe(0);
+    s.fetch.mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.models).toBeUndefined();
+      expect(payload.provider).toEqual({
+        allow_fallbacks: false,
+        max_price: { prompt: 1, completion: 2, request: 0 },
+      });
+      return Response.json({ usage: { prompt_tokens: 10, completion_tokens: 2 } });
+    });
+    expect(
+      (
+        await s.call(
+          {
+            stream: false,
+            models: [],
+            provider: { allow_fallbacks: false, max_price: { prompt: 100, completion: 100, request: 1 } },
+          },
+          'v1/chat/completions',
+        )
+      ).status,
+    ).toBe(200);
+    expect(s.fetch).toHaveBeenCalledTimes(1);
   });
   it('preserves client tools for the native harness protocols', async () => {
     const s = await prepared();
@@ -494,6 +548,7 @@ describe('model gateway metering without provider calls', () => {
           { type: 'custom', name: 'apply_patch' },
           { type: 'namespace', name: 'local', tools: [{ type: 'function', name: 'read' }] },
           { type: 'shell', environment: { type: 'local' } },
+          { type: 'tool_search', execution: 'client', parameters: { type: 'object' } },
         ],
       ],
       [

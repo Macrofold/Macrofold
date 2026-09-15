@@ -2,15 +2,16 @@
 import { Clock3, LockKeyhole } from 'lucide-react';
 import { money, type Schema } from '../lib/client';
 import './scheduling.css';
+import { WaitingText } from './waiting-text';
 
 export const waitingReasons: Record<string, string> = {
   global_capacity: 'All execution slots are occupied',
   account_concurrency: 'Your account is at its concurrency limit',
-  earlier_workspace_work: 'Earlier work is using this workspace',
+  earlier_workspace_work: 'Earlier work is using this worktree',
   scheduler_turn: 'Waiting for your account’s next scheduling turn',
   cancellation_requested: 'Cancellation is being processed',
   deadline_expired: 'Queue deadline reached · finalizing expiry',
-  workspace_unavailable: 'This workspace is currently unavailable',
+  workspace_unavailable: 'This worktree is currently unavailable',
 };
 export function QueueStatus({ run }: { run: Schema['Run'] }) {
   if (run.status !== 'queued') return null;
@@ -19,7 +20,9 @@ export function QueueStatus({ run }: { run: Schema['Run'] }) {
       <div className="queue-status-title">
         <Clock3 size={20} />
         <div>
-          <strong>{waitingReasons[run.waiting_reason || 'scheduler_turn']}</strong>
+          <strong>
+            <WaitingText>{waitingReasons[run.waiting_reason || 'scheduler_turn']}</WaitingText>
+          </strong>
           <p>
             Saved safely ·{' '}
             {run.scheduling_class === 'interactive' ? 'Interactive priority' : 'Background work'}

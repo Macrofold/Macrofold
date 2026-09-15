@@ -1,6 +1,6 @@
 # Runs and agents
 
-Run Codex, Claude Code, or OpenCode in a hosted workspace. Select an available harness/model combination from the deployment's catalog, set a budget, and follow the work as it happens.
+Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi in a hosted workspace. Select an available harness/model combination from the deployment's catalog, set a budget, and follow the work as it happens.
 
 ## Start a run
 
@@ -28,6 +28,9 @@ Cancel with the dashboard, CLI, or `POST /v1/runs/{id}/cancel`. Queued cancellat
 
 ## Learn more
 
+- [Choose a harness](harnesses.md): native tools, models, streaming, and continuation.
+- [Unified Harness Interface](unified-harness-interface.md): how native adapters connect and how to contribute a harness.
+- [Model catalog](models.md): built-in choices, discovery, and accepted prices.
 - [Streaming and webhooks](../api/events.md).
 - [Plans and limits](../billing/README.md).
 - [Scheduling policy](scheduling.md), [runtime implementation](runtime.md), [execution architecture](implementation.md), and [Workflow recovery](workflow-history.md).

@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from macrofold.models.agent_permissions import AgentPermissions
 from macrofold.models.project_create_github import ProjectCreateGithub
 from typing import Optional, Set
 from typing_extensions import Self
@@ -31,8 +32,9 @@ class ProjectPatch(BaseModel):
     name: Optional[StrictStr] = None
     github: Optional[ProjectCreateGithub] = None
     archived: Optional[StrictBool] = None
+    permissions: Optional[AgentPermissions] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "github", "archived"]
+    __properties: ClassVar[List[str]] = ["name", "github", "archived", "permissions"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -78,6 +80,9 @@ class ProjectPatch(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of github
         if self.github:
             _dict['github'] = self.github.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -97,7 +102,8 @@ class ProjectPatch(BaseModel):
         _obj = cls.model_validate({
             "name": obj.get("name"),
             "github": ProjectCreateGithub.from_dict(obj["github"]) if obj.get("github") is not None else None,
-            "archived": obj.get("archived")
+            "archived": obj.get("archived"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

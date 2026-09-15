@@ -18,6 +18,12 @@ export type ListProjectsOptions = {
 export type CreateProjectOptions = NonNullable<
   operations['createProject']['requestBody']
 >['content']['application/json'];
+export type GetProjectOptions = {
+  include_connections?: NonNullable<operations['getProject']['parameters']['query']>['include_connections'];
+  agent_id?: NonNullable<operations['getProject']['parameters']['query']>['agent_id'];
+  connections_limit?: NonNullable<operations['getProject']['parameters']['query']>['connections_limit'];
+  connections_cursor?: NonNullable<operations['getProject']['parameters']['query']>['connections_cursor'];
+};
 export type UpdateProjectOptions = NonNullable<
   operations['updateProject']['requestBody']
 >['content']['application/json'];
@@ -31,6 +37,10 @@ export type CreateWorkspaceOptions = NonNullable<
 export type ScheduleProjectDeletionOptions = NonNullable<
   operations['scheduleProjectDeletion']['requestBody']
 >['content']['application/json'];
+export type GetWorktreeOptionsOptions = {
+  name?: NonNullable<operations['getWorktreeOptions']['parameters']['query']>['name'];
+  branch?: NonNullable<operations['getWorktreeOptions']['parameters']['query']>['branch'];
+};
 export class ProjectsResource {
   constructor(private client: Transport) {}
   list(
@@ -59,10 +69,22 @@ export class ProjectsResource {
       body: options,
     });
   }
-  get(projectId: string, requestOptions: RequestSettings = {}): Promise<Result<'getProject'>> {
+  get(
+    projectId: string,
+    options: GetProjectOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getProject'>> {
     return this.client.request('getProject', {
       ...requestOptions,
-      params: { path: { project_id: projectId } },
+      params: {
+        path: { project_id: projectId },
+        query: {
+          include_connections: options.include_connections,
+          agent_id: options.agent_id,
+          connections_limit: options.connections_limit,
+          connections_cursor: options.connections_cursor,
+        },
+      },
     });
   }
   update(
@@ -94,7 +116,7 @@ export class ProjectsResource {
   }
   createWorkspace(
     projectId: string,
-    options: CreateWorkspaceOptions,
+    options: CreateWorkspaceOptions = {},
     requestOptions: RequestSettings = {},
   ): Promise<Result<'createWorkspace'>> {
     return this.client.request('createWorkspace', {
@@ -123,6 +145,16 @@ export class ProjectsResource {
       params: { path: { project_id: projectId } },
     });
   }
+  getWorktreeOptions(
+    projectId: string,
+    options: GetWorktreeOptionsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getWorktreeOptions'>> {
+    return this.client.request('getWorktreeOptions', {
+      ...requestOptions,
+      params: { path: { project_id: projectId }, query: { name: options.name, branch: options.branch } },
+    });
+  }
 }
 export type UpdateWorkspaceOptions = NonNullable<
   operations['updateWorkspace']['requestBody']
@@ -132,6 +164,7 @@ export type ListFilesOptions = {
   cursor?: NonNullable<operations['listFiles']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listFiles']['parameters']['query']>['limit'];
   query?: NonNullable<operations['listFiles']['parameters']['query']>['query'];
+  recursive?: NonNullable<operations['listFiles']['parameters']['query']>['recursive'];
 };
 export type ReadFileOptions = {
   path: NonNullable<operations['readFile']['parameters']['query']>['path'];
@@ -140,11 +173,18 @@ export type ReadFileOptions = {
 export type WriteFileOptions = {
   path: NonNullable<operations['writeFile']['parameters']['query']>['path'];
   ifMatch: NonNullable<operations['writeFile']['parameters']['header']>['If-Match'];
+  create_only?: NonNullable<operations['writeFile']['parameters']['query']>['create_only'];
   content: Uint8Array;
 };
 export type DeleteFileOptions = {
   path: NonNullable<operations['deleteFile']['parameters']['query']>['path'];
   ifMatch: NonNullable<operations['deleteFile']['parameters']['header']>['If-Match'];
+};
+export type RenameFileOptions = NonNullable<
+  operations['renameFile']['requestBody']
+>['content']['application/json'] & {
+  path: NonNullable<operations['renameFile']['parameters']['query']>['path'];
+  ifMatch: NonNullable<operations['renameFile']['parameters']['header']>['If-Match'];
 };
 export type ListCheckpointsOptions = {
   cursor?: NonNullable<operations['listCheckpoints']['parameters']['query']>['cursor'];
@@ -174,6 +214,16 @@ export type ListTransfersOptions = {
   cursor?: NonNullable<operations['listTransfers']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listTransfers']['parameters']['query']>['limit'];
 };
+export type CreateFolderOptions = NonNullable<
+  operations['createFolder']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['createFolder']['parameters']['header']>['If-Match'];
+};
+export type DuplicateFileOptions = NonNullable<
+  operations['duplicateFile']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['duplicateFile']['parameters']['header']>['If-Match'];
+};
 export class WorkspacesResource {
   constructor(private client: Transport) {}
   get(workspaceId: string, requestOptions: RequestSettings = {}): Promise<Result<'getWorkspace'>> {
@@ -190,7 +240,7 @@ export class WorkspacesResource {
   }
   update(
     workspaceId: string,
-    options: UpdateWorkspaceOptions,
+    options: UpdateWorkspaceOptions = {},
     requestOptions: RequestSettings = {},
   ): Promise<Result<'updateWorkspace'>> {
     return this.client.request('updateWorkspace', {
@@ -208,7 +258,13 @@ export class WorkspacesResource {
       ...requestOptions,
       params: {
         path: { workspace_id: workspaceId },
-        query: { path: options.path, cursor: options.cursor, limit: options.limit, query: options.query },
+        query: {
+          path: options.path,
+          cursor: options.cursor,
+          limit: options.limit,
+          query: options.query,
+          recursive: options.recursive,
+        },
       },
     });
   }
@@ -234,7 +290,7 @@ export class WorkspacesResource {
       ...requestOptions,
       params: {
         path: { workspace_id: workspaceId },
-        query: { path: options.path },
+        query: { path: options.path, create_only: options.create_only },
         header: { 'If-Match': options.ifMatch },
       },
       body: options.content,
@@ -252,6 +308,18 @@ export class WorkspacesResource {
         query: { path: options.path },
         header: { 'If-Match': options.ifMatch },
       },
+    });
+  }
+  renameFile(
+    workspaceId: string,
+    options: RenameFileOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'renameFile'>> {
+    const { path, ifMatch, ...body } = options;
+    return this.client.request('renameFile', {
+      ...requestOptions,
+      params: { path: { workspace_id: workspaceId }, query: { path: path }, header: { 'If-Match': ifMatch } },
+      body: body,
     });
   }
   listCheckpoints(
@@ -348,14 +416,45 @@ export class WorkspacesResource {
       },
     });
   }
+  createFolder(
+    workspaceId: string,
+    options: CreateFolderOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createFolder'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('createFolder', {
+      ...requestOptions,
+      params: { path: { workspace_id: workspaceId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  duplicateFile(
+    workspaceId: string,
+    options: DuplicateFileOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'duplicateFile'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('duplicateFile', {
+      ...requestOptions,
+      params: { path: { workspace_id: workspaceId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
 }
 export type ListAgentsOptions = {
   cursor?: NonNullable<operations['listAgents']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listAgents']['parameters']['query']>['limit'];
+  query?: NonNullable<operations['listAgents']['parameters']['query']>['query'];
 };
 export type CreateAgentOptions = NonNullable<
   operations['createAgent']['requestBody']
 >['content']['application/json'];
+export type GetAgentOptions = {
+  include_connections?: NonNullable<operations['getAgent']['parameters']['query']>['include_connections'];
+  project_id?: NonNullable<operations['getAgent']['parameters']['query']>['project_id'];
+  connections_limit?: NonNullable<operations['getAgent']['parameters']['query']>['connections_limit'];
+  connections_cursor?: NonNullable<operations['getAgent']['parameters']['query']>['connections_cursor'];
+};
 export type UpdateAgentOptions = NonNullable<
   operations['updateAgent']['requestBody']
 >['content']['application/json'];
@@ -364,7 +463,7 @@ export class AgentsResource {
   list(options: ListAgentsOptions = {}, requestOptions: RequestSettings = {}): Promise<Result<'listAgents'>> {
     return this.client.request('listAgents', {
       ...requestOptions,
-      params: { query: { cursor: options.cursor, limit: options.limit } },
+      params: { query: { cursor: options.cursor, limit: options.limit, query: options.query } },
     });
   }
   create(options: CreateAgentOptions, requestOptions: RequestSettings = {}): Promise<Result<'createAgent'>> {
@@ -374,8 +473,23 @@ export class AgentsResource {
       body: options,
     });
   }
-  get(agentId: string, requestOptions: RequestSettings = {}): Promise<Result<'getAgent'>> {
-    return this.client.request('getAgent', { ...requestOptions, params: { path: { agent_id: agentId } } });
+  get(
+    agentId: string,
+    options: GetAgentOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getAgent'>> {
+    return this.client.request('getAgent', {
+      ...requestOptions,
+      params: {
+        path: { agent_id: agentId },
+        query: {
+          include_connections: options.include_connections,
+          project_id: options.project_id,
+          connections_limit: options.connections_limit,
+          connections_cursor: options.connections_cursor,
+        },
+      },
+    });
   }
   update(
     agentId: string,
@@ -596,6 +710,8 @@ export class ArtifactsResource {
 export type ListConnectionsOptions = {
   cursor?: NonNullable<operations['listConnections']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listConnections']['parameters']['query']>['limit'];
+  project_id?: NonNullable<operations['listConnections']['parameters']['query']>['project_id'];
+  agent_id?: NonNullable<operations['listConnections']['parameters']['query']>['agent_id'];
 };
 export type CreateConnectionOptions = NonNullable<
   operations['createConnection']['requestBody']
@@ -613,13 +729,71 @@ export type ListConnectionToolsOptions = {
   cursor?: NonNullable<operations['listConnectionTools']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listConnectionTools']['parameters']['query']>['limit'];
 };
-export type SetConnectionGrantsOptions = NonNullable<
-  operations['setConnectionGrants']['requestBody']
->['content']['application/json'];
 export type ListStdioPackagesOptions = {
   cursor?: NonNullable<operations['listStdioPackages']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listStdioPackages']['parameters']['query']>['limit'];
 };
+export type UpdateConnectionAccessOptions = NonNullable<
+  operations['updateConnectionAccess']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['updateConnectionAccess']['parameters']['header']>['If-Match'];
+};
+export type ListConnectionAccessRulesOptions = {
+  cursor?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['limit'];
+  project_id?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['project_id'];
+  agent_id?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['agent_id'];
+  sort?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['sort'];
+  direction?: NonNullable<operations['listConnectionAccessRules']['parameters']['query']>['direction'];
+};
+export type CreateConnectionAccessRuleOptions = NonNullable<
+  operations['createConnectionAccessRule']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['createConnectionAccessRule']['parameters']['header']>['If-Match'];
+};
+export type UpdateConnectionAccessRuleOptions = NonNullable<
+  operations['updateConnectionAccessRule']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<operations['updateConnectionAccessRule']['parameters']['header']>['If-Match'];
+};
+export type DeleteConnectionAccessRuleOptions = {
+  ifMatch: NonNullable<operations['deleteConnectionAccessRule']['parameters']['header']>['If-Match'];
+};
+export type ResolveConnectionAccessOptions = NonNullable<
+  operations['resolveConnectionAccess']['requestBody']
+>['content']['application/json'] &
+  (
+    | {
+        project_id: NonNullable<
+          NonNullable<
+            operations['resolveConnectionAccess']['requestBody']
+          >['content']['application/json']['project_id']
+        >;
+        workspace_id?: never;
+        session_id?: never;
+      }
+    | {
+        project_id?: never;
+        workspace_id: NonNullable<
+          NonNullable<
+            operations['resolveConnectionAccess']['requestBody']
+          >['content']['application/json']['workspace_id']
+        >;
+        session_id?: never;
+      }
+    | {
+        project_id?: never;
+        workspace_id?: never;
+        session_id: NonNullable<
+          NonNullable<
+            operations['resolveConnectionAccess']['requestBody']
+          >['content']['application/json']['session_id']
+        >;
+      }
+  ) & {
+    cursor?: NonNullable<operations['resolveConnectionAccess']['parameters']['query']>['cursor'];
+    limit?: NonNullable<operations['resolveConnectionAccess']['parameters']['query']>['limit'];
+  };
 export class ConnectionsResource {
   constructor(private client: Transport) {}
   list(
@@ -628,7 +802,14 @@ export class ConnectionsResource {
   ): Promise<Result<'listConnections'>> {
     return this.client.request('listConnections', {
       ...requestOptions,
-      params: { query: { cursor: options.cursor, limit: options.limit } },
+      params: {
+        query: {
+          cursor: options.cursor,
+          limit: options.limit,
+          project_id: options.project_id,
+          agent_id: options.agent_id,
+        },
+      },
     });
   }
   create(
@@ -699,26 +880,6 @@ export class ConnectionsResource {
       },
     });
   }
-  getGrants(
-    connectionId: string,
-    requestOptions: RequestSettings = {},
-  ): Promise<Result<'getConnectionGrants'>> {
-    return this.client.request('getConnectionGrants', {
-      ...requestOptions,
-      params: { path: { connection_id: connectionId } },
-    });
-  }
-  setGrants(
-    connectionId: string,
-    options: SetConnectionGrantsOptions,
-    requestOptions: RequestSettings = {},
-  ): Promise<Result<'setConnectionGrants'>> {
-    return this.client.request('setConnectionGrants', {
-      ...requestOptions,
-      params: { path: { connection_id: connectionId } },
-      body: options,
-    });
-  }
   listStdioPackages(
     options: ListStdioPackagesOptions = {},
     requestOptions: RequestSettings = {},
@@ -730,6 +891,97 @@ export class ConnectionsResource {
   }
   listConnectorCatalog(requestOptions: RequestSettings = {}): Promise<Result<'listConnectorCatalog'>> {
     return this.client.request('listConnectorCatalog', { ...requestOptions });
+  }
+  getAccess(
+    connectionId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getConnectionAccess'>> {
+    return this.client.request('getConnectionAccess', {
+      ...requestOptions,
+      params: { path: { connection_id: connectionId } },
+    });
+  }
+  updateAccess(
+    connectionId: string,
+    options: UpdateConnectionAccessOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'updateConnectionAccess'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('updateConnectionAccess', {
+      ...requestOptions,
+      params: { path: { connection_id: connectionId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  listAccessRules(
+    connectionId: string,
+    options: ListConnectionAccessRulesOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listConnectionAccessRules'>> {
+    return this.client.request('listConnectionAccessRules', {
+      ...requestOptions,
+      params: {
+        path: { connection_id: connectionId },
+        query: {
+          cursor: options.cursor,
+          limit: options.limit,
+          project_id: options.project_id,
+          agent_id: options.agent_id,
+          sort: options.sort,
+          direction: options.direction,
+        },
+      },
+    });
+  }
+  createAccessRule(
+    connectionId: string,
+    options: CreateConnectionAccessRuleOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createConnectionAccessRule'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('createConnectionAccessRule', {
+      ...requestOptions,
+      params: { path: { connection_id: connectionId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  updateAccessRule(
+    connectionId: string,
+    ruleId: string,
+    options: UpdateConnectionAccessRuleOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'updateConnectionAccessRule'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('updateConnectionAccessRule', {
+      ...requestOptions,
+      params: { path: { connection_id: connectionId, rule_id: ruleId }, header: { 'If-Match': ifMatch } },
+      body: body,
+    });
+  }
+  deleteAccessRule(
+    connectionId: string,
+    ruleId: string,
+    options: DeleteConnectionAccessRuleOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'deleteConnectionAccessRule'>> {
+    return this.client.request('deleteConnectionAccessRule', {
+      ...requestOptions,
+      params: {
+        path: { connection_id: connectionId, rule_id: ruleId },
+        header: { 'If-Match': options.ifMatch },
+      },
+    });
+  }
+  resolveAccess(
+    options: ResolveConnectionAccessOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'resolveConnectionAccess'>> {
+    const { cursor, limit, ...body } = options;
+    return this.client.request('resolveConnectionAccess', {
+      ...requestOptions,
+      params: { query: { cursor: cursor, limit: limit } },
+      body: body,
+    });
   }
 }
 export type ListApiKeysOptions = {

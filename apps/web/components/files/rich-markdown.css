@@ -1,0 +1,161 @@
+.rich-markdown-editor {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.rich-markdown-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-surface);
+}
+.rich-markdown-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--app-ink-2);
+}
+.rich-markdown-toolbar button:hover,
+.rich-markdown-toolbar button[aria-pressed='true'] {
+  color: var(--app-ink);
+  background: var(--app-accent-wash);
+}
+.rich-markdown-toolbar button:disabled {
+  opacity: 0.4;
+}
+.rich-toolbar-divider {
+  height: 18px;
+  width: 1px;
+  background: var(--app-line);
+  margin: 0 4px;
+}
+.rich-editor-surface {
+  flex: 1;
+  display: flex;
+  padding: 24px clamp(18px, 4vw, 54px) 64px;
+}
+.rich-markdown-body {
+  flex: 1;
+  width: 100%;
+  min-height: 280px;
+  outline: none !important;
+}
+.rich-markdown-body p {
+  margin: 0.6em 0;
+}
+.rich-markdown-body li > p {
+  margin: 0;
+}
+.rich-markdown-body ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+.rich-markdown-body li[data-type='taskItem'] {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.rich-markdown-body li[data-type='taskItem'] > div {
+  flex: 1;
+}
+.rich-markdown-body [data-type='details'] {
+  display: flex;
+  gap: 8px;
+  border: 1px solid var(--app-line);
+  padding: 8px;
+  border-radius: 6px;
+}
+.rich-markdown-body [data-type='details'] > div {
+  flex: 1;
+}
+.rich-markdown-body [data-type='details'] > button {
+  width: 20px;
+  border: 0;
+  color: var(--app-ink-2);
+  background: transparent;
+}
+.rich-markdown-body [data-type='details'] > button::before {
+  content: '›';
+}
+.rich-markdown-body [data-type='details'].is-open > button::before {
+  content: '⌄';
+}
+.rich-markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.rich-markdown-body td,
+.rich-markdown-body th {
+  border: 1px solid var(--app-line);
+  padding: 8px;
+  vertical-align: top;
+}
+.rich-markdown-body .selectedCell {
+  background: var(--app-accent-wash);
+}
+.rich-image-reference {
+  display: block;
+  padding: 12px;
+  border: 1px dashed var(--app-line);
+  color: var(--app-ink-2);
+}
+.rich-insert-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--app-line);
+}
+.rich-insert-form .field {
+  margin: 0;
+  flex: 1;
+}
+.rich-frontmatter,
+.rich-editor-note {
+  padding: 12px 24px;
+  font-size: 12px;
+  color: var(--app-ink-2);
+}
+.rich-frontmatter pre {
+  white-space: pre-wrap;
+}
+.rich-diff-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--app-line);
+}
+.markdown-change {
+  border-left: 3px solid transparent;
+}
+.markdown-change.added {
+  border-color: var(--app-success, #238636);
+  background: color-mix(in srgb, #238636 9%, transparent);
+}
+.markdown-change.removed {
+  border-color: var(--app-danger, #cf4141);
+  background: color-mix(in srgb, #cf4141 9%, transparent);
+}
+.markdown-change .workspace-markdown-preview {
+  padding-block: 8px;
+}
+.markdown-change pre {
+  white-space: pre-wrap;
+  padding: 8px 20px;
+}

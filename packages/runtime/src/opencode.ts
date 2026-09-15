@@ -1,13 +1,22 @@
-import { createOpencode } from '@opencode-ai/sdk';
+import { createOpencodeClient as createSessionClient } from '@opencode-ai/sdk/client';
+import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
 import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
+import { permissionAdapters } from '../../contracts/permission-adapters';
+import { openCodePermissionSettings } from './permission-settings';
 export class OpenCodeAdapter implements HarnessAdapter {
-  async run({ configuration: c, signal, emit, ask }: HarnessContext): Promise<NativeResult> {
+  async run({ configuration: c, signal, emit, ask, fileTools }: HarnessContext): Promise<NativeResult> {
+    const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
+    if (guarded && !fileTools) throw new Error('Checked file service unavailable.');
     const npm = c.provider === 'anthropic' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible';
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
-    const { client, server } = await createOpencode({
+    const server = await createOpencodeServer({
       hostname: '127.0.0.1',
       port: 4096,
+      // Cold server startup can exceed the SDK's five-second default. It still
+      // shares the run's deadline and cancellation signal; no prompt has started.
+      timeout: Math.max(1, Math.min(30_000, Date.parse(c.deadline) - Date.now())),
+      signal,
       config: {
         model: `platform/${c.model}`,
         small_model: `platform/${c.model}`,
@@ -25,19 +34,34 @@ export class OpenCodeAdapter implements HarnessAdapter {
             models: { [c.model]: { name: c.model, limit: { context: 128000, output: 8192 } } },
           },
         },
-        permission: { edit: 'allow', bash: 'allow', webfetch: 'deny' },
-        mcp: c.toolGrants
-          ? {
-              platform: {
-                type: 'remote',
-                url: c.toolURL,
-                headers: { Authorization: `Bearer ${c.token}` },
-                enabled: true,
-              },
-            }
-          : {},
+        ...(guarded
+          ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
+          : { permission: { edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+        mcp: {
+          ...(c.toolGrants
+            ? {
+                platform: {
+                  type: 'remote',
+                  url: c.toolURL,
+                  headers: { Authorization: `Bearer ${c.token}` },
+                  enabled: true,
+                },
+              }
+            : {}),
+          ...(fileTools
+            ? {
+                worktree: {
+                  type: 'remote' as const,
+                  url: fileTools.url,
+                  headers: { Authorization: `Bearer ${fileTools.token}` },
+                  enabled: true,
+                },
+              }
+            : {}),
+        },
       },
     });
+    const client = createSessionClient({ baseUrl: server.url });
     let sessionId = c.resumeId,
       output = '';
     let done = false;

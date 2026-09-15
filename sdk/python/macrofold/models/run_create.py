@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
 from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
 from typing import Optional, Set
@@ -39,14 +40,16 @@ class RunCreate(BaseModel):
     harness: Optional[StrictStr] = None
     model: Optional[StrictStr] = None
     billing_mode: Optional[StrictStr] = None
-    provider_connection_id: Optional[UUID] = None
-    connection_grants: Optional[List[Grant]] = None
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
     limits: Optional[Limits] = None
     webhook_endpoint_ids: Optional[List[UUID]] = None
     queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
     scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
     queue_if_busy: Optional[StrictBool] = Field(default=None, description="Only session follow-ups can queue behind workspace work.")
-    __properties: ClassVar[List[str]] = ["prompt", "project_id", "workspace_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy"]
+    permissions: Optional[AgentPermissions] = None
+    connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
+    __properties: ClassVar[List[str]] = ["prompt", "project_id", "workspace_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -54,8 +57,8 @@ class RunCreate(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     @field_validator('billing_mode')
@@ -64,8 +67,8 @@ class RunCreate(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['byok', 'managed']):
-            raise ValueError("must be one of enum values ('byok', 'managed')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     @field_validator('scheduling_class')
@@ -127,6 +130,16 @@ class RunCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in connection_access_overrides (list)
+        _items = []
+        if self.connection_access_overrides:
+            for _item_connection_access_overrides in self.connection_access_overrides:
+                if _item_connection_access_overrides:
+                    _items.append(_item_connection_access_overrides.to_dict())
+            _dict['connection_access_overrides'] = _items
         return _dict
 
     @classmethod
@@ -153,7 +166,9 @@ class RunCreate(BaseModel):
             "webhook_endpoint_ids": obj.get("webhook_endpoint_ids"),
             "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
             "scheduling_class": obj.get("scheduling_class"),
-            "queue_if_busy": obj.get("queue_if_busy")
+            "queue_if_busy": obj.get("queue_if_busy"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
+            "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None
         })
         return _obj
 

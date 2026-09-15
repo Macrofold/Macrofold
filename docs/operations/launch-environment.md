@@ -75,9 +75,9 @@ The Sandbox adapter currently uses Vercel OIDC. Static `VERCEL_TOKEN`, team, and
 
 ## Models, tools, and billing
 
-Managed models use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY`, with `MODEL_CATALOG_JSON` defining enabled models, compatible harnesses, provider routes, and reviewed rates. See [the catalog schema and example](../features/execution/runtime.md#production-model-catalog-example).
+Managed models use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY`, with the [built-in catalog](../features/execution/models.md) supplying enabled models, compatible harnesses, provider routes, and reviewed rates. Catalog data and price-version hashes are application state, not environment variables.
 
-Optional Composio settings are `COMPOSIO_API_KEY`, `COMPOSIO_AUTH_CONFIGS_JSON`, `COMPOSIO_TOOLKIT_VERSIONS_JSON`, `COMPOSIO_CALLBACK_VERIFICATION_ENABLED`, and `COMPOSIO_MICRO_USD_PER_CALL`. MCP uses reviewed `MCP_STDIO_CATALOG_JSON` and optional exact-origin `MCP_OAUTH_CLIENTS_JSON`. Managed search uses `BRAVE_SEARCH_API_KEY` and `BRAVE_SEARCH_MICRO_USD_PER_CALL`. Other supported search providers use customer connections.
+Optional Composio settings are `COMPOSIO_API_KEY`, `COMPOSIO_CALLBACK_VERIFICATION_ENABLED`, and `COMPOSIO_MICRO_USD_PER_CALL`. Toolkit auth-config IDs and exact versions are persisted with [connector setup](../features/identity-integrations/composio.md). MCP uses reviewed `MCP_STDIO_CATALOG_JSON` and optional exact-origin `MCP_OAUTH_CLIENTS_JSON`. Managed search uses `BRAVE_SEARCH_API_KEY` and `BRAVE_SEARCH_MICRO_USD_PER_CALL`. Other supported search providers use customer connections.
 
 GitHub repository access uses `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET`. Optional social login uses separate `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` values.
 

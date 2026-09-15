@@ -19,12 +19,15 @@ var _ MappedNullable = &AgentPatch{}
 
 // AgentPatch struct for AgentPatch
 type AgentPatch struct {
+	connection_grantsSet bool
 	Name *string `json:"name,omitempty"`
 	Harness *string `json:"harness,omitempty"`
 	Model *string `json:"model,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
 	BillingMode *string `json:"billing_mode,omitempty"`
+	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
 	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
+	// Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools.
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	Limits *Limits `json:"limits,omitempty"`
 }
@@ -238,9 +241,9 @@ func (o *AgentPatch) SetProviderConnectionId(v string) {
 	o.ProviderConnectionId = &v
 }
 
-// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
+// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *AgentPatch) GetConnectionGrants() []Grant {
-	if o == nil || IsNil(o.ConnectionGrants) {
+	if o == nil {
 		var ret []Grant
 		return ret
 	}
@@ -249,8 +252,9 @@ func (o *AgentPatch) GetConnectionGrants() []Grant {
 
 // GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *AgentPatch) GetConnectionGrantsOk() ([]Grant, bool) {
-	if o == nil || IsNil(o.ConnectionGrants) {
+	if o == nil || (!o.connection_grantsSet && IsNil(o.ConnectionGrants)) {
 		return nil, false
 	}
 	return o.ConnectionGrants, true
@@ -258,7 +262,7 @@ func (o *AgentPatch) GetConnectionGrantsOk() ([]Grant, bool) {
 
 // HasConnectionGrants returns a boolean if a field has been set.
 func (o *AgentPatch) HasConnectionGrants() bool {
-	if o != nil && !IsNil(o.ConnectionGrants) {
+	if o != nil && (o.connection_grantsSet || !IsNil(o.ConnectionGrants)) {
 		return true
 	}
 
@@ -268,6 +272,7 @@ func (o *AgentPatch) HasConnectionGrants() bool {
 // SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
 func (o *AgentPatch) SetConnectionGrants(v []Grant) {
 	o.ConnectionGrants = v
+	o.connection_grantsSet = true
 }
 
 // GetLimits returns the Limits field value if set, zero value otherwise.
@@ -330,7 +335,7 @@ func (o AgentPatch) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.ProviderConnectionId) {
 		toSerialize["provider_connection_id"] = o.ProviderConnectionId
 	}
-	if !IsNil(o.ConnectionGrants) {
+	if o.connection_grantsSet || o.ConnectionGrants != nil {
 		toSerialize["connection_grants"] = o.ConnectionGrants
 	}
 	if !IsNil(o.Limits) {
@@ -376,3 +381,17 @@ func (v *NullableAgentPatch) UnmarshalJSON(src []byte) error {
 }
 
 
+
+// UnsetConnectionGrants restores omission; SetConnectionGrants(nil) sends JSON null.
+func (o *AgentPatch) UnsetConnectionGrants() { o.ConnectionGrants = nil; o.connection_grantsSet = false }
+
+func (o *AgentPatch) UnmarshalJSON(data []byte) error {
+ type Alias AgentPatch
+ var value Alias
+ if err := json.Unmarshal(data, &value); err != nil { return err }
+ var fields map[string]json.RawMessage
+ if err := json.Unmarshal(data, &fields); err != nil { return err }
+ *o = AgentPatch(value)
+ _, o.connection_grantsSet = fields["connection_grants"]
+ return nil
+}

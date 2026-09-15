@@ -1,3 +1,4 @@
+import { harnessNames } from '../packages/contracts/harnesses';
 import './build-runtime';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -7,10 +8,22 @@ import { pack } from './coverage/pack';
 const root = path.resolve(import.meta.dirname, '..');
 const imageOnly = process.argv.includes('--image-only');
 const stdio = process.argv.includes('--stdio');
-const selected = process.argv.slice(2).filter((a) => !['--questions', '--image-only', '--stdio'].includes(a));
-for (const harness of stdio ? ['stdio'] : selected.length ? selected : ['codex', 'claude-code', 'opencode']) {
-  if (!['codex', 'claude-code', 'opencode', 'stdio'].includes(harness))
-    throw new Error('Choose a supported native harness');
+const selected = process.argv
+  .slice(2)
+  .filter(
+    (a) =>
+      ![
+        '--questions',
+        '--tools',
+        '--failure',
+        '--cancel',
+        '--permissions',
+        '--image-only',
+        '--stdio',
+      ].includes(a),
+  );
+for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNames) {
+  if (![...harnessNames, 'stdio'].includes(harness)) throw new Error('Choose a supported native harness');
   const args = [
     'run',
     '--rm',
@@ -33,14 +46,27 @@ for (const harness of stdio ? ['stdio'] : selected.length ? selected : ['codex',
       'NODE_OPTIONS=--enable-source-maps --import=/tests/coverage-flush.mjs',
     );
   }
-  for (const name of imageOnly ? [] : ['native-worker', 'entry', 'restore'])
+  for (const name of imageOnly ? [] : ['native-worker', 'entry', 'restore', 'deepseek-bridge'])
     args.push(
       '--mount',
       `type=bind,src=${root}/packages/runtime/dist/${name}.mjs,dst=/opt/platform/${name}.mjs,readonly`,
     );
-  args.push('platform-runtime:0.1.0', 'node', stdio ? '/tests/stdio-native.mjs' : '/tests/native-mock.mjs');
+  if (!imageOnly)
+    args.push(
+      '--mount',
+      `type=bind,src=${root}/packages/runtime/dist/hermes-bridge.py,dst=/opt/platform/hermes-bridge.py,readonly`,
+    );
+  args.push(
+    process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0',
+    'node',
+    stdio ? '/tests/stdio-native.mjs' : '/tests/native-mock.mjs',
+  );
   if (!stdio) args.push(harness);
   if (process.argv.includes('--questions')) args.push('questions');
+  else if (process.argv.includes('--permissions')) args.push('permissions');
+  else if (process.argv.includes('--tools')) args.push('tools');
+  else if (process.argv.includes('--failure')) args.push('failure');
+  else if (process.argv.includes('--cancel')) args.push('cancel');
   const child = spawn('docker', args, { stdio: 'inherit' });
   const code = await new Promise<number | null>((resolve) => child.on('exit', resolve));
   if (coverage) await pack(coverage, true);

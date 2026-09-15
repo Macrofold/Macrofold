@@ -172,6 +172,164 @@ func (a *WorkspacesAPIService) CreateCheckpointExecute(r ApiCreateCheckpointRequ
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiCreateFolderRequest struct {
+	ctx context.Context
+	ApiService *WorkspacesAPIService
+	workspaceId string
+	ifMatch *string
+	idempotencyKey *string
+	folderCreate *FolderCreate
+	xOrganizationId *string
+}
+
+func (r ApiCreateFolderRequest) IfMatch(ifMatch string) ApiCreateFolderRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiCreateFolderRequest) IdempotencyKey(idempotencyKey string) ApiCreateFolderRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiCreateFolderRequest) FolderCreate(folderCreate FolderCreate) ApiCreateFolderRequest {
+	r.folderCreate = &folderCreate
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiCreateFolderRequest) XOrganizationId(xOrganizationId string) ApiCreateFolderRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiCreateFolderRequest) Execute() (*Operation, *http.Response, error) {
+	return r.ApiService.CreateFolderExecute(r)
+}
+
+/*
+CreateFolder Create a workspace folder
+
+Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param workspaceId
+ @return ApiCreateFolderRequest
+*/
+func (a *WorkspacesAPIService) CreateFolder(ctx context.Context, workspaceId string) ApiCreateFolderRequest {
+	return ApiCreateFolderRequest{
+		ApiService: a,
+		ctx: ctx,
+		workspaceId: workspaceId,
+	}
+}
+
+// Execute executes the request
+//  @return Operation
+func (a *WorkspacesAPIService) CreateFolderExecute(r ApiCreateFolderRequest) (*Operation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Operation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateFolder")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/folders"
+	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.folderCreate == nil {
+		return localVarReturnValue, nil, reportError("folderCreate is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.folderCreate
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiCreateTransferRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
@@ -553,6 +711,164 @@ func (a *WorkspacesAPIService) DeleteWorkspaceExecute(r ApiDeleteWorkspaceReques
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiDuplicateFileRequest struct {
+	ctx context.Context
+	ApiService *WorkspacesAPIService
+	workspaceId string
+	ifMatch *string
+	idempotencyKey *string
+	fileDuplicate *FileDuplicate
+	xOrganizationId *string
+}
+
+func (r ApiDuplicateFileRequest) IfMatch(ifMatch string) ApiDuplicateFileRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiDuplicateFileRequest) IdempotencyKey(idempotencyKey string) ApiDuplicateFileRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiDuplicateFileRequest) FileDuplicate(fileDuplicate FileDuplicate) ApiDuplicateFileRequest {
+	r.fileDuplicate = &fileDuplicate
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiDuplicateFileRequest) XOrganizationId(xOrganizationId string) ApiDuplicateFileRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiDuplicateFileRequest) Execute() (*Operation, *http.Response, error) {
+	return r.ApiService.DuplicateFileExecute(r)
+}
+
+/*
+DuplicateFile Duplicate a file
+
+Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param workspaceId
+ @return ApiDuplicateFileRequest
+*/
+func (a *WorkspacesAPIService) DuplicateFile(ctx context.Context, workspaceId string) ApiDuplicateFileRequest {
+	return ApiDuplicateFileRequest{
+		ApiService: a,
+		ctx: ctx,
+		workspaceId: workspaceId,
+	}
+}
+
+// Execute executes the request
+//  @return Operation
+func (a *WorkspacesAPIService) DuplicateFileExecute(r ApiDuplicateFileRequest) (*Operation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Operation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.DuplicateFile")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/files/duplicate"
+	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.fileDuplicate == nil {
+		return localVarReturnValue, nil, reportError("fileDuplicate is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.fileDuplicate
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -1153,6 +1469,7 @@ type ApiListFilesRequest struct {
 	limit *int32
 	xOrganizationId *string
 	query *string
+	recursive *bool
 }
 
 func (r ApiListFilesRequest) Path(path string) ApiListFilesRequest {
@@ -1179,6 +1496,12 @@ func (r ApiListFilesRequest) XOrganizationId(xOrganizationId string) ApiListFile
 // Case-insensitive literal substring of the relative file path.
 func (r ApiListFilesRequest) Query(query string) ApiListFilesRequest {
 	r.query = &query
+	return r
+}
+
+// List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files.
+func (r ApiListFilesRequest) Recursive(recursive bool) ApiListFilesRequest {
+	r.recursive = &recursive
 	return r
 }
 
@@ -1244,6 +1567,13 @@ func (a *WorkspacesAPIService) ListFilesExecute(r ApiListFilesRequest) (*FileLis
 	}
 	if r.query != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "query", r.query, "form", "")
+	}
+	if r.recursive != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", r.recursive, "form", "")
+	} else {
+		var defaultValue bool = true
+		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", defaultValue, "form", "")
+		r.recursive = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1549,6 +1879,174 @@ func (a *WorkspacesAPIService) ReadFileExecute(r ApiReadFileRequest) (*os.File, 
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiRenameFileRequest struct {
+	ctx context.Context
+	ApiService *WorkspacesAPIService
+	workspaceId string
+	path *string
+	ifMatch *string
+	idempotencyKey *string
+	fileRename *FileRename
+	xOrganizationId *string
+}
+
+func (r ApiRenameFileRequest) Path(path string) ApiRenameFileRequest {
+	r.path = &path
+	return r
+}
+
+func (r ApiRenameFileRequest) IfMatch(ifMatch string) ApiRenameFileRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiRenameFileRequest) IdempotencyKey(idempotencyKey string) ApiRenameFileRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiRenameFileRequest) FileRename(fileRename FileRename) ApiRenameFileRequest {
+	r.fileRename = &fileRename
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiRenameFileRequest) XOrganizationId(xOrganizationId string) ApiRenameFileRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiRenameFileRequest) Execute() (*Operation, *http.Response, error) {
+	return r.ApiService.RenameFileExecute(r)
+}
+
+/*
+RenameFile Rename a workspace file
+
+Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param workspaceId
+ @return ApiRenameFileRequest
+*/
+func (a *WorkspacesAPIService) RenameFile(ctx context.Context, workspaceId string) ApiRenameFileRequest {
+	return ApiRenameFileRequest{
+		ApiService: a,
+		ctx: ctx,
+		workspaceId: workspaceId,
+	}
+}
+
+// Execute executes the request
+//  @return Operation
+func (a *WorkspacesAPIService) RenameFileExecute(r ApiRenameFileRequest) (*Operation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Operation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.RenameFile")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/file"
+	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.path == nil {
+		return localVarReturnValue, nil, reportError("path is required and must be specified")
+	}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.fileRename == nil {
+		return localVarReturnValue, nil, reportError("fileRename is required and must be specified")
+	}
+
+	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.fileRename
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -2028,6 +2526,7 @@ type ApiWriteFileRequest struct {
 	idempotencyKey *string
 	body *os.File
 	xOrganizationId *string
+	createOnly *bool
 }
 
 func (r ApiWriteFileRequest) Path(path string) ApiWriteFileRequest {
@@ -2053,6 +2552,12 @@ func (r ApiWriteFileRequest) Body(body *os.File) ApiWriteFileRequest {
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiWriteFileRequest) XOrganizationId(xOrganizationId string) ApiWriteFileRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+// Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update.
+func (r ApiWriteFileRequest) CreateOnly(createOnly bool) ApiWriteFileRequest {
+	r.createOnly = &createOnly
 	return r
 }
 
@@ -2118,6 +2623,13 @@ func (a *WorkspacesAPIService) WriteFileExecute(r ApiWriteFileRequest) (*Operati
 	}
 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
+	if r.createOnly != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "create_only", r.createOnly, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "create_only", defaultValue, "form", "")
+		r.createOnly = &defaultValue
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/octet-stream"}
 

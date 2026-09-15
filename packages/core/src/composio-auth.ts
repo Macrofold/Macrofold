@@ -7,6 +7,7 @@ import { seal, unseal, id } from './crypto';
 import * as resources from './resources';
 import { composio, assertConnectionOwner } from './connections';
 import { boundedJSON } from './body';
+import { enabledConnector } from './connector-enablement';
 
 const cookieName = () => (isLocal() ? 'composio-state' : '__Host-composio-state');
 const cookie = (state = '', age = 0) =>
@@ -31,21 +32,51 @@ export async function startComposio(request: Request) {
   requireScopes(p, ['connections:write']);
   assert(p.kind === 'user', 403, 'browser_required', 'Sign in to connect your app account.');
   return transaction(p.organizationId, async (tx) => {
+    await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [
+      url.searchParams.get('connection_id') || '',
+    ]);
     const c = await resources.get(tx, 'connections', url.searchParams.get('connection_id') || '', p);
     assertConnectionOwner(p, c);
     assert(c.kind === 'composio' && !c.deleted, 400, 'invalid_connection', 'Choose a connected app.');
-    const configs = JSON.parse(process.env.COMPOSIO_AUTH_CONFIGS_JSON || '{}') as Record<string, string>;
-    assert(
-      configs[String(c.provider)],
-      503,
-      'integration_not_configured',
-      'Register an auth configuration for this app in Composio.',
-    );
-    const link = await composio().connectedAccounts.link(
-      `${p.organizationId}:${p.userId}`,
-      configs[String(c.provider)],
-      { callbackUrl: config.origin + '/integrations/composio/callback' },
-    );
+    const setup = await enabledConnector(String(c.provider), tx);
+    const sdk = composio();
+    const callbackUrl = config.origin + '/integrations/composio/callback';
+    const requestOptions = { signal: AbortSignal.timeout(15000) };
+    const refreshed = c.external_account_id
+      ? await sdk.connectedAccounts.refresh(
+          String(c.external_account_id),
+          { redirectUrl: callbackUrl },
+          requestOptions,
+        )
+      : undefined;
+    if (refreshed)
+      assert(
+        refreshed.id === c.external_account_id,
+        502,
+        'connection_changed',
+        'Reconnect must preserve the connected account.',
+      );
+    if (refreshed?.status === 'ACTIVE' && c.identity_verified) {
+      await resources.update(tx, 'connections', c.id, { status: 'healthy' });
+      return new Response(null, {
+        status: 302,
+        headers: { ...headers, location: config.origin + '/connections' },
+      });
+    }
+    const link = refreshed
+      ? { id: refreshed.id, redirectUrl: refreshed.redirect_url }
+      : await sdk.connectedAccounts.link(
+          `${p.organizationId}:${p.userId}`,
+          setup.auth_config_id,
+          {
+            callbackUrl,
+            allowMultiple: true,
+            // The immutable local ID is also a unique upstream alias. Display names
+            // can change without renaming provider accounts or retargeting agents.
+            alias: c.id,
+          },
+          requestOptions,
+        );
     assert(
       link.redirectUrl && new URL(link.redirectUrl).protocol === 'https:',
       502,
@@ -53,6 +84,10 @@ export async function startComposio(request: Request) {
       'The provider did not return a secure authorization URL.',
     );
     const attempt = id();
+    await tx.query(
+      "UPDATE oauth_attempts SET consumed_at=now() WHERE organization_id=$1 AND provider='composio' AND data->>'connection_id'=$2 AND consumed_at IS NULL",
+      [p.organizationId, c.id],
+    );
     await tx.query(
       "INSERT INTO oauth_attempts(id,organization_id,user_id,provider,data,expires_at) VALUES($1,$2,$3,'composio',$4,now()+interval '10 minutes')",
       [
@@ -64,7 +99,9 @@ export async function startComposio(request: Request) {
     );
     await resources.update(tx, 'connections', c.id, {
       external_account_id: link.id,
+      authorization_attempt_id: attempt,
       identity_verified: false,
+      account_identity: null,
       status: 'pending',
     });
     const state = seal({
@@ -145,11 +182,26 @@ export async function finishComposio(request: Request, transport: typeof fetch =
   const completed = z
     .object({ connected_account_id: z.string(), toolkit_slug: z.string() })
     .parse(await boundedJSON(result, 65536));
+  const account = await composio().connectedAccounts.get(completed.connected_account_id, {
+    signal: AbortSignal.timeout(15000),
+  });
+  assert(
+    account.id === completed.connected_account_id &&
+      account.toolkit.slug === completed.toolkit_slug &&
+      account.status === 'ACTIVE' &&
+      !account.isDisabled,
+    409,
+    'connection_verification_failed',
+    'The connected account is not active. Reconnect it before granting access.',
+  );
   await transaction(state.org, async (tx) => {
+    await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [state.connection]);
     const c = await resources.get(tx, 'connections', state.connection, p);
     assertConnectionOwner(p, c);
     assert(
       c.external_account_id === completed.connected_account_id &&
+        c.authorization_attempt_id === state.attempt &&
+        attempt.connection_id === c.id &&
         attempt.external_account_id === completed.connected_account_id &&
         c.provider === completed.toolkit_slug &&
         !c.deleted,
@@ -157,7 +209,12 @@ export async function finishComposio(request: Request, transport: typeof fetch =
       'connection_changed',
       'The app connection changed during authorization.',
     );
-    await resources.update(tx, 'connections', c.id, { identity_verified: true, status: 'healthy' });
+    await resources.update(tx, 'connections', c.id, {
+      identity_verified: true,
+      status: 'healthy',
+      account_identity: completed.connected_account_id,
+      authorization_attempt_id: null,
+    });
   });
   return new Response(null, {
     status: 302,

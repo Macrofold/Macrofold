@@ -20,7 +20,9 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.claude_api_fallback import ClaudeApiFallback
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -30,7 +32,7 @@ class Connection(BaseModel):
     Connection
     """ # noqa: E501
     id: UUID
-    name: StrictStr
+    name: Annotated[str, Field(min_length=1, strict=True, max_length=120)] = Field(description="Editable display name. Does not change the stable connection ID or any agent selection.")
     kind: StrictStr
     provider: Optional[StrictStr] = Field(default=None, description="For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation.")
     url: Optional[StrictStr] = None
@@ -41,13 +43,16 @@ class Connection(BaseModel):
     created_at: datetime
     package: Optional[StrictStr] = None
     package_version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["id", "name", "kind", "provider", "url", "auth_method", "status", "owner_subject_id", "last_checked_at", "created_at", "package", "package_version"]
+    account_identity: Optional[StrictStr] = Field(default=None, description="Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state.")
+    api_fallback: Optional[ClaudeApiFallback] = None
+    availability: Optional[StrictStr] = Field(default=None, description="Present on gated Claude subscription connections. No subscription login or execution is currently enabled.")
+    __properties: ClassVar[List[str]] = ["id", "name", "kind", "provider", "url", "auth_method", "status", "owner_subject_id", "last_checked_at", "created_at", "package", "package_version", "account_identity", "api_fallback", "availability"]
 
     @field_validator('kind')
     def kind_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'github', 'composio', 'search']):
-            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'github', 'composio', 'search')")
+        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'github', 'composio', 'search', 'claude_subscription']):
+            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'github', 'composio', 'search', 'claude_subscription')")
         return value
 
     @field_validator('status')
@@ -55,6 +60,16 @@ class Connection(BaseModel):
         """Validates the enum"""
         if value not in set(['pending', 'healthy', 'expired', 'error']):
             raise ValueError("must be one of enum values ('pending', 'healthy', 'expired', 'error')")
+        return value
+
+    @field_validator('availability')
+    def availability_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['pending_approval']):
+            raise ValueError("must be one of enum values ('pending_approval')")
         return value
 
     model_config = ConfigDict(
@@ -96,6 +111,14 @@ class Connection(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of api_fallback
+        if self.api_fallback:
+            _dict['api_fallback'] = self.api_fallback.to_dict()
+        # set to None if account_identity (nullable) is None
+        # and model_fields_set contains the field
+        if self.account_identity is None and "account_identity" in self.model_fields_set:
+            _dict['account_identity'] = None
+
         return _dict
 
     @classmethod
@@ -119,7 +142,10 @@ class Connection(BaseModel):
             "last_checked_at": obj.get("last_checked_at"),
             "created_at": obj.get("created_at"),
             "package": obj.get("package"),
-            "package_version": obj.get("package_version")
+            "package_version": obj.get("package_version"),
+            "account_identity": obj.get("account_identity"),
+            "api_fallback": ClaudeApiFallback.from_dict(obj["api_fallback"]) if obj.get("api_fallback") is not None else None,
+            "availability": obj.get("availability")
         })
         return _obj
 

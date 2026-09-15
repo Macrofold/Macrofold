@@ -60,8 +60,8 @@ const query = (sql: string, values: unknown[]) =>
 
 describe('run state transitions and concurrent requests', () => {
   it('rejects an unfunded compute window before admission and releases an exact-boundary reservation on cancel', async () => {
-    const models = catalog.models();
-    vi.spyOn(catalog, 'models').mockReturnValue(models);
+    const models = await catalog.models();
+    vi.spyOn(catalog, 'models').mockResolvedValue(models);
     config.execution = 'docker';
     config.allowPaid = true;
     vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');

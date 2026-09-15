@@ -1,0 +1,21 @@
+{
+  "name": "customer-notes-prisma-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test recipe.test.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.0",
+    "@prisma/adapter-libsql": "7.10.0"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "deepmerge-ts": "8.0.0",
+      "mysql2": "3.23.1"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { permissionLayersSchema } from '../../contracts/permissions';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import {
@@ -13,13 +14,14 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { harnessNames } from '../../contracts/harnesses';
 import { atomicJSON, captureSnapshot } from './manifest';
 import type { NativeConfiguration, NativeResult } from './types';
 
 const UID = 10001;
 export const runtimeConfiguration = z.object({
   runId: z.uuid(),
-  harness: z.enum(['codex', 'claude-code', 'opencode']),
+  harness: z.enum(harnessNames),
   model: z.string().min(1),
   provider: z.enum(['openai', 'anthropic', 'openrouter']),
   prompt: z.string(),
@@ -32,6 +34,7 @@ export const runtimeConfiguration = z.object({
   deadline: z.iso.datetime(),
   resumeId: z.string().optional(),
   toolGrants: z.boolean(),
+  permissions: permissionLayersSchema.optional(),
 });
 async function killAgentProcesses() {
   // A separate UID catches daemonized grandchildren that escaped the original process group.

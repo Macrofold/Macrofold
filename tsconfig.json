@@ -27,7 +27,8 @@
     "packages/**/*.tsx",
     "scripts/**/*.ts",
     "tests/**/*.ts",
-    "sdk/typescript/**/*.ts"
+    "sdk/typescript/**/*.ts",
+    "examples/**/*.ts"
   ],
-  "exclude": ["node_modules", "apps/web/.next"]
+  "exclude": ["node_modules", "apps/web/.next", "examples/integrations/prisma"]
 }

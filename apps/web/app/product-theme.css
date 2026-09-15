@@ -1,0 +1,113 @@
+/* Product tokens adapted from the supplied Macrofold UI Design System.
+   Text colors are strengthened where needed for small-text contrast.
+   These live on the root so portaled menus, dialogs, and toasts share the theme. */
+:root {
+  color-scheme: dark;
+  --app-font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --app-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --app-bg: #060b0e;
+  --app-rail: #070d11;
+  --app-surface: #0b1418;
+  --app-surface-2: #101c22;
+  --app-surface-3: #16252c;
+  --app-overlay: #0c171df5;
+  --app-scrim: #02080cc2;
+  --app-ink: #ebf8fa;
+  --app-ink-2: #a9bcc4;
+  --app-ink-3: #8fa4ad;
+  --app-line: #b5eaf01c;
+  --app-line-2: #b5eaf038;
+  --app-accent: #b5eaf0;
+  --app-accent-2: #d6f5f9;
+  --app-accent-ink: #071519;
+  --app-accent-wash: #b5eaf012;
+  --app-accent-wash-2: #b5eaf026;
+  --app-ember: #f7a072;
+  --app-ember-2: #ffbf9b;
+  --app-ember-wash: #f7a0721a;
+  --app-success: #5fd39b;
+  --app-success-wash: #5fd39b1c;
+  --app-warn: #f2c14e;
+  --app-warn-wash: #f2c14e1c;
+  --app-danger: #f26d6d;
+  --app-danger-wash: #f26d6d1e;
+  --app-lilac: #c0b1ef;
+  --app-lilac-wash: #c0b1ef1a;
+  --app-focus: #b5eaf0;
+  --app-field-focus: #64838c;
+  --app-field-focus-halo: #b5eaf00d;
+  --app-shadow-1: 0 1px 2px #00000033;
+  --app-shadow-2: 0 12px 40px #00000080, 0 0 0 1px #b5eaf014;
+  --app-metal: linear-gradient(125deg, #81b4c0, #f2feff 38%, #97cbd4 70%, #c5e9ec);
+  --app-metal-ink: #071519;
+  --app-prompt-ring: conic-gradient(
+    from 200deg,
+    #b5eaf0aa,
+    #f7a07266 30%,
+    #b5eaf022 55%,
+    #b5eaf0aa 80%,
+    #f7a07255
+  );
+  --app-radius-sm: 6px;
+  --app-radius: 8px;
+  --app-radius-lg: 12px;
+  --app-radius-xl: 16px;
+  --bg: var(--app-bg);
+  --paper: var(--app-surface);
+  --surface: var(--app-surface);
+  --border: var(--app-line);
+  --ink: var(--app-ink);
+  --muted: var(--app-ink-2);
+  --line: var(--app-line);
+  --blue: var(--app-accent);
+  --sidebar: var(--app-rail);
+  --green: var(--app-success);
+  --radius: var(--app-radius-lg);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-bg: #f4f8f9;
+  --app-rail: #f4f8f9;
+  --app-surface: #ffffff;
+  --app-surface-2: #eef4f6;
+  --app-surface-3: #e3edf0;
+  --app-overlay: #fffffff5;
+  --app-scrim: #07151970;
+  --app-ink: #071519;
+  --app-ink-2: #4e6570;
+  --app-ink-3: #526d79;
+  --app-line: #0715191a;
+  --app-line-2: #07151933;
+  --app-accent: #116f81;
+  --app-accent-2: #0f6675;
+  --app-accent-ink: #f6fbfc;
+  --app-accent-wash: #137a8c12;
+  --app-accent-wash-2: #137a8c24;
+  --app-ember: #aa4821;
+  --app-ember-2: #a54620;
+  --app-ember-wash: #c2582a14;
+  --app-success: #137344;
+  --app-success-wash: #178a5518;
+  --app-warn: #8b6100;
+  --app-warn-wash: #e9b8301f;
+  --app-danger: #bd3232;
+  --app-danger-wash: #c7383816;
+  --app-lilac: #7952ad;
+  --app-lilac-wash: #7952ad12;
+  --app-focus: #137a8c;
+  --app-field-focus: #648d98;
+  --app-field-focus-halo: #137a8c0d;
+  --app-shadow-1: 0 1px 2px #0715190a;
+  --app-shadow-2: 0 12px 40px #07151924, 0 0 0 1px #07151910;
+  --app-metal: linear-gradient(125deg, #0e3b47, #16515f 45%, #0b2f3a);
+  --app-metal-ink: #ebf8fa;
+  --app-prompt-ring: conic-gradient(
+    from 200deg,
+    #137a8caa,
+    #c2582a55 30%,
+    #137a8c22 55%,
+    #137a8caa 80%,
+    #c2582a44
+  );
+}

@@ -5,6 +5,9 @@ import { nativeModelFixture } from './native-model.mjs';
 import { handleApi } from '../../packages/core/src/http';
 import { handleModelRequest } from '../../packages/core/src/model-gateway';
 import { handleRuntimeMcp } from '../../packages/core/src/tool-broker';
+import { verifyRuntime } from '../../packages/core/src/runtime-auth';
+import { transaction } from '../../packages/db';
+import { getRun } from '../../packages/core/src/runs';
 import { config, isLocal } from '../../packages/core/src/config';
 
 if (
@@ -17,12 +20,18 @@ if (
 )
   throw new Error('Native journey fixtures require isolated Docker and synthetic credentials.');
 const fixturePaths = ['/v1/responses', '/v1/chat/completions', '/v1/messages'];
-const fixtures = new Map(fixturePaths.map((p) => [p, nativeModelFixture({ journey: true })]));
+const fixtures = new Map<string, ReturnType<typeof nativeModelFixture>>();
 const model = createServer((req, res) => {
-  const fixture = fixtures.get(req.url === '/v1/messages/count_tokens' ? '/v1/messages' : req.url || '');
-  if (!fixture) {
+  const pathname = req.url === '/v1/messages/count_tokens' ? '/v1/messages' : req.url || '';
+  if (!fixturePaths.includes(pathname)) {
     res.writeHead(404).end();
     return;
+  }
+  const key = String(req.headers['x-fixture-session']) + pathname;
+  let fixture = fixtures.get(key);
+  if (!fixture) {
+    fixture = nativeModelFixture({ journey: true });
+    fixtures.set(key, fixture);
   }
   fixture.handler(req, res);
 }).listen(0, '127.0.0.1');
@@ -35,22 +44,29 @@ globalThis.fetch = async (input, init) => {
     throw new Error('Unexpected fixture network request');
   return networkFetch(input, init);
 };
-const fixtureTransport: typeof fetch = async (input, init) => {
-  const url = new URL(String(input));
-  if (!['https://api.openai.com', 'https://api.anthropic.com', 'https://openrouter.ai'].includes(url.origin))
-    throw new Error('Unreviewed model endpoint');
-  const headers = new Headers(init?.headers);
-  if (
-    ![headers.get('authorization'), headers.get('x-api-key')].some(
-      (h) => h === 'Bearer fixture-never-live' || h === 'fixture-never-live',
+const fixtureTransport =
+  (request: Request, runId: string): typeof fetch =>
+  async (input, init) => {
+    const url = new URL(String(input));
+    if (
+      !['https://api.openai.com', 'https://api.anthropic.com', 'https://openrouter.ai'].includes(url.origin)
     )
-  )
-    throw new Error('Unexpected credential in model fixture');
-  return networkFetch(`http://127.0.0.1:${modelPort}${url.pathname.replace(/^\/api\//, '/')}`, {
-    ...init,
-    redirect: 'error',
-  });
-};
+      throw new Error('Unreviewed model endpoint');
+    const headers = new Headers(init?.headers);
+    if (
+      ![headers.get('authorization'), headers.get('x-api-key')].some(
+        (h) => h === 'Bearer fixture-never-live' || h === 'fixture-never-live',
+      )
+    )
+      throw new Error('Unexpected credential in model fixture');
+    // The gateway performs authentication first, including optional unauthenticated native probes.
+    const harness = await fixtureHarness(request, runId);
+    return networkFetch(`http://127.0.0.1:${modelPort}${url.pathname.replace(/^\/api\//, '/')}`, {
+      ...init,
+      headers: { ...Object.fromEntries(headers), 'x-fixture-session': harness },
+      redirect: 'error',
+    });
+  };
 const server = createServer(async (incoming, outgoing) => {
   const abort = new AbortController();
   outgoing.on('close', () => abort.abort());
@@ -74,14 +90,17 @@ const server = createServer(async (incoming, outgoing) => {
     const runtime = /^\/runtime\/runs\/([a-f0-9-]+)\/(model\/(.+)|mcp)$/.exec(pathname);
     const response = runtime
       ? runtime[3]
-        ? await handleModelRequest(request, runtime[1], runtime[3], fixtureTransport)
+        ? await handleModelRequest(request, runtime[1], runtime[3], fixtureTransport(request, runtime[1]))
         : await handleRuntimeMcp(request, runtime[1])
       : await handleApi(request);
+    if (runtime && response.status >= 400)
+      console.error('Fixture runtime rejection', response.status, await response.clone().text());
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body)
       Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).pipe(outgoing);
     else outgoing.end();
-  } catch {
+  } catch (error) {
+    console.error('Fixture request failed', error);
     outgoing.destroy();
   }
 }).listen(Number(new URL(config.origin).port), '0.0.0.0');
@@ -92,3 +111,8 @@ process.on('SIGTERM', () => {
   model.close();
   process.exit(0);
 });
+
+async function fixtureHarness(request: Request, runId: string) {
+  const cap = verifyRuntime(request, runId);
+  return transaction(cap.organization, async (tx) => (await getRun(tx, runId)).config.harness);
+}

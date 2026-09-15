@@ -32,7 +32,9 @@ export async function withFixtureDatabase(run: (env: NodeJS.ProcessEnv) => Promi
       ALLOW_PAID_EXECUTION: 'false',
       // Catalog discovery is free but must not inherit developer credentials.
       COMPOSIO_API_KEY: '',
-      COMPOSIO_AUTH_CONFIGS_JSON: '{}',
+      OPENAI_API_KEY: '',
+      ANTHROPIC_API_KEY: '',
+      OPENROUTER_API_KEY: '',
       COMPOSIO_CALLBACK_VERIFICATION_ENABLED: 'false',
       GLOBAL_CONCURRENT_RUN_LIMIT: '50',
       RUN_ADMISSION_ENABLED: 'true',
@@ -41,6 +43,15 @@ export async function withFixtureDatabase(run: (env: NodeJS.ProcessEnv) => Promi
     await command(['--filter', 'macrofold', 'build'], env);
     for (const script of ['migrate', 'auth-migrate', 'provision-cli'])
       await command(['exec', 'tsx', 'scripts/' + script + '.ts'], env);
+    // Default fixtures never refresh vendor metadata, even if a test selects native execution.
+    // Catalog tests explicitly make their isolated rows due and inject deterministic sources.
+    const fixture = new pg.Client({ connectionString: runtimeURL.href });
+    await fixture.connect();
+    try {
+      await fixture.query("UPDATE model_catalog_cache SET refresh_after=now()+interval '1 day'");
+    } finally {
+      await fixture.end();
+    }
     await run(env);
   } finally {
     try {

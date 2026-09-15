@@ -2,6 +2,8 @@
 
 Typed resource methods and resumable run streams using the JDK HTTP client and Jackson. Supports Java 11 or later; contributor builds use JDK 21 and Maven.
 
+Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
+
 ## Install from source
 
 Install into your local Maven repository:
@@ -22,7 +24,7 @@ Add this dependency to your application's `pom.xml`:
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key. Copy a project ID and saved agent preset ID. The preset supplies harness/model/billing configuration; the project identifies persistent files. Managed execution uses credits; local simulation is free.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```java
 import dev.macrofold.Macrofold;
@@ -34,7 +36,9 @@ public class Example {
         Macrofold client = new Macrofold();
         var run = client.runs().create(new RunCreate()
             .projectId(UUID.fromString("YOUR_PROJECT_ID"))
-            .agentId(UUID.fromString("YOUR_AGENT_ID"))
+            .harness(RunCreate.HarnessEnum.CODEX)
+            .model("gpt-5.4-mini")
+            .billingMode(RunCreate.BillingModeEnum.MANAGED)
             .prompt("Create hello.txt containing Hello world."));
         client.runs().streamText(run.getRunId(), text -> {
             System.out.print(text);
@@ -102,4 +106,8 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 Generated classes such as `new ProjectsApi(client)` remain available, including `WithHttpInfo` variants for response headers and status. Low-level mutations still require explicit idempotency keys. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
 
-See [API conventions](../../docs/features/api/README.md) for permissions, errors, and asynchronous work.
+See [API conventions](../../docs/features/api/conventions.md) for permissions, errors, and asynchronous work.
+
+## Choose a harness
+
+The same run methods support `codex`, `claude-code`, `opencode`, `hermes`, `deepseek`, and `pi`. Select a compatible model from the catalog. See [harness capabilities and examples](../../docs/features/execution/harnesses.md).

@@ -26,8 +26,8 @@ export async function actorAuthorized(
     // Admission delegates through the run deadline, so normal token expiration/rotation does not stop a run.
     // Explicit token/session/client revocation does. Retain expired records while dependent runs are active.
     const token = await tx.query(
-      `SELECT 1 FROM auth."oauthAccessToken" t JOIN auth."oauthClient" c ON c."clientId"=t."clientId" JOIN auth."oauthClientResource" cr ON cr."clientId"=c."clientId" AND cr."resourceId"=$2 JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE t.id=$1 AND t.revoked IS NULL AND c.disabled=false AND r.disabled=false AND (t."sessionId" IS NULL OR EXISTS(SELECT 1 FROM auth.session s WHERE s.id=t."sessionId" AND s."expiresAt">now()))`,
-      [run.config.oauth_token_id, `${config.origin}/v1`],
+      `SELECT 1 FROM auth."oauthAccessToken" t JOIN auth."oauthClient" c ON c."clientId"=t."clientId" JOIN auth."oauthClientResource" cr ON cr."clientId"=c."clientId" AND cr."resourceId"=$2 JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE t.id=$1 AND t.scopes::jsonb ? $3 AND c.scopes::jsonb ? $3 AND t.revoked IS NULL AND c.disabled=false AND r.disabled=false AND (t."sessionId" IS NULL OR EXISTS(SELECT 1 FROM auth.session s WHERE s.id=t."sessionId" AND s."expiresAt">now()))`,
+      [run.config.oauth_token_id, `${config.origin}/v1`, scope],
     );
     if (!token.rowCount) return false;
   }

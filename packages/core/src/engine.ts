@@ -1,3 +1,5 @@
+import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
+import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
 import { pool, transaction, lock } from '../../db';
 import { config, isLocal } from './config';
@@ -58,12 +60,14 @@ export async function claimRun(org: string, runId: string) {
       ['deleting', 'degraded', 'restoring'].includes(String(workspace.status));
     const policy = await getExecutionPolicy(tx, org);
     const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
+    const subscriptionUnavailable = run.config.billing_mode === 'subscription';
     if (
       run.cancel_requested ||
       run.queue_expires_at.getTime() <= Date.now() ||
       denied ||
       unavailable ||
-      timeoutUnavailable
+      timeoutUnavailable ||
+      subscriptionUnavailable
     ) {
       // Deletion and billing controls cancel queued rows without invoking the public
       // cancel handler. Honor that flag before provisioning or any native side effect.
@@ -76,7 +80,9 @@ export async function claimRun(org: string, runId: string) {
             ? 'workspace_unavailable'
             : timeoutUnavailable
               ? 'execution_limit_changed'
-              : 'queue_expired';
+              : subscriptionUnavailable
+                ? 'claude_subscription_unavailable'
+                : 'queue_expired';
       await tx.query('UPDATE runs SET status=$3,completed_at=now(),result=$2 WHERE id=$1', [
         runId,
         JSON.stringify({
@@ -143,11 +149,17 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     const ws = await transaction(org, (tx) => resources.get(tx, 'workspaces', run.workspace_id));
     const session = await transaction(org, (tx) => resources.get(tx, 'sessions', run.session_id));
     const files = await Promise.all(
-      ((ws.files || []) as FileRecord[]).map(async (f) => ({
-        path: f.path,
-        bytes: await readContent(f.key, f.sha256),
-        mode: f.mode,
-      })),
+      ((ws.files || []) as FileRecord[])
+        .filter(
+          (file) =>
+            !guardedToolsRequired(run.config.permission_layers || []) ||
+            (file.type === 'file' && fileAllowed(run.config.permission_layers || [], 'read', file.path)),
+        )
+        .map(async (f) => ({
+          path: f.path,
+          bytes: await readContent(f.key, f.sha256),
+          mode: f.mode,
+        })),
     );
     if (!provider) {
       assert(
@@ -225,7 +237,19 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         'lease_lost',
         'Execution lease was lost before publication.',
       );
-      const cp = await checkpoint(tx, p, run.workspace_id, 'Run completed', saved);
+      const cp = await checkpoint(
+        tx,
+        p,
+        run.workspace_id,
+        'Run completed',
+        guardedToolsRequired(run.config.permission_layers || [])
+          ? permissionOutput(
+              run.config.permission_layers || [],
+              (await resources.get(tx, 'workspaces', run.workspace_id)).files || [],
+              saved,
+            )
+          : saved,
+      );
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       await resources.update(tx, 'workspaces', run.workspace_id, {
         ...checkpointState(cp),

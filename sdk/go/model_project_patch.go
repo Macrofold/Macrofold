@@ -22,6 +22,7 @@ type ProjectPatch struct {
 	Name *string `json:"name,omitempty"`
 	Github *ProjectCreateGithub `json:"github,omitempty"`
 	Archived *bool `json:"archived,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -140,6 +141,38 @@ func (o *ProjectPatch) SetArchived(v bool) {
 	o.Archived = &v
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *ProjectPatch) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ProjectPatch) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *ProjectPatch) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *ProjectPatch) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
 func (o ProjectPatch) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -158,6 +191,9 @@ func (o ProjectPatch) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Archived) {
 		toSerialize["archived"] = o.Archived
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -184,6 +220,7 @@ func (o *ProjectPatch) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "github")
 		delete(additionalProperties, "archived")
+		delete(additionalProperties, "permissions")
 		o.AdditionalProperties = additionalProperties
 	}
 

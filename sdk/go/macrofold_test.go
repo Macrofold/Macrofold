@@ -249,6 +249,24 @@ func TestApplicationWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	workspaceID := project.GetDefaultWorkspaceId()
+	workspace, err := client.Workspaces.Get(ctx, workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder, err := client.Workspaces.CreateFolder(ctx, workspaceID, NewFolderCreate("examples"), &CreateFolderParams{IfMatch: workspace.Revision})
+	if err != nil || folder.Result == nil || folder.Result.Entry == nil || folder.Result.Entry.Type != "directory" {
+		t.Fatalf("folder: %v %v", folder, err)
+	}
+	renamed, err := client.Workspaces.RenameFile(ctx, workspaceID, NewFileRename("examples/renamed.txt"), &RenameFileParams{Path: "examples/.gitkeep", IfMatch: folder.Result.GetRevision()})
+	if err != nil || renamed.Result == nil || renamed.Result.GetPreviousPath() != "examples/.gitkeep" {
+		t.Fatalf("rename: %v %v", renamed, err)
+	}
+	recursive := false
+	listing, err := client.Workspaces.ListFiles(ctx, workspaceID, &ListFilesParams{Recursive: &recursive})
+	if err != nil || len(listing.Entries) != 1 || listing.Entries[0].Type != "directory" {
+		t.Fatalf("folders: %v %v", listing, err)
+	}
 	runBody := NewRunCreate("Verify Go persisted execution.")
 	agent, err := client.Agents.Create(ctx, NewAgentCreate("Go preset", "codex", "fixture-model", "managed"))
 	if err != nil {

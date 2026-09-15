@@ -1,6 +1,7 @@
 'use client';
+import { WaitingText } from './waiting-text';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, ChevronRight, LayoutGrid, LoaderCircle, Search, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, LayoutGrid, Search, X } from 'lucide-react';
 import type { Schema } from '../lib/client';
 import { Button, ErrorState } from './ui';
 import { ProviderLogo } from './provider-logo';
@@ -61,7 +62,7 @@ export function ConnectorBrowser({
   return (
     <div className="connector-browser">
       <nav className="connector-categories" aria-label="App categories">
-        <div className="connector-category-heading">CATEGORIES</div>
+        <div className="connector-category-heading">Categories</div>
         <button
           type="button"
           className="connector-category-all"
@@ -88,7 +89,7 @@ export function ConnectorBrowser({
       </nav>
       <div className="connector-catalog-main">
         <div className="connector-search-area">
-          <label className="connector-search">
+          <label className="connector-search input-surface">
             <Search size={19} aria-hidden="true" />
             <input
               ref={searchInput}
@@ -122,14 +123,15 @@ export function ConnectorBrowser({
                 : categoryLabel(category)}
             </h3>
             <span role="status" aria-live="polite">
-              {loading ? 'Loading catalog…' : `${filtered.length.toLocaleString()} apps`}
+              <WaitingText active={loading}>
+                {loading ? 'Loading catalog…' : `${filtered.length.toLocaleString()} apps`}
+              </WaitingText>
             </span>
           </div>
         </div>
         {loading ? (
           <div className="connector-catalog-loading" role="status">
-            <LoaderCircle className="spin" size={22} />
-            Finding your next connection…
+            <WaitingText>Finding your next connection…</WaitingText>
           </div>
         ) : error ? (
           <ErrorState error={error} retry={retry} />

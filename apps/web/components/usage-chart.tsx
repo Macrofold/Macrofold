@@ -46,7 +46,7 @@ export function UsageChart({ report }: { report: Schema['Report'] }) {
       <div className="usage-chart-header">
         <div>
           <span className="usage-chart-eyebrow">
-            <ChartColumn size={15} /> ACTIVITY OVER TIME
+            <ChartColumn size={15} /> Activity over time
           </span>
           <h2>{choice.title}</h2>
           <div className="usage-chart-total">
@@ -75,7 +75,7 @@ export function UsageChart({ report }: { report: Schema['Report'] }) {
             aria-label={`Daily ${choice.title.toLowerCase()}`}
             margin={{ top: 12, right: 4, bottom: 4, left: 0 }}
           >
-            <CartesianGrid stroke="#e9ecf3" vertical={false} strokeDasharray="3 4" />
+            <CartesianGrid stroke="var(--app-line)" vertical={false} strokeDasharray="3 4" />
             <XAxis
               dataKey="day"
               tickFormatter={dateLabel}
@@ -83,14 +83,14 @@ export function UsageChart({ report }: { report: Schema['Report'] }) {
               tickLine={false}
               minTickGap={32}
               tickMargin={12}
-              tick={{ fill: '#697180', fontSize: 11 }}
+              tick={{ fill: 'var(--app-ink-2)', fontSize: 11 }}
             />
             <YAxis
               allowDecimals={false}
               axisLine={false}
               tickLine={false}
               width={48}
-              tick={{ fill: '#697180', fontSize: 11 }}
+              tick={{ fill: 'var(--app-ink-2)', fontSize: 11 }}
               tickFormatter={(value: number) =>
                 measure === 'cost_micro_usd'
                   ? money(value)
@@ -98,7 +98,7 @@ export function UsageChart({ report }: { report: Schema['Report'] }) {
               }
             />
             <Tooltip
-              cursor={{ fill: '#f2f4fa', radius: 5 }}
+              cursor={{ fill: 'var(--app-surface-2)', radius: 5 }}
               content={({ active, payload, label }) =>
                 active && payload?.length ? (
                   <div className="usage-chart-tooltip">
@@ -112,8 +112,8 @@ export function UsageChart({ report }: { report: Schema['Report'] }) {
             <Bar
               dataKey="value"
               name={choice.title}
-              fill="#5870e8"
-              activeBar={{ fill: '#3d53c4' }}
+              fill="var(--app-accent)"
+              activeBar={{ fill: 'var(--app-accent-2)' }}
               radius={[4, 4, 0, 0]}
               maxBarSize={32}
               isAnimationActive={false}

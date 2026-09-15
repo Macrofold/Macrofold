@@ -74,17 +74,17 @@ it('requires all operator setup gates and never returns configuration secrets', 
   };
   const settings = {
     enabled: true,
-    authConfigs: '{"gmail":"secret-auth-config-id"}',
-    versions: '{"gmail":"20260828_00"}',
+    apps: [{ toolkit: 'gmail', auth_config_id: 'secret-auth-config-id', toolkit_version: '20260828_00', enabled: true, creation_pending: false }],
   };
   const result = await listConnectorCatalog(source, settings);
   expect(result.data[0].connectable).toBe(true);
   expect(JSON.stringify(result)).not.toContain('secret-auth-config-id');
   for (const overrides of [
     { enabled: false },
-    { versions: '{}' },
-    { versions: '{"gmail":"latest"}' },
-    { authConfigs: 'invalid' },
+    { apps: [] },
+    { apps: settings.apps.map((app) => ({ ...app, enabled: false })) },
+    { apps: settings.apps.map((app) => ({ ...app, creation_pending: true })) },
+    { apps: settings.apps.map((app) => ({ ...app, auth_config_id: null })) },
   ])
     expect((await listConnectorCatalog(source, { ...settings, ...overrides })).data[0].connectable).toBe(
       false,

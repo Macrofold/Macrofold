@@ -1,0 +1,67 @@
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.copy-feedback-icon {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.copy-feedback-icon > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.copy-feedback-copy {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copy-feedback-check {
+  color: var(--app-success, #238636);
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.copy-feedback-check path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 300ms cubic-bezier(0.22, 1, 0.36, 1) 60ms;
+}
+
+.copy-feedback-icon[data-copied='true'] .copy-feedback-copy {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.copy-feedback-icon[data-copied='true'] .copy-feedback-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copy-feedback-icon[data-copied='true'] .copy-feedback-check path {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-dashboard-motion='playing']) .copy-feedback-icon[data-copied] > svg.copy-feedback-copy,
+  html:not([data-dashboard-motion='playing']) .copy-feedback-icon[data-copied] > svg.copy-feedback-check {
+    transform: none;
+    transition: opacity 180ms ease;
+  }
+  html:not([data-dashboard-motion='playing']) .copy-feedback-check path {
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+}

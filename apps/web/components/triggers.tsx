@@ -1,10 +1,13 @@
 'use client';
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { defaultRunBudgetMicroUsd } from '../../../packages/contracts/run-defaults';
+import { request, useData, useDataPages } from '../lib/dashboard-data';
+import { useConnectionAccess } from './run-tools';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   CalendarClock,
-  Copy,
   History,
   KeyRound,
   MessageSquare,
@@ -16,8 +19,8 @@ import {
   Webhook,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { api, relative, useApi, usePages, type Page, type Schema } from '../lib/client';
-import { copyText } from '../lib/clipboard';
+import { api, money, relative, useApi, usePages, type Page, type Schema } from '../lib/client';
+import { CopyButton } from './copy-button';
 import {
   Badge,
   Button,
@@ -26,6 +29,7 @@ import {
   Field,
   Loading,
   Modal,
+  More,
   PageHeading,
   SectionHeading,
   Select,
@@ -37,8 +41,17 @@ const icons = { slack: MessageSquare, webhook: Webhook, schedule: CalendarClock 
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'The request failed. Please try again.';
 export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
-  const path = `/v1/triggers?limit=100${scheduled ? '&kind=schedule' : ''}`;
-  const triggers = usePages<Trigger>(path, 15000);
+  const params = useSearchParams(),
+    router = useRouter();
+  const presetId = scheduled ? params.get('agent') : null;
+  const closePreset = () => router.replace('/scheduled-tasks', { scroll: false });
+  const triggers = useDataPages(
+    {
+      operation: 'listTriggers',
+      params: { query: { limit: 100, ...(scheduled ? { kind: 'schedule' } : {}) } },
+    },
+    15000,
+  );
   const [edit, setEdit] = useState<Trigger | 'new'>(),
     [selected, setSelected] = useState<Trigger>(),
     [remove, setRemove] = useState<Trigger>(),
@@ -98,6 +111,25 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
           </p>
         </div>
       </div>
+      {triggers.page && (
+        <p className="form-hint">
+          {triggers.page.quota.used} / {triggers.page.quota.limit} saved triggers across this account ·{' '}
+          {triggers.page.quota.remaining} available. Paused triggers count.{' '}
+          <Link href="/docs/triggers#capacity">About capacity →</Link>
+        </p>
+      )}
+      {presetId && (
+        <ScheduleFromPreset
+          key={presetId}
+          id={presetId}
+          weekly={params.get('template') === 'weekly-project-digest'}
+          close={closePreset}
+          saved={() => {
+            closePreset();
+            void refresh();
+          }}
+        />
+      )}
       {triggers.isPending ? (
         <Loading />
       ) : triggers.error ? (
@@ -200,13 +232,12 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
                 {t.webhook_url && (
                   <div className="trigger-endpoint">
                     <code>{t.webhook_url}</code>
-                    <Button
+                    <CopyButton
                       variant="ghost"
-                      aria-label={`Copy ${t.name} webhook URL`}
-                      onClick={() => copyText(t.webhook_url!)}
-                    >
-                      <Copy size={14} />
-                    </Button>
+                      label={`Copy ${t.name} webhook URL`}
+                      text={t.webhook_url}
+                      iconOnly
+                    />
                     <Button
                       variant="ghost"
                       busy={busy}
@@ -269,10 +300,7 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
             <Field label="Authorization header">
               <input readOnly value={`Bearer ${secret.value}`} />
             </Field>
-            <Button onClick={() => copyText(secret.value)}>
-              <Copy size={15} />
-              Copy secret
-            </Button>
+            <CopyButton variant="primary" text={secret.value} label="Copy secret" />
             <p className="muted">
               Send JSON and a unique Idempotency-Key header. Reuse that key when retrying the same event.
             </p>
@@ -307,25 +335,66 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
   );
 }
 
+function ScheduleFromPreset({
+  id,
+  weekly,
+  close,
+  saved,
+}: {
+  id: string;
+  weekly: boolean;
+  close: () => void;
+  saved: () => void;
+}) {
+  const preset = useData({ operation: 'getAgent', params: { path: { agent_id: id } } });
+  if (preset.data)
+    return <TriggerForm scheduled preset={preset.data} weekly={weekly} close={close} saved={saved} />;
+  return (
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
+      title="Schedule a preset"
+      description="Review the preset, then choose its project and schedule."
+    >
+      {preset.error ? (
+        <ErrorState error={preset.error} retry={() => void preset.refetch()} />
+      ) : (
+        <Loading label="Loading preset…" />
+      )}
+    </Modal>
+  );
+}
+
 function TriggerForm({
+  preset,
+  weekly = false,
   scheduled,
   initial,
   close,
   saved,
 }: {
   scheduled: boolean;
+  preset?: Schema['Agent'];
+  weekly?: boolean;
   initial?: Trigger;
   close: () => void;
   saved: (t: Schema['NewTrigger']) => void;
 }) {
   const [kind, setKind] = useState<Trigger['kind']>(initial?.kind || (scheduled ? 'schedule' : 'webhook'));
-  const [name, setName] = useState(initial?.name || ''),
-    [prompt, setPrompt] = useState(initial?.prompt || ''),
+  const [name, setName] = useState(initial?.name || preset?.name || ''),
+    [prompt, setPrompt] = useState(
+      initial?.prompt ||
+        (preset
+          ? 'Follow your saved instructions using the current project files. Update your report and summarize what changed.'
+          : ''),
+    ),
     [project, setProject] = useState(initial?.project_id || ''),
-    [agent, setAgent] = useState(initial?.agent_id || ''),
+    [agent, setAgent] = useState(initial?.agent_id || preset?.id || ''),
     [connection, setConnection] = useState(initial?.slack_connection_id || ''),
     [channel, setChannel] = useState(initial?.channel_id || ''),
-    [cron, setCron] = useState(initial?.cron || '0 9 * * *'),
+    [cron, setCron] = useState(initial?.cron || (weekly ? '0 9 * * 1' : '0 9 * * *')),
     [timezone, setTimezone] = useState(
       initial?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     ),
@@ -340,6 +409,11 @@ function TriggerForm({
   const channels = usePages<Schema['SlackChannel']>(
     kind === 'slack' && connection ? `/v1/slack-connections/${connection}/channels` : undefined,
   );
+  const selectedPreset = useData(
+    agent ? { operation: 'getAgent', params: { path: { agent_id: agent } } } : undefined,
+  );
+  const access = useConnectionAccess(project && agent ? { project_id: project, agent_id: agent } : undefined);
+  const availableAgents = agents.data?.data || [];
   const availableChannels = channels.data?.data || [];
   return (
     <Modal
@@ -352,7 +426,7 @@ function TriggerForm({
       wide
     >
       <form
-        className="form-grid"
+        className="form-stack"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -371,8 +445,10 @@ function TriggerForm({
           try {
             if (initial) {
               const { kind: _kind, enabled: _enabled, ...patch } = input;
-              saved(await api(`/v1/triggers/${initial.id}`, 'PATCH', patch));
-            } else saved(await api('/v1/triggers', 'POST', input));
+              saved(
+                await request('updateTrigger', { params: { path: { trigger_id: initial.id } }, body: patch }),
+              );
+            } else saved(await request('createTrigger', { body: input }));
           } catch (e) {
             setError(errorMessage(e));
           } finally {
@@ -402,7 +478,7 @@ function TriggerForm({
             />
           </Field>
         )}
-        <div className="form-row">
+        <div className="form-grid">
           <Field label="Project">
             <Select
               required
@@ -419,7 +495,10 @@ function TriggerForm({
               value={agent}
               onValueChange={setAgent}
               placeholder={agents.isPending ? 'Loading presets…' : 'Choose preset'}
-              options={(agents.data?.data || []).map((a) => ({ value: a.id, label: a.name }))}
+              options={[
+                ...(preset && !availableAgents.some((a) => a.id === preset.id) ? [preset] : []),
+                ...availableAgents,
+              ].map((a) => ({ value: a.id, label: a.name }))}
             />
           </Field>
         </div>
@@ -474,10 +553,12 @@ function TriggerForm({
                 ]}
               />
             </Field>
-            <div className="form-row">
-              <Field label="Cron expression" hint="minute · hour · day · month · weekday">
-                <input required value={cron} onChange={(e) => setCron(e.target.value)} maxLength={120} />
-              </Field>
+            <div className="form-grid">
+              {!['0 * * * *', '0 9 * * *', '0 9 * * 1-5', '0 9 * * 1'].includes(cron) && (
+                <Field label="Cron expression" hint="minute · hour · day · month · weekday">
+                  <input required value={cron} onChange={(e) => setCron(e.target.value)} maxLength={120} />
+                </Field>
+              )}
               <Field label="Timezone" hint="IANA name, such as America/New_York or UTC">
                 <input
                   required
@@ -556,19 +637,89 @@ function TriggerForm({
             </p>
           </>
         )}
-        <Field
-          label="Maximum deliveries per 24 hours"
-          hint="A rolling intake limit, in addition to your preset budget and account spending limits."
-        >
-          <input
-            type="number"
-            required
-            min={1}
-            max={1000}
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-          />
-        </Field>
+        <details>
+          <summary>Advanced delivery limits</summary>
+          <Field
+            label="Maximum deliveries per 24 hours"
+            hint="A rolling intake limit, in addition to your preset budget and account spending limits."
+          >
+            <input
+              type="number"
+              required
+              min={1}
+              max={1000}
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+            />
+          </Field>
+        </details>
+        {project && agent && (
+          <section className="schedule-review" aria-label="Review schedule">
+            <h3>Review before enabling</h3>
+            {selectedPreset.isPending ? (
+              <Loading label="Loading preset…" />
+            ) : selectedPreset.error ? (
+              <ErrorState error={selectedPreset.error} />
+            ) : (
+              selectedPreset.data && (
+                <>
+                  <p>
+                    <strong>{selectedPreset.data.name}</strong> · {selectedPreset.data.model}
+                  </p>
+                  <p>
+                    {money(selectedPreset.data.limits?.max_cost_micro_usd || defaultRunBudgetMicroUsd)}{' '}
+                    maximum per run ·{' '}
+                    {selectedPreset.data.billing_mode === 'managed'
+                      ? 'Platform credits'
+                      : 'Your named model connection'}
+                    .
+                  </p>
+                  <p className="form-hint">
+                    Each occurrence starts a fresh conversation in the project’s main worktree. Preset changes
+                    apply to future runs.
+                  </p>
+                </>
+              )
+            )}
+            {kind === 'schedule' && (
+              <p>
+                Schedule: <code>{cron}</code> · {timezone}
+              </p>
+            )}
+            <details>
+              <summary>Review connections and tools</summary>
+              {access.isPending ? (
+                <Loading label="Checking access…" />
+              ) : access.error ? (
+                <ErrorState error={access.error} retry={() => void access.refetch()} />
+              ) : (
+                <>
+                  {!access.data?.pages.some((page) => page.data.length) && (
+                    <p>No eligible tool connections. Files and model access are separate.</p>
+                  )}
+                  {access.data?.pages
+                    .flatMap((page) => page.data)
+                    .map((item) => (
+                      <div key={item.connection_id}>
+                        <strong>{item.name}</strong>
+                        <p>
+                          {item.tools.length} tools · {item.source.replaceAll('_', ' ')}
+                        </p>
+                        {item.rejection_codes.length > 0 && (
+                          <p>{item.rejection_codes.map((code) => code.replaceAll('_', ' ')).join(' · ')}</p>
+                        )}
+                      </div>
+                    ))}
+                  <More query={access} label="More connections" />
+                </>
+              )}
+              <p>
+                <Link href="/connections">Manage connection access →</Link> Access is checked again for every
+                run and tool call.
+              </p>
+            </details>
+          </section>
+        )}
         {initial && (
           <p className="muted">
             Saving configuration stops deliveries that have not yet become runs. Accepted runs keep their
@@ -580,14 +731,22 @@ function TriggerForm({
             {error}
           </p>
         )}
-        <div className="modal-actions">
+        <div className="dialog-actions">
           <Button type="button" variant="secondary" onClick={close} disabled={busy}>
             Cancel
           </Button>
           <Button
             type="submit"
             busy={busy}
-            disabled={!project || !agent || (kind === 'slack' && (!connection || !channel))}
+            disabled={
+              !project ||
+              !agent ||
+              selectedPreset.isPending ||
+              !!selectedPreset.error ||
+              access.isPending ||
+              !!access.error ||
+              (kind === 'slack' && (!connection || !channel))
+            }
           >
             {initial ? 'Save changes' : scheduled ? 'Create scheduled task' : 'Create trigger'}
           </Button>
@@ -733,10 +892,7 @@ function SlackConnections({ close }: { close: () => void }) {
               <input readOnly value={c.events_url} />
             </Field>
             <div className="row-actions">
-              <Button variant="ghost" onClick={() => copyText(c.events_url)}>
-                <Copy size={15} />
-                Copy request URL
-              </Button>
+              <CopyButton variant="ghost" text={c.events_url} label="Copy request URL" />
               <Button variant="ghost" onClick={() => setRemove(c)}>
                 <Trash2 size={15} />
                 Disconnect

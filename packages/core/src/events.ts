@@ -14,7 +14,7 @@ export async function emit(
 ) {
   await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
   if (producer) {
-    const old = await tx.query(
+    const old = await tx.query<RunEventRow>(
       'SELECT * FROM run_events WHERE run_id=$1 AND producer_id=$2 AND producer_sequence=$3',
       [runId, producer.id, producer.sequence],
     );
@@ -25,7 +25,7 @@ export async function emit(
     [runId],
   );
   assert(row.rowCount, 404, 'not_found', 'Run not found.');
-  const result = await tx.query(
+  const result = await tx.query<RunEventRow>(
     'INSERT INTO run_events(id,organization_id,run_id,sequence,type,data,producer_id,producer_sequence) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
     [
       id(),
@@ -66,22 +66,26 @@ export async function emit(
   }
   return publicEvent(result.rows[0]);
 }
-export function publicEvent(row: Record<string, unknown>) {
+export type RunEventRow = {
+  id: string; run_id: string; sequence: string; type: string;
+  occurred_at: Date; ingested_at: Date; data: Record<string, unknown>;
+};
+export function publicEvent(row: RunEventRow) {
   return {
     id: row.id,
-    schema_version: 1,
+    schema_version: 1 as const,
     run_id: row.run_id,
     sequence: String(row.sequence),
     type: row.type,
-    occurred_at: new Date(row.occurred_at as string | Date).toISOString(),
-    ingested_at: new Date(row.ingested_at as string | Date).toISOString(),
+    occurred_at: new Date(row.occurred_at).toISOString(),
+    ingested_at: new Date(row.ingested_at).toISOString(),
     data: row.data,
   };
 }
 export async function eventsAfter(org: string, run: string, after: string, limit = 100) {
   return transaction(org, async (tx) =>
     (
-      await tx.query('SELECT * FROM run_events WHERE run_id=$1 AND sequence>$2 ORDER BY sequence LIMIT $3', [
+      await tx.query<RunEventRow>('SELECT * FROM run_events WHERE run_id=$1 AND sequence>$2 ORDER BY sequence LIMIT $3', [
         run,
         after,
         limit,

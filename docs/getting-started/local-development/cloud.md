@@ -14,7 +14,7 @@ On an existing staging deployment:
 4. Use a small task: **Create `hello.txt` containing `Hello from the agent`, then read it back.** Set a short execution timeout and an explicitly approved spending limit.
 5. Follow the run stream, retrieve its final result, and open the workspace file in the dashboard after checkpoint publication.
 
-The quickstart uses Codex and managed billing. To try Claude Code or OpenCode, change its `harness` field and select a matching model. The [model catalog](../../features/execution/runtime.md#production-model-catalog-example) defines supported combinations; changing only the provider name is insufficient.
+The quickstart uses Codex and managed billing. To try another [harness](../../features/execution/harnesses.md), change its `harness` field and select a matching model. The [model catalog](../../features/execution/models.md) defines supported combinations; changing only the provider name is insufficient.
 
 There is no separate `pnpm worker` process for the Vercel Workflow deployment. Workflow advances the execution phases, and the application's scheduled maintenance repairs pending dispatches.
 

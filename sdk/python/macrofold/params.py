@@ -5,6 +5,12 @@ from typing import Literal, NotRequired, TypedDict
 from uuid import UUID
 CreateProjectGithubParams = TypedDict('CreateProjectGithubParams', {"installation_id": "str", "repository_id": "str", "target_branch": "str", "auto_sync": "NotRequired[bool]", "sync_mode": "NotRequired[Literal[\"push\", \"pull_request\"]]", "auto_pull": "NotRequired[bool]"})
 
+AgentPermissionsParams = TypedDict('AgentPermissionsParams', {"version": "Literal[1]", "files": "NotRequired[AgentPermissionsFilesParams]", "shell": "NotRequired[Literal[\"allow\", \"deny\"]]", "tools": "NotRequired[PermissionPatternsParams]"})
+
+PermissionPatternsParams = TypedDict('PermissionPatternsParams', {"include": "NotRequired[list[str]]", "exclude": "NotRequired[list[str]]"})
+
+AgentPermissionsFilesParams = TypedDict('AgentPermissionsFilesParams', {"read": "NotRequired[PermissionPatternsParams]", "write": "NotRequired[PermissionPatternsParams]"})
+
 WorkspaceSourceChoice1Params = TypedDict('WorkspaceSourceChoice1Params', {"kind": "Literal[\"git_ref\"]", "ref": "str"})
 
 WorkspaceSourceChoice2Params = TypedDict('WorkspaceSourceChoice2Params', {"kind": "Literal[\"checkpoint\"]", "checkpoint_id": "str | UUID"})
@@ -17,4 +23,14 @@ GrantParams = TypedDict('GrantParams', {"connection_id": "str | UUID", "tools": 
 
 LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]"})
 
+ClaudeApiFallbackParams = TypedDict('ClaudeApiFallbackParams', {"connection_id": "NotRequired[str | UUID]", "max_cost_micro_usd": "NotRequired[str]", "enabled": "bool"})
+
+ConnectionAccessRuleInputChoice1Params = TypedDict('ConnectionAccessRuleInputChoice1Params', {"scope": "Literal[\"project\"]", "project_id": "str | UUID"})
+
+ConnectionAccessRuleInputChoice2Params = TypedDict('ConnectionAccessRuleInputChoice2Params', {"scope": "Literal[\"agent\"]", "agent_id": "str | UUID"})
+
+ConnectionAccessRuleInputChoice3Params = TypedDict('ConnectionAccessRuleInputChoice3Params', {"scope": "Literal[\"project_agent\"]", "project_id": "str | UUID", "agent_id": "str | UUID"})
+
 WorkspaceSourceParams = WorkspaceSourceChoice1Params | WorkspaceSourceChoice2Params
+
+ConnectionAccessRuleInputParams = ConnectionAccessRuleInputChoice1Params | ConnectionAccessRuleInputChoice2Params | ConnectionAccessRuleInputChoice3Params

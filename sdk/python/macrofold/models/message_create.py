@@ -21,6 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
+from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
 from typing import Optional, Set
 from typing_extensions import Self
@@ -37,7 +39,10 @@ class MessageCreate(BaseModel):
     model: Optional[StrictStr] = Field(default=None, description="Optional model override within the pinned harness catalog; never changes the active run.")
     queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
     scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
-    __properties: ClassVar[List[str]] = ["prompt", "limits", "webhook_endpoint_ids", "queue_if_busy", "model", "queue_timeout_seconds", "scheduling_class"]
+    permissions: Optional[AgentPermissions] = None
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
+    connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
+    __properties: ClassVar[List[str]] = ["prompt", "limits", "webhook_endpoint_ids", "queue_if_busy", "model", "queue_timeout_seconds", "scheduling_class", "permissions", "connection_grants", "connection_access_overrides"]
 
     @field_validator('scheduling_class')
     def scheduling_class_validate_enum(cls, value):
@@ -91,6 +96,23 @@ class MessageCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in connection_grants (list)
+        _items = []
+        if self.connection_grants:
+            for _item_connection_grants in self.connection_grants:
+                if _item_connection_grants:
+                    _items.append(_item_connection_grants.to_dict())
+            _dict['connection_grants'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in connection_access_overrides (list)
+        _items = []
+        if self.connection_access_overrides:
+            for _item_connection_access_overrides in self.connection_access_overrides:
+                if _item_connection_access_overrides:
+                    _items.append(_item_connection_access_overrides.to_dict())
+            _dict['connection_access_overrides'] = _items
         return _dict
 
     @classmethod
@@ -109,7 +131,10 @@ class MessageCreate(BaseModel):
             "queue_if_busy": obj.get("queue_if_busy") if obj.get("queue_if_busy") is not None else False,
             "model": obj.get("model"),
             "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
-            "scheduling_class": obj.get("scheduling_class")
+            "scheduling_class": obj.get("scheduling_class"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
+            "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
+            "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None
         })
         return _obj
 

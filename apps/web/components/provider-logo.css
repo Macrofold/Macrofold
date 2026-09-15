@@ -1,0 +1,44 @@
+.provider-logo {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.provider-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: none;
+}
+.provider-logo
+  img:is(
+    [src='/brands/openai-mark.svg'],
+    [src='/brands/anthropic.svg'],
+    [src='/brands/claude.svg'],
+    [src='/brands/opencode.svg'],
+    [src='/brands/mcp.svg']
+  ) {
+  background: #fff;
+  border-radius: 4px;
+  padding: 2px;
+}
+.provider-initial {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-ink-2, currentColor);
+}
+.provider-label {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 8px;
+  vertical-align: middle;
+}
+.provider-label > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

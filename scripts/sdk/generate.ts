@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import configuration from './config.json';
 import { metadata } from './metadata';
+import { preserveGoNullableArrays } from './nullable-arrays';
 import { generatePythonResources } from './python';
 import { generateGoResources } from './go';
 import { generateRustResources } from './rust';
@@ -90,6 +91,7 @@ try {
       throw new Error(`Could not generate ${language}. Install JDK 21 and set JAVA_HOME.`, { cause: error });
     }
     if (language === 'go') {
+      await preserveGoNullableArrays(output);
       // A successful zero-byte download still owns a usable temporary file.
       await replaceOnce(
         path.join(output, 'client.go'),
@@ -144,6 +146,13 @@ try {
     generated.push(
       ...(await generators[language as keyof typeof generators](await metadata(output), destination)),
     );
+    // Vendor templates emit indentation-only and empty Javadoc lines. Normalize these in the owner
+    // so regeneration does not reintroduce whitespace errors into reviewed output.
+    for (const file of generated) {
+      const target = path.join(destination, file);
+      const source = await readFile(target, 'utf8');
+      await writeFile(target, source.replace(/^[\t ]+$/gm, '').replace(/^([\t ]*\*)[\t ]+$/gm, '$1'));
+    }
     // Remove only paths recorded by the previous generation, never hand-maintained helpers/tests.
     const manifest = path.join(destination, '.generated-files.json');
     let previous: string[] = [];

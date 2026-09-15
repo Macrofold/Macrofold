@@ -34,4 +34,4 @@ Webhook failure does not change run success. Receivers should tolerate duplicate
 
 The dashboard also receives lightweight resource-change signals. Those signals are best effort and have no organization-wide replay history. They only refresh API queries; they do not replace this durable run stream or webhook delivery system.
 
-See [API conventions](README.md) and [delivery implementation](implementation.md#events-and-webhooks).
+See [API conventions](conventions.md) and [delivery implementation](implementation.md#events-and-webhooks).

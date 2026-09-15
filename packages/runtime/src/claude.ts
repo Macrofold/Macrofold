@@ -1,9 +1,13 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { permissionAdapters } from '../../contracts/permission-adapters';
+import { permissionFileTools, fileToolName, fileToolDescription, fileToolShape } from './permission-files';
+import { query, createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 
 export class ClaudeAdapter implements HarnessAdapter {
   async run({ configuration: c, signal, emit, ask }: HarnessContext): Promise<NativeResult> {
+    const guarded = permissionAdapters['claude-code'].translate(c.permissions || []).mode === 'guarded';
+    const files = permissionFileTools(c.workspace, c.permissions || []);
     const controller = new AbortController();
     signal.addEventListener('abort', () => controller.abort(), { once: true });
     let output = '',
@@ -21,7 +25,14 @@ export class ClaudeAdapter implements HarnessAdapter {
         allowDangerouslySkipPermissions: true,
         settingSources: [],
         strictMcpConfig: true,
-        disallowedTools: ['WebSearch', 'WebFetch'],
+        disallowedTools: [
+          'WebSearch',
+          'WebFetch',
+          ...(guarded
+            ? ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Agent', 'Task', 'Skill', 'NotebookEdit']
+            : []),
+        ],
+        ...(guarded ? { tools: ['AskUserQuestion'] } : {}),
         env: {
           NODE_ENV: 'production',
           PATH: process.env.PATH,
@@ -34,9 +45,36 @@ export class ClaudeAdapter implements HarnessAdapter {
         ...(c.instructions
           ? { systemPrompt: { type: 'preset', preset: 'claude_code', append: c.instructions } }
           : {}),
-        mcpServers: c.toolGrants
-          ? { platform: { type: 'http', url: c.toolURL, headers: { Authorization: `Bearer ${c.token}` } } }
-          : {},
+        mcpServers: {
+          ...(c.toolGrants
+            ? {
+                platform: {
+                  type: 'http' as const,
+                  url: c.toolURL,
+                  headers: { Authorization: `Bearer ${c.token}` },
+                },
+              }
+            : {}),
+          ...(guarded
+            ? {
+                worktree: createSdkMcpServer({
+                  name: 'worktree',
+                  tools: [
+                    tool(fileToolName, fileToolDescription, fileToolShape, async (args) => {
+                      try {
+                        return { content: [{ type: 'text' as const, text: await files(args) }] };
+                      } catch (error) {
+                        return {
+                          isError: true,
+                          content: [{ type: 'text' as const, text: (error as Error).message }],
+                        };
+                      }
+                    }),
+                  ],
+                }),
+              }
+            : {}),
+        },
         canUseTool: async (name, input) => {
           if (name === 'AskUserQuestion') {
             const answer = await ask(randomUUID(), 'Your agent has a question.', input);

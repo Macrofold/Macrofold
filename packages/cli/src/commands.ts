@@ -2,7 +2,16 @@ import { readFile, writeFile, lstat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import type { Schema } from '../../../sdk/typescript/src/client';
 import { Client, serviceOrigin } from '../../../sdk/typescript/src/client';
-import { Context, execution, limits, scheduling, stringOption, type Options, uuid } from './context';
+import {
+  Context,
+  execution,
+  connectionSelection,
+  limits,
+  scheduling,
+  stringOption,
+  type Options,
+  uuid,
+} from './context';
 import { deviceLogin, logout, profileSummaries, saveProfile } from './profiles';
 import { findLink, unlinkProject } from './local-project';
 import { release } from './settings';
@@ -188,8 +197,8 @@ export const handlers: Record<string, Handler> = {
       session = await ctx.session();
     let run: Schema['RunAccepted'];
     if (session) {
-      if (flags['provider-connection'] || flags.connection || flags['billing-mode'])
-        throw new CliError('Connection and billing changes require a new session.');
+      if (flags.agent || flags['provider-connection'] || flags['billing-mode'])
+        throw new CliError('Agent and funding changes require a new session.');
       run = await ctx.client.request('continueSession', {
         params: { path: { session_id: session.id } },
         body: {
@@ -197,15 +206,41 @@ export const handlers: Record<string, Handler> = {
           queue_if_busy: Boolean(flags.queue),
           ...scheduling(flags),
           model: stringOption(flags, 'model'),
+          connection_grants: connectionSelection(flags),
           limits: limits(flags),
         },
       });
     } else {
       const settings = execution(flags);
-      if (!settings.harness || !settings.model)
-        throw new CliError('Choose --harness and --model, or a --session.');
+      const agentId = stringOption(flags, 'agent');
+      if (agentId && !uuid(agentId)) throw new CliError('--agent requires a saved agent preset ID.');
+      if (!agentId && (!settings.harness || !settings.model))
+        throw new CliError('Choose --agent, --harness and --model, or a --session.');
+      const presetLimits =
+        agentId && flags.timeout && !flags['max-cost']
+          ? (await ctx.client.agents.get(agentId)).limits
+          : undefined;
       run = await ctx.client.request('createRun', {
-        body: { prompt: text, workspace_id: (await ctx.workspace()).id, ...settings, ...scheduling(flags) },
+        body: {
+          prompt: text,
+          workspace_id: (await ctx.workspace()).id,
+          ...(agentId
+            ? {
+                agent_id: agentId,
+                ...(flags.timeout || flags['max-cost']
+                  ? {
+                      limits: {
+                        ...(flags.timeout ? { timeout_seconds: settings.limits.timeout_seconds } : {}),
+                        max_cost_micro_usd:
+                          presetLimits?.max_cost_micro_usd || settings.limits.max_cost_micro_usd,
+                      },
+                    }
+                  : {}),
+              }
+            : settings),
+          connection_grants: settings.connection_grants,
+          ...scheduling(flags),
+        },
       });
     }
     if (flags.detach) return result(run);

@@ -21,25 +21,25 @@ const capabilities = [
     icon: Folder,
     title: 'A project that persists.',
     text: 'Source, notes, and artifacts stay in your workspace between runs. Checkpoints let you inspect and restore saved work.',
-    detail: 'FILES + CHECKPOINTS',
+    detail: 'Files + checkpoints',
   },
   {
     icon: Radio,
     title: 'Every run, in view.',
     text: 'Follow output and tool calls as they happen. Inspect status, retrieve results, and replay retained history.',
-    detail: 'STREAMING + HISTORY',
+    detail: 'Streaming + history',
   },
   {
     icon: GitBranch,
     title: 'Version the work.',
     text: 'Connect GitHub, review changes, and synchronize your repository. Use worktrees for independent tasks.',
-    detail: 'GIT + WORKTREES',
+    detail: 'Git + worktrees',
   },
   {
     icon: ShieldCheck,
     title: 'Explicit control.',
     text: 'Bring your model keys or use managed funding. Set spending and execution limits. Grant only the tools a task needs.',
-    detail: 'KEYS + PERMISSIONS',
+    detail: 'Keys + permissions',
   },
 ];
 const integrations = [
@@ -119,16 +119,16 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
             <ConceptArt concept={concept} />
           </div>
           <div className="concept-hero-foot">
-            <span>CLAUDE CODE</span>
-            <span>CODEX</span>
-            <span>OPENCODE</span>
-            <span className="concept-hero-foot-note">NATIVE HARNESSES. SHARED INFRASTRUCTURE.</span>
+            <span>Claude Code</span>
+            <span>Codex</span>
+            <span>OpenCode</span>
+            <span className="concept-hero-foot-note">Native harnesses. Shared infrastructure.</span>
           </div>
         </section>
 
         <section id="code" className="concept-developer concept-section">
           <div className="concept-developer-copy">
-            <p className="concept-kicker">01 / IN YOUR CODE</p>
+            <p className="concept-kicker">01 / In your code</p>
             <h2>
               A native agent.
               <br />
@@ -155,9 +155,11 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
             <details className="concept-example-setup">
               <summary>Set up these examples</summary>
               <p>
-                Install the SDK from source using the <Link href="/docs/sdk">SDK guide</Link>. Set your host,
-                API key, workspace ID, and compatible model. For a local simulation, use{' '}
-                <code>fixture-model</code>. Cloud execution uses credits.
+                Install the SDK from source using the <Link href="/docs/sdk">SDK guide</Link>. Set{' '}
+                <code>MACROFOLD_API_KEY</code> and your <code>project_id</code>. The example runs Codex with
+                OpenAI’s GPT-5.4 mini; the catalog determines its provider. Install and link the{' '}
+                <Link href="/docs/cli">Macrofold CLI</Link> before using its example. For a local simulation,
+                use <code>fixture-model</code>. Cloud execution uses credits.
               </p>
             </details>
           </div>
@@ -167,7 +169,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
         <section id="how-it-works" className="concept-system concept-section">
           <div className="concept-section-heading">
             <div>
-              <p className="concept-kicker">02 / HOW IT WORKS</p>
+              <p className="concept-kicker">02 / How it works</p>
               <h2>
                 From a request
                 <br />
@@ -184,7 +186,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
 
         <section className="concept-control concept-section">
           <div>
-            <p className="concept-kicker">03 / YOUR CONTROL PLANE</p>
+            <p className="concept-kicker">03 / Your control plane</p>
             <h2>
               Your code. Your terminal.
               <br />
@@ -228,7 +230,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
                 <strong>Your project</strong>
                 <span>Persistent workspace</span>
               </div>
-              <span className="concept-node-badge">SHARED STATE</span>
+              <span className="concept-node-badge">Shared state</span>
             </div>
             <div className="concept-state-row">
               <span>Files</span>
@@ -242,7 +244,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
         <section className="concept-capabilities concept-section">
           <div className="concept-section-heading">
             <div>
-              <p className="concept-kicker">04 / THE FOUNDATION</p>
+              <p className="concept-kicker">04 / The foundation</p>
               <h2>
                 Built for the work
                 <br />
@@ -265,7 +267,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
 
         <section id="integrations" className="concept-integrations concept-section">
           <div>
-            <p className="concept-kicker">05 / CONNECT YOUR STACK</p>
+            <p className="concept-kicker">05 / Connect your stack</p>
             <h2>
               The agents you know.
               <br />
@@ -292,7 +294,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
 
         <section className="concept-open-source concept-section">
           <Github size={29} strokeWidth={1.4} />
-          <p className="concept-kicker">OPEN BY DESIGN</p>
+          <p className="concept-kicker">Open by design</p>
           <h2>
             Build on something
             <br />
@@ -338,13 +340,13 @@ export function ConceptGallery({ name }: { name: string }) {
     <div className="concept-gallery">
       <header>
         <Wordmark name={name} />
-        <span>DESIGN STUDIES / SERIES 02</span>
+        <Link href="/homepages">Swarm / Homepage studies ↗</Link>
         <Link href="/docs">Documentation ↗</Link>
       </header>
       <main id="main-content">
         <div className="gallery-heading">
           <div>
-            <p className="concept-kicker">DEVELOPER INFRASTRUCTURE, REIMAGINED</p>
+            <p className="concept-kicker">Developer infrastructure, reimagined</p>
             <h1>
               More possibility.
               <br />

@@ -4,6 +4,9 @@ import { Resources, DEFAULT_ORIGIN } from './resources.js';
 export { DEFAULT_ORIGIN } from './resources.js';
 export type Schema = components['schemas'];
 export type Operation = keyof operations;
+export type RequestMethod<K extends Operation> = (typeof routes)[K]['method'];
+export const requestMethod = <K extends Operation>(operation: K): RequestMethod<K> =>
+  routes[operation].method;
 type Value<T> = T[keyof T];
 type Content<T> = T extends { content: infer C } ? Value<C> : undefined;
 type Responses<O extends Operation> = operations[O] extends { responses: infer R } ? R : never;
@@ -54,7 +57,7 @@ export type ClientOptions = {
   /** Same-origin browser cookie authentication; API clients normally use apiKey. */
   sessionAuth?: boolean;
   organization?: string;
-  clientType?: 'sdk' | 'cli';
+  clientType?: 'sdk' | 'cli' | 'dashboard';
   fetch?: typeof fetch;
   retries?: number;
 };
@@ -85,6 +88,24 @@ const delay = (ms: number, signal?: AbortSignal) =>
     };
     signal?.addEventListener('abort', abort, { once: true });
   });
+/** Build the encoded relative URL from the generated contract. Shared by browser
+ * query keys and SDK transport; callers never maintain another route registry. */
+export function requestPath<O extends Operation>(operation: O, params?: RequestOptions<O>['params']): string {
+  const route = routes[operation];
+  const parameters = params as
+    | { path?: Record<string, unknown>; query?: Record<string, unknown>; header?: Record<string, unknown> }
+    | undefined;
+  const path = route.path.replace(/\{([^}]+)\}/g, (_, key) => {
+    const value = parameters?.path?.[key];
+    if (value === undefined) throw new Error(`Missing path parameter: ${key}`);
+    return encodeURIComponent(String(value));
+  });
+  const url = new URL(path, 'http://route.invalid');
+  for (const [key, value] of Object.entries(parameters?.query || {}))
+    if (value !== undefined && value !== null)
+      url.searchParams.set(key, Array.isArray(value) ? value.join(',') : String(value));
+  return url.pathname + url.search;
+}
 export class Client extends Resources {
   readonly baseURL: string;
   private readonly fetcher: typeof fetch;
@@ -104,22 +125,12 @@ export class Client extends Resources {
         '');
     if (!options.sessionAuth && typeof this.token === 'string' && !this.token.trim())
       throw new Error('Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.');
-    this.fetcher = options.fetch || fetch;
+    // Browser fetch requires its global receiver, not this Client instance.
+    this.fetcher = options.fetch || ((...args) => globalThis.fetch(...args));
   }
   async raw<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Response> {
     const route = routes[operation];
-    const parameters = options.params as
-      | { path?: Record<string, unknown>; query?: Record<string, unknown>; header?: Record<string, unknown> }
-      | undefined;
-    const path = route.path.replace(/\{([^}]+)\}/g, (_, key) => {
-      const value = parameters?.path?.[key];
-      if (value === undefined) throw new Error(`Missing path parameter: ${key}`);
-      return encodeURIComponent(String(value));
-    });
-    const url = new URL(path, this.baseURL);
-    for (const [key, value] of Object.entries(parameters?.query || {}))
-      if (value !== undefined && value !== null)
-        url.searchParams.set(key, Array.isArray(value) ? value.join(',') : String(value));
+    const url = new URL(requestPath(operation, options.params), this.baseURL);
     const mutation = !['GET', 'HEAD'].includes(route.method);
     const idempotencyKey = mutation ? options.idempotencyKey || crypto.randomUUID() : undefined;
     const body =
@@ -139,7 +150,7 @@ export class Client extends Resources {
         ...options.headers,
       });
       if (this.options.organization) headers.set('X-Organization-Id', this.options.organization);
-      for (const [key, value] of Object.entries(parameters?.header || {}))
+      for (const [key, value] of Object.entries(options.params?.header || {}))
         if (value !== undefined) headers.set(key, String(value));
       if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey);
       if (body !== undefined)

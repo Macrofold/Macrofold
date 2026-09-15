@@ -81,8 +81,8 @@ it('distinguishes missing files and unsupported symlinks from empty files', asyn
     const link = await saveContent(account.p.organizationId, Buffer.from('empty.txt'));
     await resources.update(tx, 'workspaces', id, {
       files: [
-        { ...file, path: 'empty.txt', type: 'file' },
-        { ...link, path: 'link', type: 'symlink' },
+        { ...file, path: 'empty.txt', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false },
+        { ...link, path: 'link', type: 'symlink' as const, modified_at: new Date().toISOString(), git_ignored: false },
       ],
     });
   });
@@ -125,14 +125,14 @@ it('returns the full 4 MiB boundary and rejects larger metadata before loading o
     const file = await saveContent(account.p.organizationId, bytes);
     await resources.update(tx, 'workspaces', id, {
       files: [
-        { ...file, path: 'boundary.bin', type: 'file' },
+        { ...file, path: 'boundary.bin', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false },
         // No object exists: a storage lookup would fail instead of the required size rejection.
         {
           ...file,
           key: 'must-not-be-loaded',
           size_bytes: String(bytes.length + 1),
           path: 'large.bin',
-          type: 'file',
+          type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false,
         },
       ],
     });
@@ -154,7 +154,7 @@ it('downloads complete larger files through a separately authenticated capabilit
   await transaction(account.p.organizationId, async (tx) => {
     const stored = await saveContent(account.p.organizationId, bytes);
     await resources.update(tx, 'workspaces', workspace, {
-      files: [{ ...stored, path: 'large.bin', type: 'file' }],
+      files: [{ ...stored, path: 'large.bin', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false }],
     });
   });
   const response = await handleApi(
@@ -232,7 +232,7 @@ it.each(['missing', 'corrupt'])(
     const file = {
       ...stored,
       path: filePath,
-      type: 'file',
+      type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false,
       ...(fault === 'missing'
         ? { key: `${account.p.organizationId}/content/missing` }
         : { sha256: '0'.repeat(64) }),

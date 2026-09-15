@@ -1,3 +1,4 @@
+import { fixtureConnector, fixtureOperator } from '../fixtures/operator';
 import { it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -5,6 +6,8 @@ import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { seal } from '../../packages/core/src/crypto';
+import * as accessResolution from '../../packages/core/src/connection-access-resolution';
+import { patchAccess, saveRule } from '../../packages/core/src/connection-access';
 import { executeGrantedTool, handleRuntimeMcp, exposedToolName } from '../../packages/core/src/tool-broker';
 import { runtimeToken, type RuntimeCapability } from '../../packages/core/src/runtime-auth';
 import { admitRun } from '../../packages/core/src/runs';
@@ -16,10 +19,13 @@ import { searchTool } from '../../packages/contracts/search';
 import type { SearchProviderId } from '../../packages/contracts/search';
 import { searchFixtures } from '../fixtures/search';
 import { approvedStdio } from '../../packages/core/src/stdio-catalog';
+import { harnessNames, type HarnessName } from '../../packages/contracts/harnesses';
+import type { AgentPermissions } from '../../packages/contracts/permissions';
 const original = { ...config },
   env = { ...process.env };
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 beforeAll(async () => {
+  await fixtureConnector();
   account = await fixtureAccount('Broker fixtures');
 });
 afterEach(() => {
@@ -31,19 +37,65 @@ afterEach(() => {
     'AUTH_SECRET',
     'VAULT_KEY',
     'DATABASE_URL',
+    'COMPOSIO_MICRO_USD_PER_CALL',
   ]) {
     if (env[key] === undefined) delete process.env[key];
     else process.env[key] = env[key];
   }
 });
+it('pins Composio execution to the granted account when another account is connected later', async () => {
+  const fixture = await prepared('composio');
+  process.env.COMPOSIO_MICRO_USD_PER_CALL = '0';
+  const second = await transaction(fixture.p.organizationId, async (tx) => {
+    const first = fixture.connection;
+    return resources.create(tx, 'connections', fixture.p.organizationId, {
+      ...first,
+      name: 'Personal',
+      external_account_id: 'personal-account',
+    });
+  });
+  const execute = vi.fn(async () => ({ data: { account: 'research' }, successful: true }));
+  vi.spyOn(connections, 'composio').mockReturnValue({ tools: { execute } } as unknown as ReturnType<
+    typeof connections.composio
+  >);
+  await executeGrantedTool(
+    fixture.cap,
+    fixture.connection.id,
+    fixture.tool,
+    { message: 'Read research' },
+    'named-1',
+  );
+  expect(execute.mock.calls[0]).toEqual([
+    fixture.tool.name,
+    {
+      userId: `${fixture.p.organizationId}:${fixture.p.userId}`,
+      connectedAccountId: 'research-account',
+      version: 'fixture-version',
+      arguments: { message: 'Read research' },
+    },
+    { signal: expect.any(AbortSignal) },
+  ]);
+  await expect(
+    executeGrantedTool(fixture.cap, second.id, fixture.tool, { message: 'Read personal' }, 'named-2'),
+  ).rejects.toMatchObject({ code: 'tool_not_granted' });
+  await transaction(fixture.p.organizationId, (tx) =>
+    resources.update(tx, 'connections', fixture.connection.id, { status: 'expired' }),
+  );
+  await expect(
+    executeGrantedTool(fixture.cap, fixture.connection.id, fixture.tool, { message: 'Retry' }, 'named-3'),
+  ).rejects.toMatchObject({ code: 'tool_not_granted' });
+  expect(execute).toHaveBeenCalledOnce();
+});
 afterAll(async () => {
+  await fixtureOperator((db) => db.query("DELETE FROM connector_enablement WHERE toolkit='gmail'"));
   await pool.end();
   await authPool.end();
 });
 async function prepared(
-  kind: 'search' | 'mcp_remote' | 'mcp_stdio' = 'search',
+  kind: 'search' | 'mcp_remote' | 'mcp_stdio' | 'composio' = 'search',
   byok = false,
   provider: SearchProviderId = 'brave',
+  policy?: { harness: HarnessName; permissions: AgentPermissions },
 ) {
   // Install an outbound-deny stub before exercising any production branch.
   const http = vi.spyOn(network, 'safeFetch').mockImplementation(async () => {
@@ -79,7 +131,8 @@ async function prepared(
     const connection = await resources.create(tx, 'connections', p.organizationId, {
       name: 'Fixture',
       kind,
-      provider,
+      provider: kind === 'composio' ? 'gmail' : provider,
+      ...(kind === 'composio' ? { external_account_id: 'research-account', identity_verified: true } : {}),
       auth_method: byok ? 'api_key' : 'none',
       secret_ciphertext: byok ? seal('customer-fixture-key') : undefined,
       url: kind === 'mcp_remote' ? 'https://fixture.invalid/mcp' : undefined,
@@ -87,19 +140,23 @@ async function prepared(
       owner_subject_id: p.userId,
       package: '@modelcontextprotocol/server-filesystem',
       package_version: '2026.8.31',
-      grants: { version: 1, subject_type: 'user', subject_id: p.userId, tools: [tool.name] },
+      access_version: '1',
+      access_organization_wide: false,
+      access_tools: [tool.name],
     });
     const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Tool broker' });
+    await saveRule(tx, p, connection.id, { scope: 'project', project_id: project.id }, '"1"');
     const workspace = (await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' })).result as {
       workspace_id: string;
     };
     const run = await admitRun(tx, p, {
       workspace_id: workspace.workspace_id,
-      harness: 'codex',
+      harness: policy?.harness || 'codex',
+      permissions: policy?.permissions,
       model: 'fixture-model',
       billing_mode: 'managed',
       prompt: 'Fixture',
-      connection_grants: [{ connection_id: connection.id, tools: [tool.name] }],
+      ...(policy ? {} : { connection_grants: [{ connection_id: connection.id, tools: [tool.name] }] }),
       limits: { timeout_seconds: 60, max_cost_micro_usd: '2000000' },
     });
     await tx.query(
@@ -127,6 +184,38 @@ async function prepared(
   };
   return { ...result, p, cap, tool: { ...tool, granted: true }, http };
 }
+it.each(harnessNames)(
+  '%s excludes connector tools from discovery and denies direct calls before billing',
+  async (harness) => {
+    const a = await prepared('search', false, 'brave', {
+      harness,
+      permissions: { version: 1, tools: { exclude: ['**/web_search'] } },
+    });
+    const transport = new StreamableHTTPClientTransport(
+      new URL(config.origin + '/runtime/runs/' + a.runId + '/mcp'),
+      {
+        requestInit: { headers: { Authorization: 'Bearer ' + runtimeToken(a.cap) } },
+        fetch: async (input, init) => handleRuntimeMcp(new Request(input, init), a.runId),
+      },
+    );
+    const client = new Client({ name: 'permission-fixture', version: '1' });
+    await client.connect(transport);
+    try {
+      expect((await client.listTools()).tools).toHaveLength(0);
+      await expect(
+        executeGrantedTool(a.cap, a.connection.id, a.tool, { query: 'Forbidden' }, 'excluded'),
+      ).rejects.toMatchObject({ code: 'tool_not_granted' });
+      expect(a.http).not.toHaveBeenCalled();
+      const saved = await transaction(a.p.organizationId, async (tx) => ({
+        run: (await tx.query('SELECT cost_micro_usd FROM runs WHERE id=$1', [a.runId])).rows[0],
+        invocations: (await tx.query('SELECT id FROM tool_invocations WHERE run_id=$1', [a.runId])).rows,
+      }));
+      expect(saved).toEqual({ run: { cost_micro_usd: '0' }, invocations: [] });
+    } finally {
+      await client.close();
+    }
+  },
+);
 it.each(searchFixtures)(
   '$provider BYOK search traverses the authorized broker and records one invocation on replay',
   async (fixture) => {
@@ -159,7 +248,9 @@ it.each(searchFixtures)(
     expect(invocations.rows).toEqual([{ status: 'complete', cost_micro_usd: '0' }]);
     await transaction(a.p.organizationId, (tx) =>
       resources.update(tx, 'connections', a.connection.id, {
-        grants: { version: 2, subject_type: 'user', subject_id: a.p.userId, tools: [] },
+        access_version: '2',
+        access_organization_wide: true,
+        access_tools: [],
       }),
     );
     await expect(
@@ -223,7 +314,9 @@ it('ambiguous external actions are never automatically replayed and revoked gran
   ).rejects.toMatchObject({ code: 'idempotency_conflict' });
   await transaction(a.p.organizationId, (tx) =>
     resources.update(tx, 'connections', a.connection.id, {
-      grants: { version: 2, subject_type: 'user', subject_id: a.p.userId, tools: [] },
+      access_version: '2',
+      access_organization_wide: true,
+      access_tools: [],
     }),
   );
   await expect(
@@ -296,4 +389,47 @@ it('stdio calls use the existing sandbox, reviewed argv and the same durable inv
       invokeStdio: invoke,
     }),
   ).rejects.toMatchObject({ code: 'run_unavailable' });
+});
+
+it('rechecks a revocation committed between authorization and dispatch without a fee or provider call', async () => {
+  const a = await prepared();
+  const actual = accessResolution.runtimeConnectionTools;
+  vi.spyOn(accessResolution, 'runtimeConnectionTools').mockImplementationOnce(async (...args) => {
+    const allowed = await actual(...args);
+    await transaction(a.p.organizationId, (tx) =>
+      patchAccess(tx, a.p, a.connection.id, { tools: [] }, '"2"'),
+    );
+    return allowed;
+  });
+  await expect(
+    executeGrantedTool(a.cap, a.connection.id, a.tool, { query: 'fixture' }, 'revocation-race'),
+  ).rejects.toMatchObject({ code: 'tool_not_granted' });
+  expect(a.http).not.toHaveBeenCalled();
+  await transaction(a.p.organizationId, async (tx) => {
+    expect((await tx.query('SELECT id FROM tool_invocations WHERE run_id=$1', [a.runId])).rows).toEqual([]);
+    expect(
+      (await tx.query('SELECT budget_used_micro_usd FROM runs WHERE id=$1', [a.runId])).rows[0]
+        .budget_used_micro_usd,
+    ).toBe('0');
+  });
+});
+it('preserves a committed dispatch when access is revoked during the provider action', async () => {
+  const a = await prepared();
+  a.http.mockImplementationOnce(async () => {
+    await transaction(a.p.organizationId, (tx) =>
+      patchAccess(tx, a.p, a.connection.id, { tools: [] }, '"2"'),
+    );
+    return Response.json({ web: { results: [] } });
+  });
+  await executeGrantedTool(a.cap, a.connection.id, a.tool, { query: 'fixture' }, 'dispatch-first');
+  expect(a.http).toHaveBeenCalledOnce();
+  await transaction(a.p.organizationId, async (tx) =>
+    expect(
+      (await tx.query('SELECT status,cost_micro_usd FROM tool_invocations WHERE run_id=$1', [a.runId])).rows,
+    ).toEqual([{ status: 'complete', cost_micro_usd: '6000' }]),
+  );
+  await expect(
+    executeGrantedTool(a.cap, a.connection.id, a.tool, { query: 'fixture' }, 'after-revocation'),
+  ).rejects.toMatchObject({ code: 'tool_not_granted' });
+  expect(a.http).toHaveBeenCalledOnce();
 });

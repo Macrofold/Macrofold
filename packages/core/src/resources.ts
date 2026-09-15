@@ -3,6 +3,7 @@ import { id } from './crypto';
 import { assert } from './errors';
 import type { Principal } from './auth';
 import { requireProject, requireScopes } from './auth';
+import { operationAuthority, type OperationKind, type OperationResults } from './operations';
 export const tables = [
   'projects',
   'workspaces',
@@ -17,27 +18,35 @@ export const tables = [
   'transfers',
 ] as const;
 export type Table = (typeof tables)[number];
-export type Document = {
-  id: string;
-  organization_id: string;
-  created_at: string;
-  revision: string;
-  [field: string]: unknown;
-};
-function present(row: Record<string, unknown>, table: Table): Document {
-  const data = row.data as Record<string, unknown>;
+import type { Document, ResourceModels } from './resource-models';
+export type { Document, ResourceModels } from './resource-models';
+export function present<K extends Table>(row: Record<string, unknown>, table: K): Document<K> {
+  // JSONB is written by typed resource commands after boundary validation.
+  const data = row.data as ResourceModels[K];
   return {
     ...data,
     id: String(row.id),
     organization_id: String(row.organization_id),
     created_at: (row.created_at as Date).toISOString(),
     revision: String(row.revision),
+    ...(table === 'connections'
+      ? {
+          access_organization_wide: row.access_organization_wide,
+          access_tools: row.access_tools,
+          access_version: String(row.access_version),
+        }
+      : {}),
     ...(table === 'agents' ? { version: Number(row.revision) } : {}),
-    ...(row.project_id ? { project_id: row.project_id } : {}),
-    ...(row.workspace_id ? { workspace_id: row.workspace_id } : {}),
+    ...(row.project_id ? { project_id: String(row.project_id) } : {}),
+    ...(row.workspace_id ? { workspace_id: String(row.workspace_id) } : {}),
   };
 }
-export async function get(tx: Tx, table: Table, resourceId: string, p?: Principal): Promise<Document> {
+export async function get<K extends Table>(
+  tx: Tx,
+  table: K,
+  resourceId: string,
+  p?: Principal,
+): Promise<Document<K>> {
   const result = await tx.query(`SELECT * FROM ${table} WHERE id=$1`, [resourceId]);
   assert(result.rowCount, 404, 'not_found', 'Resource not found.');
   const doc = present(result.rows[0], table);
@@ -45,12 +54,12 @@ export async function get(tx: Tx, table: Table, resourceId: string, p?: Principa
     assert(!doc.deleted, 404, 'not_found', 'Resource not found.');
     if (table === 'operations') {
       assert(
-        Array.isArray(doc.required_scopes),
+        Array.isArray((doc as Document<'operations'>).required_scopes),
         403,
         'forbidden',
         'This historical operation has no authorization binding. Repeat the original resource request.',
       );
-      requireScopes(p, doc.required_scopes as string[]);
+      requireScopes(p, (doc as Document<'operations'>).required_scopes as string[]);
     }
     if (table === 'projects') requireProject(p, doc.id);
     else if (doc.project_id) requireProject(p, String(doc.project_id));
@@ -61,9 +70,9 @@ export async function get(tx: Tx, table: Table, resourceId: string, p?: Principa
   }
   return doc;
 }
-export async function list(
+export async function list<K extends Table>(
   tx: Tx,
-  table: Table,
+  table: K,
   p: Principal,
   query: URLSearchParams,
   filter: Record<string, unknown> = {},
@@ -76,6 +85,8 @@ export async function list(
       values.push(query.get('archived') === 'true');
       conditions.push(`coalesce((data->>'archived')::boolean,false)=$${values.length}`);
     }
+  }
+  if (table === 'projects' || table === 'agents') {
     if (query.get('query')) {
       values.push(query.get('query'));
       conditions.push(`strpos(lower(data->>'name'),lower($${values.length}))>0`);
@@ -85,7 +96,7 @@ export async function list(
     values.push(query.get('cursor'));
     conditions.push(`id < $${values.length}::uuid`);
   }
-  if (p.projectIds.length) {
+  if (p.projectIds.length && table !== 'agents') {
     values.push(p.projectIds);
     conditions.push(
       table === 'projects'
@@ -107,15 +118,36 @@ export async function list(
     next_cursor: rows.length > limit ? rows[limit - 1].id : null,
   };
 }
-export async function create(
+
+const connectionColumns = new Set(['access_organization_wide', 'access_tools', 'access_version']);
+function persistedFields(table: Table, data: object) {
+  const entries = Object.entries(data);
+  const columns =
+    table === 'connections'
+      ? entries.filter(([key, value]) => connectionColumns.has(key) && value !== undefined)
+      : [];
+  return {
+    columns,
+    json: JSON.stringify(
+      Object.fromEntries(entries.filter(([key]) => table !== 'connections' || !connectionColumns.has(key))),
+    ),
+  };
+}
+
+export async function create<K extends Table>(
   tx: Tx,
-  table: Table,
+  table: K,
   organization: string,
-  data: Record<string, unknown>,
+  data: Partial<Document<NoInfer<K>>>,
   forcedId = id(),
-): Promise<Document> {
+): Promise<Document<K>> {
   const columns = ['id', 'organization_id', 'data'];
-  const values: unknown[] = [forcedId, organization, JSON.stringify(data)];
+  const fields = persistedFields(table, data);
+  const values: unknown[] = [forcedId, organization, fields.json];
+  for (const [key, value] of fields.columns) {
+    columns.push(key);
+    values.push(value);
+  }
   if (table === 'workspaces') {
     columns.push('project_id');
     values.push(data.project_id);
@@ -130,21 +162,26 @@ export async function create(
   );
   return present(rows.rows[0], table);
 }
-export async function update(
+export async function update<K extends Table>(
   tx: Tx,
-  table: Table,
+  table: K,
   resourceId: string,
-  data: Record<string, unknown>,
+  data: Partial<Document<NoInfer<K>>>,
   expectedRevision?: string,
-): Promise<Document> {
-  const values: unknown[] = [JSON.stringify(data), resourceId];
+): Promise<Document<K>> {
+  const fields = persistedFields(table, data);
+  const values: unknown[] = [fields.json, resourceId];
+  const columns = fields.columns.map(([key, value]) => {
+    values.push(value);
+    return `${key}=$${values.length}`;
+  });
   let where = 'id=$2';
   if (expectedRevision) {
     values.push(expectedRevision);
-    where += ' AND revision=$3::bigint';
+    where += ` AND revision=$${values.length}::bigint`;
   }
   const result = await tx.query(
-    `UPDATE ${table} SET data=data || $1::jsonb,revision=revision+1,updated_at=now() WHERE ${where} RETURNING *`,
+    `UPDATE ${table} SET data=data || $1::jsonb,revision=revision+1,updated_at=now()${columns.length ? ',' + columns.join(',') : ''} WHERE ${where} RETURNING *`,
     values,
   );
   assert(result.rowCount, 412, 'stale_revision', 'This resource changed. Reload and retry.');
@@ -153,37 +190,35 @@ export async function update(
 export async function remove(tx: Tx, table: Table, resourceId: string) {
   await tx.query(`DELETE FROM ${table} WHERE id=$1`, [resourceId]);
 }
-export async function operation(
+export async function operation<K extends OperationKind>(
   tx: Tx,
   p: Principal,
-  kind: string,
-  result: Record<string, unknown>,
-  status = 'succeeded',
+  kind: K,
+  result: OperationResults[NoInfer<K>],
+  status: Document<'operations'>['status'] = 'succeeded',
 ) {
-  const scope =
-    kind === 'webhook_replay'
-      ? 'webhooks:read'
-      : (kind.startsWith('workspace_') && kind !== 'workspace_restore') || kind === 'project_archive'
-        ? 'projects:read'
-        : 'files:read';
-  let projectId = result.project_id;
-  if (!projectId && result.workspace_id)
-    projectId = (await get(tx, 'workspaces', String(result.workspace_id), p)).project_id;
-  if (!projectId && result.checkpoint_id)
-    projectId = (await get(tx, 'checkpoints', String(result.checkpoint_id), p)).project_id;
-  if (!projectId && result.delivery_id)
-    projectId = (await get(tx, 'deliveries', String(result.delivery_id), p)).project_id;
+  const authority = operationAuthority[kind];
+  assert(authority, 500, 'operation_authorization_missing', 'The operation has no authorization definition.');
+  let projectId: string | undefined;
+  if (authority.binding === 'workspace' && 'workspace_id' in result)
+    projectId = (await get(tx, 'workspaces', result.workspace_id)).project_id;
+  else if (authority.binding === 'checkpoint' && 'checkpoint_id' in result && result.checkpoint_id)
+    projectId = (await get(tx, 'checkpoints', result.checkpoint_id)).project_id;
+  else if (authority.binding === 'project' && 'project_id' in result)
+    projectId = (await get(tx, 'projects', result.project_id)).id;
   assert(
-    projectId || kind === 'webhook_replay',
+    projectId || authority.binding === 'organization',
     500,
     'operation_authorization_missing',
     'The operation must be bound to its project.',
   );
-  return create(tx, 'operations', p.organizationId, {
+  if (projectId) requireProject(p, projectId);
+  const saved = await create(tx, 'operations', p.organizationId, {
     kind,
     status,
     result,
-    required_scopes: [scope],
+    required_scopes: [authority.scope],
     ...(projectId ? { project_id: projectId } : {}),
   });
+  return { ...saved, kind, result };
 }

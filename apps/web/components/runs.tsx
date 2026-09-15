@@ -1,5 +1,6 @@
 'use client';
-import { copyText } from '../lib/clipboard';
+import { harnessLabel } from '../../../packages/contracts/harnesses';
+import { CopyButton } from './copy-button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,11 +13,10 @@ import {
   ChevronDown,
   Terminal,
   Check,
-  Copy,
   ArrowUpRight,
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownOutput } from './markdown-output';
+import { WaitingText } from './waiting-text';
 import { toast } from 'sonner';
 import { api, useApi, usePages, money, relative, type Schema } from '../lib/client';
 import { More, Button, PageHeading, Badge, Loading, ErrorState, Field } from './ui';
@@ -140,7 +140,7 @@ export function RunDetail({ runId }: { runId: string }) {
                 ? 'Work, completed.'
                 : 'Run stopped.'
         }
-        description={`${run.harness === 'codex' ? 'Codex' : run.harness === 'claude-code' ? 'Claude Code' : 'OpenCode'} · ${run.model === 'fixture-model' ? 'Local simulation' : run.model} · ${relative(run.created_at)}`}
+        description={`${harnessLabel(run.harness)} · ${run.model === 'fixture-model' ? 'Local simulation' : run.model} · ${relative(run.created_at)}`}
         action={
           <div className="button-row">
             {live ? (
@@ -248,18 +248,18 @@ export function RunDetail({ runId }: { runId: string }) {
                 </details>
               ))}
               {output ? (
-                <div className="markdown-output">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
-                </div>
+                <MarkdownOutput text={output} streaming={live} />
               ) : (
                 <div className="run-waiting">
                   <Activity size={24} />
                   <h3>
-                    {result.data?.content_expired
-                      ? 'Detailed history has expired'
-                      : run.status === 'queued'
-                        ? 'Queued · waiting to start'
-                        : 'Waiting for the first update'}
+                    <WaitingText active={live && !result.data?.content_expired}>
+                      {result.data?.content_expired
+                        ? 'Detailed history has expired'
+                        : run.status === 'queued'
+                          ? 'Queued · waiting to start'
+                          : 'Waiting for the first update'}
+                    </WaitingText>
                   </h3>
                   <p>
                     {result.data?.content_expired
@@ -273,13 +273,10 @@ export function RunDetail({ runId }: { runId: string }) {
                   <span>
                     <Check size={15} />
                     {result.data.persistence_status === 'verified'
-                      ? 'Workspace checkpoint verified'
+                      ? 'Worktree checkpoint verified'
                       : 'Run history saved'}
                   </span>
-                  <Button variant="ghost" onClick={() => copyText(output, 'Output copied')}>
-                    <Copy size={14} />
-                    Copy output
-                  </Button>
+                  <CopyButton variant="ghost" text={output} label="Copy output" />
                 </div>
               )}
             </div>
@@ -349,15 +346,13 @@ export function RunDetail({ runId }: { runId: string }) {
               <dt>Timeout</dt>
               <dd>{(run.limits?.timeout_seconds || 900) / 60} minutes</dd>
             </dl>
-            <button className="text-link" onClick={() => copyText(runId, 'Run ID copied')}>
-              Copy run ID <Copy size={13} />
-            </button>
+            <CopyButton variant="plain" className="text-link" text={runId} label="Copy run ID" />
           </div>
           <div className="panel compact-panel">
-            <h3>Workspace</h3>
+            <h3>Worktree</h3>
             <p>
               {run.persistence_status === 'verified'
-                ? 'Changes are saved to this run’s persistent workspace.'
+                ? 'Changes are saved to this run’s persistent worktree.'
                 : 'Browse the latest verified files. Run changes are available after persistence succeeds.'}
             </p>
             <WorkspaceLink workspaceId={run.workspace_id} />
@@ -365,7 +360,7 @@ export function RunDetail({ runId }: { runId: string }) {
           <div className="run-api-tip">
             <Terminal size={18} />
             <strong>Pick it up in your terminal</strong>
-            <code className="break-anywhere">agent run attach {run.id}</code>
+            <code className="break-anywhere">macrofold run attach {run.id}</code>
           </div>
         </aside>
       </div>
@@ -380,7 +375,7 @@ function WorkspaceLink({ workspaceId }: { workspaceId: string }) {
   const workspace = useApi<Schema['Workspace']>(`/v1/workspaces/${workspaceId}`);
   return workspace.data ? (
     <Link className="text-link" href={`/projects/${workspace.data.project_id}/workspaces/${workspaceId}`}>
-      {workspace.data.name}
+      {workspace.data.name ?? 'Untitled worktree'}
       <ArrowUpRight size={14} />
     </Link>
   ) : null;

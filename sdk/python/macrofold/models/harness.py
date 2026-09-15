@@ -36,8 +36,8 @@ class Harness(BaseModel):
     @field_validator('id')
     def id_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     model_config = ConfigDict(

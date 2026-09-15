@@ -2,8 +2,8 @@ import path from 'node:path';
 import os from 'node:os';
 export const release = {
   version: '0.1.0',
-  executable: 'agent',
-  name: 'Hosted agents',
+  executable: 'macrofold',
+  name: 'Macrofold',
   clientId: 'hosted-agent-cli',
   configDirectory: process.env.AGENT_CONFIG_DIR || path.join(os.homedir(), '.config', 'hosted-agents'),
 };

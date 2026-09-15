@@ -29,7 +29,7 @@ export function waitingLine(run: Schema['Run']) {
     deadline_expired: 'deadline expired; finalizing',
     workspace_unavailable: 'workspace unavailable',
   }[run.waiting_reason || 'scheduler_turn'];
-  return `Queued ${Math.floor(run.wait_seconds || 0)}s · ${reason} · expires ${run.queue_expires_at} · $${(Number(run.reserved_micro_usd || 0) / 1000000).toFixed(2)} held · cancel: agent run cancel ${run.id}`;
+  return `Queued ${Math.floor(run.wait_seconds || 0)}s · ${reason} · expires ${run.queue_expires_at} · $${(Number(run.reserved_micro_usd || 0) / 1000000).toFixed(2)} held · cancel: macrofold run cancel ${run.id}`;
 }
 export const eventLine = (event: Schema['Event']) => {
   if (event.type === 'output.delta') return String(event.data.text || '');
@@ -108,7 +108,7 @@ export async function followRun(
       if (event.type === 'input.requested') {
         if (!options.interactiveInput)
           throw new CliError(
-            `Run ${runId} is waiting for input. Use agent run input ${runId} --request ${String(event.data.input_request_id)} --answer-file FILE.`,
+            `Run ${runId} is waiting for input. Use macrofold run input ${runId} --request ${String(event.data.input_request_id)} --answer-file FILE.`,
             4,
           );
         const answer = await prompt(
@@ -155,7 +155,7 @@ export async function streamCommand(
   process.on('SIGINT', interrupt);
   try {
     if (!options.json && !options.jsonl)
-      process.stderr.write(`Run ${runId} · reconnect with agent run attach ${runId}\n`);
+      process.stderr.write(`Run ${runId} · reconnect with macrofold run attach ${runId}\n`);
     const result = await followRun(client, runId, {
       after: options.after,
       signal: controller.signal,

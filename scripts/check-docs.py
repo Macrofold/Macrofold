@@ -18,6 +18,12 @@ instruction_paths = subprocess.run(
     cwd=root, capture_output=True, text=True, check=True,
 ).stdout.split('\0')
 files = list(dict.fromkeys(files + [root / p for p in instruction_paths if p]))
+# Git-ignored Markdown is private local material: neither published nor required to be linked.
+ignored = subprocess.run(
+    ['git', 'check-ignore', '-z', '--stdin'], cwd=root, capture_output=True, text=True,
+    input='\0'.join(str(f.relative_to(root)) for f in files),
+).stdout.split('\0')
+files = [f for f in files if str(f.relative_to(root)) not in set(ignored)]
 
 def headings(source):
     text = re.sub(r'^```[^\n]*\n[\s\S]*?^```\s*$', '', source.read_text(), flags=re.M)
@@ -62,8 +68,8 @@ while pending:
         continue
     reachable.add(current)
     pending.extend(links.get(current, set()) - reachable)
-for source in (root / 'docs').rglob('*.md'):
-    if source not in reachable:
+for source in files:
+    if root / 'docs' in source.parents and source not in reachable:
         failures.append(f'{source.relative_to(root)}: not reachable from docs/README.md')
 manifest = json.loads((root / 'docs/navigation.json').read_text())
 for page in manifest:

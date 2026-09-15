@@ -1,68 +1,35 @@
-# API guide
+# API overview
 
-Use the REST API to create projects, start runs, follow progress, and retrieve saved work. The dashboard, CLI, and SDKs use the same resource model and authorization rules.
+Give an agent a task and get back its response and saved files. The API, SDKs, and CLI work with **Macrofold Cloud and self-hosted deployments** using the same resource methods.
 
-Start with the [API quickstart](quickstart.md). The application serves an interactive reference at `/reference` and its complete [OpenAPI contract](../../api/openapi.json) at `/openapi.json`.
+Start with the [API quickstart](quickstart.md), or give your coding agent the [setup prompt](../../getting-started/agents.md).
 
-## Authentication and organizations
+## Connect once
 
-Send a scoped API key or customer OAuth token in `Authorization: Bearer …`. Generate keys in **API keys** and save the secret when it is shown once. Keep credentials on your server or in a secret store, never in browser bundles or URLs.
+Create a key in your dashboard's **API keys** page. Store it in your server environment as `MACROFOLD_API_KEY`.
 
-A key belongs to one organization and can restrict scopes and projects. `X-Organization-Id` selects an authorized membership for credentials that support it; it cannot move an organization-bound key into another tenant. Resource IDs do not grant access.
+SDKs default to `https://app.macrofold.ai`. For a self-hosted, local, or staging deployment, set the client's base URL to that deployment's origin, without `/v1`. Use a key created on the same deployment. See [Cloud setup](../../cloud/README.md) or [self-hosting](../../operations/README.md).
 
-## Resource conventions
+## Three steps
 
-All customer routes start with `/v1`. JSON fields use snake_case, timestamps use RFC 3339 UTC, and resource IDs are opaque. Money uses decimal-string micro-USD; `1000000` means $1. Large counts also use strings where required by the schema.
+| Step | SDK operation | Result |
+| --- | --- | --- |
+| Choose a home for the files | `projects.create` | A project you can reuse |
+| Give the agent a task | `runs.create` | An accepted run ID |
+| Get the finished work | `runs.wait`, then `workspaces.readFile` | Response text and persisted file bytes |
 
-| Task                  | Routes                                                                              |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| Identity and catalogs | `/me`, `/harnesses`, `/models`                                                      |
-| Project files         | `/projects`, `/workspaces/{id}/files`, `/workspaces/{id}/file`                      |
-| Execution             | `/runs`, `/sessions`, `/sessions/{id}/messages`                                     |
-| Status and output     | `/runs/{id}`, `/runs/{id}/result`, `/runs/{id}/stream`                              |
-| Recovery and Git      | `/workspaces/{id}/checkpoints`, `/workspaces/{id}/restore`, `/workspaces/{id}/sync` |
-| Triggers and schedules | `/triggers`, `/triggers/{id}/deliveries`, `/slack-connections` |
-| Tools and access      | `/connections`, `/api-keys`                                                         |
-| Usage and billing     | `/usage`, `/requests`, `/billing`                                                   |
+Method spelling follows each language's conventions. Use `streamText` / `stream_text` when you want text as it arrives, or `events` for tool activity and structured progress. [Choose a language](sdks/README.md).
 
-The table shows route families; use OpenAPI for exact parameter names, required fields, and operation IDs. [Incoming triggers](../triggers/README.md) use separate signed Slack or bearer webhook endpoints under `/events`; those provider callbacks do not accept a normal Macrofold API key.
+## Build on it
 
-## Idempotency
+- [Share files between agents](../workspaces/shared-agents.md) or [continue a conversation](../execution/README.md).
+- [Choose a harness](../execution/harnesses.md): the Unified Harness Interface keeps run operations consistent across native agents.
+- [Read saved files](../workspaces/read-files.md) and [connect GitHub](../workspaces/README.md#connect-github).
+- [Connect tools and model accounts](../identity-integrations/README.md).
+- [Start runs from Slack, webhooks, or schedules](../triggers/README.md).
 
-Supply a unique `Idempotency-Key` for each intended mutation. Reuse it with the identical request when recovering a lost response. The server retains fingerprints and results for 30 days. Reusing a key with a different body returns `409 idempotency_conflict`.
+## Reference when you need it
 
-Run creation, session messages, checkout, file mutations, restore, sync, transfer planning/apply, and exports require idempotency. TypeScript and Python clients create and preserve keys across bounded retries; supply your own key to recover across process restarts. Go, Rust, and Java require explicit keys and make single-attempt REST requests.
+[Authentication, errors, retries, and pagination](conventions.md) · [Streaming and webhooks](events.md) · [HTTP quickstart](http-quickstart.md) · [All SDK methods](sdks/reference.md) · [OpenAPI](../../api/openapi.json)
 
-## Asynchronous work
-
-A run request returns 202 with `run_id`, related resource IDs, and URLs for status, events, result, and cancellation. File and workspace maintenance may return an operation ID instead. Poll `/v1/operations/{id}` and inspect its final status before using its result.
-
-Result retrieval reports `final=true` after terminalization. Available partial output can be returned earlier. A canceled stream is not a canceled run; use the run cancellation endpoint explicitly.
-
-## Pagination and rate limits
-
-Lists use `limit` and a cursor, returning `next_cursor`. The default page size is 25 and maximum is 100. Follow the returned cursor rather than constructing one.
-
-The default API rate is 300 requests per minute per credential within its organization. A 429 includes `Retry-After`. HTTP limits, run concurrency, and spending caps are independent.
-
-## Errors and retries
-
-Errors include `error.code`, `message`, `request_id`, `details`, and `retryable`. Preserve request IDs for diagnosis.
-
-| Response                      | What to do                                                         |
-| ----------------------------- | ------------------------------------------------------------------ |
-| 401                           | Refresh authorization or sign in again                             |
-| 403                           | Check membership, scopes, project restrictions, and current grants |
-| 409 `workspace_busy`          | Wait for the writer or select an independent workspace             |
-| 409 `idempotency_conflict`    | Restore the original body for that key                             |
-| 412 `stale_revision`          | Read the current file revision and reconcile your change           |
-| 429                           | Honor `Retry-After` and reduce request rate                        |
-| Provider or transport failure | Check whether the outcome is known before repeating a mutation     |
-
-Do not automatically repeat an external side effect whose outcome is uncertain. See [troubleshooting](../../getting-started/troubleshooting.md) for recovery paths.
-
-## Streaming, clients, and protocols
-
-Read [streaming and webhooks](events.md) and the [SDK guides](sdks/README.md) for TypeScript, Python, Go, Rust, and Java.
-
-[Protocol details](implementation.md) cover transfer preconditions, OAuth discovery, event delivery, and endpoint inventory. Customer REST, authentication protocols, provider webhooks, and [operator MCP](../operations/README.md) are separate authorization surfaces.
+The interactive API reference is available at `/reference` on your deployment. Keep API keys on your server; authorize your application's users before submitting work on their behalf.

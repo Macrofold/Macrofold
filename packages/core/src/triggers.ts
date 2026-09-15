@@ -6,6 +6,7 @@ import { id, seal, sha256, token, unseal } from './crypto';
 import { config } from './config';
 import * as resources from './resources';
 import { nextOccurrence } from './trigger-policy';
+import { triggerQuota } from './trigger-quota';
 import { SlackClient, SlackError } from '../../providers/src/slack';
 
 async function slackSetup<T>(operation: () => Promise<T>): Promise<T> {
@@ -292,13 +293,15 @@ export async function saveTrigger(tx: Tx, p: Principal, input: TriggerInput, tri
     await slackConnection(tx, p, input.slack_connection_id);
   }
   await lock(tx, `triggers:${p.organizationId}`);
-  if (!previous)
+  if (!previous) {
+    const quota = await triggerQuota(tx, p.organizationId);
     assert(
-      Number((await tx.query('SELECT count(*) FROM triggers WHERE deleted_at IS NULL')).rows[0].count) < 100,
+      quota.remaining > 0,
       409,
       'trigger_limit',
-      'An organization can have up to 100 triggers.',
+      `This organization has reached its ${quota.limit} saved-trigger limit. Delete an unused trigger or ask your operator to increase the limit. Paused triggers count too.`,
     );
+  }
   if (input.kind === 'slack')
     assert(
       !(
@@ -423,5 +426,6 @@ export async function listTriggers(tx: Tx, p: Principal, query: URLSearchParams)
   return {
     data: rows.slice(0, limit).map(presentTrigger),
     next_cursor: rows.length > limit ? rows[limit - 1].id : null,
+    quota: await triggerQuota(tx, p.organizationId),
   };
 }

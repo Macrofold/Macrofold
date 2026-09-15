@@ -133,7 +133,8 @@ export async function checkout(
     bundle = path.join(dir, 'workspace.bundle'),
     reference = `refs/hosted-reviews/${crypto.randomUUID()}`;
   const localBranch =
-    branch || `review/${workspace.name.replace(/[^a-zA-Z0-9_-]/g, '-')}-${workspace.id.slice(-8)}`;
+    branch ||
+    `review/${(workspace.name || 'worktree').replace(/[^a-zA-Z0-9_-]/g, '-')}-${workspace.id.slice(-8)}`;
   await git(['check-ref-format', '--branch', localBranch], root);
   try {
     await writeFile(bundle, bytes, { mode: 0o600 });

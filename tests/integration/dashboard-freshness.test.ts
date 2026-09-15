@@ -101,7 +101,7 @@ describe('committed dashboard revisions', () => {
       try {
         await writer.query('BEGIN');
         await writer.query("SELECT set_config('app.organization_id',$1,true)", [a.p.organizationId]);
-        await resources.update(writer, 'workspaces', workspace, { sync: { status: 'pending' } });
+        await resources.update(writer, 'workspaces', workspace, { sync: { workspace_id: workspace, updated_at: new Date().toISOString(), status: 'pending' } });
         // The other transaction still sees the last committed resource state.
         expect((await snapshot()).revisions).toEqual(before.revisions);
         await writer.query('ROLLBACK');
@@ -111,7 +111,7 @@ describe('committed dashboard revisions', () => {
       expect((await snapshot()).revisions).toEqual(before.revisions);
       await transaction(a.p.organizationId, (tx) =>
         resources.update(tx, 'workspaces', workspace, {
-          sync: { status: 'conflict', error: 'private diagnostic' },
+          sync: { workspace_id: workspace, updated_at: new Date().toISOString(), status: 'conflict', error_code: 'private diagnostic' },
         }),
       );
       await expect

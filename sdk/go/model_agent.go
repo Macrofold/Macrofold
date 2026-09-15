@@ -27,13 +27,16 @@ type Agent struct {
 	Model string `json:"model"`
 	Instructions *string `json:"instructions,omitempty"`
 	BillingMode string `json:"billing_mode"`
+	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
 	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
+	// Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	Limits *Limits `json:"limits,omitempty"`
 	Id string `json:"id"`
 	OrganizationId string `json:"organization_id"`
 	Version int32 `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
+	Connections *ContextualConnectionPage `json:"connections,omitempty"`
 }
 
 type _Agent Agent
@@ -383,6 +386,38 @@ func (o *Agent) SetCreatedAt(v time.Time) {
 	o.CreatedAt = v
 }
 
+// GetConnections returns the Connections field value if set, zero value otherwise.
+func (o *Agent) GetConnections() ContextualConnectionPage {
+	if o == nil || IsNil(o.Connections) {
+		var ret ContextualConnectionPage
+		return ret
+	}
+	return *o.Connections
+}
+
+// GetConnectionsOk returns a tuple with the Connections field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Agent) GetConnectionsOk() (*ContextualConnectionPage, bool) {
+	if o == nil || IsNil(o.Connections) {
+		return nil, false
+	}
+	return o.Connections, true
+}
+
+// HasConnections returns a boolean if a field has been set.
+func (o *Agent) HasConnections() bool {
+	if o != nil && !IsNil(o.Connections) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnections gets a reference to the given ContextualConnectionPage and assigns it to the Connections field.
+func (o *Agent) SetConnections(v ContextualConnectionPage) {
+	o.Connections = &v
+}
+
 func (o Agent) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -413,6 +448,9 @@ func (o Agent) ToMap() (map[string]interface{}, error) {
 	toSerialize["organization_id"] = o.OrganizationId
 	toSerialize["version"] = o.Version
 	toSerialize["created_at"] = o.CreatedAt
+	if !IsNil(o.Connections) {
+		toSerialize["connections"] = o.Connections
+	}
 	return toSerialize, nil
 }
 

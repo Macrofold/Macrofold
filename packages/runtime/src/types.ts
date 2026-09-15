@@ -1,4 +1,10 @@
-export type HarnessName = 'codex' | 'claude-code' | 'opencode';
+import type { PermissionLayers } from '../../contracts/permissions';
+import type { HarnessName } from '../../contracts/harnesses';
+export type { HarnessName } from '../../contracts/harnesses';
+export interface PermissionFileEndpoint {
+  url: string;
+  token: string;
+}
 export type NativeEvent = { type: string; data: Record<string, unknown> };
 export type NativeConfiguration = {
   runId: string;
@@ -15,6 +21,7 @@ export type NativeConfiguration = {
   deadline: string;
   resumeId?: string;
   toolGrants: boolean;
+  permissions?: PermissionLayers;
 };
 export type NativeResult = {
   output: string;
@@ -27,6 +34,8 @@ export type HarnessContext = {
   signal: AbortSignal;
   emit: (event: NativeEvent) => Promise<void>;
   ask: (id: string, question: string, details: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  /** Ephemeral checked-file service, owned by the native worker; never persisted. */
+  fileTools?: PermissionFileEndpoint;
 };
 export interface HarnessAdapter {
   run(context: HarnessContext): Promise<NativeResult>;

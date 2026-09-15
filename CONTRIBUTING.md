@@ -4,7 +4,7 @@ Help improve the platform with focused fixes, clearer documentation, and reprodu
 
 ## Start developing
 
-Start with [local simulation](docs/getting-started/local-development/simulation.md); it needs no paid account. The [development overview](docs/getting-started/local-development.md) explains when to use native Docker fixtures or real cloud staging and the missing API-to-Docker path. Read [AGENTS.md](AGENTS.md) for repository boundaries and [the codebase map](docs/architecture/codebase.md) to find the module that owns your change.
+Start with [local simulation](docs/getting-started/local-development/simulation.md); it needs no paid account. The [development overview](docs/getting-started/local-development.md) explains when to use native Docker fixtures or real cloud staging. Read [AGENTS.md](AGENTS.md) for repository boundaries and [the codebase map](docs/architecture/codebase.md) to find the module that owns your change.
 
 ```sh
 pnpm check
@@ -21,6 +21,10 @@ Preserve provider boundaries, tenant authorization, durable execution identity, 
 Follow [testing rules](TESTING.md) and [documentation rules](.agents/rules/documentation.md). Documentation changes should help the intended reader accomplish a task and keep technical details in their owning guide.
 
 For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). Read the complete shared baseline before implementation or review, then the affected feature guides and scoped instructions. No additional agent service or plugin is required.
+
+## Contribute a harness
+
+Anyone can contribute an agent harness through the **Unified Harness Interface (UHI)**. The [UHI guide](docs/features/execution/unified-harness-interface.md) explains the adapter contract, registration, packaging, security boundaries, and required tests. Existing adapters are working examples; reuse the shared scheduler, gateway, supervisor, and checkpoint system.
 
 ## Open a pull request
 

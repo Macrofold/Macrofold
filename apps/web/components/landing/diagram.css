@@ -1,0 +1,647 @@
+/* A single retained scene. Scroll selects chapters; the browser runs each reveal. */
+.mf-diagram {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  container: agent-scene / size;
+  isolation: isolate;
+  color: #d7e7e9;
+  --scene-line: #b4cbce50;
+  --scene-accent: #d1e8ea;
+}
+.mf-project-canvas {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #bfd5d72c;
+  border-radius: 10px;
+  background:
+    linear-gradient(#b4cbce04 1px, transparent 1px), linear-gradient(90deg, #b4cbce04 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 50%, #c8dde909, transparent 72%);
+  background-size:
+    38px 38px,
+    38px 38px,
+    auto;
+}
+.mf-project-canvas > span {
+  position: absolute;
+  top: 13px;
+  left: 16px;
+  font: 12px var(--app-font, sans-serif);
+  letter-spacing: 0;
+  color: #aebfc1;
+}
+.mf-project-canvas > i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #cbdcde70;
+}
+.mf-project-canvas > i:nth-of-type(1) {
+  top: -2px;
+  left: 14px;
+}
+.mf-project-canvas > i:nth-of-type(2) {
+  top: -2px;
+  right: 14px;
+}
+.mf-project-canvas > i:nth-of-type(3) {
+  bottom: -2px;
+  left: 14px;
+}
+.mf-project-canvas > i:nth-of-type(4) {
+  bottom: -2px;
+  right: 14px;
+}
+.mf-flow {
+  position: absolute;
+  inset: 28px 16px;
+}
+.mf-unit {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: min(220px, 48cqh);
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    top 950ms cubic-bezier(0.2, 0.75, 0.2, 1),
+    width 850ms ease,
+    left 850ms ease,
+    height 850ms ease,
+    opacity 500ms ease;
+}
+.mf-unit[data-agent='0'] {
+  opacity: 1;
+}
+.mf-agent-prompt {
+  position: absolute;
+  left: 2%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 35%;
+  padding: 13px 12px;
+  border: 1px solid var(--scene-line);
+  border-radius: 5px;
+  background: linear-gradient(125deg, #182326, #0e171a);
+  color: #e0ebec;
+  font:
+    clamp(10px, 1.85cqw, 13px)/1.55 Arial,
+    sans-serif;
+  text-wrap: pretty;
+}
+.mf-prompt-feed {
+  position: absolute;
+  top: 50%;
+  left: 37%;
+  width: 7%;
+  border-top: 1px dashed #d1e8ea90;
+  transform-origin: left;
+}
+.mf-prompt-feed i {
+  position: absolute;
+  right: 1px;
+  top: -3px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid #d1e8ea;
+  border-top: 1px solid #d1e8ea;
+  transform: rotate(45deg);
+}
+.mf-agent-shell {
+  position: absolute;
+  left: 44%;
+  width: 52%;
+  height: 100%;
+  border: 1px solid var(--scene-line);
+  border-radius: 7px;
+  background: linear-gradient(130deg, #162226, #10181b);
+  box-shadow:
+    0 12px 28px #0002,
+    inset 0 1px 0 #e6f2f21a;
+}
+.mf-agent-heading {
+  height: 26px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #bfd5d721;
+  font:
+    10px Arial,
+    sans-serif;
+}
+.mf-agent-heading strong {
+  font-weight: 400;
+}
+.mf-agent-status {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #c7dcde;
+}
+.mf-agent-body {
+  position: relative;
+  height: calc(100% - 26px);
+}
+.mf-harness-mark {
+  position: absolute;
+  top: 50%;
+  left: 7%;
+  transform: translateY(-50%);
+  width: clamp(18px, 4cqw, 29px);
+  height: auto;
+  filter: brightness(0) invert(0.94);
+}
+.mf-harness-mark[src='/brands/codex.svg'] {
+  filter: none;
+}
+.mf-file-lines {
+  position: absolute;
+  top: 6px;
+  width: 100%;
+  height: calc(100% - 12px);
+  fill: none;
+  stroke: #adc3c578;
+  stroke-width: 1;
+}
+.mf-file-lines path {
+  vector-effect: non-scaling-stroke;
+}
+.mf-files {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 37%;
+  right: 5%;
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  font:
+    clamp(8px, 1.55cqw, 10.5px)/1.2 ui-monospace,
+    monospace;
+  color: #c2d1d3;
+}
+.mf-files > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
+  white-space: nowrap;
+}
+.mf-files svg {
+  flex-shrink: 0;
+  color: var(--scene-accent);
+  fill: #d1e8ea30;
+}
+.mf-file-name {
+  display: block;
+}
+.mf-interface {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  color: #c8dbdd;
+  font:
+    8px ui-monospace,
+    monospace;
+}
+.mf-checkpoint {
+  position: absolute;
+  left: calc(100% - 2px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+}
+.mf-checkpoint > svg {
+  padding: 2px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #c7dcde70;
+  border-radius: 50%;
+}
+.mf-checkpoint img,
+.mf-main img {
+  filter: brightness(0) invert(0.9);
+}
+.mf-sync-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #bed0d360;
+  opacity: 0;
+}
+.mf-sync-lines path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1;
+}
+.mf-sync-flow {
+  stroke: #d3e7e9;
+  stroke-dasharray: 2 25;
+}
+.mf-main {
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  opacity: 0;
+}
+.mf-main > svg {
+  fill: #d1e8ea25;
+}
+.mf-main > span {
+  font:
+    9px ui-monospace,
+    monospace;
+}
+.mf-diagram:is([data-stage='1'], [data-stage='2']) .mf-unit {
+  top: calc(var(--row) * 33.333% + 16.666%);
+  height: min(155px, calc(33.333cqh - 28px));
+}
+.mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit:not([data-agent='3']) {
+  opacity: 1;
+}
+.mf-diagram[data-stage='2'] .mf-unit {
+  width: 84%;
+}
+.mf-diagram[data-stage='2'] .mf-agent-shell::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 8%;
+  border-top: 1px solid var(--scene-line);
+}
+.mf-diagram[data-stage='2'] :is(.mf-checkpoint, .mf-sync-lines, .mf-main) {
+  opacity: 1;
+}
+.mf-diagram[data-stage='3'] .mf-unit {
+  opacity: 1;
+  top: calc(var(--row) * 25% + 12.5%);
+  height: min(132px, calc(25cqh - 22px));
+}
+.mf-diagram[data-stage='3'] .mf-interface {
+  display: flex;
+}
+.mf-diagram[data-stage='4'] .mf-unit[data-agent='0'] {
+  width: 83%;
+  left: 8.5%;
+  height: min(145px, 35cqh);
+}
+.mf-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(89cqw, 87cqh);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid #c5d7d918;
+  opacity: 0;
+}
+.mf-orbit-position {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--angle));
+}
+.mf-orbit-upright {
+  position: absolute;
+  top: -13px;
+  left: calc(50% - 13px);
+  width: 26px;
+  height: 26px;
+  rotate: calc(-1 * var(--angle));
+}
+.mf-orbit img {
+  object-fit: contain;
+}
+.mf-diagram[data-stage='4'] .mf-orbit {
+  opacity: 1;
+}
+
+/* Delays define short finite sequences. Leaving a chapter cancels its intro;
+   no queued JS callbacks can overwrite a newer selection. */
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-project-canvas {
+  animation: mf-reveal 650ms 2.15s both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] {
+  --type-delay: 150ms;
+  --worker-delay: 2.65s;
+  --files-delay: 3.3s;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-agent-prompt {
+  animation: mf-prompt-dock 3s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-letter,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-letter {
+  animation: mf-letter 1ms calc(var(--type-delay, 250ms) + var(--letter) * 17ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='1'] .mf-unit:not([data-agent='0']) {
+  --type-delay: calc(250ms + var(--row) * 350ms);
+  --worker-delay: calc(1.3s + var(--row) * 350ms);
+  --files-delay: calc(2s + var(--row) * 350ms);
+}
+.mf-diagram[data-animated='true'][data-stage='3'] .mf-unit[data-agent='3'] {
+  --type-delay: 550ms;
+  --worker-delay: 1.5s;
+  --files-delay: 2.2s;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-agent-shell,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-agent-shell {
+  animation: mf-reveal 550ms var(--worker-delay, 500ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-prompt-feed,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-prompt-feed {
+  animation: mf-feed 550ms var(--worker-delay, 500ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-file-lines path,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-file-lines
+  path {
+  stroke-dasharray: 1;
+  animation: mf-draw 650ms calc(var(--files-delay, 1s) - 450ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-file-name,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-file-name {
+  animation: mf-filename 900ms steps(var(--letters), end) var(--files-delay, 1s) both;
+}
+.mf-diagram[data-animated='true'][data-stage='0'] .mf-unit[data-agent='0'] .mf-files svg,
+.mf-diagram[data-animated='true']:is([data-stage='1'], [data-stage='2'], [data-stage='3'])
+  .mf-unit:not([data-agent='0'])
+  .mf-files
+  svg {
+  animation: mf-reveal 350ms calc(var(--files-delay, 1s) - 100ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='2'] .mf-checkpoint {
+  animation: mf-confirm 1.6s calc(var(--row) * 160ms) both;
+}
+.mf-diagram[data-animated='true'][data-stage='2'] .mf-sync-path {
+  stroke-dasharray: 1;
+  animation: mf-draw 1.2s 700ms both;
+}
+.mf-diagram[data-animated='true'][data-stage='2'] .mf-sync-flow {
+  animation:
+    mf-transfer 5s 1.7s linear infinite,
+    mf-reveal 300ms 1.7s both;
+}
+.mf-diagram[data-animated='true'][data-stage='2'] .mf-main {
+  animation: mf-confirm 1.8s 1.3s both;
+}
+.mf-diagram[data-animated='true'][data-stage='4'] .mf-orbit {
+  animation:
+    mf-orbit 65s linear infinite,
+    mf-reveal 700ms 400ms both;
+}
+.mf-diagram[data-animated='true'][data-stage='4'] .mf-orbit-upright {
+  animation: mf-counter-orbit 65s linear infinite;
+}
+@keyframes mf-prompt-dock {
+  0%,
+  68% {
+    left: 10%;
+    width: 80%;
+    padding: 24px;
+    font-size: clamp(15px, 2.7cqw, 19px);
+    border-color: #c7dcde60;
+  }
+  100% {
+    left: 2%;
+    width: 35%;
+    padding: 13px 12px;
+  }
+}
+@keyframes mf-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mf-letter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mf-feed {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes mf-draw {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  99.9% {
+    stroke-dasharray: 1;
+  }
+  to {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes mf-filename {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes mf-confirm {
+  0% {
+    opacity: 0;
+  }
+  28%,
+  58%,
+  100% {
+    opacity: 1;
+  }
+  43%,
+  73% {
+    opacity: 0.55;
+  }
+}
+@keyframes mf-transfer {
+  to {
+    stroke-dashoffset: -54;
+  }
+}
+@keyframes mf-orbit {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@keyframes mf-counter-orbit {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@container agent-scene (height < 470px) {
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-agent-heading {
+    height: 18px;
+    font-size: 8px;
+    padding: 0 7px;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-agent-body {
+    height: calc(100% - 18px);
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-files {
+    font-size: 8px;
+    top: 3px;
+    bottom: 3px;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-files > span {
+    gap: 3px;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-files svg {
+    width: 10px;
+    height: 10px;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-file-lines {
+    top: 3px;
+    height: calc(100% - 6px);
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-agent-prompt {
+    font-size: 10px;
+    padding: 7px;
+    line-height: 1.4;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-interface {
+    font-size: 7px;
+    margin-bottom: 3px;
+  }
+}
+/* Short desktop viewports still show all five files in each worker. Keep
+   compact rows legible instead of letting five default line boxes overlap. */
+@container agent-scene (height < 400px) and (width >= 500px) {
+  .mf-diagram[data-stage='3'] .mf-unit {
+    height: calc(25cqh - 18px);
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-files {
+    line-height: 1;
+  }
+  .mf-diagram:is([data-stage='1'], [data-stage='2'], [data-stage='3']) .mf-unit .mf-files svg {
+    width: 8px;
+    height: 8px;
+  }
+  .mf-diagram[data-stage='3'] .mf-unit .mf-agent-prompt {
+    padding: 5px 7px;
+    line-height: 1.35;
+  }
+}
+
+@container agent-scene (width < 500px) {
+  .mf-flow {
+    inset: 28px 9px;
+  }
+  .mf-unit .mf-agent-prompt {
+    font-size: 9px;
+    padding: 8px 6px;
+    line-height: 1.4;
+  }
+  .mf-unit .mf-files {
+    font-size: 7px;
+  }
+  .mf-unit .mf-files > span {
+    gap: 3px;
+  }
+  .mf-unit .mf-files svg {
+    width: 9px;
+    height: 9px;
+  }
+  .mf-unit .mf-harness-mark {
+    width: 19px;
+    left: 5%;
+  }
+  .mf-unit .mf-agent-heading {
+    font-size: 9px;
+    padding: 0 6px;
+  }
+  .mf-diagram[data-stage='2'] .mf-unit {
+    width: 84%;
+  }
+  .mf-checkpoint {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mf-checkpoint > svg {
+    width: 13px;
+    height: 13px;
+    padding: 1px;
+  }
+  .mf-checkpoint img {
+    width: 12px;
+    height: 12px;
+  }
+  .mf-main > svg {
+    width: 20px;
+    height: 20px;
+  }
+  .mf-main img {
+    width: 14px;
+    height: 14px;
+  }
+  .mf-main > span {
+    font-size: 7px;
+  }
+  .mf-orbit-upright {
+    width: 20px;
+    height: 20px;
+    top: -10px;
+    left: calc(50% - 10px);
+  }
+  .mf-orbit img {
+    width: 20px;
+    height: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mf-site:not([data-motion-override='playing']) .mf-diagram * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* Paused readers can still switch chapters/examples without seeing an empty
+   worker or half a word held at the beginning of a new entrance animation. */
+.mf-site[data-motion-override='paused'] .mf-diagram * {
+  animation: none !important;
+  transition: none !important;
+}
+.mf-short-story .mf-diagram {
+  height: 540px;
+  margin-top: 25px;
+}

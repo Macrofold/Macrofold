@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { composio, connectionTools } from '../../packages/core/src/connections';
+import { composio } from '../../packages/core/src/connections';
 import { pool, authPool } from '../../packages/db';
-import type { Document } from '../../packages/core/src/resources';
 import { charge, check } from './guard';
 
 const nativeFetch = globalThis.fetch;
@@ -22,16 +21,8 @@ try {
     const page = await sdk.getClient().tools.list({ toolkit_slug: 'hackernews', limit: 20 });
     const discovered = page.items.find((t) => t.slug === 'HACKERNEWS_GET_ITEM');
     assert(discovered?.version && discovered.version !== 'latest');
-    process.env.COMPOSIO_TOOLKIT_VERSIONS_JSON = JSON.stringify({ hackernews: discovered.version });
-    const tools = await connectionTools({
-      kind: 'composio',
-      provider: 'hackernews',
-      grants: { tools: [discovered.slug] },
-    } as unknown as Document);
-    const tool = tools.find((t) => t.name === discovered.slug);
-    assert(tool?.granted && tool.input_schema);
     // Public tools have no connected account. This validates the actual SDK and
-    // catalog adapter; it cannot establish private-account OAuth/broker acceptance.
+    // public provider API; it cannot establish private-account OAuth/broker acceptance.
     const result = await sdk.tools.execute(
       discovered.slug,
       { userId: `live-fixture:${randomUUID()}`, version: discovered.version, arguments: { id: 8863 } },

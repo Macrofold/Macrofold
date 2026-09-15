@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Ten Swarm surface studies: cohesive folds, independent particle flow, and depth."
+    />
+    <title>Swarm · Surface studies</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./surface-style.css" />
+    <script type="module" src="./surface-studio.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Study navigation">
+        <div>
+          <a href="./index.html">← Approved flow</a><a href="/swarm-motion/swarm.webp">Original artwork ↗</a>
+        </div>
+        <span>SURFACE STUDIES / 10</span>
+      </nav>
+      <header>
+        <h1>Swarm, as a surface.</h1>
+        <p>Ten studies of cohesive planes, independent particle flow, and changing depth.</p>
+      </header>
+
+      <section class="surface-picker" aria-label="Choose a surface study">
+        <div class="surface-selection">
+          <label for="variation">Surface variation</label>
+          <div class="surface-navigation">
+            <select id="variation" aria-describedby="variation-description" disabled>
+              <option>Loading surface studies…</option>
+            </select>
+            <button id="previous" type="button" aria-label="Previous variation" disabled>← Previous</button>
+            <button id="next" type="button" aria-label="Next variation" disabled>Next →</button>
+          </div>
+        </div>
+        <p id="variation-description">
+          Compare the studies at the same moment. Changing a variation preserves the timeline.
+        </p>
+        <p class="preserved-favorites">Preserved favorites: Crossed planes and Compressed folds.</p>
+      </section>
+
+      <figure id="stage" aria-label="Swarm surface study" data-renderer="loading" data-grid="false">
+        <img
+          id="poster"
+          src="./surfaces/folded-sheet.webp"
+          width="1440"
+          height="960"
+          alt="Folded sheet surface study at nine seconds."
+          fetchpriority="high"
+        />
+        <canvas id="particles" aria-hidden="true" hidden></canvas>
+        <figcaption class="sr-only">
+          An abstract particle surface study, independent of real agents or activity.
+        </figcaption>
+      </figure>
+      <p id="poster-note" class="notice" hidden>Previous flow still · a surface poster is not available.</p>
+
+      <section class="controls" aria-label="Animation controls">
+        <div class="transport">
+          <button id="formation" class="primary" type="button" disabled>Play formation</button>
+          <button id="loop" type="button" aria-pressed="false" disabled>Play 22 s loop</button>
+          <button id="pause" class="quiet" type="button" disabled>Pause</button>
+          <label class="sr-only" for="timeline">Animation time</label>
+          <input
+            id="timeline"
+            type="range"
+            min="0"
+            max="22"
+            step="0.01"
+            value="9"
+            aria-valuetext="9.0 of 22 seconds"
+            disabled
+          />
+          <output id="time" for="timeline" aria-live="off">09.0 <span>/ 22.0 s</span></output>
+        </div>
+        <div class="view-options">
+          <div>
+            <button id="original" type="button" aria-pressed="false" disabled>Original reference</button>
+            <button id="grid" type="button" aria-pressed="false" disabled>Transparency grid</button>
+          </div>
+          <p id="playback-note">Folded sheet still · 9 s</p>
+        </div>
+      </section>
+      <ol class="phases" aria-label="Animation sequence">
+        <li><span>≈00–08 s</span>Gradual formation</li>
+        <li><span>00–15 s</span>Throughflow and folding</li>
+        <li><span>15–20 s</span>Wind dispersal</li>
+        <li><span>20–22 s</span>Empty frame</li>
+      </ol>
+      <div class="study-note">
+        <p>
+          Surface geometry and flow are art-directed. Particle interactions are not physically simulated, and
+          the unseen geometry behind the original artwork is not recovered.
+        </p>
+        <p id="status" role="status"></p>
+      </div>
+      <p id="static-notice" class="notice">
+        The Folded sheet still is shown. JavaScript is required to compare surface studies and play their
+        motion.
+      </p>
+      <section id="downloads" class="downloads" aria-label="Download surface assets" hidden>
+        <h2>Selected surface</h2>
+        <div>
+          <a id="surface-download" data-type="image/png" download hidden
+            ><span id="download-name">Surface still</span><span>PNG ↓</span></a
+          >
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

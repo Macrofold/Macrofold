@@ -19,6 +19,7 @@ var _ MappedNullable = &ConnectionPatch{}
 
 // ConnectionPatch struct for ConnectionPatch
 type ConnectionPatch struct {
+	// Editable display name. Does not change the stable connection ID or any agent selection.
 	Name *string `json:"name,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	// For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation.
@@ -31,9 +32,9 @@ type ConnectionPatch struct {
 	Package *string `json:"package,omitempty"`
 	PackageVersion *string `json:"package_version,omitempty"`
 	Args []string `json:"args,omitempty"`
-	SubjectId *string `json:"subject_id,omitempty"`
 	// Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox.
 	SecretEnv map[string]string `json:"secret_env,omitempty"`
+	ApiFallback *ClaudeApiFallback `json:"api_fallback,omitempty"`
 }
 
 // NewConnectionPatch instantiates a new ConnectionPatch object
@@ -373,38 +374,6 @@ func (o *ConnectionPatch) SetArgs(v []string) {
 	o.Args = v
 }
 
-// GetSubjectId returns the SubjectId field value if set, zero value otherwise.
-func (o *ConnectionPatch) GetSubjectId() string {
-	if o == nil || IsNil(o.SubjectId) {
-		var ret string
-		return ret
-	}
-	return *o.SubjectId
-}
-
-// GetSubjectIdOk returns a tuple with the SubjectId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *ConnectionPatch) GetSubjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SubjectId) {
-		return nil, false
-	}
-	return o.SubjectId, true
-}
-
-// HasSubjectId returns a boolean if a field has been set.
-func (o *ConnectionPatch) HasSubjectId() bool {
-	if o != nil && !IsNil(o.SubjectId) {
-		return true
-	}
-
-	return false
-}
-
-// SetSubjectId gets a reference to the given string and assigns it to the SubjectId field.
-func (o *ConnectionPatch) SetSubjectId(v string) {
-	o.SubjectId = &v
-}
-
 // GetSecretEnv returns the SecretEnv field value if set, zero value otherwise.
 func (o *ConnectionPatch) GetSecretEnv() map[string]string {
 	if o == nil || IsNil(o.SecretEnv) {
@@ -435,6 +404,38 @@ func (o *ConnectionPatch) HasSecretEnv() bool {
 // SetSecretEnv gets a reference to the given map[string]string and assigns it to the SecretEnv field.
 func (o *ConnectionPatch) SetSecretEnv(v map[string]string) {
 	o.SecretEnv = v
+}
+
+// GetApiFallback returns the ApiFallback field value if set, zero value otherwise.
+func (o *ConnectionPatch) GetApiFallback() ClaudeApiFallback {
+	if o == nil || IsNil(o.ApiFallback) {
+		var ret ClaudeApiFallback
+		return ret
+	}
+	return *o.ApiFallback
+}
+
+// GetApiFallbackOk returns a tuple with the ApiFallback field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectionPatch) GetApiFallbackOk() (*ClaudeApiFallback, bool) {
+	if o == nil || IsNil(o.ApiFallback) {
+		return nil, false
+	}
+	return o.ApiFallback, true
+}
+
+// HasApiFallback returns a boolean if a field has been set.
+func (o *ConnectionPatch) HasApiFallback() bool {
+	if o != nil && !IsNil(o.ApiFallback) {
+		return true
+	}
+
+	return false
+}
+
+// SetApiFallback gets a reference to the given ClaudeApiFallback and assigns it to the ApiFallback field.
+func (o *ConnectionPatch) SetApiFallback(v ClaudeApiFallback) {
+	o.ApiFallback = &v
 }
 
 func (o ConnectionPatch) MarshalJSON() ([]byte, error) {
@@ -477,11 +478,11 @@ func (o ConnectionPatch) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Args) {
 		toSerialize["args"] = o.Args
 	}
-	if !IsNil(o.SubjectId) {
-		toSerialize["subject_id"] = o.SubjectId
-	}
 	if !IsNil(o.SecretEnv) {
 		toSerialize["secret_env"] = o.SecretEnv
+	}
+	if !IsNil(o.ApiFallback) {
+		toSerialize["api_fallback"] = o.ApiFallback
 	}
 	return toSerialize, nil
 }

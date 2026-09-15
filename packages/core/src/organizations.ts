@@ -48,7 +48,7 @@ export async function createOrganization(tx: Tx, p: Principal, name: string) {
     "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'organization.created')",
     [id(), org, p.userId],
   );
-  return { id: org, name, role: 'owner' };
+  return { id: org, name, role: 'owner' as const };
 }
 export async function listMembers(tx: Tx, p: Principal) {
   assert(!p.projectIds.length, 403, 'forbidden', 'Use an unrestricted credential to view the organization.');

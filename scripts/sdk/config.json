@@ -35,7 +35,7 @@
       "apiPackage": "dev.macrofold.api",
       "modelPackage": "dev.macrofold.model",
       "library": "native",
-      "openApiNullable": false
+      "openApiNullable": true
     }
   }
 }

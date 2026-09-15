@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import { harnessLabel } from '../../../packages/contracts/harnesses';
+import { ProviderLogo } from './provider-logo';
 import { waitingReasons } from './queue-status';
 import { Activity, FolderOpen, ArrowUpRight, GitBranch } from 'lucide-react';
 import { money, relative, type Schema } from '../lib/client';
@@ -38,7 +40,7 @@ export function ProjectCard({ project, index = 0 }: { project: Schema['Project']
         <ArrowUpRight size={17} className="project-arrow" />
       </div>
       <h3>{project.name}</h3>
-      <p>{project.github ? 'Connected to GitHub' : 'Your persistent agent workspace'}</p>
+      <p>{project.github ? 'Connected to GitHub' : 'Persistent files and agent worktrees'}</p>
       <div className="project-card-footer">
         <span>
           <GitBranch size={13} />
@@ -79,19 +81,15 @@ export function RunTable({ runs }: { runs: Schema['Run'][] }) {
             <tr key={run.id}>
               <td>
                 <Link className="run-name" href={`/runs/${run.id}`}>
-                  <span className={`harness-icon ${run.harness}`}>
-                    {run.harness === 'codex' ? '⌘' : run.harness === 'claude-code' ? '✳' : '>'}
-                  </span>
+                  <ProviderLogo provider={run.harness} name={harnessLabel(run.harness)} size={28} />
                   <span>
-                    <strong>
-                      {run.harness === 'codex'
-                        ? 'Codex'
-                        : run.harness === 'claude-code'
-                          ? 'Claude Code'
-                          : 'OpenCode'}{' '}
-                      run
-                    </strong>
-                    <small>{run.id.slice(-8)}{['scheduled', 'slack', 'webhook'].includes(run.client_type || '') ? ` · ${run.client_type}` : ''}</small>
+                    <strong>{harnessLabel(run.harness)} run</strong>
+                    <small>
+                      {run.id.slice(-8)}
+                      {['scheduled', 'slack', 'webhook'].includes(run.client_type || '')
+                        ? ` · ${run.client_type}`
+                        : ''}
+                    </small>
                   </span>
                 </Link>
               </td>

@@ -12,6 +12,8 @@ Keep prose concise and generally high-level: purpose, user behavior, ownership, 
 
 Write public guides to the person using or hosting the product. Lead with the outcome, prerequisites, a short working path, and the expected result; introduce advanced concepts through links. Use descriptive headings and stable anchors. Keep the README brief and welcoming, with source installation commands that work today. Reserve frozen-lockfile installs for reproducible CI and release builds.
 
+Write shared API, SDK, CLI, and feature guides for Cloud and self-hosted users equally. Keep managed account setup separate from operating a deployment, and keep contributor simulation separate from both. Explain actual origin, credentials, and capability differences without duplicating whole guides or implying unverified feature parity. Put AI-assisted setup beside the human quickstart: a copyable goal-oriented brief with current documentation links, secure credential instructions, and a verifiable first result. Keep one source for that prompt and never replace a customer's project instructions with contributor rules.
+
 Verify package-script commands against `package.json` and the installed package manager. Use explicit `pnpm run <script>` when a name conflicts with a built-in command; this repository's setup command is `pnpm run setup`. Keep documentation and CI invocations consistent.
 
 Do not publish owner-directed handoffs, local personal paths, account IDs, private worksheet dependencies, placeholder badges, or unsupported package/install claims. Keep unresolved release work in `docs/maintainers/TODO.md` and test evidence in linked maintainer/engineering records. Real user-impacting limits belong in the public guide even when they are inconvenient. Never hide a missing capability by presenting it as completed.
@@ -22,7 +24,7 @@ Update a published page's metadata and parent navigation when its purpose change
 
 ## Required hierarchy
 
-[docs/README.md](../../docs/README.md) indexes the codebase, feature families, operations, engineering guidance, and verification status. The root README remains a short introduction and local quickstart.
+[docs/README.md](../../docs/README.md) indexes the codebase, feature families, operations, engineering guidance, and verification status. The root README remains a short introduction with Cloud, self-hosting, AI setup, and free local entry points.
 
 - `docs/features/README.md` indexes user and operator capabilities.
 - Each major feature owns `docs/features/<feature>/README.md`, explaining behavior and linking relevant source and details.

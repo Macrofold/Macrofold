@@ -26,6 +26,8 @@ pub fn organizations(&self) -> OrganizationsResource<'_> {OrganizationsResource 
 pub fn triggers(&self) -> TriggersResource<'_> {TriggersResource {client:self, options:RequestOptions::default()}}
 pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnectionsResource {client:self, options:RequestOptions::default()}} }
 
+#[derive(Debug,Clone,Default)] pub struct GetProjectParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct GetWorktreeOptionsParams {pub name: Option<String>,pub branch: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct ListProjectsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub archived: Option<bool>}
 #[derive(Debug,Clone,Default)] pub struct ListWorkspacesParams {pub cursor: Option<String>,pub limit: Option<i32>}
 pub struct ProjectsResource<'a> {client:&'a Client,options:RequestOptions}
@@ -47,22 +49,27 @@ pub async fn create_workspace(&self, project_id: &str, input: models::WorkspaceC
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, project_id: &str) -> Result<models::Operation,ClientError> {
-        
+
         crate::apis::projects_api::delete_project(self.client.configuration(), project_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn get(&self, project_id: &str) -> Result<models::Project,ClientError> {
-        
-        crate::apis::projects_api::get_project(self.client.configuration(), project_id, self.options.organization.as_deref()).await
+pub async fn get(&self, project_id: &str, params: GetProjectParams) -> Result<models::Project,ClientError> {
+
+        crate::apis::projects_api::get_project(self.client.configuration(), project_id, self.options.organization.as_deref(), params.include_connections, params.agent_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_worktree_options(&self, project_id: &str, params: GetWorktreeOptionsParams) -> Result<models::WorktreeOptions,ClientError> {
+
+        crate::apis::projects_api::get_worktree_options(self.client.configuration(), project_id, self.options.organization.as_deref(), params.name.as_deref(), params.branch.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListProjectsParams) -> Result<models::ListProjects200Response,ClientError> {
-        
+
         crate::apis::projects_api::list_projects(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.archived).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_workspaces(&self, project_id: &str, params: ListWorkspacesParams) -> Result<models::ListWorkspaces200Response,ClientError> {
-        
+
         crate::apis::projects_api::list_workspaces(self.client.configuration(), project_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -72,24 +79,32 @@ pub async fn schedule_deletion(&self, project_id: &str, input: models::ProjectDe
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, project_id: &str, input: models::ProjectPatch) -> Result<models::Project,ClientError> {
-        
+
         crate::apis::projects_api::update_project(self.client.configuration(), project_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
     }
+#[derive(Debug,Clone)] pub struct CreateFolderParams {pub if_match: String}
 #[derive(Debug,Clone)] pub struct DeleteFileParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct DuplicateFileParams {pub if_match: String}
 #[derive(Debug,Clone,Default)] pub struct GetWorkspaceDiffParams {pub base_checkpoint_id: Option<String>,pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListCheckpointsParams {pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListFilesParams {pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListFilesParams {pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub recursive: Option<bool>}
 #[derive(Debug,Clone,Default)] pub struct ListTransfersParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone)] pub struct ReadFileParams {pub path: String,pub download: Option<bool>}
-#[derive(Debug,Clone)] pub struct WriteFileParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct RenameFileParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct WriteFileParams {pub path: String,pub if_match: String,pub create_only: Option<bool>}
 pub struct WorkspacesResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> WorkspacesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn create_checkpoint(&self, workspace_id: &str, input: models::CheckpointCreate) -> Result<models::Operation,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::workspaces_api::create_checkpoint(self.client.configuration(), workspace_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_folder(&self, workspace_id: &str, input: models::FolderCreate, params: CreateFolderParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workspaces_api::create_folder(self.client.configuration(), workspace_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn create_transfer(&self, workspace_id: &str, input: models::TransferCreate) -> Result<models::Transfer,ClientError> {
@@ -103,44 +118,54 @@ pub async fn delete_file(&self, workspace_id: &str, params: DeleteFileParams) ->
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, workspace_id: &str) -> Result<models::Operation,ClientError> {
-        
+
         crate::apis::workspaces_api::delete_workspace(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
+pub async fn duplicate_file(&self, workspace_id: &str, input: models::FileDuplicate, params: DuplicateFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workspaces_api::duplicate_file(self.client.configuration(), workspace_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
 pub async fn get_sync(&self, workspace_id: &str) -> Result<models::GitSync,ClientError> {
-        
+
         crate::apis::workspaces_api::get_sync(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get(&self, workspace_id: &str) -> Result<models::Workspace,ClientError> {
-        
+
         crate::apis::workspaces_api::get_workspace(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_diff(&self, workspace_id: &str, params: GetWorkspaceDiffParams) -> Result<models::WorkspaceDiff,ClientError> {
-        
+
         crate::apis::workspaces_api::get_workspace_diff(self.client.configuration(), workspace_id, params.base_checkpoint_id.as_deref(), params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_checkpoints(&self, workspace_id: &str, params: ListCheckpointsParams) -> Result<models::ListCheckpoints200Response,ClientError> {
-        
+
         crate::apis::workspaces_api::list_checkpoints(self.client.configuration(), workspace_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_files(&self, workspace_id: &str, params: ListFilesParams) -> Result<models::FileListing,ClientError> {
-        
-        crate::apis::workspaces_api::list_files(self.client.configuration(), workspace_id, params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref()).await
+
+        crate::apis::workspaces_api::list_files(self.client.configuration(), workspace_id, params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.recursive).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_transfers(&self, workspace_id: &str, params: ListTransfersParams) -> Result<models::ListTransfers200Response,ClientError> {
-        
+
         crate::apis::workspaces_api::list_transfers(self.client.configuration(), workspace_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn read_file(&self, workspace_id: &str, params: ReadFileParams) -> Result<reqwest::Response,ClientError> {
-        
+
         crate::apis::workspaces_api::read_file(self.client.configuration(), workspace_id, &params.path, self.options.organization.as_deref(), params.download).await
           .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn rename_file(&self, workspace_id: &str, input: models::FileRename, params: RenameFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workspaces_api::rename_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn restore(&self, workspace_id: &str, input: models::RestoreRequest) -> Result<models::Operation,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
@@ -153,17 +178,18 @@ pub async fn sync(&self, workspace_id: &str, input: Option<models::SyncWorkspace
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, workspace_id: &str, input: models::WorkspacePatch) -> Result<models::Workspace,ClientError> {
-        
+
         crate::apis::workspaces_api::update_workspace(self.client.configuration(), workspace_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn write_file(&self, workspace_id: &str, input: std::path::PathBuf, params: WriteFileParams) -> Result<models::Operation,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::write_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref()).await
+        crate::apis::workspaces_api::write_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref(), params.create_only).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct ListAgentsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct GetAgentParams {pub include_connections: Option<bool>,pub project_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListAgentsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>}
 pub struct AgentsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> AgentsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -173,22 +199,22 @@ pub struct AgentsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, agent_id: &str) -> Result<(),ClientError> {
-        
+
         crate::apis::agents_api::delete_agent(self.client.configuration(), agent_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn get(&self, agent_id: &str) -> Result<models::Agent,ClientError> {
-        
-        crate::apis::agents_api::get_agent(self.client.configuration(), agent_id, self.options.organization.as_deref()).await
+pub async fn get(&self, agent_id: &str, params: GetAgentParams) -> Result<models::Agent,ClientError> {
+
+        crate::apis::agents_api::get_agent(self.client.configuration(), agent_id, self.options.organization.as_deref(), params.include_connections, params.project_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListAgentsParams) -> Result<models::ListAgents200Response,ClientError> {
-        
-        crate::apis::agents_api::list_agents(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+
+        crate::apis::agents_api::list_agents(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn update(&self, agent_id: &str, input: models::AgentPatch) -> Result<models::Agent,ClientError> {
-        
+
         crate::apis::agents_api::update_agent(self.client.configuration(), agent_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -208,12 +234,12 @@ pub async fn create(&self, input: models::SessionCreate) -> Result<models::Sessi
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn get(&self, session_id: &str) -> Result<models::Session,ClientError> {
-        
+
         crate::apis::sessions_api::get_session(self.client.configuration(), session_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListSessionsParams) -> Result<models::ListSessions200Response,ClientError> {
-        
+
         crate::apis::sessions_api::list_sessions(self.client.configuration(), params.cursor.as_deref(), params.limit, params.workspace_id.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -235,27 +261,27 @@ pub async fn create(&self, input: models::RunCreate) -> Result<models::RunAccept
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn get(&self, run_id: &str) -> Result<models::Run,ClientError> {
-        
+
         crate::apis::runs_api::get_run(self.client.configuration(), run_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_result(&self, run_id: &str) -> Result<models::RunResult,ClientError> {
-        
+
         crate::apis::runs_api::get_run_result(self.client.configuration(), run_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_artifacts(&self, run_id: &str, params: ListArtifactsParams) -> Result<models::ListArtifacts200Response,ClientError> {
-        
+
         crate::apis::runs_api::list_artifacts(self.client.configuration(), run_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_events(&self, run_id: &str, params: ListRunEventsParams) -> Result<models::ListRunEvents200Response,ClientError> {
-        
+
         crate::apis::runs_api::list_run_events(self.client.configuration(), run_id, params.after.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListRunsParams) -> Result<models::ListRuns200Response,ClientError> {
-        
+
         crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.project_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.workspace_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -270,14 +296,20 @@ pub struct ArtifactsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> ArtifactsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn download(&self, artifact_id: &str) -> Result<models::Download,ClientError> {
-        
+
         crate::apis::artifacts_api::download_artifact(self.client.configuration(), artifact_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct ListConnectionsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct CreateConnectionAccessRuleParams {pub if_match: String}
+#[derive(Debug,Clone)] pub struct DeleteConnectionAccessRuleParams {pub if_match: String}
+#[derive(Debug,Clone,Default)] pub struct ListConnectionAccessRulesParams {pub cursor: Option<String>,pub limit: Option<i32>,pub project_id: Option<String>,pub agent_id: Option<String>,pub sort: Option<String>,pub direction: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListConnectionsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub project_id: Option<String>,pub agent_id: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct ListConnectionToolsParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListStdioPackagesParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ResolveConnectionAccessParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct UpdateConnectionAccessParams {pub if_match: String}
+#[derive(Debug,Clone)] pub struct UpdateConnectionAccessRuleParams {pub if_match: String}
 pub struct ConnectionsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> ConnectionsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -291,45 +323,60 @@ pub async fn create(&self, input: models::ConnectionCreate) -> Result<models::Co
         crate::apis::connections_api::create_connection(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
+pub async fn create_access_rule(&self, connection_id: &str, input: models::ConnectionAccessRuleInput, params: CreateConnectionAccessRuleParams) -> Result<models::ConnectionAccessRuleMutation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::connections_api::create_connection_access_rule(self.client.configuration(), connection_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
 pub async fn delete(&self, connection_id: &str) -> Result<(),ClientError> {
-        
+
         crate::apis::connections_api::delete_connection(self.client.configuration(), connection_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
+pub async fn delete_access_rule(&self, connection_id: &str, rule_id: &str, params: DeleteConnectionAccessRuleParams) -> Result<models::ConnectionAccessRuleDeleted,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::connections_api::delete_connection_access_rule(self.client.configuration(), connection_id, rule_id, &params.if_match, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
 pub async fn get(&self, connection_id: &str) -> Result<models::Connection,ClientError> {
-        
+
         crate::apis::connections_api::get_connection(self.client.configuration(), connection_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn get_grants(&self, connection_id: &str) -> Result<models::ConnectionGrantSet,ClientError> {
-        
-        crate::apis::connections_api::get_connection_grants(self.client.configuration(), connection_id, self.options.organization.as_deref()).await
+pub async fn get_access(&self, connection_id: &str) -> Result<models::ConnectionAccess,ClientError> {
+
+        crate::apis::connections_api::get_connection_access(self.client.configuration(), connection_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn list(&self, params: ListConnectionsParams) -> Result<models::ListConnections200Response,ClientError> {
-        
-        crate::apis::connections_api::list_connections(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+pub async fn list_access_rules(&self, connection_id: &str, params: ListConnectionAccessRulesParams) -> Result<models::ConnectionAccessRulePage,ClientError> {
+
+        crate::apis::connections_api::list_connection_access_rules(self.client.configuration(), connection_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit, params.project_id.as_deref(), params.agent_id.as_deref(), params.sort.as_deref(), params.direction.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListConnectionsParams) -> Result<models::ContextualConnectionPage,ClientError> {
+
+        crate::apis::connections_api::list_connections(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.project_id.as_deref(), params.agent_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_tools(&self, connection_id: &str, params: ListConnectionToolsParams) -> Result<models::ListConnectionTools200Response,ClientError> {
-        
+
         crate::apis::connections_api::list_connection_tools(self.client.configuration(), connection_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_connector_catalog(&self) -> Result<models::ConnectorCatalog,ClientError> {
-        
+
         crate::apis::connections_api::list_connector_catalog(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_stdio_packages(&self, params: ListStdioPackagesParams) -> Result<models::StdioPackagePage,ClientError> {
-        
+
         crate::apis::connections_api::list_stdio_packages(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn set_grants(&self, connection_id: &str, input: models::ConnectionGrantSet) -> Result<models::ConnectionGrantSet,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::connections_api::set_connection_grants(self.client.configuration(), connection_id, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
+pub async fn resolve_access(&self, input: models::ConnectionAccessResolve, params: ResolveConnectionAccessParams) -> Result<models::ConnectionAccessResolutionPage,ClientError> {
+
+        crate::apis::connections_api::resolve_connection_access(self.client.configuration(), Some(input), self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
       }
 pub async fn test(&self, connection_id: &str) -> Result<models::ConnectionTest,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
@@ -337,9 +384,19 @@ pub async fn test(&self, connection_id: &str) -> Result<models::ConnectionTest,C
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, connection_id: &str, input: models::ConnectionPatch) -> Result<models::Connection,ClientError> {
-        
+
         crate::apis::connections_api::update_connection(self.client.configuration(), connection_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn update_access(&self, connection_id: &str, input: models::ConnectionAccessPatch, params: UpdateConnectionAccessParams) -> Result<models::ConnectionAccess,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::connections_api::update_connection_access(self.client.configuration(), connection_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn update_access_rule(&self, connection_id: &str, rule_id: &str, input: models::ConnectionAccessRuleInput, params: UpdateConnectionAccessRuleParams) -> Result<models::ConnectionAccessRuleMutation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::connections_api::update_connection_access_rule(self.client.configuration(), connection_id, rule_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
       }
     }
 #[derive(Debug,Clone,Default)] pub struct ListApiKeysParams {pub cursor: Option<String>,pub limit: Option<i32>}
@@ -352,12 +409,12 @@ pub struct ApiKeysResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn list(&self, params: ListApiKeysParams) -> Result<models::ListApiKeys200Response,ClientError> {
-        
+
         crate::apis::api_keys_api::list_api_keys(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn revoke(&self, key_id: &str) -> Result<(),ClientError> {
-        
+
         crate::apis::api_keys_api::revoke_api_key(self.client.configuration(), key_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -372,12 +429,12 @@ pub struct WebhookEndpointsResource<'a> {client:&'a Client,options:RequestOption
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, endpoint_id: &str) -> Result<(),ClientError> {
-        
+
         crate::apis::webhook_endpoints_api::delete_webhook_endpoint(self.client.configuration(), endpoint_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListWebhookEndpointsParams) -> Result<models::ListWebhookEndpoints200Response,ClientError> {
-        
+
         crate::apis::webhook_endpoints_api::list_webhook_endpoints(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -387,7 +444,7 @@ pub async fn rotate_webhook_secret(&self, endpoint_id: &str) -> Result<models::N
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, endpoint_id: &str, input: models::WebhookPatch) -> Result<models::Webhook,ClientError> {
-        
+
         crate::apis::webhook_endpoints_api::update_webhook_endpoint(self.client.configuration(), endpoint_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -397,7 +454,7 @@ pub struct WebhookDeliveriesResource<'a> {client:&'a Client,options:RequestOptio
     impl<'a> WebhookDeliveriesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn list(&self, params: ListWebhookDeliveriesParams) -> Result<models::ListWebhookDeliveries200Response,ClientError> {
-        
+
         crate::apis::webhook_deliveries_api::list_webhook_deliveries(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -412,7 +469,7 @@ pub struct UsageResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> UsageResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn get(&self, params: GetUsageParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::usage_api::get_usage(self.client.configuration(), params.from, params.to, params.group_by.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -422,7 +479,7 @@ pub struct RequestsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> RequestsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn list(&self, params: ListRequestsParams) -> Result<models::ListRequests200Response,ClientError> {
-        
+
         crate::apis::requests_api::list_requests(self.client.configuration(), params.from, params.to, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -441,12 +498,12 @@ pub async fn create_checkout(&self, input: models::CheckoutCreate) -> Result<mod
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn get(&self) -> Result<models::Billing,ClientError> {
-        
+
         crate::apis::billing_api::get_billing(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_storage(&self) -> Result<models::Storage,ClientError> {
-        
+
         crate::apis::billing_api::get_storage(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -461,7 +518,7 @@ pub struct HarnessesResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> HarnessesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn list(&self, params: ListHarnessesParams) -> Result<models::ListHarnesses200Response,ClientError> {
-        
+
         crate::apis::harnesses_api::list_harnesses(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -471,7 +528,7 @@ pub struct ModelsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> ModelsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn list(&self, params: ListModelsParams) -> Result<models::ListModels200Response,ClientError> {
-        
+
         crate::apis::models_api::list_models(self.client.configuration(), params.harness.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -480,7 +537,7 @@ pub struct OperationsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> OperationsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn get(&self, operation_id: &str) -> Result<models::Operation,ClientError> {
-        
+
         crate::apis::operations_api::get_operation(self.client.configuration(), operation_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -499,52 +556,52 @@ pub struct OperatorResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> OperatorResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn get_account_summary(&self, account_id: &str, params: GetAccountSummaryParams) -> Result<models::AccountSummary,ClientError> {
-        
+
         crate::apis::operator_api::get_account_summary(self.client.configuration(), account_id, params.from, params.to, params.include_contact).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_capacity_report(&self, params: GetCapacityReportParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::operator_api::get_capacity_report(self.client.configuration(), params.from, params.to).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_growth_metrics(&self, params: GetGrowthMetricsParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::operator_api::get_growth_metrics(self.client.configuration(), params.from, params.to, params.group_by.as_deref(), params.organization_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_infrastructure_health(&self, params: GetInfrastructureHealthParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::operator_api::get_infrastructure_health(self.client.configuration(), params.from, params.to, params.service_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_operating_report(&self, params: GetOperatingReportParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::operator_api::get_operating_report(self.client.configuration(), params.from, params.to).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_platform_usage_metrics(&self, params: GetPlatformUsageMetricsParams) -> Result<models::Report,ClientError> {
-        
+
         crate::apis::operator_api::get_platform_usage_metrics(self.client.configuration(), params.from, params.to, params.group_by.as_deref(), params.organization_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get_run_diagnostics(&self, run_id: &str, params: GetRunDiagnosticsParams) -> Result<models::Diagnostics,ClientError> {
-        
+
         crate::apis::operator_api::get_run_diagnostics(self.client.configuration(), run_id, params.from, params.to).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_accounts(&self, params: ListAccountsParams) -> Result<models::ListAccounts200Response,ClientError> {
-        
+
         crate::apis::operator_api::list_accounts(self.client.configuration(), params.from, params.to, params.query.as_deref(), params.include_contact, params.cursor.as_deref(), params.limit).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_platform_requests(&self, params: ListPlatformRequestsParams) -> Result<models::ListRequests200Response,ClientError> {
-        
+
         crate::apis::operator_api::list_platform_requests(self.client.configuration(), params.from, params.to, params.organization_id.as_deref(), params.status_code, params.route.as_deref(), params.cursor.as_deref(), params.limit).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_report_snapshots(&self, params: ListReportSnapshotsParams) -> Result<models::ReportSnapshotPage,ClientError> {
-        
+
         crate::apis::operator_api::list_report_snapshots(self.client.configuration(), params.from, params.to, params.cursor, params.limit).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -558,7 +615,7 @@ pub struct CheckpointsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update_retention(&self, checkpoint_id: &str, input: models::CheckpointPatch) -> Result<models::Checkpoint,ClientError> {
-        
+
         crate::apis::checkpoints_api::update_checkpoint_retention(self.client.configuration(), checkpoint_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -567,7 +624,7 @@ pub struct MeResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> MeResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
       pub async fn get(&self) -> Result<models::Identity,ClientError> {
-        
+
         crate::apis::me_api::get_identity(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -581,7 +638,7 @@ pub struct TransfersResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn get(&self, transfer_id: &str) -> Result<models::Transfer,ClientError> {
-        
+
         crate::apis::transfers_api::get_transfer(self.client.configuration(), transfer_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -596,12 +653,12 @@ pub struct IntegrationsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn list_github_installations(&self) -> Result<models::GithubInstallations,ClientError> {
-        
+
         crate::apis::integrations_api::list_github_installations(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_github_repositories(&self, params: ListGithubRepositoriesParams) -> Result<models::GithubRepositories,ClientError> {
-        
+
         crate::apis::integrations_api::list_github_repositories(self.client.configuration(), &params.installation_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -620,22 +677,22 @@ pub async fn create(&self, input: models::OrganizationCreate) -> Result<models::
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn get_execution_policy(&self) -> Result<models::ExecutionPolicy,ClientError> {
-        
+
         crate::apis::organizations_api::get_execution_policy(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_invitations(&self) -> Result<models::ListInvitations200Response,ClientError> {
-        
+
         crate::apis::organizations_api::list_invitations(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_members(&self) -> Result<models::ListMembers200Response,ClientError> {
-        
+
         crate::apis::organizations_api::list_members(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_audit(&self) -> Result<models::ListOrganizationAudit200Response,ClientError> {
-        
+
         crate::apis::organizations_api::list_organization_audit(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -676,22 +733,22 @@ pub struct TriggersResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, trigger_id: &str) -> Result<models::DeleteTrigger200Response,ClientError> {
-        
+
         crate::apis::triggers_api::delete_trigger(self.client.configuration(), trigger_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn get(&self, trigger_id: &str) -> Result<models::Trigger,ClientError> {
-        
+
         crate::apis::triggers_api::get_trigger(self.client.configuration(), trigger_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_deliveries(&self, trigger_id: &str, params: ListTriggerDeliveriesParams) -> Result<models::ListTriggerDeliveries200Response,ClientError> {
-        
+
         crate::apis::triggers_api::list_trigger_deliveries(self.client.configuration(), trigger_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListTriggersParams) -> Result<models::ListTriggers200Response,ClientError> {
-        
+
         crate::apis::triggers_api::list_triggers(self.client.configuration(), params.cursor.as_deref(), params.limit, params.kind.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -711,7 +768,7 @@ pub async fn run(&self, trigger_id: &str) -> Result<models::TriggerDelivery,Clie
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, trigger_id: &str, input: models::TriggerPatch) -> Result<models::Trigger,ClientError> {
-        
+
         crate::apis::triggers_api::update_trigger(self.client.configuration(), trigger_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
@@ -726,17 +783,17 @@ pub struct SlackConnectionsResource<'a> {client:&'a Client,options:RequestOption
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, connection_id: &str) -> Result<models::DeleteTrigger200Response,ClientError> {
-        
+
         crate::apis::slack_connections_api::delete_slack_connection(self.client.configuration(), connection_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_channels(&self, connection_id: &str, params: ListSlackConnectionChannelsParams) -> Result<models::ListSlackConnectionChannels200Response,ClientError> {
-        
+
         crate::apis::slack_connections_api::list_slack_connection_channels(self.client.configuration(), connection_id, params.cursor.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self) -> Result<models::ListSlackConnections200Response,ClientError> {
-        
+
         crate::apis::slack_connections_api::list_slack_connections(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }

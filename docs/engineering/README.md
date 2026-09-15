@@ -3,6 +3,7 @@
 For a first contribution: [run locally](../getting-started/local-development.md), find the owner in the [codebase map](../architecture/codebase.md), and follow [contributing](../../CONTRIBUTING.md). Use the references below when you need more detail.
 
 - [Delivery scope](delivery.md): implemented capabilities and release acceptance.
+- [Contribute a harness](../features/execution/unified-harness-interface.md): the Unified Harness Interface, native adapters, registration, and acceptance requirements.
 - [Testing and CI](testing.md): suites, gates and evidence boundaries; [mandatory testing rules](../../TESTING.md).
 - [Development-mode implementation](development-modes.md): shared execution architecture, local Docker integration and complete real-agent acceptance across local and cloud environments.
 - [Working with coding agents](agent-guidance.md): instruction loading, implementation principles, and source research.

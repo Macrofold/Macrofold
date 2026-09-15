@@ -98,9 +98,6 @@ export function readinessErrors() {
     config.orchestration === 'workflow' &&
       (process.env.CRON_SECRET || '').length < 32 &&
       'CRON_SECRET must be at least 32 characters',
-    config.allowPaid &&
-      !process.env.MODEL_CATALOG_JSON &&
-      'Configure a reviewed model catalog before enabling execution',
     !process.env.RESEND_API_KEY && 'RESEND_API_KEY is required',
   ].filter((x): x is string => Boolean(x));
 }

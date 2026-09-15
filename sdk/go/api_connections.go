@@ -315,6 +315,162 @@ func (a *ConnectionsAPIService) CreateConnectionExecute(r ApiCreateConnectionReq
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiCreateConnectionAccessRuleRequest struct {
+	ctx context.Context
+	ApiService *ConnectionsAPIService
+	connectionId string
+	ifMatch *string
+	idempotencyKey *string
+	connectionAccessRuleInput *ConnectionAccessRuleInput
+	xOrganizationId *string
+}
+
+func (r ApiCreateConnectionAccessRuleRequest) IfMatch(ifMatch string) ApiCreateConnectionAccessRuleRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiCreateConnectionAccessRuleRequest) IdempotencyKey(idempotencyKey string) ApiCreateConnectionAccessRuleRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiCreateConnectionAccessRuleRequest) ConnectionAccessRuleInput(connectionAccessRuleInput ConnectionAccessRuleInput) ApiCreateConnectionAccessRuleRequest {
+	r.connectionAccessRuleInput = &connectionAccessRuleInput
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiCreateConnectionAccessRuleRequest) XOrganizationId(xOrganizationId string) ApiCreateConnectionAccessRuleRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiCreateConnectionAccessRuleRequest) Execute() (*ConnectionAccessRuleMutation, *http.Response, error) {
+	return r.ApiService.CreateConnectionAccessRuleExecute(r)
+}
+
+/*
+CreateConnectionAccessRule Add a connection permission
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param connectionId
+ @return ApiCreateConnectionAccessRuleRequest
+*/
+func (a *ConnectionsAPIService) CreateConnectionAccessRule(ctx context.Context, connectionId string) ApiCreateConnectionAccessRuleRequest {
+	return ApiCreateConnectionAccessRuleRequest{
+		ApiService: a,
+		ctx: ctx,
+		connectionId: connectionId,
+	}
+}
+
+// Execute executes the request
+//  @return ConnectionAccessRuleMutation
+func (a *ConnectionsAPIService) CreateConnectionAccessRuleExecute(r ApiCreateConnectionAccessRuleRequest) (*ConnectionAccessRuleMutation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ConnectionAccessRuleMutation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.CreateConnectionAccessRule")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access/rules"
+	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.connectionAccessRuleInput == nil {
+		return localVarReturnValue, nil, reportError("connectionAccessRuleInput is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	// body params
+	localVarPostBody = r.connectionAccessRuleInput
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiDeleteConnectionRequest struct {
 	ctx context.Context
 	ApiService *ConnectionsAPIService
@@ -423,6 +579,155 @@ func (a *ConnectionsAPIService) DeleteConnectionExecute(r ApiDeleteConnectionReq
 	}
 
 	return localVarHTTPResponse, nil
+}
+
+type ApiDeleteConnectionAccessRuleRequest struct {
+	ctx context.Context
+	ApiService *ConnectionsAPIService
+	connectionId string
+	ruleId string
+	ifMatch *string
+	idempotencyKey *string
+	xOrganizationId *string
+}
+
+func (r ApiDeleteConnectionAccessRuleRequest) IfMatch(ifMatch string) ApiDeleteConnectionAccessRuleRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiDeleteConnectionAccessRuleRequest) IdempotencyKey(idempotencyKey string) ApiDeleteConnectionAccessRuleRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiDeleteConnectionAccessRuleRequest) XOrganizationId(xOrganizationId string) ApiDeleteConnectionAccessRuleRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiDeleteConnectionAccessRuleRequest) Execute() (*ConnectionAccessRuleDeleted, *http.Response, error) {
+	return r.ApiService.DeleteConnectionAccessRuleExecute(r)
+}
+
+/*
+DeleteConnectionAccessRule Remove a connection permission
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param connectionId
+ @param ruleId
+ @return ApiDeleteConnectionAccessRuleRequest
+*/
+func (a *ConnectionsAPIService) DeleteConnectionAccessRule(ctx context.Context, connectionId string, ruleId string) ApiDeleteConnectionAccessRuleRequest {
+	return ApiDeleteConnectionAccessRuleRequest{
+		ApiService: a,
+		ctx: ctx,
+		connectionId: connectionId,
+		ruleId: ruleId,
+	}
+}
+
+// Execute executes the request
+//  @return ConnectionAccessRuleDeleted
+func (a *ConnectionsAPIService) DeleteConnectionAccessRuleExecute(r ApiDeleteConnectionAccessRuleRequest) (*ConnectionAccessRuleDeleted, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ConnectionAccessRuleDeleted
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.DeleteConnectionAccessRule")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access/rules/{rule_id}"
+	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"rule_id"+"}", url.PathEscape(parameterValueToString(r.ruleId, "ruleId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiGetConnectionRequest struct {
@@ -546,7 +851,7 @@ func (a *ConnectionsAPIService) GetConnectionExecute(r ApiGetConnectionRequest) 
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiGetConnectionGrantsRequest struct {
+type ApiGetConnectionAccessRequest struct {
 	ctx context.Context
 	ApiService *ConnectionsAPIService
 	connectionId string
@@ -554,24 +859,24 @@ type ApiGetConnectionGrantsRequest struct {
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiGetConnectionGrantsRequest) XOrganizationId(xOrganizationId string) ApiGetConnectionGrantsRequest {
+func (r ApiGetConnectionAccessRequest) XOrganizationId(xOrganizationId string) ApiGetConnectionAccessRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiGetConnectionGrantsRequest) Execute() (*ConnectionGrantSet, *http.Response, error) {
-	return r.ApiService.GetConnectionGrantsExecute(r)
+func (r ApiGetConnectionAccessRequest) Execute() (*ConnectionAccess, *http.Response, error) {
+	return r.ApiService.GetConnectionAccessExecute(r)
 }
 
 /*
-GetConnectionGrants Inspect connection tool grants
+GetConnectionAccess Inspect owned connection access
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param connectionId
- @return ApiGetConnectionGrantsRequest
+ @return ApiGetConnectionAccessRequest
 */
-func (a *ConnectionsAPIService) GetConnectionGrants(ctx context.Context, connectionId string) ApiGetConnectionGrantsRequest {
-	return ApiGetConnectionGrantsRequest{
+func (a *ConnectionsAPIService) GetConnectionAccess(ctx context.Context, connectionId string) ApiGetConnectionAccessRequest {
+	return ApiGetConnectionAccessRequest{
 		ApiService: a,
 		ctx: ctx,
 		connectionId: connectionId,
@@ -579,27 +884,204 @@ func (a *ConnectionsAPIService) GetConnectionGrants(ctx context.Context, connect
 }
 
 // Execute executes the request
-//  @return ConnectionGrantSet
-func (a *ConnectionsAPIService) GetConnectionGrantsExecute(r ApiGetConnectionGrantsRequest) (*ConnectionGrantSet, *http.Response, error) {
+//  @return ConnectionAccess
+func (a *ConnectionsAPIService) GetConnectionAccessExecute(r ApiGetConnectionAccessRequest) (*ConnectionAccess, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ConnectionGrantSet
+		localVarReturnValue  *ConnectionAccess
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.GetConnectionGrants")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.GetConnectionAccess")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/connections/{connection_id}/grants"
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access"
 	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiListConnectionAccessRulesRequest struct {
+	ctx context.Context
+	ApiService *ConnectionsAPIService
+	connectionId string
+	xOrganizationId *string
+	cursor *string
+	limit *int32
+	projectId *string
+	agentId *string
+	sort *string
+	direction *string
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiListConnectionAccessRulesRequest) XOrganizationId(xOrganizationId string) ApiListConnectionAccessRulesRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) Cursor(cursor string) ApiListConnectionAccessRulesRequest {
+	r.cursor = &cursor
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) Limit(limit int32) ApiListConnectionAccessRulesRequest {
+	r.limit = &limit
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) ProjectId(projectId string) ApiListConnectionAccessRulesRequest {
+	r.projectId = &projectId
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) AgentId(agentId string) ApiListConnectionAccessRulesRequest {
+	r.agentId = &agentId
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) Sort(sort string) ApiListConnectionAccessRulesRequest {
+	r.sort = &sort
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) Direction(direction string) ApiListConnectionAccessRulesRequest {
+	r.direction = &direction
+	return r
+}
+
+func (r ApiListConnectionAccessRulesRequest) Execute() (*ConnectionAccessRulePage, *http.Response, error) {
+	return r.ApiService.ListConnectionAccessRulesExecute(r)
+}
+
+/*
+ListConnectionAccessRules List saved connection permissions
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param connectionId
+ @return ApiListConnectionAccessRulesRequest
+*/
+func (a *ConnectionsAPIService) ListConnectionAccessRules(ctx context.Context, connectionId string) ApiListConnectionAccessRulesRequest {
+	return ApiListConnectionAccessRulesRequest{
+		ApiService: a,
+		ctx: ctx,
+		connectionId: connectionId,
+	}
+}
+
+// Execute executes the request
+//  @return ConnectionAccessRulePage
+func (a *ConnectionsAPIService) ListConnectionAccessRulesExecute(r ApiListConnectionAccessRulesRequest) (*ConnectionAccessRulePage, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ConnectionAccessRulePage
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.ListConnectionAccessRules")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access/rules"
+	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.cursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
+		r.limit = &defaultValue
+	}
+	if r.projectId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	}
+	if r.agentId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")
+	}
+	if r.sort != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "form", "")
+	}
+	if r.direction != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "direction", r.direction, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -814,6 +1296,8 @@ type ApiListConnectionsRequest struct {
 	cursor *string
 	limit *int32
 	xOrganizationId *string
+	projectId *string
+	agentId *string
 }
 
 func (r ApiListConnectionsRequest) Cursor(cursor string) ApiListConnectionsRequest {
@@ -832,7 +1316,17 @@ func (r ApiListConnectionsRequest) XOrganizationId(xOrganizationId string) ApiLi
 	return r
 }
 
-func (r ApiListConnectionsRequest) Execute() (*ListConnections200Response, *http.Response, error) {
+func (r ApiListConnectionsRequest) ProjectId(projectId string) ApiListConnectionsRequest {
+	r.projectId = &projectId
+	return r
+}
+
+func (r ApiListConnectionsRequest) AgentId(agentId string) ApiListConnectionsRequest {
+	r.agentId = &agentId
+	return r
+}
+
+func (r ApiListConnectionsRequest) Execute() (*ContextualConnectionPage, *http.Response, error) {
 	return r.ApiService.ListConnectionsExecute(r)
 }
 
@@ -852,13 +1346,13 @@ func (a *ConnectionsAPIService) ListConnections(ctx context.Context) ApiListConn
 }
 
 // Execute executes the request
-//  @return ListConnections200Response
-func (a *ConnectionsAPIService) ListConnectionsExecute(r ApiListConnectionsRequest) (*ListConnections200Response, *http.Response, error) {
+//  @return ContextualConnectionPage
+func (a *ConnectionsAPIService) ListConnectionsExecute(r ApiListConnectionsRequest) (*ContextualConnectionPage, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ListConnections200Response
+		localVarReturnValue  *ContextualConnectionPage
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.ListConnections")
@@ -881,6 +1375,12 @@ func (a *ConnectionsAPIService) ListConnectionsExecute(r ApiListConnectionsReque
 		var defaultValue int32 = 25
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
+	}
+	if r.projectId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	}
+	if r.agentId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1203,84 +1703,87 @@ func (a *ConnectionsAPIService) ListStdioPackagesExecute(r ApiListStdioPackagesR
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiSetConnectionGrantsRequest struct {
+type ApiResolveConnectionAccessRequest struct {
 	ctx context.Context
 	ApiService *ConnectionsAPIService
-	connectionId string
-	idempotencyKey *string
-	connectionGrantSet *ConnectionGrantSet
+	connectionAccessResolve *ConnectionAccessResolve
 	xOrganizationId *string
+	cursor *string
+	limit *int32
 }
 
-func (r ApiSetConnectionGrantsRequest) IdempotencyKey(idempotencyKey string) ApiSetConnectionGrantsRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiSetConnectionGrantsRequest) ConnectionGrantSet(connectionGrantSet ConnectionGrantSet) ApiSetConnectionGrantsRequest {
-	r.connectionGrantSet = &connectionGrantSet
+func (r ApiResolveConnectionAccessRequest) ConnectionAccessResolve(connectionAccessResolve ConnectionAccessResolve) ApiResolveConnectionAccessRequest {
+	r.connectionAccessResolve = &connectionAccessResolve
 	return r
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiSetConnectionGrantsRequest) XOrganizationId(xOrganizationId string) ApiSetConnectionGrantsRequest {
+func (r ApiResolveConnectionAccessRequest) XOrganizationId(xOrganizationId string) ApiResolveConnectionAccessRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiSetConnectionGrantsRequest) Execute() (*ConnectionGrantSet, *http.Response, error) {
-	return r.ApiService.SetConnectionGrantsExecute(r)
+func (r ApiResolveConnectionAccessRequest) Cursor(cursor string) ApiResolveConnectionAccessRequest {
+	r.cursor = &cursor
+	return r
+}
+
+func (r ApiResolveConnectionAccessRequest) Limit(limit int32) ApiResolveConnectionAccessRequest {
+	r.limit = &limit
+	return r
+}
+
+func (r ApiResolveConnectionAccessRequest) Execute() (*ConnectionAccessResolutionPage, *http.Response, error) {
+	return r.ApiService.ResolveConnectionAccessExecute(r)
 }
 
 /*
-SetConnectionGrants Replace explicitly authorized tool grants
+ResolveConnectionAccess Preview connection access for a run
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param connectionId
- @return ApiSetConnectionGrantsRequest
+ @return ApiResolveConnectionAccessRequest
 */
-func (a *ConnectionsAPIService) SetConnectionGrants(ctx context.Context, connectionId string) ApiSetConnectionGrantsRequest {
-	return ApiSetConnectionGrantsRequest{
+func (a *ConnectionsAPIService) ResolveConnectionAccess(ctx context.Context) ApiResolveConnectionAccessRequest {
+	return ApiResolveConnectionAccessRequest{
 		ApiService: a,
 		ctx: ctx,
-		connectionId: connectionId,
 	}
 }
 
 // Execute executes the request
-//  @return ConnectionGrantSet
-func (a *ConnectionsAPIService) SetConnectionGrantsExecute(r ApiSetConnectionGrantsRequest) (*ConnectionGrantSet, *http.Response, error) {
+//  @return ConnectionAccessResolutionPage
+func (a *ConnectionsAPIService) ResolveConnectionAccessExecute(r ApiResolveConnectionAccessRequest) (*ConnectionAccessResolutionPage, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPut
+		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ConnectionGrantSet
+		localVarReturnValue  *ConnectionAccessResolutionPage
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.SetConnectionGrants")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.ResolveConnectionAccess")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/connections/{connection_id}/grants"
-	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+	localVarPath := localBasePath + "/v1/connection-access/resolve"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.connectionGrantSet == nil {
-		return localVarReturnValue, nil, reportError("connectionGrantSet is required and must be specified")
+	if r.connectionAccessResolve == nil {
+		return localVarReturnValue, nil, reportError("connectionAccessResolve is required and must be specified")
 	}
 
+	if r.cursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
+		r.limit = &defaultValue
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/json"}
 
@@ -1298,12 +1801,11 @@ func (a *ConnectionsAPIService) SetConnectionGrantsExecute(r ApiSetConnectionGra
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
 	// body params
-	localVarPostBody = r.connectionGrantSet
+	localVarPostBody = r.connectionAccessResolve
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -1584,6 +2086,322 @@ func (a *ConnectionsAPIService) UpdateConnectionExecute(r ApiUpdateConnectionReq
 	}
 	// body params
 	localVarPostBody = r.connectionPatch
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiUpdateConnectionAccessRequest struct {
+	ctx context.Context
+	ApiService *ConnectionsAPIService
+	connectionId string
+	ifMatch *string
+	idempotencyKey *string
+	connectionAccessPatch *ConnectionAccessPatch
+	xOrganizationId *string
+}
+
+func (r ApiUpdateConnectionAccessRequest) IfMatch(ifMatch string) ApiUpdateConnectionAccessRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRequest) IdempotencyKey(idempotencyKey string) ApiUpdateConnectionAccessRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRequest) ConnectionAccessPatch(connectionAccessPatch ConnectionAccessPatch) ApiUpdateConnectionAccessRequest {
+	r.connectionAccessPatch = &connectionAccessPatch
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiUpdateConnectionAccessRequest) XOrganizationId(xOrganizationId string) ApiUpdateConnectionAccessRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRequest) Execute() (*ConnectionAccess, *http.Response, error) {
+	return r.ApiService.UpdateConnectionAccessExecute(r)
+}
+
+/*
+UpdateConnectionAccess Update organization access or approved tools
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param connectionId
+ @return ApiUpdateConnectionAccessRequest
+*/
+func (a *ConnectionsAPIService) UpdateConnectionAccess(ctx context.Context, connectionId string) ApiUpdateConnectionAccessRequest {
+	return ApiUpdateConnectionAccessRequest{
+		ApiService: a,
+		ctx: ctx,
+		connectionId: connectionId,
+	}
+}
+
+// Execute executes the request
+//  @return ConnectionAccess
+func (a *ConnectionsAPIService) UpdateConnectionAccessExecute(r ApiUpdateConnectionAccessRequest) (*ConnectionAccess, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ConnectionAccess
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.UpdateConnectionAccess")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access"
+	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.connectionAccessPatch == nil {
+		return localVarReturnValue, nil, reportError("connectionAccessPatch is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	// body params
+	localVarPostBody = r.connectionAccessPatch
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiUpdateConnectionAccessRuleRequest struct {
+	ctx context.Context
+	ApiService *ConnectionsAPIService
+	connectionId string
+	ruleId string
+	ifMatch *string
+	idempotencyKey *string
+	connectionAccessRuleInput *ConnectionAccessRuleInput
+	xOrganizationId *string
+}
+
+func (r ApiUpdateConnectionAccessRuleRequest) IfMatch(ifMatch string) ApiUpdateConnectionAccessRuleRequest {
+	r.ifMatch = &ifMatch
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRuleRequest) IdempotencyKey(idempotencyKey string) ApiUpdateConnectionAccessRuleRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRuleRequest) ConnectionAccessRuleInput(connectionAccessRuleInput ConnectionAccessRuleInput) ApiUpdateConnectionAccessRuleRequest {
+	r.connectionAccessRuleInput = &connectionAccessRuleInput
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiUpdateConnectionAccessRuleRequest) XOrganizationId(xOrganizationId string) ApiUpdateConnectionAccessRuleRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiUpdateConnectionAccessRuleRequest) Execute() (*ConnectionAccessRuleMutation, *http.Response, error) {
+	return r.ApiService.UpdateConnectionAccessRuleExecute(r)
+}
+
+/*
+UpdateConnectionAccessRule Retarget a connection permission
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param connectionId
+ @param ruleId
+ @return ApiUpdateConnectionAccessRuleRequest
+*/
+func (a *ConnectionsAPIService) UpdateConnectionAccessRule(ctx context.Context, connectionId string, ruleId string) ApiUpdateConnectionAccessRuleRequest {
+	return ApiUpdateConnectionAccessRuleRequest{
+		ApiService: a,
+		ctx: ctx,
+		connectionId: connectionId,
+		ruleId: ruleId,
+	}
+}
+
+// Execute executes the request
+//  @return ConnectionAccessRuleMutation
+func (a *ConnectionsAPIService) UpdateConnectionAccessRuleExecute(r ApiUpdateConnectionAccessRuleRequest) (*ConnectionAccessRuleMutation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ConnectionAccessRuleMutation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConnectionsAPIService.UpdateConnectionAccessRule")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/connections/{connection_id}/access/rules/{rule_id}"
+	localVarPath = strings.Replace(localVarPath, "{"+"connection_id"+"}", url.PathEscape(parameterValueToString(r.connectionId, "connectionId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"rule_id"+"}", url.PathEscape(parameterValueToString(r.ruleId, "ruleId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.ifMatch == nil {
+		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.connectionAccessRuleInput == nil {
+		return localVarReturnValue, nil, reportError("connectionAccessRuleInput is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	// body params
+	localVarPostBody = r.connectionAccessRuleInput
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

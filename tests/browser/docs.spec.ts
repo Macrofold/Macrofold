@@ -5,13 +5,56 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 
+test('branded docs preserve appearance across guides and mobile search', async ({ page }) => {
+  await page.goto('/docs/customer-agents');
+  await expect(page).toHaveTitle('Customer agents · Macrofold Docs');
+  await expect(page.getByRole('banner').getByRole('img', { name: 'Macrofold' })).toBeVisible();
+  for (const theme of ['dark', 'light'] as const) {
+    await page.getByRole('button', { name: `Use ${theme} theme`, exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    expect(
+      (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+    ).toEqual([]);
+    await page.screenshot({ path: `test-results/docs-brand-${theme}.png` });
+  }
+  await page.getByRole('link', { name: 'Docs', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Use light theme', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.screenshot({ path: 'test-results/docs-brand-home.png' });
+  for (const width of [900, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
+  }
+  await page.getByRole('button', { name: 'Open documentation menu' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Use dark theme', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+  ).toEqual([]);
+  await page.getByRole('dialog').getByRole('link', { name: 'Customer agents', exact: true }).click();
+  await page.getByRole('button', { name: 'Search documentation', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search documentation' }).fill('customer agents');
+  await expect(page.getByRole('dialog').getByRole('link').first()).toBeVisible();
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+  ).toEqual([]);
+  await page.screenshot({ path: 'test-results/docs-brand-search-mobile.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Search documentation', exact: true })).toBeFocused();
+  await page.screenshot({ path: 'test-results/docs-brand-mobile.png' });
+});
+
 test('developer onboarding links to the guides and reports clipboard failure honestly', async ({
   page,
   context,
 }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   await page.goto('/developers');
   await expect(page.getByRole('link', { name: 'CLI installation guide' })).toHaveAttribute(
     'href',
@@ -28,11 +71,17 @@ test('developer onboarding links to the guides and reports clipboard failure hon
     });
   });
   await page.getByRole('button', { name: 'Copy', exact: true }).click();
-  await expect(page.getByText('Clipboard unavailable. Select and copy the text manually.')).toBeVisible();
+  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toContainText(
+    'Clipboard unavailable. Select and copy the text manually.',
+  );
   await page.reload();
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: 'Copy', exact: true }).click();
-  await expect(page.getByText('Example copied')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy', exact: true })).toHaveAttribute(
+    'data-copy-state',
+    'copied',
+  );
+  await expect(page.locator('[data-sonner-toast][data-type="success"]')).toHaveCount(0);
   const code = await page.evaluate(() => navigator.clipboard.readText());
   expect(code).toContain(fixtureOrigin + '/v1/runs');
   expect(code).toContain('"max_cost_micro_usd":"1000000"');
@@ -136,7 +185,7 @@ test('the published cURL quickstart executes unchanged against the local simulat
   const account: { api_key: string } = JSON.parse(
     await readFile(path.join(process.env.DATA_DIR || '.data', 'demo.json'), 'utf8'),
   );
-  const markdown = await readFile('docs/features/api/quickstart.md', 'utf8');
+  const markdown = await readFile('docs/features/api/http-quickstart.md', 'utf8');
   const commands = [...markdown.matchAll(/```sh\n([\s\S]*?)```/g)]
     .map((match) => match[1])
     .join('\n')
@@ -148,4 +197,102 @@ test('the published cURL quickstart executes unchanged against the local simulat
   });
   expect(stdout).toMatch(/"final"\s*:\s*true/);
   expect(stdout).toContain('run.succeeded');
+});
+
+test('AI setup copies deployment-specific links and remains accessible on mobile', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/docs');
+  await expect(page.getByRole('link', { name: /Use Macrofold Cloud/ })).toHaveAttribute(
+    'href',
+    '/docs/cloud',
+  );
+  await expect(page.getByRole('link', { name: /Run it on your infrastructure/ })).toHaveAttribute(
+    'href',
+    '/docs/self-hosting',
+  );
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
+  const prompt = await page.evaluate(() => navigator.clipboard.readText());
+  expect(prompt).toContain(fixtureOrigin + '/docs/raw/api/quickstart.md');
+  expect(prompt).toContain(fixtureOrigin + '/docs/raw/workspaces/shared-agents.md');
+  expect(prompt).not.toContain('https://app.macrofold.ai');
+  await page.getByRole('link', { name: /Build with your AI/ }).click();
+  await expect(page.getByRole('region', { name: 'Setup prompt', exact: true })).toContainText(prompt);
+  await page.getByRole('button', { name: 'Copy prompt', exact: true }).click();
+  expect((await page.evaluate(() => navigator.clipboard.readText())).trim()).toBe(prompt);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('Denied by browser')) },
+    });
+  });
+  await page.locator('.docs-prompt-block').getByRole('button').click();
+  await expect(page.getByRole('button', { name: 'Copy prompt', exact: true })).toHaveAttribute(
+    'data-copy-state',
+    'error',
+  );
+  await expect(page.getByRole('region', { name: 'Setup prompt', exact: true })).toContainText(prompt);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+  ).toEqual([]);
+  await page.screenshot({ path: 'test-results/docs-ai-mobile.png', fullPage: true });
+});
+
+test('published Python quickstart and shared-workspace example execute through the local API', async () => {
+  test.setTimeout(120000);
+  expect(new URL(fixtureOrigin).hostname).toBe('localhost');
+  const account: { api_key: string } = JSON.parse(
+    await readFile(path.join(process.env.DATA_DIR || '.data', 'demo.json'), 'utf8'),
+  );
+  const blocks = async (source: string) =>
+    [...(await readFile(source, 'utf8')).matchAll(/```python\n([\s\S]*?)```/g)]
+      .map((match) => match[1])
+      .join('\n');
+  const quickstart = await blocks('docs/features/api/quickstart.md');
+  const shared = await blocks('docs/features/workspaces/shared-agents.md');
+  const verification = `
+import os
+from macrofold import Macrofold
+
+setup = Macrofold(base_url=os.environ['MACROFOLD_BASE_URL'])
+try:
+    project = setup.projects.create(name='Shared workspace documentation')
+    workspace = setup.workspaces.get(project.default_workspace_id)
+    setup.workspaces.write_file(workspace.id, path='handoff.txt', if_match=workspace.revision, content=b'Persistent handoff')
+    research_agent = setup.agents.create(name='Research docs', harness='codex', model='fixture-model', billing_mode='managed')
+    review_agent = setup.agents.create(name='Review docs', harness='pi', model='fixture-model', billing_mode='managed')
+    example = ${JSON.stringify(shared)}
+    example = example.replace('Macrofold()', 'Macrofold(base_url=os.environ["MACROFOLD_BASE_URL"])')
+    example = example.replace('YOUR_WORKSPACE_ID', str(workspace.id)).replace('YOUR_RESEARCH_AGENT_ID', str(research_agent.id)).replace('YOUR_REVIEW_AGENT_ID', str(review_agent.id))
+    scope = {'os': os}
+    exec(example, scope)
+    first, second = scope['research'], scope['review']
+    assert first.workspace_id == second.workspace_id == workspace.id
+    assert first.session_id != second.session_id
+    assert setup.runs.get(first.run_id).harness == 'codex'
+    assert setup.runs.get(second.run_id).harness == 'pi'
+    assert setup.runs.get_result(first.run_id).checkpoint_id is not None
+    assert scope['result'].checkpoint_id is not None
+    assert setup.workspaces.read_file(workspace.id, path='handoff.txt') == b'Persistent handoff'
+finally:
+    setup.close()
+print('Documentation: Python quickstart and two-agent persisted handoff passed.')
+`;
+  const { stdout } = await promisify(execFile)('python3', ['-c', quickstart + '\n' + verification], {
+    env: {
+      ...process.env,
+      PYTHONPATH: path.resolve('sdk/python'),
+      MACROFOLD_API_KEY: account.api_key,
+      MACROFOLD_BASE_URL: fixtureOrigin,
+      MACROFOLD_MODEL: 'fixture-model',
+    },
+    timeout: 110000,
+    maxBuffer: 1024 * 1024,
+  });
+  expect(stdout).toContain('Simulation completed');
+  expect(stdout).toContain('two-agent persisted handoff passed');
 });

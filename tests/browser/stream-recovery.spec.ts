@@ -9,7 +9,7 @@ test('malformed sign-in links recover and a revoked event stream stops reconnect
   await page.goto('/login?returnTo=' + encodeURIComponent('http://['));
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const response = await page.request.get('/v1/runs?status=succeeded&limit=1');
   expect(response.ok()).toBeTruthy();
   const run = (await response.json()).data[0];
@@ -24,7 +24,7 @@ test('malformed sign-in links recover and a revoked event stream stops reconnect
   });
   await page.goto(`/runs/${run.id}`);
   await expect(page.getByRole('alert').filter({ hasText: 'Access revoked' })).toBeVisible();
-  await expect(page.locator('.run-api-tip code')).toHaveText(`agent run attach ${run.id}`);
+  await expect(page.locator('.run-api-tip code')).toHaveText(`macrofold run attach ${run.id}`);
   // Development Strict Mode may mount twice. Once the error is displayed,
   // neither mount may continue retrying through the old reconnect interval.
   const stoppedAt = attempts;

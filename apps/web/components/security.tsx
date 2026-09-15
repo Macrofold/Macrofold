@@ -1,8 +1,8 @@
 'use client';
-import { copyText } from '../lib/clipboard';
+import { CopyButton } from './copy-button';
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ShieldCheck, KeyRound, Laptop, LogOut, Copy } from 'lucide-react';
+import { ShieldCheck, KeyRound, Laptop, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, useApi, relative } from '../lib/client';
@@ -296,13 +296,7 @@ export function SecurityView() {
               </>
             )}
             <pre className="recovery-codes">{enrollment.backupCodes.join('\n')}</pre>
-            <Button
-              variant="secondary"
-              onClick={() => copyText(enrollment.backupCodes.join('\n'), 'Recovery codes copied')}
-            >
-              <Copy size={15} />
-              Copy recovery codes
-            </Button>
+            <CopyButton text={enrollment.backupCodes.join('\n')} label="Copy recovery codes" />
             {enrollment.totpURI ? (
               <form
                 className="form-stack"

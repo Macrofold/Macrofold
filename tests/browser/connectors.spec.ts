@@ -17,7 +17,7 @@ test('adds sandbox MCP and BYOK search connections, then grants only selected to
     if (kind === 'Web search') {
       await page.getByRole('combobox', { name: 'Search funding' }).click();
       await page.getByRole('option', { name: 'Bring your Brave Search API key' }).click();
-      await page.getByLabel('Brave Search API key').fill('fixture-not-a-live-provider-key');
+      await page.getByLabel('Brave Search API key', { exact: true }).fill('fixture-not-a-live-provider-key');
     } else await expect(page.getByLabel('Approved package')).toContainText('Filesystem');
     await page.getByRole('dialog').getByRole('button', { name: 'Add connection', exact: true }).click();
     const card = page
@@ -26,23 +26,27 @@ test('adds sandbox MCP and BYOK search connections, then grants only selected to
     await expect(card).toBeVisible();
 
     if (kind === 'Sandbox MCP') {
-      await page.route('**/v1/connections/*/grants', (route) =>
+      await page.route('**/v1/connections/*/access', (route) =>
         route.fulfill({ status: 503, json: { error: { message: 'Grant service unavailable' } } }),
       );
       await card.getByRole('button', { name: 'Tools', exact: true }).click();
       await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Grant service unavailable');
-      await expect(page.getByRole('button', { name: 'Save permissions' })).toHaveCount(0);
-      await page.unroute('**/v1/connections/*/grants');
+      await expect(page.getByRole('button', { name: 'Save tools' })).toHaveCount(0);
+      await page.unroute('**/v1/connections/*/access');
       await page.getByRole('button', { name: 'Try again' }).click();
     } else {
       await card.getByRole('button', { name: 'Tools', exact: true }).click();
     }
 
     await page.getByRole('checkbox', { name: new RegExp(tool) }).check();
-    await page.getByRole('button', { name: 'Save permissions' }).click();
+    await page.getByRole('button', { name: 'Save tools' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await card.getByRole('button', { name: 'Tools', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: new RegExp(tool) })).toBeChecked();
+    await page.getByRole('button', { name: 'Close dialog' }).click();
+    await card.getByRole('button', { name: 'Access', exact: true }).click();
+    await page.getByRole('switch', { name: 'Available across the organization' }).check();
+    await expect(page.getByRole('switch')).toBeEnabled();
     await page.getByRole('button', { name: 'Close dialog' }).click();
   }
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10000 });
@@ -66,6 +70,8 @@ test('adds sandbox MCP and BYOK search connections, then grants only selected to
     .getByRole('textbox', { name: 'What would you like to get done?' })
     .fill('Verify the selected tool grant using local simulation.');
   await page.getByRole('button', { name: 'Run settings', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Selection mode', exact: true }).click();
+  await page.getByRole('option', { name: 'Select specific tools', exact: true }).click();
   await page.locator('summary').filter({ hasText: sandboxName }).click();
   await page.getByRole('checkbox', { name: 'write_file', exact: true }).check();
   const request = page.waitForRequest(

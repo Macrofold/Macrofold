@@ -3,6 +3,16 @@ import { v7 } from 'uuid';
 import { config } from './config';
 export const id = () => v7();
 export const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
+/** Stable input for idempotency and accepted-policy fingerprints. Shared domain
+ * callers must not load the HTTP schema/validator merely to compare documents. */
+export function canonical(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  return `{${Object.entries(value)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+    .join(',')}}`;
+}
 export const token = (prefix = 'sk') => `${prefix}_${randomBytes(32).toString('base64url')}`;
 export class Vault {
   constructor(

@@ -1,25 +1,38 @@
+import { validatePermissions, editPermissions } from './agent-permissions';
 import { getExecutionPolicy, planFor } from './plans';
 import { authorizeRepository, githubInstallations, githubRepositories, githubManager } from './github-auth';
 import { queueGitSync } from './git-jobs';
 import * as r from './resources';
 import * as files from './files';
+import { workspaceOptions, renameWorkspace } from './workspace-names';
 import * as runs from './runs';
 import * as connections from './connections';
+import * as access from './connection-access';
+import { previewAccess } from './connection-access-resolution';
 import * as transfers from './transfers';
 import * as reports from './reports';
 import * as payments from './billing';
 import { disconnectConnection } from './connection-cleanup';
-import { createKey, presentKey } from './keys';
+import { createKey, presentKey, type KeyRow } from './keys';
 import { isSimulated } from './config';
 import { id, token, seal } from './crypto';
 import { assert } from './errors';
 import { harnesses, models } from './catalog';
+import { rateCardVersion } from './model-policy';
+import { connectorSetups } from './connector-enablement';
 import { listConnectorCatalog } from './connector-catalog';
 import { connectorCatalogSource } from '../../providers/src/connector-catalog';
 import { publicEvent } from './events';
 import { readContent } from '../../providers/src/storage';
 import { validatePublicURL } from '../../providers/src/network';
-import { input, type Handler, type Context } from './api-types';
+import {
+  input,
+  type ApiResult,
+  type HandlerMap,
+  type Context,
+  type PreparationMap,
+  type RequestContext,
+} from './api-types';
 import { createTwoFilesPatch } from 'diff';
 import { exportCheckpoint } from './exports';
 import { stdioCatalog } from './stdio-catalog';
@@ -30,31 +43,25 @@ import * as triggers from './triggers';
 import * as triggerDeliveries from './trigger-deliveries';
 
 const list =
-  (table: r.Table, filter: (c: Context) => Record<string, unknown> = () => ({})): Handler =>
-  async (c) =>
+  <K extends r.Table>(table: K, filter: (c: Context) => Record<string, unknown> = () => ({})) =>
+  async (c: Context) =>
     r.list(c.tx, table, c.p, c.query, filter(c));
 const get =
-  (table: r.Table, param: string): Handler =>
-  async (c) =>
+  <K extends r.Table>(table: K, param: string) =>
+  async (c: Context) =>
     r.get(c.tx, table, c.params[param], c.p);
-const mutation =
-  (table: r.Table, param: string): Handler =>
-  async (c) => {
-    await r.get(c.tx, table, c.params[param], c.p);
-    return r.update(c.tx, table, c.params[param], c.body as Record<string, unknown>);
-  };
-const page = (data: unknown[]) => ({ data, next_cursor: null });
+const page = <T>(data: T[]) => ({ data, next_cursor: null });
 export const capabilities = {
   api_version: 'v1',
   minimum_cli_version: '0.1.0',
   recommended_cli_version: '0.1.0',
   features: ['streaming', 'sessions', 'workspaces', 'transfers', 'checkpoint_exports'],
-  stream_rotation_seconds: 55,
-  max_transfer_files: 1000,
-  max_transfer_bytes: 262144000,
-  max_file_bytes: 26214400,
+  stream_rotation_seconds: 55 as const,
+  max_transfer_files: 1000 as const,
+  max_transfer_bytes: 262144000 as const,
+  max_file_bytes: 26214400 as const,
 };
-export const handlers: Record<string, Handler> = {
+export const handlers: HandlerMap = {
   listTriggers: (c) => triggers.listTriggers(c.tx, c.p, c.query),
   createTrigger: (c) => triggers.saveTrigger(c.tx, c.p, input<'TriggerCreate'>(c)),
   getTrigger: async (c) => triggers.presentTrigger(await triggers.getTrigger(c.tx, c.p, c.params.trigger_id)),
@@ -71,13 +78,12 @@ export const handlers: Record<string, Handler> = {
   deleteSlackConnection: (c) => triggers.disconnectSlack(c.tx, c.p, c.params.connection_id),
   listSlackConnectionChannels: (c) =>
     triggers.listSlackChannels(c.tx, c.p, c.params.connection_id, c.query.get('cursor') || undefined),
-  listConnectorCatalog: () =>
+  listConnectorCatalog: async (c) =>
     listConnectorCatalog(connectorCatalogSource(), {
       enabled:
         Boolean(process.env.COMPOSIO_API_KEY) &&
         process.env.COMPOSIO_CALLBACK_VERIFICATION_ENABLED === 'true',
-      authConfigs: process.env.COMPOSIO_AUTH_CONFIGS_JSON,
-      versions: process.env.COMPOSIO_TOOLKIT_VERSIONS_JSON,
+      apps: await connectorSetups(c.tx),
     }),
   scheduleProjectDeletion: (c) =>
     requestProjectDeletion(c.tx, c.p, c.params.project_id, input<'ProjectDeletion'>(c), c.request),
@@ -188,12 +194,13 @@ export const handlers: Record<string, Handler> = {
   exportCheckpoint: async (c) =>
     exportCheckpoint(c.tx, c.p, c.params.checkpoint_id, input<'CheckpointExportRequest'>(c).format),
   listProjects: list('projects'),
-  getProject: get('projects', 'project_id'),
+  getProject: (c) => access.expandConnections(c.tx, c.p, 'projects', c.params.project_id, c.query),
   listGithubInstallations: (c) => githubInstallations(c.tx, c.p),
   listGithubRepositories: (c) => githubRepositories(c.tx, c.p, c.query.get('installation_id')!),
   updateProject: async (c) => {
     const existing = await r.get(c.tx, 'projects', c.params.project_id, c.p);
     const body = input<'ProjectPatch'>(c);
+    await editPermissions(c.tx, existing.id, body.permissions);
     assert(
       !existing.deletion_due_at || body.archived !== false,
       409,
@@ -240,6 +247,7 @@ export const handlers: Record<string, Handler> = {
       'A project-restricted key cannot create unrelated projects.',
     );
     const value = input<'ProjectCreate'>(c);
+    validatePermissions(value.permissions);
     if (value.github) await authorizeRepository(c.tx, c.p, value.github);
     const project = await r.create(c.tx, 'projects', c.p.organizationId, {
       ...value,
@@ -272,7 +280,16 @@ export const handlers: Record<string, Handler> = {
   createWorkspace: async (c) =>
     files.createWorkspace(c.tx, c.p, c.params.project_id, input<'WorkspaceCreate'>(c)),
   getWorkspace: get('workspaces', 'workspace_id'),
-  updateWorkspace: mutation('workspaces', 'workspace_id'),
+  updateWorkspace: async (c) => {
+    const body = input<'WorkspacePatch'>(c);
+    const workspace = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    await editPermissions(c.tx, workspace.project_id, body.permissions);
+    if (body.name !== undefined) await renameWorkspace(c.tx, c.p, workspace.id, body.name);
+    if (body.permissions !== undefined)
+      await r.update(c.tx, 'workspaces', workspace.id, { permissions: body.permissions });
+    return r.get(c.tx, 'workspaces', workspace.id, c.p);
+  },
+  getWorktreeOptions: (c) => workspaceOptions(c.tx, c.p, c.params.project_id, c.query),
   deleteWorkspace: async (c) => {
     const ws = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
     await files.ensureWritable(c.tx, ws.id);
@@ -298,17 +315,17 @@ export const handlers: Record<string, Handler> = {
     if (prefix) files.normalizePath(prefix);
     const cursor = c.query.get('cursor');
     const limit = Math.min(100, Number(c.query.get('limit')) || 100);
-    const selected = entries
+    const selected = files
+      .listFileEntries(entries, workspace.revision, prefix, c.query.get('recursive') !== 'false')
       .filter(
         (f) =>
-          (!prefix || f.path === prefix || f.path.startsWith(`${prefix}/`)) &&
           (!cursor || f.path > cursor) &&
           (!c.query.get('query') || f.path.toLowerCase().includes(c.query.get('query')!.toLowerCase())),
       )
       .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     c.headers.set('ETag', `"${workspace.revision}"`);
     return {
-      entries: selected.slice(0, limit).map((f) => ({ ...f, revision: workspace.revision })),
+      entries: selected.slice(0, limit),
       revision: workspace.revision,
       source: workspace.status === 'busy' ? 'checkpoint' : 'active_workspace',
       observed_at: workspace.last_verified_at || workspace.created_at,
@@ -346,23 +363,6 @@ export const handlers: Record<string, Handler> = {
       headers: { ...Object.fromEntries(c.headers), 'content-type': 'application/octet-stream' },
     });
   },
-  writeFile: async (c) =>
-    files.writeFile(
-      c.tx,
-      c.p,
-      c.params.workspace_id,
-      c.query.get('path') || '',
-      c.bytes,
-      (c.request.headers.get('if-match') || '').replace(/^"|"$/g, ''),
-    ),
-  deleteFile: async (c) =>
-    files.deleteFile(
-      c.tx,
-      c.p,
-      c.params.workspace_id,
-      c.query.get('path') || '',
-      (c.request.headers.get('if-match') || '').replace(/^"|"$/g, ''),
-    ),
   listCheckpoints: async (c) => {
     await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
     return r.list(c.tx, 'checkpoints', c.p, c.query, { workspace_id: c.params.workspace_id });
@@ -406,7 +406,10 @@ export const handlers: Record<string, Handler> = {
       revision: changed.revision,
     });
   },
-  updateCheckpointRetention: mutation('checkpoints', 'checkpoint_id'),
+  updateCheckpointRetention: async (c) => {
+    await r.get(c.tx, 'checkpoints', c.params.checkpoint_id, c.p);
+    return r.update(c.tx, 'checkpoints', c.params.checkpoint_id, input<'CheckpointPatch'>(c));
+  },
   getSync: async (c) => {
     const ws = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
     return ws.sync || { workspace_id: ws.id, status: 'disabled', updated_at: ws.created_at };
@@ -419,23 +422,33 @@ export const handlers: Record<string, Handler> = {
       (c.body as { mode?: 'push' | 'pull' | 'pull_request' }).mode || 'push',
     ),
   listAgents: list('agents'),
-  getAgent: get('agents', 'agent_id'),
+  getAgent: (c) => access.expandConnections(c.tx, c.p, 'agents', c.params.agent_id, c.query),
   createAgent: async (c) => {
     const value = input<'AgentCreate'>(c);
-    await runs.validateConfiguration(c.tx, c.p, { ...value, workspace_id: id() });
+    await runs.validateConfiguration(c.tx, c.p, value, 'preset');
     return r.create(c.tx, 'agents', c.p.organizationId, { ...value });
   },
   updateAgent: async (c) => {
     const old = await r.get(c.tx, 'agents', c.params.agent_id, c.p);
-    const merged = { ...old, ...input<'AgentPatch'>(c) };
-    await runs.validateConfiguration(c.tx, c.p, { ...merged, workspace_id: id() } as unknown as Parameters<
-      typeof runs.validateConfiguration
-    >[2]);
-    return r.update(c.tx, 'agents', old.id, input<'AgentPatch'>(c));
+    const patch = input<'AgentPatch'>(c);
+    const merged = {
+      ...old,
+      ...patch,
+      connection_grants:
+        patch.connection_grants === null ? undefined : (patch.connection_grants ?? old.connection_grants),
+    };
+    await runs.validateConfiguration(c.tx, c.p, merged, 'preset');
+    if (patch.connection_grants === null)
+      await c.tx.query("UPDATE agents SET data=data-'connection_grants' WHERE id=$1", [old.id]);
+    const { connection_grants: _grants, ...rest } = patch;
+    return r.update(c.tx, 'agents', old.id, {
+      ...rest,
+      ...(patch.connection_grants != null ? { connection_grants: patch.connection_grants } : {}),
+    });
   },
   deleteAgent: async (c) => {
     await r.get(c.tx, 'agents', c.params.agent_id, c.p);
-    await r.remove(c.tx, 'agents', c.params.agent_id);
+    await r.update(c.tx, 'agents', c.params.agent_id, { deleted: true });
   },
   listSessions: list('sessions', (c) =>
     c.query.has('workspace_id') ? { workspace_id: c.query.get('workspace_id') } : {},
@@ -447,10 +460,9 @@ export const handlers: Record<string, Handler> = {
       c.tx,
       c.p,
       { ...input<'MessageCreate'>(c), session_id: c.params.session_id },
-      c.request.headers.get('x-client-type') || 'api',
+      runs.requestClientType(c.request),
     ),
-  createRun: async (c) =>
-    runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), c.request.headers.get('x-client-type') || 'api'),
+  createRun: async (c) => runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), runs.requestClientType(c.request)),
   getRun: async (c) => (await runs.presentRuns(c.tx, [await runs.getRun(c.tx, c.params.run_id, c.p)]))[0],
   listRuns: async (c) => {
     const args: unknown[] = [];
@@ -522,8 +534,9 @@ export const handlers: Record<string, Handler> = {
       String(artifact.name),
     );
   },
-  listConnections: list('connections'),
-  getConnection: get('connections', 'connection_id'),
+  listConnections: (c) => access.listContextConnections(c.tx, c.p, c.query),
+  getConnection: async (c) =>
+    access.safeConnection(await r.get(c.tx, 'connections', c.params.connection_id, c.p), c.p),
   createConnection: async (c) => connections.saveConnection(c.tx, c.p, input<'ConnectionCreate'>(c)),
   updateConnection: async (c) =>
     connections.saveConnection(c.tx, c.p, input<'ConnectionPatch'>(c), c.params.connection_id),
@@ -535,20 +548,75 @@ export const handlers: Record<string, Handler> = {
     connections.authorizeConnection(c.tx, c.p, await r.get(c.tx, 'connections', c.params.connection_id, c.p)),
   testConnection: async (c) =>
     connections.testConnection(c.tx, c.p, await r.get(c.tx, 'connections', c.params.connection_id, c.p)),
-  listConnectionTools: async (c) =>
-    page(await connections.connectionTools(await r.get(c.tx, 'connections', c.params.connection_id, c.p))),
-  getConnectionGrants: async (c) => (await r.get(c.tx, 'connections', c.params.connection_id, c.p)).grants,
-  setConnectionGrants: async (c) =>
-    connections.setGrants(
+  listConnectionTools: async (c) => {
+    const connection = await r.get(c.tx, 'connections', c.params.connection_id, c.p);
+    connections.assertConnectionOwner(c.p, connection);
+    return page(await connections.connectionTools(connection));
+  },
+  getConnectionAccess: async (c) => {
+    const result = await access.accessSummary(
       c.tx,
       c.p,
-      await r.get(c.tx, 'connections', c.params.connection_id, c.p),
-      input<'ConnectionGrantSet'>(c),
-    ),
+      await access.ownedAccess(c.tx, c.p, c.params.connection_id),
+    );
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  updateConnectionAccess: async (c) => {
+    const result = await access.patchAccess(
+      c.tx,
+      c.p,
+      c.params.connection_id,
+      input<'ConnectionAccessPatch'>(c),
+      c.request.headers.get('if-match')!,
+    );
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  listConnectionAccessRules: async (c) => {
+    const result = await access.listRules(c.tx, c.p, c.params.connection_id, c.query);
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  createConnectionAccessRule: async (c) => {
+    const result = await access.saveRule(
+      c.tx,
+      c.p,
+      c.params.connection_id,
+      input<'ConnectionAccessRuleInput'>(c),
+      c.request.headers.get('if-match')!,
+    );
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  updateConnectionAccessRule: async (c) => {
+    const result = await access.saveRule(
+      c.tx,
+      c.p,
+      c.params.connection_id,
+      input<'ConnectionAccessRuleInput'>(c),
+      c.request.headers.get('if-match')!,
+      c.params.rule_id,
+    );
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  deleteConnectionAccessRule: async (c) => {
+    const result = await access.deleteRule(
+      c.tx,
+      c.p,
+      c.params.connection_id,
+      c.params.rule_id,
+      c.request.headers.get('if-match')!,
+    );
+    c.headers.set('ETag', `"${result.version}"`);
+    return result;
+  },
+  resolveConnectionAccess: (c) => previewAccess(c.tx, c.p, input<'ConnectionAccessResolve'>(c), c.query),
   listApiKeys: async (c) => {
     const limit = Math.min(100, Math.max(1, Number(c.query.get('limit')) || 25));
     const rows = (
-      await c.tx.query(
+      await c.tx.query<KeyRow>(
         'SELECT * FROM api_keys WHERE organization_id=$1 AND user_id=$2 AND ($3::uuid IS NULL OR id<$3) ORDER BY id DESC LIMIT $4',
         [c.p.organizationId, c.p.userId, c.query.get('cursor'), limit + 1],
       )
@@ -641,12 +709,12 @@ export const handlers: Record<string, Handler> = {
     ),
   listModels: async (c) =>
     page(
-      models()
+      (await models(c.tx))
         .filter((m) => !c.query.get('harness') || m.harnesses.includes(c.query.get('harness')!))
         .map((m) => ({
           ...m,
-          billing_modes: ['managed', 'byok'],
-          rate_card_version: process.env.RATE_CARD_VERSION || 'local-simulation',
+          billing_modes: ['managed' as const, 'byok' as const],
+          rate_card_version: rateCardVersion(m),
         })),
     ),
   getOperation: get('operations', 'operation_id'),
@@ -696,7 +764,7 @@ export const handlers: Record<string, Handler> = {
       )
       .sort();
     const limit = Math.min(100, Number(c.query.get('limit')) || 100);
-    const diff = [];
+    const diff: ApiResult<'getWorkspaceDiff'>['data'] = [];
     // Decide which paths are returned before fetching their content.
     for (const path of paths.slice(0, limit)) {
       const a = previousFiles.get(path),
@@ -726,4 +794,35 @@ export const handlers: Record<string, Handler> = {
       truncated: paths.length > limit,
     };
   },
+};
+
+const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
+  files.prepareFileMutation(
+    c.p,
+    c.params.workspace_id,
+    (c.request.headers.get('if-match') || '').replace(/^"|"$/g, ''),
+    mutation,
+  );
+/** Expensive immutable preparation is separate from the final idempotent SQL commit. */
+export const preparations: PreparationMap = {
+  writeFile: (c) =>
+    prepareFile(c, {
+      kind: 'file_write',
+      path: c.query.get('path') || '',
+      bytes: c.bytes,
+      createOnly: c.query.get('create_only') === 'true',
+    }),
+  createFolder: (c) => prepareFile(c, { kind: 'folder_create', path: input<'FolderCreate'>(c).path }),
+  duplicateFile: (c) =>
+    prepareFile(c, {
+      kind: 'file_duplicate',
+      ...{ path: input<'FileDuplicate'>(c).path, newPath: input<'FileDuplicate'>(c).new_path },
+    }),
+  renameFile: (c) =>
+    prepareFile(c, {
+      kind: 'file_rename',
+      path: c.query.get('path') || '',
+      newPath: input<'FileRename'>(c).new_path,
+    }),
+  deleteFile: (c) => prepareFile(c, { kind: 'file_delete', path: c.query.get('path') || '' }),
 };

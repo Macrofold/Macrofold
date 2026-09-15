@@ -5,7 +5,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your projects', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/overview-desktop.png', fullPage: true });
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
@@ -17,8 +17,8 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.getByRole('button', { name: 'Open in CLI', exact: true }).click();
   const handoff = page.getByRole('dialog');
-  await expect(handoff).toContainText(`agent login --host '${fixtureOrigin}'`);
-  await expect(handoff).toContainText('agent link ');
+  await expect(handoff).toContainText(`macrofold login --host '${fixtureOrigin}'`);
+  await expect(handoff).toContainText('macrofold link ');
   await expect(handoff).toContainText('--workspace');
   await expect(handoff).not.toContainText('Bearer');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -49,7 +49,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   try {
     await refresh;
     await expect(page.getByRole('button', { name: 'New file', exact: true }).first()).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'hello.md', exact: true })).toBeDisabled();
+    await expect(page.getByRole('treeitem', { name: 'hello.md', exact: true })).toBeDisabled();
     await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
   } finally {
     releaseRefresh();
@@ -60,9 +60,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'File path' }).fill('hello.md');
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
-  await expect(
-    page.getByText('A file already exists at this path. Choose another name or edit the existing file.'),
-  ).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: /already exists/i })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
 
@@ -93,7 +91,8 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await expect(page.getByText('run.succeeded', { exact: true })).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: 'Missing Macrofold API key' })).toHaveCount(0);
   await page.getByRole('link', { name: 'main', exact: true }).click();
-  await page.getByRole('button', { name: 'hello.md', exact: true }).click();
+  await page.getByRole('treeitem', { name: 'hello.md', exact: true }).click();
+  await page.getByRole('button', { name: 'Source', exact: true }).click();
   await expect(page.locator('.cm-content')).toContainText('Persisted from the browser');
   await page.getByRole('tab', { name: 'Checkpoints', exact: true }).click();
   await expect(page.getByText('Latest checkpoint', { exact: true })).toBeVisible();

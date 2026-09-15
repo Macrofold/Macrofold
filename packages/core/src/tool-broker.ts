@@ -1,3 +1,5 @@
+import { enabledConnector } from './connector-enablement';
+import { runtimeConnectionTools } from './connection-access-resolution';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -7,11 +9,10 @@ import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { getRun } from './runs';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
-import { id, seal, unseal, sha256 } from './crypto';
+import { id, seal, unseal, sha256, canonical } from './crypto';
 import * as resources from './resources';
 import { connectionTools, composio, withMcp } from './connections';
 import { computeMaximum } from './catalog';
-import { canonical } from './http-contract';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
@@ -36,18 +37,12 @@ async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: s
       'run_unavailable',
       'This run can no longer invoke tools.',
     );
-    const connections: resources.Document[] = [];
+    const connections: (resources.Document<'connections'> & { run_tools: string[] })[] = [];
     for (const grant of run.config.connection_grants || []) {
       if (connectionId && connectionId !== grant.connection_id) continue;
       const connection = await resources.get(tx, 'connections', grant.connection_id);
-      const current = connection.grants as components['schemas']['ConnectionGrantSet'];
-      if (
-        connection.status !== 'healthy' ||
-        !(current.subject_type === 'organization' || current.subject_id === run.config.user_id)
-      )
-        continue;
-      const allowed = grant.tools.filter((name) => current.tools.includes(name));
-      if (tool && !allowed.includes(tool)) continue;
+      const allowed = await runtimeConnectionTools(tx, run, connection);
+      if (!allowed.length || (tool && !allowed.includes(tool))) continue;
       connections.push({ ...connection, run_tools: allowed });
     }
     if (connectionId)
@@ -62,7 +57,7 @@ async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: s
 }
 export async function runtimeTools(cap: RuntimeCapability) {
   const { connections } = await authorize(cap);
-  const tools: { connection: resources.Document; tool: Tool }[] = [];
+  const tools: { connection: resources.Document<'connections'> & { run_tools: string[] }; tool: Tool }[] = [];
   for (const connection of connections) {
     const catalog = await connectionTools(connection);
     for (const tool of catalog)
@@ -91,7 +86,7 @@ export async function executeGrantedTool(
     'Tool arguments do not match the connector schema.',
   );
   const { run, connections } = await authorize(cap, connectionId, tool.name);
-  let connection = connections[0];
+  let connection: resources.Document<'connections'> = connections[0];
   const rate =
     connection.kind === 'composio'
       ? process.env.COMPOSIO_MICRO_USD_PER_CALL
@@ -108,14 +103,8 @@ export async function executeGrantedTool(
   );
   const fee = BigInt(rate),
     fingerprint = sha256(canonical({ connectionId, tool: tool.name, args }));
-  const versions = JSON.parse(process.env.COMPOSIO_TOOLKIT_VERSIONS_JSON || '{}');
+  const setup = connection.kind === 'composio' ? await enabledConnector(String(connection.provider)) : undefined;
   if (connection.kind === 'composio') {
-    assert(
-      versions[String(connection.provider)] && versions[String(connection.provider)] !== 'latest',
-      503,
-      'connector_version_required',
-      'Pin a reviewed toolkit version before execution.',
-    );
     assert(
       connection.external_account_id && connection.identity_verified,
       409,
@@ -129,18 +118,11 @@ export async function executeGrantedTool(
     await requireRunActor(tx, current);
     await tx.query('SELECT id FROM connections WHERE id=$1 FOR SHARE', [connectionId]);
     connection = await resources.get(tx, 'connections', connectionId);
-    const grants = connection.grants as components['schemas']['ConnectionGrantSet'];
     assert(
-      connection.status === 'healthy' &&
-        !connection.deleted &&
-        (grants.subject_type === 'organization' || grants.subject_id === current.config.user_id) &&
-        grants.tools.includes(tool.name) &&
-        current.config.connection_grants?.some(
-          (g) => g.connection_id === connectionId && g.tools.includes(tool.name),
-        ),
+      (await runtimeConnectionTools(tx, current, connection)).includes(tool.name),
       403,
       'tool_not_granted',
-      'This tool grant changed before dispatch.',
+      'This tool access changed before dispatch.',
     );
     assert(
       current.lease_generation === cap.lease &&
@@ -226,12 +208,13 @@ export async function executeGrantedTool(
         arguments: args,
       });
     } else if (connection.kind === 'composio') {
+      assert(setup, 503, 'integration_not_configured', 'This app needs operator setup.');
       const response = await composio().tools.execute(
         tool.name,
         {
           userId: `${cap.organization}:${connection.owner_subject_id}`,
           connectedAccountId: String(connection.external_account_id),
-          version: versions[String(connection.provider)],
+          version: setup.toolkit_version,
           arguments: args,
         },
         { signal: AbortSignal.timeout(Math.min(45000, run.deadline!.getTime() - Date.now())) },

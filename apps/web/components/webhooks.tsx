@@ -1,7 +1,7 @@
 'use client';
-import { copyText } from '../lib/clipboard';
+import { CopyButton } from './copy-button';
 import { useQueryClient } from '@tanstack/react-query';
-import { Copy, KeyRound, Pause, Play, Plus, RefreshCw, Trash2, Webhook } from 'lucide-react';
+import { KeyRound, Pause, Play, Plus, RefreshCw, Trash2, Webhook } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { api, relative, usePages, type Schema } from '../lib/client';
@@ -222,10 +222,7 @@ export function WebhooksView() {
         {secret ? (
           <div className="form-stack">
             <pre className="secret-value break-anywhere">{secret}</pre>
-            <Button onClick={() => copyText(secret, 'Secret copied')}>
-              <Copy size={15} />
-              Copy secret
-            </Button>
+            <CopyButton variant="primary" text={secret} label="Copy secret" />
             <p className="muted">
               Verify HMAC-SHA256 of the timestamp, a period, and the exact raw body. Accept any matching v1
               signature within five minutes. Deduplicate the event ID.

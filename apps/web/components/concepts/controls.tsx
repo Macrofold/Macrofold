@@ -1,8 +1,9 @@
 'use client';
 import { useId, useState, type ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { Copy, Pause, Play, ScanLine, ArrowRight, Terminal, Folder, GitBranch, Check } from 'lucide-react';
-import { copyText } from '../../lib/clipboard';
+import { Pause, Play, ScanLine, ArrowRight, Terminal, Folder, GitBranch, Check } from 'lucide-react';
+import { CopyButton } from '../copy-button';
+import { examples as runExamples } from '../landing/examples';
 
 export function AnimationStudy({
   name,
@@ -55,7 +56,7 @@ export function AnimationStudy({
           <ScanLine size={14} /> Animation concept <span aria-hidden="true">↗</span>
         </button>
         <div id={id} className="concept-study-note" hidden={!visible && !pinned}>
-          <span>PROPOSED MOTION · STATIC CONCEPT FRAME</span>
+          <span>Proposed motion · Static concept frame</span>
           <p>{description}</p>
           <small>{technique}</small>
         </div>
@@ -106,8 +107,8 @@ export function ProductFlow() {
   return (
     <Tabs.Root defaultValue="Request" className="concept-flow">
       <div className="concept-flow-heading">
-        <span>ONE PROJECT. EVERY INTERFACE.</span>
-        <span>INTERACTIVE WALKTHROUGH</span>
+        <span>One project. Every interface.</span>
+        <span>Interactive walkthrough</span>
       </div>
       <Tabs.List aria-label="Product workflow">
         {flowStages.map(({ title, icon: Icon }, i) => (
@@ -161,63 +162,10 @@ export function MotionSurface({ className, children }: { className: string; chil
   );
 }
 const examples = {
-  TypeScript: `import { Client } from 'macrofold';
-
-const { AGENT_HOST, AGENT_API_KEY, WORKSPACE_ID, AGENT_MODEL } = process.env;
-if (!AGENT_HOST || !AGENT_API_KEY || !WORKSPACE_ID || !AGENT_MODEL) {
-  throw new Error('Set host, API key, workspace, and model first.');
-}
-const agent = new Client({ baseURL: AGENT_HOST, token: AGENT_API_KEY });
-
-const run = await agent.request('createRun', {
-  body: {
-    workspace_id: WORKSPACE_ID,
-    harness: 'codex', model: AGENT_MODEL,
-    billing_mode: 'managed',
-    prompt: 'Read the project and save a progress note.',
-    limits: { timeout_seconds: 300, max_cost_micro_usd: '1000000' },
-  },
-});
-for await (const event of agent.stream(run.run_id)) {
-  console.log(event);
-}`,
-  Python: `import os
-from macrofold import Client
-
-agent = Client(os.environ['AGENT_HOST'], os.environ['AGENT_API_KEY'])
-run = agent.request('createRun', body={
-    'workspace_id': os.environ['WORKSPACE_ID'],
-    'harness': 'codex',
-    'model': os.environ['AGENT_MODEL'],
-    'billing_mode': 'managed',
-    'prompt': 'Read the project and save a progress note.',
-    'limits': {'timeout_seconds': 300,
-               'max_cost_micro_usd': '1000000'},
-})
-for event in agent.stream(run['run_id']):
-    print(event)
-agent.close()`,
-  cURL: `# Keep this key to recover a lost response.
-REQUEST_KEY="$(uuidgen)"
-jq -n --arg ws "$WORKSPACE_ID" --arg model "$AGENT_MODEL" \\
-  '{workspace_id:$ws, harness:"codex", model:$model,
-    billing_mode:"managed",
-    prompt:"Read the project and save a progress note.",
-    limits:{timeout_seconds:300, max_cost_micro_usd:"1000000"}}' | \\
-  curl --fail-with-body "$AGENT_HOST/v1/runs" \\
-    -H "Authorization: Bearer $AGENT_API_KEY" \\
-    -H "Idempotency-Key: $REQUEST_KEY" \\
-    -H 'Content-Type: application/json' --data-binary @-`,
-  CLI: `# From a source checkout, using the local simulator.
-pnpm cli login --host http://localhost:3210
-pnpm cli project list
-pnpm cli link PROJECT_ID
-
-pnpm cli run "Read the project and save a progress note." \\
-  --harness codex --model fixture-model \\
-  --timeout 300 --max-cost 1
-
-pnpm cli files list`,
+  TypeScript: runExamples.TypeScript,
+  Python: runExamples.Python,
+  cURL: runExamples.cURL,
+  CLI: runExamples.CLI,
 };
 export function CodeExample() {
   const [language, setLanguage] = useState<keyof typeof examples>('TypeScript');
@@ -238,13 +186,7 @@ export function CodeExample() {
             </Tabs.Trigger>
           ))}
         </Tabs.List>
-        <button
-          type="button"
-          aria-label="Copy code example"
-          onClick={() => void copyText(examples[language], 'Example copied')}
-        >
-          <Copy size={15} />
-        </button>
+        <CopyButton variant="plain" text={examples[language]} label="Copy code example" iconOnly />
       </div>
       {(Object.keys(examples) as (keyof typeof examples)[]).map((key) => (
         <Tabs.Content key={key} value={key}>
@@ -254,7 +196,7 @@ export function CodeExample() {
         </Tabs.Content>
       ))}
       <div className="concept-code-footer">
-        <span className="concept-live-dot" /> YOUR CODE → NATIVE AGENT → SAVED WORK
+        <span className="concept-live-dot" /> Your code → Native agent → Saved work
       </div>
     </Tabs.Root>
   );

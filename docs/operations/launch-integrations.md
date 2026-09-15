@@ -4,13 +4,13 @@ Configure providers separately for staging and production. Keep credentials in t
 
 ## Models and search
 
-Enable only models compatible with the pinned harnesses. Configure managed provider keys and a reviewed `MODEL_CATALOG_JSON`; use the [runtime catalog reference](../features/execution/runtime.md#production-model-catalog-example) for exact fields and supported routes. Review token rates and provider spending limits before enabling execution.
+Enable only models compatible with the pinned harnesses. Configure managed provider keys; the [built-in catalog](../features/execution/models.md) supplies reviewed routes and rates and refreshes provider availability automatically. Review token rates and provider spending limits before enabling execution.
 
 Customers can add OpenAI, Anthropic, or OpenRouter BYOK connections. For search, Brave supports managed funding; Brave, Exa, Tavily, Parallel AI, and Firecrawl support customer keys. [Search profiles](../features/identity-integrations/web-search.md) describe the normalized tool and which vendor features it exposes.
 
 ## Composio applications
 
-Use a separate Composio Platform project per environment. Store its complete project key as `COMPOSIO_API_KEY`. Register the intended toolkit auth configurations and map their IDs in `COMPOSIO_AUTH_CONFIGS_JSON`. Pin tested toolkit versions in `COMPOSIO_TOOLKIT_VERSIONS_JSON`.
+Use a separate Composio Platform project per environment. Store its complete project key as `COMPOSIO_API_KEY`. Run `pnpm connectors:setup --toolkit TOOLKIT_SLUG --inspect`, then enable a reviewed Auth Config and pinned version using the [persisted setup flow](../features/identity-integrations/composio.md#enable-an-app-toolkit). Routine app enablement needs no deployment edit.
 
 Configure public HTTPS callback verification before enabling `COMPOSIO_CALLBACK_VERIFICATION_ENABLED`. The authenticated returning application user, pending attempt, toolkit, and provider-verified account must agree. A connected-account ID by itself is not authorization.
 

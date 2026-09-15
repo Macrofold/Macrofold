@@ -1,10 +1,10 @@
 # Web search
 
-Agents can use Brave Search, Exa, Tavily, Parallel AI, or Firecrawl through the same granted `web_search` tool. Search is implemented by platform adapters and exposed through the existing runtime MCP broker to Codex, Claude Code, and OpenCode. Model routing does not choose the search provider.
+Agents can use Brave Search, Exa, Tavily, Parallel AI, or Firecrawl through the same granted `web_search` tool. Search is implemented by platform adapters and exposed through the existing runtime MCP broker to [all supported harnesses](../execution/harnesses.md). Model routing does not choose the search provider.
 
 ## Connecting a provider
 
-In Connections, choose **Add connection → Web search**, select a provider, supply a connection name and API key, then grant `web_search` under Tools. Attach that connection to a run or preset. Each connection has one immutable provider; create another connection to change providers. Switching providers in the setup dialog clears the previous key. Multiple connections can be granted separately.
+In Connections, choose **Add connection → Web search**, select a provider, supply a connection name and API key, then approve `web_search` under Tools and configure Access. Runs or presets can inherit or select that connection. Each connection has one immutable provider; create another connection to change providers. Switching providers in the setup dialog clears the previous key. Multiple connections can be granted separately.
 
 Every provider supports a customer API key (BYOK). Keys are encrypted, write-only, and stay at the broker. Missing customer credentials never fall back to an operator key. BYOK search charges are billed by the provider and are **outside the platform run budget**; model/compute charges still follow their own funding policy. Use provider-side quotas or spending controls for external search charges.
 
@@ -48,7 +48,7 @@ Create a connection with `POST /v1/connections` using a credential with `connect
 }
 ```
 
-Substitute `brave`, `tavily`, `parallel`, or `firecrawl` as needed. Discover tools through `GET /v1/connections/{id}/tools`, update the versioned grants through `PUT /v1/connections/{id}/grants`, then include that connection and `web_search` in the run's `connection_grants`. The [API contract](../../api/openapi.json) and [API guide](../api/README.md) define scopes, grant subjects and request fields. Existing Brave connections and run configurations remain compatible; no database migration is required.
+Substitute `brave`, `tavily`, `parallel`, or `firecrawl` as needed. Discover tools through `GET /v1/connections/{id}/tools`, approve `web_search` through `PATCH /v1/connections/{id}/access`, and add an access rule or organization permission using the same quoted access version. Runs inherit eligible connections or select a subset through `connection_grants`. [Connector access rules](connection-access.md) owns the API shapes, concurrency and migration semantics; the [API contract](../../api/openapi.json) is authoritative.
 
 ## Integration details
 

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Ten Swarm Emergence studies: five organic and five polyhedral structures continually taking form."
+    />
+    <title>Swarm Emergence</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./studio.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Study navigation">
+        <div>
+          <a href="../swarm-volumes/index.html">← Previous collection</a
+          ><a href="./reference.webp">Original artwork ↗</a>
+        </div>
+        <span>SWARM EMERGENCE / 10</span>
+      </nav>
+      <header>
+        <h1>Order, always becoming.</h1>
+        <p>Five organic and five polyhedral studies of particles gathering, organizing, and changing form.</p>
+      </header>
+
+      <section class="surface-picker" aria-label="Choose an emergence study">
+        <div class="surface-selection">
+          <label for="variation">Emergence variation</label>
+          <div class="surface-navigation">
+            <select id="variation" aria-describedby="variation-description" disabled>
+              <option>Loading emergence studies…</option>
+            </select>
+            <button id="previous" type="button" aria-label="Previous variation" disabled>← Previous</button>
+            <button id="next" type="button" aria-label="Next variation" disabled>Next →</button>
+          </div>
+        </div>
+        <p id="variation-description">
+          Compare the studies at the same moment. Changing a variation preserves the timeline.
+        </p>
+      </section>
+
+      <figure id="stage" aria-label="Swarm emergence study" data-renderer="loading" data-grid="false">
+        <img
+          id="poster"
+          src="./surfaces/chimera.webp"
+          width="1440"
+          height="960"
+          alt="Chimera emergence study at nine seconds."
+          fetchpriority="high"
+        />
+        <canvas id="particles" aria-hidden="true" hidden></canvas>
+        <figcaption class="sr-only">
+          An abstract particle emergence study, independent of real agents or activity.
+        </figcaption>
+      </figure>
+      <p id="poster-note" class="notice" hidden>
+        Original artwork · a still for this variation is unavailable.
+      </p>
+
+      <section class="controls" aria-label="Animation controls">
+        <div class="transport">
+          <button id="play" class="primary" type="button" disabled>Play</button>
+          <button id="pause" class="quiet" type="button" disabled>Pause</button>
+          <label class="sr-only" for="timeline">Animation time</label>
+          <input
+            id="timeline"
+            type="range"
+            min="0"
+            max="22"
+            step="0.01"
+            value="9"
+            aria-valuetext="9.0 of 22 seconds"
+            disabled
+          />
+          <output id="time" for="timeline" aria-live="off">09.0 <span>/ 22.0 s</span></output>
+        </div>
+        <div class="sequence-options">
+          <button id="formation" type="button" disabled>Play formation</button>
+          <button id="loop" type="button" aria-pressed="false" disabled>Play 22 s loop</button>
+          <p>Drag the timeline, then Play to continue from that moment.</p>
+        </div>
+        <div class="view-options">
+          <div>
+            <button id="original" type="button" aria-pressed="false" disabled>Original reference</button>
+            <button id="grid" type="button" aria-pressed="false" disabled>Transparency grid</button>
+          </div>
+          <p id="playback-note">Chimera still · 9 s</p>
+        </div>
+      </section>
+      <ol class="phases" aria-label="Animation sequence">
+        <li><span>≈00–08 s</span>Gradual formation</li>
+        <li><span>00–15 s</span>Continuous transformation</li>
+        <li><span>15–20 s</span>Wind dispersal</li>
+        <li><span>20–22 s</span>Empty frame</li>
+      </ol>
+      <div class="study-note">
+        <p>
+          An abstract study of changing geometry. The changing structures and particle motion are
+          art-directed.
+        </p>
+        <p id="status" role="status"></p>
+      </div>
+      <p id="static-notice" class="notice">
+        The Chimera still is shown. JavaScript is required to compare emergence studies and play their motion.
+      </p>
+      <section id="downloads" class="downloads" aria-label="Download emergence assets" hidden>
+        <h2>Selected structure</h2>
+        <div>
+          <a id="surface-download" data-type="image/png" download hidden
+            ><span id="download-name">Structure still</span><span>PNG ↓</span></a
+          >
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -13,7 +13,7 @@ import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import { claimRun } from '../../packages/core/src/engine';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import * as resources from '../../packages/core/src/resources';
-import { Client } from '../../sdk/typescript/src/index';
+import { Client, type Schema } from '../../sdk/typescript/src/index';
 const original = { ...config };
 let principal: Principal;
 let client: Client;
@@ -64,28 +64,14 @@ function docker() {
   Object.assign(config, { execution: 'docker', orchestration: 'poller', allowPaid: true });
   vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '0');
   vi.stubEnv('OPENAI_API_KEY', 'managed-fixture');
-  vi.stubEnv(
-    'MODEL_CATALOG_JSON',
-    JSON.stringify([
-      {
-        id: 'native-fixture',
-        name: 'Native fixture',
-        provider: 'openai',
-        harnesses: ['codex'],
-        enabled: true,
-        input_micro_usd_per_million: '1000000',
-        output_micro_usd_per_million: '2000000',
-      },
-    ]),
-  );
 }
-async function submit(connectionId?: string) {
+async function submit(connectionId?: string, harness: Schema['Harness']['id'] = 'codex') {
   const project = await client.request('createProject', { body: { name: 'Native API fixture' } });
   return client.request('createRun', {
     body: {
       project_id: project.id,
-      harness: 'codex',
-      model: 'native-fixture',
+      harness,
+      model: 'gpt-5.4-mini',
       prompt: 'Fixture',
       billing_mode: connectionId ? 'byok' : 'managed',
       ...(connectionId ? { provider_connection_id: connectionId } : {}),
@@ -104,7 +90,7 @@ it('requires opt-in before real local admission and rejects incompatible models 
       body: {
         project_id: project.id,
         harness: 'claude-code',
-        model: 'native-fixture',
+        model: 'gpt-5.4-mini',
         billing_mode: 'managed',
         prompt: 'Denied',
       },
@@ -131,9 +117,9 @@ it('keeps a leftover simulator from claiming or executing native work', async ()
   await client.request('cancelRun', { params: { path: { run_id: accepted.run_id } } });
   expect((await client.request('getBilling')).reserved_micro_usd).toBe('0');
 });
-it.each(['managed', 'byok'] as const)(
-  'keeps %s accounting and runtime authority through real local admission, gateway, cancellation and publication',
-  async (billing) => {
+it.each((['codex', 'opencode', 'hermes', 'deepseek', 'pi'] as const).flatMap((harness) => (['managed', 'byok'] as const).map((billing) => ({ harness, billing }))))(
+  'keeps $harness $billing accounting and runtime authority through real local admission, gateway, cancellation and publication',
+  async ({ harness, billing }) => {
     docker();
     const connection =
       billing === 'byok'
@@ -147,7 +133,7 @@ it.each(['managed', 'byok'] as const)(
             },
           })
         : undefined;
-    const accepted = await submit(connection?.id);
+    const accepted = await submit(connection?.id, harness);
     expect((await client.request('getBilling')).reserved_micro_usd).toBe('2000000');
     const machine = new FaultMachine();
     machine.lostLaunch = true;
@@ -170,7 +156,7 @@ it.each(['managed', 'byok'] as const)(
       new Request(`${config.origin}/runtime/runs/${run.id}/model/v1/responses`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${capability}` },
-        body: JSON.stringify({ model: 'native-fixture', input: 'small fixture', max_output_tokens: 10 }),
+        body: JSON.stringify({ model: 'gpt-5.4-mini', input: 'small fixture', max_output_tokens: 10 }),
       });
     const upstream = vi.fn<typeof fetch>(async (_url, init) => {
       expect(new Headers(init?.headers).get('authorization')).toBe(

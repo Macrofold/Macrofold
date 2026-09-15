@@ -21,6 +21,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
 from macrofold.models.workspace_remote_change import WorkspaceRemoteChange
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,7 +34,7 @@ class Workspace(BaseModel):
     id: UUID
     project_id: UUID
     organization_id: UUID
-    name: StrictStr
+    name: Optional[StrictStr]
     branch: Optional[StrictStr] = None
     revision: StrictStr
     status: StrictStr
@@ -46,8 +47,9 @@ class Workspace(BaseModel):
     git_status: Optional[StrictStr] = None
     git_error: Optional[StrictStr] = None
     remote_change: Optional[WorkspaceRemoteChange] = None
+    permissions: Optional[AgentPermissions] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "project_id", "organization_id", "name", "branch", "revision", "status", "latest_checkpoint_id", "last_verified_at", "created_at", "source_commit", "source_checkpoint_id", "git_commit", "git_status", "git_error", "remote_change"]
+    __properties: ClassVar[List[str]] = ["id", "project_id", "organization_id", "name", "branch", "revision", "status", "latest_checkpoint_id", "last_verified_at", "created_at", "source_commit", "source_checkpoint_id", "git_commit", "git_status", "git_error", "remote_change", "permissions"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -110,10 +112,23 @@ class Workspace(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of remote_change
         if self.remote_change:
             _dict['remote_change'] = self.remote_change.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
+
+        # set to None if name (nullable) is None
+        # and model_fields_set contains the field
+        if self.name is None and "name" in self.model_fields_set:
+            _dict['name'] = None
+
+        # set to None if branch (nullable) is None
+        # and model_fields_set contains the field
+        if self.branch is None and "branch" in self.model_fields_set:
+            _dict['branch'] = None
 
         # set to None if git_error (nullable) is None
         # and model_fields_set contains the field
@@ -152,7 +167,8 @@ class Workspace(BaseModel):
             "git_commit": obj.get("git_commit"),
             "git_status": obj.get("git_status"),
             "git_error": obj.get("git_error"),
-            "remote_change": WorkspaceRemoteChange.from_dict(obj["remote_change"]) if obj.get("remote_change") is not None else None
+            "remote_change": WorkspaceRemoteChange.from_dict(obj["remote_change"]) if obj.get("remote_change") is not None else None,
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

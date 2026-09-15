@@ -34,7 +34,7 @@ export function searchIdentity(c: Record<string, unknown>) {
   );
   return provider;
 }
-export function searchKey(c: Document) {
+export function searchKey(c: Document<'connections'>) {
   const provider = searchIdentity(c);
   // BYOK must never fall through to an operator credential, including a missing/removed key.
   const key =
@@ -53,7 +53,7 @@ export function searchKey(c: Document) {
   );
   return key;
 }
-export async function searchWeb(c: Document, args: Record<string, unknown>, signal?: AbortSignal) {
+export async function searchWeb(c: Document<'connections'>, args: Record<string, unknown>, signal?: AbortSignal) {
   const input = inputSchema.safeParse(args);
   assert(input.success, 400, 'invalid_tool_arguments', 'Search requires a query and a count from 1 to 10.');
   const provider = searchIdentity(c);

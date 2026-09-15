@@ -36,4 +36,4 @@ Reattach with the CLI or SDK, preserving the last received event sequence. Strea
 
 Keep its idempotency key and original request. Inspect server state before retrying the same request with that key. A new key may create another action. The SDK's transport error carries the recovery key when an outcome is uncertain.
 
-See [API errors and retries](../features/api/README.md#errors-and-retries) and [reporting bugs](../../CONTRIBUTING.md#report-a-bug).
+See [API errors and retries](../features/api/conventions.md#errors-and-retries) and [reporting bugs](../../CONTRIBUTING.md#report-a-bug).

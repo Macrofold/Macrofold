@@ -4,7 +4,7 @@
   "description": "Operate persistent hosted agents from your terminal",
   "type": "module",
   "bin": {
-    "agent": "dist/index.mjs"
+    "macrofold": "dist/index.mjs"
   },
   "files": [
     "dist",

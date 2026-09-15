@@ -65,7 +65,9 @@ export function GitView({
         <span>
           {workspace.git_status === 'attention'
             ? 'Files preserved · Git needs attention'
-            : `Versioned on ${workspace.branch || 'main'}`}
+            : workspace.branch
+              ? `Versioned on ${workspace.branch}`
+              : 'Branch will be named on the first run'}
         </span>
         {workspace.git_commit && <code>{workspace.git_commit.slice(0, 12)}</code>}
       </div>
@@ -129,7 +131,7 @@ export function GitView({
             <p role="status">
               {workspace.remote_change.deleted
                 ? 'The remote target branch was deleted. Choose a new target before syncing.'
-                : 'Remote changes are available. Fetch and merge to bring them into this workspace.'}
+                : 'Remote changes are available. Fetch and merge to bring them into this worktree.'}
             </p>
           )}
           <Badge status={sync.data?.status || 'pending'} />
@@ -308,7 +310,7 @@ export function GitView({
             )}
             <Field
               label="Target branch"
-              hint="New repositories are imported into the default workspace. Existing, unrelated history is preserved for review."
+              hint="New repositories are imported into the default worktree. Existing, unrelated history is preserved for review."
             >
               <input required value={branch} onChange={(e) => setBranch(e.target.value)} />
             </Field>

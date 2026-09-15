@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { harnessNames } from '../../contracts/harnesses';
 import { Flags, Parser, type Interfaces } from '@oclif/core';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
@@ -21,11 +22,19 @@ const globalFlags = {
   help: Flags.boolean({ char: 'h' }),
 };
 const executionFlags = {
-  harness: Flags.string({ options: ['codex', 'claude-code', 'opencode'] }),
+  harness: Flags.string({ options: harnessNames }),
   model: Flags.string(),
-  'billing-mode': Flags.string({ options: ['managed', 'byok'] }),
+  'billing-mode': Flags.string({ options: ['managed', 'byok', 'subscription'] }),
   'provider-connection': Flags.string(),
-  connection: Flags.string({ multiple: true }),
+  connection: Flags.string({
+    multiple: true,
+    exclusive: ['no-connections'],
+    description: 'Select CONNECTION_ID:TOOL1,TOOL2 for this run',
+  }),
+  'no-connections': Flags.boolean({
+    exclusive: ['connection'],
+    description: 'Use no connector tools instead of inheriting',
+  }),
   timeout: Flags.integer({
     min: 1,
     max: 7200,
@@ -62,7 +71,14 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   'worktree create': { from: Flags.string(), branch: Flags.string(), use: Flags.boolean() },
   'worktree remove': { yes: Flags.boolean() },
   'worktree checkout': { local: Flags.string(), branch: Flags.string() },
-  run: { ...executionFlags, queue: Flags.boolean() },
+  run: {
+    ...executionFlags,
+    agent: Flags.string({
+      description: 'Saved agent preset ID',
+      exclusive: ['harness', 'model', 'billing-mode', 'provider-connection'],
+    }),
+    queue: Flags.boolean(),
+  },
   chat: executionFlags,
   'session resume': executionFlags,
   'run list': { status: Flags.string() },
@@ -111,17 +127,17 @@ const noArgs = new Set([
   'version',
 ]);
 const examples: Record<string, string> = {
-  run: 'agent run "Update the report" --harness codex --model MODEL\nagent run --prompt-file - --session SESSION_ID --json',
+  run: 'macrofold run "Update the report" --harness codex --model MODEL\nmacrofold run --prompt-file - --session SESSION_ID --json',
   login:
-    'agent login --host https://agents.example.com\nagent login --host http://localhost:3210 --api-key-stdin',
-  link: 'agent link PROJECT --workspace WORKSPACE_ID',
-  'worktree create': 'agent worktree create experiment --from main --use',
-  'worktree checkout': 'agent worktree checkout experiment --local ../review',
-  chat: 'agent chat --harness codex --model MODEL',
-  'files push': 'agent files push src --dry-run\nagent files push src --yes',
-  'files pull': 'agent files pull notes --dry-run\nagent files pull notes --yes',
-  'connection add': 'agent connection add --config-file private-connection.json',
-  'run input': 'agent run input RUN_ID --request REQUEST_ID --answer-file answer.json',
+    'macrofold login --host https://agents.example.com\nmacrofold login --host http://localhost:3210 --api-key-stdin',
+  link: 'macrofold link PROJECT --workspace WORKSPACE_ID',
+  'worktree create': 'macrofold worktree create experiment --from main --use',
+  'worktree checkout': 'macrofold worktree checkout experiment --local ../review',
+  chat: 'macrofold chat --harness codex --model MODEL',
+  'files push': 'macrofold files push src --dry-run\nmacrofold files push src --yes',
+  'files pull': 'macrofold files pull notes --dry-run\nmacrofold files pull notes --yes',
+  'connection add': 'macrofold connection add --config-file private-connection.json',
+  'run input': 'macrofold run input RUN_ID --request REQUEST_ID --answer-file answer.json',
 };
 function help(command?: string) {
   const keys = command
@@ -138,7 +154,7 @@ function help(command?: string) {
           .sort()
           .map((name) => '  ' + name)
           .join('\n')}\n  completion bash|zsh|fish|powershell`
-  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote project; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse agent doctor to inspect the model catalog without starting inference.\n`;
+  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote project; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
 }
 function completion(shell: string) {
   const words = [
@@ -194,7 +210,7 @@ export async function main(argv = process.argv.slice(2)) {
       pair = `${first} ${rest[0] || ''}`;
     command = pair in handlers ? pair : first;
     if (pair in handlers) rest.shift();
-    if (!(command in handlers)) throw new CliError(`Unknown command: ${command}. Run agent --help.`);
+    if (!(command in handlers)) throw new CliError(`Unknown command: ${command}. Run macrofold --help.`);
     let parsed;
     try {
       parsed = await Parser.parse([...leading, ...rest], {

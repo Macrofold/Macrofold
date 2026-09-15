@@ -22,7 +22,7 @@ Staging is protected by TLS and R2's encryption at rest, but is **not** applicat
 
 ## Approved stdio MCP packages
 
-`GET /v1/stdio-packages` lists the operator-reviewed catalog. The default runtime image includes `@modelcontextprotocol/server-filesystem@2026.8.31`, exposing the reviewed read_text_file, write_file, list_directory and get_file_info tools. A user creates an `mcp_stdio` connection with package and package_version, selects grants, then attaches them to a run. Discovery uses the reviewed schema catalog without launching a billable sandbox. The Test action clearly reports that live startup occurs during the first run.
+`GET /v1/stdio-packages` lists the operator-reviewed catalog. The default runtime image includes `@modelcontextprotocol/server-filesystem@2026.8.31`, exposing the reviewed read_text_file, write_file, list_directory and get_file_info tools. A user creates an `mcp_stdio` connection with package and package_version, approves tools and access rules, then inherits or selects them for a run. Discovery uses the reviewed schema catalog without launching a billable sandbox. The Test action clearly reports that live startup occurs during the first run.
 
 The broker executes stdio requests inside the **existing run sandbox**, through the SandboxTools port. A trusted root entrypoint verifies the run deadline and creates a permanent invocation marker before dropping all supplemental groups and switching to the untrusted agent UID. It removes the temporary credentials file, launches an exact executable/argv through the official MCP SDK, bounds the result and timeout, and closes the subprocess. Duplicate dispatch with the same invocation ID cannot execute again; a lost result is reported as unknown. The normal run deadline also kills the agent UID's remaining processes before checkpointing.
 
@@ -33,3 +33,7 @@ To approve another package, install its **exact** version in packages/runtime/pa
 ## Related guides
 
 See [connections and access](README.md), [provider setup](../../operations/launch-integrations.md), and the [API guide](../api/README.md).
+
+## Agent policy layers
+
+[Agent permissions](../execution/permissions.md) adds project, worktree and run restrictions above [connector access](connection-access.md). Tool discovery and dispatch intersect the accepted pattern policy, frozen run selection, current approved ceiling, and a currently matching rule or valid one-run exception. Local stdio connectors are unavailable to guarded-file runs because a process with worktree access could bypass a file-tool restriction. Human file browsing and edits continue to use their existing tenant, project and API scopes.

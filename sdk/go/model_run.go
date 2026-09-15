@@ -51,6 +51,9 @@ type Run struct {
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
 	// Set when execution is claimed. Includes provisioning and persistence; separate from the queue deadline.
 	ExecutionDeadline NullableTime `json:"execution_deadline,omitempty"`
+	PermissionLayers []AgentPermissions `json:"permission_layers,omitempty"`
+	AgentId NullableString `json:"agent_id,omitempty"`
+	AgentVersion NullableInt32 `json:"agent_version,omitempty"`
 }
 
 type _Run Run
@@ -804,6 +807,122 @@ func (o *Run) UnsetExecutionDeadline() {
 	o.ExecutionDeadline.Unset()
 }
 
+// GetPermissionLayers returns the PermissionLayers field value if set, zero value otherwise.
+func (o *Run) GetPermissionLayers() []AgentPermissions {
+	if o == nil || IsNil(o.PermissionLayers) {
+		var ret []AgentPermissions
+		return ret
+	}
+	return o.PermissionLayers
+}
+
+// GetPermissionLayersOk returns a tuple with the PermissionLayers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Run) GetPermissionLayersOk() ([]AgentPermissions, bool) {
+	if o == nil || IsNil(o.PermissionLayers) {
+		return nil, false
+	}
+	return o.PermissionLayers, true
+}
+
+// HasPermissionLayers returns a boolean if a field has been set.
+func (o *Run) HasPermissionLayers() bool {
+	if o != nil && !IsNil(o.PermissionLayers) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissionLayers gets a reference to the given []AgentPermissions and assigns it to the PermissionLayers field.
+func (o *Run) SetPermissionLayers(v []AgentPermissions) {
+	o.PermissionLayers = v
+}
+
+// GetAgentId returns the AgentId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Run) GetAgentId() string {
+	if o == nil || IsNil(o.AgentId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.AgentId.Get()
+}
+
+// GetAgentIdOk returns a tuple with the AgentId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Run) GetAgentIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.AgentId.Get(), o.AgentId.IsSet()
+}
+
+// HasAgentId returns a boolean if a field has been set.
+func (o *Run) HasAgentId() bool {
+	if o != nil && o.AgentId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentId gets a reference to the given NullableString and assigns it to the AgentId field.
+func (o *Run) SetAgentId(v string) {
+	o.AgentId.Set(&v)
+}
+// SetAgentIdNil sets the value for AgentId to be an explicit nil
+func (o *Run) SetAgentIdNil() {
+	o.AgentId.Set(nil)
+}
+
+// UnsetAgentId ensures that no value is present for AgentId, not even an explicit nil
+func (o *Run) UnsetAgentId() {
+	o.AgentId.Unset()
+}
+
+// GetAgentVersion returns the AgentVersion field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Run) GetAgentVersion() int32 {
+	if o == nil || IsNil(o.AgentVersion.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.AgentVersion.Get()
+}
+
+// GetAgentVersionOk returns a tuple with the AgentVersion field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Run) GetAgentVersionOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.AgentVersion.Get(), o.AgentVersion.IsSet()
+}
+
+// HasAgentVersion returns a boolean if a field has been set.
+func (o *Run) HasAgentVersion() bool {
+	if o != nil && o.AgentVersion.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentVersion gets a reference to the given NullableInt32 and assigns it to the AgentVersion field.
+func (o *Run) SetAgentVersion(v int32) {
+	o.AgentVersion.Set(&v)
+}
+// SetAgentVersionNil sets the value for AgentVersion to be an explicit nil
+func (o *Run) SetAgentVersionNil() {
+	o.AgentVersion.Set(nil)
+}
+
+// UnsetAgentVersion ensures that no value is present for AgentVersion, not even an explicit nil
+func (o *Run) UnsetAgentVersion() {
+	o.AgentVersion.Unset()
+}
+
 func (o Run) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -869,6 +988,15 @@ func (o Run) ToMap() (map[string]interface{}, error) {
 	}
 	if o.ExecutionDeadline.IsSet() {
 		toSerialize["execution_deadline"] = o.ExecutionDeadline.Get()
+	}
+	if !IsNil(o.PermissionLayers) {
+		toSerialize["permission_layers"] = o.PermissionLayers
+	}
+	if o.AgentId.IsSet() {
+		toSerialize["agent_id"] = o.AgentId.Get()
+	}
+	if o.AgentVersion.IsSet() {
+		toSerialize["agent_version"] = o.AgentVersion.Get()
 	}
 	return toSerialize, nil
 }

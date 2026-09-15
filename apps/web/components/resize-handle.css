@@ -1,0 +1,32 @@
+.resize-handle {
+  position: relative;
+  flex: 0 0 8px;
+  width: 8px;
+  align-self: stretch;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  outline-offset: -2px;
+  z-index: 2;
+}
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+  border-radius: 2px;
+  transition: background-color 120ms ease;
+}
+.resize-handle:focus-visible {
+  outline: 2px solid var(--app-focus);
+}
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after,
+.resize-handle[data-resizing='true']::after {
+  background: var(--app-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .resize-handle::after {
+    transition: none;
+  }
+}

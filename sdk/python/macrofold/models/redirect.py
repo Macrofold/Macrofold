@@ -19,7 +19,7 @@ import json
 
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -29,7 +29,7 @@ class Redirect(BaseModel):
     Redirect
     """ # noqa: E501
     url: StrictStr
-    expires_at: datetime
+    expires_at: Optional[datetime] = None
     __properties: ClassVar[List[str]] = ["url", "expires_at"]
 
     model_config = ConfigDict(

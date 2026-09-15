@@ -42,7 +42,11 @@ The [Design Language](../../product/design-language.md#reference-library) indexe
 | [PostHog](https://posthog.com/docs)                     | Product-level navigation with a short onboarding path; [website repository](https://github.com/PostHog/posthog.com) separates quickstart, advanced setup and contributor/style guides     | Website/docs source is public; served site identifies Gatsby                         |
 | [Resend](https://resend.com/docs/introduction)          | Compact introduction, language examples and separate test-mode guidance; [Node SDK](https://github.com/resend/resend-node) keeps first use short                                          | Documentation platform not established in this inspection                            |
 
-Keep the current short local path and links into authoritative references. Use one generated publication manifest and maintain the API/schema alongside the implementation. The new contributor index points to setup, module ownership and review before its detailed engineering catalog. Avoid importing the size or complexity of a mature company's documentation before the product needs it.
+Keep a short first-success path for Cloud and self-hosted users, a separate local development entry, and links into authoritative references. Use one generated publication manifest and maintain the API/schema alongside the implementation. The new contributor index points to setup, module ownership and review before its detailed engineering catalog. Avoid importing the size or complexity of a mature company's documentation before the product needs it.
+
+## Cloud and AI onboarding
+
+The [Cloud and AI-assisted onboarding study](cloud-and-agent-onboarding.md) covers Merge, LiveKit, Composio, Resend, Firecrawl, Daytona, Inngest, E2B, HarnessRouter, and additional open-source projects. It owns current hosting and AI onboarding observations, including newer source-verified technology findings that supersede unknown framework entries above.
 
 ## Decisions for this repository
 

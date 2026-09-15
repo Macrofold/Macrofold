@@ -2,6 +2,8 @@
 
 Typed asynchronous resource methods and resumable run streams using Reqwest and Tokio.
 
+Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
+
 ## Install from source
 
 Add the local crate to your application's `Cargo.toml`:
@@ -16,7 +18,7 @@ Tested with Rust 1.94.1. Native TLS is the default; select `default-features = f
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key. Copy a project ID and saved agent preset ID. The preset supplies harness/model/billing configuration; the project identifies persistent files. Managed execution uses credits; local simulation is free.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```rust
 use macrofold::{Macrofold, ClientError, models::RunCreate};
@@ -27,7 +29,9 @@ async fn main() -> Result<(), ClientError> {
     let client = Macrofold::new()?;
     let mut input = RunCreate::new("Create hello.txt containing Hello world.".into());
     input.project_id = Some("YOUR_PROJECT_ID".parse()?);
-    input.agent_id = Some("YOUR_AGENT_ID".parse()?);
+    input.harness = Some(macrofold::models::run_create::Harness::Codex);
+    input.model = Some("gpt-5.4-mini".into());
+    input.billing_mode = Some(macrofold::models::run_create::BillingMode::Managed);
     let run = client.runs().create(input).await?;
     let id = run.run_id.to_string();
     client.runs().stream_text(&id, "0", |text| {
@@ -98,4 +102,8 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 Generated free functions in `macrofold::apis` remain available using `client.configuration()`. Those low-level mutation calls require explicit idempotency keys. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth credentials, construct a new client with the renewed token.
 
-See [API conventions](../../docs/features/api/README.md) for pagination, permissions, and asynchronous work.
+See [API conventions](../../docs/features/api/conventions.md) for pagination, permissions, and asynchronous work.
+
+## Choose a harness
+
+The same run methods support `codex`, `claude-code`, `opencode`, `hermes`, `deepseek`, and `pi`. Select a compatible model from the catalog. See [harness capabilities and examples](../../docs/features/execution/harnesses.md).

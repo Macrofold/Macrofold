@@ -1,6 +1,6 @@
 # Vercel-first architecture and portability
 
-Vercel is the initial production topology. The API, persistent workspaces, three harnesses, billing, analytics, read-only management MCP, dashboard and terminal CLI share application-owned domain state. Major historical changes are recorded in the [decision changelog](decisions.md#changelog).
+Vercel is the initial production topology. The API, persistent workspaces, six harnesses, billing, analytics, read-only management MCP, dashboard and terminal CLI share application-owned domain state. Major historical changes are recorded in the [decision changelog](decisions.md#changelog).
 
 ## Initial implementation and replacement boundaries
 
@@ -8,7 +8,7 @@ Vercel is the initial production topology. The API, persistent workspaces, three
 | ------------------------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | HTTP application               | Next.js Route Handlers on Vercel Functions                                                   | Same Next.js standalone Node/Docker build                               |
 | SandboxProvider                | Vercel Sandbox                                                                               | E2B or another isolated compute adapter                                 |
-| HarnessAdapter                 | Native Codex app-server, Claude Agent SDK, OpenCode SDK                                      | Tested AI SDK HarnessAgent adapter where it provides complete semantics |
+| HarnessAdapter                 | Native Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness and Pi adapters                                      | Tested AI SDK HarnessAgent adapter where it provides complete semantics |
 | ExecutionScheduler             | Workflow SDK on Vercel World                                                                 | Same SQL run state machine driven by the standalone poller              |
 | CredentialBroker               | Optional Composio; direct MCP OAuth; versioned encrypted vault                               | Another broker/vault; users may need reauthorization                    |
 | ModelAccess                    | Application-owned native-protocol model gateway; direct provider routes for managed and BYOK | LiteLLM or other model adapter without changing public contracts        |

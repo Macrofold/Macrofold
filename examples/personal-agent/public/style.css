@@ -1,0 +1,171 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #202522;
+  background: #f8faf8;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 820px;
+  margin: auto;
+  padding: 48px 24px;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+h2 {
+  font-size: 1.2rem;
+}
+p {
+  line-height: 1.6;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: #48624d;
+}
+header {
+  margin-bottom: 32px;
+}
+section,
+details {
+  background: white;
+  border: 1px solid #dce3de;
+  border-radius: 14px;
+  padding: 24px;
+  margin: 20px 0;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+label {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  font-size: 0.9rem;
+}
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  border: 1px solid #cbd6ce;
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition:
+    background-color 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s,
+    color 0.16s;
+}
+input,
+textarea,
+select {
+  background: #fcfdfc;
+  color: inherit;
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #83a88c;
+  box-shadow: 0 0 0 2px #49825b14;
+}
+button {
+  background: #edf3ef;
+  color: #24442e;
+  cursor: pointer;
+  margin-right: 8px;
+}
+button:hover {
+  background: #dce9df;
+}
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #47885a;
+  outline-offset: 3px;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.selected {
+  background: #dce9df;
+}
+.danger {
+  color: #a12828;
+  background: #fff4f4;
+}
+.muted,
+footer {
+  color: #606c65;
+  font-size: 0.85rem;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+article {
+  border-top: 1px solid #e4eae5;
+  padding: 12px 0;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.6;
+}
+#notice {
+  min-height: 1.5em;
+}
+#customer-label {
+  max-width: 180px;
+}
+#agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#file-content {
+  font-family: ui-monospace, monospace;
+}
+.shimmer {
+  background: linear-gradient(100deg, #606c65 25%, #b4caba 45%, #24442e 55%, #606c65 75%);
+  background-size: 240% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 1.8s linear infinite;
+}
+@keyframes sheen {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -140% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .shimmer {
+    color: #606c65;
+  }
+}
+[hidden] {
+  display: none !important;
+}

@@ -1,10 +1,10 @@
 import { pool, transaction, lock } from '../../db';
 import { config } from './config';
 import { identify, requireScopes, type Principal } from './auth';
-import { id, sha256, seal, unseal } from './crypto';
+import { id, sha256, seal, unseal, canonical } from './crypto';
 import { AppError, assert, errorBody } from './errors';
-import { matchRoute, validateParameters, validateBody, responseFor, canonical } from './http-contract';
-import { handlers } from './api-handlers';
+import { matchRoute, validateParameters, validateBody, responseFor } from './http-contract';
+import { handlers, preparations } from './api-handlers';
 import { getRun } from './runs';
 import { streamEvents } from './events';
 import { adminReport } from './reports';
@@ -131,12 +131,14 @@ export async function handleApi(request: Request) {
     }
     validateBody(matched.operation, body, binary);
     const handler = handlers[matched.operation.operationId];
-    assert(handler, 503, 'operation_unavailable', 'This operation is not configured.');
-    const idempotencyKey = request.headers.get('idempotency-key') || '';
+    const prepare = preparations[matched.operation.operationId];
+    assert(handler || prepare, 503, 'operation_unavailable', 'This operation is not configured.');
+    const advisory = matched.operation.operationId === 'resolveConnectionAccess';
+    const idempotencyKey = advisory ? '' : request.headers.get('idempotency-key') || '';
     const fingerprint = sha256(
       `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
     );
-    const outcome = await transaction(p.organizationId, async (tx) => {
+    const cachedResponse = async (tx: import('../../db').Tx) => {
       if (idempotencyKey) {
         await lock(tx, `idempotency:${p.organizationId}:${p.id}:${route}:${idempotencyKey}`);
         const cached = (
@@ -154,66 +156,107 @@ export async function handleApi(request: Request) {
             'This idempotency key was used for a different request.',
           );
           headers.set('Idempotency-Replayed', 'true');
-          return { status: cached.status, body: unseal(cached.response_ciphertext) };
+          return { status: cached.status as number, body: unseal(cached.response_ciphertext) };
         }
       }
-      const value = await handler({
-        tx,
-        p,
-        request,
-        query,
-        params: matched.params,
-        body,
-        bytes,
-        operationId: matched.operation.operationId,
-        idempotencyKey,
-        headers,
-        requestId,
-      });
-      const response = value instanceof Response ? value : responseFor(matched.operation, value);
-      if (idempotencyKey && !(response instanceof Response))
-        await tx.query(
-          'INSERT INTO idempotency(organization_id,principal_id,route,key,fingerprint,response_ciphertext,status) VALUES($1,$2,$3,$4,$5,$6,$7)',
-          [
-            p.organizationId,
-            p.id,
-            route,
-            idempotencyKey,
-            fingerprint,
-            seal(response.body ?? null),
-            response.status,
-          ],
-        );
-      if (p.kind === 'user' && request.method !== 'GET')
-        await tx.query('INSERT INTO actor_activity(id,organization_id,user_id,action) VALUES($1,$2,$3,$4)', [
-          id(),
-          p.organizationId,
-          p.userId,
-          matched.operation.operationId,
-        ]);
-      if (!['GET', 'HEAD'].includes(request.method))
-        await tx.query(
-          'INSERT INTO product_events(id,organization_id,user_id,name,data) VALUES($1,$2,$3,$4,$5)',
-          [
-            id(),
-            p.organizationId,
-            p.userId || null,
-            matched.operation.operationId,
-            JSON.stringify({
-              principal_type: p.kind === 'api_key' ? 'service' : 'human',
-              source: 'public_api',
-              principal_id: p.id,
-            }),
-          ],
-        );
-      return response;
-    });
+      return undefined;
+    };
+    const context = {
+      p,
+      request,
+      query,
+      params: matched.params,
+      body,
+      bytes,
+      operationId: matched.operation.operationId,
+      idempotencyKey,
+      headers,
+      requestId,
+    };
+    // Fast replay avoids object I/O. The final transaction checks again under the
+    // same idempotency lock, so competing preparations can publish at most once.
+    const replay =
+      prepare && idempotencyKey ? await transaction(p.organizationId, cachedResponse) : undefined;
+    const prepared = prepare && !replay ? await prepare(context) : undefined;
+    let outcome;
+    try {
+      const current = prepared ? await identify(request) : p;
+      assert(
+        current.organizationId === p.organizationId && current.id === p.id,
+        403,
+        'authorization_changed',
+        'Authorization changed while preparing this request.',
+      );
+      requireScopes(current, scopes);
+      outcome =
+        replay ??
+        (await transaction(p.organizationId, async (tx) => {
+          const cached = await cachedResponse(tx);
+          if (cached) return cached;
+          let value: unknown;
+          if (prepared) value = await prepared.commit(tx, current);
+          else {
+            assert(handler, 503, 'not_implemented', 'This operation is not available.');
+            value = await handler({ ...context, tx });
+          }
+          const response = value instanceof Response ? value : responseFor(matched.operation, value);
+          if (idempotencyKey && !(response instanceof Response))
+            await tx.query(
+              'INSERT INTO idempotency(organization_id,principal_id,route,key,fingerprint,response_ciphertext,status) VALUES($1,$2,$3,$4,$5,$6,$7)',
+              [
+                p.organizationId,
+                p.id,
+                route,
+                idempotencyKey,
+                fingerprint,
+                seal(response.body ?? null),
+                response.status,
+              ],
+            );
+          if (!advisory && p.kind === 'user' && request.method !== 'GET')
+            await tx.query(
+              'INSERT INTO actor_activity(id,organization_id,user_id,action) VALUES($1,$2,$3,$4)',
+              [id(), p.organizationId, p.userId, matched.operation.operationId],
+            );
+          if (!advisory && !['GET', 'HEAD'].includes(request.method))
+            await tx.query(
+              'INSERT INTO product_events(id,organization_id,user_id,name,data) VALUES($1,$2,$3,$4,$5)',
+              [
+                id(),
+                p.organizationId,
+                p.userId || null,
+                matched.operation.operationId,
+                JSON.stringify({
+                  principal_type: p.kind === 'api_key' ? 'service' : 'human',
+                  source: 'public_api',
+                  principal_id: p.id,
+                }),
+              ],
+            );
+          return response;
+        }));
+    } finally {
+      if (prepared)
+        await prepared.dispose().catch(() => {
+          // Expiry is the durable fallback; cleanup failure must not turn a committed
+          // mutation into an apparent failure or encourage a new side effect.
+          console.error(JSON.stringify({ request_id: requestId, code: 'preparation_cleanup_failed' }));
+        });
+    }
     if (outcome instanceof Response) {
       status = outcome.status;
       headers.forEach((value, key) => outcome.headers.set(key, value));
       return outcome;
     }
     status = outcome.status;
+    if (
+      route.includes('/connections/') &&
+      route.includes('/access') &&
+      outcome.body &&
+      typeof outcome.body === 'object' &&
+      'version' in outcome.body
+    )
+      headers.set('ETag', `"${outcome.body.version}"`);
     return status === 204
       ? new Response(null, { status, headers })
       : Response.json(outcome.body, { status, headers });

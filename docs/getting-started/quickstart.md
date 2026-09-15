@@ -1,6 +1,8 @@
 # Quickstart
 
-Create a project, run an agent, and inspect the files it saves. You can follow this guide on a deployment you have access to or with the [free local simulator](local-development/simulation.md).
+Create a project, run an agent, and inspect the files it saves. Use [Macrofold Cloud](../cloud/README.md), a [self-hosted deployment](../operations/README.md), or the [free local simulator](local-development/simulation.md). The steps are the same.
+
+To integrate your application instead, use the [API quickstart](../features/api/quickstart.md) or [coding-agent setup prompt](agents.md).
 
 ## 1. Sign in
 
@@ -12,7 +14,7 @@ Choose the organization you want to work in. Projects, API keys, and usage belon
 
 Open **Projects**, choose **New project**, and give it a name. A persistent project keeps its files across runs. Start with an empty project; you can connect GitHub or upload files afterward.
 
-A **workspace** is the project's independent working folder and branch. Use a separate workspace when two agents need to write at the same time.
+A **workspace** is the project's independent working folder and branch. Two agents can take turns over the same files; use separate workspaces when they need to write at the same time. See [sharing a workspace](../features/workspaces/shared-agents.md).
 
 ## 3. Start a run
 

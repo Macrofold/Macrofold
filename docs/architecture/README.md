@@ -2,7 +2,7 @@
 
 This is the current design; [decision log](decisions.md) explains changes from the initial proposal. [Verification](../status/README.md) distinguishes local acceptance from live-provider checks.
 
-[Future architecture improvements](future-improvements.md) evaluates Vercel Workflow and Temporal for persistent agent coordination, with explicit criteria for revisiting the current scheduler.
+[Ranked improvements](../product/improvements.md) owns proposed work and status. The [Workflow and Temporal evaluation](orchestration-evaluation.md) provides supporting research and criteria for revisiting the current scheduler.
 
 ## Technology decisions
 
@@ -14,7 +14,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Database              | PostgreSQL 17, node-postgres, numbered SQL migrations; Neon first      | Explicit locks, RLS and balanced journals are reviewable together; no redundant ORM schema                           |
 | Scheduling            | Vercel Workflow; PostgreSQL outbox and leases                          | Managed wakeups with application-owned recovery; standalone SQL poller reuses the same state machine                 |
 | Agent isolation       | Vercel Sandbox, immutable VCR image; Docker for local development                                    | Managed microVM isolation; no untrusted code in a Function or shared worker process                                  |
-| Harnesses             | Native Codex app-server, Claude Agent SDK, OpenCode SDK                | Exact sessions/tools/input semantics; more adapter maintenance than an experimental universal wrapper                |
+| Harnesses             | Native adapters through the [Unified Harness Interface](../features/execution/unified-harness-interface.md) | Shared execution contract with native sessions/tools/input semantics; each contributed harness needs integration and acceptance |
 | Files                 | Encrypted content-addressed chunks and manifests in private R2         | Portable independent recovery and file browsing; owned reachability/retention logic instead of restic processes      |
 | Identity              | Better Auth email/password, MFA, OAuth provider                        | Established identity protocols; domain owns memberships, API keys and authorization                                  |
 | Integrations          | Official MCP SDK, optional Composio, Octokit GitHub App, Brave         | Reuse protocols and tools while retaining current-user grants and spending authority                                 |
@@ -52,6 +52,8 @@ flowchart TD
 
 This is a modular application, not dozens of independently deployed services. Some provider composition is intentionally adjacent to domain services (for example the model gateway and connection implementation); the machine and object-store ports carry the critical hosting/persistence boundary. Do not claim every vendor can be replaced without implementation changes.
 
+The [customer-agent starter](../../examples/personal-agent/README.md) composes the public SDK from application-owned customer records; it does not add a customer aggregate to the platform. Its local store and HTTP/auth adapter can be replaced together with the integrating app's infrastructure. Deployment connector setup and trigger quotas live in owner-administered policy tables, separate from customer connections, tool grants and run funding. [Ownership and verification](../engineering/testing/customer-agents.md) records these boundaries and deliberate limits.
+
 ## Durable transaction sequence
 
 Admission resolves and freezes model/harness/rate/grants/limits, authorizes the tenant and credential, takes workspace/account locks, reserves maximum liability, creates the run/session, writes its first event and inserts its dispatch record in one transaction. A transport response does not own the run. Immediate Workflow dispatch is repaired by authenticated minutely cron. Duplicate scheduler instances compete for a phase lease. Stable VM identity and a native launch marker prevent a lost acknowledgement from replaying the prompt.
@@ -81,3 +83,7 @@ SQL is the source of truth, R2 holds independent encrypted bytes, the VM is repl
 Launch uses one region. Git/export operations have explicit 250 MiB and entry limits so they fit bounded Functions; large ignored runtime data uses chunked persistence. The runtime capture envelope is 10 GiB/100,000 entries. Exceeding it preserves a recovery state rather than inventing a successful backup. Larger repositories require an explicit maintenance-compute extension and fresh capacity evidence.
 
 See [runtime](../features/execution/runtime.md), [workspace design](../features/workspaces/README.md), [security/tools](../features/identity-integrations/tools-security.md), [deployment](../operations/deployment.md) and [launch instructions](../operations/launch-guide.md) for the corresponding implementation and operator procedures.
+
+## Connector access
+
+[Connector access rules](../features/identity-integrations/connection-access.md) separate tool selection from authority. Persisted project/preset context drives eligibility; admission freezes a bounded tool/account snapshot and dispatch intersects it with current rules or an authorized one-run exception. Explicit access columns and tenant-scoped rules replace connection JSON grants. Tools and Access share one compare-and-swap revision. [Ownership and coordinated migration](../engineering/testing/connection-access.md).

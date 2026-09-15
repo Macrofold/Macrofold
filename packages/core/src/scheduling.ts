@@ -1,3 +1,4 @@
+export type WaitingReason = NonNullable<components['schemas']['Run']['waiting_reason']>;
 import type { components } from '../../contracts/api';
 import { pool, type Tx } from '../../db';
 import { globalRunLimit } from './config';
@@ -72,9 +73,9 @@ export async function pendingRunCandidates(limit = 20) {
 }
 
 export async function queueObservations(tx: Tx, ids: string[]) {
-  if (!ids.length) return new Map<string, string>();
+  if (!ids.length) return new Map<string, WaitingReason>();
   const rows = (
-    await tx.query(
+    await tx.query<{ id: string; reason: WaitingReason }>(
       `${schedulingSQL}
     SELECT id,CASE WHEN cancel_requested THEN 'cancellation_requested'
       WHEN queue_expires_at<=now() THEN 'deadline_expired'
@@ -86,7 +87,7 @@ export async function queueObservations(tx: Tx, ids: string[]) {
       [...schedulingParameters(), ids, globalRunLimit()],
     )
   ).rows;
-  return new Map<string, string>(rows.map((r) => [r.id, r.reason]));
+  return new Map<string, WaitingReason>(rows.map((r) => [r.id, r.reason]));
 }
 
 export async function schedulingReport(

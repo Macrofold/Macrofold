@@ -73,14 +73,19 @@ describe('run admission boundaries', () => {
     expect(resources.get).not.toHaveBeenCalled();
   });
   it.each([
-    { kind: 'mcp', provider: 'test-provider', status: 'healthy' },
-    { kind: 'model', provider: 'other-provider', status: 'healthy' },
-    { kind: 'model', provider: 'test-provider', status: 'revoked' },
+    { kind: 'mcp_remote' as const, provider: 'test-provider', status: 'healthy' as const },
+    { kind: 'model' as const, provider: 'other-provider', status: 'healthy' as const },
+    { kind: 'model' as const, provider: 'test-provider', status: 'expired' as const },
   ])('rejects an incompatible BYOK connection: %j', async (connection) => {
     vi.mocked(resources.get).mockResolvedValue({
+      name: 'Fixture',
+      auth_method: 'api_key',
       id: 'connection',
       organization_id: 'org',
       revision: 'revision',
+      access_version: '1',
+      access_organization_wide: false,
+      access_tools: [],
       created_at: '2026-09-06T00:00:00Z',
       owner_subject_id: 'user',
       ...connection,
@@ -91,9 +96,14 @@ describe('run admission boundaries', () => {
   });
   it('rejects another member’s otherwise healthy BYOK credential', async () => {
     vi.mocked(resources.get).mockResolvedValue({
+      name: 'Fixture',
+      auth_method: 'api_key',
       id: 'connection',
       organization_id: 'org',
       revision: 'revision',
+      access_version: '1',
+      access_organization_wide: false,
+      access_tools: [],
       created_at: '2026-09-06T00:00:00Z',
       kind: 'model',
       provider: 'test-provider',

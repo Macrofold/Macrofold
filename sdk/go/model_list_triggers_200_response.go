@@ -22,6 +22,7 @@ var _ MappedNullable = &ListTriggers200Response{}
 type ListTriggers200Response struct {
 	Data []Trigger `json:"data"`
 	NextCursor NullableString `json:"next_cursor"`
+	Quota ListTriggers200ResponseQuota `json:"quota"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -31,10 +32,11 @@ type _ListTriggers200Response ListTriggers200Response
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewListTriggers200Response(data []Trigger, nextCursor NullableString) *ListTriggers200Response {
+func NewListTriggers200Response(data []Trigger, nextCursor NullableString, quota ListTriggers200ResponseQuota) *ListTriggers200Response {
 	this := ListTriggers200Response{}
 	this.Data = data
 	this.NextCursor = nextCursor
+	this.Quota = quota
 	return &this
 }
 
@@ -96,6 +98,30 @@ func (o *ListTriggers200Response) SetNextCursor(v string) {
 	o.NextCursor.Set(&v)
 }
 
+// GetQuota returns the Quota field value
+func (o *ListTriggers200Response) GetQuota() ListTriggers200ResponseQuota {
+	if o == nil {
+		var ret ListTriggers200ResponseQuota
+		return ret
+	}
+
+	return o.Quota
+}
+
+// GetQuotaOk returns a tuple with the Quota field value
+// and a boolean to check if the value has been set.
+func (o *ListTriggers200Response) GetQuotaOk() (*ListTriggers200ResponseQuota, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Quota, true
+}
+
+// SetQuota sets field value
+func (o *ListTriggers200Response) SetQuota(v ListTriggers200ResponseQuota) {
+	o.Quota = v
+}
+
 func (o ListTriggers200Response) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -108,6 +134,7 @@ func (o ListTriggers200Response) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["data"] = o.Data
 	toSerialize["next_cursor"] = o.NextCursor.Get()
+	toSerialize["quota"] = o.Quota
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -123,6 +150,7 @@ func (o *ListTriggers200Response) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"data",
 		"next_cursor",
+		"quota",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -154,6 +182,7 @@ func (o *ListTriggers200Response) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "data")
 		delete(additionalProperties, "next_cursor")
+		delete(additionalProperties, "quota")
 		o.AdditionalProperties = additionalProperties
 	}
 

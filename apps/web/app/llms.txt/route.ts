@@ -4,7 +4,7 @@ export const dynamic = 'force-static';
 export function GET() {
   const sections = [...new Set(pages.map((page) => page.section))];
   const content =
-    `# ${config.name} documentation\n\n> Persistent cloud agents: projects, files, Git, APIs, and a terminal CLI.\n\n` +
+    `# ${config.name} documentation\n\n> Persistent agents on Macrofold Cloud or your own infrastructure. Start with Build with AI or the API quickstart.\n\n` +
     sections
       .map(
         (section) =>
@@ -17,6 +17,6 @@ export function GET() {
             .join('\n'),
       )
       .join('\n\n') +
-    `\n\n## Reference\n\n- [OpenAPI](${config.origin}/openapi.json)\n- [Interactive API reference](${config.origin}/reference)\n- [Complete documentation](${config.origin}/llms-full.txt)\n`;
+    `\n\n## Contracts and exports\n\n- [OpenAPI](${config.origin}/openapi.json)\n- [Interactive API reference](${config.origin}/reference)\n- [Complete documentation](${config.origin}/llms-full.txt)\n`;
   return new Response(content, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }

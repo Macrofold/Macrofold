@@ -18,8 +18,9 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from uuid import UUID
 from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
@@ -37,16 +38,18 @@ class Session(BaseModel):
     model: StrictStr
     created_at: datetime
     billing_mode: Optional[StrictStr] = None
-    provider_connection_id: Optional[UUID] = None
-    connection_grants: Optional[List[Grant]] = None
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.")
     limits: Optional[Limits] = None
-    __properties: ClassVar[List[str]] = ["id", "workspace_id", "harness", "model", "created_at", "billing_mode", "provider_connection_id", "connection_grants", "limits"]
+    agent_id: Optional[UUID] = None
+    agent_version: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
+    __properties: ClassVar[List[str]] = ["id", "workspace_id", "harness", "model", "created_at", "billing_mode", "provider_connection_id", "connection_grants", "limits", "agent_id", "agent_version"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     @field_validator('billing_mode')
@@ -55,8 +58,8 @@ class Session(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['byok', 'managed']):
-            raise ValueError("must be one of enum values ('byok', 'managed')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     model_config = ConfigDict(
@@ -108,6 +111,16 @@ class Session(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # set to None if agent_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.agent_id is None and "agent_id" in self.model_fields_set:
+            _dict['agent_id'] = None
+
+        # set to None if agent_version (nullable) is None
+        # and model_fields_set contains the field
+        if self.agent_version is None and "agent_version" in self.model_fields_set:
+            _dict['agent_version'] = None
+
         return _dict
 
     @classmethod
@@ -128,7 +141,9 @@ class Session(BaseModel):
             "billing_mode": obj.get("billing_mode"),
             "provider_connection_id": obj.get("provider_connection_id"),
             "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
-            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None
+            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
+            "agent_id": obj.get("agent_id"),
+            "agent_version": obj.get("agent_version")
         })
         return _obj
 

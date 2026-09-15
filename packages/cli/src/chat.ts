@@ -6,9 +6,9 @@ import { eventLine, followRun, streamCommand, waitingLine } from './stream';
 
 export async function chat(context: Context, existing?: Schema['Session']) {
   if (context.flags.json || context.flags.jsonl)
-    throw new CliError('Use agent run --json or --jsonl for noninteractive prompts.');
+    throw new CliError('Use macrofold run --json or --jsonl for noninteractive prompts.');
   if (!process.stdin.isTTY)
-    throw new CliError('Chat requires a terminal. Use agent run --prompt-file - for stdin.');
+    throw new CliError('Chat requires a terminal. Use macrofold run --prompt-file - for stdin.');
   const client = context.client,
     settings = execution(context.flags);
   let session = existing || (await context.session());
@@ -18,7 +18,9 @@ export async function chat(context: Context, existing?: Schema['Session']) {
   async function ensureSession() {
     if (session) return session;
     if (!settings.harness || !settings.model)
-      throw new CliError('A new chat needs --harness and --model. agent doctor lists the available catalog.');
+      throw new CliError(
+        'A new chat needs --harness and --model. macrofold doctor lists the available catalog.',
+      );
     session = await client.request('createSession', {
       body: { ...settings, harness: settings.harness, model: settings.model, workspace_id: workspace.id },
     });
@@ -66,6 +68,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
           prompt: text,
           queue_if_busy: true,
           model: settings.model,
+          connection_grants: settings.connection_grants,
           limits: limits(context.flags),
         },
       });
@@ -158,7 +161,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
         if (error instanceof CliError && error.exitCode === 4) add(error.message);
         else
           add(
-            `Stream interrupted: ${(error as Error).message}. Reconnect with agent run attach ${run.run_id}`,
+            `Stream interrupted: ${(error as Error).message}. Reconnect with macrofold run attach ${run.run_id}`,
           );
       }
     } finally {
@@ -219,7 +222,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
       }
       if (command === '/worktree') {
         add(
-          `Selected: ${workspace.name} (${workspace.id}). Detach and use agent worktree use NAME to switch.`,
+          `Selected: ${workspace.name} (${workspace.id}). Detach and use macrofold worktree use NAME to switch.`,
         );
         return;
       }
@@ -267,6 +270,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
         prompt: text,
         queue_if_busy: true,
         model: settings.model,
+        connection_grants: settings.connection_grants,
         limits: limits(context.flags),
       },
     });

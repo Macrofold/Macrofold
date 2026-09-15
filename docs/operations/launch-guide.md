@@ -557,18 +557,10 @@ Keep execution and registration disabled during provider configuration. Complete
 For a concrete initial path, use the versioned Anthropic model `claude-haiku-4-5-20251001` with Claude Code. It has recorded gateway compatibility; deployed native execution is checked in step 8. [Anthropic model IDs](https://platform.claude.com/docs/en/models/overview).
 
 1. In your Anthropic API account, create or select a key for staging and configure a small provider-side spending allowance. A Claude chat subscription is not an API credential.
-2. Add these lines to `runtime.env`, replacing the key:
+2. Add `ANTHROPIC_API_KEY` to the private runtime file and the matching Vercel environment. The model and its retail prices are already in the [built-in catalog](../features/execution/models.md).
+3. Deploy and let the existing maintenance job refresh provider availability. Query `/v1/models` or use the dashboard to confirm the enabled harness/model pair. Keep paid execution disabled until the bounded smoke test.
 
-```dotenv
-ANTHROPIC_API_KEY=REPLACE_WITH_ANTHROPIC_API_KEY
-MODEL_CATALOG_JSON=[{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5","provider":"anthropic","harnesses":["claude-code","opencode"],"input_micro_usd_per_million":"2000000","output_micro_usd_per_million":"10000000","enabled":true}]
-```
-
-3. Add the same two keys in Vercel's **Environment Variables → Production**. For an individual JSON value, paste the array beginning with `[` and ending with `]`, without a `MODEL_CATALOG_JSON=` prefix or wrapping shell quotes.
-
-The example sets **your retail prices** to $2 per million input tokens and $10 per million output tokens. Those are explicit starter prices, not a vendor invoice or a margin guarantee. Review your provider's current rates and account entitlement before running the paid check. The application's existing compute rate is $0.008/minute. [Catalog schema and cache accounting](../features/execution/runtime.md#production-model-catalog-example).
-
-You can later add OpenAI or OpenRouter catalog entries and their managed keys. Customers can also add encrypted BYOK connections in **Connections**; BYOK still requires platform credit for compute and applicable tools. Do not enable a model/harness combination until it passes your acceptance check.
+No model JSON environment variable is required. OpenAI and OpenRouter use their corresponding managed keys; customers can instead configure encrypted BYOK connections. Discovery does not prove account entitlement or native execution compatibility. Check current retail prices and approve the smoke-test budget before inference.
 
 ### 6.2 Configure Stripe test payments
 

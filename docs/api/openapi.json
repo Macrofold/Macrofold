@@ -197,7 +197,7 @@
         "tags": [
           "projects"
         ],
-        "description": "",
+        "description": "Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -230,6 +230,43 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "include_connections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "connections_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "connections_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -853,6 +890,15 @@
               "maxLength": 4096
             },
             "description": "Case-insensitive literal substring of the relative file path."
+          },
+          {
+            "name": "recursive",
+            "in": "query",
+            "description": "List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files.",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -1029,6 +1075,15 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "create_only",
+            "in": "query",
+            "description": "Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "responses": {
@@ -1144,6 +1199,92 @@
         "x-required-scopes": [
           "files:write"
         ]
+      },
+      "patch": {
+        "operationId": "renameFile",
+        "summary": "Rename a workspace file",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/FilePath"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "files:write"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileRename"
+              }
+            }
+          }
+        }
       }
     },
     "/v1/workspaces/{workspace_id}/checkpoints": {
@@ -1600,6 +1741,15 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "Search preset names."
           }
         ],
         "responses": {
@@ -1726,7 +1876,7 @@
         "tags": [
           "agents"
         ],
-        "description": "",
+        "description": "Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1759,6 +1909,43 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "include_connections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "connections_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "connections_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3131,6 +3318,24 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -3139,26 +3344,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Connection"
-                      }
-                    },
-                    "next_cursor": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "next_cursor"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ContextualConnectionPage"
                 }
               }
             }
@@ -5591,153 +5777,6 @@
         }
       }
     },
-    "/v1/connections/{connection_id}/grants": {
-      "get": {
-        "tags": [
-          "connections"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "connections:read"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "connection_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Current authorized grants",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectionGrantSet"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "getConnectionGrants",
-        "summary": "Inspect connection tool grants",
-        "x-required-scopes": [
-          "connections:read"
-        ]
-      },
-      "put": {
-        "tags": [
-          "connections"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "connections:write"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "connection_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Current authorized grants",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectionGrantSet"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "setConnectionGrants",
-        "summary": "Replace explicitly authorized tool grants",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConnectionGrantSet"
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "connections:write"
-        ]
-      }
-    },
     "/v1/checkpoints/{checkpoint_id}": {
       "patch": {
         "operationId": "updateCheckpointRetention",
@@ -8020,11 +8059,36 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "quota": {
+                      "type": "object",
+                      "description": "Organization-wide saved-trigger capacity, including paused definitions. Independent of delivery and execution limits.",
+                      "properties": {
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "used": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "remaining": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "used",
+                        "remaining"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "data",
-                    "next_cursor"
+                    "next_cursor",
+                    "quota"
                   ],
                   "additionalProperties": false
                 }
@@ -9024,6 +9088,939 @@
           }
         }
       }
+    },
+    "/v1/workspaces/{workspace_id}/folders": {
+      "post": {
+        "operationId": "createFolder",
+        "summary": "Create a workspace folder",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "files:write"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_id}/worktree-options": {
+      "get": {
+        "operationId": "getWorktreeOptions",
+        "summary": "List saved branches and validate worktree names",
+        "tags": [
+          "projects"
+        ],
+        "description": "Read-only validation. Creation rechecks names and branches under the project lock. Branches come from saved project repositories.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "projects:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 151
+            }
+          },
+          {
+            "name": "branch",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 151
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorktreeOptions"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "projects:read"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspace_id}/files/duplicate": {
+      "post": {
+        "operationId": "duplicateFile",
+        "summary": "Duplicate a file",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "files:write"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileDuplicate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{connection_id}/access": {
+      "get": {
+        "operationId": "getConnectionAccess",
+        "summary": "Inspect owned connection access",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:read"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccess"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateConnectionAccess",
+        "summary": "Update organization access or approved tools",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[1-9][0-9]*\"$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccess"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionAccessPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{connection_id}/access/rules": {
+      "get": {
+        "operationId": "listConnectionAccessRules",
+        "summary": "List saved connection permissions",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:read"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "project",
+                "agent",
+                "created_at"
+              ]
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccessRulePage"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createConnectionAccessRule",
+        "summary": "Add a connection permission",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[1-9][0-9]*\"$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccessRuleMutation"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionAccessRuleInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{connection_id}/access/rules/{rule_id}": {
+      "patch": {
+        "operationId": "updateConnectionAccessRule",
+        "summary": "Retarget a connection permission",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[1-9][0-9]*\"$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccessRuleMutation"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionAccessRuleInput"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteConnectionAccessRule",
+        "summary": "Remove a connection permission",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:write"
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[1-9][0-9]*\"$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccessRuleDeleted"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connection-access/resolve": {
+      "post": {
+        "operationId": "resolveConnectionAccess",
+        "summary": "Preview connection access for a run",
+        "tags": [
+          "connections"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "connections:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "connections:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionAccessResolutionPage"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Current quoted connection access version."
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionAccessResolve"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9062,7 +10059,87 @@
           "result": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Versioned metadata; secrets and unbounded arbitrary payloads are prohibited."
+            "description": "Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.",
+            "properties": {
+              "workspace_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "checkpoint_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "path": {
+                "type": "string",
+                "description": "Created, saved, renamed, or removed path for a file mutation."
+              },
+              "previous_path": {
+                "type": "string",
+                "description": "Original path for a file rename."
+              },
+              "entry": {
+                "$ref": "#/components/schemas/FileEntry",
+                "description": "Authoritative resulting file or directory entry, absent for deletion."
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "transfer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "delivery_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "local_receipt_complete": {
+                "type": "boolean"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "git_bundle",
+                  "portable_archive"
+                ]
+              },
+              "download_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "manifest_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "size_bytes": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "manifest_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "export_commit": {
+                "type": "string"
+              },
+              "source_commit": {
+                "type": "string"
+              },
+              "sync": {
+                "$ref": "#/components/schemas/GitSync"
+              }
+            }
           },
           "error": {
             "$ref": "#/components/schemas/ErrorDetail"
@@ -9132,6 +10209,9 @@
               "target_branch"
             ],
             "additionalProperties": false
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
           }
         },
         "required": [
@@ -9185,6 +10265,9 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
           }
         },
         "required": [],
@@ -9284,6 +10367,12 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
+          },
+          "connections": {
+            "$ref": "#/components/schemas/ContextualConnectionPage"
           }
         },
         "required": [
@@ -9299,22 +10388,35 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 151,
+            "description": "Optional. Leave empty for smart naming."
           },
           "checkpoint_id": {
             "type": "string",
             "format": "uuid"
           },
           "branch": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 151,
+            "description": "Optional. Leave empty for smart naming."
           },
           "source": {
             "$ref": "#/components/schemas/WorkspaceSource"
+          },
+          "branch_mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "new",
+              "existing"
+            ],
+            "description": "Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch."
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
           }
         },
-        "required": [
-          "name"
-        ],
         "additionalProperties": false,
         "not": {
           "required": [
@@ -9322,7 +10424,7 @@
             "checkpoint_id"
           ]
         },
-        "description": "Independent remote clone and branch. Omit source for project default. Legacy checkpoint_id and source are mutually exclusive. Never uploads a local folder."
+        "description": "Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder."
       },
       "Workspace": {
         "type": "object",
@@ -9340,10 +10442,16 @@
             "format": "uuid"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "branch": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "revision": {
             "type": "string"
@@ -9414,6 +10522,9 @@
               }
             },
             "additionalProperties": false
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
           }
         },
         "required": [
@@ -9702,7 +10813,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9715,18 +10829,21 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
@@ -9751,7 +10868,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9764,18 +10884,24 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
@@ -9795,7 +10921,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9808,18 +10937,21 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
@@ -9838,6 +10970,9 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "connections": {
+            "$ref": "#/components/schemas/ContextualConnectionPage"
           }
         },
         "required": [
@@ -9864,7 +10999,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9874,18 +11012,21 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
@@ -9916,7 +11057,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9930,21 +11074,38 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agent_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
           }
         },
         "required": [
@@ -9985,7 +11146,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "model": {
@@ -9995,18 +11159,21 @@
             "type": "string",
             "enum": [
               "byok",
-              "managed"
+              "managed",
+              "subscription"
             ]
           },
           "provider_connection_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated."
           },
           "connection_grants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Grant"
-            }
+            },
+            "description": "Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access."
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
@@ -10035,6 +11202,16 @@
           "queue_if_busy": {
             "type": "boolean",
             "description": "Only session follow-ups can queue behind workspace work."
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
+          },
+          "connection_access_overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "description": "Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults."
           }
         },
         "required": [
@@ -10141,6 +11318,23 @@
               "interactive"
             ],
             "description": "Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee."
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
+          },
+          "connection_grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "description": "Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access."
+          },
+          "connection_access_overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "description": "Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults."
           }
         },
         "required": [
@@ -10357,7 +11551,10 @@
               "cli",
               "sdk",
               "api",
-              "internal"
+              "internal",
+              "slack",
+              "webhook",
+              "scheduled"
             ]
           },
           "client_version": {
@@ -10404,6 +11601,26 @@
             ],
             "format": "date-time",
             "description": "Set when execution is claimed. Includes provisioning and persistence; separate from the queue deadline."
+          },
+          "permission_layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentPermissions"
+            }
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agent_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
           }
         },
         "required": [
@@ -10602,7 +11819,10 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Editable display name. Does not change the stable connection ID or any agent selection."
           },
           "kind": {
             "type": "string",
@@ -10611,7 +11831,8 @@
               "mcp_remote",
               "mcp_stdio",
               "composio",
-              "search"
+              "search",
+              "claude_subscription"
             ]
           },
           "provider": {
@@ -10629,7 +11850,8 @@
               "bearer",
               "headers",
               "api_key",
-              "none"
+              "none",
+              "claude_code"
             ]
           },
           "secret": {
@@ -10657,9 +11879,6 @@
               "type": "string"
             }
           },
-          "subject_id": {
-            "type": "string"
-          },
           "secret_env": {
             "type": "object",
             "additionalProperties": {
@@ -10667,6 +11886,9 @@
             },
             "writeOnly": true,
             "description": "Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox."
+          },
+          "api_fallback": {
+            "$ref": "#/components/schemas/ClaudeApiFallback"
           }
         },
         "required": [
@@ -10680,7 +11902,10 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Editable display name. Does not change the stable connection ID or any agent selection."
           },
           "kind": {
             "type": "string",
@@ -10689,7 +11914,8 @@
               "mcp_remote",
               "mcp_stdio",
               "composio",
-              "search"
+              "search",
+              "claude_subscription"
             ]
           },
           "provider": {
@@ -10707,7 +11933,8 @@
               "bearer",
               "headers",
               "api_key",
-              "none"
+              "none",
+              "claude_code"
             ]
           },
           "secret": {
@@ -10735,9 +11962,6 @@
               "type": "string"
             }
           },
-          "subject_id": {
-            "type": "string"
-          },
           "secret_env": {
             "type": "object",
             "additionalProperties": {
@@ -10745,6 +11969,9 @@
             },
             "writeOnly": true,
             "description": "Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox."
+          },
+          "api_fallback": {
+            "$ref": "#/components/schemas/ClaudeApiFallback"
           }
         },
         "required": [],
@@ -10758,7 +11985,10 @@
             "format": "uuid"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Editable display name. Does not change the stable connection ID or any agent selection."
           },
           "kind": {
             "type": "string",
@@ -10768,7 +11998,8 @@
               "mcp_stdio",
               "github",
               "composio",
-              "search"
+              "search",
+              "claude_subscription"
             ]
           },
           "provider": {
@@ -10807,6 +12038,23 @@
           },
           "package_version": {
             "type": "string"
+          },
+          "account_identity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state."
+          },
+          "api_fallback": {
+            "$ref": "#/components/schemas/ClaudeApiFallback"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "pending_approval"
+            ],
+            "description": "Present on gated Claude subscription connections. No subscription login or execution is currently enabled."
           }
         },
         "required": [
@@ -11332,8 +12580,7 @@
           }
         },
         "required": [
-          "url",
-          "expires_at"
+          "url"
         ],
         "additionalProperties": false
       },
@@ -11345,7 +12592,10 @@
             "enum": [
               "codex",
               "claude-code",
-              "opencode"
+              "opencode",
+              "hermes",
+              "deepseek",
+              "pi"
             ]
           },
           "version": {
@@ -11399,6 +12649,20 @@
           },
           "rate_card_version": {
             "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name of the reviewed model."
+          },
+          "input_micro_usd_per_million": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot."
+          },
+          "output_micro_usd_per_million": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Current retail micro-USD per million output tokens, including reported reasoning tokens."
           }
         },
         "required": [
@@ -11407,7 +12671,10 @@
           "harnesses",
           "enabled",
           "billing_modes",
-          "rate_card_version"
+          "rate_card_version",
+          "name",
+          "input_micro_usd_per_million",
+          "output_micro_usd_per_million"
         ],
         "additionalProperties": false
       },
@@ -11802,40 +13069,6 @@
           "action_executed"
         ]
       },
-      "ConnectionGrantSet": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "subject_type": {
-            "type": "string",
-            "enum": [
-              "organization",
-              "user",
-              "external_subject"
-            ]
-          },
-          "subject_id": {
-            "type": "string"
-          },
-          "tools": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          }
-        },
-        "required": [
-          "version",
-          "subject_type",
-          "tools"
-        ],
-        "description": "Compare-and-set grant revision. Subject ownership and granting authority are validated server-side."
-      },
       "CheckpointPatch": {
         "type": "object",
         "properties": {
@@ -11893,12 +13126,13 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 151
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": [],
         "additionalProperties": false
       },
       "CliCapabilities": {
@@ -13876,6 +15110,849 @@
         "required": [
           "id",
           "name"
+        ],
+        "additionalProperties": false
+      },
+      "ClaudeApiFallback": {
+        "type": "object",
+        "properties": {
+          "connection_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Your Anthropic API-key connection. No implicit managed-key fallback."
+          },
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$",
+            "description": "Positive per-run API spending ceiling, including in-flight request reservations. Infrastructure is charged separately."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "False disables fallback and clears the saved backup selection. True requires an owned connection_id and a positive max_cost_micro_usd."
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false,
+        "description": "Optional per-run policy for confirmed subscription quota exhaustion before native execution starts. Disabled by default. Subscription execution is currently gated."
+      },
+      "FolderCreate": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Relative workspace path without traversal, empty segments, or reserved platform paths."
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "FileRename": {
+        "type": "object",
+        "properties": {
+          "new_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Relative workspace path without traversal, empty segments, or reserved platform paths."
+          }
+        },
+        "required": [
+          "new_path"
+        ],
+        "additionalProperties": false
+      },
+      "WorktreeOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "branches",
+          "valid"
+        ],
+        "properties": {
+          "branches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "ref",
+                "workspace_id"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                },
+                "workspace_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "branch_exists": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "FileDuplicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "new_path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "new_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        }
+      },
+      "PermissionPatterns": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Case-sensitive worktree-relative glob rules (*, **, ?). Omitted include inherits all; an empty include allows none. Exclusions always win.",
+        "properties": {
+          "include": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        }
+      },
+      "AgentPermissions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "description": "Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "read": {
+                "$ref": "#/components/schemas/PermissionPatterns"
+              },
+              "write": {
+                "$ref": "#/components/schemas/PermissionPatterns"
+              }
+            }
+          },
+          "shell": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "tools": {
+            "$ref": "#/components/schemas/PermissionPatterns"
+          }
+        }
+      },
+      "ConnectionAccess": {
+        "type": "object",
+        "properties": {
+          "connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "organization_wide": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "rule_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "can_grant": {
+            "type": "boolean"
+          },
+          "can_revoke": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "connection_id",
+          "version",
+          "organization_wide",
+          "tools",
+          "rule_count",
+          "can_grant",
+          "can_revoke"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessPatch": {
+        "type": "object",
+        "properties": {
+          "organization_wide": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "ConnectionAccessRuleInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "project"
+                ]
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "scope",
+              "project_id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "agent"
+                ]
+              },
+              "agent_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "scope",
+              "agent_id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "project_agent"
+                ]
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "agent_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "scope",
+              "project_id",
+              "agent_id"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ConnectionAccessRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "project",
+              "agent",
+              "project_agent"
+            ]
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "project_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agent_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unavailable": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "connection_id",
+          "scope",
+          "project_id",
+          "agent_id",
+          "project_name",
+          "agent_name",
+          "unavailable",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessRulePage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionAccessRule"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessRuleMutation": {
+        "type": "object",
+        "properties": {
+          "rule": {
+            "$ref": "#/components/schemas/ConnectionAccessRule"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          }
+        },
+        "required": [
+          "rule",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessRuleDeleted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessMatch": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "organization",
+                "project",
+                "agent",
+                "project_agent"
+              ]
+            }
+          },
+          "conditional": {
+            "type": "boolean"
+          },
+          "matched_rule_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "matching_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionAccessRuleMatch"
+            },
+            "maxItems": 3
+          },
+          "matching_rules_truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scopes",
+          "conditional",
+          "matched_rule_count",
+          "matching_rules",
+          "matching_rules_truncated"
+        ],
+        "additionalProperties": false
+      },
+      "ContextualConnection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Editable display name. Does not change the stable connection ID or any agent selection."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "model",
+              "mcp_remote",
+              "mcp_stdio",
+              "github",
+              "composio",
+              "search",
+              "claude_subscription"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "description": "For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "auth_method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "healthy",
+              "expired",
+              "error"
+            ]
+          },
+          "owner_subject_id": {
+            "type": "string"
+          },
+          "last_checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "package": {
+            "type": "string"
+          },
+          "package_version": {
+            "type": "string"
+          },
+          "account_identity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state."
+          },
+          "api_fallback": {
+            "$ref": "#/components/schemas/ClaudeApiFallback"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "pending_approval"
+            ],
+            "description": "Present on gated Claude subscription connections. No subscription login or execution is currently enabled."
+          },
+          "access_match": {
+            "$ref": "#/components/schemas/ConnectionAccessMatch"
+          },
+          "approved_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Approved tool names only; this selection ceiling does not authorize execution."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "auth_method",
+          "status",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "ContextualConnectionPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContextualConnection"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessResolution": {
+        "type": "object",
+        "properties": {
+          "connection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "project",
+              "agent",
+              "project_agent",
+              "run_override",
+              "none"
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "rejection_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "access_match": {
+            "$ref": "#/components/schemas/ConnectionAccessMatch"
+          },
+          "can_override": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "connection_id",
+          "name",
+          "tools",
+          "source",
+          "ready",
+          "rejection_codes",
+          "access_match",
+          "can_override"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessResolutionPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionAccessResolution"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionAccessResolve": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connection_grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            }
+          },
+          "connection_access_overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            }
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissions"
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "project_id"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "workspace_id"
+                  ]
+                },
+                {
+                  "required": [
+                    "session_id"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "workspace_id"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "project_id"
+                  ]
+                },
+                {
+                  "required": [
+                    "session_id"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "session_id"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "project_id"
+                  ]
+                },
+                {
+                  "required": [
+                    "workspace_id"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ConnectionAccessRuleMatch": {
+        "type": "object",
+        "description": "An authorized, bounded rule sample for explaining contextual access. Never use a sample as an authorization decision.",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "project",
+              "agent",
+              "project_agent"
+            ]
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "project_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agent_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rule_id",
+          "scope"
         ],
         "additionalProperties": false
       }

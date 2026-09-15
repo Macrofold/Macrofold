@@ -1,44 +1,79 @@
 # Macrofold documentation
 
-> Persistent cloud agents with projects, files, Git, an API, and a terminal CLI.
+> Persistent agents on Macrofold Cloud or your own infrastructure. Start with Build with AI or the API quickstart.
 
-- [Documentation](docs/README.md): Build with persistent cloud agents from the dashboard, API, or terminal.
-- [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
-- [Run and test](docs/getting-started/local-development.md): Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries.
-- [Local simulation](docs/getting-started/local-development/simulation.md): Start the local app and worker, invoke the API, and test customer journeys without paid agent calls.
-- [Local Docker agents](docs/getting-started/local-development/docker.md): Run real harness fixtures in Docker and understand the missing API-to-container integration.
-- [Cloud staging](docs/getting-started/local-development/cloud.md): Invoke real agents through a staging API and distinguish complete execution from provider-only tests.
-- [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
-- [Dashboard](docs/features/dashboard/README.md): Navigate projects, files, run history, access, and usage.
-- [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
-- [Triggers](docs/features/triggers/README.md): Start agents from Slack, incoming webhooks or recurring prompts.
-- [Slack bots](docs/features/triggers/slack.md): Connect a Slack bot to a persistent project and reply to messages.
-- [Incoming webhooks](docs/features/triggers/webhooks.md): Create authenticated incoming endpoints with safe event retries.
-- [Scheduled tasks](docs/features/triggers/scheduled-tasks.md): Save recurring prompts with cron, timezones, history and run-now controls.
-- [Workspaces and Git](docs/features/workspaces/README.md): Persist files, create branches, restore checkpoints, and synchronize GitHub.
-- [Read persisted files](docs/features/workspaces/read-files.md): Retrieve complete saved file contents by path through HTTP or any Macrofold SDK.
-- [Connections and access](docs/features/identity-integrations/README.md): Bring provider keys and grant agents access to applications and MCP tools.
-- [Web search](docs/features/identity-integrations/web-search.md): Configure a search provider and understand search behavior and billing.
-- [Billing and limits](docs/features/billing/README.md): Understand plans, concurrency, budgets, reserved credits, and retention.
+## Start here
+
+- [Documentation](docs/README.md): Build with persistent agents on Macrofold Cloud or your own infrastructure.
+- [Build with AI](docs/getting-started/agents.md): Give your coding agent a setup prompt and direct links to current Macrofold documentation.
 - [API quickstart](docs/features/api/quickstart.md): Create a project and stream your first API-triggered run.
-- [API conventions](docs/features/api/README.md): Authenticate requests, paginate results, handle errors, and retry mutations.
-- [Streaming and webhooks](docs/features/api/events.md): Reconnect to run events and verify reliable webhook delivery.
-- [Terminal CLI](docs/features/cli/README.md): Link a project, chat remotely, use worktrees, and transfer files.
+- [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
+- [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
+
+## Build with the API
+
+- [Customer agents](docs/features/customer-agents/README.md): Keep customer identity, files, conversations and scheduled work connected.
+- [File memory starter](docs/features/customer-agents/memory.md): Install an optional editable memory and task convention.
+- [Personal agent example](examples/personal-agent/README.md): Run a complete customer-isolated personal agent app and adapt its ownership, persistence and recovery boundaries.
+- [Customer data recipes](examples/integrations/README.md): Connect Supabase, Prisma, Pinecone or a customer-scoped MCP server with runnable local fixtures.
+- [API overview](docs/features/api/README.md): Connect your application, start an agent, and retrieve its finished work.
 - [SDKs](docs/features/api/sdks/README.md): Choose a Macrofold client for TypeScript, Python, Go, Rust, or Java.
 - [TypeScript SDK](sdk/typescript/README.md): Use typed requests and recoverable event streams in TypeScript.
 - [Python SDK](sdk/python/README.md): Integrate runs and durable streams with the Python client.
 - [Go SDK](sdk/go/README.md): Make typed API requests and stream agent progress in Go.
 - [Rust SDK](sdk/rust/README.md): Make typed API requests and stream agent progress in Rust.
 - [Java SDK](sdk/java/README.md): Make typed API requests and stream agent progress in Java.
-- [SDK method reference](docs/features/api/sdks/reference.md): Find the resource method for every public operation in all five languages.
+- [Terminal CLI](docs/features/cli/README.md): Link a project, chat remotely, use worktrees, and transfer files.
+
+## Cloud and self-hosting
+
+- [Macrofold Cloud](docs/cloud/README.md): Connect to the managed service and start building without operating infrastructure.
 - [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
+
+## Guides
+
+- [Dashboard](docs/features/dashboard/README.md): Navigate projects, files, run history, access, and usage.
+- [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
+- [Agent harnesses](docs/features/execution/harnesses.md): Choose Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi for persistent cloud work.
+- [Agent permissions](docs/features/execution/permissions.md): Restrict files and tools at the project, worktree and run level.
+- [Model catalog](docs/features/execution/models.md): Choose built-in models, understand discovery and caching, and preserve accepted run prices.
+- [Workspaces and Git](docs/features/workspaces/README.md): Persist files, create branches, restore checkpoints, and synchronize GitHub.
+- [Share a workspace](docs/features/workspaces/shared-agents.md): Hand persisted files between agents and choose independent workspaces for parallel work.
+- [Read persisted files](docs/features/workspaces/read-files.md): Retrieve complete saved file contents by path through HTTP or any Macrofold SDK.
+- [Connections and access](docs/features/identity-integrations/README.md): Bring provider keys and grant agents access to applications and MCP tools.
+- [Connector access rules](docs/features/identity-integrations/connection-access.md): Approve tools, configure project and preset permissions, and preview one-run access.
+- [Named accounts](docs/features/identity-integrations/named-connections.md): Connect multiple accounts, select authentication in presets, and understand Claude subscription availability.
+- [Connector directory](docs/features/identity-integrations/catalog.md): Browse application toolkits, native integrations, and custom MCP connection options.
+- [Web search](docs/features/identity-integrations/web-search.md): Configure a search provider and understand search behavior and billing.
+- [Triggers](docs/features/triggers/README.md): Start agents from Slack, incoming webhooks or recurring prompts.
+- [Slack bots](docs/features/triggers/slack.md): Connect a Slack bot to a persistent project and reply to messages.
+- [Incoming webhooks](docs/features/triggers/webhooks.md): Create authenticated incoming endpoints with safe event retries.
+- [Scheduled tasks](docs/features/triggers/scheduled-tasks.md): Save recurring prompts with cron, timezones, history and run-now controls.
+- [Billing and limits](docs/features/billing/README.md): Understand plans, concurrency, budgets, reserved credits, and retention.
+
+## Reference
+
+- [API conventions](docs/features/api/conventions.md): Authentication, idempotency, errors, pagination, and asynchronous operations.
+- [Streaming and webhooks](docs/features/api/events.md): Reconnect to run events and verify reliable webhook delivery.
+- [HTTP quickstart](docs/features/api/http-quickstart.md): Create a project and run using cURL, with explicit request identities and streaming.
+- [SDK method reference](docs/features/api/sdks/reference.md): Find the resource method for every public operation in all five languages.
+- [Troubleshooting](docs/getting-started/troubleshooting.md): Recover from setup failures, access errors, interrupted streams, and conflicting edits.
+
+## Deploy and operate
+
 - [Deploy on Vercel](docs/operations/launch-guide.md): Configure and deploy the application, database, storage, and native runtime.
 - [Environment configuration](docs/operations/launch-environment.md): Keep local, runtime, and migration configuration separate.
 - [PostgreSQL and Neon](docs/operations/neon.md): Configure restricted roles, connection pooling, migrations, and recovery.
 - [Provider integrations](docs/operations/launch-integrations.md): Register models, tools, billing, storage, email, and GitHub.
 - [Usage and operator reporting](docs/features/operations/README.md): Read activity, execution demand, account metrics, and management MCP reports.
-- [Troubleshooting](docs/getting-started/troubleshooting.md): Recover from setup failures, access errors, interrupted streams, and conflicting edits.
-- [Read with an agent](docs/getting-started/agents.md): Discover Markdown guides, schemas, and navigation indexes for coding agents.
+
+## Development
+
+- [Run and test](docs/getting-started/local-development.md): Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries.
+- [Local simulation](docs/getting-started/local-development/simulation.md): Start the local app and worker, invoke the API, and test customer journeys without paid agent calls.
+- [Local Docker agents](docs/getting-started/local-development/docker.md): Run agents through the local API with Docker, persistent files, and free protocol tests.
+- [Cloud staging](docs/getting-started/local-development/cloud.md): Invoke real agents through a staging API and distinguish complete execution from provider-only tests.
+- [Unified Harness Interface](docs/features/execution/unified-harness-interface.md): Contribute a native harness with the shared adapter contract, runtime integration, and deterministic tests.
 
 ## Contracts and contributors
 

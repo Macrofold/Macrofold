@@ -63,7 +63,7 @@ for (const [provider, label] of [
     await expect(card).toContainText(`${label} · Your API key`);
     await card.getByRole('button', { name: 'Tools', exact: true }).click();
     await page.getByRole('checkbox', { name: /web_search/ }).check();
-    await page.getByRole('button', { name: 'Save permissions' }).click();
+    await page.getByRole('button', { name: 'Save tools' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await card.getByRole('button', { name: 'Tools', exact: true }).click();
     await expect(page.getByRole('checkbox', { name: /web_search/ })).toBeChecked();

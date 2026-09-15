@@ -16,7 +16,7 @@ if (paths.size !== manifest.length || new Set(manifest.map((page) => page.slug))
 // Only explicitly published files are included. Never crawl the checkout or private launch artifacts.
 const pages = await Promise.all(
   manifest.map(async (page) => {
-    if (!/^(docs|sdk)\/[\w/.-]+\.md$/.test(page.source) || page.source.split('/').includes('..'))
+    if (!/^(docs|sdk|examples)\/[\w/.-]+\.md$/.test(page.source) || page.source.split('/').includes('..'))
       throw new Error('Invalid public documentation source');
     if (page.slug && !/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(page.slug))
       throw new Error('Invalid documentation slug');
@@ -38,8 +38,17 @@ const outputs = new Map([
   ['apps/web/lib/docs/generated.json', JSON.stringify(pages, null, 2) + '\n'],
   [
     'llms.txt',
-    '# Macrofold documentation\n\n> Persistent cloud agents with projects, files, Git, an API, and a terminal CLI.\n\n' +
-      manifest.map((page) => `- [${page.title}](${page.source}): ${page.description}`).join('\n') +
+    '# Macrofold documentation\n\n> Persistent agents on Macrofold Cloud or your own infrastructure. Start with Build with AI or the API quickstart.\n\n' +
+      [...new Set(manifest.map((page) => page.section))]
+        .map(
+          (section) =>
+            `## ${section}\n\n` +
+            manifest
+              .filter((page) => page.section === section)
+              .map((page) => `- [${page.title}](${page.source}): ${page.description}`)
+              .join('\n'),
+        )
+        .join('\n\n') +
       '\n\n## Contracts and contributors\n\n- [OpenAPI](docs/api/openapi.json)\n- [CLI commands](docs/api/cli.json)\n- [Management MCP](docs/api/admin-mcp.json)\n- [Codebase map](docs/architecture/codebase.md)\n- [Contributor instructions](AGENTS.md)\n',
   ],
 ]);

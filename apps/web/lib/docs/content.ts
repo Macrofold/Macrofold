@@ -39,3 +39,11 @@ export function absoluteMarkdown(page: DocPage, origin: string) {
     return `](${origin}${linked ? markdownUrl(linked.slug) : pathname}${fragment ? '#' + fragment : ''})`;
   });
 }
+
+/** Keep the copyable onboarding brief in the published guide, not a second template. */
+export function setupPrompt(origin: string) {
+  const page = findPage('agents');
+  const prompt = page?.markdown.match(/^```prompt\n([\s\S]*?)^```$/m)?.[1];
+  if (!page || !prompt) throw new Error('The AI onboarding guide must contain a setup prompt');
+  return absoluteMarkdown({ ...page, markdown: prompt.trim() }, origin);
+}

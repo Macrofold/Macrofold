@@ -26,6 +26,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 
 - [ ] The immutable Linux AMD64 runtime image is ready and compatible with the selected model catalog and provider routes.
 - [ ] Each supported native harness performs a bounded task, emits usage/output, saves a checkpoint, and continues in a fresh sandbox.
+- [ ] Accept the pinned Hermes, DeepSeek Harness and Pi image on Linux AMD64 and Vercel with each reviewed model/funding route. Local ARM64 fixtures do not establish cloud startup, real inference or provider invoices; follow [harness acceptance](../engineering/testing/harnesses.md).
 - [ ] Run `pnpm test:journey:docker` against the release image with scripted providers, then `pnpm test:journey:live` against isolated staging for each reviewed harness/model and funding route. Follow the [budgeted live guide](../getting-started/local-development/cloud.md#test-a-real-agent-journey); verify dashboard state, deployed Workflow handoff, storage writes and sandbox cleanup separately. Neither narrow native fixtures nor gateway-only live calls establish this complete journey.
 - [ ] Managed and BYOK calls use the intended credentials. Revoked BYOK never falls back to a platform key. Provider usage and application settlement reconcile.
 - [ ] Cancellation, input races, execution timeout, unknown launch acknowledgment, fencing, Workflow continuation, and worker recovery preserve one execution identity.
@@ -72,3 +73,7 @@ Use [implementation status](../status/README.md), [testing and CI](../engineerin
 ## Slack triggers and scheduled tasks
 
 Apply migration 028 and verify the existing maintenance worker/cron. Use the [Slack setup guide](../features/triggers/slack.md) with a synthetic test workspace and the [trigger acceptance checklist](../engineering/testing/triggers.md#remaining-live-acceptance). Verify the public HTTPS callback, signed challenge, bot/channel permissions, threaded reply and scheduled run before enabling customer automation. Local fixtures do not prove Slack callback timing or Vercel cron delivery. Real model execution requires a separately approved budget.
+
+## Model catalog acceptance
+
+Apply migration 029 and run `pnpm models:status` in the intended environment. Verify hourly maintenance refresh across instances, provider-list entitlements, sanitized discovery failures, cache recovery after a cold start, and OpenRouter pricing/capability eligibility. Direct-provider price changes require a reviewed policy release; compare policy prices with vendor invoices before launch. Native execution acceptance still requires separately approved inference and sandbox budgets. No catalog refresh proves a complete agent journey.

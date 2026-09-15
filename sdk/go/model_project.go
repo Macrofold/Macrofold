@@ -34,6 +34,8 @@ type Project struct {
 	Revision *string `json:"revision,omitempty"`
 	DeletionDueAt NullableTime `json:"deletion_due_at,omitempty"`
 	DeletionRequestedAt NullableTime `json:"deletion_requested_at,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	Connections *ContextualConnectionPage `json:"connections,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -435,6 +437,70 @@ func (o *Project) UnsetDeletionRequestedAt() {
 	o.DeletionRequestedAt.Unset()
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *Project) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Project) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *Project) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *Project) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
+// GetConnections returns the Connections field value if set, zero value otherwise.
+func (o *Project) GetConnections() ContextualConnectionPage {
+	if o == nil || IsNil(o.Connections) {
+		var ret ContextualConnectionPage
+		return ret
+	}
+	return *o.Connections
+}
+
+// GetConnectionsOk returns a tuple with the Connections field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Project) GetConnectionsOk() (*ContextualConnectionPage, bool) {
+	if o == nil || IsNil(o.Connections) {
+		return nil, false
+	}
+	return o.Connections, true
+}
+
+// HasConnections returns a boolean if a field has been set.
+func (o *Project) HasConnections() bool {
+	if o != nil && !IsNil(o.Connections) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnections gets a reference to the given ContextualConnectionPage and assigns it to the Connections field.
+func (o *Project) SetConnections(v ContextualConnectionPage) {
+	o.Connections = &v
+}
+
 func (o Project) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -470,6 +536,12 @@ func (o Project) ToMap() (map[string]interface{}, error) {
 	}
 	if o.DeletionRequestedAt.IsSet() {
 		toSerialize["deletion_requested_at"] = o.DeletionRequestedAt.Get()
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
+	}
+	if !IsNil(o.Connections) {
+		toSerialize["connections"] = o.Connections
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -530,6 +602,8 @@ func (o *Project) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "revision")
 		delete(additionalProperties, "deletion_due_at")
 		delete(additionalProperties, "deletion_requested_at")
+		delete(additionalProperties, "permissions")
+		delete(additionalProperties, "connections")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -13,7 +13,7 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 const browserRequest = (url: string, init: RequestInit) =>
   new Proxy(new Request(url, init), { get: (target, key) => Reflect.get(target, key, target) });
 const endpoint = 'https://mcp.example.test/mcp';
-let account: Awaited<ReturnType<typeof fixtureAccount>>, connection: resources.Document;
+let account: Awaited<ReturnType<typeof fixtureAccount>>, connection: resources.Document<'connections'>;
 let verifier = '',
   challenge = '',
   exchanges = 0,

@@ -4,55 +4,20 @@ import { assert, errorBody } from './errors';
 import { id, unseal } from './crypto';
 import { getRun } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
-import { models, computeMaximum, type Model } from './catalog';
+import { computeMaximum, type Model } from './catalog';
 import * as resources from './resources';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
+import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
+import { modelProtocol } from '../../providers/src/model-protocols';
 
-const endpoints = {
-  openai: { base: 'https://api.openai.com', paths: ['v1/responses', 'v1/chat/completions'] },
-  anthropic: { base: 'https://api.anthropic.com', paths: ['v1/messages', 'v1/messages/count_tokens'] },
-  openrouter: { base: 'https://openrouter.ai/api', paths: ['v1/chat/completions'] },
-} as const;
-type Usage = { input: number; output: number; cached: number; cacheWrite: number; complete: boolean };
-const emptyUsage = (): Usage => ({ input: 0, output: 0, cached: 0, cacheWrite: 0, complete: false });
-export function usageFromEvent(provider: string, event: Record<string, unknown>, previous: Usage): Usage {
-  const next = { ...previous };
-  if (provider === 'anthropic') {
-    const message = event.message as { usage?: Record<string, number> } | undefined;
-    const usage = (event.usage || message?.usage) as Record<string, number> | undefined;
-    if (usage) {
-      if (usage.input_tokens !== undefined) next.input = usage.input_tokens;
-      if (usage.output_tokens !== undefined) next.output = usage.output_tokens;
-      if (usage.cache_read_input_tokens !== undefined) next.cached = usage.cache_read_input_tokens;
-      if (usage.cache_creation_input_tokens !== undefined)
-        next.cacheWrite = usage.cache_creation_input_tokens;
-    }
-    if (event.type === 'message_stop' || (event.type === 'message' && usage)) next.complete = true;
-  } else {
-    const response = event.response as { usage?: Record<string, unknown> } | undefined;
-    const usage = (event.usage || response?.usage) as Record<string, unknown> | undefined;
-    if (usage) {
-      next.input = Number(usage.input_tokens ?? usage.prompt_tokens ?? 0);
-      next.output = Number(usage.output_tokens ?? usage.completion_tokens ?? 0);
-      next.cached = Number(
-        (usage.input_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens ||
-          (usage.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens ||
-          0,
-      );
-      next.complete = true;
-    }
-  }
-  return next;
-}
 function roundedCost(tokens: number, rate: string) {
   return (BigInt(Math.max(0, Math.ceil(tokens))) * BigInt(rate) + 999999n) / 1000000n;
 }
 export function costForUsage(model: Model, usage: Usage) {
   // Published retail rates remain stable for the run; cache writes conservatively use 2× input.
-  const input =
-    model.provider === 'anthropic' ? usage.input + usage.cacheWrite * 2 + usage.cached : usage.input;
+  const input = usage.input + usage.cacheWrite;
   return (
     roundedCost(input, model.input_micro_usd_per_million) +
     roundedCost(usage.output, model.output_micro_usd_per_million)
@@ -81,54 +46,6 @@ function rejectUnmeteredContent(value: unknown) {
     );
   for (const child of Object.values(object)) rejectUnmeteredContent(child);
 }
-/** Model-side tools can create separately billed containers, searches or connector actions.
- * Only reviewed client-executed forms belong on this text-token-metered route. Unknown
- * future tool types fail closed rather than bypassing the platform tool broker. */
-function requireClientTools(payload: Record<string, unknown>, provider: string, path: string) {
-  for (const field of ['mcp_servers', 'plugins', 'web_search_options', 'container']) {
-    const value = payload[field];
-    assert(
-      value == null || (Array.isArray(value) && value.length === 0),
-      400,
-      'unsupported_model_content',
-      'Hosted model tools require a separately metered route. Use the platform tool broker.',
-    );
-    // SDKs may serialize unused optional collections. Empty values enable no service
-    // and can be omitted without forwarding another provider's configuration fields.
-    delete payload[field];
-  }
-  if (payload.tools === undefined) return;
-  assert(Array.isArray(payload.tools), 400, 'invalid_request', 'Model tools must be an array.');
-  const clientTool = (value: unknown, nested = false): boolean => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-    const tool = value as Record<string, unknown>;
-    if (provider === 'anthropic')
-      return (
-        tool.type === undefined ||
-        [
-          'custom',
-          'bash_20250124',
-          'text_editor_20250124',
-          'text_editor_20250728',
-          'memory_20250818',
-        ].includes(String(tool.type))
-      );
-    if (!path.endsWith('responses')) return tool.type === 'function';
-    if (tool.type === 'function' || tool.type === 'custom') return true;
-    if (nested) return false;
-    if (tool.type === 'namespace')
-      return Array.isArray(tool.tools) && tool.tools.every((child) => clientTool(child, true));
-    if (tool.type === 'shell')
-      return (tool.environment as Record<string, unknown> | undefined)?.type === 'local';
-    return tool.type === 'local_shell' || tool.type === 'apply_patch';
-  };
-  assert(
-    payload.tools.every((tool) => clientTool(tool)),
-    400,
-    'unsupported_model_content',
-    'This model route accepts client-executed tools only. Use the platform tool broker for hosted tools.',
-  );
-}
 async function reserveRequest(cap: RuntimeCapability, payload: Record<string, unknown>, path: string) {
   return transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
@@ -148,14 +65,14 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'run_timeout',
       'The run deadline has passed.',
     );
-    const model = run.config.rate_card || models().find((m) => m.id === run.config.model && m.enabled);
+    const model = run.config.rate_card;
     assert(
       model && model.id === payload.model,
       403,
       'model_not_authorized',
       'This model is not authorized for the run.',
     );
-    const endpoint = endpoints[model.provider as keyof typeof endpoints];
+    const protocol = modelProtocol(model.provider);
     const blocked = await tx.query(
       'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
       [`model:${model.provider}:${model.id}`],
@@ -167,12 +84,24 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'This model is paused pending operator review of its metering.',
     );
     assert(
-      endpoint && (endpoint.paths as readonly string[]).includes(path),
+      protocol && protocol.paths.includes(path),
       403,
       'endpoint_not_authorized',
       'This model endpoint is not authorized.',
     );
-    requireClientTools(payload, model.provider, path);
+    const maxOutput = Math.min(
+      8192,
+      Math.max(
+        1,
+        Number(payload.max_output_tokens || payload.max_completion_tokens || payload.max_tokens || 4096),
+      ),
+    );
+    assert(Number.isInteger(maxOutput), 400, 'invalid_request', 'Maximum output tokens must be an integer.');
+    protocol.prepare(payload, path, {
+      maxOutput,
+      inputMicroUsdPerMillion: model.input_micro_usd_per_million,
+      outputMicroUsdPerMillion: model.output_micro_usd_per_million,
+    });
     let secret: string;
     if (run.config.billing_mode === 'byok') {
       const connection = await resources.get(tx, 'connections', run.config.provider_connection_id!);
@@ -186,6 +115,12 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       );
       secret = unseal<string>(String(connection.secret_ciphertext));
     } else {
+      assert(
+        run.config.billing_mode === 'managed',
+        403,
+        'funding_method_unavailable',
+        'This run is not authorized to use managed API credentials.',
+      );
       secret = process.env[`${model.provider.toUpperCase()}_API_KEY`] || '';
       assert(secret, 503, 'provider_not_configured', 'The managed model provider is not configured.');
     }
@@ -193,33 +128,19 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     if (path.endsWith('count_tokens'))
       return {
         requestId,
+        protocol,
         model,
         secret,
-        url: `${endpoint.base}/${path}`,
+        url: `${protocol.base}/${path}`,
         reserved: 0n,
         metered: false,
         deadline: run.deadline,
       };
-    const maxOutput = Math.min(
-      8192,
-      Math.max(
-        1,
-        Number(payload.max_output_tokens || payload.max_completion_tokens || payload.max_tokens || 4096),
-      ),
-    );
-    assert(Number.isInteger(maxOutput), 400, 'invalid_request', 'Maximum output tokens must be an integer.');
-    if (path.endsWith('responses')) payload.max_output_tokens = maxOutput;
-    else if (model.provider === 'anthropic') payload.max_tokens = maxOutput;
-    else {
-      delete payload.max_tokens;
-      payload.max_completion_tokens = maxOutput;
-      if (payload.stream) payload.stream_options = { include_usage: true };
-    }
     // UTF-8 bytes are a conservative text token bound. Hosted tools, media, background
     // responses, and premium service tiers are rejected/disabled before authorization.
     const inputBound = Buffer.byteLength(JSON.stringify(payload)) + 1024;
     const reserved =
-      roundedCost(inputBound * (model.provider === 'anthropic' ? 2 : 1), model.input_micro_usd_per_million) +
+      roundedCost(inputBound * (protocol.cacheWrites ? 2 : 1), model.input_micro_usd_per_million) +
       roundedCost(maxOutput, model.output_micro_usd_per_million);
     const budget = (
       await tx.query('SELECT budget_used_micro_usd,model_reserved_micro_usd FROM runs WHERE id=$1', [cap.run])
@@ -254,9 +175,10 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     );
     return {
       requestId,
+      protocol,
       model,
       secret,
-      url: `${endpoint.base}/${path}`,
+      url: `${protocol.base}/${path}`,
       reserved,
       metered: true,
       deadline: run.deadline,
@@ -324,11 +246,7 @@ async function settleRequest(
         model.provider,
         model.id,
         request.billing_mode,
-        upstreamRejected
-          ? 0
-          : usage.complete
-            ? usage.input + usage.cacheWrite + (model.provider === 'anthropic' ? usage.cached : 0)
-            : null,
+        upstreamRejected ? 0 : usage.complete ? usage.input : null,
         upstreamRejected ? 0 : usage.complete ? usage.output : null,
         actual.toString(),
         usage.complete || upstreamRejected ? 'complete' : 'missing',
@@ -357,7 +275,7 @@ export async function settleOrphanModelRequests(org: string, runId: string) {
   );
   for (const request of requests) {
     const run = await transaction(org, (tx) => getRun(tx, runId));
-    const model = run.config.rate_card || models().find((m) => m.id === request.model);
+    const model = run.config.rate_card;
     assert(model, 503, 'rate_card_unavailable', 'The run rate card is unavailable for reconciliation.');
     await settleRequest(
       {
@@ -415,14 +333,6 @@ export async function handleModelRequest(
       'unmetered_completions',
       'Only one completion per request is supported.',
     );
-    delete payload.background;
-    delete payload.service_tier;
-    delete payload.store;
-    delete payload.speed;
-    if (path.endsWith('responses')) {
-      payload.background = false;
-      payload.store = false;
-    }
     const admission = await reserveRequest(cap, payload, path);
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -433,13 +343,7 @@ export async function handleModelRequest(
       usage = emptyUsage(),
       rejected = false;
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (admission.model.provider === 'anthropic') {
-        headers['x-api-key'] = admission.secret;
-        headers['anthropic-version'] = '2023-06-01';
-        const beta = request.headers.get('anthropic-beta');
-        if (beta) headers['anthropic-beta'] = beta;
-      } else headers.Authorization = `Bearer ${admission.secret}`;
+      const headers = admission.protocol.headers(admission.secret, request.headers);
       const upstream = await transport(admission.url, {
         method: 'POST',
         headers,
@@ -467,7 +371,7 @@ export async function handleModelRequest(
           string,
           unknown
         >;
-        usage = usageFromEvent(admission.model.provider, data, usage);
+        usage = admission.protocol.usage(data, usage);
         if (admission.metered) await settleRequest(cap, admission.requestId, admission.model, usage);
         return Response.json(data);
       }
@@ -497,7 +401,7 @@ export async function handleModelRequest(
                 buffer = buffer.slice(newline + 1);
                 if (line.startsWith('data:') && line.slice(5).trim() !== '[DONE]') {
                   try {
-                    usage = usageFromEvent(admission.model.provider, JSON.parse(line.slice(5)), usage);
+                    usage = admission.protocol.usage(JSON.parse(line.slice(5)), usage);
                   } catch {
                     /* SSE keepalives and non-JSON control frames are not usage. */
                   }

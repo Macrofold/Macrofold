@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { absoluteMarkdown, findPage, headings, markdownUrl, pages } from '../../apps/web/lib/docs/content';
+import {
+  absoluteMarkdown,
+  findPage,
+  headings,
+  markdownUrl,
+  pages,
+  setupPrompt,
+} from '../../apps/web/lib/docs/content';
 import { GET as raw } from '../../apps/web/app/docs/raw/[...path]/route';
 import { GET as search } from '../../apps/web/app/docs/search-index.json/route';
 import { GET as llms } from '../../apps/web/app/llms.txt/route';
@@ -42,6 +49,35 @@ it('exports navigable Markdown with deployment-specific absolute links and sourc
   );
   expect(markdownUrl('')).toBe('/docs/raw/index.md');
 });
+it('keeps the setup prompt readable and its links scoped to the documentation deployment', () => {
+  for (const origin of [
+    'https://app.macrofold.ai',
+    'https://self-host.example.test',
+    'http://localhost:3210',
+  ]) {
+    const prompt = setupPrompt(origin);
+    expect(prompt).toContain('Feature to build:');
+    expect(prompt).toContain('MACROFOLD_API_KEY');
+    expect(prompt).toContain('workspace');
+    const links = [...prompt.matchAll(/\]\(([^)]+)\)/g)].map((match) => new URL(match[1]));
+    expect(links.length).toBeGreaterThanOrEqual(6);
+    for (const link of links) {
+      expect(link.origin).toBe(origin);
+      expect(link.pathname).toMatch(/^\/docs\/raw\/.+\.md$/);
+      const slug = link.pathname.replace('/docs/raw/', '').replace(/\.md$/, '');
+      expect(findPage(slug)).toBeDefined();
+    }
+    expect(prompt).not.toContain('```');
+  }
+});
+it('publishes distinct hosting setup and shared product guides in a simple entry order', () => {
+  expect(pages.slice(0, 3).map((page) => page.slug)).toEqual(['', 'agents', 'api/quickstart']);
+  expect(findPage('cloud')?.section).toBe(findPage('self-hosting')?.section);
+  expect(findPage('api/conventions')).toBeDefined();
+  expect(findPage('api/http-quickstart')).toBeDefined();
+  expect(findPage('workspaces/shared-agents')).toBeDefined();
+  expect(findPage('local-development')?.section).toBe('Development');
+});
 it('raw handlers return only published Markdown and canonical metadata', async () => {
   for (const path of [['.env'], ['..', 'status.md'], ['maintainers', 'TODO.md'], ['api']])
     expect((await raw(new Request('http://localhost'), { params: Promise.resolve({ path }) })).status).toBe(
@@ -62,6 +98,8 @@ it('search, sitemaps, and agent indexes share the public inventory without publi
   );
   const index = await llms().text(),
     all = await full().text();
+  const sections = [...index.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
+  expect(new Set(sections).size).toBe(sections.length);
   for (const page of pages) expect(index).toContain(markdownUrl(page.slug));
   expect(all).toContain('Source:');
   for (const privateContent of [
@@ -134,6 +172,14 @@ it('the generator rejects stale output and publication outside the approved sour
     );
     await writeFile(path.join(directory, entry.source), '# Guide\n\nUpdated content.\n');
     await expect(invoke(['--check'])).rejects.toThrow('is stale');
+    await mkdir(path.join(directory, 'examples'));
+    await writeFile(path.join(directory, 'examples/README.md'), '# Runnable example\n');
+    await writeFile(
+      path.join(directory, 'docs/navigation.json'),
+      JSON.stringify([{ ...entry, source: 'examples/README.md' }]),
+    );
+    await invoke();
+    await invoke(['--check']);
     await writeFile(
       path.join(directory, 'docs/navigation.json'),
       JSON.stringify([{ ...entry, source: '.data/private.md' }]),
@@ -142,4 +188,16 @@ it('the generator rejects stale output and publication outside the approved sour
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+it('search ranks topic headings and keeps matches beyond the first ten guides reachable', async () => {
+  const { searchDocs } = await import('../../apps/web/lib/docs/search');
+  const entries = await search().json();
+  const matches = searchDocs(entries, 'idempotency');
+  expect(matches.length).toBeGreaterThan(10);
+  expect(matches.slice(0, 10).some((entry) => entry.url === '/docs/api/conventions')).toBe(true);
+  expect(
+    searchDocs(entries, 'customer agent').some((entry) => entry.url === '/docs/customer-agents/example'),
+  ).toBe(true);
+  expect(searchDocs(entries, 'zzzzunfindable')).toEqual([]);
 });

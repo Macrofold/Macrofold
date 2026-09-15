@@ -31,6 +31,11 @@ type MessageCreate struct {
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
+	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
+	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
 }
 
 type _MessageCreate MessageCreate
@@ -273,6 +278,102 @@ func (o *MessageCreate) SetSchedulingClass(v string) {
 	o.SchedulingClass = &v
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *MessageCreate) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *MessageCreate) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *MessageCreate) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
+// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
+func (o *MessageCreate) GetConnectionGrants() []Grant {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionGrants
+}
+
+// GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetConnectionGrantsOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		return nil, false
+	}
+	return o.ConnectionGrants, true
+}
+
+// HasConnectionGrants returns a boolean if a field has been set.
+func (o *MessageCreate) HasConnectionGrants() bool {
+	if o != nil && !IsNil(o.ConnectionGrants) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
+func (o *MessageCreate) SetConnectionGrants(v []Grant) {
+	o.ConnectionGrants = v
+}
+
+// GetConnectionAccessOverrides returns the ConnectionAccessOverrides field value if set, zero value otherwise.
+func (o *MessageCreate) GetConnectionAccessOverrides() []Grant {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionAccessOverrides
+}
+
+// GetConnectionAccessOverridesOk returns a tuple with the ConnectionAccessOverrides field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetConnectionAccessOverridesOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		return nil, false
+	}
+	return o.ConnectionAccessOverrides, true
+}
+
+// HasConnectionAccessOverrides returns a boolean if a field has been set.
+func (o *MessageCreate) HasConnectionAccessOverrides() bool {
+	if o != nil && !IsNil(o.ConnectionAccessOverrides) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionAccessOverrides gets a reference to the given []Grant and assigns it to the ConnectionAccessOverrides field.
+func (o *MessageCreate) SetConnectionAccessOverrides(v []Grant) {
+	o.ConnectionAccessOverrides = v
+}
+
 func (o MessageCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -301,6 +402,15 @@ func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SchedulingClass) {
 		toSerialize["scheduling_class"] = o.SchedulingClass
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
+	}
+	if !IsNil(o.ConnectionGrants) {
+		toSerialize["connection_grants"] = o.ConnectionGrants
+	}
+	if !IsNil(o.ConnectionAccessOverrides) {
+		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
 	}
 	return toSerialize, nil
 }

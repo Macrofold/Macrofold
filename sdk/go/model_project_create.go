@@ -23,6 +23,7 @@ type ProjectCreate struct {
 	Name string `json:"name"`
 	Persistence *string `json:"persistence,omitempty"`
 	Github *ProjectCreateGithub `json:"github,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -134,6 +135,38 @@ func (o *ProjectCreate) SetGithub(v ProjectCreateGithub) {
 	o.Github = &v
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *ProjectCreate) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ProjectCreate) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *ProjectCreate) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *ProjectCreate) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
 func (o ProjectCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -150,6 +183,9 @@ func (o ProjectCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Github) {
 		toSerialize["github"] = o.Github
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -197,6 +233,7 @@ func (o *ProjectCreate) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "persistence")
 		delete(additionalProperties, "github")
+		delete(additionalProperties, "permissions")
 		o.AdditionalProperties = additionalProperties
 	}
 

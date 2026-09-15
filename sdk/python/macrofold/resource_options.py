@@ -1,4 +1,5 @@
 """Shared request controls for generated resources; HTTP behavior stays in the transport."""
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 from uuid import uuid4
@@ -22,7 +23,7 @@ class RequestOptions:
         return (self.idempotency_key or str(uuid4())) if mutation else None
 
 
-def payload(values: dict[str, object]) -> dict[str, Any]:
+def payload(values: Mapping[str, object]) -> dict[str, Any]:
     return to_jsonable_python({key: value for key, value in values.items() if not isinstance(value, Omit)})
 
 

@@ -16,13 +16,11 @@ it.each([undefined, '', '   ', 'ak_******', 'ak_...1234', 'ak_…1234'])(
 
 it('accepts an unmasked configured value without assuming that construction verifies authentication', () => {
   vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-project-key');
-  vi.stubEnv('COMPOSIO_TOOLKIT_VERSIONS_JSON', '{}');
   expect(composio).not.toThrow();
 });
 
 it('maps pinned execution, caller identity and the observed log_id response through the real SDK', async () => {
   vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-project-key');
-  vi.stubEnv('COMPOSIO_TOOLKIT_VERSIONS_JSON', '{"hackernews":"20260708_00"}');
   const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     if (init?.method === 'GET') {
       expect(String(url)).toBe(
@@ -47,6 +45,7 @@ it('maps pinned execution, caller identity and the observed log_id response thro
     expect(JSON.parse(String(init?.body))).toMatchObject({
       user_id: 'fixture-org:fixture-user',
       version: '20260708_00',
+      connected_account_id: 'chosen-account',
       arguments: { id: 8863 },
     });
     return Response.json({
@@ -60,9 +59,131 @@ it('maps pinned execution, caller identity and the observed log_id response thro
   sdk.getClient().maxRetries = 0;
   const result = await sdk.tools.execute('HACKERNEWS_GET_ITEM', {
     userId: 'fixture-org:fixture-user',
+    connectedAccountId: 'chosen-account',
     version: '20260708_00',
     arguments: { id: 8863 },
   });
   expect(result).toMatchObject({ successful: true, data: { id: 8863, type: 'story' }, logId: 'fixture-log' });
+  expect(http).toHaveBeenCalledTimes(2);
+});
+
+it('uses the installed SDK to create distinct aliases despite an existing active account', async () => {
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  const account = {
+    id: 'existing-account',
+    alias: 'existing-alias',
+    status: 'ACTIVE',
+    status_reason: null,
+    toolkit: { slug: 'gmail' },
+    auth_config: { id: 'fixture-auth', is_composio_managed: true, is_disabled: false },
+    is_disabled: false,
+    created_at: new Date(0).toISOString(),
+    updated_at: new Date(0).toISOString(),
+  };
+  const aliases: string[] = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    if (init?.method === 'GET') {
+      expect(String(url)).toContain('/connected_accounts?');
+      expect(new URL(String(url)).searchParams.get('user_ids')).toBe('org:user');
+      return Response.json({ items: [account], next_cursor: null, total_pages: 1 });
+    }
+    expect(String(url)).toBe('https://backend.composio.dev/api/v3.1/connected_accounts/link');
+    const body = JSON.parse(String(init?.body));
+    expect(body).toMatchObject({ user_id: 'org:user', auth_config_id: 'fixture-auth' });
+    aliases.push(body.alias);
+    return Response.json({
+      connected_account_id: 'account-' + body.alias,
+      link_token: 'fixture-link',
+      redirect_url: 'https://connect.composio.dev/fixture',
+    });
+  });
+  const sdk = composio();
+  sdk.getClient().maxRetries = 0;
+  const first = await sdk.connectedAccounts.link('org:user', 'fixture-auth', {
+    alias: 'research',
+    allowMultiple: true,
+  });
+  const second = await sdk.connectedAccounts.link('org:user', 'fixture-auth', {
+    alias: 'personal',
+    allowMultiple: true,
+  });
+  expect(aliases).toEqual(['research', 'personal']);
+  expect(first.id).toBe('account-research');
+  expect(second.id).toBe('account-personal');
+});
+
+it('discovers enabled auth configs through the installed SDK without exposing credentials', async () => {
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  const { connectorSetupProvider } = await import('../../packages/providers/src/connector-setup');
+  const cursors: (string | null)[] = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    expect(init?.method).toBe('GET');
+    const address = new URL(String(url));
+    if (address.pathname.endsWith('/toolkits/gmail'))
+      return Response.json({
+        name: 'Gmail',
+        slug: 'gmail',
+        meta: {},
+        is_local_toolkit: false,
+        composio_managed_auth_schemes: ['OAUTH2'],
+      });
+    if (address.pathname.endsWith('/tools')) {
+      expect(address.searchParams.get('toolkit_slug')).toBe('gmail');
+      expect(address.search).toContain('20260910_00');
+      return Response.json({ items: [{ version: '20260910_00' }] });
+    }
+    expect(address.pathname).toContain('/auth_configs');
+    cursors.push(address.searchParams.get('cursor'));
+    const item = (id: string, slug: string, status: string) => ({
+      id,
+      name: id,
+      toolkit: { slug, logo: '' },
+      status,
+      no_of_connections: 0,
+      credentials: { secret: 'must-not-leave-adapter' },
+    });
+    return Response.json(
+      cursors.length === 1
+        ? {
+            items: [item('enabled', 'gmail', 'ENABLED'), item('disabled', 'gmail', 'DISABLED')],
+            next_cursor: 'second',
+            total_pages: 2,
+          }
+        : {
+            items: [item('other-toolkit', 'github', 'ENABLED'), item('second', 'gmail', 'ENABLED')],
+            next_cursor: null,
+            total_pages: 2,
+          },
+    );
+  });
+  expect(await connectorSetupProvider().inspect('gmail', '20260910_00')).toEqual({
+    version: '20260910_00',
+    managed: true,
+    authConfigs: [
+      { id: 'enabled', name: 'enabled' },
+      { id: 'second', name: 'second' },
+    ],
+  });
+  expect(cursors).toEqual([null, 'second']);
+});
+
+it('creates managed auth with the installed SDK and never retries an ambiguous POST', async () => {
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  const { connectorSetupProvider } = await import('../../packages/providers/src/connector-setup');
+  const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    expect(String(url)).toContain('/auth_configs');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      toolkit: { slug: 'gmail' },
+      auth_config: { type: 'use_composio_managed_auth', name: 'platform-managed:gmail' },
+    });
+    return Response.json({
+      auth_config: { id: 'created', auth_scheme: 'OAUTH2', is_composio_managed: true },
+      toolkit: { slug: 'gmail' },
+    });
+  });
+  expect(await connectorSetupProvider().createManaged('gmail')).toBe('created');
+  http.mockResolvedValue(Response.json({ message: 'Uncertain response' }, { status: 503 }));
+  await expect(connectorSetupProvider().createManaged('gmail')).rejects.toThrow();
   expect(http).toHaveBeenCalledTimes(2);
 });

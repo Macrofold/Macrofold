@@ -1,11 +1,80 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, readFile, writeFile, symlink, readlink, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, symlink, readlink, stat, rm, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { captureSnapshot, probeRuntime, CHUNK_BYTES } from '../../packages/runtime/src/manifest';
 import { restoreSnapshot } from '../../packages/runtime/src/restore';
 
 describe('portable filesystem checkpoints', () => {
+  it('excludes native credentials and their backups while preserving resumable session history', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'platform-auth-checkpoint-'));
+    try {
+      const roots = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+      await mkdir(roots.workspace);
+      const secretPaths = [
+        '.claude/.credentials.json',
+        '.claude/.credentials.json.tmp',
+        '.claude.json',
+        '.claude/backups/.claude.json.backup.1',
+        '.codex/auth.json',
+        '.codex/config.toml',
+        '.local/share/opencode/auth.json',
+        '.runtime-config.json',
+        '.runtime-transient/dsh/runtime.json',
+        '.pi/agent/auth.json',
+        '.hermes/config.yaml',
+        '.hermes/.env',
+        '.hermes/auth.json',
+      ];
+      for (const name of [...secretPaths, '.claude/projects/session.jsonl']) {
+        const dest = path.join(roots.home, name);
+        await mkdir(path.dirname(dest), { recursive: true });
+        await writeFile(dest, secretPaths.includes(name) ? 'synthetic-auth-only' : 'conversation fixture');
+      }
+      await writeFile(path.join(roots.workspace, 'document.txt'), 'project fixture');
+      const output = path.join(root, 'capture');
+      const snapshot = await captureSnapshot(roots, output);
+      expect(snapshot.entries.map((entry) => `${entry.namespace}/${entry.path}`)).toEqual([
+        'workspace/document.txt',
+        'home/.claude/projects/session.jsonl',
+      ]);
+      expect(await readdir(path.join(output, 'chunks'))).not.toContain(
+        createHash('sha256').update('synthetic-auth-only').digest('hex'),
+      );
+      await writeFile(path.join(output, 'page-0.json'), JSON.stringify(snapshot.entries));
+      await restoreSnapshot(output, {
+        workspace: path.join(root, 'new-workspace'),
+        home: path.join(root, 'new-home'),
+      });
+      expect(await readFile(path.join(root, 'new-home/.claude/projects/session.jsonl'), 'utf8')).toBe(
+        'conversation fixture',
+      );
+      await writeFile(
+        path.join(output, 'page-0.json'),
+        JSON.stringify([...snapshot.entries, { ...snapshot.entries[1], path: '.claude/.credentials.json' }]),
+      );
+      await expect(
+        restoreSnapshot(output, {
+          workspace: path.join(root, 'rejected-workspace'),
+          home: path.join(root, 'rejected-home'),
+        }),
+      ).rejects.toThrow('native authentication');
+      await expect(stat(path.join(root, 'rejected-workspace'))).rejects.toMatchObject({ code: 'ENOENT' });
+      await writeFile(
+        path.join(output, 'page-0.json'),
+        JSON.stringify([{ ...snapshot.entries[1], path: '.codex/config.toml' }]),
+      );
+      await expect(
+        restoreSnapshot(output, {
+          workspace: path.join(root, 'rejected-workspace'),
+          home: path.join(root, 'rejected-home'),
+        }),
+      ).rejects.toThrow('native authentication');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it('round-trips multi-chunk files, executable mode, symlinks, ignored Git data and native session state', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-checkpoint-'));
     const roots = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };

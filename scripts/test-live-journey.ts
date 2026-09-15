@@ -1,3 +1,4 @@
+import { harnessNames } from '../packages/contracts/harnesses';
 import { mkdir, open, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
@@ -12,7 +13,7 @@ const settings = z
     AGENT_JOURNEY_ENVIRONMENT: z.enum(['docker', 'staging']),
     AGENT_HOST: z.string().transform(serviceOrigin),
     AGENT_API_KEY: z.string().min(20),
-    AGENT_HARNESS: z.enum(['codex', 'claude-code', 'opencode']),
+    AGENT_HARNESS: z.enum(harnessNames),
     AGENT_MODEL: z.string().min(1),
     AGENT_CONNECTION_ID: z.uuid().optional(),
     AGENT_JOURNEY_BUDGET_MICRO_USD: z.string().regex(/^[1-9]\d{0,8}$/),

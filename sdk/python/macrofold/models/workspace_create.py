@@ -17,9 +17,11 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
 from macrofold.models.workspace_source import WorkspaceSource
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,13 +29,25 @@ from pydantic_core import to_jsonable_python
 
 class WorkspaceCreate(BaseModel):
     """
-    Independent remote clone and branch. Omit source for project default. Legacy checkpoint_id and source are mutually exclusive. Never uploads a local folder.
+    Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder.
     """ # noqa: E501
-    name: StrictStr
+    name: Optional[Annotated[str, Field(strict=True, max_length=151)]] = Field(default=None, description="Optional. Leave empty for smart naming.")
     checkpoint_id: Optional[UUID] = None
-    branch: Optional[StrictStr] = None
+    branch: Optional[Annotated[str, Field(strict=True, max_length=151)]] = Field(default=None, description="Optional. Leave empty for smart naming.")
     source: Optional[WorkspaceSource] = None
-    __properties: ClassVar[List[str]] = ["name", "checkpoint_id", "branch", "source"]
+    branch_mode: Optional[StrictStr] = Field(default=None, description="Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.")
+    permissions: Optional[AgentPermissions] = None
+    __properties: ClassVar[List[str]] = ["name", "checkpoint_id", "branch", "source", "branch_mode", "permissions"]
+
+    @field_validator('branch_mode')
+    def branch_mode_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['auto', 'new', 'existing']):
+            raise ValueError("must be one of enum values ('auto', 'new', 'existing')")
+        return value
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -77,6 +91,9 @@ class WorkspaceCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of source
         if self.source:
             _dict['source'] = self.source.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
         return _dict
 
     @classmethod
@@ -92,7 +109,9 @@ class WorkspaceCreate(BaseModel):
             "name": obj.get("name"),
             "checkpoint_id": obj.get("checkpoint_id"),
             "branch": obj.get("branch"),
-            "source": WorkspaceSource.from_dict(obj["source"]) if obj.get("source") is not None else None
+            "source": WorkspaceSource.from_dict(obj["source"]) if obj.get("source") is not None else None,
+            "branch_mode": obj.get("branch_mode"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None
         })
         return _obj
 

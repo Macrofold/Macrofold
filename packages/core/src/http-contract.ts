@@ -1,4 +1,4 @@
-import Ajv from 'ajv/dist/2020';
+import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import spec from '../../../docs/api/openapi.json';
 import { assert } from './errors';
@@ -11,7 +11,7 @@ type JSONSchema = {
   [key: string]: unknown;
 };
 export type Operation = {
-  operationId: string;
+  operationId: keyof import('../../contracts/api').operations;
   parameters?: { $ref?: string; name?: string; in?: string; required?: boolean; schema?: JSONSchema }[];
   requestBody?: { required?: boolean; content: Record<string, { schema: JSONSchema }> };
   responses: Record<string, { content?: Record<string, { schema: JSONSchema }> }>;
@@ -71,6 +71,13 @@ export function validateParameters(operation: Operation, request: Request, param
       required?: boolean;
       schema: JSONSchema;
     };
+    if (parameter.in === 'query')
+      assert(
+        url.searchParams.getAll(parameter.name).length <= 1,
+        400,
+        'invalid_request',
+        `${parameter.name} must appear once.`,
+      );
     const value =
       parameter.in === 'path'
         ? params[parameter.name]
@@ -110,10 +117,17 @@ export function projectResponse(value: unknown, schema: JSONSchema): unknown {
   if (Array.isArray(value)) return value.map((v) => (schema.items ? projectResponse(v, schema.items) : v));
   if (typeof value === 'object' && !(value instanceof Date) && schema.properties) {
     const record = value as Record<string, unknown>;
+    const properties = schema.properties;
     return Object.fromEntries(
-      Object.entries(schema.properties)
-        .filter(([key]) => record[key] !== undefined)
-        .map(([key, child]) => [key, projectResponse(record[key], child)]),
+      Object.entries(record)
+        .filter(
+          ([key, child]) =>
+            child !== undefined && (Object.hasOwn(properties, key) || schema.additionalProperties === true),
+        )
+        .map(([key, child]) => [
+          key,
+          Object.hasOwn(properties, key) ? projectResponse(child, properties[key]) : child,
+        ]),
     );
   }
   return value;
@@ -122,12 +136,4 @@ export function responseFor(operation: Operation, value: unknown) {
   const [code, result] = Object.entries(operation.responses).find(([code]) => code.startsWith('2'))!;
   const schema = result.content?.['application/json']?.schema;
   return { status: Number(code), body: schema ? projectResponse(value, schema) : value };
-}
-export function canonical(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  return `{${Object.entries(value)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
-    .join(',')}}`;
 }

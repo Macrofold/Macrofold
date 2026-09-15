@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
 from macrofold.models.limits import Limits
 from typing import Optional, Set
 from typing_extensions import Self
@@ -55,7 +56,10 @@ class Run(BaseModel):
     reserved_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Funds still held and unavailable for other jobs; released on settlement.")
     scheduling_class: Optional[StrictStr] = None
     execution_deadline: Optional[datetime] = Field(default=None, description="Set when execution is claimed. Includes provisioning and persistence; separate from the queue deadline.")
-    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "workspace_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline"]
+    permission_layers: Optional[List[AgentPermissions]] = None
+    agent_id: Optional[UUID] = None
+    agent_version: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
+    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "workspace_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -110,8 +114,8 @@ class Run(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['dashboard', 'cli', 'sdk', 'api', 'internal']):
-            raise ValueError("must be one of enum values ('dashboard', 'cli', 'sdk', 'api', 'internal')")
+        if value not in set(['dashboard', 'cli', 'sdk', 'api', 'internal', 'slack', 'webhook', 'scheduled']):
+            raise ValueError("must be one of enum values ('dashboard', 'cli', 'sdk', 'api', 'internal', 'slack', 'webhook', 'scheduled')")
         return value
 
     @field_validator('waiting_reason')
@@ -186,6 +190,13 @@ class Run(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in permission_layers (list)
+        _items = []
+        if self.permission_layers:
+            for _item_permission_layers in self.permission_layers:
+                if _item_permission_layers:
+                    _items.append(_item_permission_layers.to_dict())
+            _dict['permission_layers'] = _items
         # set to None if waiting_reason (nullable) is None
         # and model_fields_set contains the field
         if self.waiting_reason is None and "waiting_reason" in self.model_fields_set:
@@ -195,6 +206,16 @@ class Run(BaseModel):
         # and model_fields_set contains the field
         if self.execution_deadline is None and "execution_deadline" in self.model_fields_set:
             _dict['execution_deadline'] = None
+
+        # set to None if agent_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.agent_id is None and "agent_id" in self.model_fields_set:
+            _dict['agent_id'] = None
+
+        # set to None if agent_version (nullable) is None
+        # and model_fields_set contains the field
+        if self.agent_version is None and "agent_version" in self.model_fields_set:
+            _dict['agent_version'] = None
 
         return _dict
 
@@ -231,7 +252,10 @@ class Run(BaseModel):
             "waiting_reason": obj.get("waiting_reason"),
             "reserved_micro_usd": obj.get("reserved_micro_usd"),
             "scheduling_class": obj.get("scheduling_class"),
-            "execution_deadline": obj.get("execution_deadline")
+            "execution_deadline": obj.get("execution_deadline"),
+            "permission_layers": [AgentPermissions.from_dict(_item) for _item in obj["permission_layers"]] if obj.get("permission_layers") is not None else None,
+            "agent_id": obj.get("agent_id"),
+            "agent_version": obj.get("agent_version")
         })
         return _obj
 

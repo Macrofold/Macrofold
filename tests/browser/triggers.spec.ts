@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 async function signIn(page: Page) {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
 }
 async function post(page: Page, path: string, body: unknown) {
   const response = await page.request.post(path, {
@@ -185,4 +185,32 @@ test('Slack trigger form selects a connected channel and handles channel discove
     slack_connection_id: connection,
     channel_id: 'C123',
   });
+});
+
+test('a template hands its saved preset and budget to a progressive schedule review', async ({ page }) => {
+  await signIn(page);
+  const { project } = await targets(page);
+  await page.goto('/templates');
+  await page.getByRole('button', { name: /Weekly project digest/ }).click();
+  await page.getByRole('dialog').getByRole('link', { name: 'Use and schedule', exact: true }).click();
+  const preset = page.getByRole('dialog', { name: 'Create an agent preset', exact: true });
+  await preset.getByRole('textbox', { name: 'Name', exact: true }).fill(`Weekly schedule ${randomUUID()}`);
+  await preset.getByRole('spinbutton', { name: 'Budget per run (USD)' }).fill('1.50');
+  await preset.getByRole('button', { name: 'Save and choose schedule', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'New scheduled task', exact: true });
+  await expect(dialog).toBeVisible();
+  await choose(page, 'Project', project.name);
+  await expect(dialog.getByRole('region', { name: 'Review schedule' })).toContainText('$1.50');
+  await expect(dialog.getByRole('combobox', { name: 'Cadence', exact: true })).toContainText('Monday');
+  await expect(dialog.getByRole('textbox', { name: 'Cron expression', exact: true })).toHaveCount(0);
+  await dialog.getByText('Review connections and tools', { exact: true }).click();
+  await expect(
+    dialog.getByText('No eligible tool connections. Files and model access are separate.'),
+  ).toBeVisible();
+  await dialog.screenshot({ path: 'test-results/template-schedule-review.png' });
+  await dialog.getByRole('button', { name: 'Create scheduled task', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByText(/saved triggers.*capacity|saved.*\/.*triggers|saved triggers/i).first(),
+  ).toBeVisible();
 });

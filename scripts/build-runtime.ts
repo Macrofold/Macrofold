@@ -1,8 +1,10 @@
+import { copyFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 await build({
   entryPoints: [
     'packages/runtime/src/entry.ts',
     'packages/runtime/src/native-worker.ts',
+    'packages/runtime/src/deepseek-bridge.ts',
     'packages/runtime/src/probe.ts',
     'packages/runtime/src/restore.ts',
     'packages/runtime/src/snapshot-page.ts',
@@ -17,3 +19,5 @@ await build({
   packages: 'external',
   sourcemap: true,
 });
+
+await copyFile('packages/runtime/src/hermes-bridge.py', 'packages/runtime/dist/hermes-bridge.py');

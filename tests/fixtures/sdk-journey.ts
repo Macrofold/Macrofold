@@ -18,12 +18,66 @@ await assert.rejects(
   (error: unknown) => error instanceof ApiError && error.status === 404,
 );
 const project = await client.projects.create({ name: 'TypeScript application fixture' });
+assert(project.default_workspace_id);
+const workspaceId = project.default_workspace_id;
+const folder = await client.workspaces.createFolder(workspaceId, {
+  path: 'examples',
+  ifMatch: (await client.workspaces.get(workspaceId)).revision,
+});
+assert.equal(folder.result?.entry?.type, 'directory');
+assert(folder.result?.revision);
+const renamed = await client.workspaces.renameFile(workspaceId, {
+  path: 'examples/.gitkeep',
+  new_path: 'examples/renamed.txt',
+  ifMatch: folder.result.revision,
+});
+assert.equal(renamed.result?.previous_path, 'examples/.gitkeep');
+assert.deepEqual(
+  (await client.workspaces.listFiles(workspaceId, { recursive: false })).entries.map((entry) => entry.type),
+  ['directory'],
+);
+assert.deepEqual(
+  await client.workspaces.readFile(workspaceId, { path: 'examples/renamed.txt' }),
+  new Uint8Array(),
+);
 const agent = await client.agents.create({
   name: 'TypeScript preset',
   harness: 'codex',
   model: 'fixture-model',
   billing_mode: 'managed',
 });
+const connection = await client.connections.create({
+  name: 'SDK tools',
+  kind: 'search',
+  provider: 'brave',
+  auth_method: 'none',
+});
+const initialAccess = await client.connections.getAccess(connection.id);
+assert.equal(initialAccess.organization_wide, false);
+const approved = await client.connections.updateAccess(connection.id, {
+  tools: ['web_search'],
+  ifMatch: `"${initialAccess.version}"`,
+});
+const permission = await client.connections.createAccessRule(connection.id, {
+  scope: 'project_agent',
+  project_id: project.id,
+  agent_id: agent.id,
+  ifMatch: `"${approved.version}"`,
+});
+assert.equal(permission.version, '3');
+assert.equal(
+  (await client.projects.get(project.id, { include_connections: true, agent_id: agent.id })).connections
+    ?.data[0].id,
+  connection.id,
+);
+assert.equal(
+  (await client.connections.resolveAccess({ project_id: project.id, agent_id: agent.id })).data[0].tools[0],
+  'web_search',
+);
+await client.agents.update(agent.id, { connection_grants: [] });
+assert.deepEqual((await client.agents.get(agent.id)).connection_grants, []);
+await client.agents.update(agent.id, { connection_grants: null });
+assert.equal((await client.agents.get(agent.id)).connection_grants, undefined);
 const run = await client.runs.create({
   project_id: project.id,
   agent_id: agent.id,

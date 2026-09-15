@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { main } from '../../packages/cli/src/index';
 import { outcomeExit } from '../../packages/cli/src/stream';
+import cliPackage from '../../packages/cli/package.json';
+import cliContract from '../../docs/api/cli.json';
 import { limits } from '../../packages/cli/src/context';
 
 it('reports a failed checkpoint as an unsuccessful run even if native execution succeeded', () => {
@@ -50,5 +52,28 @@ it('exposes a lost mutation response identity in the CLI error envelope', async 
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it('uses the installed Macrofold command in help, completions, and its distribution contract', async () => {
+  let output = '';
+  const stdout = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+    output += String(chunk);
+    return true;
+  });
+  try {
+    expect(cliPackage.bin).toEqual({ macrofold: 'dist/index.mjs' });
+    expect(cliContract.executable).toBe('macrofold');
+    expect(await main(['run', '--help'])).toBe(0);
+    expect(output).toContain('Usage: macrofold run');
+    expect(output).toContain('macrofold run "Update the report"');
+    expect(output).toContain('macrofold doctor');
+    for (const shell of ['bash', 'zsh', 'fish', 'powershell']) {
+      output = '';
+      expect(await main(['completion', shell])).toBe(0);
+      expect(output).toContain('macrofold');
+    }
+  } finally {
+    stdout.mockRestore();
   }
 });

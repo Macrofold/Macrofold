@@ -119,6 +119,17 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
             required: true,
             location: 'binary',
           });
+        else if (
+          !Object.keys(properties(contract.body.schema)).length &&
+          resolve(contract.body.schema).oneOf?.length
+        )
+          fields.push({
+            name: 'input',
+            wire: 'input',
+            type: type(contract.body.schema, pascal(op.originalId) + 'Input'),
+            required: contract.body.required,
+            location: 'body_value',
+          });
         else
           for (const [key, value] of Object.entries(properties(contract.body.schema))) {
             if (fields.some((p) => p.name === snake(key)))
@@ -162,10 +173,12 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
                 ? `body=${
                     contract.body.binary
                       ? 'content'
-                      : `payload({${fields
-                          .filter((f) => f.location === 'body')
-                          .map((f) => `${JSON.stringify(f.wire)}: ${f.name}`)
-                          .join(',')}})`
+                      : fields.some((field) => field.location === 'body_value')
+                        ? 'payload(input)'
+                        : `payload({${fields
+                            .filter((f) => f.location === 'body')
+                            .map((f) => `${JSON.stringify(f.wire)}: ${f.name}`)
+                            .join(',')}})`
                   },`
                 : ''
             }

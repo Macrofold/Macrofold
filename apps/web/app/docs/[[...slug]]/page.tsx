@@ -5,9 +5,19 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ArrowLeft, ArrowRight, ArrowUpRight, FileText } from 'lucide-react';
 import { config } from '@platform/core/config';
-import { findPage, headings, pages, markdownUrl, absoluteMarkdown } from '../../../lib/docs/content';
+import {
+  findPage,
+  headings,
+  pages,
+  markdownUrl,
+  absoluteMarkdown,
+  setupPrompt,
+} from '../../../lib/docs/content';
 import { DocsCopy } from '../../../components/docs-copy';
 import { docsSourceUrl } from '../../../lib/docs/settings';
+import { DocsConnectors } from '../../../components/docs-connectors';
+import { publicConnectors } from '../../../lib/docs/connectors';
+import { publicProductName } from '../../../components/brand-lockup';
 
 type Props = { params: Promise<{ slug?: string[] }> };
 export const dynamic = 'force-static';
@@ -18,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const page = findPage((await params).slug?.join('/'));
   if (!page) return { title: 'Guide not found', robots: { index: false } };
   return {
-    title: { absolute: `${page.title} · ${config.name} Docs` },
+    title: { absolute: `${page.title} · ${publicProductName(config.name)} Docs` },
     description: page.description,
     alternates: {
       canonical: config.origin + page.url,
@@ -29,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: page.description,
       url: config.origin + page.url,
       type: 'article',
-      siteName: config.name,
+      siteName: publicProductName(config.name),
     },
     twitter: { card: 'summary', title: page.title, description: page.description },
   };
@@ -51,6 +61,13 @@ export default async function Doc({ params }: Props) {
         <p className="docs-description">{page.description}</p>
         <div className="docs-page-tools">
           <DocsCopy key={page.slug} text={absoluteMarkdown(page, config.origin)} />
+          {['', 'agents', 'api/quickstart'].includes(page.slug) && (
+            <DocsCopy
+              key={`${page.slug}-prompt`}
+              label="Copy setup prompt"
+              text={setupPrompt(config.origin)}
+            />
+          )}
           <a href={markdownUrl(page.slug)}>
             <FileText size={14} /> View Markdown
           </a>
@@ -58,12 +75,34 @@ export default async function Doc({ params }: Props) {
         {!page.slug && (
           <div className="docs-start-cards">
             {[
-              ['/docs/quickstart', '01', 'Your first run', 'From a new project to saved work.'],
-              ['/docs/api/quickstart', '02', 'Build with the API', 'A small request. A lasting workspace.'],
-            ].map(([href, number, title, detail]) => (
+              [
+                '/docs/agents',
+                'AI-assisted setup',
+                'Build with your AI',
+                'Describe a feature. Give your coding agent the setup brief.',
+              ],
+              [
+                '/docs/api/quickstart',
+                'Quickstart',
+                'Make your first request',
+                'A project, a task, and a complete result.',
+              ],
+              [
+                '/docs/cloud',
+                'Cloud',
+                'Use Macrofold Cloud',
+                'Connect your application to the managed service.',
+              ],
+              [
+                '/docs/self-hosting',
+                'Self-hosted',
+                'Run it on your infrastructure',
+                'Deploy the same API and dashboard in your own accounts.',
+              ],
+            ].map(([href, label, title, detail]) => (
               <Link href={href} key={href}>
                 <span>
-                  {number}
+                  {label}
                   <ArrowUpRight size={18} />
                 </span>
                 <strong>{title}</strong>
@@ -87,11 +126,38 @@ export default async function Doc({ params }: Props) {
                   <table>{children}</table>
                 </div>
               ),
-              pre: ({ children }) => (
-                <pre tabIndex={0} role="region" aria-label="Code example">
-                  {children}
-                </pre>
-              ),
+              pre: ({ children, node }) => {
+                const code = node?.children.find(
+                  (child) => child.type === 'element' && child.tagName === 'code',
+                );
+                const language =
+                  code?.type === 'element'
+                    ? String(code.properties.className || '').replace('language-', '')
+                    : '';
+                const isPrompt = language === 'prompt';
+                const text =
+                  code?.type === 'element'
+                    ? code.children.map((child) => (child.type === 'text' ? child.value : '')).join('')
+                    : '';
+                const copyText = isPrompt
+                  ? absoluteMarkdown({ ...page, markdown: text }, config.origin)
+                  : text;
+                return (
+                  <div className={`docs-code-block${isPrompt ? ' docs-prompt-block' : ''}`}>
+                    <div className="docs-code-header">
+                      <span>{isPrompt ? 'Give this to your coding agent' : language || 'Example'}</span>
+                      <DocsCopy
+                        key={`${page.slug}:${node?.position?.start.line}`}
+                        text={copyText}
+                        label={isPrompt ? 'Copy prompt' : 'Copy code'}
+                      />
+                    </div>
+                    <pre tabIndex={0} role="region" aria-label={isPrompt ? 'Setup prompt' : 'Code example'}>
+                      {isPrompt ? <code>{copyText}</code> : children}
+                    </pre>
+                  </div>
+                );
+              },
               a: ({ href, children }) =>
                 href?.startsWith('/docs') ? (
                   <Link href={href}>{children}</Link>
@@ -103,6 +169,9 @@ export default async function Doc({ params }: Props) {
             {content}
           </Markdown>
         </article>
+        {page.slug === 'connectors' && (
+          <DocsConnectors initial={publicConnectors.apps.slice(0, 24)} native={publicConnectors.native} />
+        )}
         <div className="docs-feedback">
           <a href={docsSourceUrl(page.source)}>
             View source on GitHub <ArrowUpRight size={13} />
@@ -150,10 +219,10 @@ export default async function Doc({ params }: Props) {
         <div className="docs-agent-note">
           <FileText size={17} />
           <strong>Building with an agent?</strong>
-          <p>Give it the docs in plain Markdown.</p>
-          <a href="/llms.txt">
-            Open the documentation index <ArrowRight size={13} />
-          </a>
+          <p>Start with a setup prompt, then follow the guides for your feature.</p>
+          <Link href="/docs/agents">
+            Build with AI <ArrowRight size={13} />
+          </Link>
         </div>
       </aside>
     </>

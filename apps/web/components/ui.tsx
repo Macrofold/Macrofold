@@ -1,10 +1,11 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, LoaderCircle, ArrowUpRight, TriangleAlert } from 'lucide-react';
+import { X, ArrowUpRight, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { useId, isValidElement, cloneElement, type ReactElement } from 'react';
+import { Children, useId, isValidElement, cloneElement, type ReactElement } from 'react';
+import { WaitingText } from './waiting-text';
 import { Select } from './select';
 export { Select } from './select';
 export function Button({
@@ -17,9 +18,15 @@ export function Button({
   busy?: boolean;
 }) {
   return (
-    <button {...props} disabled={props.disabled || busy} className={clsx('button', variant, props.className)}>
-      {busy && <LoaderCircle size={15} className="spin" />}
-      {children}
+    <button
+      {...props}
+      aria-busy={busy || undefined}
+      disabled={props.disabled || busy}
+      className={clsx('button', variant, props.className)}
+    >
+      {Children.map(children, (child) =>
+        busy && typeof child === 'string' ? <WaitingText>{child}</WaitingText> : child,
+      )}
     </button>
   );
 }
@@ -112,7 +119,9 @@ export function Badge({ status }: { status: string }) {
   return (
     <span className={clsx('badge', status)}>
       <span className="status-dot" />
-      {status.replaceAll('_', ' ')}
+      <WaitingText active={['queued', 'starting', 'running', 'persisting', 'cancelling'].includes(status)}>
+        {status.replaceAll('_', ' ')}
+      </WaitingText>
     </span>
   );
 }
@@ -136,11 +145,10 @@ export function Empty({
     </div>
   );
 }
-export function Loading() {
+export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="loading" role="status">
-      <LoaderCircle className="spin" size={20} />
-      <span>Loading workspace…</span>
+      <WaitingText>{label}</WaitingText>
     </div>
   );
 }
@@ -161,7 +169,6 @@ export function ErrorState({ error, retry }: { error: Error; retry?: () => void 
   );
 }
 export function PageHeading({
-  eyebrow,
   title,
   description,
   action,
@@ -174,7 +181,6 @@ export function PageHeading({
   return (
     <div className="page-heading">
       <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
@@ -211,19 +217,13 @@ export function SectionHeading({
 }
 export function Logo() {
   return (
-    <svg width="27" height="27" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="16" cy="16" r="5" fill="currentColor" />
-      <ellipse
-        cx="16"
-        cy="16"
-        rx="14"
-        ry="8"
-        transform="rotate(-40 16 16)"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path d="M9 5c7-1 15 7 17 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="7" cy="7" r="2.4" fill="currentColor" />
-    </svg>
+    <img
+      className="macrofold-mark"
+      src="/brands/macrofold/mark.svg"
+      width={30}
+      height={30}
+      alt=""
+      aria-hidden="true"
+    />
   );
 }

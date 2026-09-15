@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { spawn } from 'node:child_process';
+import pg from 'pg';
 import { mkdtemp, readFile, writeFile, mkdir, rm, chmod, lstat, symlink } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -57,11 +58,180 @@ afterAll(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 describe('packaged CLI against the local API and worker', () => {
+  it('inherits tools by omission and narrows preset and continued runs without saving the selection', async () => {
+    const project = await client.projects.create({ name: 'CLI access selection' });
+    const connection = await client.connections.create({
+      name: 'CLI search fixture',
+      kind: 'search',
+      provider: 'brave',
+      auth_method: 'none',
+    });
+    await client.request('updateConnectionAccess', {
+      params: { path: { connection_id: connection.id }, header: { 'If-Match': '"1"' } },
+      body: { tools: ['web_search'] },
+    });
+    await client.request('createConnectionAccessRule', {
+      params: { path: { connection_id: connection.id }, header: { 'If-Match': '"2"' } },
+      body: { scope: 'project', project_id: project.id },
+    });
+    const organization = (await client.request('getIdentity')).organization_id;
+    // Observe accepted server state; all CLI mutations still use the real API.
+    const db = new pg.Client({ connectionString: config.databaseUrl });
+    await db.connect();
+    async function selection(runId: string) {
+      await db.query('BEGIN');
+      try {
+        await db.query("SELECT set_config('app.organization_id',$1,true)", [organization]);
+        return (await db.query("SELECT config->'connection_grants' AS grants FROM runs WHERE id=$1", [runId]))
+          .rows[0].grants;
+      } finally {
+        await db.query('ROLLBACK');
+      }
+    }
+    try {
+      const inherited = await json([
+        'run',
+        'Inherit tools',
+        '--project',
+        project.id,
+        '--harness',
+        'codex',
+        '--model',
+        'fixture-model',
+        '--detach',
+      ]);
+      expect(await selection(inherited.run_id)).toContainEqual({
+        connection_id: connection.id,
+        tools: ['web_search'],
+      });
+      expect((await client.sessions.get(inherited.session_id)).connection_grants).toBeUndefined();
+      await client.runs.wait(inherited.run_id);
+      const preset = await client.agents.create({
+        name: 'CLI no-tool default',
+        harness: 'codex',
+        model: 'fixture-model',
+        billing_mode: 'managed',
+        connection_grants: [],
+      });
+      const narrowed = await json([
+        'run',
+        'Explicit preset selection',
+        '--project',
+        project.id,
+        '--agent',
+        preset.id,
+        '--connection',
+        `${connection.id}:web_search`,
+        '--detach',
+      ]);
+      expect(await selection(narrowed.run_id)).toEqual([
+        { connection_id: connection.id, tools: ['web_search'] },
+      ]);
+      expect((await client.sessions.get(narrowed.session_id)).connection_grants).toEqual([]);
+      await client.runs.wait(narrowed.run_id);
+      const none = await json([
+        'run',
+        'No tools this time',
+        '--session',
+        inherited.session_id,
+        '--no-connections',
+        '--detach',
+      ]);
+      expect(await selection(none.run_id)).toEqual([]);
+      await client.runs.wait(none.run_id);
+      const selected = await json([
+        'run',
+        'Select on continuation',
+        '--session',
+        inherited.session_id,
+        '--connection',
+        `${connection.id}:web_search`,
+        '--detach',
+      ]);
+      expect(await selection(selected.run_id)).toEqual([
+        { connection_id: connection.id, tools: ['web_search'] },
+      ]);
+      await client.runs.wait(selected.run_id);
+      const conflict = await command([
+        'run',
+        'Invalid combination',
+        '--connection',
+        `${connection.id}:web_search`,
+        '--no-connections',
+        '--json',
+      ]);
+      expect(conflict.code).toBe(2);
+    } finally {
+      await db.end();
+    }
+  }, 90000);
+
+  it('runs a saved preset without overriding its selected credentials or limits', async () => {
+    const project = await client.projects.create({ name: 'CLI named account fixture' });
+    const connection = await client.connections.create({
+      name: 'Selected fixture key',
+      kind: 'model',
+      provider: 'openai',
+      auth_method: 'api_key',
+      secret: 'unused-simulator-key',
+    });
+    const preset = await client.agents.create({
+      name: 'CLI preset',
+      harness: 'codex',
+      model: 'fixture-model',
+      billing_mode: 'byok',
+      provider_connection_id: connection.id,
+      limits: { timeout_seconds: 60, max_cost_micro_usd: '1230000' },
+    });
+    const run = await json([
+      'run',
+      'Use the selected configuration',
+      '--project',
+      project.id,
+      '--agent',
+      preset.id,
+      '--detach',
+    ]);
+    const session = await client.sessions.get(run.session_id);
+    expect(session).toMatchObject({
+      provider_connection_id: connection.id,
+      billing_mode: 'byok',
+      limits: { max_cost_micro_usd: '1230000' },
+    });
+    const final = await command(['run', 'attach', run.run_id, '--json']);
+    expect(final.code, final.stderr).toBe(0);
+    const shorter = await json([
+      'run',
+      'Use a shorter execution timeout',
+      '--project',
+      project.id,
+      '--agent',
+      preset.id,
+      '--timeout',
+      '30',
+      '--detach',
+    ]);
+    expect((await client.sessions.get(shorter.session_id)).limits).toEqual({
+      timeout_seconds: 30,
+      max_cost_micro_usd: '1230000',
+    });
+    await client.runs.wait(shorter.run_id);
+    const invalid = await command([
+      'run',
+      'Conflicting settings',
+      '--agent',
+      preset.id,
+      '--billing-mode',
+      'managed',
+      '--json',
+    ]);
+    expect(invalid.code).toBe(2);
+  }, 60000);
   it('documents all contracted commands and keeps invalid JSON output machine readable', async () => {
     for (const entry of contract.commands) {
       const value = await command([...entry.command.split(' '), '--help']);
       expect(value.code, entry.command + ' ' + value.stderr).toBe(0);
-      expect(value.stdout).toContain('Usage:');
+      expect(value.stdout).toContain(`Usage: macrofold ${entry.command}`);
     }
     const invalid = await command(['run', 'prompt', '--secret-api-key', 'oops', '--json']);
     expect(invalid.code).toBe(2);

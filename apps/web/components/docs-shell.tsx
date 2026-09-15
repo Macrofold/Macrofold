@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowUpRight, BookOpen, Search, X, Menu, ChevronRight, FileText } from 'lucide-react';
+import { ArrowUpRight, Search, X, Menu, ChevronRight, FileText } from 'lucide-react';
 import type { navigation } from '../lib/docs/content';
 import { docsRepository } from '../lib/docs/settings';
 
-type SearchEntry = { title: string; url: string; text: string; section: string };
+import { searchDocs, type SearchEntry } from '../lib/docs/search';
+import { BrandLockup } from './brand-lockup';
+import { ThemeControl } from './theme';
 export function DocsShell({
   name,
   items,
@@ -26,6 +28,8 @@ export function DocsShell({
   const [error, setError] = useState(false),
     [attempt, setAttempt] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const searchTrigger = useRef<HTMLButtonElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -56,15 +60,7 @@ export function DocsShell({
       });
     return () => controller.abort();
   }, [open, index, attempt]);
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  const matches = (index || [])
-    .map((entry) => ({
-      entry,
-      score: terms.reduce((score, term) => score + (entry.title.toLowerCase().includes(term) ? 10 : 0), 0),
-    }))
-    .filter(({ entry }) => terms.every((term) => `${entry.title} ${entry.text}`.toLowerCase().includes(term)))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+  const matches = searchDocs(index || [], query);
   const sidebar = (
     <nav aria-label="Documentation navigation">
       {[...new Set(items.map((item) => item.section))].map((section) => (
@@ -97,11 +93,13 @@ export function DocsShell({
       </a>
       <header className="docs-header">
         <Link className="docs-brand" href="/">
-          <BookOpen size={21} />
-          <strong>{name}</strong>
-          <span>Docs</span>
+          <BrandLockup name={name} />
+        </Link>
+        <Link className="docs-home-link" href="/docs">
+          Docs
         </Link>
         <button
+          ref={searchTrigger}
           className="docs-search-trigger"
           aria-label="Search documentation"
           onClick={() => setOpen(true)}
@@ -114,11 +112,15 @@ export function DocsShell({
           <a href={docsRepository}>
             GitHub <ArrowUpRight size={13} />
           </a>
-          <Link href="/login">
+          <Link className="docs-dashboard-link" href="/login">
             Dashboard <ArrowUpRight size={13} />
           </Link>
         </div>
+        <div className="docs-appearance">
+          <ThemeControl />
+        </div>
         <button
+          ref={menuTrigger}
           className="docs-mobile-trigger"
           aria-label="Open documentation menu"
           onClick={() => setMobile(true)}
@@ -133,12 +135,22 @@ export function DocsShell({
       <Dialog.Root open={mobile} onOpenChange={setMobile}>
         <Dialog.Portal>
           <Dialog.Overlay className="docs-overlay" />
-          <Dialog.Content className="docs-mobile-menu">
+          <Dialog.Content
+            className="docs-mobile-menu"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              menuTrigger.current?.focus();
+            }}
+          >
             <Dialog.Title>Documentation</Dialog.Title>
             <Dialog.Description className="docs-sr-only">Choose a guide.</Dialog.Description>
             <Dialog.Close className="docs-close" aria-label="Close menu">
               <X size={18} />
             </Dialog.Close>
+            <div className="docs-menu-appearance">
+              <span>Appearance</span>
+              <ThemeControl />
+            </div>
             {sidebar}
           </Dialog.Content>
         </Dialog.Portal>
@@ -152,12 +164,16 @@ export function DocsShell({
               event.preventDefault();
               input.current?.focus();
             }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              searchTrigger.current?.focus();
+            }}
           >
             <Dialog.Title className="docs-sr-only">Search documentation</Dialog.Title>
             <Dialog.Description className="docs-sr-only">
               Search guides, concepts, and API documentation. Tab through matching pages.
             </Dialog.Description>
-            <div className="docs-search-input">
+            <div className="docs-search-input input-surface">
               <Search size={21} />
               <input
                 ref={input}
@@ -178,14 +194,16 @@ export function DocsShell({
                   <button onClick={() => setAttempt((value) => value + 1)}>Try again</button>
                 </p>
               ) : !index ? (
-                <p role="status">Loading documentation…</p>
+                <p role="status" className="waiting-text">
+                  Loading documentation…
+                </p>
               ) : (
                 <>
                   <p className="docs-search-label" role="status">
                     {query ? `${matches.length} matching pages` : 'Explore the documentation'}
                   </p>
                   {!matches.length && <p>No matching pages. Try “workspace”, “API”, or “billing”.</p>}
-                  {matches.map(({ entry }) => (
+                  {matches.map((entry) => (
                     <Link href={entry.url} key={entry.url} onClick={() => setOpen(false)}>
                       <FileText size={18} />
                       <span>

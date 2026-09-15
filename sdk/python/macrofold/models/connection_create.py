@@ -19,6 +19,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
+from macrofold.models.claude_api_fallback import ClaudeApiFallback
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -27,7 +29,7 @@ class ConnectionCreate(BaseModel):
     """
     ConnectionCreate
     """ # noqa: E501
-    name: StrictStr
+    name: Annotated[str, Field(min_length=1, strict=True, max_length=120)] = Field(description="Editable display name. Does not change the stable connection ID or any agent selection.")
     kind: StrictStr
     provider: Optional[StrictStr] = Field(default=None, description="For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation.")
     url: Optional[StrictStr] = None
@@ -37,22 +39,22 @@ class ConnectionCreate(BaseModel):
     package: Optional[StrictStr] = None
     package_version: Optional[StrictStr] = None
     args: Optional[List[StrictStr]] = None
-    subject_id: Optional[StrictStr] = None
     secret_env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox.")
-    __properties: ClassVar[List[str]] = ["name", "kind", "provider", "url", "auth_method", "secret", "secret_headers", "package", "package_version", "args", "subject_id", "secret_env"]
+    api_fallback: Optional[ClaudeApiFallback] = None
+    __properties: ClassVar[List[str]] = ["name", "kind", "provider", "url", "auth_method", "secret", "secret_headers", "package", "package_version", "args", "secret_env", "api_fallback"]
 
     @field_validator('kind')
     def kind_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search']):
-            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search')")
+        if value not in set(['model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription']):
+            raise ValueError("must be one of enum values ('model', 'mcp_remote', 'mcp_stdio', 'composio', 'search', 'claude_subscription')")
         return value
 
     @field_validator('auth_method')
     def auth_method_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['oauth', 'bearer', 'headers', 'api_key', 'none']):
-            raise ValueError("must be one of enum values ('oauth', 'bearer', 'headers', 'api_key', 'none')")
+        if value not in set(['oauth', 'bearer', 'headers', 'api_key', 'none', 'claude_code']):
+            raise ValueError("must be one of enum values ('oauth', 'bearer', 'headers', 'api_key', 'none', 'claude_code')")
         return value
 
     model_config = ConfigDict(
@@ -94,6 +96,9 @@ class ConnectionCreate(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of api_fallback
+        if self.api_fallback:
+            _dict['api_fallback'] = self.api_fallback.to_dict()
         return _dict
 
     @classmethod
@@ -116,8 +121,8 @@ class ConnectionCreate(BaseModel):
             "package": obj.get("package"),
             "package_version": obj.get("package_version"),
             "args": obj.get("args"),
-            "subject_id": obj.get("subject_id"),
-            "secret_env": obj.get("secret_env")
+            "secret_env": obj.get("secret_env"),
+            "api_fallback": ClaudeApiFallback.from_dict(obj["api_fallback"]) if obj.get("api_fallback") is not None else None
         })
         return _obj
 

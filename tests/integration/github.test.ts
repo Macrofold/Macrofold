@@ -1,10 +1,11 @@
+import { writeFixtureFile } from '../fixtures/file-mutation';
 import { it, expect, beforeAll, afterAll } from 'vitest';
 import { pool, authPool, transaction } from '../../packages/db';
 import { customerScopes, type Principal } from '../../packages/core/src/auth';
 import { id, seal } from '../../packages/core/src/crypto';
 import { authorizeRepository } from '../../packages/core/src/github-auth';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace, writeFile } from '../../packages/core/src/files';
+import { createWorkspace } from '../../packages/core/src/files';
 import { queueGitSync, executeGitJob } from '../../packages/core/src/git-jobs';
 import { gitServer } from '../fixtures/git-server';
 import { createKey } from '../../packages/core/src/keys';
@@ -113,7 +114,11 @@ it('executes a queued sync against real Git HTTP, persists history and denies a 
     const ws = await transaction(p.organizationId, async (tx) => {
       const project = await resources.create(tx, 'projects', p.organizationId, {
         name: 'Sync job',
-        github: { installation_id: '123', repository_id: '1', target_branch: 'main' },
+        github: { installation_id: '123', repository_id: '1', target_branch: 'main',
+          auto_sync: false,
+          auto_pull: false,
+          sync_mode: 'push',
+        },
       });
       const op = await createWorkspace(tx, p, project.id, { name: 'main' });
       return resources.get(tx, 'workspaces', String((op.result as Record<string, unknown>).workspace_id));
@@ -128,9 +133,7 @@ it('executes a queued sync against real Git HTTP, persists history and denies a 
       expect((result.files as { path: string }[]).map((f) => f.path)).toContain('README.md');
       return result;
     });
-    await transaction(p.organizationId, (tx) =>
-      writeFile(tx, p, ws.id, 'README.md', Buffer.from('dashboard edit\n'), imported.revision),
-    );
+    await writeFixtureFile(p, ws.id, 'README.md', Buffer.from('dashboard edit\n'), imported.revision);
     const key = await transaction(p.organizationId, (tx) =>
       createKey(tx, p, { name: 'Revocable Git fixture', scopes: customerScopes }),
     );
@@ -169,7 +172,10 @@ it('queues automatic synchronization only after run persistence and reports its 
       await credit(tx, p.organizationId, 10000000n, 'git-auto-fixture-' + id());
       const project = await resources.create(tx, 'projects', p.organizationId, {
         name: 'Automatic synchronization',
-        github: { installation_id: '123', repository_id: '1', target_branch: 'main', auto_sync: true },
+        github: { installation_id: '123', repository_id: '1', target_branch: 'main', auto_sync: true,
+          auto_pull: false,
+          sync_mode: 'push',
+        },
       });
       const op = await createWorkspace(tx, p, project.id, { name: 'main' });
       return resources.get(tx, 'workspaces', String((op.result as Record<string, unknown>).workspace_id));

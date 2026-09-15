@@ -18,10 +18,11 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 from macrofold.models.error_detail import ErrorDetail
+from macrofold.models.operation_result import OperationResult
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -33,9 +34,10 @@ class Operation(BaseModel):
     id: UUID
     status: StrictStr
     kind: StrictStr
-    result: Optional[Dict[str, Any]] = Field(default=None, description="Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.")
+    result: Optional[OperationResult] = None
     error: Optional[ErrorDetail] = None
     created_at: datetime
+    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["id", "status", "kind", "result", "error", "created_at"]
 
     @field_validator('status')
@@ -75,8 +77,10 @@ class Operation(BaseModel):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
+        * Fields in `self.additional_properties` are added to the output dict.
         """
         excluded_fields: Set[str] = set([
+            "additional_properties",
         ])
 
         _dict = self.model_dump(
@@ -84,9 +88,17 @@ class Operation(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of result
+        if self.result:
+            _dict['result'] = self.result.to_dict()
         # override the default output from pydantic by calling `to_dict()` of error
         if self.error:
             _dict['error'] = self.error.to_dict()
+        # puts key-value pairs in additional_properties in the top level
+        if self.additional_properties is not None:
+            for _key, _value in self.additional_properties.items():
+                _dict[_key] = _value
+
         return _dict
 
     @classmethod
@@ -102,10 +114,15 @@ class Operation(BaseModel):
             "id": obj.get("id"),
             "status": obj.get("status"),
             "kind": obj.get("kind"),
-            "result": obj.get("result"),
+            "result": OperationResult.from_dict(obj["result"]) if obj.get("result") is not None else None,
             "error": ErrorDetail.from_dict(obj["error"]) if obj.get("error") is not None else None,
             "created_at": obj.get("created_at")
         })
+        # store additional fields in additional_properties
+        for _key in obj.keys():
+            if _key not in cls.__properties:
+                _obj.additional_properties[_key] = obj.get(_key)
+
         return _obj
 
 

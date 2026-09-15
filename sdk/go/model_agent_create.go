@@ -26,7 +26,9 @@ type AgentCreate struct {
 	Model string `json:"model"`
 	Instructions *string `json:"instructions,omitempty"`
 	BillingMode string `json:"billing_mode"`
+	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
 	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
+	// Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	Limits *Limits `json:"limits,omitempty"`
 }

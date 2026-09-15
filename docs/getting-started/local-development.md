@@ -7,7 +7,7 @@ Choose where execution happens and whether you need real model reasoning. **New 
 | Mode                                                       | Where the application and agent run                                                           | Accounts and costs                                                                 | Availability                                                       |
 | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [Local simulation](local-development/simulation.md)        | Dashboard, API, database, and worker on your computer; scripted agent activity                | No cloud or model account; free agent runs                                         | Working default                                                    |
-| [Real agents in local Docker](local-development/docker.md) | Local application and Docker sandbox; real Codex, Claude Code, or OpenCode                    | No Vercel account; a model provider key and inference budget                       | Provider implemented; complete Docker acceptance pending           |
+| [Real agents in local Docker](local-development/docker.md) | Local application and Docker sandbox; any of the six supported native harnesses                    | No Vercel account; a model provider key and inference budget                       | Complete API-to-Docker journey tested with scripted models           |
 | [Real agents in cloud staging](local-development/cloud.md) | Deployed application, database, storage, and Vercel Sandbox; clients can run on your computer | Access to a staging environment; cloud infrastructure and inference can cost money | Cloud adapter implemented; requires deployment and live acceptance |
 
 A **harness** is the agent software, such as Codex or Claude Code. A **model** supplies its reasoning. A **sandbox** is the isolated machine where its commands and file edits happen. A local sandbox can still call a remote, paid model.
@@ -22,9 +22,9 @@ For real reasoning, choose the explicit [Docker profile](local-development/docke
 
 ## Try the API
 
-Use the same [API quickstart](../features/api/quickstart.md) in each implemented mode: create an API key and project, submit a run, stream events, and retrieve the result. Point the client at the local or staging origin. Select `fixture-model` only for simulation; real execution needs an enabled model compatible with the selected harness.
+Use the same [API quickstart](../features/api/quickstart.md) in each implemented mode: create an API key and project, submit a run and wait for its complete result. Point the client at the local or staging origin. Select `fixture-model` only for simulation; real execution needs an enabled model compatible with the selected harness.
 
-Start with cURL or the interactive API reference. Postman is optional; import [OpenAPI](../api/openapi.json) and set your service origin and Bearer token. The CLI and SDKs use that same API.
+Start with the SDK quickstart, [cURL guide](../features/api/http-quickstart.md), or the interactive API reference. Postman is optional; import [OpenAPI](../api/openapi.json) and set your service origin and Bearer token. The CLI and SDKs use that same API.
 
 ## Test
 

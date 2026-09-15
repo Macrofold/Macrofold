@@ -1,8 +1,8 @@
 # Real agents in local Docker
 
-Run Codex, Claude Code, or OpenCode through the local API, with Docker providing compute and a model provider supplying inference. The application, PostgreSQL, captured email, and encrypted checkpoints stay on your computer. No Vercel account or public tunnel is needed.
+Run [any supported harness](../../features/execution/harnesses.md) through the local API, with Docker providing compute and a model provider supplying inference. The application, PostgreSQL, captured email, and encrypted checkpoints stay on your computer. No Vercel account or public tunnel is needed.
 
-The Docker provider and SQL worker integration are implemented. **Complete container acceptance is still pending**; run the deterministic check below before enabling inference on your workstation. [Acceptance evidence](../../engineering/testing/development-modes.md) separates tested application policy from Docker and live-provider acceptance.
+The Docker provider shares the cloud run lifecycle: API admission, SQL scheduling, native execution, streaming and verified checkpoints. The free test below exercises that path without model spending. [Acceptance evidence](../../engineering/testing/harnesses.md) distinguishes deterministic native execution from live inference and cloud hosting.
 
 ## Start
 
@@ -13,9 +13,11 @@ docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
 cp -n .env.docker.example .env.docker
 ```
 
+The image build installs only the runtime and its build tool from the shared lockfile. Docker caches npm downloads between attempts and limits concurrent downloads. If the registry disconnects, rerun the same build command to reuse downloaded packages; clearing the cache is unnecessary.
+
 Configure `.env.docker`:
 
-1. Set `MODEL_CATALOG_JSON` to reviewed, enabled [model entries](../../features/execution/runtime.md#production-model-catalog-example). Each entry must support its selected harness.
+1. Use the [built-in model catalog](../../features/execution/models.md); no model JSON configuration is required. The worker refreshes provider availability automatically.
 2. For managed inference, configure the corresponding `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY`. Alternatively, add an encrypted model connection in the dashboard and select BYOK.
 3. Set `ALLOW_PAID_EXECUTION=true` only after choosing your inference budget. Merely adding a key never enables execution.
 
@@ -50,9 +52,9 @@ With the image built and local PostgreSQL running, invoke this from the ordinary
 pnpm test:journey:docker
 ```
 
-The runner owns a disposable database, private object directory, independent API/worker processes, an internal Docker network, and its containers. It submits actual API requests for all three harnesses. Scripted model responses pass through the real gateway and drive actual file tools. It checks stream reconnection/replay, exact file bytes, checkpoint publication, fresh-container session continuation, a killed/replaced worker, and released reservations. No provider credentials or paid calls are used.
+The runner owns a disposable database, private object directory, independent API/worker processes, an internal Docker network, and its containers. It submits actual API requests for all six harnesses. Scripted model responses pass through the real gateway and drive actual file tools. It checks stream reconnection/replay, exact file bytes, checkpoint publication, fresh-container session continuation, a killed/replaced worker, and released reservations. No provider credentials or paid calls are used.
 
-A pass is expected to print one JSON result per harness with `passed: true`. An unavailable daemon or image fails before fixture provisioning; it is not reported as a skipped or successful test. This path still needs workstation and Linux CI acceptance; it has not yet demonstrated a complete Docker pass in the recorded environment.
+A pass is expected to print one JSON result per harness with `passed: true`. An unavailable daemon or image fails before fixture provisioning; it is not reported as a skipped or successful test. Consult the [verification record](../../engineering/testing/harnesses.md) for tested platforms and remaining hosted checks.
 
 For live reasoning, use the separately opted-in [complete journey runner](cloud.md#test-a-real-agent-journey), selecting `AGENT_JOURNEY_ENVIRONMENT=docker` and the local origin. It requires an approved budget and an idle synthetic customer.
 
@@ -62,6 +64,8 @@ For live reasoning, use the separately opted-in [complete journey runner](cloud.
 pnpm test:native codex
 pnpm test:native claude-code
 pnpm test:native opencode
+pnpm test:native hermes deepseek pi
+pnpm test:native hermes deepseek pi --tools
 ```
 
 These narrower tests run real harnesses with networking disabled and a model fixture inside the container. They cover tools, capture, restore, and native continuation, but bypass API admission and Docker provisioning through the worker. `pnpm test:native --image-only` tests the code baked into the image; otherwise the runner mounts fresh runtime bundles. OpenCode questions and stdio MCP have `pnpm test:native opencode --questions` and `pnpm test:native --stdio` paths.

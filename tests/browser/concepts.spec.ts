@@ -12,7 +12,7 @@ for (const concept of concepts) {
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
     await page.getByRole('tab', { name: 'Python', exact: true }).click();
     await expect(page.locator('.concept-code').getByRole('tabpanel')).toContainText(
-      'from macrofold import Client',
+      'from macrofold import Macrofold',
     );
     await page.getByRole('tab', { name: 'Python', exact: true }).press('ArrowRight');
     await expect(page.getByRole('tab', { name: 'cURL', exact: true })).toHaveAttribute(
@@ -63,7 +63,9 @@ test('concept gallery navigation, copying and unknown routes are honest', async 
   await expect(page).toHaveURL(/\/concepts\/aurum$/);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: 'Copy code example' }).click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("agent.request('createRun'");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    await page.getByLabel('TypeScript code example', { exact: true }).innerText(),
+  );
   await context.clearPermissions();
   await page.getByRole('link', { name: 'Next concept →', exact: true }).click();
   await expect(page).toHaveURL(/\/concepts\/eigen$/);
@@ -84,7 +86,7 @@ test('concepts remain readable without JavaScript', async ({ browser }) => {
       'href',
       '/docs/local-development',
     );
-    await expect(page.locator('.concept-code').getByRole('tabpanel')).toContainText('createRun');
+    await expect(page.locator('.concept-code').getByRole('tabpanel')).toContainText('macrofold.runs.create(');
     await expect(page.locator('.concept-study-fallback')).toContainText('Proposed animation:');
   } finally {
     await context.close();

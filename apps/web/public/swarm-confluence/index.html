@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Ten Swarm Confluence studies: five organic and five polyhedral structures continually taking form."
+    />
+    <title>Swarm Confluence</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./studio.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Study navigation">
+        <div>
+          <a href="../swarm-continuum/index.html">← Previous collection</a
+          ><a href="./reference.webp">Original artwork ↗</a>
+        </div>
+        <span>Swarm Confluence / 10</span>
+      </nav>
+      <header>
+        <h1>Structure in motion.</h1>
+        <p>
+          Ten particle studies develop from travelling streams into fuller, changing surfaces, gaining
+          definition before dispersing.
+        </p>
+      </header>
+
+      <section class="surface-picker" aria-label="Choose a confluence study">
+        <div class="surface-selection">
+          <label for="variation">Confluence variation</label>
+          <div class="surface-navigation">
+            <select id="variation" aria-describedby="variation-description" disabled>
+              <option>Loading confluence studies…</option>
+            </select>
+            <button id="previous" type="button" aria-label="Previous variation" disabled>← Previous</button>
+            <button id="next" type="button" aria-label="Next variation" disabled>Next →</button>
+          </div>
+        </div>
+        <p id="variation-description">
+          Compare the studies at the same moment. Changing a variation preserves the timeline.
+        </p>
+      </section>
+
+      <figure id="stage" aria-label="Swarm confluence study" data-renderer="loading" data-grid="false">
+        <img
+          id="poster"
+          src="./surfaces/viscera.webp"
+          width="1440"
+          height="960"
+          alt="Viscera confluence study at fourteen seconds."
+          fetchpriority="high"
+        />
+        <canvas id="particles" aria-hidden="true" hidden></canvas>
+        <figcaption class="sr-only">
+          An abstract particle confluence study, independent of real agents or activity.
+        </figcaption>
+      </figure>
+      <p id="poster-note" class="notice" hidden>
+        Original artwork · a still for this variation is unavailable.
+      </p>
+
+      <section class="controls" aria-label="Animation controls">
+        <div class="transport">
+          <button id="play" class="primary" type="button" disabled>Play</button>
+          <button id="pause" class="quiet" type="button" disabled>Pause</button>
+          <label class="sr-only" for="timeline">Animation time</label>
+          <input
+            id="timeline"
+            type="range"
+            min="0"
+            max="20"
+            step="0.01"
+            value="14"
+            aria-valuetext="14.0 of 20 seconds"
+            disabled
+          />
+          <output id="time" for="timeline" aria-live="off">14.0 <span>/ 20.0 s</span></output>
+        </div>
+        <div class="speed-control">
+          <label for="speed">Playback speed</label>
+          <input
+            id="speed"
+            type="range"
+            min="1"
+            max="2"
+            step="0.1"
+            value="1"
+            aria-valuetext="1.0 times normal speed"
+            disabled
+          />
+          <output id="speed-value" for="speed" aria-live="polite">1.0×</output>
+        </div>
+        <div class="sequence-options">
+          <button id="formation" type="button" disabled>Play formation</button>
+          <button id="loop" type="button" aria-pressed="false" disabled>Play 20 s loop</button>
+          <p>Drag the timeline, then Play to continue from that moment.</p>
+        </div>
+        <div class="view-options">
+          <div>
+            <button id="original" type="button" aria-pressed="false" disabled>Original reference</button>
+            <button id="grid" type="button" aria-pressed="false" disabled>Transparency grid</button>
+          </div>
+          <p id="playback-note">Viscera still · 14 s</p>
+        </div>
+      </section>
+      <ol class="phases" aria-label="Animation sequence">
+        <li><span>00–02 s</span>Lattice to disorder</li>
+        <li><span>02–06 s</span>Gradual formation</li>
+        <li><span>06–15 s</span>Continuous morphing</li>
+        <li><span>15–19 s</span>Wind dispersal</li>
+        <li><span>19–20 s</span>Empty frame</li>
+      </ol>
+      <div class="study-note">
+        <p>
+          An abstract study of changing geometry. The changing structures and particle motion are
+          art-directed.
+        </p>
+        <p id="status" role="status"></p>
+      </div>
+      <p id="static-notice" class="notice">
+        The Viscera still is shown. JavaScript is required to compare confluence studies and play their
+        motion.
+      </p>
+      <section id="downloads" class="downloads" aria-label="Download confluence assets" hidden>
+        <h2>Selected structure</h2>
+        <div>
+          <a id="surface-download" data-type="image/png" download hidden
+            ><span id="download-name">Structure still</span><span>PNG ↓</span></a
+          >
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

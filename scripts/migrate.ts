@@ -39,6 +39,7 @@ try {
   await client.query(
     `REVOKE UPDATE,DELETE,TRUNCATE ON ledger,financial_events,billing_events,admin_audit FROM ${role}`,
   );
+  await client.query(`REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON trigger_policy,connector_enablement FROM ${role}`);
   await client.query('REVOKE CREATE ON SCHEMA reporting FROM platform_reporting');
   await client.query('COMMIT');
   console.log('Database migrations applied.');

@@ -1,0 +1,32 @@
+.key-permissions {
+  margin-bottom: 16px;
+}
+.key-permissions .field {
+  margin-bottom: 8px;
+}
+.key-permissions .scope-grid {
+  grid-template-columns: 1fr;
+}
+.key-permissions .scope-grid label {
+  align-items: flex-start;
+}
+.key-permissions .scope-grid input {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.key-permissions .scope-grid code {
+  display: block;
+  color: var(--app-ink-3);
+  font-size: 11px;
+}
+.key-permissions-disclosure:not([hidden]) {
+  animation: key-permissions-reveal 140ms ease-out;
+}
+@keyframes key-permissions-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

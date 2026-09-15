@@ -1,3 +1,6 @@
+import { models } from './catalog';
+import { rateCardVersion } from './model-policy';
+import { createHash } from 'node:crypto';
 import { executionPolicy, planFor, plans } from './plans';
 import { schedulingReport } from './scheduling';
 import { transaction, type Tx } from '../../db';
@@ -197,7 +200,7 @@ export async function billing(tx: Tx, org: string) {
   return {
     plan: row.plan,
     execution_policy: executionPolicy(row),
-    plans: plans(),
+    plans: [...plans()],
     available_micro_usd: (effectiveBalance > BigInt(row.reserved_micro_usd)
       ? effectiveBalance - BigInt(row.reserved_micro_usd)
       : 0n
@@ -218,8 +221,11 @@ export async function billing(tx: Tx, org: string) {
       )
     ).rows.map((lot) => ({ ...lot, expires_at: lot.expires_at?.toISOString() || null })),
     reserved_micro_usd: row.reserved_micro_usd,
-    rate_card_version: process.env.RATE_CARD_VERSION || '2026-09-v1',
-    currency: 'USD',
+    rate_card_version: createHash('sha256')
+      .update((await models(tx)).map(rateCardVersion).join(':'))
+      .digest('hex')
+      .slice(0, 20),
+    currency: 'USD' as const,
     concurrency_limit: executionPolicy(row).concurrency_limit,
     storage_allowance_bytes: String(planFor(row.plan).storage_gib * 1024 ** 3),
   };

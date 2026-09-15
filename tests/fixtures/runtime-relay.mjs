@@ -9,7 +9,11 @@ export function runtimeRelay(origin) {
       outgoing.end('ready');
       return;
     }
-    if (!/^\/runtime\/runs\/[a-f0-9-]{36}\/(?:model\/[a-zA-Z0-9/_-]+|mcp)$/.test(incoming.url || '')) {
+    const pathname = new URL(incoming.url || '/', target).pathname;
+    if (
+      !incoming.url?.startsWith('/runtime/') ||
+      !/^\/runtime\/runs\/[a-f0-9-]{36}\/(?:model\/[a-zA-Z0-9/_-]+|mcp)$/.test(pathname)
+    ) {
       outgoing.writeHead(404).end();
       incoming.resume();
       return;

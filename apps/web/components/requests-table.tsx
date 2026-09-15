@@ -10,7 +10,7 @@ export function RequestsTable({ records }: { records: Schema['RequestRecord'][] 
   return (
     <>
       <div className="view-toolbar">
-        <div className="search-input">
+        <div className="search-input input-surface">
           <Search size={16} />
           <input
             aria-label="Filter requests"
@@ -21,7 +21,7 @@ export function RequestsTable({ records }: { records: Schema['RequestRecord'][] 
         </div>
         <span className="muted">{records.length} loaded requests</span>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" role="region" aria-label="Request history" tabIndex={0}>
         <table className="data-table requests-table">
           <thead>
             <tr>

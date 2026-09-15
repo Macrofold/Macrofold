@@ -58,6 +58,8 @@ await withFixtureDatabase(async (base) => {
   await writeFile(path.join(directory, 'build-sources.json'), JSON.stringify(buildSources));
   await command(['--filter', '@hosted-agents/cli', 'build'], env);
   const dist = path.resolve('apps/web', env.NEXT_DIST_DIR!);
+  // Standalone output omits public assets; acceptance must serve the same logos/art as deployment.
+  await cp('apps/web/public', path.join(dist, 'standalone/apps/web/public'), { recursive: true });
   await cp(path.join(dist, 'static'), path.join(dist, 'standalone/apps/web', env.NEXT_DIST_DIR!, 'static'), {
     recursive: true,
   });

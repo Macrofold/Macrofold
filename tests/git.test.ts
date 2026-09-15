@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FileRecord } from '../packages/core/src/files';
 import {
   branchName,
@@ -11,7 +11,7 @@ import {
   gitRevision,
   withRepository,
 } from '../packages/providers/src/git-repository';
-import { saveContent } from '../packages/providers/src/storage';
+import { saveContent, storage } from '../packages/providers/src/storage';
 const exec = promisify(execFile),
   org = crypto.randomUUID();
 async function file(name: string, text: string, options: Partial<FileRecord> = {}): Promise<FileRecord> {
@@ -25,6 +25,26 @@ async function file(name: string, text: string, options: Partial<FileRecord> = {
   };
 }
 describe('Portable Git checkpoints', () => {
+  it('reuses verified unchanged Git objects without uploading the same history again', async () => {
+    const initial = await gitRevision(org, 'main', [await file('note.txt', 'one')], [], 'Initial');
+    const next = [await file('note.txt', 'two')];
+    const put = vi.spyOn(storage, 'put');
+    try {
+      const updated = await gitRevision(org, 'main', next, initial.git_files, 'Updated');
+      const historyKeys = new Set(
+        initial.git_files.filter((f) => f.path.startsWith('.git/objects/')).map((f) => f.key),
+      );
+      expect(historyKeys.size).toBeGreaterThan(0);
+      expect(put.mock.calls.map(([key]) => key).filter((key) => historyKeys.has(key))).toEqual([]);
+      expect(updated.git_files.filter((f) => historyKeys.has(f.key))).toHaveLength(historyKeys.size);
+      await withRepository(updated.git_files, async (repo) => {
+        expect(await repo.head()).toBe(updated.git_commit);
+        expect((await repo.bundle()).bytes.length).toBeGreaterThan(0);
+      });
+    } finally {
+      put.mockRestore();
+    }
+  });
   it('keeps full commit ancestry, modes, ignored data classification and a native-verifiable bundle', async () => {
     const initial = await gitRevision(
       org,
@@ -90,5 +110,18 @@ describe('Portable Git checkpoints', () => {
     expect(gitMetadataPath('.git/objects/info/alternates')).toBe(false);
     const bad = await file('.git/HEAD', '/etc/passwd', { type: 'symlink' });
     await expect(withRepository([bad], async () => null)).rejects.toThrow('ordinary files');
+  });
+  it('never reuses imported Git objects whose persisted hash fails verification', async () => {
+    const initial = await gitRevision(org, 'main', [await file('verified.txt', 'one')], [], 'Initial');
+    const broken = initial.git_files.map((record) =>
+      record.path.startsWith('.git/objects/') ? { ...record, sha256: '0'.repeat(64) } : record,
+    );
+    const put = vi.spyOn(storage, 'put');
+    try {
+      await expect(withRepository(broken, (repo) => repo.save(org))).rejects.toThrow();
+      expect(put).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
+    }
   });
 });

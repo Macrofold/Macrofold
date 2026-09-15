@@ -1,3 +1,4 @@
+import { harnessNames } from '../packages/contracts/harnesses';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
@@ -10,8 +11,13 @@ import { dockerCommand } from '../packages/providers/src/docker';
 import { Client } from '../sdk/typescript/src/index';
 import { agentJourney } from './agent-journey';
 
+const selected = process.argv.slice(2);
+if (selected.some((name) => !harnessNames.includes(name as (typeof harnessNames)[number])))
+  throw new Error('Choose a supported native harness');
+const matrix = selected.length ? harnessNames.filter((name) => selected.includes(name)) : harnessNames;
+
 // Fail before provisioning fixtures if the daemon/image is unavailable; never pull or call a provider.
-await dockerCommand(['image', 'inspect', 'platform-runtime:0.1.0']);
+await dockerCommand(['image', 'inspect', process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0']);
 const network = `platform-acceptance-${randomUUID()}`;
 await dockerCommand(['network', 'create', '--internal', network]);
 try {
@@ -36,7 +42,7 @@ try {
       '--memory=128m',
       '--pids-limit=32',
       '--add-host=host.docker.internal:host-gateway',
-      'platform-runtime:0.1.0',
+      process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0',
       'node',
       '--input-type=module',
       '-e',
@@ -57,16 +63,6 @@ try {
   await withFixtureDatabase(async (env) => {
     await command(['exec', 'tsx', 'scripts/seed.ts'], env);
     const seed = JSON.parse(await readFile(path.join(env.DATA_DIR!, 'demo.json'), 'utf8'));
-    const catalog = [
-      { id: 'gpt-5.4', provider: 'openai', harnesses: ['codex', 'opencode'] },
-      { id: 'claude-sonnet-4-6', provider: 'anthropic', harnesses: ['claude-code'] },
-    ].map((model) => ({
-      ...model,
-      name: 'Deterministic native fixture',
-      enabled: true,
-      input_micro_usd_per_million: '1000000',
-      output_micro_usd_per_million: '2000000',
-    }));
     const syntheticSecrets = Object.fromEntries(
       Object.keys(env)
         .filter((key) => /KEY|SECRET|TOKEN|PASSWORD/.test(key))
@@ -83,12 +79,11 @@ try {
       DETERMINISTIC_AGENT_JOURNEY: '1',
       DOCKER_NETWORK: network,
       DOCKER_HOST_GATEWAY_IP: gateway,
-      DOCKER_RUNTIME_IMAGE: 'platform-runtime:0.1.0',
+      DOCKER_RUNTIME_IMAGE: process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0',
       COMPUTE_MICRO_USD_PER_MINUTE: '0',
       OPENAI_API_KEY: 'fixture-never-live',
       ANTHROPIC_API_KEY: 'fixture-never-live',
       OPENROUTER_API_KEY: 'fixture-never-live',
-      MODEL_CATALOG_JSON: JSON.stringify(catalog),
       RESEND_API_KEY: '',
       STRIPE_SECRET_KEY: '',
       BRAVE_SEARCH_API_KEY: '',
@@ -109,11 +104,12 @@ try {
       await database.connect();
       await ready(env.APP_ORIGIN!, server.child);
       const client = new Client({ baseURL: env.APP_ORIGIN!, token: seed.api_key });
-      for (const harness of ['codex', 'claude-code', 'opencode'] as const) {
+      for (const harness of matrix) {
+        console.log(`Verifying complete ${harness} API journey`);
         let restarted = false;
         const result = await agentJourney(client, {
           harness,
-          model: harness === 'claude-code' ? 'claude-sonnet-4-6' : 'gpt-5.4',
+          model: harness === 'claude-code' ? 'claude-sonnet-4-6' : 'gpt-5.4-mini',
           timeoutSeconds: 180,
           runBudget: '2000000',
           observed: async (event) => {

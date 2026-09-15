@@ -36,6 +36,8 @@ Long-lived model credentials remain in the control plane. The sandbox receives a
 
 API access is the supported funding mechanism; consumer ChatGPT/Claude subscriptions are not pooled into a public SaaS. Native adapter licenses and provider terms remain separate from this application's Apache-2.0 license. Operators review the actual vendor distribution/use terms before publishing a runtime image or selling access.
 
+Named Claude subscription configurations and optional backup policies can be saved, but subscription authentication and execution remain closed. No Claude OAuth credential collection or authentication vault is implemented. The [acceptance record](../../engineering/testing/named-connections.md) specifies the proposed separate controller/tool identities, credential generation fencing, accounting and provider permission required before enabling that path. File permissions do not hide credentials from tools running under the same UID.
+
 ## Connector choices
 
 The [Composio setup guide](composio.md) covers project credentials, application identity binding and the distinction between CLI login and verified provider execution.
@@ -44,11 +46,11 @@ Composio is optional for its maintained OAuth/app-tool catalog. It complements B
 
 Direct MCP uses the official SDK for Streamable HTTP, discovery, PKCE, supported dynamic client registration or preconfigured clients and refresh. The callback binds browser/user/organization/connection and is single-use. Refresh is serialized; rotated credentials survive a later tool error. Issuer/endpoints stay pinned while credentials exist. To change service identity, create a new connection rather than forwarding old credentials to an edited URL.
 
-Users create a connection, authorize it, discover/test tools, choose grants and attach a subset to a run/preset. New tools are not automatically granted. Remote bearer/no-auth endpoints work independently of Composio. Incoming platform tokens are never forwarded upstream. Arbitrary custom request headers are not a supported escape hatch around the broker.
+Users create and authorize a connection, approve its tool ceiling, and choose where it is available through additive access rules. Run/preset tool selections narrow this policy; explicit one-run exceptions require the owner and current write authority. New tools are not automatically granted. Remote bearer/no-auth endpoints work independently of Composio. Incoming platform tokens are never forwarded upstream. Arbitrary custom request headers are not a supported escape hatch around the broker.
 
 Approved stdio packages execute inside the already allocated customer's sandbox, never as an API-host child process. The operator catalog pins executable/argv/version/tool schema. Stdio credentials intentionally become visible to that customer's sandbox process tree; the dashboard explains that scope. Built-in discovery reads the catalog; invocation uses a protected runtime marker and central invocation journal to avoid blind replay after ambiguous dispatch.
 
-Disconnect immediately clears platform grants. Durable cleanup separately deletes the Composio account or invokes supported MCP revocation. Unsupported revocation and provider API keys need explicit upstream revocation if the user intends to invalidate them everywhere. No background health check calls paid tools merely to color a dashboard badge: test/discovery and actual runtime outcomes supply status, and external setup still requires operator verification.
+Disconnect immediately clears the approved tools and organization toggle and increments the shared access version; retained rules cannot authorize a disconnected account. Durable cleanup separately deletes the Composio account or invokes supported MCP revocation. Unsupported revocation and provider API keys need explicit upstream revocation if the user intends to invalidate them everywhere. No background health check calls paid tools merely to color a dashboard badge: test/discovery and actual runtime outcomes supply status, and external setup still requires operator verification.
 
 ## Network, files and external effects
 
@@ -67,3 +69,7 @@ Production requires HTTPS, independent auth/vault secrets, restricted database l
 Project deletion has explicit recent-auth confirmation, seven-day undo and delayed collection. Account closure is initially operator-assisted because subscriptions, ownership transfer, financial retention and external revocation require coordinated decisions. The launch guide specifies the closure procedure and requires a real support channel; there is no misleading one-click erase-everywhere button. Public privacy/terms/retention and vendor account approvals are operator-owned publication inputs.
 
 Authentication throttling uses Better Auth's PostgreSQL storage in production, so replicas share counters. The unpaid local profile explicitly bypasses this login throttle while retaining domain API limits and MFA account lockout. Expired auth counters are collected after one day. Deploy behind an edge that overwrites client-IP headers; untrusted forwarded headers cannot be a reliable abuse boundary.
+
+## Connector access policy
+
+[Connector access rules](connection-access.md) owns policy and API semantics. [Implementation and activation](../../engineering/testing/connection-access.md) identifies the SQL/resolution/broker boundaries, migration 032, snapshot binding and acceptance. Provider discovery is separate from persisted eligibility, and every dispatch rechecks current authority without expanding its frozen tool/account maximum.

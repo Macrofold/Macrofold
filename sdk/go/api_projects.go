@@ -578,11 +578,35 @@ type ApiGetProjectRequest struct {
 	ApiService *ProjectsAPIService
 	projectId string
 	xOrganizationId *string
+	includeConnections *bool
+	agentId *string
+	connectionsLimit *int32
+	connectionsCursor *string
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiGetProjectRequest) XOrganizationId(xOrganizationId string) ApiGetProjectRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiGetProjectRequest) IncludeConnections(includeConnections bool) ApiGetProjectRequest {
+	r.includeConnections = &includeConnections
+	return r
+}
+
+func (r ApiGetProjectRequest) AgentId(agentId string) ApiGetProjectRequest {
+	r.agentId = &agentId
+	return r
+}
+
+func (r ApiGetProjectRequest) ConnectionsLimit(connectionsLimit int32) ApiGetProjectRequest {
+	r.connectionsLimit = &connectionsLimit
+	return r
+}
+
+func (r ApiGetProjectRequest) ConnectionsCursor(connectionsCursor string) ApiGetProjectRequest {
+	r.connectionsCursor = &connectionsCursor
 	return r
 }
 
@@ -593,7 +617,7 @@ func (r ApiGetProjectRequest) Execute() (*Project, *http.Response, error) {
 /*
 GetProject Inspect a project
 
-
+Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param projectId
@@ -629,6 +653,165 @@ func (a *ProjectsAPIService) GetProjectExecute(r ApiGetProjectRequest) (*Project
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.includeConnections != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", r.includeConnections, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", defaultValue, "form", "")
+		r.includeConnections = &defaultValue
+	}
+	if r.agentId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")
+	}
+	if r.connectionsLimit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", r.connectionsLimit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", defaultValue, "form", "")
+		r.connectionsLimit = &defaultValue
+	}
+	if r.connectionsCursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_cursor", r.connectionsCursor, "form", "")
+	}
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiGetWorktreeOptionsRequest struct {
+	ctx context.Context
+	ApiService *ProjectsAPIService
+	projectId string
+	xOrganizationId *string
+	name *string
+	branch *string
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiGetWorktreeOptionsRequest) XOrganizationId(xOrganizationId string) ApiGetWorktreeOptionsRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiGetWorktreeOptionsRequest) Name(name string) ApiGetWorktreeOptionsRequest {
+	r.name = &name
+	return r
+}
+
+func (r ApiGetWorktreeOptionsRequest) Branch(branch string) ApiGetWorktreeOptionsRequest {
+	r.branch = &branch
+	return r
+}
+
+func (r ApiGetWorktreeOptionsRequest) Execute() (*WorktreeOptions, *http.Response, error) {
+	return r.ApiService.GetWorktreeOptionsExecute(r)
+}
+
+/*
+GetWorktreeOptions List saved branches and validate worktree names
+
+Read-only validation. Creation rechecks names and branches under the project lock. Branches come from saved project repositories.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param projectId
+ @return ApiGetWorktreeOptionsRequest
+*/
+func (a *ProjectsAPIService) GetWorktreeOptions(ctx context.Context, projectId string) ApiGetWorktreeOptionsRequest {
+	return ApiGetWorktreeOptionsRequest{
+		ApiService: a,
+		ctx: ctx,
+		projectId: projectId,
+	}
+}
+
+// Execute executes the request
+//  @return WorktreeOptions
+func (a *ProjectsAPIService) GetWorktreeOptionsExecute(r ApiGetWorktreeOptionsRequest) (*WorktreeOptions, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *WorktreeOptions
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ProjectsAPIService.GetWorktreeOptions")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/projects/{project_id}/worktree-options"
+	localVarPath = strings.Replace(localVarPath, "{"+"project_id"+"}", url.PathEscape(parameterValueToString(r.projectId, "projectId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.name != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
+	}
+	if r.branch != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "branch", r.branch, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

@@ -56,6 +56,10 @@ export const routes = {
     "method": "DELETE",
     "path": "/v1/workspaces/{workspace_id}/file"
   },
+  "renameFile": {
+    "method": "PATCH",
+    "path": "/v1/workspaces/{workspace_id}/file"
+  },
   "listCheckpoints": {
     "method": "GET",
     "path": "/v1/workspaces/{workspace_id}/checkpoints"
@@ -288,14 +292,6 @@ export const routes = {
     "method": "GET",
     "path": "/admin/v1/reports/operating"
   },
-  "getConnectionGrants": {
-    "method": "GET",
-    "path": "/v1/connections/{connection_id}/grants"
-  },
-  "setConnectionGrants": {
-    "method": "PUT",
-    "path": "/v1/connections/{connection_id}/grants"
-  },
   "updateCheckpointRetention": {
     "method": "PATCH",
     "path": "/v1/checkpoints/{checkpoint_id}"
@@ -467,5 +463,45 @@ export const routes = {
   "listSlackConnectionChannels": {
     "method": "GET",
     "path": "/v1/slack-connections/{connection_id}/channels"
+  },
+  "createFolder": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/folders"
+  },
+  "getWorktreeOptions": {
+    "method": "GET",
+    "path": "/v1/projects/{project_id}/worktree-options"
+  },
+  "duplicateFile": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/files/duplicate"
+  },
+  "getConnectionAccess": {
+    "method": "GET",
+    "path": "/v1/connections/{connection_id}/access"
+  },
+  "updateConnectionAccess": {
+    "method": "PATCH",
+    "path": "/v1/connections/{connection_id}/access"
+  },
+  "listConnectionAccessRules": {
+    "method": "GET",
+    "path": "/v1/connections/{connection_id}/access/rules"
+  },
+  "createConnectionAccessRule": {
+    "method": "POST",
+    "path": "/v1/connections/{connection_id}/access/rules"
+  },
+  "updateConnectionAccessRule": {
+    "method": "PATCH",
+    "path": "/v1/connections/{connection_id}/access/rules/{rule_id}"
+  },
+  "deleteConnectionAccessRule": {
+    "method": "DELETE",
+    "path": "/v1/connections/{connection_id}/access/rules/{rule_id}"
+  },
+  "resolveConnectionAccess": {
+    "method": "POST",
+    "path": "/v1/connection-access/resolve"
   }
 } as const;

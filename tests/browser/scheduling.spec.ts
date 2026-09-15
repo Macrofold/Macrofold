@@ -109,7 +109,7 @@ test('plan controls and queued run status work through the dashboard and public 
     expect(next).not.toHaveProperty('queue_position');
     expect(next.waiting_reason).toBe('earlier_workspace_work');
     await page.goto('/runs/' + next.run_id);
-    const waiting = page.getByRole('status').filter({ hasText: 'Earlier work is using this workspace' });
+    const waiting = page.getByRole('status').filter({ hasText: 'Earlier work is using this worktree' });
     await expect(waiting).toBeVisible();
     await expect(waiting).toContainText('Budget held');
     await expect(waiting).toContainText('Start deadline');

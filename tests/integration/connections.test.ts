@@ -1,8 +1,10 @@
+import { fixtureConnector, fixtureOperator } from '../fixtures/operator';
 import { it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { startComposio, finishComposio } from '../../packages/core/src/composio-auth';
+import { patchAccess } from '../../packages/core/src/connection-access';
 import * as connections from '../../packages/core/src/connections';
 import * as resources from '../../packages/core/src/resources';
 import { disconnectConnection, cleanConnection } from '../../packages/core/src/connection-cleanup';
@@ -14,25 +16,35 @@ const browserRequest = (url: string, init: RequestInit) =>
     get: (target, key) => Reflect.get(target, key, target),
   });
 beforeAll(async () => {
+  await fixtureConnector();
   a = await fixtureAccount('Connector owner');
   b = await fixtureAccount('Other connector user');
   process.env.COMPOSIO_API_KEY = 'fixture-no-real-account';
-  process.env.COMPOSIO_AUTH_CONFIGS_JSON = '{"gmail":"fixture-auth"}';
   process.env.COMPOSIO_CALLBACK_VERIFICATION_ENABLED = 'true';
   vi.spyOn(connections, 'composio').mockReturnValue({
     connectedAccounts: {
-      link: async (user: string) => {
+      link: async (user: string, _config: string, options: { alias: string; allowMultiple: boolean }) => {
         expect(user).toBe(`${a.p.organizationId}:${a.p.userId}`);
+        expect(options).toMatchObject({
+          allowMultiple: true,
+          alias: expect.stringMatching(/^[a-f0-9-]{36}$/),
+        });
         return { id: 'fixture-connected', redirectUrl: 'https://connect.composio.dev/fixture' };
       },
+      refresh: async (id: string) => ({
+        id,
+        redirect_url: 'https://connect.composio.dev/reconnect',
+        status: 'INITIATED',
+      }),
+      get: async (id: string) => ({ id, toolkit: { slug: 'gmail' }, status: 'ACTIVE', isDisabled: false }),
     },
   } as unknown as ReturnType<typeof connections.composio>);
 });
 afterAll(async () => {
+  await fixtureOperator((db) => db.query("DELETE FROM connector_enablement WHERE toolkit='gmail'"));
   vi.restoreAllMocks();
   for (const key of [
     'COMPOSIO_API_KEY',
-    'COMPOSIO_AUTH_CONFIGS_JSON',
     'COMPOSIO_CALLBACK_VERIFICATION_ENABLED',
   ]) {
     if (oldEnv[key] === undefined) delete process.env[key];
@@ -50,13 +62,10 @@ it('serializes simultaneous grant updates so a stale edit cannot overwrite a rev
       auth_method: 'none',
     }),
   );
-  const grants = { version: 1, subject_type: 'user' as const, subject_id: a.p.userId };
   const outcomes = await Promise.allSettled([
+    transaction(a.p.organizationId, (tx) => patchAccess(tx, a.p, connection.id, { tools: [] }, '"1"')),
     transaction(a.p.organizationId, (tx) =>
-      connections.setGrants(tx, a.p, connection, { ...grants, tools: [] }),
-    ),
-    transaction(a.p.organizationId, (tx) =>
-      connections.setGrants(tx, a.p, connection, { ...grants, tools: ['web_search'] }),
+      patchAccess(tx, a.p, connection.id, { tools: ['web_search'] }, '"1"'),
     ),
   ]);
   expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
@@ -66,7 +75,10 @@ it('serializes simultaneous grant updates so a stale edit cannot overwrite a rev
   const stored = await transaction(a.p.organizationId, (tx) =>
     resources.get(tx, 'connections', connection.id),
   );
-  expect(stored.grants).toEqual(outcomes.find((outcome) => outcome.status === 'fulfilled')?.value);
+  expect(stored.access_version).toBe('2');
+  expect(stored.access_tools).toEqual(
+    outcomes.find((outcome) => outcome.status === 'fulfilled')?.value.tools,
+  );
   await transaction(a.p.organizationId, (tx) =>
     resources.update(tx, 'connections', connection.id, { deleted: true }),
   );
@@ -117,8 +129,18 @@ it('requires matching browser identity and Composio account binding before activ
   ).rejects.toMatchObject({ code: 'invalid_oauth_state' });
   expect(calls).toBe(1);
   expect(await transaction(a.p.organizationId, (tx) => resources.get(tx, 'connections', c.id))).toMatchObject(
-    { status: 'healthy', identity_verified: true },
+    { status: 'healthy', identity_verified: true, account_identity: 'fixture-connected' },
   );
+  const renamed = await transaction(a.p.organizationId, (tx) =>
+    connections.saveConnection(tx, a.p, { name: 'Gmail Research' }, c.id),
+  );
+  expect(renamed).toMatchObject({
+    id: c.id,
+    status: 'healthy',
+    identity_verified: true,
+    account_identity: 'fixture-connected',
+    name: 'Gmail Research',
+  });
   await transaction(a.p.organizationId, (tx) => disconnectConnection(tx, a.p, c));
   expect(
     (
@@ -161,3 +183,127 @@ it('requires matching browser identity and Composio account binding before activ
     { cleanup_status: 'revoked', external_account_id: null, oauth_ciphertext: null },
   );
 });
+
+it('invalidates an earlier reconnect attempt without changing another named account', async () => {
+  const rows = await transaction(a.p.organizationId, async (tx) =>
+    Promise.all(
+      ['Research', 'Personal'].map((name) =>
+        connections.saveConnection(tx, a.p, {
+          name,
+          kind: 'composio',
+          provider: 'gmail',
+          auth_method: 'oauth',
+        }),
+      ),
+    ),
+  );
+  const begin = (connection: string) =>
+    startComposio(
+      browserRequest(
+        `${config.origin}/integrations/composio/install?connection_id=${connection}&organization_id=${a.p.organizationId}`,
+        { headers: { cookie: a.cookie } },
+      ),
+    );
+  const first = await begin(rows[0].id);
+  const staleCookie = first.headers.get('set-cookie')!.split(';')[0];
+  await begin(rows[0].id);
+  const http = vi.fn<typeof fetch>();
+  await expect(
+    finishComposio(
+      browserRequest(config.origin + '/integrations/composio/callback?session_uri=fixture', {
+        headers: { cookie: a.cookie + '; ' + staleCookie },
+      }),
+      http,
+    ),
+  ).rejects.toMatchObject({ code: 'invalid_oauth_state' });
+  expect(http).not.toHaveBeenCalled();
+  expect(
+    await transaction(a.p.organizationId, (tx) => resources.get(tx, 'connections', rows[1].id)),
+  ).toMatchObject({ name: 'Personal', status: 'pending' });
+  await expect(
+    transaction(a.p.organizationId, (tx) =>
+      connections.saveConnection(tx, { ...a.p, userId: b.p.userId }, { name: 'Stolen' }, rows[0].id),
+    ),
+  ).rejects.toMatchObject({ code: 'forbidden' });
+  for (const row of rows) await transaction(a.p.organizationId, (tx) => disconnectConnection(tx, a.p, row));
+});
+
+it.each([
+  { id: 'another-account' },
+  { toolkit: { slug: 'slack' } },
+  { status: 'EXPIRED' },
+  { isDisabled: true },
+])('does not authorize an unavailable or mismatched returning account (%j)', async (change) => {
+  const c = await transaction(a.p.organizationId, (tx) =>
+    connections.saveConnection(tx, a.p, {
+      name: 'Unverified account',
+      kind: 'composio',
+      provider: 'gmail',
+      auth_method: 'oauth',
+    }),
+  );
+  const started = await startComposio(
+    browserRequest(
+      `${config.origin}/integrations/composio/install?connection_id=${c.id}&organization_id=${a.p.organizationId}`,
+      { headers: { cookie: a.cookie } },
+    ),
+  );
+  const accounts = connections.composio().connectedAccounts;
+  const active = await accounts.get('fixture-connected');
+  vi.spyOn(accounts, 'get').mockResolvedValueOnce({ ...active, ...change } as typeof active);
+  await expect(
+    finishComposio(
+      browserRequest(config.origin + '/integrations/composio/callback?session_uri=fixture', {
+        headers: { cookie: a.cookie + '; ' + started.headers.get('set-cookie')!.split(';')[0] },
+      }),
+      async () => Response.json({ connected_account_id: 'fixture-connected', toolkit_slug: 'gmail' }),
+    ),
+  ).rejects.toMatchObject({ code: 'connection_verification_failed' });
+  expect(await transaction(a.p.organizationId, (tx) => resources.get(tx, 'connections', c.id))).toMatchObject(
+    {
+      status: 'pending',
+      identity_verified: false,
+      account_identity: null,
+    },
+  );
+  await transaction(a.p.organizationId, (tx) => disconnectConnection(tx, a.p, c));
+});
+
+it.each(['reconnect', 'disconnect'] as const)(
+  'cannot publish an old authorization after concurrent %s',
+  async (action) => {
+    const c = await transaction(a.p.organizationId, (tx) =>
+      connections.saveConnection(tx, a.p, {
+        name: 'Rotating account',
+        kind: 'composio',
+        provider: 'gmail',
+        auth_method: 'oauth',
+      }),
+    );
+    const begin = () =>
+      startComposio(
+        browserRequest(
+          `${config.origin}/integrations/composio/install?connection_id=${c.id}&organization_id=${a.p.organizationId}`,
+          { headers: { cookie: a.cookie } },
+        ),
+      );
+    const started = await begin();
+    await expect(
+      finishComposio(
+        browserRequest(config.origin + '/integrations/composio/callback?session_uri=fixture', {
+          headers: { cookie: a.cookie + '; ' + started.headers.get('set-cookie')!.split(';')[0] },
+        }),
+        async () => {
+          if (action === 'reconnect') await begin();
+          else await transaction(a.p.organizationId, (tx) => disconnectConnection(tx, a.p, c));
+          return Response.json({ connected_account_id: 'fixture-connected', toolkit_slug: 'gmail' });
+        },
+      ),
+    ).rejects.toMatchObject({ code: action === 'reconnect' ? 'connection_changed' : 'not_found' });
+    const saved = await transaction(a.p.organizationId, (tx) => resources.get(tx, 'connections', c.id));
+    expect(saved.identity_verified).toBe(false);
+    expect(saved.status).not.toBe('healthy');
+    if (action === 'reconnect')
+      await transaction(a.p.organizationId, (tx) => disconnectConnection(tx, a.p, c));
+  },
+);

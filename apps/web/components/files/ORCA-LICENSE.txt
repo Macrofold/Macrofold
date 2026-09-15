@@ -1,0 +1,40 @@
+Portions of file-tree-model.ts, file-tree.tsx, markdown-model.ts and
+markdown-preview.tsx are adapted from stablyai/orca:
+https://github.com/stablyai/orca
+Commit: aac38d698ff75ac4c8658addab48ef5a83617619
+
+Rich toolbar grouping also adapted from commit f2d5711b2d32e9f11277cd63805c76b0b5f9ddf7,
+src/renderer/src/components/editor/RichMarkdownToolbar.tsx.
+
+Original source paths:
+src/shared/file-name-sort.ts
+src/renderer/src/components/right-sidebar/file-explorer-keyboard-navigation.ts
+src/renderer/src/components/right-sidebar/FileExplorerVirtualRows.tsx
+src/renderer/src/components/editor/MarkdownPreviewBody.tsx
+src/renderer/src/components/editor/MarkdownPreviewSurface.tsx
+src/renderer/src/components/editor/markdown-frontmatter.ts
+
+Adaptations use Macrofold's existing components and authorized file callbacks.
+Orca's desktop runtime, state store and filesystem APIs are not included.
+
+MIT License
+
+Copyright (c) 2026 Lovecast Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

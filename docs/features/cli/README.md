@@ -2,41 +2,43 @@
 
 Work in your local terminal while the agent and its files run remotely. Link a project, stream a task, continue a conversation, and transfer files when you choose.
 
-## Run from source
+Use the same commands with [Macrofold Cloud](../../cloud/README.md) or a [self-hosted deployment](../../operations/README.md). Login to the origin that owns your projects and credentials.
 
-The CLI requires Node 24 and supports macOS and Linux. After [installing the repository](../../getting-started/local-development.md), run:
+## Install and connect
+
+The CLI requires Node 24 and supports macOS and Linux. Follow the [CLI installation guide](../../../packages/cli/README.md) to build and register the `macrofold` command, then run:
 
 ```sh
-pnpm cli --help
-pnpm cli login --host http://localhost:3210
-pnpm cli project list
-pnpm cli link PROJECT_ID
-pnpm cli doctor
+macrofold --help
+macrofold login --host https://YOUR_MACROFOLD_ORIGIN
+macrofold project list
+macrofold link PROJECT_ID
+macrofold doctor
 ```
 
-Use your deployment's HTTPS origin for hosted work. Login opens a device authorization flow; no local callback server is required. `doctor` reads the model catalog without executing a model.
+For Cloud, use `https://app.macrofold.ai` (or the origin supplied with your access). For self-hosting, use your deployment's HTTPS origin. For local simulation, use `http://localhost:3210`. Login opens a device authorization flow; no local callback server is required. `doctor` reads the model catalog without executing a model.
 
-The examples use `pnpm cli` from a checkout. The built package provides the equivalent `agent` executable; see the [package guide](../../../packages/cli/README.md).
+Contributors can use `pnpm cli` from the repository root instead of installing the command. That script runs the same CLI from source.
 
 ## Run and continue
 
 ```sh
-pnpm cli chat --harness codex --model fixture-model
-pnpm cli run "Review the project and save a progress note" --harness codex --model fixture-model
-pnpm cli run attach RUN_ID
+macrofold chat --harness codex --model YOUR_ENABLED_MODEL
+macrofold run "Review the project and save a progress note" --harness codex --model YOUR_ENABLED_MODEL
+macrofold run attach RUN_ID
 ```
 
-`fixture-model` is local simulation only. Use an enabled model from the hosted catalog for real work. Hosted runs consume usage according to funding and limits. Use `--timeout`, `--max-cost`, and `--queue-timeout` to request lower bounds than the organization's maxima.
+Use `fixture-model` instead of `YOUR_ENABLED_MODEL` for free local simulation. Use an enabled model from the hosted catalog for real work. Hosted runs consume usage according to funding and limits. Use `--timeout`, `--max-cost`, and `--queue-timeout` to request lower bounds than the organization's maxima.
 
 `--detach` submits a run and returns its ID. In chat, `/help` lists available commands; `/new` starts a new conversation, and `/detach` leaves remote work running.
 
 ## Work in parallel
 
 ```sh
-pnpm cli worktree list
-pnpm cli worktree create review --from main --use
-pnpm cli files list
-pnpm cli git status
+macrofold worktree list
+macrofold worktree create review --from main --use
+macrofold files list
+macrofold git status
 ```
 
 A remote worktree is an independent workspace and branch. It does not create a local checkout. Use `worktree checkout NAME --local PATH` explicitly when you want a verified local Git worktree for review.
@@ -44,8 +46,8 @@ A remote worktree is an independent workspace and branch. It does not create a l
 ## Transfer files deliberately
 
 ```sh
-pnpm cli files push notes.md --dry-run
-pnpm cli files pull notes.md --dry-run
+macrofold files push notes.md --dry-run
+macrofold files pull notes.md --dry-run
 ```
 
 Review the plan, then repeat without `--dry-run` to apply interactively. Add `--yes` for a reviewed noninteractive transfer. Linking does not upload files, and there is no background directory sync. Deletions and ignored-file inclusion require explicit options. Conflicting revisions require reconciliation.
@@ -65,3 +67,9 @@ Use `AGENT_HOST` and a scoped `AGENT_API_KEY` from a CI secret store, or pipe th
 `--json` returns a versioned result envelope. `--jsonl` streams normalized events. Progress stays out of machine-readable stdout; `--plain` provides a simple terminal view.
 
 For the full command table, selectors, exit codes, security boundaries, and input handling, read the [CLI reference](implementation.md) and [machine-readable command contract](../../api/cli.json).
+
+## Connector permissions
+
+The CLI uses the same [connector access rules](../identity-integrations/connection-access.md) as dashboard and SDK runs. Provider authorization alone grants no tool access. Inherited selection resolves the linked project and saved preset; an explicit connection selection only narrows approved access. Manage access rules in Connections or through the generated SDKs. Connection changes require connections:write consent.
+
+Connector selection inherits by default. Use `--connection CONNECTION_ID:TOOL1,TOOL2` to narrow tools or `--no-connections` to select none; both work with `--agent` and `--session`. Selection never grants access.

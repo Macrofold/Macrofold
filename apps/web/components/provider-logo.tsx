@@ -1,29 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { PlugZap } from 'lucide-react';
-import { isSearchProvider, searchProviders } from '../../../packages/contracts/search';
-
-const local: Record<string, string> = {
-  openai: 'openai',
-  anthropic: 'anthropic',
-  openrouter: 'openrouter',
-  brave: 'brave',
-  mcp_remote: 'mcp',
-  mcp_stdio: 'mcp',
-  codex: 'openai',
-  'claude-code': 'anthropic',
-};
-export const providerName = (provider: string) =>
-  isSearchProvider(provider)
-    ? searchProviders[provider].name
-    : {
-        openai: 'OpenAI',
-        anthropic: 'Anthropic',
-        openrouter: 'OpenRouter',
-        gmail: 'Gmail',
-        googledrive: 'Google Drive',
-        github: 'GitHub',
-      }[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+import { FlaskConical, PlugZap } from 'lucide-react';
+import { providerLogoSource, providerName } from '../lib/provider-branding';
+import './provider-logo.css';
+export { providerName } from '../lib/provider-branding';
 
 /** Brand images are decorative alongside an accessible text label. Never inline
  * third-party SVG markup; the browser's image context isolates remote assets. */
@@ -36,11 +16,7 @@ export function ProviderLogo({
   name?: string;
   size?: number;
 }) {
-  const src = local[provider]
-    ? `/brands/${local[provider]}.svg`
-    : /^[a-z0-9_][a-z0-9_-]{0,99}$/.test(provider)
-      ? `https://logos.composio.dev/api/${provider}`
-      : '';
+  const src = providerLogoSource(provider);
   const [failed, setFailed] = useState('');
   return (
     <span className="provider-logo" style={{ width: size, height: size }} aria-hidden="true">
@@ -55,7 +31,9 @@ export function ProviderLogo({
           referrerPolicy="no-referrer"
           onError={() => setFailed(src)}
         />
-      ) : name ? (
+      ) : provider === 'fixture' ? (
+        <FlaskConical size={size * 0.72} />
+      ) : name && provider.trim().toLowerCase() !== 'composio' ? (
         <span className="provider-initial">{name.charAt(0).toUpperCase()}</span>
       ) : (
         <PlugZap size={size * 0.65} />
@@ -63,11 +41,11 @@ export function ProviderLogo({
     </span>
   );
 }
-export function ProviderLabel({ provider }: { provider: string }) {
+export function ProviderLabel({ provider, name }: { provider: string; name?: string }) {
   return (
     <span className="provider-label">
       <ProviderLogo provider={provider} size={19} />
-      {providerName(provider)}
+      <span>{name || providerName(provider)}</span>
     </span>
   );
 }

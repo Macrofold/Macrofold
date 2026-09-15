@@ -23,7 +23,7 @@ A lost sandbox can lose changes since the last published checkpoint. Saved check
 
 ## Parallel work
 
-Only one active writer can modify a workspace. Create another workspace for parallel tasks. Organization concurrency limits apply across workspaces and projects; available global capacity also affects when a run starts.
+Different agents can share a workspace by taking turns: wait for persistence, then give its `workspace_id` to the next run. Their conversations remain separate. Only one active writer can modify a workspace; a new agent receives `workspace_busy` while work is pending. Create another workspace for parallel tasks. See [sharing a workspace](../features/workspaces/shared-agents.md). Organization concurrency limits apply across workspaces and projects; available global capacity also affects when a run starts.
 
 ## Three independent clocks
 

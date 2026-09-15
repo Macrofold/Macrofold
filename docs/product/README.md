@@ -4,6 +4,8 @@ Read the [Design Language](design-language.md) for visual, interaction, copy, an
 
 The [branding asset kit](../branding/README.md) contains the selected Saddle logos, final color treatments, Space Grotesk fonts, and usage guidance.
 
+[Ranked improvements](improvements.md) tracks product, integrations, examples, docs, dashboard, marketing, architecture and operations proposals, including competitive research and dashboard reference studies. Each entry records current state, benefit, difficulty and status.
+
 ## Outcome and audience
 
 Provide an inference-like API whose unit of work is a full agent harness. A developer submits a task, the harness uses a cloud computer and authorized tools for multiple turns, and the developer polls, streams, or receives a completion webhook. A filesystem and conversation can survive between invocations.
@@ -11,6 +13,12 @@ Provide an inference-like API whose unit of work is a full agent harness. A deve
 The initial audience is developers and small teams automating work in repositories of code, Markdown, documents, scripts, and reusable instructions. The platform itself is a public SaaS with organizations and paid usage, while its application code is licensed under Apache-2.0. Vercel is the initial hosting stack. The same application has a standalone Node/Docker build; a Vercel-free deployment additionally needs replacement infrastructure adapters, as defined in [portability](../architecture/portability.md).
 
 Keep four concepts distinct: the sandbox supplies execution isolation; the harness owns the agent loop; the model performs inference; the platform owns identity, jobs, persistence, tools, billing, and user experience. Do not substitute a home-grown tool loop for a requested harness.
+
+### Customer-agent direction
+
+A customer’s information can remain the stable resource while different agents, conversations and scheduled tasks work on it over time. Independent workspaces already support this resource model; native conversation state remains session-specific.
+
+“Give every customer a persistent agent—with its own workspace, memory, tools and ongoing work” describes the intended packaged experience. The integrating application still owns its customers and can compose today’s resources; optional memory conventions, named-agent setup helpers and lifecycle controls are ranked in the [improvements tracker](improvements.md). This positioning does not imply exclusive support for persistent agents or a completed managed-memory feature.
 
 ## Required user journeys
 
@@ -26,7 +34,7 @@ Keep four concepts distinct: the sandbox supplies execution isolation; the harne
 
 ## Launch scope and boundaries
 
-Launch includes all three harnesses, native tools, Brave web search, arbitrary compatible remote MCPs, pinned stdio MCPs, organization authentication, API keys, subscriptions, prepaid credits, signed webhooks, TypeScript, Python, Go, Rust, and Java SDKs, a streaming interactive CLI, public API docs, persistent files, GitHub integration, analytics, and operator reporting.
+Launch includes all six [supported harnesses](../features/execution/harnesses.md), native tools, Brave web search, arbitrary compatible remote MCPs, pinned stdio MCPs, organization authentication, API keys, subscriptions, prepaid credits, signed webhooks, TypeScript, Python, Go, Rust, and Java SDKs, a streaming interactive CLI, public API docs, persistent files, GitHub integration, analytics, and operator reporting.
 
 The initial dashboard has a useful file editor, not a full IDE or unrestricted browser terminal. The initial deployment is single-region. The application does not build its own VM scheduler, merge conflict AI, OAuth library, payment processor, analytics warehouse, or a general multi-provider fallback router. Enterprise SSO/SCIM, multi-region writes, other Git hosts, arbitrary custom machine images, and autonomous infrastructure mutations are subsequent additions rather than hidden launch requirements.
 

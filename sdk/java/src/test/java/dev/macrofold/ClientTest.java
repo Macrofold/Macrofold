@@ -20,9 +20,12 @@ class ClientTest {
       } else {
         Client client = new Client();
         assertEquals(Client.DEFAULT_ORIGIN, client.getBaseUri());
-        var request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(Client.DEFAULT_ORIGIN));
+        var request =
+            java.net.http.HttpRequest.newBuilder(java.net.URI.create(Client.DEFAULT_ORIGIN));
         client.getRequestInterceptor().accept(request);
-        assertEquals("Bearer environment-fixture", request.build().headers().firstValue("Authorization").orElseThrow());
+        assertEquals(
+            "Bearer environment-fixture",
+            request.build().headers().firstValue("Authorization").orElseThrow());
         assertThrows(IllegalArgumentException.class, () -> Client.builder().apiKey("").build());
       }
     }
@@ -31,9 +34,16 @@ class ClientTest {
   @Test
   void environmentCredentialsAndDefaultOrigin() throws Exception {
     for (String mode : List.of("missing", "present")) {
-      var child = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-cp", System.getProperty("java.class.path"), CredentialProbe.class.getName(), mode);
+      var child =
+          new ProcessBuilder(
+              System.getProperty("java.home") + "/bin/java",
+              "-cp",
+              System.getProperty("java.class.path"),
+              CredentialProbe.class.getName(),
+              mode);
       child.environment().remove("MACROFOLD_API_KEY");
-      if (mode.equals("present")) child.environment().put("MACROFOLD_API_KEY", "environment-fixture");
+      if (mode.equals("present"))
+        child.environment().put("MACROFOLD_API_KEY", "environment-fixture");
       var process = child.redirectErrorStream(true).start();
       String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
       assertEquals(0, process.waitFor(), output);
@@ -44,19 +54,33 @@ class ClientTest {
   void resourceFailureRetainsAutomaticIdentity() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     List<String> keys = new ArrayList<>();
-    server.createContext("/", exchange -> {
-      keys.add(exchange.getRequestHeaders().getFirst("Idempotency-Key"));
-      exchange.sendResponseHeaders(503, -1);
-      exchange.close();
-    });
+    server.createContext(
+        "/",
+        exchange -> {
+          keys.add(exchange.getRequestHeaders().getFirst("Idempotency-Key"));
+          exchange.sendResponseHeaders(503, -1);
+          exchange.close();
+        });
     server.start();
     try {
-      Client client = Client.builder().baseURL("http://127.0.0.1:" + server.getAddress().getPort()).apiKey("fixture").build();
-      RequestException error = assertThrows(RequestException.class, () -> client.projects().create(new dev.macrofold.model.ProjectCreate().name("Research")));
+      Client client =
+          Client.builder()
+              .baseURL("http://127.0.0.1:" + server.getAddress().getPort())
+              .apiKey("fixture")
+              .build();
+      RequestException error =
+          assertThrows(
+              RequestException.class,
+              () ->
+                  client
+                      .projects()
+                      .create(new dev.macrofold.model.ProjectCreate().name("Research")));
       assertEquals(503, error.getCode());
       assertEquals(List.of(error.getIdempotencyKey()), keys);
       assertNotNull(UUID.fromString(error.getIdempotencyKey()));
-    } finally { server.stop(0); }
+    } finally {
+      server.stop(0);
+    }
   }
 
   static String event(String sequence, String type) {
@@ -76,7 +100,9 @@ class ClientTest {
   void typedRequestAndStreamRecovery() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     AtomicInteger streams = new AtomicInteger();
-    List<String> cursors = new ArrayList<>(), authorization = new ArrayList<>(), organizations = new ArrayList<>();
+    List<String> cursors = new ArrayList<>(),
+        authorization = new ArrayList<>(),
+        organizations = new ArrayList<>();
     AtomicInteger historyChecks = new AtomicInteger();
     server.createContext(
         "/",
@@ -89,7 +115,10 @@ class ClientTest {
             body = "{\"data\":[],\"next_cursor\":null}";
           } else if (exchange.getRequestURI().getPath().endsWith("/events")) {
             historyChecks.incrementAndGet();
-            body = "{\"data\":[" + event("2", "run.succeeded").substring(6).trim() + "],\"next_cursor\":null}";
+            body =
+                "{\"data\":["
+                    + event("2", "run.succeeded").substring(6).trim()
+                    + "],\"next_cursor\":null}";
           } else if (exchange.getRequestURI().getPath().endsWith("/stream")) {
             cursors.add(exchange.getRequestHeaders().getFirst("Last-Event-ID"));
             body =
@@ -222,14 +251,21 @@ class ClientTest {
       Client client = new Client("http://127.0.0.1:" + server.getAddress().getPort(), "fixture");
       assertEquals(
           "Research",
-          client.projects().withOptions(new RequestOptions("request-1", null))
+          client
+              .projects()
+              .withOptions(new RequestOptions("request-1", null))
               .create(new dev.macrofold.model.ProjectCreate().name("Research"))
               .getName());
       java.nio.file.Files.write(
           file, new byte[] {104, 101, 108, 108, 111, 0, 119, 111, 114, 108, 100});
       var result =
-          client.workspaces().withOptions(new RequestOptions("request-2", null))
-              .writeFile(UUID.fromString(ID), file.toFile(), new Resources.WriteFileParams("notes/a + b.bin", "revision-1"));
+          client
+              .workspaces()
+              .withOptions(new RequestOptions("request-2", null))
+              .writeFile(
+                  UUID.fromString(ID),
+                  file.toFile(),
+                  new Resources.WriteFileParams("notes/a + b.bin", "revision-1"));
       assertEquals(dev.macrofold.model.Operation.StatusEnum.SUCCEEDED, result.getStatus());
       assertEquals(List.of("application/json", "application/octet-stream"), types);
       assertEquals(List.of("request-1", "request-2"), keys);
@@ -250,20 +286,73 @@ class ClientTest {
         origin != null, "Run pnpm test:sdks for isolated application acceptance");
     Client client = new Client(origin, System.getenv("MACROFOLD_FIXTURE_KEY"));
     var filesWorkspace = UUID.fromString(System.getenv("MACROFOLD_FIXTURE_FILES_WORKSPACE"));
-    for (var entry : Map.of("notes/日本語 + #?.bin", new byte[]{0, (byte)255, 10, (byte)128}, "empty.txt", new byte[0]).entrySet()) {
-      var file = client.workspaces().readFile(filesWorkspace, new Resources.ReadFileParams(entry.getKey()));
+    for (var entry :
+        Map.of(
+                "notes/日本語 + #?.bin",
+                new byte[] {0, (byte) 255, 10, (byte) 128},
+                "empty.txt",
+                new byte[0])
+            .entrySet()) {
+      var file =
+          client
+              .workspaces()
+              .readFile(filesWorkspace, new Resources.ReadFileParams(entry.getKey()));
       assertNotNull(file);
-      try { assertArrayEquals(entry.getValue(), java.nio.file.Files.readAllBytes(file.toPath())); }
-      finally { java.nio.file.Files.delete(file.toPath()); }
+      try {
+        assertArrayEquals(entry.getValue(), java.nio.file.Files.readAllBytes(file.toPath()));
+      } finally {
+        java.nio.file.Files.delete(file.toPath());
+      }
     }
-    var missing = assertThrows(dev.macrofold.ApiException.class, () -> client.workspaces().readFile(filesWorkspace, new Resources.ReadFileParams("missing.txt")));
+    var missing =
+        assertThrows(
+            dev.macrofold.ApiException.class,
+            () ->
+                client
+                    .workspaces()
+                    .readFile(filesWorkspace, new Resources.ReadFileParams("missing.txt")));
     assertEquals(404, missing.getCode());
     var project =
-        client.projects().create(new dev.macrofold.model.ProjectCreate().name("Java application fixture"));
+        client
+            .projects()
+            .create(new dev.macrofold.model.ProjectCreate().name("Java application fixture"));
+    var workspace = client.workspaces().get(project.getDefaultWorkspaceId());
+    var folder =
+        client
+            .workspaces()
+            .createFolder(
+                workspace.getId(),
+                new dev.macrofold.model.FolderCreate().path("examples"),
+                new Resources.CreateFolderParams(workspace.getRevision()));
+    assertEquals(
+        dev.macrofold.model.FileEntry.TypeEnum.DIRECTORY, folder.getResult().getEntry().getType());
+    var renamed =
+        client
+            .workspaces()
+            .renameFile(
+                workspace.getId(),
+                new dev.macrofold.model.FileRename().newPath("examples/renamed.txt"),
+                new Resources.RenameFileParams(
+                    "examples/.gitkeep", folder.getResult().getRevision()));
+    assertEquals("examples/.gitkeep", renamed.getResult().getPreviousPath());
+    var listing =
+        client
+            .workspaces()
+            .listFiles(workspace.getId(), new Resources.ListFilesParams().recursive(false));
+    assertEquals(1, listing.getEntries().size());
+    assertEquals(
+        dev.macrofold.model.FileEntry.TypeEnum.DIRECTORY,
+        listing.getEntries().get(0).getType());
     var runs = client.runs();
-    var agent = client.agents().create(new dev.macrofold.model.AgentCreate().name("Java preset")
-        .harness(dev.macrofold.model.AgentCreate.HarnessEnum.CODEX).model("fixture-model")
-        .billingMode(dev.macrofold.model.AgentCreate.BillingModeEnum.MANAGED));
+    var agent =
+        client
+            .agents()
+            .create(
+                new dev.macrofold.model.AgentCreate()
+                    .name("Java preset")
+                    .harness(dev.macrofold.model.AgentCreate.HarnessEnum.CODEX)
+                    .model("fixture-model")
+                    .billingMode(dev.macrofold.model.AgentCreate.BillingModeEnum.MANAGED));
     var body =
         new dev.macrofold.model.RunCreate()
             .prompt("Verify Java persisted execution.")
@@ -271,21 +360,34 @@ class ClientTest {
             .agentId(agent.getId());
     var run = runs.create(body);
     StringBuilder text = new StringBuilder();
-    client.runs().streamText(
-        run.getRunId(),
-        "0",
-        part -> {
-          text.append(part);
-          return true;
-        });
+    client
+        .runs()
+        .streamText(
+            run.getRunId(),
+            "0",
+            part -> {
+              text.append(part);
+              return true;
+            });
     var result = runs.wait(run.getRunId());
     assertEquals(text.toString(), result.getOutputText());
     assertEquals("verified", result.getPersistenceStatus());
-    assertEquals(dev.macrofold.model.Run.StatusEnum.SUCCEEDED, runs.get(run.getRunId()).getStatus());
+    assertEquals(
+        dev.macrofold.model.Run.StatusEnum.SUCCEEDED, runs.get(run.getRunId()).getStatus());
     assertFalse(client.workspaces().listCheckpoints(run.getWorkspaceId()).getData().isEmpty());
-    var note = client.workspaces().readFile(run.getWorkspaceId(), new Resources.ReadFileParams("notes/run-" + run.getRunId() + ".md"));
-    try { assertTrue(java.nio.file.Files.readString(note.toPath()).contains("Verify Java persisted execution")); }
-    finally { java.nio.file.Files.delete(note.toPath()); }
+    var note =
+        client
+            .workspaces()
+            .readFile(
+                run.getWorkspaceId(),
+                new Resources.ReadFileParams("notes/run-" + run.getRunId() + ".md"));
+    try {
+      assertTrue(
+          java.nio.file.Files.readString(note.toPath())
+              .contains("Verify Java persisted execution"));
+    } finally {
+      java.nio.file.Files.delete(note.toPath());
+    }
     assertTrue(result.getFinal());
     assertTrue(result.getOutputText().contains("Simulation completed"));
   }

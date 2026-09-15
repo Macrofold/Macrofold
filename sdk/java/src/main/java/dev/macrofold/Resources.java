@@ -36,6 +36,24 @@ public OrganizationsResource organizations(){return new OrganizationsResource(th
 public TriggersResource triggers(){return new TriggersResource(this,RequestOptions.defaults());}
 public SlackConnectionsResource slackConnections(){return new SlackConnectionsResource(this,RequestOptions.defaults());}
 
+public static final class GetProjectParams {
+        private Boolean includeConnections;
+private UUID agentId;
+private Integer connectionsLimit;
+private String connectionsCursor;
+        public GetProjectParams(){}
+        public GetProjectParams includeConnections(Boolean value){this.includeConnections=value;return this;}
+public GetProjectParams agentId(UUID value){this.agentId=value;return this;}
+public GetProjectParams connectionsLimit(Integer value){this.connectionsLimit=value;return this;}
+public GetProjectParams connectionsCursor(String value){this.connectionsCursor=value;return this;}
+      }
+public static final class GetWorktreeOptionsParams {
+        private String name;
+private String branch;
+        public GetWorktreeOptionsParams(){}
+        public GetWorktreeOptionsParams name(String value){this.name=value;return this;}
+public GetWorktreeOptionsParams branch(String value){this.branch=value;return this;}
+      }
 public static final class ListProjectsParams {
         private String cursor;
 private Integer limit;
@@ -60,39 +78,51 @@ public static final class ProjectsResource {
       public ProjectsResource withOptions(RequestOptions options){return new ProjectsResource(client,Objects.requireNonNull(options));}
       public Project cancelDeletion(UUID projectId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ProjectsApi(client).cancelProjectDeletion(key,projectId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Project create(ProjectCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ProjectsApi(client).createProject(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Operation createWorkspace(UUID projectId,WorkspaceCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ProjectsApi(client).createWorkspace(projectId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Operation delete(UUID projectId) throws ApiException {
-        
-        
+
+
         try {return new ProjectsApi(client).deleteProject(projectId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Project get(UUID projectId) throws ApiException {
-        
-        
-        try {return new ProjectsApi(client).getProject(projectId,options.organization());}
+        return get(projectId,new GetProjectParams());
+      }
+public Project get(UUID projectId,GetProjectParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new ProjectsApi(client).getProject(projectId,options.organization(),params.includeConnections,params.agentId,params.connectionsLimit,params.connectionsCursor);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public WorktreeOptions getWorktreeOptions(UUID projectId) throws ApiException {
+        return getWorktreeOptions(projectId,new GetWorktreeOptionsParams());
+      }
+public WorktreeOptions getWorktreeOptions(UUID projectId,GetWorktreeOptionsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new ProjectsApi(client).getWorktreeOptions(projectId,options.organization(),params.name,params.branch);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListProjects200Response list() throws ApiException {
         return list(new ListProjectsParams());
       }
 public ListProjects200Response list(ListProjectsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ProjectsApi(client).listProjects(params.cursor,params.limit,options.organization(),params.query,params.archived);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -101,30 +131,40 @@ public ListWorkspaces200Response listWorkspaces(UUID projectId) throws ApiExcept
         return listWorkspaces(projectId,new ListWorkspacesParams());
       }
 public ListWorkspaces200Response listWorkspaces(UUID projectId,ListWorkspacesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ProjectsApi(client).listWorkspaces(projectId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Project scheduleDeletion(UUID projectId,ProjectDeletion input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ProjectsApi(client).scheduleProjectDeletion(key,projectId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Project update(UUID projectId,ProjectPatch input) throws ApiException {
-        
-        
+
+
         try {return new ProjectsApi(client).updateProject(projectId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
+public static final class CreateFolderParams {
+        private String ifMatch;
+        public CreateFolderParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public CreateFolderParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
 public static final class DeleteFileParams {
         private String path;
 private String ifMatch;
         public DeleteFileParams(String path,String ifMatch){this.path=Objects.requireNonNull(path,"path");this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
         public DeleteFileParams path(String value){this.path=value;return this;}
 public DeleteFileParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class DuplicateFileParams {
+        private String ifMatch;
+        public DuplicateFileParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public DuplicateFileParams ifMatch(String value){this.ifMatch=value;return this;}
       }
 public static final class GetWorkspaceDiffParams {
         private UUID baseCheckpointId;
@@ -149,11 +189,13 @@ public static final class ListFilesParams {
 private String cursor;
 private Integer limit;
 private String query;
+private Boolean recursive;
         public ListFilesParams(){}
         public ListFilesParams path(String value){this.path=value;return this;}
 public ListFilesParams cursor(String value){this.cursor=value;return this;}
 public ListFilesParams limit(Integer value){this.limit=value;return this;}
 public ListFilesParams query(String value){this.query=value;return this;}
+public ListFilesParams recursive(Boolean value){this.recursive=value;return this;}
       }
 public static final class ListTransfersParams {
         private String cursor;
@@ -169,12 +211,21 @@ private Boolean download;
         public ReadFileParams path(String value){this.path=value;return this;}
 public ReadFileParams download(Boolean value){this.download=value;return this;}
       }
+public static final class RenameFileParams {
+        private String path;
+private String ifMatch;
+        public RenameFileParams(String path,String ifMatch){this.path=Objects.requireNonNull(path,"path");this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public RenameFileParams path(String value){this.path=value;return this;}
+public RenameFileParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
 public static final class WriteFileParams {
         private String path;
 private String ifMatch;
+private Boolean createOnly;
         public WriteFileParams(String path,String ifMatch){this.path=Objects.requireNonNull(path,"path");this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
         public WriteFileParams path(String value){this.path=value;return this;}
 public WriteFileParams ifMatch(String value){this.ifMatch=value;return this;}
+public WriteFileParams createOnly(Boolean value){this.createOnly=value;return this;}
       }
 public static final class WorkspacesResource {
       private final Resources client; private final RequestOptions options;
@@ -182,13 +233,19 @@ public static final class WorkspacesResource {
       public WorkspacesResource withOptions(RequestOptions options){return new WorkspacesResource(client,Objects.requireNonNull(options));}
       public Operation createCheckpoint(UUID workspaceId,CheckpointCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WorkspacesApi(client).createCheckpoint(workspaceId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Operation createFolder(UUID workspaceId,FolderCreate input,CreateFolderParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new WorkspacesApi(client).createFolder(workspaceId,params.ifMatch,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Transfer createTransfer(UUID workspaceId,TransferCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WorkspacesApi(client).createTransfer(workspaceId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -199,20 +256,26 @@ public Operation deleteFile(UUID workspaceId,DeleteFileParams params) throws Api
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Operation delete(UUID workspaceId) throws ApiException {
-        
-        
+
+
         try {return new WorkspacesApi(client).deleteWorkspace(workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
+public Operation duplicateFile(UUID workspaceId,FileDuplicate input,DuplicateFileParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new WorkspacesApi(client).duplicateFile(workspaceId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
 public GitSync getSync(UUID workspaceId) throws ApiException {
-        
-        
+
+
         try {return new WorkspacesApi(client).getSync(workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Workspace get(UUID workspaceId) throws ApiException {
-        
-        
+
+
         try {return new WorkspacesApi(client).getWorkspace(workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -220,7 +283,7 @@ public WorkspaceDiff getDiff(UUID workspaceId) throws ApiException {
         return getDiff(workspaceId,new GetWorkspaceDiffParams());
       }
 public WorkspaceDiff getDiff(UUID workspaceId,GetWorkspaceDiffParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WorkspacesApi(client).getWorkspaceDiff(workspaceId,params.baseCheckpointId,params.path,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -229,7 +292,7 @@ public ListCheckpoints200Response listCheckpoints(UUID workspaceId) throws ApiEx
         return listCheckpoints(workspaceId,new ListCheckpointsParams());
       }
 public ListCheckpoints200Response listCheckpoints(UUID workspaceId,ListCheckpointsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WorkspacesApi(client).listCheckpoints(workspaceId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -238,57 +301,76 @@ public FileListing listFiles(UUID workspaceId) throws ApiException {
         return listFiles(workspaceId,new ListFilesParams());
       }
 public FileListing listFiles(UUID workspaceId,ListFilesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).listFiles(workspaceId,params.path,params.cursor,params.limit,options.organization(),params.query);}
+        try {return new WorkspacesApi(client).listFiles(workspaceId,params.path,params.cursor,params.limit,options.organization(),params.query,params.recursive);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListTransfers200Response listTransfers(UUID workspaceId) throws ApiException {
         return listTransfers(workspaceId,new ListTransfersParams());
       }
 public ListTransfers200Response listTransfers(UUID workspaceId,ListTransfersParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WorkspacesApi(client).listTransfers(workspaceId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public File readFile(UUID workspaceId,ReadFileParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WorkspacesApi(client).readFile(workspaceId,params.path,options.organization(),params.download);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
+public Operation renameFile(UUID workspaceId,FileRename input,RenameFileParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new WorkspacesApi(client).renameFile(workspaceId,params.path,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
 public Operation restore(UUID workspaceId,RestoreRequest input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WorkspacesApi(client).restoreWorkspace(workspaceId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Operation sync(UUID workspaceId,SyncWorkspaceRequest input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WorkspacesApi(client).syncWorkspace(workspaceId,key,options.organization(),input);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Workspace update(UUID workspaceId,WorkspacePatch input) throws ApiException {
-        
-        
+
+
         try {return new WorkspacesApi(client).updateWorkspace(workspaceId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Operation writeFile(UUID workspaceId,File content,WriteFileParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).writeFile(workspaceId,params.path,params.ifMatch,key,content,options.organization());}
+        try {return new WorkspacesApi(client).writeFile(workspaceId,params.path,params.ifMatch,key,content,options.organization(),params.createOnly);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
+public static final class GetAgentParams {
+        private Boolean includeConnections;
+private UUID projectId;
+private Integer connectionsLimit;
+private String connectionsCursor;
+        public GetAgentParams(){}
+        public GetAgentParams includeConnections(Boolean value){this.includeConnections=value;return this;}
+public GetAgentParams projectId(UUID value){this.projectId=value;return this;}
+public GetAgentParams connectionsLimit(Integer value){this.connectionsLimit=value;return this;}
+public GetAgentParams connectionsCursor(String value){this.connectionsCursor=value;return this;}
+      }
 public static final class ListAgentsParams {
         private String cursor;
 private Integer limit;
+private String query;
         public ListAgentsParams(){}
         public ListAgentsParams cursor(String value){this.cursor=value;return this;}
 public ListAgentsParams limit(Integer value){this.limit=value;return this;}
+public ListAgentsParams query(String value){this.query=value;return this;}
       }
 public static final class AgentsResource {
       private final Resources client; private final RequestOptions options;
@@ -296,34 +378,37 @@ public static final class AgentsResource {
       public AgentsResource withOptions(RequestOptions options){return new AgentsResource(client,Objects.requireNonNull(options));}
       public Agent create(AgentCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new AgentsApi(client).createAgent(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public void delete(UUID agentId) throws ApiException {
-        
-        
+
+
         try {new AgentsApi(client).deleteAgent(agentId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Agent get(UUID agentId) throws ApiException {
-        
-        
-        try {return new AgentsApi(client).getAgent(agentId,options.organization());}
+        return get(agentId,new GetAgentParams());
+      }
+public Agent get(UUID agentId,GetAgentParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new AgentsApi(client).getAgent(agentId,options.organization(),params.includeConnections,params.projectId,params.connectionsLimit,params.connectionsCursor);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListAgents200Response list() throws ApiException {
         return list(new ListAgentsParams());
       }
 public ListAgents200Response list(ListAgentsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
-        try {return new AgentsApi(client).listAgents(params.cursor,params.limit,options.organization());}
+        try {return new AgentsApi(client).listAgents(params.cursor,params.limit,options.organization(),params.query);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Agent update(UUID agentId,AgentPatch input) throws ApiException {
-        
-        
+
+
         try {return new AgentsApi(client).updateAgent(agentId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -343,19 +428,19 @@ public static final class SessionsResource {
       public SessionsResource withOptions(RequestOptions options){return new SessionsResource(client,Objects.requireNonNull(options));}
       public RunAccepted continueRun(UUID sessionId,MessageCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new SessionsApi(client).continueSession(sessionId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Session create(SessionCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new SessionsApi(client).createSession(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Session get(UUID sessionId) throws ApiException {
-        
-        
+
+
         try {return new SessionsApi(client).getSession(sessionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -363,7 +448,7 @@ public ListSessions200Response list() throws ApiException {
         return list(new ListSessionsParams());
       }
 public ListSessions200Response list(ListSessionsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new SessionsApi(client).listSessions(params.cursor,params.limit,params.workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -410,25 +495,25 @@ public static final class RunsResource {
       public RunsResource withOptions(RequestOptions options){return new RunsResource(client,Objects.requireNonNull(options));}
       public Run cancel(UUID runId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new RunsApi(client).cancelRun(runId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public RunAccepted create(RunCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new RunsApi(client).createRun(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Run get(UUID runId) throws ApiException {
-        
-        
+
+
         try {return new RunsApi(client).getRun(runId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public RunResult getResult(UUID runId) throws ApiException {
-        
-        
+
+
         try {return new RunsApi(client).getRunResult(runId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -436,7 +521,7 @@ public ListArtifacts200Response listArtifacts(UUID runId) throws ApiException {
         return listArtifacts(runId,new ListArtifactsParams());
       }
 public ListArtifacts200Response listArtifacts(UUID runId,ListArtifactsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new RunsApi(client).listArtifacts(runId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -445,7 +530,7 @@ public ListRunEvents200Response listEvents(UUID runId) throws ApiException {
         return listEvents(runId,new ListRunEventsParams());
       }
 public ListRunEvents200Response listEvents(UUID runId,ListRunEventsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new RunsApi(client).listRunEvents(runId,params.after,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -454,7 +539,7 @@ public ListRuns200Response list() throws ApiException {
         return list(new ListRunsParams());
       }
 public ListRuns200Response list(ListRunsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new RunsApi(client).listRuns(params.status,params.projectId,params.from,params.to,params.cursor,params.limit,params.workspaceId,params.sessionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -469,7 +554,7 @@ public void stream(UUID runId,Predicate<Event> receive) throws IOException,Inter
           public RunResult wait(UUID runId,Duration timeout) throws ApiException,InterruptedException,RunFailedException,WaitTimeoutException {return RunHelpers.waitForRun(client,runId,options.organization(),timeout);}
 public Run submitInput(UUID runId,RunInput input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new RunsApi(client).submitRunInput(runId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -479,18 +564,47 @@ public static final class ArtifactsResource {
       private ArtifactsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public ArtifactsResource withOptions(RequestOptions options){return new ArtifactsResource(client,Objects.requireNonNull(options));}
       public Download download(UUID artifactId) throws ApiException {
-        
-        
+
+
         try {return new ArtifactsApi(client).downloadArtifact(artifactId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
+public static final class CreateConnectionAccessRuleParams {
+        private String ifMatch;
+        public CreateConnectionAccessRuleParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public CreateConnectionAccessRuleParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class DeleteConnectionAccessRuleParams {
+        private String ifMatch;
+        public DeleteConnectionAccessRuleParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public DeleteConnectionAccessRuleParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class ListConnectionAccessRulesParams {
+        private String cursor;
+private Integer limit;
+private UUID projectId;
+private UUID agentId;
+private String sort;
+private String direction;
+        public ListConnectionAccessRulesParams(){}
+        public ListConnectionAccessRulesParams cursor(String value){this.cursor=value;return this;}
+public ListConnectionAccessRulesParams limit(Integer value){this.limit=value;return this;}
+public ListConnectionAccessRulesParams projectId(UUID value){this.projectId=value;return this;}
+public ListConnectionAccessRulesParams agentId(UUID value){this.agentId=value;return this;}
+public ListConnectionAccessRulesParams sort(String value){this.sort=value;return this;}
+public ListConnectionAccessRulesParams direction(String value){this.direction=value;return this;}
+      }
 public static final class ListConnectionsParams {
         private String cursor;
 private Integer limit;
+private UUID projectId;
+private UUID agentId;
         public ListConnectionsParams(){}
         public ListConnectionsParams cursor(String value){this.cursor=value;return this;}
 public ListConnectionsParams limit(Integer value){this.limit=value;return this;}
+public ListConnectionsParams projectId(UUID value){this.projectId=value;return this;}
+public ListConnectionsParams agentId(UUID value){this.agentId=value;return this;}
       }
 public static final class ListConnectionToolsParams {
         private String cursor;
@@ -506,61 +620,99 @@ private Integer limit;
         public ListStdioPackagesParams cursor(String value){this.cursor=value;return this;}
 public ListStdioPackagesParams limit(Integer value){this.limit=value;return this;}
       }
+public static final class ResolveConnectionAccessParams {
+        private String cursor;
+private Integer limit;
+        public ResolveConnectionAccessParams(){}
+        public ResolveConnectionAccessParams cursor(String value){this.cursor=value;return this;}
+public ResolveConnectionAccessParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class UpdateConnectionAccessParams {
+        private String ifMatch;
+        public UpdateConnectionAccessParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public UpdateConnectionAccessParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class UpdateConnectionAccessRuleParams {
+        private String ifMatch;
+        public UpdateConnectionAccessRuleParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public UpdateConnectionAccessRuleParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
 public static final class ConnectionsResource {
       private final Resources client; private final RequestOptions options;
       private ConnectionsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public ConnectionsResource withOptions(RequestOptions options){return new ConnectionsResource(client,Objects.requireNonNull(options));}
       public AuthorizationLink authorize(UUID connectionId,AuthorizeRequest input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ConnectionsApi(client).authorizeConnection(connectionId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Connection create(ConnectionCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ConnectionsApi(client).createConnection(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
+public ConnectionAccessRuleMutation createAccessRule(UUID connectionId,ConnectionAccessRuleInput input,CreateConnectionAccessRuleParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).createConnectionAccessRule(connectionId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
 public void delete(UUID connectionId) throws ApiException {
-        
-        
+
+
         try {new ConnectionsApi(client).deleteConnection(connectionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
+public ConnectionAccessRuleDeleted deleteAccessRule(UUID connectionId,UUID ruleId,DeleteConnectionAccessRuleParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).deleteConnectionAccessRule(connectionId,ruleId,params.ifMatch,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
 public Connection get(UUID connectionId) throws ApiException {
-        
-        
+
+
         try {return new ConnectionsApi(client).getConnection(connectionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ConnectionGrantSet getGrants(UUID connectionId) throws ApiException {
-        
-        
-        try {return new ConnectionsApi(client).getConnectionGrants(connectionId,options.organization());}
+public ConnectionAccess getAccess(UUID connectionId) throws ApiException {
+
+
+        try {return new ConnectionsApi(client).getConnectionAccess(connectionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ListConnections200Response list() throws ApiException {
+public ConnectionAccessRulePage listAccessRules(UUID connectionId) throws ApiException {
+        return listAccessRules(connectionId,new ListConnectionAccessRulesParams());
+      }
+public ConnectionAccessRulePage listAccessRules(UUID connectionId,ListConnectionAccessRulesParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).listConnectionAccessRules(connectionId,options.organization(),params.cursor,params.limit,params.projectId,params.agentId,params.sort,params.direction);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ContextualConnectionPage list() throws ApiException {
         return list(new ListConnectionsParams());
       }
-public ListConnections200Response list(ListConnectionsParams params) throws ApiException {
-        
+public ContextualConnectionPage list(ListConnectionsParams params) throws ApiException {
+
         Objects.requireNonNull(params,"params");
-        try {return new ConnectionsApi(client).listConnections(params.cursor,params.limit,options.organization());}
+        try {return new ConnectionsApi(client).listConnections(params.cursor,params.limit,options.organization(),params.projectId,params.agentId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListConnectionTools200Response listTools(UUID connectionId) throws ApiException {
         return listTools(connectionId,new ListConnectionToolsParams());
       }
 public ListConnectionTools200Response listTools(UUID connectionId,ListConnectionToolsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ConnectionsApi(client).listConnectionTools(connectionId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ConnectorCatalog listConnectorCatalog() throws ApiException {
-        
-        
+
+
         try {return new ConnectionsApi(client).listConnectorCatalog(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -568,28 +720,43 @@ public StdioPackagePage listStdioPackages() throws ApiException {
         return listStdioPackages(new ListStdioPackagesParams());
       }
 public StdioPackagePage listStdioPackages(ListStdioPackagesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ConnectionsApi(client).listStdioPackages(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ConnectionGrantSet setGrants(UUID connectionId,ConnectionGrantSet input) throws ApiException {
-        String key=options.identity();
-        
-        try {return new ConnectionsApi(client).setConnectionGrants(connectionId,key,input,options.organization());}
-        catch(ApiException error) {throw new RequestException(error,key);}
+public ConnectionAccessResolutionPage resolveAccess(ConnectionAccessResolve input) throws ApiException {
+        return resolveAccess(input,new ResolveConnectionAccessParams());
+      }
+public ConnectionAccessResolutionPage resolveAccess(ConnectionAccessResolve input,ResolveConnectionAccessParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).resolveConnectionAccess(input,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ConnectionTest test(UUID connectionId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ConnectionsApi(client).testConnection(connectionId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Connection update(UUID connectionId,ConnectionPatch input) throws ApiException {
-        
-        
+
+
         try {return new ConnectionsApi(client).updateConnection(connectionId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ConnectionAccess updateAccess(UUID connectionId,ConnectionAccessPatch input,UpdateConnectionAccessParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).updateConnectionAccess(connectionId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ConnectionAccessRuleMutation updateAccessRule(UUID connectionId,UUID ruleId,ConnectionAccessRuleInput input,UpdateConnectionAccessRuleParams params) throws ApiException {
+        String key=options.identity();
+        Objects.requireNonNull(params,"params");
+        try {return new ConnectionsApi(client).updateConnectionAccessRule(connectionId,ruleId,params.ifMatch,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
 public static final class ListApiKeysParams {
@@ -605,7 +772,7 @@ public static final class ApiKeysResource {
       public ApiKeysResource withOptions(RequestOptions options){return new ApiKeysResource(client,Objects.requireNonNull(options));}
       public NewApiKey create(KeyCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new ApiKeysApi(client).createApiKey(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -613,14 +780,14 @@ public ListApiKeys200Response list() throws ApiException {
         return list(new ListApiKeysParams());
       }
 public ListApiKeys200Response list(ListApiKeysParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ApiKeysApi(client).listApiKeys(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public void revoke(UUID keyId) throws ApiException {
-        
-        
+
+
         try {new ApiKeysApi(client).revokeApiKey(keyId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -638,13 +805,13 @@ public static final class WebhookEndpointsResource {
       public WebhookEndpointsResource withOptions(RequestOptions options){return new WebhookEndpointsResource(client,Objects.requireNonNull(options));}
       public NewWebhook create(WebhookCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WebhookEndpointsApi(client).createWebhookEndpoint(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public void delete(UUID endpointId) throws ApiException {
-        
-        
+
+
         try {new WebhookEndpointsApi(client).deleteWebhookEndpoint(endpointId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -652,20 +819,20 @@ public ListWebhookEndpoints200Response list() throws ApiException {
         return list(new ListWebhookEndpointsParams());
       }
 public ListWebhookEndpoints200Response list(ListWebhookEndpointsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WebhookEndpointsApi(client).listWebhookEndpoints(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public NewWebhook rotateWebhookSecret(UUID endpointId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WebhookEndpointsApi(client).rotateWebhookSecret(endpointId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Webhook update(UUID endpointId,WebhookPatch input) throws ApiException {
-        
-        
+
+
         try {return new WebhookEndpointsApi(client).updateWebhookEndpoint(endpointId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -685,14 +852,14 @@ public static final class WebhookDeliveriesResource {
         return list(new ListWebhookDeliveriesParams());
       }
 public ListWebhookDeliveries200Response list(ListWebhookDeliveriesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new WebhookDeliveriesApi(client).listWebhookDeliveries(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Operation replay(UUID deliveryId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new WebhookDeliveriesApi(client).replayWebhookDelivery(deliveryId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -714,7 +881,7 @@ public static final class UsageResource {
         return get(new GetUsageParams());
       }
 public Report get(GetUsageParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new UsageApi(client).getUsage(params.from,params.to,params.groupBy,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -739,7 +906,7 @@ public static final class RequestsResource {
         return list(new ListRequestsParams());
       }
 public ListRequests200Response list(ListRequestsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new RequestsApi(client).listRequests(params.from,params.to,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -751,31 +918,31 @@ public static final class BillingResource {
       public BillingResource withOptions(RequestOptions options){return new BillingResource(client,Objects.requireNonNull(options));}
       public Redirect createPortal() throws ApiException {
         String key=options.identity();
-        
+
         try {return new BillingApi(client).createBillingPortal(key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Redirect createCheckout(CheckoutCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new BillingApi(client).createCheckout(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Billing get() throws ApiException {
-        
-        
+
+
         try {return new BillingApi(client).getBilling(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Storage getStorage() throws ApiException {
-        
-        
+
+
         try {return new BillingApi(client).getStorage(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Storage updateStoragePolicy(StoragePolicy input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new BillingApi(client).updateStoragePolicy(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -795,7 +962,7 @@ public static final class HarnessesResource {
         return list(new ListHarnessesParams());
       }
 public ListHarnesses200Response list(ListHarnessesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new HarnessesApi(client).listHarnesses(params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -818,7 +985,7 @@ public static final class ModelsResource {
         return list(new ListModelsParams());
       }
 public ListModels200Response list(ListModelsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new ModelsApi(client).listModels(params.harness,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -829,8 +996,8 @@ public static final class OperationsResource {
       private OperationsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public OperationsResource withOptions(RequestOptions options){return new OperationsResource(client,Objects.requireNonNull(options));}
       public Operation get(UUID operationId) throws ApiException {
-        
-        
+
+
         try {return new OperationsApi(client).getOperation(operationId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -947,7 +1114,7 @@ public static final class OperatorResource {
         return getAccountSummary(accountId,new GetAccountSummaryParams());
       }
 public AccountSummary getAccountSummary(UUID accountId,GetAccountSummaryParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getAccountSummary(accountId,params.from,params.to,params.includeContact);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -956,7 +1123,7 @@ public Report getCapacityReport() throws ApiException {
         return getCapacityReport(new GetCapacityReportParams());
       }
 public Report getCapacityReport(GetCapacityReportParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getCapacityReport(params.from,params.to);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -965,7 +1132,7 @@ public Report getGrowthMetrics() throws ApiException {
         return getGrowthMetrics(new GetGrowthMetricsParams());
       }
 public Report getGrowthMetrics(GetGrowthMetricsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getGrowthMetrics(params.from,params.to,params.groupBy,params.organizationId);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -974,7 +1141,7 @@ public Report getInfrastructureHealth() throws ApiException {
         return getInfrastructureHealth(new GetInfrastructureHealthParams());
       }
 public Report getInfrastructureHealth(GetInfrastructureHealthParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getInfrastructureHealth(params.from,params.to,params.serviceId);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -983,7 +1150,7 @@ public Report getOperatingReport() throws ApiException {
         return getOperatingReport(new GetOperatingReportParams());
       }
 public Report getOperatingReport(GetOperatingReportParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getOperatingReport(params.from,params.to);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -992,7 +1159,7 @@ public Report getPlatformUsageMetrics() throws ApiException {
         return getPlatformUsageMetrics(new GetPlatformUsageMetricsParams());
       }
 public Report getPlatformUsageMetrics(GetPlatformUsageMetricsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getPlatformUsageMetrics(params.from,params.to,params.groupBy,params.organizationId);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1001,7 +1168,7 @@ public Diagnostics getRunDiagnostics(UUID runId) throws ApiException {
         return getRunDiagnostics(runId,new GetRunDiagnosticsParams());
       }
 public Diagnostics getRunDiagnostics(UUID runId,GetRunDiagnosticsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).getRunDiagnostics(runId,params.from,params.to);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1010,7 +1177,7 @@ public ListAccounts200Response listAccounts() throws ApiException {
         return listAccounts(new ListAccountsParams());
       }
 public ListAccounts200Response listAccounts(ListAccountsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).listAccounts(params.from,params.to,params.query,params.includeContact,params.cursor,params.limit);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1019,7 +1186,7 @@ public ListRequests200Response listPlatformRequests() throws ApiException {
         return listPlatformRequests(new ListPlatformRequestsParams());
       }
 public ListRequests200Response listPlatformRequests(ListPlatformRequestsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).listPlatformRequests(params.from,params.to,params.organizationId,params.statusCode,params.route,params.cursor,params.limit);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1028,7 +1195,7 @@ public ReportSnapshotPage listReportSnapshots() throws ApiException {
         return listReportSnapshots(new ListReportSnapshotsParams());
       }
 public ReportSnapshotPage listReportSnapshots(ListReportSnapshotsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new OperatorApi(client).listReportSnapshots(params.from,params.to,params.cursor,params.limit);}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1040,13 +1207,13 @@ public static final class CheckpointsResource {
       public CheckpointsResource withOptions(RequestOptions options){return new CheckpointsResource(client,Objects.requireNonNull(options));}
       public ExportOperation exportArchive(UUID checkpointId,CheckpointExportRequest input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new CheckpointsApi(client).exportCheckpoint(checkpointId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Checkpoint updateRetention(UUID checkpointId,CheckpointPatch input) throws ApiException {
-        
-        
+
+
         try {return new CheckpointsApi(client).updateCheckpointRetention(checkpointId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1056,8 +1223,8 @@ public static final class MeResource {
       private MeResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public MeResource withOptions(RequestOptions options){return new MeResource(client,Objects.requireNonNull(options));}
       public Identity get() throws ApiException {
-        
-        
+
+
         try {return new MeApi(client).getIdentity(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1068,13 +1235,13 @@ public static final class TransfersResource {
       public TransfersResource withOptions(RequestOptions options){return new TransfersResource(client,Objects.requireNonNull(options));}
       public Operation apply(UUID transferId,TransferApply input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new TransfersApi(client).applyTransfer(transferId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Transfer get(UUID transferId) throws ApiException {
-        
-        
+
+
         try {return new TransfersApi(client).getTransfer(transferId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1090,18 +1257,18 @@ public static final class IntegrationsResource {
       public IntegrationsResource withOptions(RequestOptions options){return new IntegrationsResource(client,Objects.requireNonNull(options));}
       public Project disconnectGithub(UUID projectId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new IntegrationsApi(client).disconnectGithub(projectId,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public GithubInstallations listGithubInstallations() throws ApiException {
-        
-        
+
+
         try {return new IntegrationsApi(client).listGithubInstallations(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public GithubRepositories listGithubRepositories(ListGithubRepositoriesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new IntegrationsApi(client).listGithubRepositories(params.installationId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1113,67 +1280,67 @@ public static final class OrganizationsResource {
       public OrganizationsResource withOptions(RequestOptions options){return new OrganizationsResource(client,Objects.requireNonNull(options));}
       public Invitation createInvitation(InvitationCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new OrganizationsApi(client).createInvitation(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Organization create(OrganizationCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new OrganizationsApi(client).createOrganization(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public ExecutionPolicy getExecutionPolicy() throws ApiException {
-        
-        
+
+
         try {return new OrganizationsApi(client).getExecutionPolicy(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListInvitations200Response listInvitations() throws ApiException {
-        
-        
+
+
         try {return new OrganizationsApi(client).listInvitations(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListMembers200Response listMembers() throws ApiException {
-        
-        
+
+
         try {return new OrganizationsApi(client).listMembers(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListOrganizationAudit200Response listAudit() throws ApiException {
-        
-        
+
+
         try {return new OrganizationsApi(client).listOrganizationAudit(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public void removeMember(UUID userId) throws ApiException {
         String key=options.identity();
-        
+
         try {new OrganizationsApi(client).removeMember(key,userId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public void revokeInvitation(UUID invitationId) throws ApiException {
         String key=options.identity();
-        
+
         try {new OrganizationsApi(client).revokeInvitation(key,invitationId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public ExecutionPolicy updateExecutionPolicy(ExecutionPolicyPatch input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new OrganizationsApi(client).updateExecutionPolicy(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public void updateMember(UUID userId,MemberPatch input) throws ApiException {
         String key=options.identity();
-        
+
         try {new OrganizationsApi(client).updateMember(key,userId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Organization update(OrganizationCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new OrganizationsApi(client).updateOrganization(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
@@ -1200,19 +1367,19 @@ public static final class TriggersResource {
       public TriggersResource withOptions(RequestOptions options){return new TriggersResource(client,Objects.requireNonNull(options));}
       public NewTrigger create(TriggerCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new TriggersApi(client).createTrigger(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public DeleteTrigger200Response delete(UUID triggerId) throws ApiException {
-        
-        
+
+
         try {return new TriggersApi(client).deleteTrigger(triggerId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Trigger get(UUID triggerId) throws ApiException {
-        
-        
+
+
         try {return new TriggersApi(client).getTrigger(triggerId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1220,7 +1387,7 @@ public ListTriggerDeliveries200Response listDeliveries(UUID triggerId) throws Ap
         return listDeliveries(triggerId,new ListTriggerDeliveriesParams());
       }
 public ListTriggerDeliveries200Response listDeliveries(UUID triggerId,ListTriggerDeliveriesParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new TriggersApi(client).listTriggerDeliveries(triggerId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
@@ -1229,32 +1396,32 @@ public ListTriggers200Response list() throws ApiException {
         return list(new ListTriggersParams());
       }
 public ListTriggers200Response list(ListTriggersParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new TriggersApi(client).listTriggers(params.cursor,params.limit,params.kind,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public TriggerDelivery retryReply(UUID triggerId,UUID deliveryId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new TriggersApi(client).retryTriggerReply(triggerId,deliveryId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public TriggerSecret rotateSecret(UUID triggerId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new TriggersApi(client).rotateTriggerSecret(triggerId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public TriggerDelivery run(UUID triggerId) throws ApiException {
         String key=options.identity();
-        
+
         try {return new TriggersApi(client).runTrigger(triggerId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public Trigger update(UUID triggerId,TriggerPatch input) throws ApiException {
-        
-        
+
+
         try {return new TriggersApi(client).updateTrigger(triggerId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1270,13 +1437,13 @@ public static final class SlackConnectionsResource {
       public SlackConnectionsResource withOptions(RequestOptions options){return new SlackConnectionsResource(client,Objects.requireNonNull(options));}
       public SlackConnection create(SlackConnectionCreate input) throws ApiException {
         String key=options.identity();
-        
+
         try {return new SlackConnectionsApi(client).createSlackConnection(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public DeleteTrigger200Response delete(UUID connectionId) throws ApiException {
-        
-        
+
+
         try {return new SlackConnectionsApi(client).deleteSlackConnection(connectionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
@@ -1284,14 +1451,14 @@ public ListSlackConnectionChannels200Response listChannels(UUID connectionId) th
         return listChannels(connectionId,new ListSlackConnectionChannelsParams());
       }
 public ListSlackConnectionChannels200Response listChannels(UUID connectionId,ListSlackConnectionChannelsParams params) throws ApiException {
-        
+
         Objects.requireNonNull(params,"params");
         try {return new SlackConnectionsApi(client).listSlackConnectionChannels(connectionId,params.cursor,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListSlackConnections200Response list() throws ApiException {
-        
-        
+
+
         try {return new SlackConnectionsApi(client).listSlackConnections(options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }

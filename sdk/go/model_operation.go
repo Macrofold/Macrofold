@@ -13,7 +13,6 @@ package macrofold
 import (
 	"encoding/json"
 	"time"
-	"bytes"
 	"fmt"
 )
 
@@ -25,10 +24,10 @@ type Operation struct {
 	Id string `json:"id"`
 	Status string `json:"status"`
 	Kind string `json:"kind"`
-	// Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
-	Result map[string]interface{} `json:"result,omitempty"`
+	Result *OperationResult `json:"result,omitempty"`
 	Error *ErrorDetail `json:"error,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _Operation Operation
@@ -127,19 +126,19 @@ func (o *Operation) SetKind(v string) {
 }
 
 // GetResult returns the Result field value if set, zero value otherwise.
-func (o *Operation) GetResult() map[string]interface{} {
+func (o *Operation) GetResult() OperationResult {
 	if o == nil || IsNil(o.Result) {
-		var ret map[string]interface{}
+		var ret OperationResult
 		return ret
 	}
-	return o.Result
+	return *o.Result
 }
 
 // GetResultOk returns a tuple with the Result field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Operation) GetResultOk() (map[string]interface{}, bool) {
+func (o *Operation) GetResultOk() (*OperationResult, bool) {
 	if o == nil || IsNil(o.Result) {
-		return map[string]interface{}{}, false
+		return nil, false
 	}
 	return o.Result, true
 }
@@ -153,9 +152,9 @@ func (o *Operation) HasResult() bool {
 	return false
 }
 
-// SetResult gets a reference to the given map[string]interface{} and assigns it to the Result field.
-func (o *Operation) SetResult(v map[string]interface{}) {
-	o.Result = v
+// SetResult gets a reference to the given OperationResult and assigns it to the Result field.
+func (o *Operation) SetResult(v OperationResult) {
+	o.Result = &v
 }
 
 // GetError returns the Error field value if set, zero value otherwise.
@@ -234,6 +233,11 @@ func (o Operation) ToMap() (map[string]interface{}, error) {
 		toSerialize["error"] = o.Error
 	}
 	toSerialize["created_at"] = o.CreatedAt
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -264,15 +268,25 @@ func (o *Operation) UnmarshalJSON(data []byte) (err error) {
 
 	varOperation := _Operation{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varOperation)
+	err = json.Unmarshal(data, &varOperation)
 
 	if err != nil {
 		return err
 	}
 
 	*o = Operation(varOperation)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "id")
+		delete(additionalProperties, "status")
+		delete(additionalProperties, "kind")
+		delete(additionalProperties, "result")
+		delete(additionalProperties, "error")
+		delete(additionalProperties, "created_at")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

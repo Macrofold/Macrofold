@@ -282,11 +282,35 @@ type ApiGetAgentRequest struct {
 	ApiService *AgentsAPIService
 	agentId string
 	xOrganizationId *string
+	includeConnections *bool
+	projectId *string
+	connectionsLimit *int32
+	connectionsCursor *string
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiGetAgentRequest) XOrganizationId(xOrganizationId string) ApiGetAgentRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiGetAgentRequest) IncludeConnections(includeConnections bool) ApiGetAgentRequest {
+	r.includeConnections = &includeConnections
+	return r
+}
+
+func (r ApiGetAgentRequest) ProjectId(projectId string) ApiGetAgentRequest {
+	r.projectId = &projectId
+	return r
+}
+
+func (r ApiGetAgentRequest) ConnectionsLimit(connectionsLimit int32) ApiGetAgentRequest {
+	r.connectionsLimit = &connectionsLimit
+	return r
+}
+
+func (r ApiGetAgentRequest) ConnectionsCursor(connectionsCursor string) ApiGetAgentRequest {
+	r.connectionsCursor = &connectionsCursor
 	return r
 }
 
@@ -297,7 +321,7 @@ func (r ApiGetAgentRequest) Execute() (*Agent, *http.Response, error) {
 /*
 GetAgent Inspect an agent definition
 
-
+Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param agentId
@@ -333,6 +357,26 @@ func (a *AgentsAPIService) GetAgentExecute(r ApiGetAgentRequest) (*Agent, *http.
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.includeConnections != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", r.includeConnections, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", defaultValue, "form", "")
+		r.includeConnections = &defaultValue
+	}
+	if r.projectId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	}
+	if r.connectionsLimit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", r.connectionsLimit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", defaultValue, "form", "")
+		r.connectionsLimit = &defaultValue
+	}
+	if r.connectionsCursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_cursor", r.connectionsCursor, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -404,6 +448,7 @@ type ApiListAgentsRequest struct {
 	cursor *string
 	limit *int32
 	xOrganizationId *string
+	query *string
 }
 
 func (r ApiListAgentsRequest) Cursor(cursor string) ApiListAgentsRequest {
@@ -419,6 +464,12 @@ func (r ApiListAgentsRequest) Limit(limit int32) ApiListAgentsRequest {
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiListAgentsRequest) XOrganizationId(xOrganizationId string) ApiListAgentsRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+// Search preset names.
+func (r ApiListAgentsRequest) Query(query string) ApiListAgentsRequest {
+	r.query = &query
 	return r
 }
 
@@ -471,6 +522,9 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*ListAgent
 		var defaultValue int32 = 25
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
+	}
+	if r.query != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "query", r.query, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

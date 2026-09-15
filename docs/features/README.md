@@ -1,6 +1,6 @@
 # Feature index
 
-Each feature owns a high-level overview and links to implementation or operational details underneath it. The [codebase map](../README.md) explains module ownership.
+These guides apply to Macrofold Cloud and self-hosted deployments. Each feature explains its behavior first, with links to technical details. Start with the [quickstart](api/quickstart.md) or [AI setup prompt](../getting-started/agents.md); contributors can use the [codebase map](../architecture/codebase.md) to find implementation ownership.
 
 | Feature                                                      | Behavior and detail                                                                                                                                                            |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -16,3 +16,7 @@ Each feature owns a high-level overview and links to implementation or operation
 ## Triggered work
 
 [Triggers and scheduled tasks](triggers/README.md) connect Slack messages, incoming webhooks and recurring prompts to saved agents and persistent projects.
+
+## Customer-agent applications
+
+[Customer agents](customer-agents/README.md) connects external customer identity, named-agent records, worktrees, presets, sessions, memory and schedules. Start with the linked reference app and file-memory convention.

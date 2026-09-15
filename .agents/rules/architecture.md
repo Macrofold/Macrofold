@@ -22,6 +22,8 @@ PostgreSQL owns accepted jobs, authorization context, reservations, leases, and 
 
 Model state transitions explicitly and keep execution, persistence, and Git synchronization outcomes separate. Preserve public contract compatibility; regenerate clients when owned schemas change. Keep one validation policy at each trust boundary rather than repeated parsing at every internal call.
 
+Use environment variables for secrets and deployment-specific wiring or infrastructure controls. Keep routine product configuration and discovered catalogs in versioned defaults or persisted application state, with bounded refresh when needed. Do not require operators to maintain frequently changing JSON catalogs or price-version labels in environment variables. Snapshot accepted financial terms on the run rather than rereading mutable configuration at settlement.
+
 ## Change the architecture only for a present need
 
 Prefer local composition and existing deployment infrastructure. Keep the Vercel-first/provider-port topology from [portability](../../docs/architecture/portability.md). A new service, queue, cache, framework, storage system, or generic abstraction needs a current requirement or measured bottleneck and a short explanation of failure/operational cost.

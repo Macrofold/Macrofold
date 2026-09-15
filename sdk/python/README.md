@@ -2,6 +2,8 @@
 
 Manage persistent projects and run cloud agents with keyword arguments and typed responses. Requires Python 3.11 or later.
 
+Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
+
 ## Install from source
 
 From the repository root, install into your application virtual environment:
@@ -12,7 +14,7 @@ python -m pip install ./sdk/python
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key. Create a project and saved agent preset in the dashboard, then copy their IDs. The preset supplies the harness, model, billing mode, and authorized connection configuration; the project identifies persistent files. Managed execution uses platform credits. Use local simulation for free development.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```python
 from macrofold import Macrofold
@@ -20,7 +22,9 @@ from macrofold import Macrofold
 macrofold = Macrofold()
 run = macrofold.runs.create(
     project_id="YOUR_PROJECT_ID",
-    agent_id="YOUR_AGENT_ID",
+    harness="codex",
+    model="gpt-5.4-mini",
+    billing_mode="managed",
     prompt="Create hello.txt containing Hello world.",
 )
 for text in macrofold.runs.stream_text(run.run_id):
@@ -28,7 +32,7 @@ for text in macrofold.runs.stream_text(run.run_id):
 macrofold.close()
 ```
 
-The default origin is `https://app.macrofold.ai`. Override it for local development:
+The default origin is `https://app.macrofold.ai`. Override it for self-hosting, staging, or local development; for example:
 
 ```python
 macrofold = Macrofold(base_url="http://localhost:3210", api_key="YOUR_LOCAL_API_KEY")
@@ -103,4 +107,8 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 `request(operation, path=..., query=..., body=...)` remains a low-level escape hatch returning dictionaries or bytes. Supply a callable `token` instead of `api_key` for renewed OAuth access tokens. `organization` selects a membership for a user token; API keys stay bound to their organization.
 
-See [API conventions](../../docs/features/api/README.md) for budgets, permissions, pagination, and errors.
+See [API conventions](../../docs/features/api/conventions.md) for budgets, permissions, pagination, and errors.
+
+## Choose a harness
+
+The same run methods support `codex`, `claude-code`, `opencode`, `hermes`, `deepseek`, and `pi`. Select a compatible model from the catalog. See [harness capabilities and examples](../../docs/features/execution/harnesses.md).

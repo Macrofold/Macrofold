@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 from macrofold.models.grant import Grant
@@ -34,23 +34,23 @@ class SessionCreate(BaseModel):
     harness: StrictStr
     model: StrictStr
     billing_mode: StrictStr
-    provider_connection_id: Optional[UUID] = None
-    connection_grants: Optional[List[Grant]] = None
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.")
     limits: Optional[Limits] = None
     __properties: ClassVar[List[str]] = ["workspace_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     @field_validator('billing_mode')
     def billing_mode_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['byok', 'managed']):
-            raise ValueError("must be one of enum values ('byok', 'managed')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     model_config = ConfigDict(

@@ -356,9 +356,7 @@ describe('tenant API and execution invariants', () => {
       ),
     );
     expect(responses.map((result) => result.response.status).sort()).toEqual([202, 409]);
-    expect(responses.find((result) => result.response.status === 409)?.value.error.code).toBe(
-      'branch_exists',
-    );
+    expect(responses.find((result) => result.response.status === 409)?.value.error.code).toBe('name_exists');
     const workspaces = (await request('GET', `/v1/projects/${project.id}/workspaces`)).value.data;
     expect(workspaces.filter((workspace: { branch: string }) => workspace.branch === 'review')).toHaveLength(
       1,

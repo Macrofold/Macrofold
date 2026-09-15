@@ -28,6 +28,7 @@ test('operator sees usage, honest cohorts, account drilldown and searchable pagi
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toContainText('Available credits');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(audit.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.failureSummary) }))).toEqual(
     [],

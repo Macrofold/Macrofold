@@ -7,11 +7,16 @@ import type { Document } from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
 
 const input = { query: 'docs & typescript', count: 2 };
-const connection = (provider = 'exa', overrides: Record<string, unknown> = {}): Document => ({
+const connection = (provider = 'exa', overrides: Record<string, unknown> = {}): Document<'connections'> => ({
   id: 'fixture',
   organization_id: 'fixture',
   created_at: '',
   revision: '1',
+  access_version: '1',
+  access_organization_wide: false,
+  access_tools: [],
+  name: 'Search',
+  status: 'healthy',
   kind: 'search',
   provider,
   auth_method: 'api_key',

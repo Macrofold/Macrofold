@@ -18,9 +18,10 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from macrofold.models.contextual_connection_page import ContextualConnectionPage
 from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
 from typing import Optional, Set
@@ -36,27 +37,28 @@ class Agent(BaseModel):
     model: StrictStr
     instructions: Optional[StrictStr] = None
     billing_mode: StrictStr
-    provider_connection_id: Optional[UUID] = None
-    connection_grants: Optional[List[Grant]] = None
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.")
     limits: Optional[Limits] = None
     id: UUID
     organization_id: UUID
     version: StrictInt
     created_at: datetime
-    __properties: ClassVar[List[str]] = ["name", "harness", "model", "instructions", "billing_mode", "provider_connection_id", "connection_grants", "limits", "id", "organization_id", "version", "created_at"]
+    connections: Optional[ContextualConnectionPage] = None
+    __properties: ClassVar[List[str]] = ["name", "harness", "model", "instructions", "billing_mode", "provider_connection_id", "connection_grants", "limits", "id", "organization_id", "version", "created_at", "connections"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     @field_validator('billing_mode')
     def billing_mode_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['byok', 'managed']):
-            raise ValueError("must be one of enum values ('byok', 'managed')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     model_config = ConfigDict(
@@ -108,6 +110,9 @@ class Agent(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of connections
+        if self.connections:
+            _dict['connections'] = self.connections.to_dict()
         return _dict
 
     @classmethod
@@ -131,7 +136,8 @@ class Agent(BaseModel):
             "id": obj.get("id"),
             "organization_id": obj.get("organization_id"),
             "version": obj.get("version"),
-            "created_at": obj.get("created_at")
+            "created_at": obj.get("created_at"),
+            "connections": ContextualConnectionPage.from_dict(obj["connections"]) if obj.get("connections") is not None else None
         })
         return _obj
 

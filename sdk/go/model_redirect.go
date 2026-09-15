@@ -23,7 +23,7 @@ var _ MappedNullable = &Redirect{}
 // Redirect struct for Redirect
 type Redirect struct {
 	Url string `json:"url"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 type _Redirect Redirect
@@ -32,10 +32,9 @@ type _Redirect Redirect
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRedirect(url string, expiresAt time.Time) *Redirect {
+func NewRedirect(url string) *Redirect {
 	this := Redirect{}
 	this.Url = url
-	this.ExpiresAt = expiresAt
 	return &this
 }
 
@@ -71,28 +70,36 @@ func (o *Redirect) SetUrl(v string) {
 	o.Url = v
 }
 
-// GetExpiresAt returns the ExpiresAt field value
+// GetExpiresAt returns the ExpiresAt field value if set, zero value otherwise.
 func (o *Redirect) GetExpiresAt() time.Time {
-	if o == nil {
+	if o == nil || IsNil(o.ExpiresAt) {
 		var ret time.Time
 		return ret
 	}
-
-	return o.ExpiresAt
+	return *o.ExpiresAt
 }
 
-// GetExpiresAtOk returns a tuple with the ExpiresAt field value
+// GetExpiresAtOk returns a tuple with the ExpiresAt field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *Redirect) GetExpiresAtOk() (*time.Time, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.ExpiresAt) {
 		return nil, false
 	}
-	return &o.ExpiresAt, true
+	return o.ExpiresAt, true
 }
 
-// SetExpiresAt sets field value
+// HasExpiresAt returns a boolean if a field has been set.
+func (o *Redirect) HasExpiresAt() bool {
+	if o != nil && !IsNil(o.ExpiresAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetExpiresAt gets a reference to the given time.Time and assigns it to the ExpiresAt field.
 func (o *Redirect) SetExpiresAt(v time.Time) {
-	o.ExpiresAt = v
+	o.ExpiresAt = &v
 }
 
 func (o Redirect) MarshalJSON() ([]byte, error) {
@@ -106,7 +113,9 @@ func (o Redirect) MarshalJSON() ([]byte, error) {
 func (o Redirect) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["url"] = o.Url
-	toSerialize["expires_at"] = o.ExpiresAt
+	if !IsNil(o.ExpiresAt) {
+		toSerialize["expires_at"] = o.ExpiresAt
+	}
 	return toSerialize, nil
 }
 
@@ -116,7 +125,6 @@ func (o *Redirect) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"url",
-		"expires_at",
 	}
 
 	allProperties := make(map[string]interface{})

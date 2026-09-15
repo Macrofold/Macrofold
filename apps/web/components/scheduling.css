@@ -24,9 +24,9 @@
   margin: 0;
 }
 .tier-label span {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--blue);
 }
 .tier-card p {
@@ -67,11 +67,12 @@
   margin: 0 0 18px;
 }
 .queue-status {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--blue) 7%, white), #fff);
-  border: 1px solid color-mix(in srgb, var(--blue) 22%, white);
-  border-radius: 14px;
+  background: var(--app-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--blue) 22%, var(--app-line));
+  border-radius: var(--app-radius-lg);
   padding: 22px;
   margin: 20px 0;
+  border-color: var(--app-line);
 }
 .queue-status-title {
   display: flex;

@@ -1,5 +1,10 @@
 'use client';
-import { copyText } from '../lib/clipboard';
+import { defaultRunBudgetMicroUsd } from '../../../packages/contracts/run-defaults';
+import { ConnectionSelection } from './run-tools';
+import { harnesses } from '../../../packages/contracts/harnesses';
+import { CopyButton } from './copy-button';
+import { ProviderLabel, ProviderLogo } from './provider-logo';
+import { connectionLogoProvider, modelLogoProvider } from '../lib/provider-branding';
 import { SchedulingReport } from './scheduling-report';
 import { ExecutionPolicy, PlanOptions } from './execution-policy';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +14,6 @@ import {
   Bot,
   ChartNoAxesCombined,
   Check,
-  Copy,
   CreditCard,
   KeyRound,
   Plus,
@@ -18,6 +22,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { KeyPermissions } from './key-permissions';
+import { resolveKeyPermissions, type KeyPermissionSelection } from '../lib/key-permissions';
+import { request } from '../lib/dashboard-data';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { api, money, relative, useApi, usePages, type Schema } from '../lib/client';
 import { Stat } from './dashboard-shared';
@@ -25,6 +34,7 @@ import { GrowthDetails } from './growth';
 import { RequestsTable } from './requests-table';
 import { Select } from './select';
 import { StoragePanel } from './storage';
+import { templatePreset } from './templates/catalog';
 import {
   Badge,
   Button,
@@ -44,13 +54,7 @@ export function KeysView() {
     projects = usePages<Schema['Project']>('/v1/projects');
   const [open, setOpen] = useState(false),
     [name, setName] = useState(''),
-    [scopes, setScopes] = useState<string[]>([
-      'identity:read',
-      'projects:read',
-      'files:read',
-      'runs:read',
-      'runs:write',
-    ]),
+    [permissions, setPermissions] = useState<KeyPermissionSelection>({ preset: 'read-write' }),
     [project, setProject] = useState(''),
     [days, setDays] = useState('90'),
     [secret, setSecret] = useState(''),
@@ -58,6 +62,16 @@ export function KeysView() {
     [error, setError] = useState(''),
     [revoke, setRevoke] = useState<Schema['ApiKey']>();
   const client = useQueryClient();
+  const scopes = resolveKeyPermissions(permissions, identity.data?.effective_scopes ?? []);
+  function openCreate() {
+    setName('');
+    setPermissions({ preset: 'read-write' });
+    setProject('');
+    setDays('90');
+    setSecret('');
+    setError('');
+    setOpen(true);
+  }
   return (
     <div className="page">
       <PageHeading
@@ -65,13 +79,7 @@ export function KeysView() {
         title="API keys"
         description="Connect your applications, scripts, and CI to your hosted agents."
         action={
-          <Button
-            onClick={() => {
-              setOpen(true);
-              setSecret('');
-              setError('');
-            }}
-          >
+          <Button onClick={openCreate}>
             <Plus size={17} />
             Create API key
           </Button>
@@ -82,7 +90,7 @@ export function KeysView() {
         <div>
           <strong>Give each integration its own key.</strong>
           <p>
-            Use only the scopes it needs. Secrets are shown once, stored as hashes, and can be revoked at any
+            Choose the access it needs. Secrets are shown once, stored as hashes, and can be revoked at any
             time.
           </p>
         </div>
@@ -96,7 +104,7 @@ export function KeysView() {
           icon={<KeyRound />}
           title="Your first integration starts here"
           description="Generate a scoped key to use the API, CLI, or SDK."
-          action={<Button onClick={() => setOpen(true)}>Create API key</Button>}
+          action={<Button onClick={openCreate}>Create API key</Button>}
         />
       ) : (
         <div className="table-wrap">
@@ -171,10 +179,7 @@ export function KeysView() {
           <>
             <div className="secret-display">
               <code>{secret}</code>
-              <Button variant="secondary" onClick={() => copyText(secret, 'API key copied')}>
-                <Copy size={14} />
-                Copy
-              </Button>
+              <CopyButton text={secret} />
             </div>
             <div className="info-note">
               <ShieldCheck size={18} />
@@ -198,16 +203,19 @@ export function KeysView() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (busy || identity.isPending || identity.error || !scopes.length) return;
               setBusy(true);
               setError('');
               try {
-                const key = await api<Schema['NewApiKey']>('/v1/api-keys', 'POST', {
-                  name,
-                  scopes,
-                  ...(project ? { project_id: project } : {}),
-                  ...(days
-                    ? { expires_at: new Date(Date.now() + Number(days) * 86400000).toISOString() }
-                    : {}),
+                const key = await request('createApiKey', {
+                  body: {
+                    name,
+                    scopes,
+                    ...(project ? { project_id: project } : {}),
+                    ...(days
+                      ? { expires_at: new Date(Date.now() + Number(days) * 86400000).toISOString() }
+                      : {}),
+                  },
                 });
                 setSecret(key.secret);
                 await client.invalidateQueries();
@@ -252,28 +260,20 @@ export function KeysView() {
                 />
               </Field>
             </div>
-            <div className="field">
-              <span>Permissions</span>
-              <div className="scope-grid">
-                {identity.data?.effective_scopes.map((scope) => (
-                  <label key={scope}>
-                    <input
-                      type="checkbox"
-                      checked={scopes.includes(scope)}
-                      onChange={(e) =>
-                        setScopes((old) =>
-                          e.target.checked ? [...old, scope] : old.filter((s) => s !== scope),
-                        )
-                      }
-                    />
-                    <code>{scope}</code>
-                  </label>
-                ))}
-              </div>
-            </div>
+            {identity.isPending ? (
+              <Loading label="Loading permissions" />
+            ) : identity.error ? (
+              <ErrorState error={identity.error} retry={() => identity.refetch()} />
+            ) : (
+              <KeyPermissions
+                value={permissions}
+                onChange={setPermissions}
+                effectiveScopes={identity.data.effective_scopes}
+              />
+            )}
             {error && <div className="form-error">{error}</div>}
             <div className="dialog-actions">
-              <Button busy={busy} type="submit" disabled={!scopes.length}>
+              <Button busy={busy} type="submit" disabled={!scopes.length || Boolean(identity.error)}>
                 Create key
               </Button>
             </div>
@@ -491,14 +491,48 @@ export function BillingView() {
   );
 }
 export function AgentsView() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const templateSlug = params.get('template');
+  return (
+    <AgentPresets
+      key={templateSlug || 'blank'}
+      templateSlug={templateSlug}
+      schedule={params.get('schedule') === 'true'}
+      schedulePreset={(id) => router.push(`/scheduled-tasks?agent=${id}&template=${templateSlug || ''}`)}
+      clearTemplate={() => router.replace('/agents', { scroll: false })}
+    />
+  );
+}
+function AgentPresets({
+  templateSlug,
+  schedule,
+  schedulePreset,
+  clearTemplate,
+}: {
+  templateSlug: string | null;
+  schedule: boolean;
+  schedulePreset: (id: string) => void;
+  clearTemplate: () => void;
+}) {
+  const starter = templatePreset(templateSlug);
   const query = usePages<Schema['Agent']>('/v1/agents'),
-    models = usePages<Schema['Model']>('/v1/models');
-  const [open, setOpen] = useState(false),
-    [name, setName] = useState(''),
+    models = usePages<Schema['Model']>('/v1/models'),
+    connections = usePages<Schema['Connection']>('/v1/connections'),
+    identity = useApi<Schema['Identity']>('/v1/me');
+  const [toolDefaults, setToolDefaults] = useState<Schema['Grant'][] | undefined>();
+  const [open, setOpen] = useState(Boolean(starter)),
+    [name, setName] = useState(starter?.name || ''),
     [harness, setHarness] = useState('codex'),
-    [instructions, setInstructions] = useState(''),
+    [instructions, setInstructions] = useState(starter?.instructions || ''),
+    [requestedModel, setModel] = useState(''),
+    [billing, setBilling] = useState<Schema['AgentCreate']['billing_mode']>('managed'),
+    [connection, setConnection] = useState(''),
+    [budget, setBudget] = useState(String(Number(defaultRunBudgetMicroUsd) / 1000000)),
     [busy, setBusy] = useState(false);
   const client = useQueryClient();
+  const available = models.data?.data.filter((model) => model.enabled && model.harnesses.includes(harness)) || [];
+  const model = available.find((item) => item.id === requestedModel) || available[0];
   return (
     <div className="page">
       <PageHeading
@@ -514,31 +548,56 @@ export function AgentsView() {
       />
       {query.isPending ? (
         <Loading />
+      ) : query.error ? (
+        <ErrorState
+          error={query.error}
+          retry={() => {
+            void query.refetch();
+          }}
+        />
+      ) : !query.data?.data.length ? (
+        <Empty
+          icon={<Bot />}
+          title="Make your best workflow repeatable"
+          description="Start with an example, or save your own instructions and model as a reusable preset."
+          action={
+            <Link className="button secondary" href="/templates">
+              Explore examples <ArrowUpRight size={15} />
+            </Link>
+          }
+        />
       ) : (
         <div className="connections-grid">
           {query.data?.data.map((a) => (
             <div className="connection-card agent-card" key={a.id}>
               <div className="connection-card-top">
                 <span className="connection-icon">
-                  <Bot size={22} />
+                  <ProviderLogo provider={a.harness} size={26} />
                 </span>
                 <span className="model-label">{a.harness}</span>
               </div>
               <h3>{a.name}</h3>
               <p>{a.instructions || 'Ready for your next task.'}</p>
+              {a.provider_connection_id && (
+                <p>
+                  {connections.data?.data.find((item) => item.id === a.provider_connection_id)?.name ||
+                    a.provider_connection_id}
+                </p>
+              )}
+              <Link className="text-link" href={`/scheduled-tasks?agent=${a.id}`}>Schedule this preset →</Link>
               <div className="agent-model">
                 <span className="tiny-dot" />
                 {a.model === 'fixture-model' ? 'Local simulation' : a.model}
               </div>
               <div className="copy-field">
                 <code>{a.id.slice(0, 18)}…</code>
-                <button
-                  aria-label="Copy agent ID"
+                <CopyButton
+                  variant="plain"
                   className="icon-button"
-                  onClick={() => copyText(a.id, 'Agent ID copied')}
-                >
-                  <Copy size={14} />
-                </button>
+                  text={a.id}
+                  label="Copy agent ID"
+                  iconOnly
+                />
               </div>
             </div>
           ))}
@@ -547,25 +606,38 @@ export function AgentsView() {
       <More query={query} label="More presets" />
       <Modal
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setToolDefaults(undefined);
+          if (!next && starter) clearTemplate();
+        }}
         title="Create an agent preset"
-        description="Reuse a consistent setup across projects and API calls."
+        description={
+          starter
+            ? `Starting from ${starter.name}. Review the setup and make it yours.`
+            : 'Reuse a consistent setup across projects and API calls.'
+        }
       >
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
             try {
-              const model = models.data?.data.find((m) => m.harnesses.includes(harness));
               if (!model) throw new Error('No compatible model is configured.');
-              await api('/v1/agents', 'POST', {
+              const preset = await request('createAgent', { body: {
                 name,
-                harness,
+                harness: harness as Schema['AgentCreate']['harness'],
+                limits: { max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)) },
                 model: model.id,
-                billing_mode: 'managed',
+                billing_mode: billing,
+                ...(billing !== 'managed' ? { provider_connection_id: connection } : {}),
                 instructions,
-              });
+                ...(toolDefaults !== undefined ? { connection_grants: toolDefaults } : {}),
+              } });
               setOpen(false);
+              setToolDefaults(undefined);
+              if (schedule) schedulePreset(preset.id);
+              else if (starter) clearTemplate();
               await client.invalidateQueries();
               toast.success('Preset created');
             } catch (e) {
@@ -586,14 +658,98 @@ export function AgentsView() {
           <Field label="Harness">
             <Select
               value={harness}
-              onValueChange={setHarness}
+              onValueChange={(value) => {
+                setHarness(value);
+                setBilling('managed');
+                setConnection('');
+              }}
+              options={harnesses.map(({ id, name }) => ({
+                value: id,
+                label: <ProviderLabel provider={id} name={name} />,
+              }))}
+            />
+          </Field>
+          <Field label="Model">
+            <Select
+              value={model?.id || ''}
+              required
+              onValueChange={(value) => {
+                setModel(value);
+                setBilling('managed');
+                setConnection('');
+              }}
+              options={available.map((item) => ({
+                value: item.id,
+                label: <ProviderLabel provider={modelLogoProvider(item)} name={item.id} />,
+              }))}
+            />
+          </Field>
+          <More query={models} label="More models" />
+          <Field label="Model funding">
+            <Select
+              value={billing}
+              onValueChange={(value) => {
+                setBilling(value as Schema['AgentCreate']['billing_mode']);
+                setConnection('');
+              }}
               options={[
-                { value: 'codex', label: 'Codex' },
-                { value: 'claude-code', label: 'Claude Code' },
-                { value: 'opencode', label: 'OpenCode' },
+                { value: 'managed', label: 'Managed API usage' },
+                { value: 'byok', label: 'Your API-key connection' },
+                ...(harness === 'claude-code' && model?.provider === 'anthropic'
+                  ? [
+                      {
+                        value: 'subscription',
+                        label: (
+                          <ProviderLabel
+                            provider="claude_subscription"
+                            name="Claude subscription · not yet available"
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
             />
           </Field>
+          {billing !== 'managed' && (
+            <>
+              <Field label="Authentication connection">
+                <Select
+                  value={connection}
+                  required
+                  onValueChange={setConnection}
+                  options={[
+                    { value: '', label: 'Choose a named account', disabled: true },
+                    ...(connections.data?.data
+                      .filter(
+                        (item) =>
+                          item.owner_subject_id === identity.data?.user_id &&
+                          (billing === 'subscription'
+                            ? item.kind === 'claude_subscription'
+                            : item.kind === 'model' &&
+                              (model?.provider === 'fixture' || item.provider === model?.provider) &&
+                              item.status === 'healthy'),
+                      )
+                      .map((item) => ({
+                        value: item.id,
+                        label: <ProviderLabel provider={connectionLogoProvider(item)} name={item.name} />,
+                      })) || []),
+                  ]}
+                />
+              </Field>
+              <More query={connections} label="More connections" />
+            </>
+          )}
+          {billing === 'subscription' && (
+            <p className="form-hint">
+              This preset can be saved, but cannot run until subscription authentication is available. It will
+              not silently use an API key.
+            </p>
+          )}
+          <Field label="Budget per run (USD)" hint="Maximum total platform charge per run, including tools and compute. This is a limit, not a cost estimate.">
+            <input type="number" required min="0.01" max="999999" step="0.01" value={budget} onChange={(event) => setBudget(event.target.value)} />
+          </Field>
+          <ConnectionSelection value={toolDefaults} onChange={setToolDefaults} label="Default tools" />
           <Field label="Instructions">
             <textarea
               rows={5}
@@ -604,9 +760,15 @@ export function AgentsView() {
           </Field>
           <div className="dialog-actions">
             <Button type="submit" busy={busy}>
-              Create preset
+              {schedule ? 'Save and choose schedule' : 'Create preset'}
             </Button>
           </div>
+          {starter && (
+            <p className="form-hint">
+              Saving a preset does not run the agent or create tool grants. Choose the project, connections,
+              and run budget when you start a task.
+            </p>
+          )}
         </form>
       </Modal>
     </div>
@@ -704,7 +866,7 @@ export function OperatorView() {
         description="Account metadata only. User files and prompts are excluded."
       />
       <div className="view-toolbar">
-        <div className="search-input">
+        <div className="search-input input-surface">
           <Search size={16} />
           <input
             aria-label="Search accounts"

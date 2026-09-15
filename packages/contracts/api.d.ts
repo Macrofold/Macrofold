@@ -29,7 +29,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Inspect a project */
+        /**
+         * Inspect a project
+         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+         */
         get: operations["getProject"];
         put?: never;
         post?: never;
@@ -120,7 +123,11 @@ export interface paths {
         delete: operations["deleteFile"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename a workspace file
+         * @description Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
+         */
+        patch: operations["renameFile"];
         trace?: never;
     };
     "/v1/workspaces/{workspace_id}/checkpoints": {
@@ -201,7 +208,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Inspect an agent definition */
+        /**
+         * Inspect an agent definition
+         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+         */
         get: operations["getAgent"];
         put?: never;
         post?: never;
@@ -934,24 +944,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/connections/{connection_id}/grants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect connection tool grants */
-        get: operations["getConnectionGrants"];
-        /** Replace explicitly authorized tool grants */
-        put: operations["setConnectionGrants"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/checkpoints/{checkpoint_id}": {
         parameters: {
             query?: never;
@@ -1556,6 +1548,137 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspace_id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a workspace folder
+         * @description Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
+         */
+        post: operations["createFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/worktree-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List saved branches and validate worktree names
+         * @description Read-only validation. Creation rechecks names and branches under the project lock. Branches come from saved project repositories.
+         */
+        get: operations["getWorktreeOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/files/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate a file
+         * @description Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
+         */
+        post: operations["duplicateFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect owned connection access */
+        get: operations["getConnectionAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update organization access or approved tools */
+        patch: operations["updateConnectionAccess"];
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/access/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved connection permissions */
+        get: operations["listConnectionAccessRules"];
+        put?: never;
+        /** Add a connection permission */
+        post: operations["createConnectionAccessRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/access/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a connection permission */
+        delete: operations["deleteConnectionAccessRule"];
+        options?: never;
+        head?: never;
+        /** Retarget a connection permission */
+        patch: operations["updateConnectionAccessRule"];
+        trace?: never;
+    };
+    "/v1/connection-access/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview connection access for a run */
+        post: operations["resolveConnectionAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1571,6 +1694,39 @@ export interface components {
             kind: string;
             /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
             result?: {
+                /** Format: uuid */
+                workspace_id?: string;
+                revision?: string;
+                /** Format: uuid */
+                checkpoint_id?: string;
+                /** @description Created, saved, renamed, or removed path for a file mutation. */
+                path?: string;
+                /** @description Original path for a file rename. */
+                previous_path?: string;
+                /** @description Authoritative resulting file or directory entry, absent for deletion. */
+                entry?: components["schemas"]["FileEntry"];
+                /** Format: uuid */
+                project_id?: string;
+                /** Format: uuid */
+                transfer_id?: string;
+                /** Format: uuid */
+                delivery_id?: string;
+                local_receipt_complete?: boolean;
+                /** @enum {string} */
+                format?: "git_bundle" | "portable_archive";
+                /** Format: uri */
+                download_url?: string;
+                /** Format: uri */
+                manifest_url?: string;
+                /** Format: date-time */
+                expires_at?: string;
+                size_bytes?: string;
+                sha256?: string;
+                manifest_sha256?: string;
+                export_commit?: string;
+                source_commit?: string;
+                sync?: components["schemas"]["GitSync"];
+            } & {
                 [key: string]: unknown;
             };
             error?: components["schemas"]["ErrorDetail"];
@@ -1601,6 +1757,7 @@ export interface components {
                  */
                 auto_pull: boolean;
             };
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         ProjectPatch: {
             name?: string;
@@ -1625,6 +1782,7 @@ export interface components {
                 auto_pull: boolean;
             };
             archived?: boolean;
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         Project: {
             /** Format: uuid */
@@ -1666,14 +1824,24 @@ export interface components {
             deletion_due_at?: string | null;
             /** Format: date-time */
             deletion_requested_at?: string | null;
+            permissions?: components["schemas"]["AgentPermissions"];
+            connections?: components["schemas"]["ContextualConnectionPage"];
         };
-        /** @description Independent remote clone and branch. Omit source for project default. Legacy checkpoint_id and source are mutually exclusive. Never uploads a local folder. */
+        /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder. */
         WorkspaceCreate: {
-            name: string;
+            /** @description Optional. Leave empty for smart naming. */
+            name?: string;
             /** Format: uuid */
             checkpoint_id?: string;
+            /** @description Optional. Leave empty for smart naming. */
             branch?: string;
             source?: components["schemas"]["WorkspaceSource"];
+            /**
+             * @description Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
+             * @enum {string}
+             */
+            branch_mode?: "auto" | "new" | "existing";
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         Workspace: {
             /** Format: uuid */
@@ -1682,8 +1850,8 @@ export interface components {
             project_id: string;
             /** Format: uuid */
             organization_id: string;
-            name: string;
-            branch?: string;
+            name: string | null;
+            branch?: string | null;
             revision: string;
             /** @enum {string} */
             status: "idle" | "busy" | "restoring" | "degraded" | "deleting";
@@ -1707,6 +1875,7 @@ export interface components {
                 /** Format: date-time */
                 received_at?: string;
             } | null;
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         FileEntry: {
             path: string;
@@ -1789,39 +1958,51 @@ export interface components {
         AgentCreate: {
             name: string;
             /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode";
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
             instructions?: string;
             /** @enum {string} */
-            billing_mode: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
         };
         AgentPatch: {
             name?: string;
             /** @enum {string} */
-            harness?: "codex" | "claude-code" | "opencode";
+            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model?: string;
             instructions?: string;
             /** @enum {string} */
-            billing_mode?: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode?: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
-            connection_grants?: components["schemas"]["Grant"][];
+            /** @description Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools. */
+            connection_grants?: components["schemas"]["Grant"][] | null;
             limits?: components["schemas"]["Limits"];
         };
         Agent: {
             name: string;
             /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode";
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
             instructions?: string;
             /** @enum {string} */
-            billing_mode: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
             /** Format: uuid */
@@ -1831,18 +2012,23 @@ export interface components {
             version: number;
             /** Format: date-time */
             created_at: string;
+            connections?: components["schemas"]["ContextualConnectionPage"];
         };
         /** @description Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants. */
         SessionCreate: {
             /** Format: uuid */
             workspace_id: string;
             /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode";
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
             /** @enum {string} */
-            billing_mode: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
         };
@@ -1852,16 +2038,23 @@ export interface components {
             /** Format: uuid */
             workspace_id: string;
             /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode";
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            billing_mode?: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode?: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
+            /** Format: uuid */
+            agent_id?: string | null;
+            agent_version?: number | null;
         };
         /** @description Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
         RunCreate: {
@@ -1875,12 +2068,16 @@ export interface components {
             /** Format: uuid */
             agent_id?: string;
             /** @enum {string} */
-            harness?: "codex" | "claude-code" | "opencode";
+            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model?: string;
             /** @enum {string} */
-            billing_mode?: "byok" | "managed";
-            /** Format: uuid */
+            billing_mode?: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
             provider_connection_id?: string;
+            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
             webhook_endpoint_ids?: string[];
@@ -1893,6 +2090,9 @@ export interface components {
             scheduling_class?: "background" | "interactive";
             /** @description Only session follow-ups can queue behind workspace work. */
             queue_if_busy?: boolean;
+            permissions?: components["schemas"]["AgentPermissions"];
+            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
+            connection_access_overrides?: components["schemas"]["Grant"][];
         } & (unknown | unknown | unknown);
         /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered workspace work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
         MessageCreate: {
@@ -1910,6 +2110,11 @@ export interface components {
              * @enum {string}
              */
             scheduling_class?: "background" | "interactive";
+            permissions?: components["schemas"]["AgentPermissions"];
+            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
+            connection_grants?: components["schemas"]["Grant"][];
+            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
+            connection_access_overrides?: components["schemas"]["Grant"][];
         };
         RunAccepted: {
             /** Format: uuid */
@@ -1981,7 +2186,7 @@ export interface components {
             queue_expires_at?: string;
             failure_code?: string;
             /** @enum {string} */
-            client_type?: "dashboard" | "cli" | "sdk" | "api" | "internal";
+            client_type?: "dashboard" | "cli" | "sdk" | "api" | "internal" | "slack" | "webhook" | "scheduled";
             client_version?: string;
             /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
             wait_seconds?: number;
@@ -1999,6 +2204,10 @@ export interface components {
              * @description Set when execution is claimed. Includes provisioning and persistence; separate from the queue deadline.
              */
             execution_deadline?: string | null;
+            permission_layers?: components["schemas"]["AgentPermissions"][];
+            /** Format: uuid */
+            agent_id?: string | null;
+            agent_version?: number | null;
         };
         RunInput: {
             /** Format: uuid */
@@ -2066,15 +2275,16 @@ export interface components {
             expires_at: string;
         };
         ConnectionCreate: {
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
             url?: string;
             /** @enum {string} */
-            auth_method: "oauth" | "bearer" | "headers" | "api_key" | "none";
+            auth_method: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
             /** @description Write-only secret; never returned. */
             secret?: string;
             secret_headers?: {
@@ -2083,22 +2293,23 @@ export interface components {
             package?: string;
             package_version?: string;
             args?: string[];
-            subject_id?: string;
             /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
             secret_env?: {
                 [key: string]: string;
             };
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
         };
         ConnectionPatch: {
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name?: string;
             /** @enum {string} */
-            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search";
+            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
             url?: string;
             /** @enum {string} */
-            auth_method?: "oauth" | "bearer" | "headers" | "api_key" | "none";
+            auth_method?: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
             /** @description Write-only secret; never returned. */
             secret?: string;
             secret_headers?: {
@@ -2107,18 +2318,19 @@ export interface components {
             package?: string;
             package_version?: string;
             args?: string[];
-            subject_id?: string;
             /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
             secret_env?: {
                 [key: string]: string;
             };
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
         };
         Connection: {
             /** Format: uuid */
             id: string;
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search";
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
             /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
             provider?: string;
             /** Format: uri */
@@ -2133,6 +2345,14 @@ export interface components {
             created_at: string;
             package?: string;
             package_version?: string;
+            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
+            account_identity?: string | null;
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
+            /**
+             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
+             * @enum {string}
+             */
+            availability?: "pending_approval";
         };
         AuthorizeRequest: {
             /** @description Application-relative allowlisted return location. */
@@ -2284,11 +2504,11 @@ export interface components {
             /** Format: uri */
             url: string;
             /** Format: date-time */
-            expires_at: string;
+            expires_at?: string;
         };
         Harness: {
             /** @enum {string} */
-            id: "codex" | "claude-code" | "opencode";
+            id: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             version: string;
             enabled: boolean;
             capabilities: string[];
@@ -2300,6 +2520,12 @@ export interface components {
             enabled: boolean;
             billing_modes: ("byok" | "managed")[];
             rate_card_version: string;
+            /** @description Display name of the reviewed model. */
+            name: string;
+            /** @description Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot. */
+            input_micro_usd_per_million: string;
+            /** @description Current retail micro-USD per million output tokens, including reported reasoning tokens. */
+            output_micro_usd_per_million: string;
         };
         RequestRecord: {
             /** Format: uuid */
@@ -2417,14 +2643,6 @@ export interface components {
             /** @constant */
             action_executed: false;
         };
-        /** @description Compare-and-set grant revision. Subject ownership and granting authority are validated server-side. */
-        ConnectionGrantSet: {
-            version: number;
-            /** @enum {string} */
-            subject_type: "organization" | "user" | "external_subject";
-            subject_id?: string;
-            tools: string[];
-        };
         CheckpointPatch: {
             pinned: boolean;
         };
@@ -2440,7 +2658,8 @@ export interface components {
             checkpoint_id: string;
         };
         WorkspacePatch: {
-            name: string;
+            name?: string;
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         CliCapabilities: {
             api_version: string;
@@ -2948,6 +3167,211 @@ export interface components {
             id: string;
             name: string;
         };
+        /** @description Optional per-run policy for confirmed subscription quota exhaustion before native execution starts. Disabled by default. Subscription execution is currently gated. */
+        ClaudeApiFallback: {
+            /**
+             * Format: uuid
+             * @description Your Anthropic API-key connection. No implicit managed-key fallback.
+             */
+            connection_id?: string;
+            /** @description Positive per-run API spending ceiling, including in-flight request reservations. Infrastructure is charged separately. */
+            max_cost_micro_usd?: string;
+            /** @description False disables fallback and clears the saved backup selection. True requires an owned connection_id and a positive max_cost_micro_usd. */
+            enabled: boolean;
+        };
+        FolderCreate: {
+            /** @description Relative workspace path without traversal, empty segments, or reserved platform paths. */
+            path: string;
+        };
+        FileRename: {
+            /** @description Relative workspace path without traversal, empty segments, or reserved platform paths. */
+            new_path: string;
+        };
+        WorktreeOptions: {
+            branches: {
+                name: string;
+                ref: string;
+                /** Format: uuid */
+                workspace_id: string;
+            }[];
+            valid: boolean;
+            name?: string | null;
+            branch?: string | null;
+            branch_exists?: boolean;
+            message?: string;
+        };
+        FileDuplicate: {
+            path: string;
+            new_path: string;
+        };
+        /** @description Case-sensitive worktree-relative glob rules (*, **, ?). Omitted include inherits all; an empty include allows none. Exclusions always win. */
+        PermissionPatterns: {
+            include?: string[];
+            exclude?: string[];
+        };
+        /** @description Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation. */
+        AgentPermissions: {
+            /** @enum {integer} */
+            version: 1;
+            files?: {
+                read?: components["schemas"]["PermissionPatterns"];
+                write?: components["schemas"]["PermissionPatterns"];
+            };
+            /** @enum {string} */
+            shell?: "allow" | "deny";
+            tools?: components["schemas"]["PermissionPatterns"];
+        };
+        ConnectionAccess: {
+            /** Format: uuid */
+            connection_id: string;
+            version: string;
+            organization_wide: boolean;
+            tools: string[];
+            rule_count: number;
+            can_grant: boolean;
+            can_revoke: boolean;
+        };
+        ConnectionAccessPatch: {
+            organization_wide?: boolean;
+            tools?: string[];
+        };
+        ConnectionAccessRuleInput: {
+            /** @enum {string} */
+            scope: "project";
+            /** Format: uuid */
+            project_id: string;
+        } | {
+            /** @enum {string} */
+            scope: "agent";
+            /** Format: uuid */
+            agent_id: string;
+        } | {
+            /** @enum {string} */
+            scope: "project_agent";
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            agent_id: string;
+        };
+        ConnectionAccessRule: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connection_id: string;
+            /** @enum {string} */
+            scope: "project" | "agent" | "project_agent";
+            /** Format: uuid */
+            project_id: string | null;
+            /** Format: uuid */
+            agent_id: string | null;
+            project_name: string | null;
+            agent_name: string | null;
+            unavailable: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ConnectionAccessRulePage: {
+            data: components["schemas"]["ConnectionAccessRule"][];
+            next_cursor: string | null;
+            version: string;
+        };
+        ConnectionAccessRuleMutation: {
+            rule: components["schemas"]["ConnectionAccessRule"];
+            version: string;
+        };
+        ConnectionAccessRuleDeleted: {
+            /** Format: uuid */
+            id: string;
+            version: string;
+        };
+        ConnectionAccessMatch: {
+            scopes: ("organization" | "project" | "agent" | "project_agent")[];
+            conditional: boolean;
+            matched_rule_count: number;
+            matching_rules: components["schemas"]["ConnectionAccessRuleMatch"][];
+            matching_rules_truncated: boolean;
+        };
+        ContextualConnection: {
+            /** Format: uuid */
+            id: string;
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
+            name: string;
+            /** @enum {string} */
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
+            provider?: string;
+            /** Format: uri */
+            url?: string;
+            auth_method: string;
+            /** @enum {string} */
+            status: "pending" | "healthy" | "expired" | "error";
+            owner_subject_id?: string;
+            /** Format: date-time */
+            last_checked_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            package?: string;
+            package_version?: string;
+            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
+            account_identity?: string | null;
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
+            /**
+             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
+             * @enum {string}
+             */
+            availability?: "pending_approval";
+            access_match?: components["schemas"]["ConnectionAccessMatch"];
+            /** @description Approved tool names only; this selection ceiling does not authorize execution. */
+            approved_tools?: string[];
+        };
+        ContextualConnectionPage: {
+            data: components["schemas"]["ContextualConnection"][];
+            next_cursor: string | null;
+        };
+        ConnectionAccessResolution: {
+            /** Format: uuid */
+            connection_id: string;
+            name: string;
+            tools: string[];
+            /** @enum {string} */
+            source: "organization" | "project" | "agent" | "project_agent" | "run_override" | "none";
+            ready: boolean;
+            rejection_codes: string[];
+            access_match: components["schemas"]["ConnectionAccessMatch"];
+            can_override: boolean;
+        };
+        ConnectionAccessResolutionPage: {
+            data: components["schemas"]["ConnectionAccessResolution"][];
+            next_cursor: string | null;
+        };
+        ConnectionAccessResolve: {
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: uuid */
+            workspace_id?: string;
+            /** Format: uuid */
+            session_id?: string;
+            /** Format: uuid */
+            agent_id?: string;
+            connection_grants?: components["schemas"]["Grant"][];
+            connection_access_overrides?: components["schemas"]["Grant"][];
+            permissions?: components["schemas"]["AgentPermissions"];
+        } & (unknown | unknown | unknown);
+        /** @description An authorized, bounded rule sample for explaining contextual access. Never use a sample as an authorization decision. */
+        ConnectionAccessRuleMatch: {
+            /** Format: uuid */
+            rule_id: string;
+            /** @enum {string} */
+            scope: "project" | "agent" | "project_agent";
+            /** Format: uuid */
+            project_id?: string | null;
+            /** Format: uuid */
+            agent_id?: string | null;
+            project_name?: string | null;
+            agent_name?: string | null;
+        };
     };
     responses: never;
     parameters: {
@@ -3050,7 +3474,12 @@ export interface operations {
     };
     getProject: {
         parameters: {
-            query?: never;
+            query?: {
+                include_connections?: boolean;
+                agent_id?: string;
+                connections_limit?: number;
+                connections_cursor?: string;
+            };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
@@ -3347,6 +3776,8 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 /** @description Case-insensitive literal substring of the relative file path. */
                 query?: string;
+                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
+                recursive?: boolean;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -3430,6 +3861,8 @@ export interface operations {
         parameters: {
             query: {
                 path: components["parameters"]["FilePath"];
+                /** @description Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update. */
+                create_only?: boolean;
             };
             header: {
                 "If-Match": components["parameters"]["IfMatch"];
@@ -3485,6 +3918,48 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    renameFile: {
+        parameters: {
+            query: {
+                path: components["parameters"]["FilePath"];
+            };
+            header: {
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileRename"];
+            };
+        };
         responses: {
             /** @description Accepted asynchronous operation */
             202: {
@@ -3708,6 +4183,8 @@ export interface operations {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
+                /** @description Search preset names. */
+                query?: string;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -3780,7 +4257,12 @@ export interface operations {
     };
     getAgent: {
         parameters: {
-            query?: never;
+            query?: {
+                include_connections?: boolean;
+                project_id?: string;
+                connections_limit?: number;
+                connections_cursor?: string;
+            };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
@@ -4417,6 +4899,8 @@ export interface operations {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
+                project_id?: string;
+                agent_id?: string;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -4433,10 +4917,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["Connection"][];
-                        next_cursor: string | null;
-                    };
+                    "application/json": components["schemas"]["ContextualConnectionPage"];
                 };
             };
             /** @description Error */
@@ -5671,79 +6152,6 @@ export interface operations {
             };
         };
     };
-    getConnectionGrants: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current authorized grants */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionGrantSet"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    setConnectionGrants: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionGrantSet"];
-            };
-        };
-        responses: {
-            /** @description Current authorized grants */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionGrantSet"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     updateCheckpointRetention: {
         parameters: {
             query?: never;
@@ -6843,6 +7251,12 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["Trigger"][];
                         next_cursor: string | null;
+                        /** @description Organization-wide saved-trigger capacity, including paused definitions. Independent of delivery and execution limits. */
+                        quota: {
+                            limit: number;
+                            used: number;
+                            remaining: number;
+                        };
                     };
                 };
             };
@@ -7294,6 +7708,409 @@ export interface operations {
                         data: components["schemas"]["SlackChannel"][];
                         next_cursor: string | null;
                     };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createFolder: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorktreeOptions: {
+        parameters: {
+            query?: {
+                name?: string;
+                branch?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorktreeOptions"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    duplicateFile: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileDuplicate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getConnectionAccess: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccess"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateConnectionAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccess"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listConnectionAccessRules: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                project_id?: string;
+                agent_id?: string;
+                sort?: "project" | "agent" | "created_at";
+                direction?: "asc" | "desc";
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRulePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleDeleted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    resolveConnectionAccess: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessResolve"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessResolutionPage"];
                 };
             };
             /** @description Error */

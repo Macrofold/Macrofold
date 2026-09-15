@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { chown, lstat, mkdir, open, readFile, readdir, rename, symlink, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { atomicJSON, relativePath, type SnapshotEntry } from './manifest';
+import { isNativeAuthPath } from './auth-paths';
 
 /** Restore into a new, unstarted VM only. Links are created last so they cannot redirect a write. */
 export async function restoreSnapshot(
@@ -18,6 +19,8 @@ export async function restoreSnapshot(
     if (!['workspace', 'home'].includes(entry.namespace) || !['file', 'symlink'].includes(entry.type))
       throw new Error('Invalid snapshot entry');
     relativePath(entry.path);
+    if (isNativeAuthPath(entry.namespace, entry.path))
+      throw new Error('Snapshot contains native authentication state');
     const name = `${entry.namespace}/${entry.path}`;
     if (seen.has(name)) throw new Error('Duplicate snapshot entry');
     seen.add(name);

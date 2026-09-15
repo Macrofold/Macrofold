@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 from macrofold.models.grant import Grant
@@ -35,8 +35,8 @@ class AgentPatch(BaseModel):
     model: Optional[StrictStr] = None
     instructions: Optional[StrictStr] = None
     billing_mode: Optional[StrictStr] = None
-    provider_connection_id: Optional[UUID] = None
-    connection_grants: Optional[List[Grant]] = None
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools.")
     limits: Optional[Limits] = None
     __properties: ClassVar[List[str]] = ["name", "harness", "model", "instructions", "billing_mode", "provider_connection_id", "connection_grants", "limits"]
 
@@ -46,8 +46,8 @@ class AgentPatch(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['codex', 'claude-code', 'opencode']):
-            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode')")
+        if value not in set(['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi']):
+            raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
     @field_validator('billing_mode')
@@ -56,8 +56,8 @@ class AgentPatch(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['byok', 'managed']):
-            raise ValueError("must be one of enum values ('byok', 'managed')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     model_config = ConfigDict(
@@ -109,6 +109,11 @@ class AgentPatch(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # set to None if connection_grants (nullable) is None
+        # and model_fields_set contains the field
+        if self.connection_grants is None and "connection_grants" in self.model_fields_set:
+            _dict['connection_grants'] = None
+
         return _dict
 
     @classmethod

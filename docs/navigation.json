@@ -4,7 +4,21 @@
     "source": "docs/README.md",
     "title": "Documentation",
     "section": "Start here",
-    "description": "Build with persistent cloud agents from the dashboard, API, or terminal."
+    "description": "Build with persistent agents on Macrofold Cloud or your own infrastructure."
+  },
+  {
+    "slug": "agents",
+    "source": "docs/getting-started/agents.md",
+    "title": "Build with AI",
+    "section": "Start here",
+    "description": "Give your coding agent a setup prompt and direct links to current Macrofold documentation."
+  },
+  {
+    "slug": "api/quickstart",
+    "source": "docs/features/api/quickstart.md",
+    "title": "API quickstart",
+    "section": "Start here",
+    "description": "Create a project and stream your first API-triggered run."
   },
   {
     "slug": "quickstart",
@@ -14,34 +28,6 @@
     "description": "Create a project, start an agent, and review its saved work."
   },
   {
-    "slug": "local-development",
-    "source": "docs/getting-started/local-development.md",
-    "title": "Run and test",
-    "section": "Start here",
-    "description": "Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries."
-  },
-  {
-    "slug": "local-development/simulation",
-    "source": "docs/getting-started/local-development/simulation.md",
-    "title": "Local simulation",
-    "section": "Development",
-    "description": "Start the local app and worker, invoke the API, and test customer journeys without paid agent calls."
-  },
-  {
-    "slug": "local-development/docker",
-    "source": "docs/getting-started/local-development/docker.md",
-    "title": "Local Docker agents",
-    "section": "Development",
-    "description": "Run real harness fixtures in Docker and understand the missing API-to-container integration."
-  },
-  {
-    "slug": "local-development/cloud",
-    "source": "docs/getting-started/local-development/cloud.md",
-    "title": "Cloud staging",
-    "section": "Development",
-    "description": "Invoke real agents through a staging API and distinguish complete execution from provider-only tests."
-  },
-  {
     "slug": "concepts",
     "source": "docs/getting-started/concepts.md",
     "title": "Core concepts",
@@ -49,109 +35,53 @@
     "description": "Understand projects, workspaces, sessions, runs, and checkpoints."
   },
   {
-    "slug": "dashboard",
-    "source": "docs/features/dashboard/README.md",
-    "title": "Dashboard",
-    "section": "Guides",
-    "description": "Navigate projects, files, run history, access, and usage."
-  },
-  {
-    "slug": "runs",
-    "source": "docs/features/execution/README.md",
-    "title": "Runs and agents",
-    "section": "Guides",
-    "description": "Select a harness, follow progress, continue work, and cancel safely."
-  },
-  {
-    "slug": "triggers",
-    "source": "docs/features/triggers/README.md",
-    "title": "Triggers",
-    "section": "Guides",
-    "description": "Start agents from Slack, incoming webhooks or recurring prompts."
-  },
-  {
-    "slug": "triggers/slack",
-    "source": "docs/features/triggers/slack.md",
-    "title": "Slack bots",
-    "section": "Guides",
-    "description": "Connect a Slack bot to a persistent project and reply to messages."
-  },
-  {
-    "slug": "triggers/webhooks",
-    "source": "docs/features/triggers/webhooks.md",
-    "title": "Incoming webhooks",
-    "section": "Guides",
-    "description": "Create authenticated incoming endpoints with safe event retries."
-  },
-  {
-    "slug": "triggers/scheduled-tasks",
-    "source": "docs/features/triggers/scheduled-tasks.md",
-    "title": "Scheduled tasks",
-    "section": "Guides",
-    "description": "Save recurring prompts with cron, timezones, history and run-now controls."
-  },
-  {
-    "slug": "workspaces",
-    "source": "docs/features/workspaces/README.md",
-    "title": "Workspaces and Git",
-    "section": "Guides",
-    "description": "Persist files, create branches, restore checkpoints, and synchronize GitHub."
-  },
-  {
-    "slug": "workspaces/read-files",
-    "source": "docs/features/workspaces/read-files.md",
-    "title": "Read persisted files",
+    "slug": "customer-agents",
+    "source": "docs/features/customer-agents/README.md",
+    "title": "Customer agents",
     "section": "Build with the API",
-    "description": "Retrieve complete saved file contents by path through HTTP or any Macrofold SDK."
+    "description": "Keep customer identity, files, conversations and scheduled work connected."
   },
   {
-    "slug": "connections",
-    "source": "docs/features/identity-integrations/README.md",
-    "title": "Connections and access",
-    "section": "Guides",
-    "description": "Bring provider keys and grant agents access to applications and MCP tools."
-  },
-  {
-    "slug": "search",
-    "source": "docs/features/identity-integrations/web-search.md",
-    "title": "Web search",
-    "section": "Guides",
-    "description": "Configure a search provider and understand search behavior and billing."
-  },
-  {
-    "slug": "billing",
-    "source": "docs/features/billing/README.md",
-    "title": "Billing and limits",
-    "section": "Guides",
-    "description": "Understand plans, concurrency, budgets, reserved credits, and retention."
-  },
-  {
-    "slug": "api/quickstart",
-    "source": "docs/features/api/quickstart.md",
-    "title": "API quickstart",
+    "slug": "customer-agents/memory",
+    "source": "docs/features/customer-agents/memory.md",
+    "title": "File memory starter",
     "section": "Build with the API",
-    "description": "Create a project and stream your first API-triggered run."
+    "description": "Install an optional editable memory and task convention."
+  },
+  {
+    "slug": "customer-agents/example",
+    "source": "examples/personal-agent/README.md",
+    "title": "Personal agent example",
+    "section": "Build with the API",
+    "description": "Run a complete customer-isolated personal agent app and adapt its ownership, persistence and recovery boundaries."
+  },
+  {
+    "slug": "customer-agents/integrations",
+    "source": "examples/integrations/README.md",
+    "title": "Customer data recipes",
+    "section": "Build with the API",
+    "description": "Connect Supabase, Prisma, Pinecone or a customer-scoped MCP server with runnable local fixtures."
+  },
+  {
+    "slug": "cloud",
+    "source": "docs/cloud/README.md",
+    "title": "Macrofold Cloud",
+    "description": "Connect to the managed service and start building without operating infrastructure.",
+    "section": "Cloud and self-hosting"
+  },
+  {
+    "slug": "self-hosting",
+    "source": "docs/operations/README.md",
+    "title": "Self-hosting",
+    "section": "Cloud and self-hosting",
+    "description": "Understand the hosting components and choose a deployment guide."
   },
   {
     "slug": "api",
     "source": "docs/features/api/README.md",
-    "title": "API conventions",
+    "title": "API overview",
     "section": "Build with the API",
-    "description": "Authenticate requests, paginate results, handle errors, and retry mutations."
-  },
-  {
-    "slug": "api/events",
-    "source": "docs/features/api/events.md",
-    "title": "Streaming and webhooks",
-    "section": "Build with the API",
-    "description": "Reconnect to run events and verify reliable webhook delivery."
-  },
-  {
-    "slug": "cli",
-    "source": "docs/features/cli/README.md",
-    "title": "Terminal CLI",
-    "section": "Build with the API",
-    "description": "Link a project, chat remotely, use worktrees, and transfer files."
+    "description": "Connect your application, start an agent, and retrieve its finished work."
   },
   {
     "slug": "sdk",
@@ -196,18 +126,172 @@
     "description": "Make typed API requests and stream agent progress in Java."
   },
   {
+    "slug": "cli",
+    "source": "docs/features/cli/README.md",
+    "title": "Terminal CLI",
+    "section": "Build with the API",
+    "description": "Link a project, chat remotely, use worktrees, and transfer files."
+  },
+  {
+    "slug": "dashboard",
+    "source": "docs/features/dashboard/README.md",
+    "title": "Dashboard",
+    "section": "Guides",
+    "description": "Navigate projects, files, run history, access, and usage."
+  },
+  {
+    "slug": "runs",
+    "source": "docs/features/execution/README.md",
+    "title": "Runs and agents",
+    "section": "Guides",
+    "description": "Select a harness, follow progress, continue work, and cancel safely."
+  },
+  {
+    "slug": "harnesses",
+    "source": "docs/features/execution/harnesses.md",
+    "title": "Agent harnesses",
+    "section": "Guides",
+    "description": "Choose Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi for persistent cloud work."
+  },
+  {
+    "slug": "permissions",
+    "source": "docs/features/execution/permissions.md",
+    "title": "Agent permissions",
+    "section": "Guides",
+    "description": "Restrict files and tools at the project, worktree and run level."
+  },
+  {
+    "slug": "models",
+    "source": "docs/features/execution/models.md",
+    "title": "Model catalog",
+    "section": "Guides",
+    "description": "Choose built-in models, understand discovery and caching, and preserve accepted run prices."
+  },
+  {
+    "slug": "workspaces",
+    "source": "docs/features/workspaces/README.md",
+    "title": "Workspaces and Git",
+    "section": "Guides",
+    "description": "Persist files, create branches, restore checkpoints, and synchronize GitHub."
+  },
+  {
+    "slug": "workspaces/shared-agents",
+    "source": "docs/features/workspaces/shared-agents.md",
+    "title": "Share a workspace",
+    "description": "Hand persisted files between agents and choose independent workspaces for parallel work.",
+    "section": "Guides"
+  },
+  {
+    "slug": "workspaces/read-files",
+    "source": "docs/features/workspaces/read-files.md",
+    "title": "Read persisted files",
+    "section": "Guides",
+    "description": "Retrieve complete saved file contents by path through HTTP or any Macrofold SDK."
+  },
+  {
+    "slug": "connections",
+    "source": "docs/features/identity-integrations/README.md",
+    "title": "Connections and access",
+    "section": "Guides",
+    "description": "Bring provider keys and grant agents access to applications and MCP tools."
+  },
+  {
+    "slug": "connections/access",
+    "source": "docs/features/identity-integrations/connection-access.md",
+    "title": "Connector access rules",
+    "section": "Guides",
+    "description": "Approve tools, configure project and preset permissions, and preview one-run access."
+  },
+  {
+    "slug": "connections/named-accounts",
+    "source": "docs/features/identity-integrations/named-connections.md",
+    "title": "Named accounts",
+    "section": "Guides",
+    "description": "Connect multiple accounts, select authentication in presets, and understand Claude subscription availability."
+  },
+  {
+    "slug": "connectors",
+    "source": "docs/features/identity-integrations/catalog.md",
+    "title": "Connector directory",
+    "section": "Guides",
+    "description": "Browse application toolkits, native integrations, and custom MCP connection options."
+  },
+  {
+    "slug": "search",
+    "source": "docs/features/identity-integrations/web-search.md",
+    "title": "Web search",
+    "section": "Guides",
+    "description": "Configure a search provider and understand search behavior and billing."
+  },
+  {
+    "slug": "triggers",
+    "source": "docs/features/triggers/README.md",
+    "title": "Triggers",
+    "section": "Guides",
+    "description": "Start agents from Slack, incoming webhooks or recurring prompts."
+  },
+  {
+    "slug": "triggers/slack",
+    "source": "docs/features/triggers/slack.md",
+    "title": "Slack bots",
+    "section": "Guides",
+    "description": "Connect a Slack bot to a persistent project and reply to messages."
+  },
+  {
+    "slug": "triggers/webhooks",
+    "source": "docs/features/triggers/webhooks.md",
+    "title": "Incoming webhooks",
+    "section": "Guides",
+    "description": "Create authenticated incoming endpoints with safe event retries."
+  },
+  {
+    "slug": "triggers/scheduled-tasks",
+    "source": "docs/features/triggers/scheduled-tasks.md",
+    "title": "Scheduled tasks",
+    "section": "Guides",
+    "description": "Save recurring prompts with cron, timezones, history and run-now controls."
+  },
+  {
+    "slug": "billing",
+    "source": "docs/features/billing/README.md",
+    "title": "Billing and limits",
+    "section": "Guides",
+    "description": "Understand plans, concurrency, budgets, reserved credits, and retention."
+  },
+  {
+    "slug": "api/conventions",
+    "source": "docs/features/api/conventions.md",
+    "title": "API conventions",
+    "description": "Authentication, idempotency, errors, pagination, and asynchronous operations.",
+    "section": "Reference"
+  },
+  {
+    "slug": "api/events",
+    "source": "docs/features/api/events.md",
+    "title": "Streaming and webhooks",
+    "section": "Reference",
+    "description": "Reconnect to run events and verify reliable webhook delivery."
+  },
+  {
+    "slug": "api/http-quickstart",
+    "source": "docs/features/api/http-quickstart.md",
+    "title": "HTTP quickstart",
+    "description": "Create a project and run using cURL, with explicit request identities and streaming.",
+    "section": "Reference"
+  },
+  {
     "slug": "sdk/reference",
     "source": "docs/features/api/sdks/reference.md",
     "title": "SDK method reference",
-    "section": "Build with the API",
+    "section": "Reference",
     "description": "Find the resource method for every public operation in all five languages."
   },
   {
-    "slug": "self-hosting",
-    "source": "docs/operations/README.md",
-    "title": "Self-hosting",
-    "section": "Deploy and operate",
-    "description": "Understand the hosting components and choose a deployment guide."
+    "slug": "troubleshooting",
+    "source": "docs/getting-started/troubleshooting.md",
+    "title": "Troubleshooting",
+    "section": "Reference",
+    "description": "Recover from setup failures, access errors, interrupted streams, and conflicting edits."
   },
   {
     "slug": "self-hosting/vercel",
@@ -245,17 +329,38 @@
     "description": "Read activity, execution demand, account metrics, and management MCP reports."
   },
   {
-    "slug": "troubleshooting",
-    "source": "docs/getting-started/troubleshooting.md",
-    "title": "Troubleshooting",
-    "section": "Resources",
-    "description": "Recover from setup failures, access errors, interrupted streams, and conflicting edits."
+    "slug": "local-development",
+    "source": "docs/getting-started/local-development.md",
+    "title": "Run and test",
+    "section": "Development",
+    "description": "Choose local simulation, real local Docker agents, or cloud staging, with clear availability and test boundaries."
   },
   {
-    "slug": "agents",
-    "source": "docs/getting-started/agents.md",
-    "title": "Read with an agent",
-    "section": "Resources",
-    "description": "Discover Markdown guides, schemas, and navigation indexes for coding agents."
+    "slug": "local-development/simulation",
+    "source": "docs/getting-started/local-development/simulation.md",
+    "title": "Local simulation",
+    "section": "Development",
+    "description": "Start the local app and worker, invoke the API, and test customer journeys without paid agent calls."
+  },
+  {
+    "slug": "local-development/docker",
+    "source": "docs/getting-started/local-development/docker.md",
+    "title": "Local Docker agents",
+    "section": "Development",
+    "description": "Run agents through the local API with Docker, persistent files, and free protocol tests."
+  },
+  {
+    "slug": "local-development/cloud",
+    "source": "docs/getting-started/local-development/cloud.md",
+    "title": "Cloud staging",
+    "section": "Development",
+    "description": "Invoke real agents through a staging API and distinguish complete execution from provider-only tests."
+  },
+  {
+    "slug": "unified-harness-interface",
+    "source": "docs/features/execution/unified-harness-interface.md",
+    "title": "Unified Harness Interface",
+    "section": "Development",
+    "description": "Contribute a native harness with the shared adapter contract, runtime integration, and deterministic tests."
   }
 ]

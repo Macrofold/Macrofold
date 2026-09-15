@@ -1,9 +1,12 @@
-import { pages } from '../../../lib/docs/content';
+import { pages, headings } from '../../../lib/docs/content';
 export const dynamic = 'force-static';
 export function GET() {
   return Response.json(
     pages.map((page) => ({
       title: page.title,
+      headings: headings(page.markdown)
+        .map((heading) => heading.text)
+        .join(' '),
       url: page.url,
       section: page.section,
       text: page.markdown

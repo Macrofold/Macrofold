@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ConnectorSetup } from './connector-enablement';
 
 // Discovery metadata never grants access. OAuth, pinned versions, and tool grants
 // remain separate checks in the connection and execution services.
@@ -33,26 +34,11 @@ export function parseConnectorCatalog(input: unknown): Connector[] {
   }));
 }
 
-function configuredMap(value: string | undefined): Record<string, string> {
-  const parsed = z.record(z.string(), z.string().min(1)).safeParse(
-    (() => {
-      try {
-        return JSON.parse(value || '{}');
-      } catch {
-        return null;
-      }
-    })(),
-  );
-  return parsed.success ? parsed.data : {};
-}
-
 export async function listConnectorCatalog(
   source: ConnectorCatalogSource,
-  settings: { enabled: boolean; authConfigs?: string; versions?: string },
+  settings: { enabled: boolean; apps: ConnectorSetup[] },
 ) {
   const catalog = await source.read();
-  const auth = configuredMap(settings.authConfigs);
-  const versions = configuredMap(settings.versions);
   return {
     ...catalog,
     data: catalog.data.map((entry) => ({
@@ -60,7 +46,7 @@ export async function listConnectorCatalog(
       // Public metadata is shared; readiness is computed per response and never
       // exposes operator keys, auth-config IDs, or connected customer accounts.
       connectable: Boolean(
-        settings.enabled && auth[entry.slug] && versions[entry.slug] && versions[entry.slug] !== 'latest',
+        settings.enabled && settings.apps.some((app) => app.toolkit === entry.slug && app.enabled && app.auth_config_id && !app.creation_pending),
       ),
     })),
   };

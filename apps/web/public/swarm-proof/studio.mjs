@@ -1,0 +1,331 @@
+const stage = document.querySelector('#stage');
+const canvas = document.querySelector('#particles');
+const poster = document.querySelector('#poster');
+const timeline = document.querySelector('#timeline');
+const time = document.querySelector('#time');
+const status = document.querySelector('#status');
+const note = document.querySelector('#playback-note');
+const formation = document.querySelector('#formation');
+const loop = document.querySelector('#loop');
+const pause = document.querySelector('#pause');
+const originalButton = document.querySelector('#original');
+const gridButton = document.querySelector('#grid');
+const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const abort = new AbortController();
+const listeners = [];
+const duration = 22;
+const formationEnd = 15;
+document.querySelector('#static-notice').hidden = true;
+status.textContent = 'Loading particle study…';
+let renderer;
+let ready = false;
+let disposed = false;
+let visible = true;
+let original = false;
+let seconds = 9;
+let playback = null;
+let frame = 0;
+let previous = 0;
+let lastTimeLabel = 0;
+let pointerX = 0;
+let pointerY = 0;
+let targetX = 0;
+let targetY = 0;
+let maximumDpr = 1;
+let dpr = 1;
+let quality = 1;
+let lastAdjustment = 0;
+let timingSamples = [];
+
+function listen(target, event, callback) {
+  target.addEventListener(event, callback);
+  listeners.push(() => target.removeEventListener(event, callback));
+}
+
+function updateTime() {
+  timeline.value = String(seconds);
+  timeline.setAttribute('aria-valuetext', `${seconds.toFixed(1)} of ${duration} seconds`);
+  time.replaceChildren(`${seconds.toFixed(1).padStart(4, '0')} `);
+  const total = document.createElement('span');
+  total.textContent = `/ ${duration.toFixed(1)} s`;
+  time.append(total);
+}
+
+function updateControls() {
+  formation.disabled = !ready || original;
+  loop.disabled = !ready || original;
+  pause.disabled = !playback;
+  timeline.disabled = !ready || original;
+  originalButton.disabled = !ready;
+  originalButton.setAttribute('aria-pressed', String(original));
+  loop.setAttribute('aria-pressed', String(playback === 'loop'));
+  poster.hidden = ready && !original;
+  canvas.hidden = !ready || original;
+  if (!poster.hidden) {
+    poster.src = original ? '/swarm-motion/swarm.webp' : './current-v3-poster.webp';
+    poster.alt = original
+      ? 'The original Swarm artwork: a fine cyan and ivory particle structure on black.'
+      : 'The Swarm flow study at nine seconds: fine cyan and ivory particles forming porous folds.';
+  }
+  note.textContent = original
+    ? 'Original reference'
+    : !ready
+      ? 'Still frame · 9 s'
+      : playback === 'formation'
+        ? `Formation · 0–${formationEnd} s`
+        : playback === 'loop'
+          ? `Loop · ${duration} s`
+          : `Still frame · ${seconds.toFixed(1)} s`;
+  updateTime();
+}
+
+function schedule() {
+  if (!frame && renderer && !disposed && visible && !document.hidden && !original) {
+    frame = requestAnimationFrame(draw);
+  }
+}
+
+function resize() {
+  if (!renderer) return;
+  const bounds = stage.getBoundingClientRect();
+  const nextMaximum = Math.min(window.devicePixelRatio || 1, 2, 3840 / bounds.width, 2560 / bounds.height);
+  if (maximumDpr !== nextMaximum) {
+    maximumDpr = nextMaximum;
+    dpr = maximumDpr;
+  }
+  renderer.resize(Math.max(1, Math.round(bounds.width * dpr)), Math.max(1, Math.round(bounds.height * dpr)));
+  canvas.dataset.pixelRatio = dpr.toFixed(2);
+  timingSamples = [];
+  schedule();
+}
+
+function adjustResolution(timestamp, interval) {
+  // Adapt from observed animation-frame pacing, not a guessed device tier.
+  if (interval <= 0 || interval > 100) return;
+  timingSamples.push(interval);
+  if (timingSamples.length < 45 || timestamp - lastAdjustment < 1500) return;
+  const ordered = timingSamples.toSorted((a, b) => a - b);
+  const pacing = ordered[Math.floor(ordered.length * 0.75)];
+  timingSamples = [];
+  const minimumDpr = Math.min(maximumDpr, 0.75);
+  if (pacing > 26 && dpr > minimumDpr) {
+    dpr = Math.max(minimumDpr, dpr * 0.85);
+    lastAdjustment = timestamp;
+    resize();
+  } else if (pacing > 30 && quality > 0.5 && typeof renderer.setQuality === 'function') {
+    quality = Math.max(0.5, quality - 0.1);
+    renderer.setQuality(quality);
+    lastAdjustment = timestamp;
+  } else if (pacing < 18.5 && timestamp - lastAdjustment > 5000) {
+    if (quality < 1 && typeof renderer.setQuality === 'function') {
+      quality = Math.min(1, quality + 0.1);
+      renderer.setQuality(quality);
+      lastAdjustment = timestamp;
+    } else if (dpr < maximumDpr) {
+      dpr = Math.min(maximumDpr, dpr / 0.85);
+      lastAdjustment = timestamp;
+      resize();
+    }
+  }
+}
+
+function restoreStillQuality() {
+  if (!renderer) return;
+  if (quality !== 1 && typeof renderer.setQuality === 'function') renderer.setQuality(1);
+  quality = 1;
+  timingSamples = [];
+  if (dpr !== maximumDpr) {
+    dpr = maximumDpr;
+    resize();
+  }
+}
+
+function draw(timestamp) {
+  frame = 0;
+  if (!renderer || disposed || document.hidden || !visible || original) return;
+  const interval = previous ? timestamp - previous : 0;
+  previous = timestamp;
+  if (playback) {
+    seconds += interval / 1000;
+    if (playback === 'formation' && seconds >= formationEnd) {
+      seconds = formationEnd;
+      playback = null;
+      restoreStillQuality();
+      updateControls();
+    } else if (playback === 'loop') seconds %= duration;
+  }
+  const easing = 1 - Math.exp(-Math.min(interval || 16.7, 64) / 85);
+  pointerX += (targetX - pointerX) * easing;
+  pointerY += (targetY - pointerY) * easing;
+  const moving = Math.abs(targetX - pointerX) + Math.abs(targetY - pointerY) > 0.002;
+  if (!moving) {
+    pointerX = targetX;
+    pointerY = targetY;
+  }
+  try {
+    renderer.render(seconds, pointerX, pointerY);
+  } catch {
+    fail();
+    return;
+  }
+  if (timestamp - lastTimeLabel > 100) {
+    updateTime();
+    lastTimeLabel = timestamp;
+  }
+  if (playback) adjustResolution(timestamp, interval);
+  if (playback || moving) schedule();
+  else previous = 0;
+}
+
+function stopFrames() {
+  cancelAnimationFrame(frame);
+  frame = 0;
+  previous = 0;
+  timingSamples = [];
+}
+
+function play(mode) {
+  if (!ready || original) return;
+  stopFrames();
+  seconds = 0;
+  playback = mode;
+  updateControls();
+  schedule();
+}
+
+function fail() {
+  stopFrames();
+  playback = null;
+  ready = false;
+  renderer?.dispose();
+  renderer = undefined;
+  stage.dataset.renderer = 'fallback';
+  status.textContent = 'Particle rendering is unavailable. The flow study still is shown.';
+  updateControls();
+}
+
+listen(formation, 'click', () => play('formation'));
+listen(loop, 'click', () => play('loop'));
+listen(pause, 'click', () => {
+  playback = null;
+  stopFrames();
+  restoreStillQuality();
+  updateControls();
+  schedule();
+});
+listen(timeline, 'input', () => {
+  playback = null;
+  seconds = Math.max(0, Math.min(duration, Number(timeline.value)));
+  stopFrames();
+  restoreStillQuality();
+  updateControls();
+  schedule();
+});
+listen(originalButton, 'click', () => {
+  original = !original;
+  playback = null;
+  targetX = targetY = pointerX = pointerY = 0;
+  stopFrames();
+  if (!original) restoreStillQuality();
+  updateControls();
+  schedule();
+});
+listen(gridButton, 'click', () => {
+  const enabled = stage.dataset.grid !== 'true';
+  stage.dataset.grid = String(enabled);
+  gridButton.setAttribute('aria-pressed', String(enabled));
+  updateControls();
+});
+gridButton.disabled = false;
+listen(stage, 'pointermove', (event) => {
+  if (motion.matches || original || event.pointerType === 'touch') return;
+  const bounds = stage.getBoundingClientRect();
+  targetX = Math.max(-1, Math.min(1, ((event.clientX - bounds.left) / bounds.width) * 2 - 1));
+  targetY = Math.max(-1, Math.min(1, ((event.clientY - bounds.top) / bounds.height) * 2 - 1));
+  schedule();
+});
+listen(stage, 'pointerleave', () => {
+  targetX = targetY = 0;
+  schedule();
+});
+listen(motion, 'change', () => {
+  playback = null;
+  targetX = targetY = pointerX = pointerY = 0;
+  stopFrames();
+  restoreStillQuality();
+  updateControls();
+  schedule();
+});
+listen(document, 'visibilitychange', () => {
+  stopFrames();
+  schedule();
+});
+listen(window, 'resize', resize);
+listen(canvas, 'webglcontextlost', fail);
+
+const sizeObserver = new ResizeObserver(resize);
+sizeObserver.observe(stage);
+const visibilityObserver = new IntersectionObserver(([entry]) => {
+  visible = entry.isIntersecting;
+  stopFrames();
+  schedule();
+});
+visibilityObserver.observe(stage);
+
+listen(window, 'pagehide', (event) => {
+  stopFrames();
+  if (event.persisted) return;
+  disposed = true;
+  abort.abort();
+  sizeObserver.disconnect();
+  visibilityObserver.disconnect();
+  listeners.forEach((remove) => remove());
+  renderer?.dispose();
+});
+listen(window, 'pageshow', () => {
+  previous = 0;
+  schedule();
+});
+
+async function load() {
+  try {
+    const [module, response] = await Promise.all([
+      import('./renderer.mjs'),
+      fetch('./scene.bin', { signal: abort.signal }),
+    ]);
+    if (!response.ok) throw new Error('Scene data is unavailable.');
+    const bytes = await response.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength % 48 !== 0) throw new Error('Scene data is incomplete.');
+    if (disposed) return;
+    renderer = module.createRenderer(canvas, new Float32Array(bytes));
+    ready = true;
+    stage.dataset.renderer = 'ready';
+    status.textContent = 'Particle study ready.';
+    updateControls();
+    resize();
+  } catch {
+    if (!disposed) fail();
+  }
+}
+
+async function findDownloads() {
+  const links = [...document.querySelectorAll('#downloads a')];
+  await Promise.all(
+    links.map(async (link) => {
+      try {
+        const response = await fetch(link.href, { method: 'HEAD', signal: abort.signal });
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.startsWith(link.dataset.type)) {
+          link.hidden = false;
+          document.querySelector('#downloads').hidden = false;
+        }
+      } catch {
+        // An absent local export does not affect the particle study.
+      }
+    }),
+  );
+  document.querySelector('#downloads').hidden = links.every((link) => link.hidden);
+}
+
+load();
+findDownloads();

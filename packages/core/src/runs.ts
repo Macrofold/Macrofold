@@ -1,20 +1,31 @@
+import { defaultRunBudgetMicroUsd } from '../../contracts/run-defaults';
+import { admitPermissions } from './agent-permissions';
+import { type PermissionLayers } from '../../contracts/permissions';
+import type { ExecutionState } from './cloud-engine';
 import type { components } from '../../contracts/api';
 import type { Tx } from '../../db';
 import { lock } from '../../db';
 import { assert } from './errors';
 import { id } from './crypto';
-import { config, isLocal, realExecutionEnabled } from './config';
+import { config, isLocal, isSimulated, realExecutionEnabled } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
-import { queueObservations } from './scheduling';
+import { queueObservations, type WaitingReason } from './scheduling';
 import { models, computeRate, computeMaximum, type Model } from './catalog';
 import { emit } from './events';
 import * as resources from './resources';
 import { reserve, settle } from './ledger';
-import { createWorkspace } from './files';
-import { requireProject, type Principal } from './auth';
+import { createWorkspace, nameWorkspaceForRun } from './files';
+import { requireProject, requireScopes, type Principal } from './auth';
+import { admitConnections, type ConnectionAccessSnapshot } from './connection-access-resolution';
+import { isToolConnection } from './connection-access-policy';
+import { requireClaudeSubscriptionExecution, validateClaudeFallback } from './claude-connections';
 
 type Schema = components['schemas'];
 export type RunConfig = Schema['SessionCreate'] & {
+  permission_layers?: PermissionLayers;
+  agent_id: string | null;
+  agent_version: number | null;
+  connection_access: ConnectionAccessSnapshot[];
   prompt: string;
   instructions?: string;
   user_id: string;
@@ -22,7 +33,7 @@ export type RunConfig = Schema['SessionCreate'] & {
   principal_kind: Principal['kind'];
   project_ids: string[];
   webhook_endpoint_ids?: string[];
-  client_type?: string;
+  client_type?: Schema['Run']['client_type'];
   scheduling_class?: 'background' | 'interactive';
   rate_card?: Model;
   compute_rate_micro_usd_per_minute?: string;
@@ -37,7 +48,10 @@ export type RunRow = {
   project_id: string;
   status: Schema['Run']['status'];
   config: RunConfig;
-  result: Record<string, unknown>;
+  result: Partial<Omit<Schema['RunResult'], 'execution_outcome' | 'persistence_status'>> &
+    Pick<Schema['Run'], 'execution_outcome' | 'persistence_status' | 'sync_status' | 'failure_code'> & {
+      last_verified_checkpoint_id?: string;
+    };
   created_at: Date;
   started_at: Date | null;
   completed_at: Date | null;
@@ -49,12 +63,26 @@ export type RunRow = {
   event_sequence: string;
   reservation_micro_usd: string;
   cost_micro_usd: string;
-  execution_binding: Record<string, unknown> | null;
+  execution_binding: ExecutionState | null;
   input_request: { id: string; answer?: Record<string, unknown> } | null;
 };
+/** Client attribution is descriptive, never an authorization input. */
+export function requestClientType(request: Request): NonNullable<Schema['Run']['client_type']> {
+  const type = request.headers.get('x-client-type');
+  switch (type) {
+    case 'dashboard':
+    case 'cli':
+    case 'sdk':
+    case 'api':
+    case 'internal':
+      return type;
+    default:
+      return 'api';
+  }
+}
 export const terminal = (status: string) =>
   ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(status);
-export function presentRun(row: RunRow, waitingReason: string | null = null) {
+export function presentRun(row: RunRow, waitingReason: WaitingReason | null = null) {
   return {
     id: row.id,
     organization_id: row.organization_id,
@@ -62,6 +90,8 @@ export function presentRun(row: RunRow, waitingReason: string | null = null) {
     workspace_id: row.workspace_id,
     harness: row.config.harness,
     model: row.config.model,
+    agent_id: row.config.agent_id,
+    agent_version: row.config.agent_version,
     status: row.status,
     created_at: row.created_at.toISOString(),
     ...(row.started_at ? { started_at: row.started_at.toISOString() } : {}),
@@ -76,9 +106,10 @@ export function presentRun(row: RunRow, waitingReason: string | null = null) {
     sync_status: row.result.sync_status || 'disabled',
     ...(row.result.failure_code ? { failure_code: row.result.failure_code } : {}),
     client_type: row.config.client_type || 'api',
+    permission_layers: row.config.permission_layers || [],
   };
 }
-export function waitingFields(row: RunRow, reason: string | null = null) {
+export function waitingFields(row: RunRow, reason: WaitingReason | null = null) {
   return {
     wait_seconds:
       Math.max(
@@ -103,17 +134,51 @@ export async function getRun(tx: Tx, runId: string, p?: Principal): Promise<RunR
   if (p) requireProject(p, row.project_id);
   return row;
 }
-export async function validateConfiguration(tx: Tx, p: Principal, configuration: Schema['SessionCreate']) {
-  const model = models().find(
+export async function validateConfiguration(
+  tx: Tx,
+  p: Principal,
+  configuration: Omit<Schema['SessionCreate'], 'workspace_id'>,
+  purpose: 'execution' | 'preset' = 'execution',
+) {
+  const model = (await models(tx)).find(
     (m) => m.id === configuration.model && m.enabled && m.harnesses.includes(configuration.harness),
   );
   assert(model, 400, 'model_unavailable', 'Choose an enabled model compatible with the harness.');
   assert(
-    ['byok', 'managed'].includes(configuration.billing_mode),
+    ['byok', 'managed', 'subscription'].includes(configuration.billing_mode),
     400,
     'invalid_request',
     'Choose a billing mode.',
   );
+  if (configuration.billing_mode === 'subscription') {
+    assert(
+      configuration.harness === 'claude-code' && model.provider === 'anthropic',
+      400,
+      'credentials_incompatible',
+      'Claude subscription connections require Claude Code and an Anthropic model.',
+    );
+    assert(
+      configuration.provider_connection_id,
+      400,
+      'credentials_required',
+      'Select a named Claude subscription connection.',
+    );
+    const connection = await resources.get(tx, 'connections', configuration.provider_connection_id, p);
+    assert(
+      connection.owner_subject_id === p.userId,
+      403,
+      'forbidden',
+      'This subscription connection belongs to another user.',
+    );
+    assert(
+      connection.kind === 'claude_subscription',
+      400,
+      'credentials_incompatible',
+      'Select a Claude subscription connection.',
+    );
+    await validateClaudeFallback(tx, p, connection.api_fallback as Schema['ClaudeApiFallback'] | null);
+    if (purpose === 'execution') requireClaudeSubscriptionExecution();
+  }
   if (configuration.billing_mode === 'byok') {
     assert(
       configuration.provider_connection_id,
@@ -124,7 +189,9 @@ export async function validateConfiguration(tx: Tx, p: Principal, configuration:
     const connection = await resources.get(tx, 'connections', configuration.provider_connection_id, p);
     assert(
       connection.kind === 'model' &&
-        connection.provider === model.provider &&
+        // Local simulation never reads or sends the selected key. Native runs
+        // still require an exact provider match, including after profile changes.
+        (connection.provider === model.provider || (isSimulated() && model.provider === 'fixture')) &&
         connection.status === 'healthy',
       400,
       'credentials_incompatible',
@@ -137,32 +204,21 @@ export async function validateConfiguration(tx: Tx, p: Principal, configuration:
       'This connection belongs to another user.',
     );
   }
+  // Saved defaults validate references, not a fabricated execution context. Actual
+  // project/preset authority and current readiness are resolved at each admission.
   for (const grant of configuration.connection_grants || []) {
     const connection = await resources.get(tx, 'connections', grant.connection_id, p);
     assert(
-      connection.status === 'healthy',
+      isToolConnection(connection.kind),
       400,
-      'connection_unavailable',
-      'A requested connection needs attention.',
-    );
-    const allowed = connection.grants as Schema['ConnectionGrantSet'] | undefined;
-    assert(
-      allowed && grant.tools.every((t) => allowed.tools.includes(t)),
-      403,
-      'tool_not_granted',
-      'A requested tool is outside the approved connection grants.',
-    );
-    assert(
-      allowed.subject_type === 'organization' || allowed.subject_id === p.userId,
-      403,
-      'forbidden',
-      'The connection is not granted to this user.',
+      'connection_access_unsupported',
+      'Choose a tool-bearing connection.',
     );
   }
   const policy = await getExecutionPolicy(tx, p.organizationId);
   const limits = {
     timeout_seconds: Math.min(900, policy.max_timeout_seconds),
-    max_cost_micro_usd: '2000000',
+    max_cost_micro_usd: defaultRunBudgetMicroUsd,
     ...configuration.limits,
   };
   assert(
@@ -179,21 +235,24 @@ export async function validateConfiguration(tx: Tx, p: Principal, configuration:
     'invalid_request',
     'Provide a positive budget of at most 999999999999 micro-USD.',
   );
-  return { ...configuration, limits };
+  return { ...configuration, limits, rate_card: model };
 }
 export async function createSession(tx: Tx, p: Principal, input: Schema['SessionCreate']) {
   const workspace = await resources.get(tx, 'workspaces', input.workspace_id, p);
-  const configuration = await validateConfiguration(tx, p, input);
+  const { rate_card: _rateCard, ...configuration } = await validateConfiguration(tx, p, input);
   return resources.create(tx, 'sessions', p.organizationId, {
     ...configuration,
+    workspace_id: workspace.id,
     project_id: workspace.project_id,
+    agent_id: null,
+    agent_version: null,
   });
 }
 export async function admitRun(
   tx: Tx,
   p: Principal,
   input: Schema['RunCreate'] & { queue_if_busy?: boolean },
-  clientType = 'api',
+  clientType: NonNullable<Schema['Run']['client_type']> = 'api',
   recordActivity = true,
 ) {
   assert(
@@ -203,6 +262,7 @@ export async function admitRun(
     'New agent runs are temporarily paused. Existing runs and saved files remain available.',
   );
   await (await import('./storage-maintenance')).requireStorageCapacity(tx, p.organizationId);
+  requireScopes(p, ['runs:write']);
   assert(p.userId, 403, 'forbidden', 'A run requires a current organization member.');
   assert(
     (isLocal() && config.execution === 'simulator') || realExecutionEnabled(),
@@ -223,7 +283,7 @@ export async function admitRun(
     'invalid_request',
     'Choose background or interactive scheduling.',
   );
-  let session: resources.Document;
+  let session: resources.Document<'sessions'>;
   if (input.session_id) {
     session = await resources.get(tx, 'sessions', input.session_id, p);
     assert(
@@ -233,10 +293,10 @@ export async function admitRun(
       'A session keeps its original harness.',
     );
     assert(
-      !input.agent_id && !input.billing_mode && !input.provider_connection_id && !input.connection_grants,
+      !input.agent_id && !input.billing_mode && !input.provider_connection_id,
       400,
       'session_configuration_immutable',
-      'Start a new session to change credentials or tool grants.',
+      'Start a new session to change credentials or agent origin.',
     );
   } else {
     let workspaceId = input.workspace_id;
@@ -250,15 +310,40 @@ export async function admitRun(
       }
     }
     assert(workspaceId, 400, 'workspace_required', 'Choose a project, workspace, or session.');
-    const preset = input.agent_id ? await resources.get(tx, 'agents', input.agent_id, p) : {};
-    const merged = { ...preset, ...input, workspace_id: workspaceId };
+    const preset: Partial<resources.Document<'agents'>> = input.agent_id
+      ? await resources.get(tx, 'agents', input.agent_id, p)
+      : {};
+    const configuration = {
+      harness: input.harness ?? preset.harness,
+      model: input.model ?? preset.model,
+      billing_mode: input.billing_mode ?? preset.billing_mode,
+      provider_connection_id: input.provider_connection_id ?? preset.provider_connection_id,
+      limits: { ...preset.limits, ...input.limits },
+    };
     assert(
-      merged.harness && merged.model && merged.billing_mode,
+      configuration.harness && configuration.model && configuration.billing_mode,
       400,
       'configuration_required',
       'Provide a harness, model, and billing mode, or an agent preset.',
     );
-    session = await createSession(tx, p, merged as Schema['SessionCreate']);
+    // Run selections/exceptions must never become future session defaults. Only
+    // a verified preset's saved default is copied into this conversation.
+    const checked = await validateConfiguration(
+      tx,
+      p,
+      configuration as Omit<Schema['SessionCreate'], 'workspace_id'>,
+    );
+    const workspace = await resources.get(tx, 'workspaces', workspaceId, p);
+    const { rate_card: _rateCard, ...saved } = checked;
+    session = await resources.create(tx, 'sessions', p.organizationId, {
+      ...saved,
+      workspace_id: workspace.id,
+      project_id: workspace.project_id,
+      instructions: preset.instructions,
+      ...(preset.connection_grants !== undefined ? { connection_grants: preset.connection_grants } : {}),
+      agent_id: preset.id || null,
+      agent_version: preset.version || null,
+    });
   }
   const workspace = await resources.get(tx, 'workspaces', String(session.workspace_id), p);
   const project = await resources.get(tx, 'projects', String(workspace.project_id), p);
@@ -268,6 +353,8 @@ export async function admitRun(
     'project_archived',
     'This workspace is unavailable.',
   );
+  await lock(tx, `project-permissions:${project.id}`);
+  await lock(tx, `project-workspaces:${workspace.project_id}`);
   await lock(tx, `workspace:${workspace.id}`);
   const pending = await tx.query(
     "SELECT id,session_id FROM runs WHERE workspace_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
@@ -287,10 +374,32 @@ export async function admitRun(
   );
   const configured = await validateConfiguration(tx, p, {
     ...session,
+    connection_grants: undefined,
     ...(input.model ? { model: input.model } : {}),
     limits: { ...(session.limits as Schema['Limits']), ...input.limits },
   } as unknown as Schema['SessionCreate']);
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);
+  const permissionLayers = await admitPermissions(
+    tx,
+    project,
+    workspace,
+    session,
+    input.permissions,
+    configured.harness,
+  );
+  const resolved = await admitConnections(
+    tx,
+    p,
+    {
+      project_id: project.id,
+      agent_id: session.agent_id || null,
+      workspace_id: workspace.id,
+      defaults: session.connection_grants,
+      permissions: permissionLayers,
+    },
+    input.connection_grants,
+    input.connection_access_overrides,
+  );
   const simulated = isLocal() && config.execution === 'simulator';
   const rate = computeRate();
   const minimum = computeMaximum(configured.limits.timeout_seconds, rate);
@@ -303,9 +412,17 @@ export async function admitRun(
   );
   const reservation = simulated ? 0n : BigInt(configured.limits.max_cost_micro_usd);
   await reserve(tx, p.organizationId, reservation);
+  await nameWorkspaceForRun(tx, p, workspace.id, input.prompt);
   const runId = id();
   const runConfig: RunConfig = {
     ...configured,
+    workspace_id: workspace.id,
+    instructions: session.instructions,
+    agent_id: session.agent_id || null,
+    agent_version: session.agent_version || null,
+    connection_grants: resolved.grants,
+    connection_access: resolved.snapshots,
+    permission_layers: permissionLayers,
     prompt: input.prompt,
     user_id: p.userId,
     principal_id: p.id,
@@ -315,7 +432,7 @@ export async function admitRun(
     webhook_endpoint_ids: input.webhook_endpoint_ids,
     client_type: clientType,
     scheduling_class: input.scheduling_class || 'background',
-    rate_card: models().find((m) => m.id === configured.model),
+    rate_card: configured.rate_card,
     compute_rate_micro_usd_per_minute: rate,
     execution_provider: config.execution,
   };
@@ -355,15 +472,16 @@ export async function admitRun(
     run_id: runId,
     session_id: session.id,
     workspace_id: workspace.id,
-    status: 'queued',
+    status: 'queued' as const,
     ...waitingFields(row, reasons.get(runId)),
     queue_expires_at: row.queue_expires_at.toISOString(),
-    urls: Object.fromEntries(
-      ['status', 'events', 'stream', 'result', 'cancel'].map((k) => [
-        k,
-        `${config.origin}/v1/runs/${runId}${k === 'status' ? '' : `/${k}`}`,
-      ]),
-    ),
+    urls: {
+      status: `${config.origin}/v1/runs/${runId}`,
+      events: `${config.origin}/v1/runs/${runId}/events`,
+      stream: `${config.origin}/v1/runs/${runId}/stream`,
+      result: `${config.origin}/v1/runs/${runId}/result`,
+      cancel: `${config.origin}/v1/runs/${runId}/cancel`,
+    },
   };
 }
 export async function cancelRun(tx: Tx, p: Principal, runId: string) {

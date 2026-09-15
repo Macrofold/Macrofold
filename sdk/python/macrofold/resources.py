@@ -24,11 +24,11 @@ class ProjectsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Project, result, identity)
 
-    def create(self, *, name: str, persistence: Literal["persistent", "ephemeral"] | Omit = OMIT, github: params.CreateProjectGithubParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Project:
+    def create(self, *, name: str, persistence: Literal["persistent", "ephemeral"] | Omit = OMIT, github: params.CreateProjectGithubParams | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Project:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createProject",
@@ -36,11 +36,11 @@ class ProjectsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"persistence": persistence,"github": github}),
+            body=payload({"name": name,"persistence": persistence,"github": github,"permissions": permissions}),
         )
         return decode(models.Project, result, identity)
 
-    def create_workspace(self, project_id: str | UUID, *, name: str, checkpoint_id: str | UUID | Omit = OMIT, branch: str | Omit = OMIT, source: params.WorkspaceSourceParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
+    def create_workspace(self, project_id: str | UUID, *, name: str | Omit = OMIT, checkpoint_id: str | UUID | Omit = OMIT, branch: str | Omit = OMIT, source: params.WorkspaceSourceParams | Omit = OMIT, branch_mode: Literal["auto", "new", "existing"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createWorkspace",
@@ -48,7 +48,7 @@ class ProjectsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"checkpoint_id": checkpoint_id,"branch": branch,"source": source}),
+            body=payload({"name": name,"checkpoint_id": checkpoint_id,"branch": branch,"source": source,"branch_mode": branch_mode,"permissions": permissions}),
         )
         return decode(models.Operation, result, identity)
 
@@ -60,21 +60,33 @@ class ProjectsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Operation, result, identity)
 
-    def get(self, project_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Project:
+    def get(self, project_id: str | UUID, *, include_connections: bool | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Project:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("getProject",
             path=parameters({"project_id": project_id}),
-            query=parameters({}),
+            query=parameters({"include_connections": include_connections,"agent_id": agent_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Project, result, identity)
+
+    def get_worktree_options(self, project_id: str | UUID, *, name: str | Omit = OMIT, branch: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.WorktreeOptions:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getWorktreeOptions",
+            path=parameters({"project_id": project_id}),
+            query=parameters({"name": name,"branch": branch}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.WorktreeOptions, result, identity)
 
     def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, archived: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListProjects200Response:
         options = request_options or RequestOptions()
@@ -84,7 +96,7 @@ class ProjectsResource:
             query=parameters({"cursor": cursor,"limit": limit,"query": query,"archived": archived}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListProjects200Response, result, identity)
 
@@ -96,7 +108,7 @@ class ProjectsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListWorkspaces200Response, result, identity)
 
@@ -112,7 +124,7 @@ class ProjectsResource:
         )
         return decode(models.Project, result, identity)
 
-    def update(self, project_id: str | UUID, *, name: str | Omit = OMIT, github: params.UpdateProjectGithubParams | Omit = OMIT, archived: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Project:
+    def update(self, project_id: str | UUID, *, name: str | Omit = OMIT, github: params.UpdateProjectGithubParams | Omit = OMIT, archived: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Project:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateProject",
@@ -120,7 +132,7 @@ class ProjectsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"github": github,"archived": archived}),
+            body=payload({"name": name,"github": github,"archived": archived,"permissions": permissions}),
         )
         return decode(models.Project, result, identity)
 
@@ -137,6 +149,18 @@ class WorkspacesResource:
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
             body=payload({"pinned": pinned}),
+        )
+        return decode(models.Operation, result, identity)
+
+    def create_folder(self, workspace_id: str | UUID, *, if_match: str, path: str, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createFolder",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"path": path}),
         )
         return decode(models.Operation, result, identity)
 
@@ -160,7 +184,7 @@ class WorkspacesResource:
             query=parameters({"path": path}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Operation, result, identity)
 
@@ -172,7 +196,19 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
+        )
+        return decode(models.Operation, result, identity)
+
+    def duplicate_file(self, workspace_id: str | UUID, *, if_match: str, path: str, new_path: str, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("duplicateFile",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"path": path,"new_path": new_path}),
         )
         return decode(models.Operation, result, identity)
 
@@ -184,7 +220,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.GitSync, result, identity)
 
@@ -196,7 +232,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Workspace, result, identity)
 
@@ -208,7 +244,7 @@ class WorkspacesResource:
             query=parameters({"base_checkpoint_id": base_checkpoint_id,"path": path,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.WorkspaceDiff, result, identity)
 
@@ -220,19 +256,19 @@ class WorkspacesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListCheckpoints200Response, result, identity)
 
-    def list_files(self, workspace_id: str | UUID, *, path: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.FileListing:
+    def list_files(self, workspace_id: str | UUID, *, path: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, recursive: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.FileListing:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("listFiles",
             path=parameters({"workspace_id": workspace_id}),
-            query=parameters({"path": path,"cursor": cursor,"limit": limit,"query": query}),
+            query=parameters({"path": path,"cursor": cursor,"limit": limit,"query": query,"recursive": recursive}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.FileListing, result, identity)
 
@@ -244,7 +280,7 @@ class WorkspacesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListTransfers200Response, result, identity)
 
@@ -256,9 +292,21 @@ class WorkspacesResource:
             query=parameters({"path": path,"download": download}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return result
+
+    def rename_file(self, workspace_id: str | UUID, *, path: str, if_match: str, new_path: str, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("renameFile",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({"path": path}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"new_path": new_path}),
+        )
+        return decode(models.Operation, result, identity)
 
     def restore(self, workspace_id: str | UUID, *, checkpoint_id: str | UUID, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
@@ -284,7 +332,7 @@ class WorkspacesResource:
         )
         return decode(models.Operation, result, identity)
 
-    def update(self, workspace_id: str | UUID, *, name: str, request_options: RequestOptions | None = None) -> models.Workspace:
+    def update(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateWorkspace",
@@ -292,16 +340,16 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name}),
+            body=payload({"name": name,"permissions": permissions}),
         )
         return decode(models.Workspace, result, identity)
 
-    def write_file(self, workspace_id: str | UUID, *, path: str, if_match: str, content: bytes, request_options: RequestOptions | None = None) -> models.Operation:
+    def write_file(self, workspace_id: str | UUID, *, path: str, if_match: str, create_only: bool | Omit = OMIT, content: bytes, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("writeFile",
             path=parameters({"workspace_id": workspace_id}),
-            query=parameters({"path": path}),
+            query=parameters({"path": path,"create_only": create_only}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
             body=content,
@@ -312,7 +360,7 @@ class AgentsResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create(self, *, name: str, harness: Literal["codex", "claude-code", "opencode"], model: str, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+    def create(self, *, name: str, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createAgent",
@@ -332,35 +380,35 @@ class AgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
 
-    def get(self, agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Agent:
+    def get(self, agent_id: str | UUID, *, include_connections: bool | Omit = OMIT, project_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("getAgent",
             path=parameters({"agent_id": agent_id}),
-            query=parameters({}),
+            query=parameters({"include_connections": include_connections,"project_id": project_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Agent, result, identity)
 
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListAgents200Response:
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListAgents200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("listAgents",
             path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
+            query=parameters({"cursor": cursor,"limit": limit,"query": query}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListAgents200Response, result, identity)
 
-    def update(self, agent_id: str | UUID, *, name: str | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode"] | Omit = OMIT, model: str | Omit = OMIT, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+    def update(self, agent_id: str | UUID, *, name: str | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | None | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateAgent",
@@ -376,7 +424,7 @@ class SessionsResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def continue_run(self, session_id: str | UUID, *, prompt: str, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, model: str | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
+    def continue_run(self, session_id: str | UUID, *, prompt: str, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, model: str | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("continueSession",
@@ -384,11 +432,11 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"prompt": prompt,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_if_busy": queue_if_busy,"model": model,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class}),
+            body=payload({"prompt": prompt,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_if_busy": queue_if_busy,"model": model,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"permissions": permissions,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides}),
         )
         return decode(models.RunAccepted, result, identity)
 
-    def create(self, *, workspace_id: str | UUID, harness: Literal["codex", "claude-code", "opencode"], model: str, billing_mode: Literal["byok", "managed"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
+    def create(self, *, workspace_id: str | UUID, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createSession",
@@ -408,7 +456,7 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Session, result, identity)
 
@@ -420,7 +468,7 @@ class SessionsResource:
             query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListSessions200Response, result, identity)
 
@@ -440,7 +488,7 @@ class RunsResource:
         )
         return decode(models.Run, result, identity)
 
-    def create(self, *, prompt: str, project_id: str | UUID | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
+    def create(self, *, prompt: str, project_id: str | UUID | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createRun",
@@ -448,7 +496,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"prompt": prompt,"project_id": project_id,"workspace_id": workspace_id,"session_id": session_id,"agent_id": agent_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"queue_if_busy": queue_if_busy}),
+            body=payload({"prompt": prompt,"project_id": project_id,"workspace_id": workspace_id,"session_id": session_id,"agent_id": agent_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"queue_if_busy": queue_if_busy,"permissions": permissions,"connection_access_overrides": connection_access_overrides}),
         )
         return decode(models.RunAccepted, result, identity)
 
@@ -460,7 +508,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Run, result, identity)
 
@@ -472,7 +520,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.RunResult, result, identity)
 
@@ -484,7 +532,7 @@ class RunsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListArtifacts200Response, result, identity)
 
@@ -496,7 +544,7 @@ class RunsResource:
             query=parameters({"after": after,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListRunEvents200Response, result, identity)
 
@@ -508,7 +556,7 @@ class RunsResource:
             query=parameters({"status": status,"project_id": project_id,"from": from_,"to": to,"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"session_id": session_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListRuns200Response, result, identity)
 
@@ -553,7 +601,7 @@ class ArtifactsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Download, result, identity)
 
@@ -573,7 +621,7 @@ class ConnectionsResource:
         )
         return decode(models.AuthorizationLink, result, identity)
 
-    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, subject_id: str | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createConnection",
@@ -581,9 +629,21 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"subject_id": subject_id,"secret_env": secret_env}),
+            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
         )
         return decode(models.Connection, result, identity)
+
+    def create_access_rule(self, connection_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createConnectionAccessRule",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload(input),
+        )
+        return decode(models.ConnectionAccessRuleMutation, result, identity)
 
     def delete(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
         options = request_options or RequestOptions()
@@ -593,9 +653,21 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
+
+    def delete_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleDeleted:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteConnectionAccessRule",
+            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectionAccessRuleDeleted, result, identity)
 
     def get(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
@@ -605,33 +677,45 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Connection, result, identity)
 
-    def get_grants(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionGrantSet:
+    def get_access(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getConnectionGrants",
+        result = self._client.request("getConnectionAccess",
             path=parameters({"connection_id": connection_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
-        )
-        return decode(models.ConnectionGrantSet, result, identity)
 
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListConnections200Response:
+        )
+        return decode(models.ConnectionAccess, result, identity)
+
+    def list_access_rules(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, project_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, sort: Literal["project", "agent", "created_at"] | Omit = OMIT, direction: Literal["asc", "desc"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessRulePage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listConnectionAccessRules",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({"cursor": cursor,"limit": limit,"project_id": project_id,"agent_id": agent_id,"sort": sort,"direction": direction}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectionAccessRulePage, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, project_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ContextualConnectionPage:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("listConnections",
             path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
+            query=parameters({"cursor": cursor,"limit": limit,"project_id": project_id,"agent_id": agent_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
-        return decode(models.ListConnections200Response, result, identity)
+        return decode(models.ContextualConnectionPage, result, identity)
 
     def list_tools(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListConnectionTools200Response:
         options = request_options or RequestOptions()
@@ -641,7 +725,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListConnectionTools200Response, result, identity)
 
@@ -653,7 +737,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ConnectorCatalog, result, identity)
 
@@ -665,21 +749,21 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.StdioPackagePage, result, identity)
 
-    def set_grants(self, connection_id: str | UUID, *, version: int, subject_type: Literal["organization", "user", "external_subject"], subject_id: str | Omit = OMIT, tools: list[str], request_options: RequestOptions | None = None) -> models.ConnectionGrantSet:
+    def resolve_access(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, project_id: str | UUID | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessResolutionPage:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("setConnectionGrants",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
+        result = self._client.request("resolveConnectionAccess",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"version": version,"subject_type": subject_type,"subject_id": subject_id,"tools": tools}),
+            body=payload({"project_id": project_id,"workspace_id": workspace_id,"session_id": session_id,"agent_id": agent_id,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"permissions": permissions}),
         )
-        return decode(models.ConnectionGrantSet, result, identity)
+        return decode(models.ConnectionAccessResolutionPage, result, identity)
 
     def test(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionTest:
         options = request_options or RequestOptions()
@@ -693,7 +777,7 @@ class ConnectionsResource:
         )
         return decode(models.ConnectionTest, result, identity)
 
-    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, subject_id: str | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("updateConnection",
@@ -701,9 +785,33 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"subject_id": subject_id,"secret_env": secret_env}),
+            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
         )
         return decode(models.Connection, result, identity)
+
+    def update_access(self, connection_id: str | UUID, *, if_match: str, organization_wide: bool | Omit = OMIT, tools: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateConnectionAccess",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"organization_wide": organization_wide,"tools": tools}),
+        )
+        return decode(models.ConnectionAccess, result, identity)
+
+    def update_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateConnectionAccessRule",
+            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload(input),
+        )
+        return decode(models.ConnectionAccessRuleMutation, result, identity)
 
 class ApiKeysResource:
     def __init__(self, client: Client):
@@ -729,7 +837,7 @@ class ApiKeysResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListApiKeys200Response, result, identity)
 
@@ -741,7 +849,7 @@ class ApiKeysResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
 
@@ -769,7 +877,7 @@ class WebhookEndpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
 
@@ -781,7 +889,7 @@ class WebhookEndpointsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListWebhookEndpoints200Response, result, identity)
 
@@ -821,7 +929,7 @@ class WebhookDeliveriesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListWebhookDeliveries200Response, result, identity)
 
@@ -849,7 +957,7 @@ class UsageResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -865,7 +973,7 @@ class RequestsResource:
             query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListRequests200Response, result, identity)
 
@@ -905,7 +1013,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Billing, result, identity)
 
@@ -917,7 +1025,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Storage, result, identity)
 
@@ -945,7 +1053,7 @@ class HarnessesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListHarnesses200Response, result, identity)
 
@@ -961,7 +1069,7 @@ class ModelsResource:
             query=parameters({"harness": harness,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListModels200Response, result, identity)
 
@@ -977,7 +1085,7 @@ class OperationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Operation, result, identity)
 
@@ -993,7 +1101,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"include_contact": include_contact}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.AccountSummary, result, identity)
 
@@ -1005,7 +1113,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -1017,7 +1125,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by,"organization_id": organization_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -1029,7 +1137,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"service_id": service_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -1041,7 +1149,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -1053,7 +1161,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by,"organization_id": organization_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Report, result, identity)
 
@@ -1065,7 +1173,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Diagnostics, result, identity)
 
@@ -1077,7 +1185,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"query": query,"include_contact": include_contact,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListAccounts200Response, result, identity)
 
@@ -1089,7 +1197,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"organization_id": organization_id,"status_code": status_code,"route": route,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListRequests200Response, result, identity)
 
@@ -1101,7 +1209,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ReportSnapshotPage, result, identity)
 
@@ -1145,7 +1253,7 @@ class MeResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Identity, result, identity)
 
@@ -1173,7 +1281,7 @@ class TransfersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Transfer, result, identity)
 
@@ -1189,7 +1297,7 @@ class IntegrationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Project, result, identity)
 
@@ -1201,7 +1309,7 @@ class IntegrationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.GithubInstallations, result, identity)
 
@@ -1213,7 +1321,7 @@ class IntegrationsResource:
             query=parameters({"installation_id": installation_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.GithubRepositories, result, identity)
 
@@ -1253,7 +1361,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ExecutionPolicy, result, identity)
 
@@ -1265,7 +1373,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListInvitations200Response, result, identity)
 
@@ -1277,7 +1385,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListMembers200Response, result, identity)
 
@@ -1289,7 +1397,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListOrganizationAudit200Response, result, identity)
 
@@ -1301,7 +1409,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
 
@@ -1313,7 +1421,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return None
 
@@ -1377,7 +1485,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.DeleteTrigger200Response, result, identity)
 
@@ -1389,7 +1497,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.Trigger, result, identity)
 
@@ -1401,7 +1509,7 @@ class TriggersResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListTriggerDeliveries200Response, result, identity)
 
@@ -1413,7 +1521,7 @@ class TriggersResource:
             query=parameters({"cursor": cursor,"limit": limit,"kind": kind}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListTriggers200Response, result, identity)
 
@@ -1489,7 +1597,7 @@ class SlackConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.DeleteTrigger200Response, result, identity)
 
@@ -1501,7 +1609,7 @@ class SlackConnectionsResource:
             query=parameters({"cursor": cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListSlackConnectionChannels200Response, result, identity)
 
@@ -1513,7 +1621,7 @@ class SlackConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            
+
         )
         return decode(models.ListSlackConnections200Response, result, identity)
 

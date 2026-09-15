@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from macrofold.models.list_triggers200_response_quota import ListTriggers200ResponseQuota
 from macrofold.models.trigger import Trigger
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,8 +31,9 @@ class ListTriggers200Response(BaseModel):
     """ # noqa: E501
     data: List[Trigger]
     next_cursor: Optional[StrictStr]
+    quota: ListTriggers200ResponseQuota
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["data", "next_cursor"]
+    __properties: ClassVar[List[str]] = ["data", "next_cursor", "quota"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -81,6 +83,9 @@ class ListTriggers200Response(BaseModel):
                 if _item_data:
                     _items.append(_item_data.to_dict())
             _dict['data'] = _items
+        # override the default output from pydantic by calling `to_dict()` of quota
+        if self.quota:
+            _dict['quota'] = self.quota.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -104,7 +109,8 @@ class ListTriggers200Response(BaseModel):
 
         _obj = cls.model_validate({
             "data": [Trigger.from_dict(_item) for _item in obj["data"]] if obj.get("data") is not None else None,
-            "next_cursor": obj.get("next_cursor")
+            "next_cursor": obj.get("next_cursor"),
+            "quota": ListTriggers200ResponseQuota.from_dict(obj["quota"]) if obj.get("quota") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

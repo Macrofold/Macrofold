@@ -1,8 +1,9 @@
+import { writeFixtureFile } from '../fixtures/file-mutation';
 import { it, expect, afterAll } from 'vitest';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
 import * as r from '../../packages/core/src/resources';
-import { createWorkspace, writeFile } from '../../packages/core/src/files';
+import { createWorkspace } from '../../packages/core/src/files';
 import { admitRun } from '../../packages/core/src/runs';
 import { executeRun } from '../../packages/core/src/engine';
 import {
@@ -35,7 +36,11 @@ it('expires detailed content but retains terminal replay, then schedules, undoes
       'workspaces',
       String((operation.result as { workspace_id: string }).workspace_id),
     );
-    await writeFile(tx, a.p, ws.id, 'private.txt', Buffer.from('private retained content'), ws.revision);
+    return { project, ws };
+  });
+  await writeFixtureFile(a.p, setup.ws.id, 'private.txt', Buffer.from('private retained content'), setup.ws.revision);
+  const run = await transaction(org, async (tx) => {
+    const { ws } = setup;
     const run = await admitRun(tx, a.p, {
       workspace_id: ws.id,
       harness: 'codex',
@@ -43,22 +48,22 @@ it('expires detailed content but retains terminal replay, then schedules, undoes
       billing_mode: 'managed',
       prompt: 'Keep files available.',
     });
-    return { project, ws, run };
+    return run;
   });
-  await executeRun(org, setup.run.run_id);
+  await executeRun(org, run.run_id);
   await transaction(org, async (tx) => {
-    await tx.query("UPDATE runs SET completed_at=now()-interval '31 days' WHERE id=$1", [setup.run.run_id]);
+    await tx.query("UPDATE runs SET completed_at=now()-interval '31 days' WHERE id=$1", [run.run_id]);
     expect(await expireDetailedHistory(tx, 'payg', new Date())).toBe(1);
-    const result = (await tx.query('SELECT config,result FROM runs WHERE id=$1', [setup.run.run_id])).rows[0];
+    const result = (await tx.query('SELECT config,result FROM runs WHERE id=$1', [run.run_id])).rows[0];
     expect(result.config.prompt).toBe('[Detailed content expired]');
     expect(result.result.content_expired).toBe(true);
     expect(result.result.output_text).toBeUndefined();
   });
-  const events = await eventsAfter(org, setup.run.run_id, '0');
+  const events = await eventsAfter(org, run.run_id, '0');
   expect(events).toHaveLength(1);
   expect(events[0].type).toBe('run.succeeded');
   const stream = await new Response(
-    await streamEvents(org, setup.run.run_id, '0', new AbortController().signal),
+    await streamEvents(org, run.run_id, '0', new AbortController().signal),
   ).text();
   expect(stream).toContain('run.succeeded');
   expect(stream).not.toContain('private retained content');
@@ -106,7 +111,7 @@ it('expires detailed content but retains terminal replay, then schedules, undoes
   await transaction(org, async (tx) => {
     expect((await r.get(tx, 'workspaces', setup.ws.id)).files).toBeUndefined();
     expect((await tx.query('SELECT count(*) FROM ledger')).rows[0].count).not.toBe('0');
-    expect((await tx.query('SELECT count(*) FROM runs WHERE id=$1', [setup.run.run_id])).rows[0].count).toBe(
+    expect((await tx.query('SELECT count(*) FROM runs WHERE id=$1', [run.run_id])).rows[0].count).toBe(
       '1',
     );
   });

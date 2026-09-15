@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Your personal agent</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">PERSONAL AGENT · REFERENCE APP</p>
+        <h1>A little help that remembers.</h1>
+        <p>Separate conversations. The same personal files and ongoing plans.</p>
+        <label id="customer-label"
+          >Demo customer
+          <select id="customer">
+            <option value="alice">Alice</option>
+            <option value="bob">Bob</option>
+          </select></label
+        >
+        <p id="mode" class="muted"></p>
+      </header>
+      <p id="notice" role="status" aria-live="polite"></p>
+      <button id="retry" hidden>Retry the same action</button>
+      <section>
+        <h2>1. Choose your agent</h2>
+        <div id="agents"></div>
+        <form id="create">
+          <label>Agent name <input name="name" value="Milo" maxlength="80" required /></label
+          ><button>Create agent</button>
+        </form>
+      </section>
+      <div id="workspace" hidden>
+        <section>
+          <h2 id="agent-title">Your agent</h2>
+          <p id="agent-status"></p>
+          <div class="actions">
+            <button id="pause">Pause</button><button id="refresh">Refresh activity</button>
+          </div>
+        </section>
+        <section>
+          <h2>2. Start a conversation</h2>
+          <p>Start fresh to change the topic. Your agent still uses the same profile, memory and tasks.</p>
+          <form id="chat">
+            <label
+              >Conversation
+              <select name="conversationId" id="conversations">
+                <option value="">New conversation</option>
+              </select></label
+            ><label
+              >Your message
+              <textarea
+                name="prompt"
+                required
+                placeholder="Remember that I prefer quiet hotels. Help me plan a weekend away."
+              ></textarea></label
+            ><button>Send message</button>
+          </form>
+          <div id="activity" aria-live="polite"></div>
+        </section>
+        <section>
+          <h2>3. Inspect and correct memory</h2>
+          <p>
+            These are ordinary files. You control what stays in them. In simulation, edit them yourself to try
+            persistence across conversations.
+          </p>
+          <form id="open-file">
+            <label
+              >File
+              <select id="file-path" name="path">
+                <option>profile.md</option>
+                <option>tasks.json</option>
+                <option>memory/README.md</option>
+              </select></label
+            ><button>Open file</button>
+          </form>
+          <form id="file" hidden>
+            <label
+              >Source <textarea name="content" id="file-content" rows="10" spellcheck="false"></textarea>
+            </label>
+            <div class="actions">
+              <button>Save correction</button><button type="button" id="forget">Forget this file</button>
+            </div>
+            <p class="muted">
+              Forgetting removes the current file. Previous conversations and retained checkpoints have
+              separate deletion rules.
+            </p>
+          </form>
+        </section>
+        <details>
+          <summary>Connect a search account</summary>
+          <p>
+            Optional: paste an Exa API key. Only this agent in this project receives the web_search tool.
+            Existing conversations keep their saved selection; start a new conversation after connecting.
+          </p>
+          <form id="connect">
+            <label>Exa API key <input type="password" name="secret" autocomplete="off" required /></label
+            ><button>Save account and allow search</button>
+          </form>
+          <p id="connection-status"></p>
+          <p class="muted">
+            Simulation saves and scopes the account without calling Exa. For this local walkthrough, use
+            “fixture-only-not-a-real-key”.
+          </p>
+        </details>
+        <details>
+          <summary>Schedule a weekly review</summary>
+          <p>
+            Every Monday at 9:00, start a fresh conversation on these files and update weekly-plan.md. No
+            messages are sent and no purchases are made.
+          </p>
+          <form id="schedule">
+            <label>Timezone <input name="timezone" id="timezone" value="America/New_York" required /></label>
+            <p id="schedule-budget"></p>
+            <button>Enable weekly review</button>
+          </form>
+          <p id="schedule-status"></p>
+        </details>
+        <details>
+          <summary>Delete this agent</summary>
+          <p>
+            This pauses schedules and requests cancellation of active work. Project content is scheduled for
+            deletion after the platform’s seven-day undo period. The search credential is disconnected
+            immediately; accounting is retained.
+          </p>
+          <form id="delete">
+            <label>Type the agent’s name <input name="confirmation" required autocomplete="off" /></label
+            ><button class="danger">Delete agent</button>
+          </form>
+        </details>
+      </div>
+      <footer>
+        Read <code>examples/personal-agent/README.md</code> for setup, customer authentication, recovery and
+        production adoption.
+      </footer>
+    </main>
+  </body>
+</html>

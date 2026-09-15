@@ -1,10 +1,14 @@
 # Connections and access
 
-Give agents the model accounts, applications, and tools they need through explicit connections and grants. Secrets stay in the server's encrypted credential store.
+Give agents the model accounts, applications, and tools they need through named connections, approved tools, and access rules. Secrets stay in the server's encrypted credential store.
+
+Browse the [public connector directory](catalog.md) for application toolkits and native integrations.
 
 ## Add a connection
 
 Open **Connections**, select a provider or connection type, and complete its setup. Available applications depend on the deployment's registered integrations. A catalog entry describes an integration; it does not mean your account is connected.
+
+You can add several accounts for the same integration. Each has a stable ID, editable name, independent status, and explicit grants. [Named connections](named-connections.md) explains account selection, presets, and the currently gated Claude subscription configurations.
 
 | Connection      | Use it for                                                        |
 | --------------- | ----------------------------------------------------------------- |
@@ -24,7 +28,7 @@ Keys are not exposed to native agents as long-lived credentials. Revocation prev
 
 For an application, complete its account authorization and choose the permitted tools. For remote MCP, enter its endpoint and follow the authentication flow supported by that server. The deployment validates network destinations and can reject private or unsupported endpoints.
 
-Grant only the tools the run needs. A run can select a subset of a connection's allowed tools; it cannot grant itself additional access. Tool descriptions and project instructions do not change permissions. External tools can modify third-party systems, so inspect uncertain outcomes before retrying a write.
+In **Tools**, approve the tool ceiling. In **Access**, enable organization access or add project, preset, or project + preset rules. A run inherits eligible connections unless an explicit selection narrows them. Ownership and provider authorization alone grant no runtime access. See [connector access rules](connection-access.md), including explicit one-run exceptions. Tool descriptions and project instructions do not change permissions. External tools can modify third-party systems, so inspect uncertain outcomes before retrying a write.
 
 See [connector discovery](connectors.md), [web search](web-search.md), [Composio configuration](composio.md), and [tool security](tools-security.md).
 

@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Terminal, FolderGit2, Radio } from 'lucide-react';
-import { Logo, Button, Field } from './ui';
+import { Button, Field } from './ui';
 import { api } from '../lib/client';
+import { ThemeControl } from './theme';
 import { authReturnPath } from '../lib/auth-return';
 export function AuthForm({
   name,
@@ -35,12 +36,11 @@ export function AuthForm({
   return (
     <div className="auth-page">
       <div className="auth-story">
-        <Link href="/" className="brand">
-          <Logo />
-          <span>{name}</span>
+        <Link href="/" className="brand" aria-label={`${name} home`}>
+          <img className="app-lockup" src="/brands/macrofold/lockup.svg" alt={name} width={142} height={32} />
         </Link>
         <div className="auth-message">
-          <span className="eyebrow">YOUR WORK, IN MOTION</span>
+          <span className="eyebrow">Your work, in motion</span>
           <h1>
             Agents that pick up
             <br />
@@ -65,8 +65,11 @@ export function AuthForm({
         <span className="auth-footer">Your infrastructure for getting things done.</span>
       </div>
       <div className="auth-form-side">
+        <div className="auth-theme">
+          <ThemeControl />
+        </div>
         <div className="auth-form">
-          <div className="eyebrow">GET STARTED</div>
+          <div className="eyebrow">Get started</div>
           <h2>{title}</h2>
           <p>
             {mode === 'register'

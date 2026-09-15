@@ -1,41 +1,43 @@
 # Documentation
 
-Build with persistent cloud agents. Start a task, follow its progress, and return to the same files for the next one.
+Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi through an API, CLI, or dashboard. Give agents persistent files they can return to across tasks.
 
-## Start here
+## Start building
 
-| Guide                                                 | What you will learn                                              |
-| ----------------------------------------------------- | ---------------------------------------------------------------- |
-| [Quickstart](getting-started/quickstart.md)           | Create a project and complete your first run                     |
-| [Run and test](getting-started/local-development.md)   | Choose simulation, local Docker, or cloud staging; see what works today |
-| [Core concepts](getting-started/concepts.md)          | Understand projects, workspaces, sessions, runs, and checkpoints |
-| [Troubleshooting](getting-started/troubleshooting.md) | Recover from setup, queue, connection, and file errors           |
+- **[Build with AI](getting-started/agents.md):** copy a setup prompt into your coding agent and describe your feature.
+- **[API quickstart](features/api/quickstart.md):** create a project, submit a task, and print its result.
+- **[Dashboard quickstart](getting-started/quickstart.md):** run and review a task without writing code.
 
-## Use the platform
+## Choose where Macrofold runs
 
-- [Dashboard](features/dashboard/README.md): projects, files, run history, and team settings.
-- [Runs and agents](features/execution/README.md): harness selection, streaming, cancellation, and continuation.
-- [Workspaces and Git](features/workspaces/README.md): saved files, checkpoints, independent branches, and synchronization.
-- [Connections and access](features/identity-integrations/README.md): provider keys, MCP, applications, search, and permissions.
-- [Billing and limits](features/billing/README.md): plans, budgets, reserved credits, and retention.
+| Option | You manage | Start here |
+| --- | --- | --- |
+| Macrofold Cloud | Your application, projects, permissions, and usage | [Connect to Cloud](cloud/README.md) |
+| Self-hosted | Your Macrofold deployment and its infrastructure | [Self-hosting guide](operations/README.md) |
 
-## Build an integration
+The same API, SDK, CLI, and feature guides apply to both. Use the origin and credentials for your deployment; enabled integrations, model availability, and limits depend on its configuration. For a free first experiment, use [local simulation](getting-started/local-development/simulation.md).
 
-Start with the [API quickstart](features/api/quickstart.md) or [terminal CLI](features/cli/README.md).
+## Learn the essentials
 
-- [API guide](features/api/README.md) and [OpenAPI reference](api/openapi.json).
-- [Streaming and webhooks](features/api/events.md).
-- [SDKs](features/api/sdks/README.md) for TypeScript, Python, Go, Rust, and Java.
-- [Agent-readable documentation](getting-started/agents.md) and [CLI command schema](api/cli.json).
+A **project** groups work. A **workspace** holds its files. A **run** performs a task. [Core concepts](getting-started/concepts.md) explains what persists.
 
-## Deploy and contribute
+- [Runs and agents](features/execution/README.md): select a harness, stream output, continue, and cancel.
+- [Workspaces and Git](features/workspaces/README.md): edit files, restore checkpoints, and synchronize a repository.
+- [Share files between agents](features/workspaces/shared-agents.md): take turns in one workspace or use separate branches in parallel.
+- [Connections](features/identity-integrations/README.md): model keys, named app accounts, and MCP tools.
+- [Triggers and schedules](features/triggers/README.md): start work from Slack, webhooks, or recurring prompts.
+- [Dashboard](features/dashboard/README.md) and [billing](features/billing/README.md): review work, manage access, and control usage.
 
-- [Development modes](getting-started/local-development.md): [local simulation](getting-started/local-development/simulation.md), [local Docker agents](getting-started/local-development/docker.md), and [cloud staging](getting-started/local-development/cloud.md).
-- [Self-hosting](operations/README.md): deployment, configuration, backup, and scaling.
-- [Operator reporting](features/operations/README.md): usage, customer activity, and the read-only management MCP.
-- [Architecture](architecture/README.md) and [codebase map](architecture/codebase.md): system responsibilities and design decisions.
-- [Contributing](../CONTRIBUTING.md) and [engineering](engineering/README.md): development, testing, and review.
+## Build a customer-facing agent
 
-## Start work automatically
+Read the [customer identity guide](features/customer-agents/README.md), then run the [personal-agent application](../examples/personal-agent/README.md). It keeps customer ownership, named agents, files, conversations and schedules connected. Add the optional [file memory starter](features/customer-agents/memory.md) or use [customer-data recipes](../examples/integrations/README.md) for an existing database or MCP service. Each guide includes setup, examples, recovery, validation and an explicit AI reading map.
 
-[Triggers and scheduled tasks](features/triggers/README.md) connect Slack messages, incoming webhooks and recurring prompts to your agents. Follow the setup guide for your starting point.
+## Go deeper
+
+[API overview](features/api/README.md) · [SDKs in five languages](features/api/sdks/README.md) · [CLI](features/cli/README.md) · [Streaming](features/api/events.md) · [Errors and retries](features/api/conventions.md) · [OpenAPI](api/openapi.json) · [Troubleshooting](getting-started/troubleshooting.md)
+
+## Develop and operate
+
+[Local simulation, Docker, and cloud staging](getting-started/local-development.md) are development modes. [Self-hosting](operations/README.md) covers operating a deployment. [Architecture](architecture/README.md), the [codebase map](architecture/codebase.md), and [contributing](../CONTRIBUTING.md) explain how to change Macrofold itself.
+
+Anyone can [contribute a harness through the Unified Harness Interface](features/execution/unified-harness-interface.md), reusing the existing execution, streaming, and persistence system.

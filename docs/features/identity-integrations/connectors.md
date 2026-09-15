@@ -2,7 +2,7 @@
 
 Connections opens a large app browser with category navigation, an All category, local search, and three columns of logo cards. Results render in batches as the user scrolls; all catalog entries remain searchable. Smaller screens use two columns and horizontally scrollable categories. Selecting an app opens its setup form. Returning to the catalog preserves filters and focuses search. Model keys, remote MCP, sandbox MCP and [web search providers](web-search.md) retain their existing setup and explicit permission flows.
 
-Discovery and authorization are separate. Apps that the operator has not enabled remain discoverable. Their setup forms explain that an administrator must enable them before authorization; saving a pending connection remains allowed. Catalog data cannot grant tools, create upstream accounts or change spending limits.
+Discovery, provider authentication, tool approval, and [execution access](connection-access.md) are separate. New tool connections have no approved tools or execution access; configure Tools and Access after setup. Apps that the operator has not enabled remain discoverable. Their setup forms explain that an administrator must enable them before authorization; saving a pending connection remains allowed. Catalog data cannot grant tools, create upstream accounts or change spending limits.
 
 ## Architecture and API
 

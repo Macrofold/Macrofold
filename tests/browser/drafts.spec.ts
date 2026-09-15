@@ -6,7 +6,7 @@ test('preserves an unsaved draft across focus, rejects stale save, and explicitl
 }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const headers = () => ({ Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() });
   const created = await page.request.post('/v1/projects', {
     headers: headers(),
@@ -29,7 +29,7 @@ test('preserves an unsaved draft across focus, rejects stale save, and explicitl
   await expect(editor).toContainText('Original saved text');
   await editor.fill('My unsaved local draft');
   await expect(page.getByRole('button', { name: 'New run', exact: true })).toBeDisabled();
-  await expect(page.getByRole('combobox', { name: 'Active workspace' })).toBeDisabled();
+  await expect(page.getByRole('combobox', { name: 'Active worktree' })).toBeDisabled();
   const current = await (await page.request.get(`/v1/workspaces/${project.default_workspace_id}`)).json();
   expect(
     (
@@ -59,7 +59,7 @@ test('debounces autosave, keeps newer typing during a pending save, and shows Sa
 }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const created = await page.request.post('/v1/projects', {
     headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     data: { name: 'Autosave ' + randomUUID() },

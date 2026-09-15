@@ -66,7 +66,17 @@ it('retains current, pinned and sampled checkpoints and collects only unreachabl
     const project = await r.create(tx, 'projects', org, { name: 'Retained files' });
     const ws = await r.create(tx, 'workspaces', org, {
       project_id: project.id,
-      files: [{ key: manifest, path: 'kept.txt', sha256: sha256('kept'), type: 'file', size_bytes: '4' }],
+      files: [
+        {
+          key: manifest,
+          path: 'kept.txt',
+          sha256: sha256('kept'),
+          type: 'file' as const,
+          modified_at: new Date().toISOString(),
+          git_ignored: false,
+          size_bytes: '4',
+        },
+      ],
       git_files: [],
     });
     const current = await r.create(tx, 'checkpoints', org, { workspace_id: ws.id, files: [], pinned: false });
@@ -149,4 +159,29 @@ it('meters physical bytes once, caps overage to explicit funds and blocks new wr
     expect((await reconcileFinance(tx, org)).status).toBe('balanced');
   });
   expect(fixture.objects.has(key)).toBe(true);
+});
+
+it('protects objects during out-of-transaction file preparation until its lease is released', async () => {
+  const { storagePreparation } = await import('../../packages/core/src/storage-preparation');
+  const org = id(),
+    at = new Date(),
+    fixture = memoryStore(new Date(Date.now() - 100 * DAY));
+  await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [org, 'Preparation GC fixture']);
+  const key = `${org}/content/${sha256('prepared')}`;
+  await fixture.store.put(key, Buffer.from('prepared'));
+  await maintainStorage(org, fixture.store, at);
+  const preparation = await storagePreparation(org, async () => key);
+  try {
+    expect(await maintainStorage(org, fixture.store, new Date(at.getTime() + 15 * DAY))).toMatchObject({
+      deleted: 0,
+      active: true,
+    });
+    expect(await fixture.store.get(key)).toEqual(Buffer.from('prepared'));
+  } finally {
+    await preparation.dispose();
+  }
+  expect(await maintainStorage(org, fixture.store, new Date(at.getTime() + 15 * DAY))).toMatchObject({
+    deleted: 1,
+    active: false,
+  });
 });

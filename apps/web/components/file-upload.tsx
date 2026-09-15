@@ -5,13 +5,22 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, type Schema } from '../lib/client';
 import { Button, Field, Modal } from './ui';
-export function FileUpload({ workspace, disabled }: { workspace: Schema['Workspace']; disabled?: boolean }) {
+export function FileUpload({
+  workspace,
+  disabled,
+  directory = '',
+}: {
+  workspace: Schema['Workspace'];
+  disabled?: boolean;
+  directory?: string;
+}) {
   const [open, setOpen] = useState(false),
     [files, setFiles] = useState<globalThis.File[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [progress, setProgress] = useState('');
   const client = useQueryClient();
+  const remotePath = (file: globalThis.File) => (directory ? `${directory}/${file.name}` : file.name);
   function choose(incoming: globalThis.File[]) {
     const next = [...new Map([...files, ...incoming].map((f) => [f.name, f])).values()];
     if (
@@ -44,17 +53,17 @@ export function FileUpload({ workspace, disabled }: { workspace: Schema['Workspa
       for (const file of files) {
         const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
         manifest.push({
-          path: file.name,
+          path: remotePath(file),
           local_sha256: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join(''),
           local_size_bytes: file.size,
           baseline_known: true,
-          baseline_sha256: entries.find((e) => e.path === file.name)?.sha256 || null,
+          baseline_sha256: entries.find((e) => e.path === remotePath(file))?.sha256 || null,
         });
       }
       const plan = await api<Schema['Transfer']>(`/v1/workspaces/${workspace.id}/transfers`, 'POST', {
         direction: 'push',
         base_revision: current.revision,
-        paths: files.map((f) => f.name),
+        paths: files.map(remotePath),
         manifest,
       });
       if (plan.status === 'conflicted')
@@ -73,7 +82,7 @@ export function FileUpload({ workspace, disabled }: { workspace: Schema['Workspa
         const response = await fetch(action.url!, {
           method: 'PUT',
           headers,
-          body: files.find((f) => f.name === action.path)!,
+          body: files.find((f) => remotePath(f) === action.path)!,
           credentials: 'omit',
           redirect: 'error',
         });
@@ -84,7 +93,16 @@ export function FileUpload({ workspace, disabled }: { workspace: Schema['Workspa
       }
       setProgress('Verifying and saving your checkpoint…');
       await api(`/v1/transfers/${plan.id}/apply`, 'POST', { expected_revision: current.revision });
-      await client.invalidateQueries();
+      await client.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return (
+            typeof key[0] === 'string' &&
+            (key[0].startsWith(`/v1/workspaces/${workspace.id}`) ||
+              (key[0] === 'file' && key[1] === workspace.id))
+          );
+        },
+      });
       setOpen(false);
       setFiles([]);
       toast.success('Files uploaded and checkpointed');
@@ -115,7 +133,7 @@ export function FileUpload({ workspace, disabled }: { workspace: Schema['Workspa
           if (!busy) setOpen(value);
         }}
         title="Bring your files"
-        description="Upload files to this workspace. Matching filenames replace their current version; earlier checkpoints preserve your history."
+        description={`Upload files to ${directory || 'the workspace root'}. Matching filenames replace their current version; earlier checkpoints preserve your history.`}
       >
         <div className="form-stack">
           <div

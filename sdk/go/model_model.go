@@ -27,6 +27,12 @@ type Model struct {
 	Enabled bool `json:"enabled"`
 	BillingModes []string `json:"billing_modes"`
 	RateCardVersion string `json:"rate_card_version"`
+	// Display name of the reviewed model.
+	Name string `json:"name"`
+	// Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot.
+	InputMicroUsdPerMillion string `json:"input_micro_usd_per_million" validate:"regexp=^[0-9]+$"`
+	// Current retail micro-USD per million output tokens, including reported reasoning tokens.
+	OutputMicroUsdPerMillion string `json:"output_micro_usd_per_million" validate:"regexp=^[0-9]+$"`
 }
 
 type _Model Model
@@ -35,7 +41,7 @@ type _Model Model
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewModel(id string, provider string, harnesses []string, enabled bool, billingModes []string, rateCardVersion string) *Model {
+func NewModel(id string, provider string, harnesses []string, enabled bool, billingModes []string, rateCardVersion string, name string, inputMicroUsdPerMillion string, outputMicroUsdPerMillion string) *Model {
 	this := Model{}
 	this.Id = id
 	this.Provider = provider
@@ -43,6 +49,9 @@ func NewModel(id string, provider string, harnesses []string, enabled bool, bill
 	this.Enabled = enabled
 	this.BillingModes = billingModes
 	this.RateCardVersion = rateCardVersion
+	this.Name = name
+	this.InputMicroUsdPerMillion = inputMicroUsdPerMillion
+	this.OutputMicroUsdPerMillion = outputMicroUsdPerMillion
 	return &this
 }
 
@@ -198,6 +207,78 @@ func (o *Model) SetRateCardVersion(v string) {
 	o.RateCardVersion = v
 }
 
+// GetName returns the Name field value
+func (o *Model) GetName() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.Name
+}
+
+// GetNameOk returns a tuple with the Name field value
+// and a boolean to check if the value has been set.
+func (o *Model) GetNameOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Name, true
+}
+
+// SetName sets field value
+func (o *Model) SetName(v string) {
+	o.Name = v
+}
+
+// GetInputMicroUsdPerMillion returns the InputMicroUsdPerMillion field value
+func (o *Model) GetInputMicroUsdPerMillion() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.InputMicroUsdPerMillion
+}
+
+// GetInputMicroUsdPerMillionOk returns a tuple with the InputMicroUsdPerMillion field value
+// and a boolean to check if the value has been set.
+func (o *Model) GetInputMicroUsdPerMillionOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.InputMicroUsdPerMillion, true
+}
+
+// SetInputMicroUsdPerMillion sets field value
+func (o *Model) SetInputMicroUsdPerMillion(v string) {
+	o.InputMicroUsdPerMillion = v
+}
+
+// GetOutputMicroUsdPerMillion returns the OutputMicroUsdPerMillion field value
+func (o *Model) GetOutputMicroUsdPerMillion() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.OutputMicroUsdPerMillion
+}
+
+// GetOutputMicroUsdPerMillionOk returns a tuple with the OutputMicroUsdPerMillion field value
+// and a boolean to check if the value has been set.
+func (o *Model) GetOutputMicroUsdPerMillionOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.OutputMicroUsdPerMillion, true
+}
+
+// SetOutputMicroUsdPerMillion sets field value
+func (o *Model) SetOutputMicroUsdPerMillion(v string) {
+	o.OutputMicroUsdPerMillion = v
+}
+
 func (o Model) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -214,6 +295,9 @@ func (o Model) ToMap() (map[string]interface{}, error) {
 	toSerialize["enabled"] = o.Enabled
 	toSerialize["billing_modes"] = o.BillingModes
 	toSerialize["rate_card_version"] = o.RateCardVersion
+	toSerialize["name"] = o.Name
+	toSerialize["input_micro_usd_per_million"] = o.InputMicroUsdPerMillion
+	toSerialize["output_micro_usd_per_million"] = o.OutputMicroUsdPerMillion
 	return toSerialize, nil
 }
 
@@ -228,6 +312,9 @@ func (o *Model) UnmarshalJSON(data []byte) (err error) {
 		"enabled",
 		"billing_modes",
 		"rate_card_version",
+		"name",
+		"input_micro_usd_per_million",
+		"output_micro_usd_per_million",
 	}
 
 	allProperties := make(map[string]interface{})

@@ -164,6 +164,15 @@ def test_application_journey():
             client.workspaces.read_file(files_workspace, path='missing.txt')
         assert error.value.status == 404
         project = client.projects.create(name='Python application fixture')
+        assert project.default_workspace_id
+        workspace = client.workspaces.get(project.default_workspace_id)
+        folder = client.workspaces.create_folder(workspace.id, path='examples', if_match=workspace.revision)
+        assert folder.result and folder.result.entry and folder.result.entry.type == 'directory'
+        assert folder.result.revision
+        renamed = client.workspaces.rename_file(workspace.id, path='examples/.gitkeep', new_path='examples/renamed.txt', if_match=folder.result.revision)
+        assert renamed.result and renamed.result.previous_path == 'examples/.gitkeep'
+        assert [entry.type for entry in client.workspaces.list_files(workspace.id, recursive=False).entries] == ['directory']
+        assert client.workspaces.read_file(workspace.id, path='examples/renamed.txt') == b''
         agent = client.agents.create(name='Python preset', harness='codex', model='fixture-model', billing_mode='managed')
         run = client.runs.create(project_id=project.id, agent_id=agent.id, prompt='Verify Python persisted execution.')
         text = ''.join(client.runs.stream_text(run.run_id))
@@ -181,3 +190,22 @@ def test_application_journey():
         assert b'Verify Python persisted execution' in client.workspaces.read_file(run.workspace_id, path=f'notes/run-{run.run_id}.md')
     finally:
         client.close()
+
+
+def test_connection_access_rule_inputs_and_selection_presence():
+    calls = []
+    def handler(request):
+        calls.append(request)
+        if request.url.path.endswith('/rules'):
+            return httpx.Response(201, json={'version': '2', 'rule': dict(id=ID, connection_id=ID, scope='project', project_id=ID, agent_id=None, project_name='Research', agent_name=None, unavailable=False, created_at='2026-09-07T00:00:00Z', updated_at='2026-09-07T00:00:00Z')})
+        return httpx.Response(200, json=dict(id=ID, organization_id=ID, name='Preset', harness='codex', model='fixture-model', billing_mode='managed', version=1, created_at='2026-09-07T00:00:00Z'))
+    with Client(api_key='fixture', transport=httpx.MockTransport(handler)) as client:
+        client.connections.create_access_rule(ID, input={'scope': 'project', 'project_id': ID}, if_match='"1"')
+        assert json.loads(calls[-1].content) == {'scope': 'project', 'project_id': ID}
+        assert calls[-1].headers['If-Match'] == '"1"'
+        client.agents.update(ID, name='Renamed')
+        assert 'connection_grants' not in json.loads(calls[-1].content)
+        client.agents.update(ID, connection_grants=[])
+        assert json.loads(calls[-1].content)['connection_grants'] == []
+        client.agents.update(ID, connection_grants=None)
+        assert json.loads(calls[-1].content)['connection_grants'] is None

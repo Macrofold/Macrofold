@@ -1,0 +1,203 @@
+.view-switcher {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-2);
+}
+.view-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--app-ink-2);
+  font-size: 12px;
+}
+.view-switcher button[aria-pressed='true'] {
+  background: var(--app-surface);
+  color: var(--app-ink);
+  box-shadow: 0 1px 3px #00000012;
+}
+.project-list {
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+.project-list-heading,
+.project-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 120px 120px 18px;
+  align-items: center;
+  gap: 22px;
+  padding: 15px 20px;
+}
+.project-list-heading {
+  background: var(--app-surface-2);
+  font-size: 12px;
+  color: var(--app-ink-3);
+}
+.project-list-row + .project-list-row {
+  border-top: 1px solid var(--app-line);
+}
+.project-list-row {
+  font-size: 13px;
+  color: var(--app-ink-2);
+}
+.project-list-row:hover {
+  background: var(--app-surface-2);
+}
+.project-list-row > :is(span, div) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.project-list-row .project-list-name {
+  gap: 12px;
+  color: var(--app-ink);
+}
+.project-list-name h3 {
+  margin: 0;
+  font-size: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.project-list-row .project-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 8px;
+}
+.project-files-page {
+  height: calc(100dvh - 67px);
+  min-height: 520px;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 28px 18px;
+}
+.project-files-page > * {
+  flex-shrink: 0;
+}
+.project-files-page .back-link {
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
+.project-files-page .page-heading {
+  margin-bottom: 16px;
+}
+.project-files-page .page-heading h1 {
+  font-size: 26px;
+}
+.project-files-page .page-heading p {
+  margin-top: 5px;
+}
+.project-files-page .workspace-bar {
+  margin-bottom: 12px;
+}
+.project-files-page .tabs {
+  margin-bottom: 16px;
+}
+.project-files-page > .file-browser {
+  flex: 1 1 0;
+  min-height: 220px;
+}
+@media (max-width: 1100px) {
+  .project-list-heading,
+  .project-list-row {
+    grid-template-columns: minmax(0, 1fr) 100px 100px 18px;
+    gap: 14px;
+  }
+  .project-list .project-list-branch {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .project-files-page {
+    height: calc(100dvh - 58px);
+    min-height: 650px;
+    padding: 16px 14px 14px;
+  }
+  .project-files-page .page-heading {
+    gap: 10px;
+  }
+  .project-files-page .page-heading p {
+    display: none;
+  }
+  .project-list-heading,
+  .project-list-row {
+    grid-template-columns: minmax(0, 1fr) 90px 18px;
+    gap: 10px;
+    padding: 13px;
+  }
+  .project-list .project-list-updated {
+    display: none;
+  }
+  .projects-toolbar {
+    flex-wrap: wrap;
+  }
+  .projects-toolbar .search-input {
+    flex-basis: 100%;
+  }
+}
+
+.projects-toolbar {
+  justify-content: flex-start;
+}
+.projects-toolbar .search-input {
+  flex: 0 1 360px;
+}
+.projects-toolbar > .view-switcher {
+  margin-left: auto;
+}
+.worktree-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-line);
+  border-radius: 9px;
+  background: var(--app-surface);
+}
+.worktree-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.worktree-input > svg {
+  flex-shrink: 0;
+  color: var(--app-ink-3);
+}
+.worktree-input .worktree-valid {
+  color: var(--app-success, #238636);
+}
+.worktree-advanced {
+  margin: 16px 0;
+}
+.worktree-advanced summary {
+  cursor: pointer;
+  color: var(--app-ink-2);
+  margin-bottom: 12px;
+}
+.worktree-hint {
+  min-height: 40px;
+  font-size: 13px;
+}
+@media (max-width: 650px) {
+  .projects-toolbar .search-input {
+    flex-basis: 100%;
+  }
+}

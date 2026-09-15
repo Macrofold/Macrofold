@@ -2,19 +2,19 @@
 
 Contributor reference. Start with the [feature guide](README.md) for user workflows.
 
-The API invokes an actual multi-turn harness, not one model completion. Harness and model are separate choices. The current native adapters are Codex app-server, Claude Agent SDK and OpenCode's authenticated local server/SDK. The exact versions are pinned in `packages/runtime/package.json`; the implementation details and provider-source references are in [17-runtime-implementation.md](runtime.md).
+The API invokes an actual multi-turn harness, not one model completion. Harness and model are separate choices. The current native adapters are Codex app-server, Claude Agent SDK, OpenCode's authenticated local server/SDK, embedded Hermes, DeepSeek Harness and Pi. The [harness guide](harnesses.md) owns the public capability matrix. Node versions are pinned in `packages/runtime/package.json`; Hermes's commit and Python environment are pinned in `infra/runtime.Dockerfile`. [Runtime architecture](runtime.md) records integration details and upstream references.
 
 [Scheduling](scheduling.md) explains waiting and limits; [Workflow history](workflow-history.md) explains adaptive SQL waiting, bounded orchestration, recovery and deployment checks.
 
 ## Compatibility and catalog
 
-Codex accepts reviewed OpenAI routes; Claude Code accepts reviewed Anthropic routes; OpenCode supports reviewed OpenAI/Anthropic/OpenRouter protocol mappings. This is not an all-to-all promise or support for every model a provider offers. `GET /v1/harnesses` and `/v1/models` describe configured choices. The local simulator presents `fixture-model`, labels its output and uses zero model tokens. Production never substitutes that model.
+Codex accepts reviewed OpenAI routes; Claude Code accepts reviewed Anthropic routes; OpenCode supports reviewed OpenAI/Anthropic/OpenRouter protocol mappings. Hermes, DeepSeek and Pi use reviewed OpenAI/OpenRouter chat routes. This is not an all-to-all promise or support for every model a provider offers. `GET /v1/harnesses` and `/v1/models` describe configured choices. The local simulator presents `fixture-model`, labels its output and uses zero model tokens. Production never substitutes that model.
 
 Each configured model has ID, display name, provider, allowed harnesses, enabled flag and retail input/output micro-USD per million. Configuration is validated, then frozen on admission with funding mode, deadline, maximum charge and connection grants. Unsupported hosted tools/media/passthrough endpoints are rejected because their liability is not covered by this gateway. Provider-exposed reasoning summaries can be shown; hidden chain-of-thought is neither reconstructed nor promised.
 
 ## Trust boundary and process supervision
 
-The immutable Linux image contains Node 24, Python, Git, curl/ripgrep, three native harnesses and the reviewed filesystem MCP server. It does not contain a universal preinstalled browser desktop. Web search is the Brave broker tool; browser automation can be added as an explicitly reviewed MCP/runtime extension. Do not claim a screenshot/desktop product that the UI does not implement.
+The immutable Linux image contains Node 24, Python, Git, curl/ripgrep, six native harnesses and the reviewed filesystem MCP server. It does not contain a universal preinstalled browser desktop. Web search is the Brave broker tool; browser automation can be added as an explicitly reviewed MCP/runtime extension. Do not claim a screenshot/desktop product that the UI does not implement.
 
 One microVM executes one admitted run. Its root supervisor owns `/platform-control`; the native process tree runs as UID 10001 with `/workspace` and `/agent-home`. No database, object-store, Vercel, Stripe or long-lived model/connector key enters that environment. Native processes receive a short-lived run capability for the exact gateway/tool grants. Package network access is controlled by the sandbox allowlist. Untrusted project instructions cannot expand these permissions.
 

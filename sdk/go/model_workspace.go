@@ -24,8 +24,8 @@ type Workspace struct {
 	Id string `json:"id"`
 	ProjectId string `json:"project_id"`
 	OrganizationId string `json:"organization_id"`
-	Name string `json:"name"`
-	Branch *string `json:"branch,omitempty"`
+	Name NullableString `json:"name"`
+	Branch NullableString `json:"branch,omitempty"`
 	Revision string `json:"revision"`
 	Status string `json:"status"`
 	LatestCheckpointId *string `json:"latest_checkpoint_id,omitempty"`
@@ -37,6 +37,7 @@ type Workspace struct {
 	GitStatus *string `json:"git_status,omitempty"`
 	GitError NullableString `json:"git_error,omitempty"`
 	RemoteChange NullableWorkspaceRemoteChange `json:"remote_change,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -46,7 +47,7 @@ type _Workspace Workspace
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewWorkspace(id string, projectId string, organizationId string, name string, revision string, status string, createdAt time.Time) *Workspace {
+func NewWorkspace(id string, projectId string, organizationId string, name NullableString, revision string, status string, createdAt time.Time) *Workspace {
 	this := Workspace{}
 	this.Id = id
 	this.ProjectId = projectId
@@ -139,59 +140,71 @@ func (o *Workspace) SetOrganizationId(v string) {
 }
 
 // GetName returns the Name field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *Workspace) GetName() string {
-	if o == nil {
+	if o == nil || o.Name.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.Name
+	return *o.Name.Get()
 }
 
 // GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Workspace) GetNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.Name, true
+	return o.Name.Get(), o.Name.IsSet()
 }
 
 // SetName sets field value
 func (o *Workspace) SetName(v string) {
-	o.Name = v
+	o.Name.Set(&v)
 }
 
-// GetBranch returns the Branch field value if set, zero value otherwise.
+// GetBranch returns the Branch field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *Workspace) GetBranch() string {
-	if o == nil || IsNil(o.Branch) {
+	if o == nil || IsNil(o.Branch.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.Branch
+	return *o.Branch.Get()
 }
 
 // GetBranchOk returns a tuple with the Branch field value if set, nil otherwise
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Workspace) GetBranchOk() (*string, bool) {
-	if o == nil || IsNil(o.Branch) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Branch, true
+	return o.Branch.Get(), o.Branch.IsSet()
 }
 
 // HasBranch returns a boolean if a field has been set.
 func (o *Workspace) HasBranch() bool {
-	if o != nil && !IsNil(o.Branch) {
+	if o != nil && o.Branch.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetBranch gets a reference to the given string and assigns it to the Branch field.
+// SetBranch gets a reference to the given NullableString and assigns it to the Branch field.
 func (o *Workspace) SetBranch(v string) {
-	o.Branch = &v
+	o.Branch.Set(&v)
+}
+// SetBranchNil sets the value for Branch to be an explicit nil
+func (o *Workspace) SetBranchNil() {
+	o.Branch.Set(nil)
+}
+
+// UnsetBranch ensures that no value is present for Branch, not even an explicit nil
+func (o *Workspace) UnsetBranch() {
+	o.Branch.Unset()
 }
 
 // GetRevision returns the Revision field value
@@ -542,6 +555,38 @@ func (o *Workspace) UnsetRemoteChange() {
 	o.RemoteChange.Unset()
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *Workspace) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Workspace) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *Workspace) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *Workspace) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
 func (o Workspace) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -555,9 +600,9 @@ func (o Workspace) ToMap() (map[string]interface{}, error) {
 	toSerialize["id"] = o.Id
 	toSerialize["project_id"] = o.ProjectId
 	toSerialize["organization_id"] = o.OrganizationId
-	toSerialize["name"] = o.Name
-	if !IsNil(o.Branch) {
-		toSerialize["branch"] = o.Branch
+	toSerialize["name"] = o.Name.Get()
+	if o.Branch.IsSet() {
+		toSerialize["branch"] = o.Branch.Get()
 	}
 	toSerialize["revision"] = o.Revision
 	toSerialize["status"] = o.Status
@@ -585,6 +630,9 @@ func (o Workspace) ToMap() (map[string]interface{}, error) {
 	}
 	if o.RemoteChange.IsSet() {
 		toSerialize["remote_change"] = o.RemoteChange.Get()
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -651,6 +699,7 @@ func (o *Workspace) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "git_status")
 		delete(additionalProperties, "git_error")
 		delete(additionalProperties, "remote_change")
+		delete(additionalProperties, "permissions")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -26,7 +26,7 @@ it('relays only runtime paths to the fixed fixture API and preserves streaming, 
   const relay = runtimeRelay(await listen(upstream));
   try {
     const origin = await listen(relay);
-    const path = '/runtime/runs/11111111-1111-4111-8111-111111111111/model/v1/responses';
+    const path = '/runtime/runs/11111111-1111-4111-8111-111111111111/model/v1/messages?beta=true';
     const response = await fetch(origin + path, {
       method: 'POST',
       headers: { authorization: 'Bearer fixture-capability' },

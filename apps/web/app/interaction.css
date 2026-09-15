@@ -1,0 +1,257 @@
+/* Shared interaction contract. Keep motion brief and animate presentation, never data. */
+:root {
+  --app-motion-fast: 160ms;
+  --app-motion-enter: 180ms;
+  --app-motion-exit: 120ms;
+  --app-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --app-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --app-transition-colors:
+    color var(--app-motion-fast) var(--app-ease-out),
+    background-color var(--app-motion-fast) var(--app-ease-out),
+    border-color var(--app-motion-fast) var(--app-ease-out),
+    box-shadow var(--app-motion-fast) var(--app-ease-out), opacity var(--app-motion-fast) var(--app-ease-out);
+}
+
+/* Hide browser chrome without disabling scrolling, touch, or keyboard navigation. */
+html,
+body,
+body * {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Include composite surfaces and nested labels whose color changes with their owner.
+ * Low specificity lets components add geometry transitions where they need them. */
+:where(
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  summary,
+  label,
+  [role='menuitem'],
+  [role='menuitemradio'],
+  [role='menuitemcheckbox'],
+  [role='option'],
+  [role='tab'],
+  [role='treeitem'],
+  .input-surface,
+  .data-table tbody tr,
+  .project-list-row
+),
+:where(button, a, summary) :where(svg, strong, span) {
+  transition: var(--app-transition-colors);
+}
+
+/* Keyboard focus for non-text controls has one owner. Text fields and composite
+ * surfaces below use the same animated, subdued border in mouse and keyboard use. */
+:where(button, a, input[type='checkbox'], input[type='radio'], input[type='range'], summary):focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 3px;
+}
+.cm-editor.cm-focused { outline: none; }
+
+/* Text controls use a muted one-pixel border and faint halo, without a second outline;
+ * composite inputs delegate that indicator to their wrapper.
+ * Buttons and links retain the global keyboard-only outline. */
+body
+  :is(
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']),
+    textarea,
+    select
+  ):focus,
+body .select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--app-field-focus);
+  box-shadow: 0 0 0 3px var(--app-field-focus-halo);
+}
+body .input-surface:focus-within {
+  outline: none;
+  border-color: var(--app-field-focus);
+  box-shadow: 0 0 0 3px var(--app-field-focus-halo);
+}
+body .input-surface :is(input, textarea):focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dialog-overlay[data-state='open'],
+.assistant-overlay[data-state='open'] {
+  animation: interaction-fade-in var(--app-motion-enter) var(--app-ease-out);
+}
+.dialog-overlay[data-state='closed'],
+.assistant-overlay[data-state='closed'],
+.dialog[data-state='closed'] {
+  animation: interaction-fade-out var(--app-motion-exit) var(--app-ease-in) both;
+}
+.dialog[data-state='open'] {
+  animation: dialog-enter var(--app-motion-enter) var(--app-ease-out);
+}
+body :is(.profile-menu, .select-content, .file-context-menu)[data-state='open'] {
+  animation: interaction-pop-in var(--app-motion-fast) var(--app-ease-out);
+}
+body :is(.profile-menu, .select-content, .file-context-menu)[data-state='closed'] {
+  animation: interaction-fade-out var(--app-motion-exit) var(--app-ease-in) both;
+}
+.assistant-panel[data-state='open'] {
+  animation: interaction-pop-in var(--app-motion-enter) var(--app-ease-out);
+}
+.assistant-panel[data-state='closed'] {
+  animation: interaction-fade-out var(--app-motion-exit) var(--app-ease-in) both;
+}
+.assistant-exchange,
+.markdown-output[data-streaming] > * {
+  animation: interaction-fade-in var(--app-motion-enter) var(--app-ease-out);
+}
+
+/* Leave Sonner's lifecycle, stacking, dismissal and swipe transforms intact. */
+[data-sonner-toaster] [data-sonner-toast] {
+  /* Match the product's tested text contrast, including clipboard-denial feedback. */
+  --error-text: var(--app-danger);
+  transition:
+    transform var(--app-motion-enter) var(--app-ease-out),
+    opacity var(--app-motion-fast) var(--app-ease-out),
+    height var(--app-motion-enter) var(--app-ease-out),
+    box-shadow var(--app-motion-fast) var(--app-ease-out);
+}
+
+/* The base text remains painted and readable throughout the left-to-right sheen. */
+.button.primary {
+  --app-sheen-highlight: color-mix(in srgb, currentColor 90%, var(--app-accent) 10%);
+}
+.button.primary[aria-busy='true'] {
+  /* Active progress remains readable while the action is temporarily disabled. */
+  opacity: 1;
+}
+.waiting-text {
+  background: linear-gradient(
+    105deg,
+    currentColor 35%,
+    color-mix(in srgb, currentColor 25%, transparent) 48%,
+    currentColor 61%
+  );
+  background-size: 250% 100%;
+  background-position: 140% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: waiting-sheen 2.4s linear infinite;
+}
+@keyframes waiting-sheen {
+  to {
+    background-position: -140% 0;
+  }
+}
+@keyframes interaction-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes interaction-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes interaction-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* A visitor can explicitly opt into marketing playback with its Play control. */
+  html:not([data-dashboard-motion='playing'])
+    *:not(.mf-site[data-motion-override='playing'], .mf-site[data-motion-override='playing'] *),
+  html:not([data-dashboard-motion='playing'])
+    *:not(.mf-site[data-motion-override='playing'], .mf-site[data-motion-override='playing'] *)::before,
+  html:not([data-dashboard-motion='playing'])
+    *:not(.mf-site[data-motion-override='playing'], .mf-site[data-motion-override='playing'] *)::after {
+    animation: none !important;
+    /* Reduce spatial movement, not ordinary hover/focus/success feedback. This
+     * allowlist also overrides component-level reduced-motion transition:none. */
+    transition-property: color, background-color, border-color, box-shadow, opacity !important;
+    transition-duration: var(--app-motion-fast) !important;
+    transition-timing-function: var(--app-ease-out) !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-dashboard-motion='playing']) .waiting-text {
+    animation: none;
+    background: none;
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Opacity-only feedback remains useful when spatial motion is disabled. */
+  body
+    :is(
+      .dialog-overlay,
+      .assistant-overlay,
+      .dialog,
+      .profile-menu,
+      .select-content,
+      .file-context-menu,
+      .assistant-panel
+    )[data-state='open'] {
+    animation: interaction-fade-in var(--app-motion-fast) var(--app-ease-out) !important;
+  }
+  body
+    :is(
+      .dialog-overlay,
+      .assistant-overlay,
+      .dialog,
+      .profile-menu,
+      .select-content,
+      .file-context-menu,
+      .assistant-panel
+    )[data-state='closed'] {
+    animation: interaction-fade-out var(--app-motion-exit) var(--app-ease-in) both !important;
+  }
+}
+@media (forced-colors: active) {
+  body
+    :is(
+      input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']),
+      textarea,
+      select
+    ):focus,
+  body .select-trigger:focus-visible,
+  body .input-surface:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  body .input-surface :is(input, textarea):focus {
+    outline: none;
+  }
+}
+
+/* Pause only decorative movement; keep control feedback and status text readable. */
+html[data-dashboard-motion='paused'] :is(.waiting-text, .welcome-composer) {
+  animation-play-state: paused;
+}
+@media (forced-colors: active) {
+  .waiting-text {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}

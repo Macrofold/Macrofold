@@ -1,6 +1,6 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 117 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 126 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
 Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.projects().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
@@ -30,6 +30,7 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `createWorkspace` | `projects.createWorkspace` | `projects.create_workspace` | `Projects.CreateWorkspace` |
 | `scheduleProjectDeletion` | `projects.scheduleDeletion` | `projects.schedule_deletion` | `Projects.ScheduleDeletion` |
 | `cancelProjectDeletion` | `projects.cancelDeletion` | `projects.cancel_deletion` | `Projects.CancelDeletion` |
+| `getWorktreeOptions` | `projects.getWorktreeOptions` | `projects.get_worktree_options` | `Projects.GetWorktreeOptions` |
 
 ## Workspaces
 
@@ -42,6 +43,7 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `readFile` | `workspaces.readFile` | `workspaces.read_file` | `Workspaces.ReadFile` |
 | `writeFile` | `workspaces.writeFile` | `workspaces.write_file` | `Workspaces.WriteFile` |
 | `deleteFile` | `workspaces.deleteFile` | `workspaces.delete_file` | `Workspaces.DeleteFile` |
+| `renameFile` | `workspaces.renameFile` | `workspaces.rename_file` | `Workspaces.RenameFile` |
 | `listCheckpoints` | `workspaces.listCheckpoints` | `workspaces.list_checkpoints` | `Workspaces.ListCheckpoints` |
 | `createCheckpoint` | `workspaces.createCheckpoint` | `workspaces.create_checkpoint` | `Workspaces.CreateCheckpoint` |
 | `restoreWorkspace` | `workspaces.restore` | `workspaces.restore` | `Workspaces.Restore` |
@@ -50,6 +52,8 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `getWorkspaceDiff` | `workspaces.getDiff` | `workspaces.get_diff` | `Workspaces.GetDiff` |
 | `createTransfer` | `workspaces.createTransfer` | `workspaces.create_transfer` | `Workspaces.CreateTransfer` |
 | `listTransfers` | `workspaces.listTransfers` | `workspaces.list_transfers` | `Workspaces.ListTransfers` |
+| `createFolder` | `workspaces.createFolder` | `workspaces.create_folder` | `Workspaces.CreateFolder` |
+| `duplicateFile` | `workspaces.duplicateFile` | `workspaces.duplicate_file` | `Workspaces.DuplicateFile` |
 
 ## Agents
 
@@ -102,10 +106,15 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `authorizeConnection` | `connections.authorize` | `connections.authorize` | `Connections.Authorize` |
 | `testConnection` | `connections.test` | `connections.test` | `Connections.Test` |
 | `listConnectionTools` | `connections.listTools` | `connections.list_tools` | `Connections.ListTools` |
-| `getConnectionGrants` | `connections.getGrants` | `connections.get_grants` | `Connections.GetGrants` |
-| `setConnectionGrants` | `connections.setGrants` | `connections.set_grants` | `Connections.SetGrants` |
 | `listStdioPackages` | `connections.listStdioPackages` | `connections.list_stdio_packages` | `Connections.ListStdioPackages` |
 | `listConnectorCatalog` | `connections.listConnectorCatalog` | `connections.list_connector_catalog` | `Connections.ListConnectorCatalog` |
+| `getConnectionAccess` | `connections.getAccess` | `connections.get_access` | `Connections.GetAccess` |
+| `updateConnectionAccess` | `connections.updateAccess` | `connections.update_access` | `Connections.UpdateAccess` |
+| `listConnectionAccessRules` | `connections.listAccessRules` | `connections.list_access_rules` | `Connections.ListAccessRules` |
+| `createConnectionAccessRule` | `connections.createAccessRule` | `connections.create_access_rule` | `Connections.CreateAccessRule` |
+| `updateConnectionAccessRule` | `connections.updateAccessRule` | `connections.update_access_rule` | `Connections.UpdateAccessRule` |
+| `deleteConnectionAccessRule` | `connections.deleteAccessRule` | `connections.delete_access_rule` | `Connections.DeleteAccessRule` |
+| `resolveConnectionAccess` | `connections.resolveAccess` | `connections.resolve_access` | `Connections.ResolveAccess` |
 
 ## ApiKeys
 

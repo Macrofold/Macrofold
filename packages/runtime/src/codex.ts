@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { JsonRpcProcess, type RpcMessage } from './jsonrpc';
 import type { HarnessAdapter, HarnessContext, NativeResult, NativeEvent } from './types';
+import { z } from 'zod';
+import { permissionAdapters } from '../../contracts/permission-adapters';
+import { codexPermissionSettings, codexPermissionProfile } from './permission-settings';
+import { fileToolName, fileToolDescription, fileToolSchema, permissionFileTools } from './permission-files';
 
 export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   const params = message.params || {};
@@ -44,7 +48,12 @@ export function codexEvent(message: RpcMessage): NativeEvent | undefined {
 }
 export class CodexAdapter implements HarnessAdapter {
   async run({ configuration: c, signal, emit, ask }: HarnessContext): Promise<NativeResult> {
+    const guarded = permissionAdapters.codex.translate(c.permissions || []).mode === 'guarded';
+    const files = permissionFileTools(c.workspace, c.permissions || []);
     await mkdir(`${c.stateHome}/.codex`, { recursive: true, mode: 0o700 });
+    await writeFile(`${c.stateHome}/.codex/config.toml`, guarded ? codexPermissionProfile(c.workspace) : '', {
+      mode: 0o600,
+    });
     const overrides: Record<string, unknown> = {
       model_provider: 'platform',
       model: c.model,
@@ -54,13 +63,17 @@ export class CodexAdapter implements HarnessAdapter {
       'model_providers.platform.wire_api': 'responses',
       'model_providers.platform.requires_openai_auth': false,
       approval_policy: 'never',
-      sandbox_mode: 'danger-full-access',
+      ...(guarded ? codexPermissionSettings() : { sandbox_mode: 'danger-full-access' }),
       web_search: 'disabled',
       'analytics.enabled': false,
     };
     if (c.toolGrants) {
       overrides['mcp_servers.platform.url'] = c.toolURL;
       overrides['mcp_servers.platform.bearer_token_env_var'] = 'PLATFORM_RUN_TOKEN';
+      // The broker checks the frozen policy and connection grants at dispatch.
+      // Native confirmation must not block that already-authorized capability.
+      overrides['mcp_servers.platform.default_tools_approval_mode'] = 'approve';
+      overrides['mcp_servers.platform.required'] = true;
     }
     const rpc = new JsonRpcProcess(
       process.env.CODEX_BINARY || 'codex',
@@ -94,7 +107,18 @@ export class CodexAdapter implements HarnessAdapter {
     rpc.onExit = reject;
     rpc.onMessage = async (message) => {
       if (message.id !== undefined && message.method) {
-        if (message.method === 'item/tool/requestUserInput') {
+        if (guarded && message.method === 'item/tool/call') {
+          let success = true,
+            text: string;
+          try {
+            if (message.params?.tool !== fileToolName) throw new Error('Unknown file tool.');
+            text = await files(message.params.arguments);
+          } catch (error) {
+            success = false;
+            text = (error as Error).message;
+          }
+          rpc.send({ id: message.id, result: { success, contentItems: [{ type: 'inputText', text }] } });
+        } else if (message.method === 'item/tool/requestUserInput') {
           const requestId = randomUUID(),
             questions = (message.params?.questions || []) as { id: string; question: string }[];
           const answer = await ask(requestId, questions.map((q) => q.question).join('\n'), { questions });
@@ -147,12 +171,32 @@ export class CodexAdapter implements HarnessAdapter {
         model: c.model,
         modelProvider: 'platform',
         approvalPolicy: 'never',
-        sandbox: 'danger-full-access',
+        ...(guarded ? { permissions: 'worktree_guarded' } : { sandbox: 'danger-full-access' }),
         ...(c.instructions ? { developerInstructions: c.instructions } : {}),
       };
       const thread = await rpc.request<{ thread: { id: string } }>(
         threadId ? 'thread/resume' : 'thread/start',
-        { ...options, ...(threadId ? { threadId } : { ephemeral: false }) },
+        {
+          ...options,
+          ...(threadId
+            ? { threadId }
+            : {
+                ephemeral: false,
+                ...(guarded
+                  ? {
+                      dynamicTools: [
+                        {
+                          type: 'function',
+                          name: fileToolName,
+                          description: fileToolDescription,
+                          inputSchema: z.toJSONSchema(fileToolSchema),
+                          deferLoading: false,
+                        },
+                      ],
+                    }
+                  : {}),
+              }),
+        },
       );
       threadId = thread.thread.id;
       await emit({ type: 'runtime.started', data: { harness: 'codex', native_session_id: threadId } });

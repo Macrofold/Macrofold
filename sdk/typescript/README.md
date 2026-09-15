@@ -1,6 +1,8 @@
 # Macrofold TypeScript SDK
 
-Manage persistent projects and run Codex, Claude Code, or OpenCode through typed resource methods. Requires Node.js 24 or a modern browser runtime. Keep API keys in server-side code.
+Manage persistent projects and run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi through typed resource methods. Requires Node.js 24 or a modern browser runtime. Keep API keys in server-side code.
+
+Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
 
 ## Install from source
 
@@ -8,7 +10,7 @@ From the repository root, run `pnpm install` and `pnpm sdk:build`. In your appli
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key. Copy a project ID and saved agent preset ID from the dashboard. The preset supplies the harness, model, and billing configuration; the project identifies persistent files. Managed execution uses platform credits; local simulation is free.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```ts
 import { Macrofold } from 'macrofold';
@@ -16,7 +18,9 @@ import { Macrofold } from 'macrofold';
 const macrofold = new Macrofold();
 const run = await macrofold.runs.create({
   project_id: 'YOUR_PROJECT_ID',
-  agent_id: 'YOUR_AGENT_ID',
+  harness: 'codex',
+  model: 'gpt-5.4-mini',
+  billing_mode: 'managed',
   prompt: 'Create hello.txt containing Hello world.',
 });
 for await (const text of macrofold.runs.streamText(run.run_id)) {
@@ -24,7 +28,7 @@ for await (const text of macrofold.runs.streamText(run.run_id)) {
 }
 ```
 
-The default origin is `https://app.macrofold.ai`. Override it for local development:
+The default origin is `https://app.macrofold.ai`. Override it for self-hosting, staging, or local development; for example:
 
 ```ts
 const macrofold = new Macrofold({ baseURL: 'http://localhost:3210', apiKey: 'YOUR_LOCAL_API_KEY' });
@@ -89,4 +93,8 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 For OAuth, pass an async `token` supplier instead of `apiKey`. A browser using dashboard session authentication can explicitly select `sessionAuth: true` with its own `baseURL`; this sends same-origin cookies and never reads an environment key. Do not combine session mode with `apiKey` or `token`. An empty token still fails normal SDK validation, even with a custom fetch. The server validates the login session and resource permissions on each request. Use an authenticated server for other browser applications.
 
-See [API conventions](../../docs/features/api/README.md) for permissions, errors, pagination, and asynchronous work.
+See [API conventions](../../docs/features/api/conventions.md) for permissions, errors, pagination, and asynchronous work.
+
+## Choose a harness
+
+The same run methods support `codex`, `claude-code`, `opencode`, `hermes`, `deepseek`, and `pi`. Select a compatible model from the catalog. See [harness capabilities and examples](../../docs/features/execution/harnesses.md).

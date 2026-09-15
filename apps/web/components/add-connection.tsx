@@ -12,6 +12,8 @@ import { searchProviders, isSearchProvider } from '../../../packages/contracts/s
 const kinds = [
   { id: 'composio', label: 'Apps', icon: Globe },
   { id: 'model', label: 'Model key', icon: KeyRound },
+  { id: 'claude_subscription', label: 'Claude subscription', icon: ShieldCheck },
+  { id: 'codex_subscription', label: 'Codex subscription', icon: ShieldCheck },
   { id: 'mcp_remote', label: 'MCP server', icon: Terminal },
   { id: 'mcp_stdio', label: 'Sandbox MCP', icon: Box },
   { id: 'search', label: 'Web search', icon: Search },
@@ -20,6 +22,10 @@ type Kind = (typeof kinds)[number]['id'];
 const descriptions: Record<Kind, string> = {
   composio: 'Bring the apps you use every day into your agents’ workspace.',
   model: 'Use your own provider account. Your API key stays encrypted on the server.',
+  claude_subscription:
+    'Save a named Claude account configuration. Subscription authentication is not yet available; provider approval and isolated runtime validation are required.',
+  codex_subscription:
+    'Codex subscriptions are not available in Macrofold yet. No account is connected and no credentials are collected.',
   mcp_remote: 'Connect a remote MCP server and choose the tools your agents can use.',
   mcp_stdio: 'Run a reviewed MCP server inside your agent’s sandbox.',
   search: 'Give your agents up-to-date information from your preferred search provider.',
@@ -54,7 +60,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
     setEnvironment({});
     setName('');
     setUrl('');
-    setProvider(next === 'search' ? 'brave' : 'openai');
+    setProvider(next === 'claude_subscription' ? 'anthropic' : next === 'search' ? 'brave' : 'openai');
     setAuth(next === 'search' ? 'none' : 'bearer');
   }
   return (
@@ -76,7 +82,11 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
             onClick={() => changeKind(id)}
             disabled={busy}
           >
-            <Icon size={17} />
+            {id === 'claude_subscription' || id === 'codex_subscription' ? (
+              <ProviderLogo provider={id} size={19} />
+            ) : (
+              <Icon size={17} />
+            )}
             {label}
           </button>
         ))}
@@ -141,213 +151,229 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                 <p>{selected?.description || descriptions[kind]}</p>
               </div>
             </div>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setBusy(true);
-                setError('');
-                try {
-                  await api('/v1/connections', 'POST', {
-                    name,
-                    kind,
-                    auth_method:
-                      kind === 'model'
-                        ? 'api_key'
-                        : kind === 'composio'
-                          ? 'oauth'
-                          : kind === 'mcp_stdio'
-                            ? 'none'
-                            : auth,
-                    ...(kind === 'mcp_remote'
-                      ? { url }
-                      : kind === 'mcp_stdio'
-                        ? {
-                            package: selectedPackage?.package,
-                            package_version: selectedPackage?.version,
-                            secret_env: environment,
-                          }
-                        : { provider }),
-                    ...(secret ? { secret } : {}),
-                  });
-                  onClose();
-                  setSecret('');
-                  await client.invalidateQueries();
-                  toast.success('Connection added');
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Field label="Connection name">
-                <input
-                  autoFocus
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. My research tools"
-                />
-              </Field>
-              {kind === 'mcp_stdio' ? (
-                <>
-                  <Field label="Approved package">
-                    <Select
-                      required
-                      value={selectedPackage ? `${selectedPackage.package}@${selectedPackage.version}` : ''}
-                      onValueChange={(next) => {
-                        setPackageKey(next);
-                        setEnvironment({});
-                      }}
-                      options={[
-                        ...(packages.data?.data.map((p) => ({
-                          value: String(`${p.package}@${p.version}`),
-                          label: (
-                            <>
-                              {p.label} · {p.version}
-                            </>
-                          ),
-                        })) ?? []),
-                      ]}
-                    />
-                  </Field>
-                  {packages.error && <ErrorState error={packages.error} />}
-                  {selectedPackage?.environment_keys.map((key) => (
-                    <Field key={key} label={key}>
-                      <input
-                        type="password"
-                        autoComplete="off"
-                        value={environment[key] || ''}
-                        onChange={(e) => setEnvironment({ ...environment, [key]: e.target.value })}
+            {kind === 'codex_subscription' ? (
+              <div className="subscription-unavailable">
+                <span className="badge">Not yet available</span>
+                <p>
+                  Use Codex with workspace credits or your OpenAI API key today. Subscription sign-in will
+                  appear here when it is supported.
+                </p>
+                <Button variant="secondary" onClick={() => changeKind('model')}>
+                  Use an OpenAI API key
+                </Button>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setBusy(true);
+                  setError('');
+                  try {
+                    await api('/v1/connections', 'POST', {
+                      name,
+                      kind,
+                      auth_method:
+                        kind === 'claude_subscription'
+                          ? 'claude_code'
+                          : kind === 'model'
+                            ? 'api_key'
+                            : kind === 'composio'
+                              ? 'oauth'
+                              : kind === 'mcp_stdio'
+                                ? 'none'
+                                : auth,
+                      ...(kind === 'mcp_remote'
+                        ? { url }
+                        : kind === 'mcp_stdio'
+                          ? {
+                              package: selectedPackage?.package,
+                              package_version: selectedPackage?.version,
+                              secret_env: environment,
+                            }
+                          : { provider }),
+                      ...(secret ? { secret } : {}),
+                    });
+                    onClose();
+                    setSecret('');
+                    await client.invalidateQueries();
+                    toast.success('Connection added');
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Field label="Connection name">
+                  <input
+                    autoFocus
+                    required
+                    maxLength={120}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. My research tools"
+                  />
+                </Field>
+                {kind === 'mcp_stdio' ? (
+                  <>
+                    <Field label="Approved package">
+                      <Select
+                        required
+                        value={selectedPackage ? `${selectedPackage.package}@${selectedPackage.version}` : ''}
+                        onValueChange={(next) => {
+                          setPackageKey(next);
+                          setEnvironment({});
+                        }}
+                        options={[
+                          ...(packages.data?.data.map((p) => ({
+                            value: String(`${p.package}@${p.version}`),
+                            label: (
+                              <>
+                                {p.label} · {p.version}
+                              </>
+                            ),
+                          })) ?? []),
+                        ]}
                       />
                     </Field>
-                  ))}
-                  <div className="info-note">
-                    <ShieldCheck size={18} />
-                    <p>
-                      The pinned server runs inside your agent’s sandbox and can access its files. Any
-                      environment credentials you enter are visible to that process. Only the tools you grant
-                      will be exposed through the broker.
-                    </p>
-                  </div>
-                </>
-              ) : kind === 'search' ? (
-                <>
-                  <Field label="Search provider">
+                    {packages.error && <ErrorState error={packages.error} />}
+                    {selectedPackage?.environment_keys.map((key) => (
+                      <Field key={key} label={key}>
+                        <input
+                          type="password"
+                          autoComplete="off"
+                          value={environment[key] || ''}
+                          onChange={(e) => setEnvironment({ ...environment, [key]: e.target.value })}
+                        />
+                      </Field>
+                    ))}
+                    <div className="info-note">
+                      <ShieldCheck size={18} />
+                      <p>
+                        The pinned server runs inside your agent’s sandbox and can access its files. Any
+                        environment credentials you enter are visible to that process. Only the tools you
+                        grant will be exposed through the broker.
+                      </p>
+                    </div>
+                  </>
+                ) : kind === 'search' ? (
+                  <>
+                    <Field label="Search provider">
+                      <Select
+                        value={provider}
+                        onValueChange={(next) => {
+                          setProvider(next);
+                          setAuth('api_key');
+                          setSecret('');
+                          setError('');
+                        }}
+                        options={Object.entries(searchProviders).map(([value, info]) => ({
+                          value,
+                          label: <ProviderLabel provider={value} name={info.name} />,
+                        }))}
+                      />
+                    </Field>
+                    <Field label="Search funding">
+                      <Select
+                        value={auth}
+                        onValueChange={(next) => {
+                          setAuth(next);
+                          setSecret('');
+                        }}
+                        options={[
+                          ...(isSearchProvider(provider) && searchProviders[provider].managed
+                            ? [{ value: 'none', label: 'Managed \u00B7 charged to your run budget' }]
+                            : []),
+                          { value: 'api_key', label: `Bring your ${providerName(provider)} API key` },
+                        ]}
+                      />
+                    </Field>
+                    {auth === 'api_key' && (
+                      <p className="field-hint">
+                        Search usage is billed by your provider. These charges are separate from your run
+                        budget.
+                      </p>
+                    )}
+                  </>
+                ) : kind === 'model' ? (
+                  <Field label="Provider">
                     <Select
                       value={provider}
-                      onValueChange={(next) => {
-                        setProvider(next);
-                        setAuth('api_key');
-                        setSecret('');
-                        setError('');
-                      }}
-                      options={Object.entries(searchProviders).map(([value, info]) => ({
-                        value,
-                        label: info.name,
+                      onValueChange={setProvider}
+                      options={['openai', 'anthropic', 'openrouter'].map((provider) => ({
+                        value: provider,
+                        label: <ProviderLabel provider={provider} />,
                       }))}
                     />
                   </Field>
-                  <Field label="Search funding">
-                    <Select
-                      value={auth}
-                      onValueChange={(next) => {
-                        setAuth(next);
-                        setSecret('');
-                      }}
-                      options={[
-                        ...(isSearchProvider(provider) && searchProviders[provider].managed
-                          ? [{ value: 'none', label: 'Managed \u00B7 charged to your run budget' }]
-                          : []),
-                        { value: 'api_key', label: `Bring your ${providerName(provider)} API key` },
-                      ]}
-                    />
-                  </Field>
-                  {auth === 'api_key' && (
-                    <p className="field-hint">
-                      Search usage is billed by your provider. These charges are separate from your run
-                      budget.
-                    </p>
-                  )}
-                </>
-              ) : kind === 'model' ? (
-                <Field label="Provider">
-                  <Select
-                    value={provider}
-                    onValueChange={setProvider}
-                    options={['openai', 'anthropic', 'openrouter'].map((provider) => ({
-                      value: provider,
-                      label: <ProviderLabel provider={provider} />,
-                    }))}
-                  />
-                </Field>
-              ) : kind === 'mcp_remote' ? (
-                <>
+                ) : kind === 'mcp_remote' ? (
+                  <>
+                    <Field
+                      label="MCP endpoint URL"
+                      hint="Use the server’s public HTTPS Streamable HTTP endpoint."
+                    >
+                      <input
+                        type="url"
+                        required
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://mcp.example.com/mcp"
+                      />
+                    </Field>
+                    <Field label="Authentication">
+                      <Select
+                        value={auth}
+                        onValueChange={setAuth}
+                        options={[
+                          { value: 'oauth', label: 'OAuth \u00B7 Connect your account' },
+                          { value: 'bearer', label: 'Bearer token' },
+                          { value: 'none', label: 'No authentication' },
+                        ]}
+                      />
+                    </Field>
+                  </>
+                ) : null}
+                {(kind === 'model' ||
+                  (kind === 'mcp_remote' && auth === 'bearer') ||
+                  (kind === 'search' && auth === 'api_key')) && (
                   <Field
-                    label="MCP endpoint URL"
-                    hint="Use the server’s public HTTPS Streamable HTTP endpoint."
+                    label={
+                      kind === 'model'
+                        ? 'Provider API key'
+                        : kind === 'search'
+                          ? `${providerName(provider)} API key`
+                          : 'Bearer token'
+                    }
+                    hint="Encrypted on the server. Never returned after creation."
                   >
                     <input
-                      type="url"
+                      type="password"
+                      autoComplete="off"
                       required
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://mcp.example.com/mcp"
+                      value={secret}
+                      onChange={(e) => setSecret(e.target.value)}
+                      placeholder="Paste your secret"
                     />
                   </Field>
-                  <Field label="Authentication">
-                    <Select
-                      value={auth}
-                      onValueChange={setAuth}
-                      options={[
-                        { value: 'oauth', label: 'OAuth \u00B7 Connect your account' },
-                        { value: 'bearer', label: 'Bearer token' },
-                        { value: 'none', label: 'No authentication' },
-                      ]}
-                    />
-                  </Field>
-                </>
-              ) : null}
-              {(kind === 'model' ||
-                (kind === 'mcp_remote' && auth === 'bearer') ||
-                (kind === 'search' && auth === 'api_key')) && (
-                <Field
-                  label={
-                    kind === 'model'
-                      ? 'Provider API key'
-                      : kind === 'search'
-                        ? `${providerName(provider)} API key`
-                        : 'Bearer token'
-                  }
-                  hint="Encrypted on the server. Never returned after creation."
-                >
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    required
-                    value={secret}
-                    onChange={(e) => setSecret(e.target.value)}
-                    placeholder="Paste your secret"
-                  />
-                </Field>
-              )}
-              {kind === 'composio' && (
-                <div className="info-note">
-                  <ShieldCheck size={18} />
-                  <p>
-                    {selected?.connectable
-                      ? 'After adding this connection, choose Connect to authorize your account. You’ll select the tools your agents can use next.'
-                      : 'An administrator needs to enable this app before you can authorize an account. You can add the connection now and connect it later.'}
-                  </p>
+                )}
+                {kind === 'composio' && (
+                  <div className="info-note">
+                    <ShieldCheck size={18} />
+                    <p>
+                      {selected?.connectable
+                        ? 'After adding this connection, choose Connect to authorize your account. You’ll select the tools your agents can use next.'
+                        : 'An administrator needs to enable this app before you can authorize an account. You can add the connection now and connect it later.'}
+                    </p>
+                  </div>
+                )}
+                {error && <div className="form-error">{error}</div>}
+                <div className="dialog-actions">
+                  <Button type="submit" busy={busy}>
+                    Add connection
+                  </Button>
                 </div>
-              )}
-              {error && <div className="form-error">{error}</div>}
-              <div className="dialog-actions">
-                <Button type="submit" busy={busy}>
-                  Add connection
-                </Button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}

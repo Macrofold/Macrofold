@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider, useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
+import { useResolvedTheme } from '../components/theme';
 import type { components } from '../../../packages/contracts/api';
 export type Schema = components['schemas'];
 export type Page<T> = { data: T[]; next_cursor: string | null };
@@ -24,6 +25,7 @@ export async function api<T>(
   method = 'GET',
   body?: unknown,
   headers: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<T> {
   const payload =
     body === undefined
@@ -31,7 +33,8 @@ export async function api<T>(
       : headers['Content-Type'] === 'application/octet-stream'
         ? (body as string)
         : JSON.stringify(body);
-  const mutation = !['GET', 'HEAD'].includes(method);
+  const mutation =
+    !['GET', 'HEAD'].includes(method) && path.split('?')[0] !== '/v1/connection-access/resolve';
   const recoverable = mutation && (path.startsWith('/v1/') || path.startsWith('/admin/v1/'));
   const fingerprint = recoverable
     ? Array.from(
@@ -70,6 +73,7 @@ export async function api<T>(
   try {
     response = await fetch(path, {
       method,
+      signal,
       credentials: 'same-origin',
       headers: {
         'X-Client-Type': 'dashboard',
@@ -80,6 +84,9 @@ export async function api<T>(
       body: payload,
     });
   } catch {
+    // Cancellation does not prove that a dispatched mutation was rolled back.
+    rememberUncertain();
+    signal?.throwIfAborted();
     return uncertain();
   }
   if (!response.ok) {
@@ -108,7 +115,7 @@ export async function api<T>(
 export function useApi<T>(path: string | undefined, interval?: number | false) {
   return useQuery({
     queryKey: [path],
-    queryFn: () => api<T>(path!),
+    queryFn: ({ signal }) => api<T>(path!, 'GET', undefined, {}, signal),
     enabled: Boolean(path),
     refetchInterval: interval,
     retry: 1,
@@ -123,11 +130,15 @@ export function usePages<T>(
   const result = useInfiniteQuery({
     queryKey: [path, 'pages'],
     initialPageParam: '',
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const url = new URL(path!, window.location.origin);
       if (pageParam) url.searchParams.set('cursor', pageParam);
       const page = await api<Record<string, unknown> & { next_cursor: string | null }>(
         url.pathname + url.search,
+        'GET',
+        undefined,
+        {},
+        signal,
       );
       return { data: page[field] as T[], next_cursor: page.next_cursor };
     },
@@ -147,13 +158,20 @@ export function usePages<T>(
   };
 }
 export function Providers({ children }: { children: React.ReactNode }) {
+  const theme = useResolvedTheme();
   const [client] = useState(
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 15000, refetchOnWindowFocus: true } } }),
   );
   return (
     <QueryClientProvider client={client}>
       {children}
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster
+        position="bottom-right"
+        theme={theme}
+        offset={{ bottom: 76, right: 24 }}
+        richColors
+        closeButton
+      />
     </QueryClientProvider>
   );
 }

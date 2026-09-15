@@ -1,9 +1,9 @@
 .usage-chart-card {
   margin-top: 26px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--app-radius-lg);
   background: var(--paper);
-  box-shadow: 0 3px 14px #172b4d04;
+  box-shadow: none;
   overflow: hidden;
 }
 .usage-chart-header {
@@ -17,11 +17,12 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--muted);
   margin-bottom: 10px;
+  font-family: var(--app-font);
 }
 .usage-chart-header h2 {
   font-size: 14px;
@@ -48,9 +49,9 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 3px;
-  background: #f5f6f9;
+  background: var(--app-surface-2);
   padding: 4px;
-  border: 1px solid #edf0f5;
+  border: 1px solid var(--app-line);
   border-radius: 10px;
 }
 .chart-measures button {
@@ -68,8 +69,8 @@
 }
 .chart-measures button[aria-pressed='true'] {
   color: var(--ink);
-  background: white;
-  box-shadow: 0 1px 4px #172b4d14;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-1);
 }
 .usage-chart-plot {
   height: 280px;
@@ -84,12 +85,12 @@
   padding: 13px 16px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: white;
-  box-shadow: 0 8px 26px #172b4d1a;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-2);
 }
 .usage-chart-tooltip span,
 .usage-chart-tooltip small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .usage-chart-tooltip strong {
@@ -97,13 +98,13 @@
   font-variant-numeric: tabular-nums;
 }
 .usage-chart-footer {
-  border-top: 1px solid #f0f1f5;
+  border-top: 1px solid var(--app-line);
   padding: 13px 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .usage-chart-footer > span,
@@ -111,11 +112,12 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  font-size: 12px;
 }
 .usage-chart-footer i {
   width: 7px;
   height: 7px;
-  background: #5870e8;
+  background: var(--app-accent);
   border-radius: 2px;
 }
 .usage-chart-footer button {
@@ -148,11 +150,11 @@
   justify-content: center;
   flex-direction: column;
   gap: 8px;
-  background: #ffffffb3;
+  background: color-mix(in srgb, var(--app-surface) 95%, transparent);
   pointer-events: none;
 }
 .usage-chart-empty svg {
-  color: #8b99cb;
+  color: var(--app-ink-2);
   margin-bottom: 4px;
 }
 .usage-chart-empty strong {

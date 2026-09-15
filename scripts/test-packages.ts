@@ -29,10 +29,19 @@ try {
     maxBuffer: 1024 * 1024,
   });
   const version = JSON.parse(
-    (await exec(path.join(temporary, 'node_modules/.bin/agent'), ['version', '--json'], { cwd: temporary }))
-      .stdout,
+    (
+      await exec(path.join(temporary, 'node_modules/.bin/macrofold'), ['version', '--json'], {
+        cwd: temporary,
+      })
+    ).stdout,
   );
-  if (version.data.version !== '0.1.0') throw new Error('Installed CLI entry point failed.');
+  if (version.data.version !== '0.1.0' || version.data.executable !== 'macrofold')
+    throw new Error('Installed Macrofold CLI entry point failed.');
+  const help = await exec(path.join(temporary, 'node_modules/.bin/macrofold'), ['run', '--help'], {
+    cwd: temporary,
+  });
+  if (!help.stdout.includes('Usage: macrofold run') || help.stdout.includes('Usage: agent'))
+    throw new Error('Installed CLI help names the wrong executable.');
   await writeFile(
     path.join(temporary, 'verify.mjs'),
     `import assert from 'node:assert/strict';

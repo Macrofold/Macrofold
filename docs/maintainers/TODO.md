@@ -2,9 +2,11 @@
 
 This is the central list of unresolved release work. It is not part of the published documentation site's navigation, search index, or Markdown export. A checked-in adapter or a local simulation pass does not close a live deployment check.
 
-Future architecture proposals are tracked separately in [future improvements](../architecture/future-improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
+Product and architecture proposals are tracked separately in [ranked improvements](../product/improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
 
 ## Public repository and distribution
+
+- [ ] Resolve the four-field first-run API: harness, provider, model, and prompt. Define workspace creation and funding defaults before changing admission, OpenAPI, generated SDKs, and examples together. Current examples accurately retain the required project and billing mode; provider selection comes from the catalog.
 
 - [ ] Enable GitHub private vulnerability reporting. The public repository API currently reports it disabled. Verify the private report flow, then update SECURITY.md with its working direct link.
 - [ ] Publish a monitored maintainer contact and community reporting route; update security and conduct policies together. Do not publish a personal email without its owner's approval.
@@ -16,10 +18,13 @@ Future architecture proposals are tracked separately in [future improvements](..
 
 ## Development modes and complete agent acceptance
 
+- [ ] Accept the pinned Hermes, DeepSeek and Pi adapters on Linux AMD64/Vercel and live managed/BYOK routes under a new approved budget. Verify image startup, long conversations/compaction, external MCP revocation and interruption recovery. See [harness acceptance](../engineering/testing/harnesses.md).
+
 Follow the [implementation brief](../engineering/development-modes.md) and keep the [developer guides](../getting-started/local-development.md) aligned with actual capability.
 
 - [x] Connect local Docker through the existing provider port, SQL worker, gateway and checkpoint lifecycle, with explicit shared profile, budgeted inference and synthetic local compute accounting.
-- [ ] Run the implemented `pnpm test:journey:docker` on a responsive Docker daemon and Linux CI; its current attempt stopped at the bounded image probe. Then accept each reviewed live Docker/cloud harness/model route with `pnpm test:journey:live` under separately approved inference/infrastructure budgets. Confirm dashboard freshness, internal network host-gateway reachability, checkpoint recovery and sandbox cleanup; see [exact evidence and commands](../engineering/testing/development-modes.md).
+- [x] Pass all six complete API-triggered Docker journeys locally on Linux ARM64 with scripted models, internal-network relay, worker recovery, stream replay, file verification, replacement-container continuation and released reservations.
+- [ ] Repeat the complete matrix on Linux AMD64 CI and accept each reviewed live Docker/cloud harness/model route with `pnpm test:journey:live` under separately approved inference/infrastructure budgets. Confirm deployed dashboard freshness, Workflow handoff, checkpoint recovery and sandbox cleanup; see [exact evidence and commands](../engineering/testing/development-modes.md).
 
 ## Automated staging and production releases
 
@@ -36,6 +41,8 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 ## Hosted application
 
+- [ ] Accept the redesigned dashboard on deployed Cloud and self-hosted origins in Safari, Firefox, and physical mobile devices. Verify theme persistence, editor drafts, nested account-menu keyboard/screen-reader navigation, reduced-motion/forced-color focus, hidden-scrollbar scrolling, waiting sheen, clipboard feedback, and copied documentation URLs. Keep the account assistant labeled as a UI preview until a separately reviewed hosted implementation exists; see [dashboard improvements](../product/improvements.md#dashboard).
+
 - [ ] Reconcile existing production auth/vault/cron key sets with stored encrypted credentials in the private operator record. Import only restricted runtime credentials; retain migration-owner access separately.
 - [ ] Verify the production Neon history window and protection flag, configure the recommended seven-day history on a supporting paid plan, enable branch protection, and rehearse isolated PITR. The supplied setup handoff reports six-hour history and protection disabled; this documentation review did not re-query account metadata. Follow [database safeguards](../operations/neon.md#production-recovery-safeguards).
 - [ ] Finish the prepared staging deployment in the intended Vercel project: isolated database/bucket/email, migrations, reviewed source, default Stripe Portal, protected webhook reachability, destination activation, and Checkout-to-ledger acceptance. Reverify reported saved credentials and prices; do not recreate the destination merely because it is disabled or infer readiness from the reported variable count. Follow [project selection](../operations/launch-environment.md#staging-and-vercel-project-selection) and [billing activation](../operations/launch-integrations.md#activate-and-test-staging-billing).
@@ -47,6 +54,10 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 ## Execution, integrations, and money
 
+- [ ] Obtain Anthropic approval for the exact hosted native subscription arrangement, then implement the isolated authentication/controller boundary, generation-fenced credential persistence, quota preflight, budgeted API fallback, continuation and separate usage accounting. Named configurations are implemented; these execution capabilities are not. The previous four-task live authorization is exhausted. See [design and acceptance requirements](../engineering/testing/named-connections.md).
+- [ ] Accept two real Composio accounts of the same toolkit through HTTPS consent, pinned execution, rename/reconnect, and upstream revocation. Fixtures verify SDK account-selection shapes but do not establish actual provider account identity or revocation.
+
+- [ ] Accept [model catalog refresh](../features/execution/models.md) in deployed maintenance after migration 029. Verify account entitlements, fresh/stale cache behavior across instances, OpenRouter routing price ceilings and vendor invoice reconciliation with separately approved inference budgets. Free metadata checks do not establish native execution acceptance.
 - [ ] Run a bounded native cloud task and continuation for each supported harness/model route. Managed/BYOK gateway protocol tests passed for OpenAI, Anthropic, and OpenRouter; they do not establish native Sandbox execution.
 - [ ] Complete deployed Composio callback acceptance, a narrowly granted action through the run broker, and live revocation rejection. Local GitHub consent, verified callback activation and one authenticated profile read with a provider log ID pass; see [live acceptance](../engineering/testing/live-integrations.md#github-callback-acceptance).
 - [ ] Complete authenticated search-provider, remote/stdio MCP, and GitHub App synchronization/revocation tests using synthetic data and explicit budgets.
@@ -57,11 +68,19 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 ## Marketing publication
 
-- [ ] Choose a direction from the [ten marketing concepts](../product/marketing/README.md), confirm final brand copy, and promote it to the canonical homepage in a separate reviewed change. The gallery is public but noindexed; it does not run an A/B experiment.
+- [ ] Set a real public `SUPPORT_EMAIL` for Business/Enterprise sales links. A missing or placeholder address currently yields a working billing-guide link rather than an invented contact. Confirm the Business $1,000/month offer’s concurrency, runtime, storage, retention, credits, and support terms before activation; add reviewed entitlements and Stripe prices before offering self-serve checkout. Enterprise remains individually quoted.
+
+- [ ] Build the reviewed marketing release source before publication. [Site verification](../product/marketing/site/verification.md) records browser, calculator, TypeScript, and remaining device/background-tab acceptance.
+
+- [ ] Confirm the hosted API origin and publish SDK packages before replacing source-installation guidance. Journey examples use the SDK’s actual `app.macrofold.ai` default.
+
 - [ ] Check the selected page on the deployed hostname, in Safari/Firefox and on physical mobile devices; local Chromium/accessibility checks do not establish conversion or usability.
-- [ ] Produce and validate the selected hero animation from its [motion study](../product/marketing/README.md). The ten generated posters are concept frames; measure the final media's loading, frame pacing, and reduced-motion behavior before publication.
+- [ ] Review [Swarm Myriad](../product/marketing/swarm-myriad/README.md), the preserved [Swarm Efflorescence](../product/marketing/swarm-efflorescence/README.md), the preserved [Swarm Confluence](../product/marketing/swarm-confluence/README.md), the preserved [Swarm Continuum](../product/marketing/swarm-continuum/README.md), the preserved [Swarm Metamorphosis](../product/marketing/swarm-metamorphosis/README.md), the preserved [Swarm Resonance](../product/marketing/swarm-resonance/README.md), the preserved [Swarm Emergence](../product/marketing/swarm-emergence/README.md), the preserved [organic and polygonal volumes](../product/marketing/swarm-volumes/README.md), the [manifold iteration](../product/marketing/swarm-manifolds/README.md), and the preserved Crossed planes and Compressed folds favorites and earlier [Swarm particle collection](../product/marketing/swarm-motion.md), and select one for the [final site](../product/marketing/site/README.md). Myriad has a compressed H.264 website delivery; verify its loading, frame pacing, encoding quality, pause, and reduced-motion behavior on the deployed hostname and representative phones/Safari. Lossless and editing exports are deferred. Evaluate alpha-video support only if a transparent-video integration is selected.
 
 ## Documentation publication
+
+- [x] Complete isolated optimized builds and all six documentation browser/API journeys with dashboard regression. September 11 acceptance verifies mobile/accessibility, clipboard recovery, Python/cURL quickstarts and sequential preset handoff. See [customer-agent foundation evidence](../engineering/testing/customer-agents.md). Hosted/remote onboarding remains below.
+- [ ] Exercise the [AI setup prompt](../getting-started/agents.md) from an actual customer application against accessible Cloud and self-hosted documentation. Verify first result, file read, recovery, and handoff; keep secrets outside chat. Consider a distributed skill or docs MCP only if this reveals retrieval friction.
 
 - [ ] Set the intended public `APP_ORIGIN` and `PRODUCT_NAME` at build time, rebuild, and verify canonical URLs, sitemap, raw Markdown, and social metadata on the real hostname.
 - [ ] Verify deployment access controls and robots headers on previews. Submit the public sitemap in Search Console after verifying domain ownership; monitor indexing rather than claiming an SEO/AEO guarantee.
@@ -75,6 +94,8 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 ## Ongoing quality
 
+- [ ] Update and accept the DeepSeek runtime dependency chain for the `js-yaml` empty-merge CPU advisory (patched in 4.3.2). The September 10 production audit reports one high finding through `@deepseek-ai/cordis-plugin-include`; none belongs to the new Tiptap editor dependencies.
+
 The [coverage gap audit](../engineering/testing/gaps.md) and [mutation record](../engineering/testing/mutation.md) own detailed test debt. Remaining targets include authentication recovery branches, persistence failures, cloud execution policy, and surviving meaningful mutants. No exclusions or superficial assertions should replace those checks.
 
 Live provider quotas/invoices, enterprise SSO/SCIM, arbitrary custom runtime images, a raw remote desktop/PTY, cross-harness conversation migration, and autonomous infrastructure mutation are outside the current product scope. They are not represented as working features in public guides.
@@ -83,6 +104,18 @@ Use the [release checklist](../operations/pre-deployment.md) to record each acce
 
 ## Trigger release acceptance
 
-Restore the unchanged 38% domain function-coverage floor. The final trigger suite passes 571 tests and the other coverage floors, but function coverage is 37.35%. Keep the complete application inventory visible and add meaningful tests; see [trigger evidence](../engineering/testing/triggers.md#full-suite-result-and-coverage-gap). Browser/CLI acceptance passes separately and does not override this domain gate.
-
 Complete the [live Slack and cloud scheduling checks](../engineering/testing/triggers.md#remaining-live-acceptance). Measure callback latency, maintenance throughput and retained receipt growth before offering a delivery or start-time SLA.
+
+## Agent permission acceptance
+
+- [ ] Validate guarded file tools for all six harnesses in the live runtime before enabling granular file policies in production. Exercise excluded hydration, native tool denial, checkpoint rejection, and reconnect under the same frozen session policy. Disposable tests do not establish live acceptance.
+
+## Connector access release acceptance
+
+- [ ] Rehearse migration 032 with drained admission and matching API/worker deployment in isolated staging. Verify current delegated write revocation, exact provider account binding, cross-instance access edits, and dispatch ordering on the deployed transport. Run any external connector invocation only with synthetic data and an explicit budget. Local fixtures and browser acceptance do not establish live cloud/provider acceptance. See [activation and verification](../engineering/testing/connection-access.md).
+
+## Customer-agent foundations release acceptance
+
+- [ ] Rehearse migration 033 and operator setup on the intended staging database. Verify persisted toolkit/version/Auth Config selection, custom-auth choice, managed-creation recovery, HTTPS customer consent, an explicitly granted pinned action and revocation. Configure each deployment deliberately; the removed environment maps are not read by runtime. Local preview migration preserved one existing GitHub setup without provider calls. See [connector setup](../features/identity-integrations/composio.md).
+- [ ] Accept newly admitted OpenRouter routes on the intended native harnesses under an approved budget, including tool protocol, context limits, price ceilings and final usage/invoice reconciliation. Discovery does not establish account entitlement or all model/harness combinations. Smaller or unknown context/output limits remain excluded until the runtime receives per-model configuration; see [model policy](../features/execution/models.md).
+- [ ] Before adopting the reference app for real customers, replace demo identity and single-process storage/locking as appropriate, configure customer spending/retention controls, and verify two-customer isolation against hosted Supabase/Pinecone/MCP resources. Keep real provider actions separately authorized and budgeted. The [reference app and data-recipe record](../engineering/testing/customer-agents.md) distinguishes runnable local evidence from these deployment decisions.

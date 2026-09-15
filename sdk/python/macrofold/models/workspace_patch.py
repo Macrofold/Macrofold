@@ -18,8 +18,9 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from macrofold.models.agent_permissions import AgentPermissions
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -28,8 +29,9 @@ class WorkspacePatch(BaseModel):
     """
     WorkspacePatch
     """ # noqa: E501
-    name: Annotated[str, Field(min_length=1, strict=True, max_length=100)]
-    __properties: ClassVar[List[str]] = ["name"]
+    name: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=151)]] = None
+    permissions: Optional[AgentPermissions] = None
+    __properties: ClassVar[List[str]] = ["name", "permissions"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -70,6 +72,9 @@ class WorkspacePatch(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
         return _dict
 
     @classmethod
@@ -82,7 +87,8 @@ class WorkspacePatch(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name")
+            "name": obj.get("name"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None
         })
         return _obj
 

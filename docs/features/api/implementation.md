@@ -49,7 +49,7 @@ BYOK requires a compatible provider connection. Managed mode requires an active 
 | Runs             | GET/POST /runs; GET /runs/{id}; POST /runs/{id}/cancel; POST /runs/{id}/input                                                                                                |
 | Results          | GET /runs/{id}/result; GET /runs/{id}/events; GET /runs/{id}/stream                                                                                                          |
 | Artifacts        | GET /runs/{id}/artifacts; GET /artifacts/{id}/download                                                                                                                       |
-| Connections      | GET/POST /connections; GET/PATCH/DELETE /connections/{id}; POST authorize/test; GET tools; GET/PUT /connections/{id}/grants                                                  |
+| Connections      | GET/POST /connections; GET/PATCH/DELETE /connections/{id}; POST authorize/test; GET tools; GET/PATCH /connections/{id}/access; GET/POST access/rules; PATCH/DELETE access/rules/{rule_id}; POST /connection-access/resolve                                                  |
 | Keys             | GET/POST /api-keys; DELETE /api-keys/{id}                                                                                                                                    |
 | Webhooks         | GET/POST /webhook-endpoints; PATCH/DELETE /webhook-endpoints/{id}; POST /webhook-endpoints/{id}/rotate-secret; GET /webhook-deliveries; POST /webhook-deliveries/{id}/replay |
 | Usage            | GET /usage; GET /requests                                                                                                                                                    |
@@ -60,7 +60,7 @@ BYOK requires a compatible provider connection. Managed mode requires an active 
 
 In this table routes inherit /v1. File PUT is binary-safe application/octet-stream up to 4 MiB with path and If-Match; larger files use staged object transfer up to 25 MiB per file; deletion also checks revision. If-Match uses the workspace revision returned by the file listing, including when creating a new path. Both return a completed operation after checkpoint persistence and revision publication; inspect its status and result. List/preview responses identify active versus checkpoint data and last verified checkpoint time.
 
-Connection grants use versioned structured subject/tools. Granting requires connection ownership or authorized organization administration. A run can select only a subset of those grants; it cannot escalate them by naming extra tools in run JSON.
+Connection access uses an approved tool ceiling, organization toggle and additive project/preset/pair rules. Broadening requires both ownership and administrator authority. A shared quoted If-Match version covers every access edit. Run connection_grants selects tools; connection_access_overrides is an explicit, owner-authorized one-run exception. Optional project/preset expansions and persisted advisory resolution reuse the same matching policy. See [connector access rules](../identity-integrations/connection-access.md).
 
 Result retrieval always returns the current run outcome and available partial output, with final=true only after terminalization. Artifacts require authorization at access time and use short-lived download URLs. Cancellation is idempotent and returns current state, not a claim that external effects were undone.
 

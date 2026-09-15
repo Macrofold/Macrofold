@@ -28,9 +28,13 @@ type Session struct {
 	Model string `json:"model"`
 	CreatedAt time.Time `json:"created_at"`
 	BillingMode *string `json:"billing_mode,omitempty"`
+	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
 	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
+	// Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	Limits *Limits `json:"limits,omitempty"`
+	AgentId NullableString `json:"agent_id,omitempty"`
+	AgentVersion NullableInt32 `json:"agent_version,omitempty"`
 }
 
 type _Session Session
@@ -305,6 +309,90 @@ func (o *Session) SetLimits(v Limits) {
 	o.Limits = &v
 }
 
+// GetAgentId returns the AgentId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Session) GetAgentId() string {
+	if o == nil || IsNil(o.AgentId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.AgentId.Get()
+}
+
+// GetAgentIdOk returns a tuple with the AgentId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Session) GetAgentIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.AgentId.Get(), o.AgentId.IsSet()
+}
+
+// HasAgentId returns a boolean if a field has been set.
+func (o *Session) HasAgentId() bool {
+	if o != nil && o.AgentId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentId gets a reference to the given NullableString and assigns it to the AgentId field.
+func (o *Session) SetAgentId(v string) {
+	o.AgentId.Set(&v)
+}
+// SetAgentIdNil sets the value for AgentId to be an explicit nil
+func (o *Session) SetAgentIdNil() {
+	o.AgentId.Set(nil)
+}
+
+// UnsetAgentId ensures that no value is present for AgentId, not even an explicit nil
+func (o *Session) UnsetAgentId() {
+	o.AgentId.Unset()
+}
+
+// GetAgentVersion returns the AgentVersion field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Session) GetAgentVersion() int32 {
+	if o == nil || IsNil(o.AgentVersion.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.AgentVersion.Get()
+}
+
+// GetAgentVersionOk returns a tuple with the AgentVersion field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Session) GetAgentVersionOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.AgentVersion.Get(), o.AgentVersion.IsSet()
+}
+
+// HasAgentVersion returns a boolean if a field has been set.
+func (o *Session) HasAgentVersion() bool {
+	if o != nil && o.AgentVersion.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentVersion gets a reference to the given NullableInt32 and assigns it to the AgentVersion field.
+func (o *Session) SetAgentVersion(v int32) {
+	o.AgentVersion.Set(&v)
+}
+// SetAgentVersionNil sets the value for AgentVersion to be an explicit nil
+func (o *Session) SetAgentVersionNil() {
+	o.AgentVersion.Set(nil)
+}
+
+// UnsetAgentVersion ensures that no value is present for AgentVersion, not even an explicit nil
+func (o *Session) UnsetAgentVersion() {
+	o.AgentVersion.Unset()
+}
+
 func (o Session) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -331,6 +419,12 @@ func (o Session) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Limits) {
 		toSerialize["limits"] = o.Limits
+	}
+	if o.AgentId.IsSet() {
+		toSerialize["agent_id"] = o.AgentId.Get()
+	}
+	if o.AgentVersion.IsSet() {
+		toSerialize["agent_version"] = o.AgentVersion.Get()
 	}
 	return toSerialize, nil
 }

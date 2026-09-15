@@ -4,16 +4,20 @@ import { assert } from './errors';
 import { requireProject, type Principal } from './auth';
 import type { components } from '../../contracts/api';
 
-export function presentKey(row: Record<string, unknown>) {
+export type KeyRow = {
+  id: string; name: string; prefix: string; scopes: string[]; project_ids: string[];
+  expires_at: Date | null; revoked_at: Date | null; last_used_at: Date | null;
+};
+export function presentKey(row: KeyRow) {
   return {
     id: row.id,
     name: row.name,
     prefix: row.prefix,
     scopes: row.scopes,
-    ...((row.project_ids as string[])?.[0] ? { project_id: (row.project_ids as string[])[0] } : {}),
-    ...(row.expires_at ? { expires_at: row.expires_at } : {}),
-    ...(row.revoked_at ? { revoked_at: row.revoked_at } : {}),
-    ...(row.last_used_at ? { last_used_at: row.last_used_at } : {}),
+    ...(row.project_ids?.[0] ? { project_id: row.project_ids[0] } : {}),
+    ...(row.expires_at ? { expires_at: row.expires_at.toISOString() } : {}),
+    ...(row.revoked_at ? { revoked_at: row.revoked_at.toISOString() } : {}),
+    ...(row.last_used_at ? { last_used_at: row.last_used_at.toISOString() } : {}),
   };
 }
 export async function createKey(tx: Tx, p: Principal, input: components['schemas']['KeyCreate']) {
@@ -40,7 +44,7 @@ export async function createKey(tx: Tx, p: Principal, input: components['schemas
       'Expiration must be in the future.',
     );
   const secret = token();
-  const result = await tx.query(
+  const result = await tx.query<KeyRow>(
     'INSERT INTO api_keys(id,organization_id,user_id,name,key_hash,prefix,scopes,project_ids,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
     [
       id(),

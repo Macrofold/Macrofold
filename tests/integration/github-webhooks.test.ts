@@ -72,7 +72,10 @@ it('verifies and deduplicates notifications, pulls real Git changes, and fences 
       );
       const project = await r.create(tx, 'projects', org, {
         name: 'Webhook project',
-        github: { installation_id: installation, repository_id: '1', target_branch: 'main', auto_pull: true },
+        github: { installation_id: installation, repository_id: '1', target_branch: 'main', auto_pull: true,
+          auto_sync: false,
+          sync_mode: 'push',
+        },
       });
       const op = await createWorkspace(tx, p, project.id, { name: 'main' });
       return r.get(tx, 'workspaces', String((op.result as { workspace_id: string }).workspace_id));

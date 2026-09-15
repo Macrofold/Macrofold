@@ -1,10 +1,10 @@
-# Hosted-agent terminal CLI
+# Macrofold terminal CLI
 
 Contributor reference. Start with the [feature guide](README.md) for user workflows.
 
 The CLI is a first-class client of the same API used by the dashboard and SDKs. It gives a Claude Code/Codex-like terminal experience while the agent, shell tools, models, files, and Git operations execute in the hosted workspace.
 
-The `agent` executable, configuration directory, and environment prefix are centralized distribution settings.
+The `macrofold` executable, configuration directory, and environment prefix are centralized distribution settings.
 
 ## Technology and distribution
 
@@ -16,44 +16,46 @@ The npm package targets macOS and Linux with Node 24, pinned dependencies and ge
 
 | Command                                                               | Behavior                                                                                                  |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| agent login [--profile NAME] [--host URL]                             | Browser/device authorization against a selected trusted service                                           |
-| agent logout / whoami                                                 | Revoke local authorization where supported; inspect identity/organization                                 |
-| agent project list / create / show                                    | Discover and manage authorized hosted projects                                                            |
-| agent link PROJECT [--workspace ID]                                   | Associate the local directory with an existing remote project                                             |
-| agent unlink                                                          | Remove local association without deleting remote data                                                     |
-| agent worktree list / create NAME --from REF / use NAME / remove NAME | Manage and select remote isolated workspaces and branches                                                 |
-| agent worktree checkout NAME --local PATH                             | Explicitly create a local Git worktree for review from an exported remote Git bundle                      |
-| agent chat [--session ID]                                             | Open an interactive continuing remote-agent session                                                       |
-| agent run PROMPT [--detach]                                           | Submit one prompt; stream and wait by default                                                             |
-| agent run --prompt-file FILE                                          | Submit UTF-8 prompt file; use - for stdin                                                                 |
-| agent run list / show ID / attach ID / cancel ID                      | Inspect, reconnect to, or cancel remote work                                                              |
-| agent run input ID --request INPUT_ID --answer-file FILE              | Answer a waiting run without an interactive terminal                                                      |
-| agent version                                                         | Print installed CLI/build version locally                                                                 |
-| agent session list / resume ID                                        | Discover and continue hosted conversation history                                                         |
-| agent files list / cat PATH / diff [--local]                          | Inspect remote checkpoint diffs; --local uses a dry-run transfer comparison with recorded local baselines |
-| agent files push [PATH...] / pull [PATH...] [--dry-run]               | Explicit version-checked file transfer; no continuous sync                                                |
-| agent checkpoint list / create / restore ID                           | Inspect or restore remote persistent state                                                                |
-| agent git status / sync                                               | Inspect/retry remote Git synchronization                                                                  |
-| agent connection list / add / authorize / tools                       | Configure the same authorized MCP/provider resources as the dashboard                                     |
-| agent usage / config / doctor                                         | Inspect tenant usage, profiles, API compatibility, and non-billable diagnostics                           |
+| macrofold login [--profile NAME] [--host URL]                             | Browser/device authorization against a selected trusted service                                           |
+| macrofold logout / whoami                                                 | Revoke local authorization where supported; inspect identity/organization                                 |
+| macrofold project list / create / show                                    | Discover and manage authorized hosted projects                                                            |
+| macrofold link PROJECT [--workspace ID]                                   | Associate the local directory with an existing remote project                                             |
+| macrofold unlink                                                          | Remove local association without deleting remote data                                                     |
+| macrofold worktree list / create NAME --from REF / use NAME / remove NAME | Manage and select remote isolated workspaces and branches                                                 |
+| macrofold worktree checkout NAME --local PATH                             | Explicitly create a local Git worktree for review from an exported remote Git bundle                      |
+| macrofold chat [--session ID]                                             | Open an interactive continuing remote-agent session                                                       |
+| macrofold run PROMPT [--detach]                                           | Submit one prompt; stream and wait by default                                                             |
+| macrofold run --prompt-file FILE                                          | Submit UTF-8 prompt file; use - for stdin                                                                 |
+| macrofold run list / show ID / attach ID / cancel ID                      | Inspect, reconnect to, or cancel remote work                                                              |
+| macrofold run input ID --request INPUT_ID --answer-file FILE              | Answer a waiting run without an interactive terminal                                                      |
+| macrofold version                                                         | Print installed CLI/build version locally                                                                 |
+| macrofold session list / resume ID                                        | Discover and continue hosted conversation history                                                         |
+| macrofold files list / cat PATH / diff [--local]                          | Inspect remote checkpoint diffs; --local uses a dry-run transfer comparison with recorded local baselines |
+| macrofold files push [PATH...] / pull [PATH...] [--dry-run]               | Explicit version-checked file transfer; no continuous sync                                                |
+| macrofold checkpoint list / create / restore ID                           | Inspect or restore remote persistent state                                                                |
+| macrofold git status / sync                                               | Inspect/retry remote Git synchronization                                                                  |
+| macrofold connection list / add / authorize / tools                       | Configure the same authorized MCP/provider resources as the dashboard                                     |
+| macrofold usage / config / doctor                                         | Inspect tenant usage, profiles, API compatibility, and non-billable diagnostics                           |
 
-With no arguments in a TTY, agent opens chat using the selected profile/project; missing authorization or selection returns setup instructions. A non-TTY invocation prints help. The run topic reserves list/show/attach/cancel/input; use `agent run -- "list"` or --prompt-file when a literal prompt collides with a subcommand. The parser normalizes this convenience form before dispatching through oclif.
+With no arguments in a TTY, macrofold opens chat using the selected profile/project; missing authorization or selection returns setup instructions. A non-TTY invocation prints help. The run topic reserves list/show/attach/cancel/input; use `macrofold run -- "list"` or --prompt-file when a literal prompt collides with a subcommand. The parser normalizes this convenience form before dispatching through oclif.
 
-Global selection flags are --profile, --organization, --project, --workspace and --session. Execution flags include --harness, --model, --billing-mode, --provider-connection, --connection, --timeout and --max-cost. Local flags never increase server-enforced grants, account limits, or catalog capabilities. Running commands without an interactive terminal requires explicit selectors when a choice is ambiguous.
+Global selection flags are --profile, --organization, --project, --workspace and --session. Execution flags include --harness, --model, --billing-mode, --provider-connection, --connection, --no-connections, --timeout and --max-cost. Local flags never increase server-enforced grants, account limits, or catalog capabilities. Running commands without an interactive terminal requires explicit selectors when a choice is ambiguous.
+
+`macrofold run PROMPT --agent AGENT_ID` selects a saved preset without injecting default billing, credentials, or limits over it. The flag is exclusive with explicit harness/model/funding flags and cannot change a selected session. Explicit timeout and budget overrides preserve other preset limits. Named Claude subscription presets are configurable but execution is gated; [named connections](../identity-integrations/named-connections.md) describes availability.
 
 ## Example user experience
 
 ```sh
-agent login
-agent project list
-agent link research
-agent worktree create weekly-report --from main --use
-agent chat
-agent run "Update the weekly report and save the supporting notes"
-agent run "Investigate the failing tests" --detach
-agent run attach RUN_ID
-agent files diff
-agent files pull notes/weekly.md --dry-run
+macrofold login
+macrofold project list
+macrofold link research
+macrofold worktree create weekly-report --from main --use
+macrofold chat
+macrofold run "Update the weekly report and save the supporting notes"
+macrofold run "Investigate the failing tests" --detach
+macrofold run attach RUN_ID
+macrofold files diff
+macrofold files pull notes/weekly.md --dry-run
 ```
 
 Inside chat the header shows the selected workspace, branch, harness/model and session ID. The status line shows active or queued runs. A bounded terminal transcript streams assistant text, tool/event summaries and persistence outcomes. `/status` reads workspace state, `/connections` reads authorized connections and `/answer REQUEST_ID TEXT` answers an exposed native input request. Rich tool payloads and retained historical traces remain available through the dashboard/API; the terminal is a compact live view. The execution budget is supplied by `--max-cost` and remains enforced on the server.
@@ -64,11 +66,11 @@ Slash commands include /help, /status, /worktree, /model, /connections, /diff, /
 
 Register a public first-party OAuth CLI client without an embedded secret. Use Better Auth's OAuth device authorization integration: request a device/user code, display the verification URL/code, optionally open the browser, and poll the token endpoint at the server-provided interval. Handle authorization_pending, slow_down, expiration and denial. Cancellation propagates through code issuance, polling sleeps, token requests, and identity verification. Polling waits and requests are bounded by device-code expiry; cancelled or expired flows do not save a new profile. This works through SSH without a callback listener. Tokens have the customer API audience, not the admin MCP audience. [Better Auth CLI authorization](https://better-auth.com/docs/plugins/oauth-provider)
 
-Default consent includes identity, offline access, projects/files/runs read and write, connections read, and usage read, capped by membership. Connection changes require the corresponding granted write scope; `agent login --scope connections:write` requests additional consent. `connection add` obtains secret fields through masked input or a protected stdin/file input, never a secret-valued argv flag. No operator scope is included. Use configurable short access-token lifetimes (initially 15 minutes) and revocable refresh grants (initially 30 days). Refresh access tokens automatically with a credential-store lock; replace rotated tokens atomically. Revocation/account removal is checked server-side on subsequent operations.
+Default consent includes identity, offline access, projects/files/runs read and write, connections read, and usage read, capped by membership. Connection changes require the corresponding granted write scope; `macrofold login --scope connections:write` requests additional consent. `connection add` obtains secret fields through masked input or a protected stdin/file input, never a secret-valued argv flag. No operator scope is included. Use configurable short access-token lifetimes (initially 15 minutes) and revocable refresh grants (initially 30 days). Refresh access tokens automatically with a credential-store lock; replace rotated tokens atomically. Revocation/account removal is checked server-side on subsequent operations.
 
 Store credentials in the user's private configuration directory with mode 0700 and a credentials file with mode 0600 on the supported POSIX systems. Windows ACL support remains a platform acceptance task. Tokens are plaintext within that protected file, not claimed to be encrypted. Refuse unsafe permissions rather than broadening access. Support an explicitly configured external credential helper later without requiring a small native keychain dependency at launch. Never place tokens in the project, process arguments, URLs, logs, or error reports. CI uses a scoped API key from an environment variable or --api-key-stdin; do not encourage --api-key SECRET arguments.
 
-agent link writes a non-secret .agent/link.json containing schema version, approved profile name, organization/project/workspace IDs, and transfer baseline references. Add this local state to Git's local excludes when applicable. A checked-out link file is a hint, not authorization: resolve membership and project/workspace consistency, display context, and never send credentials to an origin specified by repository content. Hosts come from user-approved global profiles. Changing host requires explicit login/trust and exact origin matching.
+macrofold link writes a non-secret .agent/link.json containing schema version, approved profile name, organization/project/workspace IDs, and transfer baseline references. Add this local state to Git's local excludes when applicable. A checked-out link file is a hint, not authorization: resolve membership and project/workspace consistency, display context, and never send credentials to an origin specified by repository content. Hosts come from user-approved global profiles. Changing host requires explicit login/trust and exact origin matching.
 
 Selector precedence: explicit flags, then linked directory, then an explicitly set global default. When a session is selected, its server-owned workspace/project/harness wins; contradictory selectors are errors. Resolve the nearest linked root without following a symlink outside the user's selected directory. Each local Git worktree has independent link/context state so changing one does not switch another terminal's remote workspace.
 
@@ -100,7 +102,7 @@ During an active session, a new prompt is persisted as a queued follow-up using 
 
 Explicit harness input requests are different from follow-up prompts: answer them using their input_request_id so the existing run can continue. In noninteractive mode, report waiting_for_input with run ID and exit code 4; the hosted run waits under its deadline and can be answered later through the CLI/dashboard/API.
 
-First Ctrl-C during execution requests cancellation of that run and waits for acknowledgement while partial work is saved. A second Ctrl-C exits the terminal immediately, stating whether cancellation was acknowledged. /detach, Ctrl-D at an empty prompt, --detach and ordinary terminal disconnection leave remote work running. Cancelling an active run does not implicitly cancel already queued follow-ups; show their count and allow `agent run cancel QUEUED_RUN_ID` for each queued follow-up. Restore raw mode/cursor visibility on every exit path.
+First Ctrl-C during execution requests cancellation of that run and waits for acknowledgement while partial work is saved. A second Ctrl-C exits the terminal immediately, stating whether cancellation was acknowledged. /detach, Ctrl-D at an empty prompt, --detach and ordinary terminal disconnection leave remote work running. Cancelling an active run does not implicitly cancel already queued follow-ups; show their count and allow `macrofold run cancel QUEUED_RUN_ID` for each queued follow-up. Restore raw mode/cursor visibility on every exit path.
 
 ## Human and machine output
 
@@ -124,6 +126,10 @@ The [machine-readable command contract](../../api/cli.json) maps every command t
 
 ## Queue and execution controls
 
-`agent run "Investigate the failure" --timeout 1800 --queue-timeout 900 --scheduling interactive` caps execution at 30 minutes and the pre-start wait at 15 minutes. API background jobs default to a full day of queue tolerance. Attached CLI runs and chat default to interactive; `--detach` defaults to background. Either can explicitly select a class. Interactive work takes first consideration when a slot opens but never interrupts a running agent or bypasses an earlier writer in its workspace.
+`macrofold run "Investigate the failure" --timeout 1800 --queue-timeout 900 --scheduling interactive` caps execution at 30 minutes and the pre-start wait at 15 minutes. API background jobs default to a full day of queue tolerance. Attached CLI runs and chat default to interactive; `--detach` defaults to background. Either can explicitly select a class. Interactive work takes first consideration when a slot opens but never interrupts a running agent or bypasses an earlier writer in its workspace.
 
-`agent run show RUN_ID --json` exposes under `data.run` `wait_seconds`, `waiting_reason`, `queue_expires_at`, `execution_deadline`, `scheduling_class` and `reserved_micro_usd`. Human streams show waiting updates every five seconds and the exact `agent run cancel RUN_ID` command. `agent run attach RUN_ID --jsonl` continues to emit durable events; inspect separately for transient queue observations. Expiry emits `run.failed` with `data.code=queue_expired`. It retains history and releases the reserved budget. The server enforces the current Starter/Pro/Scale runtime and account concurrency cap; run timeouts cannot override a plan. Without `--timeout`, the server chooses its default within the account cap. [Complete policy](../execution/scheduling.md).
+`macrofold run show RUN_ID --json` exposes under `data.run` `wait_seconds`, `waiting_reason`, `queue_expires_at`, `execution_deadline`, `scheduling_class` and `reserved_micro_usd`. Human streams show waiting updates every five seconds and the exact `macrofold run cancel RUN_ID` command. `macrofold run attach RUN_ID --jsonl` continues to emit durable events; inspect separately for transient queue observations. Expiry emits `run.failed` with `data.code=queue_expired`. It retains history and releases the reserved budget. The server enforces the current Starter/Pro/Scale runtime and account concurrency cap; run timeouts cannot override a plan. Without `--timeout`, the server chooses its default within the account cap. [Complete policy](../execution/scheduling.md).
+
+## Connector access boundary
+
+CLI run/chat admission remains a client of the shared resolver. It must not convert an omitted selection into an empty list, infer authorization from owner identity, or reconstruct an old per-run exception on continuation. The explicit --connection selector narrows persistent policy for custom, preset and continued runs; --no-connections selects none. Omitting both inherits. The two flags are mutually exclusive. Chat uses a supplied selection for its messages; it never creates a temporary authorization exception. Rule mutation and advisory resolve are available through generated SDK operations; [connector access](../identity-integrations/connection-access.md) owns their semantics.

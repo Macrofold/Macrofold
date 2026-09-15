@@ -9,12 +9,20 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
 }));
 vi.mock('@composio/core', () => ({
   Composio: class {
-    getConfig = () => ({ toolkitVersions: { github: 'reviewed-version' } });
     getClient = () => ({ tools: { list: fixture.listComposio } });
   },
 }));
 // Discovery mapping does not need identity/database startup; OAuth and real
 // grant transactions have their own integration coverage.
+vi.mock('../../packages/core/src/connector-enablement', () => ({
+  enabledConnector: async (toolkit: string) => ({
+    toolkit,
+    toolkit_version: 'reviewed-version',
+    auth_config_id: 'fixture-auth',
+    enabled: true,
+    creation_pending: false,
+  }),
+}));
 vi.mock('../../packages/core/src/resources', () => ({}));
 vi.mock('../../packages/core/src/mcp-oauth', () => ({
   withConnectionOAuth: () => {
@@ -27,8 +35,12 @@ const connection = {
   organization_id: 'fixture',
   revision: '1',
   created_at: '',
+  name: 'Fixture',
+  status: 'healthy' as const,
   auth_method: 'none',
-  grants: { tools: ['second'] },
+  access_version: '1',
+  access_organization_wide: true,
+  access_tools: ['second'],
 };
 afterEach(() => {
   vi.clearAllMocks();

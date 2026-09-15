@@ -1,6 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { Composio } from '@composio/core';
+import { composio } from '../../providers/src/composio';
+export { composio } from '../../providers/src/composio';
+import { enabledConnector } from './connector-enablement';
 import type { Tx } from '../../db';
 import type { Principal } from './auth';
 import { assert, AppError } from './errors';
@@ -14,26 +16,9 @@ import { approvedStdio } from './stdio-catalog';
 import { searchKey, searchIdentity } from './search';
 import { searchTool, searchProviders } from '../../contracts/search';
 import { collectToolPages } from '../../providers/src/tool-catalog';
+import { requireClaudeSubscriptionExecution, validateClaudeFallback } from './claude-connections';
 type Schema = components['schemas'];
-export function composio() {
-  const apiKey = process.env.COMPOSIO_API_KEY?.trim();
-  // Dashboard/session metadata can contain a masked key. Presence alone does
-  // not make that display value a usable server credential.
-  assert(
-    apiKey && !/\*|…|\.{3}/.test(apiKey),
-    503,
-    'integration_not_configured',
-    'Configure a complete Composio project API key. Masked key values cannot authenticate.',
-  );
-  return new Composio({
-    apiKey,
-    allowTracking: false,
-    disableVersionCheck: true,
-    fileUploadDirs: false,
-    toolkitVersions: JSON.parse(process.env.COMPOSIO_TOOLKIT_VERSIONS_JSON || '{}'),
-  });
-}
-export function assertConnectionOwner(p: Principal, c: resources.Document) {
+export function assertConnectionOwner(p: Principal, c: resources.Document<'connections'>) {
   assert(
     c.owner_subject_id === p.userId,
     403,
@@ -47,6 +32,7 @@ export async function saveConnection(
   input: Schema['ConnectionPatch'],
   connectionId?: string,
 ) {
+  if (connectionId) await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [connectionId]);
   const existing = connectionId ? await resources.get(tx, 'connections', connectionId, p) : undefined;
   if (existing) assertConnectionOwner(p, existing);
   if (existing)
@@ -58,6 +44,38 @@ export async function saveConnection(
         'Create a new connection to change its service or authentication method.',
       );
   const merged = { ...existing, ...input };
+  assert(
+    typeof merged.name === 'string' && merged.name.trim().length > 0 && merged.name.length <= 120,
+    400,
+    'invalid_connection_name',
+    'Give the connection a name between 1 and 120 characters.',
+  );
+  assert(
+    !input.api_fallback || merged.kind === 'claude_subscription',
+    400,
+    'invalid_fallback',
+    'API fallback is only available on a Claude subscription connection.',
+  );
+  let apiFallback;
+  if (merged.kind === 'claude_subscription') {
+    assert(
+      merged.provider === 'anthropic' &&
+        merged.auth_method === 'claude_code' &&
+        !merged.url &&
+        !input.secret &&
+        !input.secret_headers &&
+        !input.secret_env,
+      400,
+      'invalid_subscription_connection',
+      'Claude subscriptions use native Claude Code authentication. Do not upload tokens or credential files.',
+    );
+    // A disconnected backup must not prevent renaming its parent connection.
+    // Admission revalidates the saved policy before it can authorize spending.
+    apiFallback =
+      existing && input.api_fallback === undefined
+        ? existing.api_fallback
+        : await validateClaudeFallback(tx, p, input.api_fallback);
+  }
   if (merged.url) await validatePublicURL(String(merged.url));
   if (merged.kind === 'search') {
     const provider = searchIdentity(merged);
@@ -124,42 +142,41 @@ export async function saveConnection(
       'This package does not accept one of those environment variables.',
     );
   }
-  if (input.subject_id)
-    assert(
-      input.subject_id === p.userId,
-      403,
-      'subject_mismatch',
-      'A connection must be authorized by its owner.',
-    );
   const { secret, secret_headers, secret_env, ...safe } = input;
   const data = {
     ...safe,
+    name: merged.name.trim(),
     owner_subject_id: p.userId,
+    ...(merged.kind === 'claude_subscription'
+      ? { api_fallback: apiFallback, availability: 'pending_approval' as const }
+      : {}),
     status:
-      merged.kind === 'model' ||
-      merged.kind === 'mcp_stdio' ||
-      merged.auth_method === 'none' ||
-      secret ||
-      secret_headers
-        ? 'healthy'
-        : 'pending',
+      existing && secret === undefined && secret_headers === undefined && secret_env === undefined
+        ? existing.status
+        : merged.kind === 'model' ||
+            merged.kind === 'mcp_stdio' ||
+            merged.auth_method === 'none' ||
+            secret ||
+            secret_headers
+          ? 'healthy'
+          : 'pending',
     ...(secret ? { secret_ciphertext: seal(secret) } : {}),
     ...(secret_headers ? { headers_ciphertext: seal(secret_headers) } : {}),
     ...(secret_env ? { environment_ciphertext: seal(secret_env) } : {}),
   };
   return existing
     ? resources.update(tx, 'connections', existing.id, data)
-    : resources.create(tx, 'connections', p.organizationId, {
-        ...data,
-        grants: { version: 1, subject_type: 'user', subject_id: p.userId, tools: [] },
-      });
+    : resources.create(tx, 'connections', p.organizationId, data);
 }
-export function connectionHeaders(c: resources.Document) {
+export function connectionHeaders(c: resources.Document<'connections'>) {
   const headers = c.headers_ciphertext ? unseal<Record<string, string>>(String(c.headers_ciphertext)) : {};
   if (c.secret_ciphertext) headers.Authorization = `Bearer ${unseal<string>(String(c.secret_ciphertext))}`;
   return headers;
 }
-export async function withMcp<T>(connection: resources.Document, fn: (client: Client) => Promise<T>) {
+export async function withMcp<T>(
+  connection: resources.Document<'connections'>,
+  fn: (client: Client) => Promise<T>,
+) {
   assert(
     connection.kind === 'mcp_remote' && connection.url,
     400,
@@ -184,9 +201,9 @@ export async function withMcp<T>(connection: resources.Document, fn: (client: Cl
   };
   return connection.auth_method === 'oauth' ? withConnectionOAuth(connection, execute) : execute();
 }
-export async function connectionTools(c: resources.Document): Promise<Schema['Tool'][]> {
-  const grants = (c.grants as Schema['ConnectionGrantSet']).tools;
-  if (c.kind === 'model') return [];
+export async function connectionTools(c: resources.Document<'connections'>): Promise<Schema['Tool'][]> {
+  const grants = c.access_tools;
+  if (c.kind === 'model' || c.kind === 'claude_subscription') return [];
   if (c.kind === 'search') return [{ ...searchTool, granted: grants.includes(searchTool.name) }];
   if (c.kind === 'mcp_stdio')
     return approvedStdio(c.package, c.package_version).tools.map((t) => ({
@@ -194,6 +211,7 @@ export async function connectionTools(c: resources.Document): Promise<Schema['To
       granted: grants.includes(t.name),
     }));
   if (c.kind === 'composio') {
+    const setup = await enabledConnector(String(c.provider));
     const sdk = composio();
     // The high-level raw-tools helper discards next_cursor. Use its public API
     // client so a large toolkit does not silently hide tools after the first page.
@@ -201,7 +219,7 @@ export async function connectionTools(c: resources.Document): Promise<Schema['To
       const page = await sdk.getClient().tools.list(
         {
           toolkit_slug: String(c.provider),
-          toolkit_versions: sdk.getConfig().toolkitVersions,
+          toolkit_versions: { [setup.toolkit]: setup.toolkit_version },
           limit: 100,
           ...(cursor ? { cursor } : {}),
         },
@@ -233,8 +251,9 @@ export async function connectionTools(c: resources.Document): Promise<Schema['To
     }),
   );
 }
-export async function authorizeConnection(_tx: Tx, p: Principal, c: resources.Document) {
+export async function authorizeConnection(_tx: Tx, p: Principal, c: resources.Document<'connections'>) {
   assertConnectionOwner(p, c);
+  if (c.kind === 'claude_subscription') requireClaudeSubscriptionExecution();
   if (c.kind === 'mcp_remote' && c.auth_method === 'oauth')
     return {
       authorization_url: `${config.origin}/integrations/mcp/install?connection_id=${c.id}&organization_id=${p.organizationId}`,
@@ -251,12 +270,16 @@ export async function authorizeConnection(_tx: Tx, p: Principal, c: resources.Do
     expires_at: new Date(Date.now() + 600000).toISOString(),
   };
 }
-export async function testConnection(tx: Tx, p: Principal, c: resources.Document) {
+export async function testConnection(tx: Tx, p: Principal, c: resources.Document<'connections'>) {
   assertConnectionOwner(p, c);
   let status: 'healthy' | 'error' | 'unknown' = 'healthy';
   let message = 'Connection is available.';
   try {
-    if (c.kind === 'model') {
+    if (c.kind === 'claude_subscription') {
+      status = 'unknown';
+      message =
+        'Named configuration saved. Native Claude subscription authentication is pending provider approval and runtime validation; no account was contacted.';
+    } else if (c.kind === 'model') {
       status = 'unknown';
       message =
         'Credential stored. No inference request was made; the first authorized run validates it with the provider.';
@@ -277,9 +300,14 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
         'authorization_required',
         'Connect and verify your account first.',
       );
-      const account = await composio().connectedAccounts.get(String(c.external_account_id));
+      const account = await composio().connectedAccounts.get(String(c.external_account_id), {
+        signal: AbortSignal.timeout(15000),
+      });
       assert(
-        account.status === 'ACTIVE',
+        account.id === c.external_account_id &&
+          account.toolkit.slug === c.provider &&
+          account.status === 'ACTIVE' &&
+          !account.isDisabled,
         409,
         'authorization_required',
         'Authorization is incomplete or expired.',
@@ -298,54 +326,4 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
     last_checked_at: observed_at,
   });
   return { status, observed_at, message };
-}
-export async function setGrants(
-  tx: Tx,
-  p: Principal,
-  c: resources.Document,
-  input: Schema['ConnectionGrantSet'],
-) {
-  assertConnectionOwner(p, c);
-  assert(
-    input.subject_type !== 'external_subject',
-    400,
-    'subject_unsupported',
-    'External subjects require a separately provisioned trusted identity binding.',
-  );
-  if (input.subject_type === 'organization')
-    assert(
-      ['owner', 'admin'].includes(p.role),
-      403,
-      'forbidden',
-      'Only organization administrators may share a connection.',
-    );
-  else
-    assert(
-      input.subject_id === p.userId,
-      403,
-      'forbidden',
-      'User grants must belong to the authorizing user.',
-    );
-  const catalog = await connectionTools(c);
-  // OAuth discovery may refresh credentials in a separate transaction. Lock
-  // only after discovery, then re-read authorization/revision before the write.
-  await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [c.id]);
-  c = await resources.get(tx, 'connections', c.id, p);
-  assertConnectionOwner(p, c);
-  const old = c.grants as Schema['ConnectionGrantSet'];
-  assert(
-    input.version === old.version,
-    412,
-    'stale_revision',
-    'Connection grants changed. Reload before saving.',
-  );
-  assert(
-    input.tools.every((t) => catalog.some((a) => a.name === t)),
-    400,
-    'unknown_tool',
-    'The grant contains a tool absent from the current catalog.',
-  );
-  const grants = { ...input, version: old.version + 1 };
-  await resources.update(tx, 'connections', c.id, { grants, shared: input.subject_type === 'organization' });
-  return grants;
 }

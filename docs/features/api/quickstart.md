@@ -1,79 +1,63 @@
 # API quickstart
 
-Create a project, start a run, and read its result with cURL. Use a local simulator for a free first request or an authorized deployment for real agent execution.
+Create a project, run an agent, and print the result. This example works with Macrofold Cloud or your own deployment.
 
-## Prefer an SDK?
-
-The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a project, and a saved agent preset. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; streams reconnect automatically.
+**Building with a coding agent?** Copy the [setup prompt](../../getting-started/agents.md) and describe the feature you want.
 
 ## Before you begin
 
-You need cURL, [jq](https://jqlang.org/), `uuidgen`, and an API key created in the dashboard's **API keys** page. Grant project and run read/write scopes for this example. Store the key as `AGENT_API_KEY` using your shell or secret manager.
-
-Set the service origin and check access. Use your deployment's HTTPS origin instead of localhost for hosted work.
-
-```sh
-export AGENT_HOST=http://localhost:3210
-curl --fail-with-body "$AGENT_HOST/v1/me" \
-  -H "Authorization: Bearer $AGENT_API_KEY"
-```
+1. Get access to [Macrofold Cloud](../../cloud/README.md), use a [self-hosted deployment](../../operations/README.md), or start the [free local simulator](../../getting-started/local-development/simulation.md).
+2. In **API keys**, create a key with project and run read/write access. Store it as `MACROFOLD_API_KEY` in your server environment.
+3. Install the [Python SDK](../../../sdk/python/README.md#install-from-source). Prefer another language? Use [TypeScript](../../../sdk/typescript/README.md), [Go](../../../sdk/go/README.md), [Rust](../../../sdk/rust/README.md), [Java](../../../sdk/java/README.md), or [HTTP](http-quickstart.md).
 
 ## 1. Create a project
 
-```sh
-export PROJECT_REQUEST_KEY="$(uuidgen)"
-PROJECT_ID=$(curl --fail-with-body "$AGENT_HOST/v1/projects" \
-  -H "Authorization: Bearer $AGENT_API_KEY" \
-  -H "Idempotency-Key: $PROJECT_REQUEST_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Research","persistence":"persistent"}' | jq -er '.id')
+Save this as `example.py`. Set `MACROFOLD_BASE_URL` to your deployment's origin for local or self-hosted use; leaving it unset selects Cloud. This example reads that variable explicitly.
+
+```python
+import os
+from macrofold import Macrofold
+
+macrofold = Macrofold(
+    base_url=os.environ.get("MACROFOLD_BASE_URL", "https://app.macrofold.ai"),
+)
+project = macrofold.projects.create(name="Research")
 ```
 
-The returned ID identifies the project. Reuse this request key and body if the response is lost; keep the same terminal environment for the steps below.
+A project keeps its files between tasks. Save `project.id` and reuse it in your application.
 
-## 2. Choose a model
+## 2. Start a run
 
-```sh
-curl --fail-with-body "$AGENT_HOST/v1/models" \
-  -H "Authorization: Bearer $AGENT_API_KEY"
+Append the following. Set `MACROFOLD_MODEL` to a model enabled for Codex in your dashboard. For free local simulation, use `fixture-model`. Real execution requires credits or a configured BYOK connection and can incur charges.
+
+```python
+run = macrofold.runs.create(
+    project_id=project.id,
+    harness="codex",
+    model=os.environ["MACROFOLD_MODEL"],
+    billing_mode="managed",
+    prompt="Create hello.txt containing Hello world.",
+    limits={"timeout_seconds": 300, "max_cost_micro_usd": "1000000"},
+)
 ```
 
-Select a model compatible with Codex. The local simulator uses `fixture-model`:
+This caps the run budget at $1; it is not a price estimate. To choose another agent, see [harnesses and models](../execution/harnesses.md). A saved [agent preset](../execution/README.md) can supply the harness, model, and billing settings instead.
 
-```sh
-export AGENT_MODEL=fixture-model
+## 3. Get the result
+
+```python
+result = macrofold.runs.wait(run.run_id)
+print(result.output_text)
+macrofold.close()
 ```
 
-For a hosted run, replace that value with an enabled model ID and add prepaid credits. Real execution can incur charges. This example sets a maximum budget of $1; it is not a prediction of the task's cost.
+Run `python example.py`. You'll see the agent's response after execution and file persistence finish. A failed run raises an exception with its run ID. Simulation produces scripted output rather than interpreting the prompt.
 
-## 3. Start a run
+## Next steps
 
-```sh
-export RUN_REQUEST_KEY="$(uuidgen)"
-RUN_ID=$(jq -n --arg project "$PROJECT_ID" --arg model "$AGENT_MODEL" \
-  '{project_id:$project,harness:"codex",model:$model,billing_mode:"managed",
-    prompt:"Read the project and save a short progress note.",
-    limits:{timeout_seconds:300,max_cost_micro_usd:"1000000"}}' | \
-  curl --fail-with-body "$AGENT_HOST/v1/runs" \
-    -H "Authorization: Bearer $AGENT_API_KEY" \
-    -H "Idempotency-Key: $RUN_REQUEST_KEY" \
-    -H 'Content-Type: application/json' --data-binary @- | jq -er '.run_id')
-```
+- [Approve connector access](../identity-integrations/connection-access.md) and choose inherited, specific, or no tools.
 
-The server accepts the task and returns a run ID. This is an asynchronous acceptance, not the final result.
-
-## 4. Follow progress and retrieve the result
-
-```sh
-curl -N --fail-with-body "$AGENT_HOST/v1/runs/$RUN_ID/stream" \
-  -H "Authorization: Bearer $AGENT_API_KEY"
-
-curl --fail-with-body "$AGENT_HOST/v1/runs/$RUN_ID/result" \
-  -H "Authorization: Bearer $AGENT_API_KEY"
-```
-
-A cURL stream can end at the server's connection rotation before the run finishes. Reconnect with `Last-Event-ID` using the last event ID, or use an SDK to handle reconnection. Check the result's `final` flag before treating it as complete.
-
-## Continue building
-
-Use a workspace or session selector for work over existing files and conversations. Learn [authentication and retries](README.md), [event delivery](events.md), and [CLI workflows](../cli/README.md). The [OpenAPI contract](../../api/openapi.json) lists every operation and schema.
+- [Stream text](../../../sdk/python/README.md#text-structured-events-or-a-complete-result) as the agent works.
+- [Read the saved file](../workspaces/read-files.md) using `run.workspace_id`.
+- [Let another agent use those files](../workspaces/shared-agents.md).
+- [Handle retries and errors](conventions.md) before connecting the flow to real customer actions.

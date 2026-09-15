@@ -22,6 +22,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.agent_permissions import AgentPermissions
+from macrofold.models.contextual_connection_page import ContextualConnectionPage
 from macrofold.models.project_github import ProjectGithub
 from typing import Optional, Set
 from typing_extensions import Self
@@ -43,8 +45,10 @@ class Project(BaseModel):
     revision: Optional[StrictStr] = None
     deletion_due_at: Optional[datetime] = None
     deletion_requested_at: Optional[datetime] = None
+    permissions: Optional[AgentPermissions] = None
+    connections: Optional[ContextualConnectionPage] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organization_id", "name", "persistence", "github", "created_at", "storage_bytes", "archived", "default_workspace_id", "revision", "deletion_due_at", "deletion_requested_at"]
+    __properties: ClassVar[List[str]] = ["id", "organization_id", "name", "persistence", "github", "created_at", "storage_bytes", "archived", "default_workspace_id", "revision", "deletion_due_at", "deletion_requested_at", "permissions", "connections"]
 
     @field_validator('persistence')
     def persistence_validate_enum(cls, value):
@@ -107,6 +111,12 @@ class Project(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of github
         if self.github:
             _dict['github'] = self.github.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of connections
+        if self.connections:
+            _dict['connections'] = self.connections.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -150,7 +160,9 @@ class Project(BaseModel):
             "default_workspace_id": obj.get("default_workspace_id"),
             "revision": obj.get("revision"),
             "deletion_due_at": obj.get("deletion_due_at"),
-            "deletion_requested_at": obj.get("deletion_requested_at")
+            "deletion_requested_at": obj.get("deletion_requested_at"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
+            "connections": ContextualConnectionPage.from_dict(obj["connections"]) if obj.get("connections") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -1,43 +1,42 @@
 # Documentation verification
 
-The documentation acceptance suite uses public pages and synthetic local fixtures. It makes no model, sandbox, payment, email, or connector-provider calls and does not attach to the running preview.
+The documentation uses Macrofold’s shared Saddle identity and product palette across guides, search, code examples, connector discovery and mobile navigation. [Documentation architecture](../documentation.md) owns the implementation; this record distinguishes rendered/local evidence from hosted acceptance.
 
-## Verified behavior
+## Current local results
 
-| Check                           | Result and scope                                                                                                                                                                                                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Publication and links           | 24 published pages; 84 Markdown files and 54 requirement mappings pass generation drift, local target, heading-anchor, and reachability checks                                                                                                                     |
-| Focused regression tests        | 27 tests pass across documentation, contract inventory, and coverage collection; eight documentation tests cover explicit publication, private-path rejection, generated drift, links, headings, all-guide server rendering, exports, and current OpenAPI metadata |
-| Full TypeScript domain suite    | 425 tests in 61 files pass; 192 application files remain visible in coverage; 48.71% lines, 47.53% statements, 38.74% branches, and 38.95% functions, with existing floors unchanged                                                                               |
-| Strict checks and build         | `pnpm check`, generated API/client contracts, and the isolated optimized Next.js/Workflow build pass; all 24 guide pages are generated                                                                                                                             |
-| Browser acceptance              | Six journeys pass on Chromium with one worker and no retries, including the existing dashboard files → run → historical output journey                                                                                                                             |
-| Public routes                   | Every published HTML/Markdown route, canonical URL, sitemap entry, search/agent index, unknown-page 404, and unpublished-source 404 is checked; a guide is readable with JavaScript disabled                                                                       |
-| Documentation UX                | Persistent shell navigation, keyboard search, failed-fetch retry, empty results, anchors, clipboard success/failure, mobile menu, and horizontal overflow checks pass                                                                                              |
-| Accessibility and visual review | WCAG A/AA axe checks pass on the sampled landing/pricing/docs, search-dialog, API, and mobile billing views; desktop/mobile screenshots were visually reviewed                                                                                                     |
-| Client regression acceptance    | Four CLI subprocess cases, the real POSIX terminal journey, and Python HTTP/SSE continuation pass against the final isolated build                                                                                                                                 |
-| Executable guide                | The cURL quickstart's actual shell blocks create a project and run, stream `run.succeeded`, and retrieve a final result through the isolated application and simulator worker; only the service origin is replaced                                                 |
+| Check | Result and scope |
+| --- | --- |
+| Navigation appearance | The existing branded-docs Playwright journey passes after the CSS-only header correction, using a fresh browser context against the public local preview. Desktop light/dark screenshots confirm the matching header and contrasting lockup; appearance persistence, mobile layout, search and axe checks pass. This follow-up performs no account or data mutations. |
+| Optimized build | Next.js production compilation, application TypeScript and static generation pass, including all 52 published documentation pages. |
+| Documentation browser/API journeys | All 7 pass against an isolated optimized application and simulator worker. They cover appearance persistence, desktop/mobile accessibility, keyboard focus return, navigation/search/error recovery, clipboard feedback, all public HTML/Markdown pages, sitemap, no-JavaScript reading, and execution of the published cURL/Python examples with sequential preset handoff. |
+| Documentation unit tests | All 11 pass, covering route inventory, private-path rejection, source drift, heading anchors, server rendering, metadata, search and agent exports. |
+| Command-line acceptance | All 6 CLI subprocess tests pass, including command-inventory enumeration at its existing timeout. The real-terminal journey and Python HTTP/SSE with persisted session continuation also pass. |
+| Strict TypeScript | `pnpm check` passes, including SDK build and application/test types. |
+| Generation and links | All 52 public pages pass drift checks; 180 Markdown files and 54 requirement evidence mappings have valid local targets. |
+| Visual review | Reviewed the landing page, customer-agent guide, code blocks, search and mobile navigation in the running preview. Automated screenshots cover light/dark desktop, the landing page and mobile search/reading; layout checks include 900, 390 and 320-pixel widths. Axe reports no violations in the tested states. |
 
-The full domain coverage measurement precedes the final metadata test and keyboard-scroll rendering adjustment; the focused checks and browser build cover those changes. Supplemental server/browser/worker/CLI observations are retained for this targeted run, but a new complete combined/native coverage percentage is not claimed. The preceding complete baseline remains in [testing and CI](../testing.md).
+The complete isolated runner passed for the branded shell before the navigation appearance correction on September 11, 2026 with Node 24.13.0, the normal Docker PostgreSQL 17 and Mailpit services, and the pinned Playwright Chromium browser. It built an optimized application and simulator worker against a fresh disposable database, checked the build source manifest, ran the browser/API, CLI, terminal and Python surfaces above and cleaned up its fixtures. Evidence is retained under `coverage/docs-branding-docker/`; the existing developer preview and its data were preserved. The CSS-only follow-up reran the relevant existing browser journey and documentation checks, without repeating the production build or unrelated CLI/API checks.
 
-## Reproduce the documentation acceptance
+This successful run supersedes the earlier disk-space, unavailable-Docker and missing-browser failures, as well as the ancillary CLI timeout. No CLI implementation or timeout changed. These results establish local UI/API simulation behavior, not live Cloud acceptance, model reasoning, email delivery or hosted crawler acceptance. Earlier customer-agent acceptance is recorded [separately](../testing/customer-agents.md).
 
-Use the unpaid local prerequisites from [testing and CI](../testing.md). Choose a new coverage directory for each run:
+## Reproduce the checks
+
+Use the [local test prerequisites](../../../TESTING.md), including Node 24, the pinned Playwright Chromium browser and Python SDK dependencies. With the normal test database available:
 
 ```sh
+pnpm docs:generate
 pnpm docs:check
 pnpm check
-pnpm test:domain tests/unit/docs.test.ts tests/unit/coverage-pipeline.test.ts tests/unit/manifest.test.ts
-COVERAGE_DIR=coverage/docs-review pnpm test:dashboard:isolated tests/browser/public.spec.ts tests/browser/docs.spec.ts tests/browser/dashboard.spec.ts
+pnpm exec vitest run tests/unit/docs.test.ts
+COVERAGE_DIR=coverage/docs-branding-next pnpm test:dashboard:isolated tests/browser/docs.spec.ts
 ```
 
-The isolated runner also executes the four CLI subprocess tests, the real POSIX terminal journey, and Python HTTP/SSE continuation. It creates disposable PostgreSQL/files and a separate application/worker port, then cleans up those fixtures. Build output has its own strict TypeScript configuration so another preview's generated route validators cannot contaminate acceptance. JavaScript-disabled browser contexts have no client execution coverage to collect.
+Choose a fresh coverage directory for each acceptance run. The isolated runner creates its own database, files, build, application port and worker, then cleans up its fixtures. It also runs the existing CLI subprocess, real-terminal and Python HTTP/SSE checks. It must not attach to the developer preview. Restore a missing test browser with `pnpm exec playwright install chromium`.
 
-The final acceptance artifacts use `coverage/docs-publication-20260906-final`; browser screenshots and traces use ignored `test-results` and `playwright-report`. These are local evidence locations, not shipped documentation assets.
+## Hosted and user acceptance
 
-The server shutdown log contains a V8 “Precise coverage has not been started” diagnostic. Acceptance exited successfully and captured observations are retained, but this targeted run is not evidence of complete supplemental coverage. Use a fresh full collection and its required-surface gates for a release coverage claim.
+Verify Cloud account access, the real `APP_ORIGIN`, canonical metadata, source links, Markdown content types, caches and crawler access on the released hostname. Confirm SDK installation from the documented source and override the origin when testing self-hosting. Model availability and limits must come from the authenticated deployment.
 
-## Hosted acceptance
+Give the setup prompt to a coding agent in a small customer application and verify first-run, file-read, interruption recovery and sequential handoff tasks. A remote agent needs reachable docs or attached Markdown; localhost is not universally accessible. This live onboarding exercise has not been performed.
 
-Verify canonical URLs and metadata with the production build's `APP_ORIGIN`, public source links after the release is pushed, deployed caching/content types, and crawler access on the real domain. Search Console setup, package publication, and GitHub private reporting are separate maintainer tasks in [release TODO](../../maintainers/TODO.md).
-
-Automated accessibility checks and Chromium acceptance do not establish complete assistive-technology, Safari/Firefox, or hosted-edge compatibility. No new native-container, live-provider, mutation, or cloud deployment run was performed for the documentation change.
+Safari/Firefox, assistive-technology review and cloud edge behavior remain unverified. Hosted publication and optional future skill/MCP distribution remain in the [maintainer backlog](../../maintainers/TODO.md#documentation-publication). No new native-container, provider, email or cloud execution acceptance is claimed for this branding change.

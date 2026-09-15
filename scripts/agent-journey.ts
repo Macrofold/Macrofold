@@ -4,7 +4,7 @@ import { Client, type Schema } from '../sdk/typescript/src/index';
 
 export const hello = 'Hello from the agent\n';
 export type JourneyOptions = {
-  harness: 'codex' | 'claude-code' | 'opencode';
+  harness: Schema['Harness']['id'];
   model: string;
   timeoutSeconds: number;
   runBudget: string;

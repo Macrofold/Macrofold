@@ -7,10 +7,16 @@ Save a prompt and let an agent run it repeatedly against persistent project file
 1. Open **Scheduled tasks → New task**.
 2. Give the task a name and choose its project and agent preset.
 3. Write the prompt, such as “Prepare a morning briefing and save it in reports/.”
-4. Choose hourly, daily, weekday, weekly, or custom cron timing. Confirm the timezone and delivery limit.
-5. Choose **Create scheduled task**. The card shows its next occurrence.
+4. Choose hourly, daily, weekday, weekly, or custom cron timing. Confirm the timezone. Custom cron appears only when selected; unusual intake caps live under **Advanced delivery limits**.
+5. Review the preset, per-run budget and funding, then expand **Review connections and tools** if needed. Choose **Create scheduled task** to enable it. The card shows its next occurrence.
 
 Use **Run now** to test the saved instructions. **History** links each delivery to its run; output, tool calls and files use the usual run page. The main Runs list labels these runs **scheduled**.
+
+## Start from an example
+
+Open **Templates**, choose Weekly project digest or Personal assistant, then **Use and schedule**. Edit the prefilled instructions, choose a compatible model and funding, and save the preset with its per-run budget. The next form keeps that preset and task name. Choose a project once, confirm timing and access, and enable the schedule. Weekly digest starts with Mondays at 09:00; other starters begin daily at 09:00. The timezone defaults to your browser's IANA timezone and remains editable.
+
+An existing preset has **Schedule this preset** on its card. Saving a preset alone neither enables recurring work nor starts a run. A schedule uses the preset's saved tool selection and current access rules; reviewing it never creates grants. Each occurrence uses its own budget. A monthly budget is a separate account control.
 
 ## Cadence and timing
 

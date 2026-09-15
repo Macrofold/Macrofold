@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, writeFile, readdir, lstat, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -22,6 +23,7 @@ export type GitState = {
 export function branchName(value: string) {
   assert(
     /^[a-zA-Z0-9][a-zA-Z0-9/_.-]{0,150}$/.test(value) &&
+      value !== 'HEAD' &&
       !value.includes('..') &&
       !value.includes('//') &&
       !value.endsWith('/') &&
@@ -32,6 +34,25 @@ export function branchName(value: string) {
     'Choose a valid Git branch name.',
   );
   return value;
+}
+/** Ref discovery needs only refs, not every encrypted object in the repository. */
+export async function repositoryBranches(records: FileRecord[]) {
+  return withRepository(
+    records.filter(
+      (file) =>
+        file.path === '.git/HEAD' || file.path === '.git/packed-refs' || file.path.startsWith('.git/refs/'),
+    ),
+    async (repo) => {
+      const local = await git.listBranches(repo.options);
+      const remote = await git.listBranches({ ...repo.options, remote: 'origin' });
+      return [
+        ...local.map((name) => ({ name, ref: `refs/heads/${name}` })),
+        ...remote
+          .filter((name) => name !== 'HEAD' && !local.includes(name))
+          .map((name) => ({ name, ref: `refs/remotes/origin/${name}` })),
+      ];
+    },
+  );
 }
 /** A cloud checkpoint can contain arbitrary .git config, hooks and symlinks. The control plane only
  * imports inert objects, refs and index data. Repository content never selects a URL or executes code. */
@@ -56,7 +77,7 @@ export function gitMetadataPath(value: string) {
 export async function withRepository<T>(records: FileRecord[], action: (repo: Repository) => Promise<T>) {
   const dir = await mkdtemp(path.join(tmpdir(), 'hosted-git-'));
   try {
-    const repo = new Repository(dir);
+    const verified = new Map<string, FileRecord>();
     let bytes = 0;
     for (const record of records) {
       if (!gitMetadataPath(record.path) || record.path === '.git/config') continue;
@@ -72,9 +93,11 @@ export async function withRepository<T>(records: FileRecord[], action: (repo: Re
       await writeFile(path.join(dir, record.path), await readContent(record.key, record.sha256), {
         mode: 0o600,
       });
+      verified.set(record.path, record);
     }
     await mkdir(path.join(dir, '.git'), { recursive: true });
     await writeFile(path.join(dir, '.git/config'), configuration, { mode: 0o600 });
+    const repo = new Repository(dir, verified);
     if (!records.some((r) => r.path === '.git/HEAD'))
       await git.init({ ...repo.options, defaultBranch: 'main' });
     return await action(repo);
@@ -84,7 +107,10 @@ export async function withRepository<T>(records: FileRecord[], action: (repo: Re
 }
 export class Repository {
   readonly filesystem: typeof fs;
-  constructor(readonly dir: string) {
+  constructor(
+    readonly dir: string,
+    private readonly verified = new Map<string, FileRecord>(),
+  ) {
     const inside = (value: unknown) => {
       const absolute = path.resolve(String(value));
       assert(
@@ -159,7 +185,7 @@ export class Repository {
       force: true,
     });
   }
-  async commitFiles(files: FileRecord[], message: string) {
+  async commitFiles(files: FileRecord[], message: string, baseline: FileRecord[] = []) {
     assert(
       !(await this.exists('.git/MERGE_HEAD')),
       409,
@@ -167,6 +193,14 @@ export class Repository {
       'Resolve and commit the pending merge in a native agent session before automatic Git sync.',
     );
     const previous = await this.tree();
+    // A verified checkpoint binds SHA-256 file content to this Git tree. Reuse its
+    // already verified Git blobs, including renames/duplicates, instead of downloading
+    // and rehashing every unchanged file. Imports without that binding use the full path.
+    const blobs = new Map<string, string>();
+    for (const file of baseline) {
+      const entry = previous.get(file.path);
+      if (entry?.type === 'blob') blobs.set(file.sha256, entry.oid);
+    }
     // Only ignore files are materialized. Untracked caches can be many GiB and remain in object storage.
     for (const record of files.filter(
       (f) => path.posix.basename(f.path) === '.gitignore' && f.type === 'file',
@@ -198,7 +232,9 @@ export class Repository {
         'git_size_limit',
         'Tracked files exceed the 250 MiB maintenance limit. Add generated data to .gitignore; file checkpoints remain available.',
       );
-      const oid = await git.writeBlob({ ...this.options, blob: await readContent(file.key, file.sha256) });
+      const oid =
+        blobs.get(file.sha256) ??
+        (await git.writeBlob({ ...this.options, blob: await readContent(file.key, file.sha256) }));
       entries.set(file.path, {
         path: path.posix.basename(file.path),
         oid,
@@ -285,8 +321,17 @@ export class Repository {
           'git_size_limit',
           'Git history exceeds the maintenance limit.',
         );
+        const bytes = await readFile(path.join(this.dir, filepath));
+        const source = this.verified.get(filepath);
+        // Imported objects were read and hash-verified before the repository opened. Unchanged
+        // bytes already have durable storage; re-uploading all history adds a PUT per old object.
+        const object =
+          source?.key.startsWith(`${org}/`) &&
+          source.sha256 === createHash('sha256').update(bytes).digest('hex')
+            ? { key: source.key, sha256: source.sha256, size_bytes: String(bytes.length) }
+            : await saveContent(org, bytes);
         result.push({
-          ...(await saveContent(org, await readFile(path.join(this.dir, filepath)))),
+          ...object,
           path: filepath,
           type: 'file',
           modified_at: stat.mtime.toISOString(),
@@ -357,10 +402,11 @@ export async function gitRevision(
   files: FileRecord[],
   state: FileRecord[],
   message: string,
+  baseline: FileRecord[] = [],
 ) {
   return withRepository(state, async (repo) => {
     await repo.select(branch);
-    const revision = await repo.commitFiles(files, message);
+    const revision = await repo.commitFiles(files, message, baseline);
     return {
       files: revision.files,
       git_files: await repo.save(org),

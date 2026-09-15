@@ -69,11 +69,11 @@ The scheduler's sanitized reporting view exposes only IDs, lifecycle timestamps/
 For the session-message route, omit `session_id` from the body. Background is the API default; the dashboard composer and attached CLI default to interactive, while detached CLI work defaults to background. The client-type header is telemetry, not the authority for priority. CLI examples:
 
 ```sh
-agent run "Review this project" --timeout 1800 --queue-timeout 900 --scheduling interactive
-agent run "Run the nightly analysis" --detach --queue-timeout 86400
-agent run show RUN_ID --json
-agent run attach RUN_ID
-agent run cancel RUN_ID
+macrofold run "Review this project" --timeout 1800 --queue-timeout 900 --scheduling interactive
+macrofold run "Run the nightly analysis" --detach --queue-timeout 86400
+macrofold run show RUN_ID --json
+macrofold run attach RUN_ID
+macrofold run cancel RUN_ID
 ```
 
 Run/acceptance payloads expose `wait_seconds`, `waiting_reason`, `queue_expires_at`, `reserved_micro_usd`, and `scheduling_class`. Run status also exposes `execution_deadline`, null until claimed. Wait is submission-to-start; if never started it freezes at completion. Remaining held funds are zero after settlement. Reasons are `earlier_workspace_work`, `account_concurrency`, `global_capacity`, or `scheduler_turn`, with explicit cancellation/expiry/unavailable transition reasons. These are observations of mutable state, not a global queue position or ETA. The legacy advisory `queue_position` is no longer emitted.

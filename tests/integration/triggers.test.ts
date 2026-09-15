@@ -1,3 +1,4 @@
+import { fixtureOperator } from '../fixtures/operator';
 import { createHmac } from 'node:crypto';
 import { fork } from 'node:child_process';
 import { once } from 'node:events';
@@ -140,6 +141,39 @@ async function dispatch(f: Fixture, deliveryId: string, provider?: SlackClient) 
 }
 
 describe('complete trigger admission and simulation journeys', () => {
+  it('resolves the saved preset in its real project and never accepts inbound access exceptions', async () => {
+    const f = await setup();
+    const connection = await f.client.connections.create({
+      name: 'Trigger search',
+      kind: 'search',
+      provider: 'brave',
+      auth_method: 'none',
+    });
+    await f.client.connections.updateAccess(connection.id, { tools: ['web_search'], ifMatch: '"1"' });
+    await f.client.connections.createAccessRule(connection.id, {
+      scope: 'project_agent',
+      project_id: f.project.id,
+      agent_id: f.agent.id,
+      ifMatch: '"2"',
+    });
+    // Extra event payload fields are untrusted event data, never run configuration.
+    const delivery = await (
+      await incoming(f, {
+        prompt: 'No injected authority',
+        connection_access_overrides: [{ connection_id: connection.id, tools: ['web_search'] }],
+      })
+    ).json();
+    await dispatch(f, delivery.id);
+    const accepted = (await f.client.triggers.listDeliveries(f.trigger.id)).data[0];
+    await transaction(f.account.p.organizationId, async (tx) => {
+      const run = await getRun(tx, accepted.run_id!);
+      expect(run.config.agent_id).toBe(f.agent.id);
+      expect(run.config.agent_version).toBe(f.agent.version);
+      expect(run.config.connection_grants).toEqual([{ connection_id: connection.id, tools: ['web_search'] }]);
+      expect(run.config.connection_access[0]).toMatchObject({ source: 'project_agent', access_version: '3' });
+      expect(run.config.connection_access[0].override).toBeUndefined();
+    });
+  });
   it('deduplicates concurrent incoming webhook retries, admits once, persists files and retains historical run output', async () => {
     const f = await setup();
     const key = id();
@@ -432,13 +466,13 @@ describe('trigger authorization, limits and recovery', () => {
         await transaction(f.account.p.organizationId, (tx) =>
           credit(tx, f.account.p.organizationId, 50000n, `fixture:${id()}`),
         );
-      const models = catalog.models(),
+      const models = await catalog.models(),
         previous = {
           execution: config.execution,
           allowPaid: config.allowPaid,
           orchestration: config.orchestration,
         };
-      vi.spyOn(catalog, 'models').mockReturnValue(models);
+      vi.spyOn(catalog, 'models').mockResolvedValue(models);
       config.execution = 'docker';
       config.allowPaid = true;
       config.orchestration = 'poller';
@@ -625,8 +659,9 @@ describe('trigger authorization, limits and recovery', () => {
     expect(reply).toHaveBeenCalledTimes(1);
     await f.client.triggers.retryReply(f.trigger.id, d.id);
     await f.query("UPDATE trigger_deliveries SET reply_state='sending' WHERE id=$1", [d.id]);
+    // PostgreSQL timestamps retain microseconds; JavaScript's current millisecond can precede now().
     await f.query(
-      "UPDATE dispatch_jobs SET state='running',lease_until=now()-interval '1 second',available_at=now() WHERE kind='trigger' AND resource_id=$1",
+      "UPDATE dispatch_jobs SET state='running',lease_until=now()-interval '1 second',available_at=now()-interval '1 second' WHERE kind='trigger' AND resource_id=$1",
       [d.id],
     );
     await dispatchTriggers();
@@ -640,4 +675,25 @@ describe('trigger authorization, limits and recovery', () => {
       'cancelled',
     );
   });
+});
+
+
+it('reports account capacity, serializes the last slot, and preserves definitions after lowering', async () => {
+  const f = await setup('schedule');
+  const other = await setup('schedule');
+  expect((await f.client.triggers.list()).quota).toEqual({ limit: 100, used: 1, remaining: 99 });
+  await fixtureOperator((db) => db.query('UPDATE organizations SET trigger_definition_limit=2 WHERE id=$1', [f.account.p.organizationId]));
+  const body = { name: 'Another', kind: 'schedule' as const, project_id: f.project.id,
+    agent_id: f.agent.id, prompt: 'Fixture', cron: '0 9 * * *', timezone: 'UTC' };
+  const outcomes = await Promise.allSettled([f.client.triggers.create(body), f.client.triggers.create(body)]);
+  expect(outcomes.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  expect(outcomes.find((r) => r.status === 'rejected')).toMatchObject({ reason: { code: 'trigger_limit' } });
+  await fixtureOperator((db) => db.query('UPDATE organizations SET trigger_definition_limit=0 WHERE id=$1', [f.account.p.organizationId]));
+  const page = await f.client.triggers.list();
+  expect(page.quota).toEqual({ limit: 0, used: 2, remaining: 0 });
+  expect(page.data.every((trigger) => trigger.enabled)).toBe(true);
+  await f.client.triggers.update(f.trigger.id, { enabled: false });
+  expect((await f.client.triggers.list()).quota.used).toBe(2);
+  expect((await other.client.triggers.list()).quota).toEqual({ limit: 100, used: 1, remaining: 99 });
+  await expect(pool.query('UPDATE trigger_policy SET definition_limit=900')).rejects.toMatchObject({ code: '42501' });
 });

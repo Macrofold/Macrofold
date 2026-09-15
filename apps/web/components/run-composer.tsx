@@ -1,34 +1,44 @@
 'use client';
+import { request, useData, useDataPages } from '../lib/dashboard-data';
+import { PermissionEditor } from './permission-editor';
+import { harnesses } from '../../../packages/contracts/harnesses';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowUp, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { api, useApi, usePages, type Schema } from '../lib/client';
-import { RunToolSelection } from './run-tools';
+import { type Schema } from '../lib/client';
+import { RunAccess, type RunAccessChoice } from './run-tools';
+import { AccessResourceSelect } from './access-resource-select';
 import { Select } from './select';
-import { Button, Field, Modal, More } from './ui';
+import { ProviderLabel } from './provider-logo';
+import { connectionLogoProvider, modelLogoProvider } from '../lib/provider-branding';
+import { Button, Field, Modal } from './ui';
 export function RunComposer({
   open,
   onOpenChange,
   workspaceId,
   sessionId,
+  initialPrompt = '',
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   workspaceId?: string;
   sessionId?: string;
+  initialPrompt?: string;
 }) {
   const router = useRouter(),
     client = useQueryClient();
-  const [prompt, setPrompt] = useState(''),
+  const [prompt, setPrompt] = useState(initialPrompt),
     [requestedProject, setProject] = useState(''),
-    [harness, setHarness] = useState('codex'),
+    [harness, setHarness] = useState<Schema['SessionCreate']['harness']>('codex'),
+    [permissions, setPermissions] = useState<Schema['AgentPermissions']>(),
     [requestedModel, setModel] = useState(''),
     [mode, setMode] = useState<'managed' | 'byok'>('managed'),
     [connection, setConnection] = useState(''),
     [preset, setPreset] = useState(''),
-    [toolSelection, setToolSelection] = useState<Record<string, string[]>>({}),
+    [accessChoice, setAccessChoice] = useState<{ context: string; value: RunAccessChoice }>(),
+    [pendingAccessContext, setPendingAccessContext] = useState<string>(),
     [advanced, setAdvanced] = useState(false),
     [budget, setBudget] = useState('2.00'),
     [timeout, setTimeoutValue] = useState('15'),
@@ -36,26 +46,43 @@ export function RunComposer({
     [schedulingClass, setSchedulingClass] = useState<'interactive' | 'background'>('interactive'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const policy = useApi<Schema['ExecutionPolicy']>(open ? '/v1/organization/execution-policy' : undefined);
+  const policy = useData(open ? { operation: 'getExecutionPolicy' } : undefined);
   const maxMinutes = (policy.data?.max_timeout_seconds || 1800) / 60;
   const effectiveTimeout = Math.min(Number(timeout), maxMinutes);
-  const projects = usePages<Schema['Project']>(open ? '/v1/projects' : undefined);
-  const models = usePages<Schema['Model']>(open ? '/v1/models' : undefined);
-  const connections = usePages<Schema['Connection']>(open ? '/v1/connections' : undefined);
-  const presets = usePages<Schema['Agent']>(open && !sessionId ? '/v1/agents' : undefined);
-  const selectedPreset = presets.data?.data.find((a) => a.id === preset);
+  const projects = useDataPages(open ? { operation: 'listProjects' } : undefined);
+  const models = useDataPages(open ? { operation: 'listModels' } : undefined);
+  const connections = useDataPages(open ? { operation: 'listConnections' } : undefined);
+  const presetQuery = useData(
+    open && preset ? { operation: 'getAgent', params: { path: { agent_id: preset } } } : undefined,
+  );
+  const selectedPreset = presetQuery.data;
   const activeProjects = projects.data?.data.filter((item) => !item.archived) || [];
-  const project = activeProjects.some((item) => item.id === requestedProject)
-    ? requestedProject
-    : activeProjects[0]?.id || '';
-  const available = models.data?.data.filter((item) => item.harnesses.includes(harness)) || [];
+  const project = requestedProject || activeProjects[0]?.id || '';
+  const available = models.data?.data.filter((item) => item.enabled && item.harnesses.includes(harness)) || [];
   const model = available.some((item) => item.id === requestedModel)
     ? requestedModel
     : available[0]?.id || '';
+  const accessContext: Schema['ConnectionAccessResolve'] = {
+    ...(sessionId
+      ? { session_id: sessionId }
+      : workspaceId
+        ? { workspace_id: workspaceId }
+        : { project_id: project }),
+    ...(!sessionId && preset ? { agent_id: preset } : {}),
+    ...(permissions ? { permissions } : {}),
+  };
+  const contextKey = JSON.stringify(accessContext);
+  // Leaving a context discards its one-run choices, even if the user returns to it.
+  if (accessChoice && accessChoice.context !== contextKey) setAccessChoice(undefined);
+  const accessPending = pendingAccessContext === contextKey;
+  const choice = accessChoice?.context === contextKey ? accessChoice.value : { overrides: [] };
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        if (!next) setAccessChoice(undefined);
+        onOpenChange(next);
+      }}
       title={sessionId ? 'Continue the conversation' : 'Start a new run'}
       description="Give your agent a clear task. Follow its progress live or come back when it’s done."
       wide
@@ -63,6 +90,7 @@ export function RunComposer({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (accessPending) return;
           setBusy(true);
           setError('');
           try {
@@ -70,35 +98,38 @@ export function RunComposer({
               timeout_seconds: Math.round(effectiveTimeout * 60),
               max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)),
             };
-            const result = await api<Schema['RunAccepted']>(
-              sessionId ? `/v1/sessions/${sessionId}/messages` : '/v1/runs',
-              'POST',
-              {
-                prompt,
-                limits,
-                scheduling_class: schedulingClass,
-                queue_timeout_seconds: Math.round(Number(queueHours) * 3600),
-                ...(sessionId
-                  ? { queue_if_busy: true }
-                  : {
-                      ...(workspaceId ? { workspace_id: workspaceId } : { project_id: project }),
-                      ...(preset
-                        ? { agent_id: preset }
-                        : {
-                            harness,
-                            model,
-                            billing_mode: mode,
-                            ...(mode === 'byok' ? { provider_connection_id: connection } : {}),
-                            connection_grants: Object.entries(toolSelection)
-                              .filter(([, tools]) => tools.length)
-                              .map(([connection_id, tools]) => ({ connection_id, tools })),
-                          }),
-                    }),
-              },
-            );
+            const body: Schema['RunCreate'] = {
+              prompt,
+              limits,
+              scheduling_class: schedulingClass,
+              queue_timeout_seconds: Math.round(Number(queueHours) * 3600),
+              ...(sessionId
+                ? { queue_if_busy: true }
+                : {
+                    ...(workspaceId ? { workspace_id: workspaceId } : { project_id: project }),
+                    ...(preset
+                      ? { agent_id: preset }
+                      : {
+                          harness,
+                          model,
+                          billing_mode: mode,
+                          ...(mode === 'byok' ? { provider_connection_id: connection } : {}),
+                        }),
+                  }),
+            };
+            if (permissions) body.permissions = permissions;
+            if (choice.selection !== undefined) body.connection_grants = choice.selection;
+            if (choice.overrides.length) body.connection_access_overrides = choice.overrides;
+            const result = sessionId
+              ? await request('continueSession', {
+                  params: { path: { session_id: sessionId } },
+                  body: { ...body, queue_if_busy: true },
+                })
+              : await request('createRun', { body });
             await client.invalidateQueries();
             onOpenChange(false);
             setPrompt('');
+            setAccessChoice(undefined);
             router.push(`/runs/${result.run_id}`);
             toast.success('Run saved. Follow its queue status here.');
           } catch (error) {
@@ -109,38 +140,28 @@ export function RunComposer({
         }}
       >
         {!workspaceId && !sessionId && (
-          <Field label="Project">
-            <Select
-              value={project}
-              onValueChange={setProject}
-              required
-              options={[
-                { value: '', label: 'Select a project', disabled: true },
-                ...(projects.data?.data
-                  .filter((p) => !p.archived)
-                  .map((p) => ({ value: p.id, label: p.name })) ?? []),
-              ]}
-            />
-          </Field>
+          <AccessResourceSelect
+            kind="project"
+            label="Project"
+            value={project}
+            onChange={setProject}
+            optional={false}
+            activeOnly
+          />
         )}
-        {!workspaceId && !sessionId && <More query={projects} label="More projects" />}
-        {!sessionId && !!presets.data?.data.length && (
+        {!sessionId && (
           <>
-            <Field label="Agent preset">
-              <Select
-                value={preset}
-                onValueChange={setPreset}
-                options={[
-                  { value: '', label: 'Custom configuration' },
-                  ...(presets.data.data.map((agent) => ({ value: agent.id, label: agent.name })) ?? []),
-                ]}
-              />
-            </Field>
-            <More query={presets} label="More presets" />
+            <AccessResourceSelect
+              kind="agent"
+              label="Agent preset"
+              value={preset}
+              onChange={setPreset}
+              emptyLabel="Custom configuration"
+            />
             {selectedPreset && (
               <p className="form-hint">
                 {selectedPreset.harness} · {selectedPreset.model} · {selectedPreset.billing_mode} billing.
-                Uses the preset's instructions and tool grants.
+                Uses the preset's instructions and tool selection.
               </p>
             )}
           </>
@@ -162,14 +183,13 @@ export function RunComposer({
               <Select
                 value={harness}
                 onValueChange={(next) => {
-                  setHarness(next);
+                  setHarness(next as Schema['SessionCreate']['harness']);
                   setConnection('');
                 }}
-                options={[
-                  { value: 'codex', label: 'Codex' },
-                  { value: 'claude-code', label: 'Claude Code' },
-                  { value: 'opencode', label: 'OpenCode' },
-                ]}
+                options={harnesses.map(({ id, name }) => ({
+                  value: id,
+                  label: <ProviderLabel provider={id} name={name} />,
+                }))}
               />
             </Field>
             <Field label="Model">
@@ -184,7 +204,12 @@ export function RunComposer({
                   ...(!available.length ? [{ value: '', label: 'No models configured' }] : []),
                   ...(available.map((m) => ({
                     value: m.id,
-                    label: m.id === 'fixture-model' ? 'Simulation · free' : m.id,
+                    label: (
+                      <ProviderLabel
+                        provider={modelLogoProvider(m)}
+                        name={m.id === 'fixture-model' ? 'Simulation · free' : m.id}
+                      />
+                    ),
                   })) ?? []),
                 ]}
               />
@@ -253,6 +278,7 @@ export function RunComposer({
                 />
               </Field>
             </div>
+            {!sessionId && <PermissionEditor value={permissions} onChange={setPermissions} />}
             {!sessionId && !preset && (
               <>
                 <Field label="Model billing">
@@ -260,7 +286,7 @@ export function RunComposer({
                     value={mode}
                     onValueChange={(next) => setMode(next as 'managed' | 'byok')}
                     options={[
-                      { value: 'managed', label: 'Use workspace credits' },
+                      { value: 'managed', label: 'Use organization credits' },
                       { value: 'byok', label: 'Use my provider API key' },
                     ]}
                   />
@@ -283,43 +309,30 @@ export function RunComposer({
                           .map((c) => ({
                             value: c.id,
                             label: (
-                              <>
-                                {c.name} · {c.provider}
-                              </>
+                              <ProviderLabel
+                                provider={connectionLogoProvider(c)}
+                                name={`${c.name} · ${c.provider}`}
+                              />
                             ),
                           })) ?? []),
                       ]}
                     />
                   </Field>
                 )}
-                <fieldset className="run-tools">
-                  <legend>Tools for this run</legend>
-                  <p className="form-hint">
-                    Choose from previously approved tools. Each selected tool can act as its connected account
-                    for this conversation.
-                  </p>
-                  {connections.data?.data
-                    .filter(
-                      (c) =>
-                        ['mcp_remote', 'mcp_stdio', 'composio', 'search'].includes(c.kind) &&
-                        c.status === 'healthy',
-                    )
-                    .map((c) => (
-                      <RunToolSelection
-                        key={c.id}
-                        connection={c}
-                        selected={toolSelection[c.id] || []}
-                        onChange={(tools) => setToolSelection((current) => ({ ...current, [c.id]: tools }))}
-                      />
-                    ))}
-                  {!connections.data?.data.some(
-                    (c) => c.kind !== 'model' && c.kind !== 'github' && c.status === 'healthy',
-                  ) && (
-                    <p className="muted">Add and authorize a connection to use app, search or MCP tools.</p>
-                  )}
-                  <More query={connections} label="More connections" />
-                </fieldset>
               </>
+            )}
+            {(sessionId || workspaceId || project) && (
+              <RunAccess
+                key={contextKey}
+                context={accessContext}
+                value={choice}
+                onChange={(value) => setAccessChoice({ context: contextKey, value })}
+                onPendingChange={(pending) =>
+                  setPendingAccessContext((current) =>
+                    pending ? contextKey : current === contextKey ? undefined : current,
+                  )
+                }
+              />
             )}
           </div>
         )}
@@ -335,7 +348,11 @@ export function RunComposer({
               ? 'Simulation makes no paid API calls'
               : 'Spending is capped by your budget'}
           </span>
-          <Button busy={busy} type="submit" disabled={!prompt.trim() || (!sessionId && !preset && !model)}>
+          <Button
+            busy={busy}
+            type="submit"
+            disabled={accessPending || !prompt.trim() || (!sessionId && !preset && !model)}
+          >
             Start run <ArrowUp size={16} />
           </Button>
         </div>

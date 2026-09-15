@@ -60,7 +60,7 @@ await check('Execution profile', async () => {
     const { dockerCommand } = await import('../packages/providers/src/docker');
     await dockerCommand(['image', 'inspect', process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0']);
     const { models, computeRate } = await import('../packages/core/src/catalog');
-    if (config.allowPaid && !models().some((model) => model.enabled)) throw new Error('missing models');
+    if (config.allowPaid && !(await models()).some((model) => model.enabled)) throw new Error('missing models');
     return `Local Docker; inference ${config.allowPaid ? 'enabled (provider charges possible)' : 'disabled'}; compute rate ${computeRate()} micro-USD/minute.`;
   }
   const missing = readinessErrors();

@@ -1,35 +1,33 @@
 'use client';
-import { copyText } from '../lib/clipboard';
-import { markdown } from '@codemirror/lang-markdown';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { request, useData, useDataPages } from '../lib/dashboard-data';
+import { PermissionSettings } from './permission-editor';
+import { CopyButton } from './copy-button';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Archive,
   ArrowLeft,
   Clock3,
-  Check,
-  CloudUpload,
-  CircleAlert,
-  LoaderCircle,
-  Copy,
   Download,
-  File,
   FolderOpen,
   GitBranch,
+  LayoutGrid,
+  List,
+  ArrowUpRight,
   Pin,
   Play,
   Plus,
   RotateCcw,
   Search,
-  Trash2,
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { api, relative, useApi, usePages, type Schema } from '../lib/client';
+import { api, relative, type Schema } from '../lib/client';
 import { ProjectCard, RunTable } from './dashboard-shared';
-import { FileUpload } from './file-upload';
+import { CreateWorktree } from './create-worktree';
+import { FileBrowser } from './files/file-browser';
+import './projects.css';
 import { GitView } from './github';
 import { ProjectDeletion } from './project-deletion';
 import { RunComposer } from './run-composer';
@@ -47,19 +45,46 @@ import {
   PageHeading,
   SectionHeading,
 } from './ui';
-const CodeMirror = dynamic(() => import('@uiw/react-codemirror'), { ssr: false, loading: () => <Loading /> });
 export function ProjectsView() {
+  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('macrofold.projects.layout') === 'grid') setLayout('grid');
+    } catch {
+      /* The list remains usable without storage. */
+    }
+  }, []);
+  function chooseLayout(value: 'list' | 'grid') {
+    setLayout(value);
+    try {
+      localStorage.setItem('macrofold.projects.layout', value);
+    } catch {
+      /* Keep the current page preference. */
+    }
+  }
   const [open, setOpen] = useState(false),
     [name, setName] = useState(''),
     [search, setSearch] = useState(''),
     [view, setView] = useState('active'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const projects = usePages<Schema['Project']>(
-    `/v1/projects?limit=25&archived=${view === 'archived'}&query=${encodeURIComponent(search)}`,
-  );
+  const projects = useDataPages({
+    operation: 'listProjects',
+    params: { query: { limit: 25, archived: view === 'archived', query: search } },
+  });
   const client = useQueryClient(),
     router = useRouter();
+  const emptyProjects = (
+    <Empty
+      icon={<FolderOpen />}
+      title={
+        search ? 'No matching projects' : view === 'archived' ? 'No archived projects' : 'No projects yet'
+      }
+      description={
+        search ? 'Try a different project name.' : 'Create a project to give your agents a place to work.'
+      }
+    />
+  );
   return (
     <div className="page">
       <PageHeading
@@ -73,8 +98,8 @@ export function ProjectsView() {
           </Button>
         }
       />
-      <div className="view-toolbar">
-        <div className="search-input">
+      <div className="view-toolbar projects-toolbar">
+        <div className="search-input input-surface">
           <Search size={17} />
           <input
             aria-label="Search projects"
@@ -92,22 +117,65 @@ export function ProjectsView() {
             { value: 'archived', label: 'Archived & pending deletion' },
           ]}
         />
+        <div className="view-switcher" role="group" aria-label="Project layout">
+          <button
+            aria-label="List view"
+            title="List view"
+            aria-pressed={layout === 'list'}
+            onClick={() => chooseLayout('list')}
+          >
+            <List size={16} />
+          </button>
+          <button
+            aria-label="Grid view"
+            title="Grid view"
+            aria-pressed={layout === 'grid'}
+            onClick={() => chooseLayout('grid')}
+          >
+            <LayoutGrid size={16} />
+          </button>
+        </div>
       </div>
       {projects.isPending ? (
         <Loading />
       ) : projects.error ? (
         <ErrorState error={projects.error} retry={() => projects.refetch()} />
+      ) : layout === 'list' ? (
+        <div className="project-list" role="region" aria-label="Project list">
+          <div className="project-list-heading" aria-hidden="true">
+            <span>Project</span>
+            <span className="project-list-branch">Branch</span>
+            <span>Status</span>
+            <span className="project-list-updated">Created</span>
+            <span />
+          </div>
+          {projects.data?.data.map((project, index) => (
+            <Link className="project-list-row" href={`/projects/${project.id}`} key={project.id}>
+              <div className="project-list-name">
+                <span className={`project-icon color-${index % 4}`}>
+                  <FolderOpen size={18} />
+                </span>
+                <h3>{project.name}</h3>
+              </div>
+              <span className="project-list-branch">
+                <GitBranch size={13} />
+                {project.github?.target_branch ?? 'main'}
+              </span>
+              <span>
+                {project.deletion_due_at ? 'Pending deletion' : project.archived ? 'Archived' : 'Active'}
+              </span>
+              <span className="project-list-updated">{relative(project.created_at)}</span>
+              <ArrowUpRight size={15} />
+            </Link>
+          ))}
+          {!projects.data?.data.length && emptyProjects}
+        </div>
       ) : (
         <div className="project-grid full-grid">
-          {projects.data?.data
-            .filter(
-              (p) =>
-                (view === 'active' ? !p.archived : p.archived) &&
-                p.name.toLowerCase().includes(search.toLowerCase()),
-            )
-            .map((p, i) => (
-              <ProjectCard project={p} index={i} key={p.id} />
-            ))}
+          {projects.data?.data.map((p, i) => (
+            <ProjectCard project={p} index={i} key={p.id} />
+          ))}
+          {!projects.data?.data.length && emptyProjects}
           <button className="project-card new-project" onClick={() => setOpen(true)}>
             <span>
               <Plus size={24} />
@@ -149,7 +217,7 @@ export function ProjectsView() {
               autoFocus
               required
               maxLength={120}
-              placeholder="e.g. Research workspace"
+              placeholder="e.g. Research project"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -157,8 +225,7 @@ export function ProjectsView() {
           <div className="info-note">
             <GitBranch size={18} />
             <p>
-              Your project starts with a main workspace. Create independent workspaces for parallel agent
-              tasks.
+              Your project starts with a main worktree. Create independent worktrees for parallel agent tasks.
             </p>
           </div>
           {error && (
@@ -180,19 +247,20 @@ export function ProjectsView() {
   );
 }
 export function WorkspaceView({ projectId, workspaceId }: { projectId: string; workspaceId?: string }) {
-  const project = useApi<Schema['Project']>(`/v1/projects/${projectId}`);
-  const workspaces = usePages<Schema['Workspace']>(`/v1/projects/${projectId}/workspaces`);
+  const project = useData({ operation: 'getProject', params: { path: { project_id: projectId } } });
+  const workspaces = useDataPages({
+    operation: 'listWorkspaces',
+    params: { path: { project_id: projectId } },
+  });
   const chosen = workspaceId || project.data?.default_workspace_id || workspaces.data?.data[0]?.id;
-  const workspace = useApi<Schema['Workspace']>(chosen ? `/v1/workspaces/${chosen}` : undefined);
-  const client = useQueryClient(),
-    router = useRouter();
+  const workspace = useData(
+    chosen ? { operation: 'getWorkspace', params: { path: { workspace_id: chosen } } } : undefined,
+  );
+  const router = useRouter();
   const [tab, setTab] = useState('files'),
     [compose, setCompose] = useState(false),
     [create, setCreate] = useState(false),
-    [hasDraft, setHasDraft] = useState(false),
-    [name, setName] = useState(''),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [hasDraft, setHasDraft] = useState(false);
   useEffect(() => {
     if (new URL(window.location.href).searchParams.get('tab') === 'git') setTab('git');
   }, []);
@@ -201,9 +269,9 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
   if (chosen && workspace.isPending) return <Loading />;
   if (workspace.error) return <ErrorState error={workspace.error} retry={() => void workspace.refetch()} />;
   if (workspace.data && workspace.data.project_id !== projectId)
-    return <ErrorState error={new Error('This workspace belongs to a different project.')} />;
+    return <ErrorState error={new Error('This worktree belongs to a different project.')} />;
   return (
-    <div className="page project-detail">
+    <div className={`page project-detail ${tab === 'files' ? 'project-files-page' : ''}`}>
       <Link className="back-link" href="/projects">
         <ArrowLeft size={14} />
         All projects
@@ -235,7 +303,7 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
         <div className="workspace-selector">
           <GitBranch size={16} />
           <Select
-            aria-label="Active workspace"
+            aria-label="Active worktree"
             disabled={hasDraft}
             value={chosen || ''}
             onValueChange={(next) => router.push(`/projects/${projectId}/workspaces/${next}`)}
@@ -244,16 +312,17 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
                 value: ws.id,
                 label: (
                   <>
-                    {ws.name} · {ws.branch}
+                    {ws.name ?? `Untitled worktree · ${ws.id.slice(-6)}`}
+                    {ws.branch ? ` · ${ws.branch}` : ''}
                   </>
                 ),
               })) ?? []),
             ]}
           />
-          <More query={workspaces} label="More workspaces" />
+          <More query={workspaces} label="More worktrees" />
           <Button variant="ghost" onClick={() => setCreate(true)} disabled={hasDraft}>
             <Plus size={15} />
-            Workspace
+            Worktree
           </Button>
         </div>
         <div className="workspace-meta">
@@ -295,480 +364,30 @@ export function WorkspaceView({ projectId, workspaceId }: { projectId: string; w
         ) : tab === 'git' ? (
           <GitView project={project.data!} workspace={workspace.data} />
         ) : (
-          <ProjectSettings project={project.data!} />
+          <>
+            <ProjectSettings project={project.data!} />
+            <PermissionSettings
+              key={workspace.data.id}
+              scope="worktree"
+              id={workspace.data.id}
+              value={workspace.data.permissions}
+            />
+          </>
         ))}
       <RunComposer open={compose} onOpenChange={setCompose} workspaceId={chosen} />
-      <Modal
-        open={create}
-        onOpenChange={setCreate}
-        title="Create an independent workspace"
-        description="Branch from your current files and let another agent work in parallel."
-      >
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setError('');
-            try {
-              const op = await api<Schema['Operation']>(`/v1/projects/${projectId}/workspaces`, 'POST', {
-                name,
-                branch: name.trim().replaceAll(' ', '-'),
-                ...(workspace.data?.latest_checkpoint_id
-                  ? { source: { kind: 'checkpoint', checkpoint_id: workspace.data.latest_checkpoint_id } }
-                  : {}),
-              });
-              await client.invalidateQueries();
-              setCreate(false);
-              router.push(`/projects/${projectId}/workspaces/${op.result?.workspace_id}`);
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Field label="Workspace name">
-            <input
-              required
-              autoFocus
-              placeholder="e.g. explore-search"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Field>
-          {error && <div className="form-error">{error}</div>}
-          <div className="dialog-actions">
-            <Button type="submit" busy={busy}>
-              Create workspace
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {create && (
+        <CreateWorktree
+          projectId={projectId}
+          source={workspace.data}
+          open={create}
+          onOpenChange={setCreate}
+        />
+      )}
     </div>
   );
 }
-function FileBrowser({
-  workspace,
-  onDirtyChange,
-}: {
-  workspace: Schema['Workspace'];
-  onDirtyChange: (dirty: boolean) => void;
-}) {
-  const [selected, setSelected] = useState(''),
-    [text, setText] = useState(''),
-    [dirty, setDirty] = useState(false),
-    [revision, setRevision] = useState(workspace.revision),
-    [saving, setSaving] = useState(false),
-    [saveError, setSaveError] = useState(''),
-    [newFile, setNewFile] = useState(false),
-    [path, setPath] = useState(''),
-    [search, setSearch] = useState(''),
-    [deleteOpen, setDeleteOpen] = useState(false);
-  const draft = useRef('');
-  const savedText = useRef('');
-  const savingRef = useRef(false);
-  const listing = usePages<Schema['FileEntry']>(
-    `/v1/workspaces/${workspace.id}/files?limit=100&query=${encodeURIComponent(search)}`,
-    false,
-    'entries',
-  );
-  const client = useQueryClient();
-  useEffect(() => {
-    onDirtyChange(dirty || saving);
-  }, [dirty, saving, onDirtyChange]);
-  useEffect(() => {
-    if (!dirty) return;
-    const unloading = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    const navigating = (event: MouseEvent) => {
-      const link =
-        event.target instanceof Element
-          ? (event.target.closest('a[href]') as HTMLAnchorElement | null)
-          : null;
-      if (!link || link.download || link.target === '_blank') return;
-      const target = new URL(link.href, location.href);
-      if (
-        target.pathname.startsWith('/v1/') ||
-        target.pathname.startsWith('/objects/') ||
-        target.href === location.href
-      )
-        return;
-      if (!window.confirm('Leave this page and discard your unsaved draft?')) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      }
-    };
-    window.addEventListener('beforeunload', unloading);
-    document.addEventListener('click', navigating, true);
-    return () => {
-      window.removeEventListener('beforeunload', unloading);
-      document.removeEventListener('click', navigating, true);
-    };
-  }, [dirty]);
-  useEffect(() => {
-    setSelected('');
-    setDirty(false);
-  }, [workspace.id]);
-  useEffect(() => {
-    if (!selected && listing.data?.data.length)
-      setSelected(listing.data.data.find((f) => f.path === 'README.md')?.path || listing.data.data[0].path);
-  }, [listing.data, selected]);
-  const content = useQuery({
-    queryKey: ['file', workspace.id, selected],
-    enabled:
-      Boolean(selected) &&
-      Number(listing.data?.data.find((f) => f.path === selected)?.size_bytes || 0) <= 4 * 1024 * 1024,
-    queryFn: async () => {
-      const response = await fetch(
-        `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(selected)}`,
-        { headers: { 'X-Client-Type': 'dashboard' } },
-      );
-      if (!response.ok) throw new Error('Unable to read this file.');
-      return {
-        text: await response.text(),
-        revision: (response.headers.get('etag') || '').replaceAll('"', ''),
-      };
-    },
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-  useEffect(() => {
-    // Query invalidation can deliver a newer checkpoint while a local draft is dirty.
-    // Keep both the draft and its original revision so Save detects the conflict.
-    if (content.data && !dirty && !saving) {
-      draft.current = savedText.current = content.data.text;
-      setText(content.data.text);
-      setRevision(content.data.revision);
-      setDirty(false);
-    }
-  }, [content.data, dirty, saving]);
-  async function save(filePath = selected, value = text, create = false) {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    setSaveError('');
-    try {
-      if (create) {
-        // The visible listing can be filtered or paginated. Check the authoritative
-        // path; If-Match below rejects a write if it changes after this check.
-        const existing = await fetch(
-          `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`,
-        );
-        await existing.body?.cancel();
-        if (existing.ok)
-          throw new Error(
-            'A file already exists at this path. Choose another name or edit the existing file.',
-          );
-        if (existing.status !== 404) throw new Error('Unable to check this path. No file was created.');
-      }
-      const result = await api<Schema['Operation']>(
-        `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(filePath)}`,
-        'PUT',
-        value,
-        {
-          'Content-Type': 'application/octet-stream',
-          'If-Match': filePath === selected ? revision : workspace.revision,
-        },
-      );
-      const savedRevision = result.result?.revision;
-      if (result.status !== 'succeeded' || typeof savedRevision !== 'string')
-        throw new Error('Unable to confirm the saved revision. Reload the file before retrying.');
-      savedText.current = value;
-      setRevision(savedRevision);
-      // Seed the committed value before refresh; a late response must not restore the old draft.
-      await client.cancelQueries({ queryKey: ['file', workspace.id, filePath] });
-      client.setQueryData(['file', workspace.id, filePath], { text: value, revision: savedRevision });
-      await client.invalidateQueries(undefined, { throwOnError: true });
-      setDirty(!create && draft.current !== value);
-      if (create) {
-        draft.current = value;
-        setText(value);
-        setNewFile(false);
-        setSelected(filePath);
-        toast.success('File created and checkpointed');
-      }
-    } catch (error) {
-      if (!create) setSaveError((error as Error).message);
-      toast.error((error as Error).message);
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
-  }
-  const autosave = useEffectEvent(() => {
-    void save();
-  });
-  useEffect(() => {
-    if (!dirty || saving || saveError || !selected || workspace.status === 'busy') return;
-    const timer = setTimeout(autosave, 2000);
-    return () => clearTimeout(timer);
-  }, [text, dirty, saving, saveError, selected, workspace.status]);
-  const saveLabel = saving ? 'Saving…' : saveError ? 'Not saved' : dirty ? 'Unsaved changes' : 'Saved';
-  const SaveIcon = saving ? LoaderCircle : saveError ? CircleAlert : dirty ? CloudUpload : Check;
-  if (listing.error) return <ErrorState error={listing.error} />;
-  return (
-    <>
-      <div className="file-browser">
-        <div className="file-tree">
-          <div className="file-tree-heading">
-            <strong>Explorer</strong>
-            <FileUpload workspace={workspace} disabled={workspace.status === 'busy' || dirty || saving} />
-            <button
-              className="icon-button"
-              title="New file"
-              aria-label="New file"
-              disabled={workspace.status === 'busy' || dirty || saving}
-              onClick={() => setNewFile(true)}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-          <div className="file-search">
-            <Search size={13} />
-            <input
-              aria-label="Filter files"
-              placeholder="Filter files…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          {listing.data?.data
-            .filter((f) => f.path.toLowerCase().includes(search.toLowerCase()))
-            .map((file) => (
-              <button
-                className={`file-row ${selected === file.path ? 'selected' : ''}`}
-                key={file.path}
-                disabled={saving}
-                onClick={() => {
-                  if (dirty) {
-                    toast.error('Save your changes before opening another file.');
-                    return;
-                  }
-                  setSelected(file.path);
-                }}
-              >
-                <File size={15} />
-                <span>{file.path}</span>
-              </button>
-            ))}
-          {!listing.data?.data.length && (
-            <p className="file-tree-empty">No files yet. Add your first file or start an agent run.</p>
-          )}
-          <More query={listing} label="More files" />
-          <div className="file-tree-footer">
-            <span className="tiny-dot" />
-            {dirty
-              ? 'Draft not saved'
-              : workspace.status === 'busy'
-                ? 'Last verified checkpoint'
-                : 'All files persisted'}
-          </div>
-        </div>
-        <div className="file-editor">
-          {selected ? (
-            <>
-              <div className="editor-bar">
-                <span>
-                  <File size={15} />
-                  {selected}
-                  {dirty && <span className="dirty-dot" title="Unsaved changes" />}
-                </span>
-                <div>
-                  {dirty && (
-                    <Button
-                      variant="ghost"
-                      disabled={saving}
-                      onClick={() => {
-                        if (window.confirm('Discard your unsaved changes and reload the saved file?')) {
-                          setSaveError('');
-                          setDirty(false);
-                          void content.refetch();
-                        }
-                      }}
-                    >
-                      Discard
-                    </Button>
-                  )}
-                  <a
-                    className="icon-button"
-                    aria-label="Download selected file"
-                    href={`/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(selected)}&download=true`}
-                  >
-                    <Download size={15} />
-                  </a>
-                  <button
-                    className="icon-button"
-                    aria-label="Delete selected file"
-                    onClick={() => setDeleteOpen(true)}
-                    disabled={workspace.status === 'busy' || dirty || saving}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                  <span className="file-save-status" role="status" aria-live="polite">
-                    <SaveIcon size={14} className={saving ? 'spin' : undefined} aria-hidden="true" />
-                    {saveLabel}
-                  </span>
-                </div>
-              </div>
-              {saveError && (
-                <div className="form-error" role="alert">
-                  {saveError} Your draft is still here.
-                  <Button
-                    variant="ghost"
-                    disabled={saving || workspace.status === 'busy'}
-                    onClick={() => void save()}
-                  >
-                    Retry save
-                  </Button>
-                </div>
-              )}
-              {Number(listing.data?.data.find((f) => f.path === selected)?.size_bytes || 0) >
-              4 * 1024 * 1024 ? (
-                <Empty
-                  icon={<File />}
-                  title="Large file"
-                  description="This file is safely persisted. Download it to open it locally, or ask an agent to work with it."
-                  action={
-                    <a
-                      className="button secondary"
-                      href={`/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(selected)}&download=true`}
-                    >
-                      Download file
-                    </a>
-                  }
-                />
-              ) : content.isPending ? (
-                <Loading />
-              ) : content.error ? (
-                <ErrorState error={content.error} />
-              ) : text.includes('\0') ? (
-                <Empty
-                  icon={<File />}
-                  title="Binary file"
-                  description="Download this file to view it in a compatible application."
-                  action={
-                    <a
-                      className="button secondary"
-                      href={`/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(selected)}`}
-                    >
-                      Download file
-                    </a>
-                  }
-                />
-              ) : (
-                <CodeMirror
-                  value={text}
-                  height="480px"
-                  extensions={selected.endsWith('.md') ? [markdown()] : []}
-                  editable={workspace.status !== 'busy'}
-                  onChange={(value) => {
-                    draft.current = value;
-                    setText(value);
-                    setDirty(savingRef.current || value !== savedText.current);
-                  }}
-                  basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true }}
-                  onCreateEditor={(view) => view.contentDOM.setAttribute('aria-label', 'File editor')}
-                  aria-label="File editor"
-                />
-              )}
-              <div className="editor-footer">
-                <span>
-                  {workspace.status === 'busy' ? 'Read only while an agent is working' : 'UTF-8'} ·{' '}
-                  {selected.split('.').pop()?.toUpperCase()}
-                </span>
-                <span>
-                  {dirty ? 'Autosaves after 2 seconds of inactivity' : `Saved · revision ${revision}`}{' '}
-                </span>
-              </div>
-            </>
-          ) : (
-            <Empty
-              icon={<FolderOpen />}
-              title="Your files live here"
-              description="Create a file to give your agent some context."
-              action={
-                <Button
-                  variant="secondary"
-                  disabled={saving || workspace.status === 'busy'}
-                  onClick={() => setNewFile(true)}
-                >
-                  <Plus size={15} />
-                  New file
-                </Button>
-              }
-            />
-          )}
-        </div>
-      </div>
-      <Modal
-        open={newFile}
-        onOpenChange={setNewFile}
-        title="Create a file"
-        description="Use a relative path. Folders are created automatically."
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save(path, '', true);
-          }}
-        >
-          <Field label="File path">
-            <input
-              autoFocus
-              required
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              placeholder="notes/ideas.md"
-            />
-          </Field>
-          <div className="dialog-actions">
-            <Button busy={saving} type="submit">
-              Create file
-            </Button>
-          </div>
-        </form>
-      </Modal>
-      <Modal
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete this file?"
-        description={`${selected} will be removed from the current workspace. Earlier checkpoints remain available.`}
-      >
-        <div className="dialog-actions">
-          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
-            Keep file
-          </Button>
-          <Button
-            variant="danger"
-            onClick={async () => {
-              try {
-                await api(
-                  `/v1/workspaces/${workspace.id}/file?path=${encodeURIComponent(selected)}`,
-                  'DELETE',
-                  undefined,
-                  { 'If-Match': workspace.revision },
-                );
-                setSelected('');
-                setDeleteOpen(false);
-                await client.invalidateQueries();
-                toast.success('File removed');
-              } catch (e) {
-                toast.error((e as Error).message);
-              }
-            }}
-          >
-            Delete file
-          </Button>
-        </div>
-      </Modal>
-    </>
-  );
-}
 function WorkspaceRuns({ workspaceId }: { workspaceId: string }) {
-  const runs = usePages<Schema['Run']>(`/v1/runs?workspace_id=${workspaceId}`);
+  const runs = useDataPages({ operation: 'listRuns', params: { query: { workspace_id: workspaceId } } });
   return runs.isPending ? (
     <Loading />
   ) : runs.error ? (
@@ -781,7 +400,10 @@ function WorkspaceRuns({ workspaceId }: { workspaceId: string }) {
   );
 }
 function Checkpoints({ workspace }: { workspace: Schema['Workspace'] }) {
-  const query = usePages<Schema['Checkpoint']>(`/v1/workspaces/${workspace.id}/checkpoints`);
+  const query = useDataPages({
+    operation: 'listCheckpoints',
+    params: { path: { workspace_id: workspace.id } },
+  });
   const [restore, setRestore] = useState<Schema['Checkpoint']>(),
     [busy, setBusy] = useState(false);
   const client = useQueryClient();
@@ -896,10 +518,10 @@ function Checkpoints({ workspace }: { workspace: Schema['Workspace'] }) {
               change(async () => {
                 await api(`/v1/workspaces/${workspace.id}/restore`, 'POST', { checkpoint_id: restore!.id });
                 setRestore(undefined);
-              }, 'Workspace restored')
+              }, 'Worktree restored')
             }
           >
-            Restore workspace
+            Restore worktree
           </Button>
         </div>
       </Modal>
@@ -919,7 +541,10 @@ function ProjectSettings({ project }: { project: Schema['Project'] }) {
           onSubmit={async (e) => {
             e.preventDefault();
             try {
-              await api(`/v1/projects/${project.id}`, 'PATCH', { name });
+              await request('updateProject', {
+                params: { path: { project_id: project.id } },
+                body: { name },
+              });
               await client.invalidateQueries();
               toast.success('Project updated');
             } catch (e) {
@@ -933,19 +558,19 @@ function ProjectSettings({ project }: { project: Schema['Project'] }) {
           <Field label="Project ID">
             <div className="copy-field">
               <code>{project.id}</code>
-              <button
-                type="button"
+              <CopyButton
+                variant="plain"
                 className="icon-button"
-                aria-label="Copy project ID"
-                onClick={() => copyText(project.id, 'Project ID copied')}
-              >
-                <Copy size={15} />
-              </button>
+                label="Copy project ID"
+                text={project.id}
+                iconOnly
+              />
             </div>
           </Field>
           <Button type="submit">Save changes</Button>
         </form>
       </div>
+      <PermissionSettings scope="project" id={project.id} value={project.permissions} />
       <ProjectDeletion project={project} />
       <div className="panel danger-panel">
         <h2>Archive project</h2>
@@ -956,7 +581,10 @@ function ProjectSettings({ project }: { project: Schema['Project'] }) {
             disabled={!!project.deletion_due_at}
             onClick={async () => {
               try {
-                await api(`/v1/projects/${project.id}`, 'PATCH', { archived: false });
+                await request('updateProject', {
+                  params: { path: { project_id: project.id } },
+                  body: { archived: false },
+                });
                 await client.invalidateQueries();
                 toast.success('Project restored');
               } catch (e) {
@@ -986,7 +614,7 @@ function ProjectSettings({ project }: { project: Schema['Project'] }) {
             variant="danger"
             onClick={async () => {
               try {
-                await api(`/v1/projects/${project.id}`, 'DELETE');
+                await request('deleteProject', { params: { path: { project_id: project.id } } });
                 await client.invalidateQueries();
                 router.push('/projects');
               } catch (e) {

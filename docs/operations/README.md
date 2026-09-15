@@ -1,13 +1,19 @@
 # Self-hosting
 
-Deploy the dashboard, API, and durable scheduler on Vercel, with Neon PostgreSQL, private Cloudflare R2 storage, and Vercel Sandbox for agent execution.
+Run your own Macrofold deployment on infrastructure you control. The deployment guide uses Vercel, Neon PostgreSQL, private Cloudflare R2 storage, and Vercel Sandbox.
+
+If you want to use the managed service, follow [Macrofold Cloud setup](../cloud/README.md). Calling Cloud does not require deploying these services yourself.
+
+## Connect your application
+
+After deployment, create a scoped API key in your dashboard and set your SDK's base URL to your HTTPS origin, without `/v1`. The [API quickstart](../features/api/quickstart.md), [SDKs](../features/api/sdks/README.md), [CLI](../features/cli/README.md), and product guides apply unchanged. Keys and resource IDs belong to the deployment that issued them; changing a URL does not move data between deployments.
 
 ## Choose a starting point
 
 | Goal                                         | Guide                                                        |
 | -------------------------------------------- | ------------------------------------------------------------ |
 | Try the product without provider accounts    | [Local development](../getting-started/local-development.md) |
-| Deploy a hosted service                      | [Deployment walkthrough](launch-guide.md)                    |
+| Deploy your own service                      | [Deployment walkthrough](launch-guide.md)                    |
 | Configure runtime settings                   | [Environment reference](launch-environment.md)               |
 | Set up the database                          | [Neon and PostgreSQL](neon.md)                               |
 | Register models, apps, GitHub, and billing   | [Provider integrations](launch-integrations.md)              |
@@ -20,6 +26,6 @@ The web application serves customer requests and dashboard streams. PostgreSQL o
 
 Keep the database, application, and storage in compatible regions. Set provider spending controls and a conservative execution ceiling before accepting work. The software's concurrency setting does not reserve vendor capacity.
 
-The standalone Node/Docker control plane supports local simulation. Real non-Vercel execution currently requires an additional Sandbox credential adapter; see [portability](../architecture/portability.md). Vercel is the supported production integration path described here.
+The [local Docker profile](../getting-started/local-development/docker.md) also runs real harnesses through the API without Vercel. It is a trusted development environment, not a production multi-tenant deployment recipe. Vercel is the production integration path described here; see [portability](../architecture/portability.md) for its boundaries.
 
 Use the [acceptance checklist](pre-deployment.md) to verify your deployment before opening access.

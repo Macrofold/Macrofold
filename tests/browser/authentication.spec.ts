@@ -6,7 +6,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
 }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const deviceResponse = await request.post('/auth/device/code', {
     form: {
       client_id: 'hosted-agent-cli',

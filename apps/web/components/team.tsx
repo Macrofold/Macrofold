@@ -1,10 +1,10 @@
 'use client';
-import { copyText } from '../lib/clipboard';
+import { CopyButton } from './copy-button';
 import { dashboardIdentityChanged } from './dashboard-freshness';
 import { Select } from './select';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Copy, ShieldCheck } from 'lucide-react';
+import { Users, Plus, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, useApi, type Page, type Schema, relative } from '../lib/client';
 import { Button, PageHeading, SectionHeading, Field, Modal, Loading, ErrorState } from './ui';
@@ -235,10 +235,7 @@ export function TeamView() {
             <Field label="Invitation link">
               <input readOnly value={invite} />
             </Field>
-            <Button onClick={() => copyText(invite, 'Invitation link copied')}>
-              <Copy size={16} />
-              Copy invitation
-            </Button>
+            <CopyButton variant="primary" text={invite} label="Copy invitation" />
           </div>
         ) : (
           <form

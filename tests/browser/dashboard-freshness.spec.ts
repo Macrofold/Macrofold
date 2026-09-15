@@ -57,7 +57,7 @@ test('external API runs refresh history and overview while navigation preserves 
   });
   try {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Make room for your next idea.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
     await expect.poll(() => streams.length).toBe(1);
     await page.getByRole('link', { name: 'Runs', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'No runs yet' })).toBeVisible();
@@ -76,15 +76,15 @@ test('external API runs refresh history and overview while navigation preserves 
     const row = page.getByRole('row').filter({ hasText: run.run_id.slice(-8) });
     await expect(row).toBeVisible({ timeout: 10000 });
     await expect(row).toContainText('succeeded');
-    await page.getByRole('link', { name: 'Overview', exact: true }).click();
+    await page.getByRole('link', { name: 'Home', exact: true }).click();
     await expect(page.getByRole('row').filter({ hasText: run.run_id.slice(-8) })).toBeVisible();
     await page.getByRole('link', { name: 'Projects', exact: true }).click();
     await page.getByRole('heading', { name: project.name }).click();
-    await expect(page.getByRole('combobox', { name: 'Active workspace' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Active worktree' })).toBeVisible();
     await page.getByRole('link', { name: 'Runs', exact: true }).click();
     await page.getByRole('link', { name: `Open run ${run.run_id.slice(-8)}` }).click();
     await expect.poll(() => detailed.length).toBeGreaterThan(0);
-    await expect(page.locator('.run-api-tip code')).toHaveText(`agent run attach ${run.run_id}`);
+    await expect(page.locator('.run-api-tip code')).toHaveText(`macrofold run attach ${run.run_id}`);
     await expect(page.locator('.markdown-output')).toContainText(/simulation|simulated/i);
     expect(streams).toHaveLength(1);
     expect(errors).toEqual([]);
@@ -186,7 +186,7 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     await page.goto(`/projects/${project.id}`);
     await expect(page.getByText('No files yet. Add your first file or start an agent run.')).toBeVisible();
     await save('Saved remotely');
-    await expect(page.getByRole('button', { name: 'live.txt', exact: true })).toBeVisible();
+    await expect(page.getByRole('treeitem', { name: 'live.txt', exact: true })).toBeVisible();
     const editor = page.getByRole('textbox', { name: 'File editor' });
     await expect(editor).toContainText('Saved remotely');
     await editor.fill('My unsaved draft');
@@ -201,7 +201,10 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     await refreshed;
     await expect(editor).toContainText('My unsaved draft');
     expect(await page.evaluate(() => window.scrollY)).toBe(scroll);
-    await expect(page.getByRole('button', { name: 'live.txt', exact: true })).toHaveClass(/selected/);
+    await expect(page.getByRole('treeitem', { name: 'live.txt', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await expect(page.locator('[data-sonner-toast]').filter({ hasText: /revision|changed/i })).toBeVisible();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
@@ -279,15 +282,29 @@ test('organization switching and logout close old subscriptions across tabs', as
     await second.goto('/projects');
     await expect(second.getByRole('heading', { name: project.name })).toBeVisible();
     await expect.poll(() => requests.length).toBe(1);
-    await page.getByRole('combobox', { name: 'Current organization' }).click();
-    await page.getByRole('option', { name: 'Other organization' }).click();
-    await expect(page.getByRole('combobox', { name: 'Current organization' })).toContainText(
+    await second.getByRole('button', { name: 'Ask Macrofold', exact: true }).click();
+    const assistantQuestion = second.getByRole('textbox', { name: 'Ask Macrofold a question' });
+    await assistantQuestion.fill('A private setup question for the first organization');
+    await assistantQuestion.press('Enter');
+    await expect(second.getByRole('log', { name: 'Assistant conversation' })).toContainText(
+      'A private setup question for the first organization',
+    );
+    await second.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Current organization', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Other organization', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toContainText(
       'Other organization',
     );
-    await expect(second.getByRole('combobox', { name: 'Current organization' })).toContainText(
+    await expect(second.getByRole('button', { name: 'Account menu', exact: true })).toContainText(
       'Other organization',
     );
     await expect(second.getByRole('heading', { name: project.name })).toHaveCount(0);
+    await second.getByRole('button', { name: 'Ask Macrofold', exact: true }).click();
+    await expect(second.getByRole('log', { name: 'Assistant conversation' })).toBeEmpty();
+    await expect(assistantQuestion).toHaveValue('');
+    await expect(second.getByRole('button', { name: 'Help me get started', exact: true })).toBeVisible();
+    await second.keyboard.press('Escape');
     await expect.poll(() => requests.at(-1)).toContain(other.id);
     const starts = requests.length;
     await external.post('/v1/runs', {
@@ -303,7 +320,8 @@ test('organization switching and logout close old subscriptions across tabs', as
     await page.getByRole('link', { name: 'Runs', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'No runs yet' })).toBeVisible();
     expect(requests.slice(1).every((url) => !url.includes(me.organization_id))).toBe(true);
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
     await expect(second.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
     expect(requests).toHaveLength(starts);

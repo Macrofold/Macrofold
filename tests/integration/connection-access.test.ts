@@ -1,11 +1,11 @@
-import { beforeAll, afterAll, it, expect } from 'vitest';
+import { beforeAll, afterAll, afterEach, it, expect } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import * as r from '../../packages/core/src/resources';
 import * as access from '../../packages/core/src/connection-access';
 import { saveConnection } from '../../packages/core/src/connections';
 import { createWorkspace } from '../../packages/core/src/files';
-import { admitRun, getRun } from '../../packages/core/src/runs';
+import { admitRun, cancelRun, getRun } from '../../packages/core/src/runs';
 import { previewAccess, runtimeConnectionTools } from '../../packages/core/src/connection-access-resolution';
 let a: Awaited<ReturnType<typeof fixtureAccount>>;
 let sales: string, support: string, writer: string, researcher: string;
@@ -30,6 +30,12 @@ beforeAll(async () => {
         billing_mode: 'managed',
       })
     ).id;
+  });
+});
+afterEach(async () => {
+  await transaction(a.p.organizationId, async (tx) => {
+    const queued = await tx.query<{ id: string }>("SELECT id FROM runs WHERE status='queued'");
+    for (const run of queued.rows) await cancelRun(tx, a.p, run.id);
   });
 });
 afterAll(async () => {

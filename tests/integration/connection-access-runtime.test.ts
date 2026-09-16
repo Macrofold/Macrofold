@@ -1,4 +1,4 @@
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, afterEach, expect, it } from 'vitest';
 import { authPool, pool, transaction } from '../../packages/db';
 import { identify } from '../../packages/core/src/auth';
 import { fixtureAccount } from '../fixtures/account';
@@ -6,12 +6,21 @@ import * as r from '../../packages/core/src/resources';
 import * as access from '../../packages/core/src/connection-access';
 import { saveConnection } from '../../packages/core/src/connections';
 import { admitConnections, runtimeConnectionTools } from '../../packages/core/src/connection-access-resolution';
-import { admitRun, getRun } from '../../packages/core/src/runs';
+import { admitRun, cancelRun, getRun } from '../../packages/core/src/runs';
 import { id } from '../../packages/core/src/crypto';
 
+const accounts: Awaited<ReturnType<typeof fixtureAccount>>[] = [];
+afterEach(async () => {
+  for (const account of accounts.splice(0))
+    await transaction(account.p.organizationId, async (tx) => {
+      const queued = await tx.query<{ id: string }>("SELECT id FROM runs WHERE status='queued'");
+      for (const run of queued.rows) await cancelRun(tx, account.p, run.id);
+    });
+});
 afterAll(async () => { await pool.end(); await authPool.end(); });
 async function setup() {
   const a = await fixtureAccount('Runtime access');
+  accounts.push(a);
   const state = await transaction(a.p.organizationId, async (tx) => {
     const project = await r.create(tx, 'projects', a.p.organizationId, { name: 'Policy project' });
     const agent = await r.create(tx, 'agents', a.p.organizationId, { name: 'Policy preset', harness: 'codex', model: 'fixture-model', billing_mode: 'managed' });

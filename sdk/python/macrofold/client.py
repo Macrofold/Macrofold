@@ -190,7 +190,7 @@ class Client(Resources):
         try:
             if response.status_code == 204:
                 return None
-            if operation == "readFile":
+            if operation in {"readFile", "readCustomerAgentFile"}:
                 return response.content
             return response.json()
         except (ValueError, httpx.TransportError) as error:
@@ -208,13 +208,19 @@ class Client(Resources):
         raise TransportError(f"Operation {operation_id} is still pending; inspect its ID later")
 
     def stream(self, run_id: str, *, after: str = "0") -> Generator[dict[str, Any], None, None]:
+        return self._stream_path(run_id, {"run_id": run_id}, ("streamRun", "getRun", "listRunEvents"), after)
+
+    def stream_customer_agent(self, customer_id: str, customer_agent_id: str, run_id: str, *, after: str = "0") -> Generator[dict[str, Any], None, None]:
+        return self._stream_path(run_id, {"customer_id": customer_id, "customer_agent_id": customer_agent_id, "run_id": run_id}, ("streamCustomerAgentRun", "getCustomerAgentRun", "listCustomerAgentRunEvents"), after)
+
+    def _stream_path(self, run_id: str, path: dict[str, str], operations: tuple[str, str, str], after: str) -> Generator[dict[str, Any], None, None]:
         """Yield normalized durable events once per sequence; closing the iterator detaches."""
         if not re.fullmatch(r"\d+", after):
             raise ValueError("Use a numeric event cursor")
         cursor, failures = int(after), 0
         while True:
             try:
-                response = self._raw("streamRun", path={"run_id": run_id}, query={"after": str(cursor)}, headers={"Accept": "text/event-stream", "Last-Event-ID": str(cursor)}, stream=True)
+                response = self._raw(operations[0], path=path, query={"after": str(cursor)}, headers={"Accept": "text/event-stream", "Last-Event-ID": str(cursor)}, stream=True)
                 try:
                     data: list[str] = []
                     size = 0
@@ -236,9 +242,9 @@ class Client(Resources):
                             data.append(line[5:].removeprefix(" "))
                 finally:
                     response.close()
-                run = self.request("getRun", path={"run_id": run_id})
+                run = self.request(operations[1], path=path)
                 if run["status"] in TERMINAL:
-                    remaining = self.request("listRunEvents", path={"run_id": run_id}, query={"after": str(cursor), "limit": 100})
+                    remaining = self.request(operations[2], path=path, query={"after": str(cursor), "limit": 100})
                     if not remaining["data"]:
                         return
             except (httpx.TransportError, TransportError, ApiError) as error:

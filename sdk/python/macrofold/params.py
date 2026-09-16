@@ -31,6 +31,10 @@ ConnectionAccessRuleInputChoice2Params = TypedDict('ConnectionAccessRuleInputCho
 
 ConnectionAccessRuleInputChoice3Params = TypedDict('ConnectionAccessRuleInputChoice3Params', {"scope": "Literal[\"project_agent\"]", "project_id": "str | UUID", "agent_id": "str | UUID"})
 
+ConnectionCapabilityParams = TypedDict('ConnectionCapabilityParams', {"id": "str", "label": "str", "description": "NotRequired[str]", "tools": "list[str]"})
+
+CustomerAgentConfigurationParams = TypedDict('CustomerAgentConfigurationParams', {"harness": "Literal[\"codex\", \"claude-code\", \"opencode\", \"hermes\", \"deepseek\", \"pi\"]", "model": "str", "instructions": "NotRequired[str]", "billing_mode": "Literal[\"byok\", \"managed\", \"subscription\"]", "provider_connection_id": "NotRequired[str | UUID]", "limits": "LimitsParams"})
+
 WorkspaceSourceParams = WorkspaceSourceChoice1Params | WorkspaceSourceChoice2Params
 
 ConnectionAccessRuleInputParams = ConnectionAccessRuleInputChoice1Params | ConnectionAccessRuleInputChoice2Params | ConnectionAccessRuleInputChoice3Params

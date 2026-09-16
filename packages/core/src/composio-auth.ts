@@ -1,17 +1,16 @@
-import { z } from 'zod';
+import { completeComposioConsent } from '../../providers/src/composio-consent';
 import { transaction } from '../../db';
 import { identify, requireScopes } from './auth';
-import { config, isLocal } from './config';
+import { config } from './config';
 import { assert } from './errors';
 import { seal, unseal, id } from './crypto';
 import * as resources from './resources';
 import { composio, assertConnectionOwner } from './connections';
-import { boundedJSON } from './body';
 import { enabledConnector } from './connector-enablement';
+import { connectionCookie, connectionCookieName, startConnectionCookies } from './connection-cookies';
 
-const cookieName = () => (isLocal() ? 'composio-state' : '__Host-composio-state');
-const cookie = (state = '', age = 0) =>
-  `${cookieName()}=${encodeURIComponent(state)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${isLocal() ? '' : '; Secure'}`;
+const cookieName = () => connectionCookieName('dashboard');
+const cookie = () => connectionCookie('dashboard');
 const headers = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' };
 export async function startComposio(request: Request) {
   assert(
@@ -37,6 +36,13 @@ export async function startComposio(request: Request) {
     ]);
     const c = await resources.get(tx, 'connections', url.searchParams.get('connection_id') || '', p);
     assertConnectionOwner(p, c);
+    assert(
+      !(await tx.query('SELECT connection_id FROM customer_agent_connections WHERE connection_id=$1', [c.id]))
+        .rowCount,
+      409,
+      'customer_connection',
+      'Reconnect this customer account from the application that created it.',
+    );
     assert(c.kind === 'composio' && !c.deleted, 400, 'invalid_connection', 'Choose a connected app.');
     const setup = await enabledConnector(String(c.provider), tx);
     const sdk = composio();
@@ -113,7 +119,7 @@ export async function startComposio(request: Request) {
     });
     return new Response(null, {
       status: 302,
-      headers: { ...headers, 'set-cookie': cookie(state, 600), location: link.redirectUrl },
+      headers: startConnectionCookies('dashboard', state, { ...headers, location: link.redirectUrl }),
     });
   });
 }
@@ -160,40 +166,8 @@ export async function finishComposio(request: Request, transport: typeof fetch =
     assert(result.rowCount, 400, 'invalid_oauth_state', 'This connection attempt was already used.');
     return result.rows[0].data;
   });
-  assert(
-    process.env.COMPOSIO_API_KEY,
-    503,
-    'integration_not_configured',
-    'Configure Composio before accepting connections.',
-  );
-  const result = await transport('https://backend.composio.dev/api/v3.1/connected_accounts/complete_auth', {
-    method: 'POST',
-    redirect: 'error',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.COMPOSIO_API_KEY },
-    body: JSON.stringify({ session_uri: uri, user_id: `${p.organizationId}:${p.userId}` }),
-    signal: AbortSignal.timeout(15000),
-  });
-  assert(
-    result.ok,
-    409,
-    'connection_verification_failed',
-    'The provider could not verify the returning account. Start a new connection.',
-  );
-  const completed = z
-    .object({ connected_account_id: z.string(), toolkit_slug: z.string() })
-    .parse(await boundedJSON(result, 65536));
-  const account = await composio().connectedAccounts.get(completed.connected_account_id, {
-    signal: AbortSignal.timeout(15000),
-  });
-  assert(
-    account.id === completed.connected_account_id &&
-      account.toolkit.slug === completed.toolkit_slug &&
-      account.status === 'ACTIVE' &&
-      !account.isDisabled,
-    409,
-    'connection_verification_failed',
-    'The connected account is not active. Reconnect it before granting access.',
-  );
+  const verified = await completeComposioConsent(uri, `${p.organizationId}:${p.userId}`, transport);
+  const completed = { connected_account_id: verified.accountId, toolkit_slug: verified.toolkit };
   await transaction(state.org, async (tx) => {
     await tx.query('SELECT id FROM connections WHERE id=$1 FOR UPDATE', [state.connection]);
     const c = await resources.get(tx, 'connections', state.connection, p);

@@ -65,6 +65,7 @@ try {
       ['idempotency', 'response_ciphertext'],
       ['github_user_links', 'token_ciphertext'],
       ['tool_invocations', 'result_ciphertext'],
+      ['customer_connection_authorizations', 'provider_session_ciphertext'],
     ] as const) {
       // A ctid is used only while its row lock remains held, never as a durable identifier.
       await transaction(org, async (tx) => {

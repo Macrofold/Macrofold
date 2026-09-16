@@ -1,4 +1,7 @@
-import { validatePermissions, editPermissions } from './agent-permissions';
+import { customerAgentHandlers, customerAgentPreparations } from './customer-agent-handlers';
+import { composioCustomerConsent } from '../../providers/src/composio-consent';
+import { createProject } from './projects';
+import { editPermissions } from './agent-permissions';
 import { getExecutionPolicy, planFor } from './plans';
 import { authorizeRepository, githubInstallations, githubRepositories, githubManager } from './github-auth';
 import { queueGitSync } from './git-jobs';
@@ -61,7 +64,7 @@ export const capabilities = {
   max_transfer_bytes: 262144000 as const,
   max_file_bytes: 26214400 as const,
 };
-export const handlers: HandlerMap = {
+const primitiveHandlers = {
   listTriggers: (c) => triggers.listTriggers(c.tx, c.p, c.query),
   createTrigger: (c) => triggers.saveTrigger(c.tx, c.p, input<'TriggerCreate'>(c)),
   getTrigger: async (c) => triggers.presentTrigger(await triggers.getTrigger(c.tx, c.p, c.params.trigger_id)),
@@ -239,30 +242,7 @@ export const handlers: HandlerMap = {
     await r.get(c.tx, 'projects', c.params.project_id, c.p);
     return r.update(c.tx, 'projects', c.params.project_id, { github: null });
   },
-  createProject: async (c) => {
-    assert(
-      !c.p.projectIds.length,
-      403,
-      'forbidden',
-      'A project-restricted key cannot create unrelated projects.',
-    );
-    const value = input<'ProjectCreate'>(c);
-    validatePermissions(value.permissions);
-    if (value.github) await authorizeRepository(c.tx, c.p, value.github);
-    const project = await r.create(c.tx, 'projects', c.p.organizationId, {
-      ...value,
-      persistence: value.persistence || 'persistent',
-      archived: false,
-      storage_bytes: '0',
-    });
-    await files.createWorkspace(c.tx, c.p, project.id, {
-      name: 'main',
-      branch: value.github?.target_branch || 'main',
-    });
-    const created = await r.get(c.tx, 'projects', project.id, c.p);
-    if (value.github) await queueGitSync(c.tx, c.p, String(created.default_workspace_id), 'pull');
-    return created;
-  },
+  createProject: (c) => createProject(c.tx, c.p, input<'ProjectCreate'>(c)),
   deleteProject: async (c) => {
     const project = await r.get(c.tx, 'projects', c.params.project_id, c.p);
     const active = await c.tx.query(
@@ -794,7 +774,8 @@ export const handlers: HandlerMap = {
       truncated: paths.length > limit,
     };
   },
-};
+} satisfies HandlerMap;
+export const handlers: HandlerMap = { ...primitiveHandlers, ...customerAgentHandlers(primitiveHandlers) };
 
 const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   files.prepareFileMutation(
@@ -805,6 +786,7 @@ const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   );
 /** Expensive immutable preparation is separate from the final idempotent SQL commit. */
 export const preparations: PreparationMap = {
+  ...customerAgentPreparations(composioCustomerConsent),
   writeFile: (c) =>
     prepareFile(c, {
       kind: 'file_write',

@@ -1,5 +1,5 @@
 use crate::{
-    apis::{configuration::Configuration, runs_api},
+    apis::{configuration::Configuration, customer_agents_api, runs_api},
     models::{run::Status, Event},
 };
 use futures_util::StreamExt;
@@ -71,8 +71,28 @@ impl Client {
         run_id: &str,
         after: &str,
         organization: Option<&str>,
+        receive: impl FnMut(Event) -> bool,
+    ) -> Result<(), ClientError> {
+        self.stream_target(run_id, after, organization, None, receive)
+            .await
+    }
+    pub(crate) async fn stream_target(
+        &self,
+        run_id: &str,
+        after: &str,
+        organization: Option<&str>,
+        customer: Option<(&str, &str)>,
         mut receive: impl FnMut(Event) -> bool,
     ) -> Result<(), ClientError> {
+        let path = match customer {
+            Some((customer_id, binding_id)) => format!(
+                "/v1/integration-paths/customer-agents/{}/{}/runs/{}",
+                crate::apis::urlencode(customer_id),
+                crate::apis::urlencode(binding_id),
+                crate::apis::urlencode(run_id)
+            ),
+            None => format!("/v1/runs/{}", crate::apis::urlencode(run_id)),
+        };
         if after.is_empty() || !after.bytes().all(|b| b.is_ascii_digit()) {
             return Err("use a numeric event cursor".into());
         }
@@ -81,7 +101,7 @@ impl Client {
         loop {
             let previous = cursor;
             let attempt = self
-                .connection(run_id, &mut cursor, organization, &mut receive)
+                .connection(&path, &mut cursor, organization, &mut receive)
                 .await;
             if cursor > previous {
                 failures = 0;
@@ -90,20 +110,51 @@ impl Client {
                 Ok(true) => return Ok(()),
                 Ok(false) => {
                     failures = 0;
-                    let run = runs_api::get_run(&self.configuration, run_id, organization).await?;
+                    let run = match customer {
+                        Some((customer_id, binding_id)) => {
+                            customer_agents_api::get_customer_agent_run(
+                                &self.configuration,
+                                customer_id,
+                                binding_id,
+                                run_id,
+                                organization,
+                            )
+                            .await?
+                        }
+                        None => {
+                            runs_api::get_run(&self.configuration, run_id, organization).await?
+                        }
+                    };
                     if matches!(
                         run.status,
                         Status::Succeeded | Status::Failed | Status::Cancelled | Status::TimedOut
                     ) {
-                        let remaining = runs_api::list_run_events(
-                            &self.configuration,
-                            run_id,
-                            Some(&cursor.to_string()),
-                            None,
-                            Some(1),
-                            organization,
-                        )
-                        .await?;
+                        let remaining = match customer {
+                            Some((customer_id, binding_id)) => {
+                                customer_agents_api::list_customer_agent_run_events(
+                                    &self.configuration,
+                                    customer_id,
+                                    binding_id,
+                                    run_id,
+                                    organization,
+                                    Some(&cursor.to_string()),
+                                    None,
+                                    Some(1),
+                                )
+                                .await?
+                            }
+                            None => {
+                                runs_api::list_run_events(
+                                    &self.configuration,
+                                    run_id,
+                                    Some(&cursor.to_string()),
+                                    None,
+                                    Some(1),
+                                    organization,
+                                )
+                                .await?
+                            }
+                        };
                         if remaining.data.is_empty() {
                             return Ok(());
                         }
@@ -132,7 +183,7 @@ impl Client {
     }
     async fn connection(
         &self,
-        run_id: &str,
+        path: &str,
         cursor: &mut u64,
         organization: Option<&str>,
         receive: &mut impl FnMut(Event) -> bool,
@@ -140,11 +191,7 @@ impl Client {
         let mut request = self
             .configuration
             .client
-            .get(format!(
-                "{}/v1/runs/{}/stream",
-                self.configuration.base_path,
-                crate::apis::urlencode(run_id)
-            ))
+            .get(format!("{}{}/stream", self.configuration.base_path, path))
             .bearer_auth(
                 self.configuration
                     .bearer_access_token

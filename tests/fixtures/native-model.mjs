@@ -44,6 +44,7 @@ export function nativeModelFixture({
       body = JSON.parse(text);
     } catch {}
     const last = (body.messages || body.input || []).at(-1);
+    const system = JSON.stringify(body.system || '');
     const toolResult =
       JSON.stringify(
         last?.role === 'tool'
@@ -60,6 +61,9 @@ export function nativeModelFixture({
       model: body.model,
       hasPriorPrompt: JSON.stringify(body).includes('Create native.txt with a short note'),
       hasAnswer: JSON.stringify(body).includes('Continue with the saved note'),
+      hasWorkspaceContext: system.includes('/workspace'),
+      hasPersistenceGuidance: system.includes('/tmp') && /checkpoint/i.test(system),
+      hasRunInstructions: system.includes('Keep the fixture note unchanged.'),
       permissionDenied: JSON.stringify(body).includes('File permission denied'),
       fileSaved: toolResult.includes('File saved.'),
       fileRead: toolResult.includes('native tool persisted'),

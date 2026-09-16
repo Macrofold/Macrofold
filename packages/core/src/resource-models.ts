@@ -50,6 +50,7 @@ export type ResourceModels = {
     access_version: string;
     args?: string[];
     external_account_id?: string | null;
+    provider_subject_id?: string;
     authorization_attempt_id?: string | null;
     identity_verified?: boolean;
     cleanup_status?: 'pending' | 'retrying' | 'revoked' | 'manual_revocation_required';

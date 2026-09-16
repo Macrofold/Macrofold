@@ -68,7 +68,7 @@ def snake(value):
     return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', value).replace('-', '_').lower()
 
 
-OPERATIONS = [(path, verb, op) for path, item in SPEC['paths'].items() for verb, op in item.items() if isinstance(op, dict) and op.get('operationId') != 'streamRun' and 'operationId' in op]
+OPERATIONS = [(path, verb, op) for path, item in SPEC['paths'].items() for verb, op in item.items() if isinstance(op, dict) and not any('text/event-stream' in resolve(response).get('content', {}) for response in op.get('responses', {}).values()) and 'operationId' in op]
 
 
 @pytest.mark.parametrize('path,verb,operation', OPERATIONS, ids=[op['operationId'] for _, _, op in OPERATIONS])

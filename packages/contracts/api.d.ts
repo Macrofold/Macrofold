@@ -1679,6 +1679,334 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integration-paths/customer-agents/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List one customer’s agent bindings
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgents"];
+        put?: never;
+        /**
+         * Get or create a customer-agent binding
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["ensureCustomerAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a customer-agent binding
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a customer-agent message
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["sendCustomerAgentMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List this agent’s conversations
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect a customer-agent run
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a customer-agent result
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgentRunResult"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read customer-agent events
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream customer-agent progress
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["streamCustomerAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a customer-agent run
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["cancelCustomerAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List persisted customer-agent files
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a persisted customer-agent file
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["readCustomerAgentFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List this agent’s connected accounts
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentConnections"];
+        put?: never;
+        /**
+         * Prepare a customer-owned connector
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["createCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke this customer’s connection
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        delete: operations["deleteCustomerAgentConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the selected permission presets
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        patch: operations["updateCustomerAgentConnectionPermissions"];
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an embedded account setup link
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["authorizeCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the returning customer and activate the account
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["completeCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3371,6 +3699,104 @@ export interface components {
             agent_id?: string | null;
             project_name?: string | null;
             agent_name?: string | null;
+        };
+        CustomerAgentConfiguration: {
+            /** @enum {string} */
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model: string;
+            instructions?: string;
+            /** @enum {string} */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            limits: components["schemas"]["Limits"];
+        };
+        /** @description Integration path only. Creates one project, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts. */
+        CustomerAgentEnsure: {
+            key: string;
+            name: string;
+            configuration: components["schemas"]["CustomerAgentConfiguration"];
+        };
+        /** @description Optional use-case binding over core resources, not another execution primitive. The authenticated application server asserts its verified customer subject. */
+        CustomerAgentBinding: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            integration_path: "customer-agents";
+            customer_id: string;
+            key: string;
+            name: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerAgentPage: {
+            data: components["schemas"]["CustomerAgentBinding"][];
+            next_cursor: string | null;
+        };
+        /** @description Omit conversation_id for a new native conversation over the same files. An existing conversation must belong to this binding. Only explicitly selected customer connections are used; no organization-wide inheritance. */
+        CustomerAgentMessage: {
+            prompt: string;
+            /** Format: uuid */
+            conversation_id?: string;
+            limits?: components["schemas"]["Limits"];
+            /** @description Queue when this worktree is busy. Omitted means false. */
+            queue_if_busy?: boolean;
+        };
+        /** @description An application-reviewed permission preset. Exact tool names are validated against the enabled provider catalog; labels are not inferred from tool names and do not replace provider OAuth scopes. */
+        ConnectionCapability: {
+            id: string;
+            label: string;
+            description?: string;
+            tools: string[];
+        };
+        /** @description Prepare an embedded app connection with no access. Configure an enabled connector and reviewed capability presets on the trusted backend. The customer selects a preset during consent; no Macrofold login is required. */
+        CustomerAgentConnectionCreate: {
+            name: string;
+            provider: string;
+            capabilities: components["schemas"]["ConnectionCapability"][];
+        };
+        /** @description Customer-scoped connection and permission choices. Core tool ceilings/rules remain authoritative. */
+        CustomerAgentConnection: {
+            connection: components["schemas"]["Connection"];
+            capabilities: components["schemas"]["ConnectionCapability"][];
+            selected_capabilities: string[];
+            access_version: string;
+            approved_tools: string[];
+        };
+        CustomerAgentConnectionPage: {
+            data: components["schemas"]["CustomerAgentConnection"][];
+            next_cursor: string | null;
+        };
+        /** @description Select within the reviewed capability ceiling, or [] to remove tool access. Requires the current quoted access version in If-Match. */
+        CustomerAgentConnectionPermissions: {
+            capability_ids: string[];
+        };
+        /** @description An authenticated callback in YOUR application. After provider consent, authenticate the returning customer again and complete authorization server-side. Never reflect an untrusted browser-supplied return URL. */
+        CustomerConnectionAuthorize: {
+            /** Format: uri */
+            return_url: string;
+        };
+        /** @description Short-lived setup link, not a platform API credential. Open it in a popup or top-level window; its fragment must not be logged. Expired or uncertain attempts require a newly requested link. */
+        CustomerConnectionAuthorization: {
+            /** Format: uuid */
+            authorization_id: string;
+            /** Format: uri */
+            authorization_url: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        /** @description Single-use callback code. Only send after authenticating the returning user in your app and deriving customer_id from that verified session. Browser-supplied identity is not authority. */
+        CustomerConnectionComplete: {
+            code: string;
         };
     };
     responses: never;
@@ -8111,6 +8537,737 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionAccessResolutionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgents: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    ensureCustomerAgent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentEnsure"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentBinding"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentBinding"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    sendCustomerAgentMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentConversations: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Session"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgentRun: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgentRunResult: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentRunEvents: {
+        parameters: {
+            query?: {
+                after?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Event"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    streamCustomerAgentRun: {
+        parameters: {
+            query?: {
+                after?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Last-Event-ID"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE event IDs are persisted run sequences; heartbeat comments are not product events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelCustomerAgentRun: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentFiles: {
+        parameters: {
+            query?: {
+                path?: string;
+                /** @description Case-insensitive literal substring of the relative file path. */
+                query?: string;
+                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
+                recursive?: boolean;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileListing"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    readCustomerAgentFile: {
+        parameters: {
+            query: {
+                /** @description Redirect to a short-lived streaming download, including files larger than 4 MiB. */
+                download?: boolean;
+                path: components["parameters"]["FilePath"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Raw file bytes; active content served as attachment */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Temporary private download URL */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentConnections: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnectionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateCustomerAgentConnectionPermissions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentConnectionPermissions"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    authorizeCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerConnectionAuthorize"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerConnectionAuthorization"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    completeCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerConnectionComplete"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
                 };
             };
             /** @description Error */

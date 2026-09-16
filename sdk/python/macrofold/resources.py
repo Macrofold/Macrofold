@@ -1625,6 +1625,222 @@ class SlackConnectionsResource:
         )
         return decode(models.ListSlackConnections200Response, result, identity)
 
+class CustomerAgentsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def authorize_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, return_url: str, request_options: RequestOptions | None = None) -> models.CustomerConnectionAuthorization:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("authorizeCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"return_url": return_url}),
+        )
+        return decode(models.CustomerConnectionAuthorization, result, identity)
+
+    def cancel_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("cancelCustomerAgentRun",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.Run, result, identity)
+
+    def complete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, code: str, request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("completeCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"code": code}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
+
+    def create_connection(self, customer_id: str, customer_agent_id: str | UUID, *, name: str, provider: str, capabilities: list[params.ConnectionCapabilityParams], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"provider": provider,"capabilities": capabilities}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
+
+    def delete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def ensure(self, customer_id: str, *, key: str, name: str, configuration: params.CustomerAgentConfigurationParams, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("ensureCustomerAgent",
+            path=parameters({"customer_id": customer_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"key": key,"name": name,"configuration": configuration}),
+        )
+        return decode(models.CustomerAgentBinding, result, identity)
+
+    def get(self, customer_id: str, customer_agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgent",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentBinding, result, identity)
+
+    def get_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgentRun",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Run, result, identity)
+
+    def get_run_result(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.RunResult:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgentRunResult",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.RunResult, result, identity)
+
+    def list_connections(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentConnectionPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentConnections",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentConnectionPage, result, identity)
+
+    def list_conversations(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSessions200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentConversations",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListSessions200Response, result, identity)
+
+    def list_files(self, customer_id: str, customer_agent_id: str | UUID, *, path: str | Omit = OMIT, query: str | Omit = OMIT, recursive: bool | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.FileListing:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentFiles",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"path": path,"query": query,"recursive": recursive,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.FileListing, result, identity)
+
+    def list_run_events(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRunEvents200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentRunEvents",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({"after": after,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListRunEvents200Response, result, identity)
+
+    def list(self, customer_id: str, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgents",
+            path=parameters({"customer_id": customer_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentPage, result, identity)
+
+    def read_file(self, customer_id: str, customer_agent_id: str | UUID, *, download: bool | Omit = OMIT, path: str, request_options: RequestOptions | None = None) -> bytes:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("readCustomerAgentFile",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"download": download,"path": path}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return result
+
+    def send_message(self, customer_id: str, customer_agent_id: str | UUID, *, prompt: str, conversation_id: str | UUID | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("sendCustomerAgentMessage",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"prompt": prompt,"conversation_id": conversation_id,"limits": limits,"queue_if_busy": queue_if_busy}),
+        )
+        return decode(models.RunAccepted, result, identity)
+
+    def stream_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
+        stream = self._client.stream_customer_agent(customer_id, str(customer_agent_id), str(run_id), after=after)
+        try:
+            for event in stream:
+                yield models.Event.model_validate(event)
+        finally:
+            stream.close()
+
+    def update_connection_permissions(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, if_match: str, capability_ids: list[str], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateCustomerAgentConnectionPermissions",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"capability_ids": capability_ids}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
+
 class Resources:
     def _init_resources(self, client: Client) -> None:
         self.projects = ProjectsResource(client)
@@ -1651,3 +1867,4 @@ class Resources:
         self.organizations = OrganizationsResource(client)
         self.triggers = TriggersResource(client)
         self.slack_connections = SlackConnectionsResource(client)
+        self.customer_agents = CustomerAgentsResource(client)

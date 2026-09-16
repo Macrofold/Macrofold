@@ -10,12 +10,22 @@
 - [Quickstart](docs/getting-started/quickstart.md): Create a project, start an agent, and review its saved work.
 - [Core concepts](docs/getting-started/concepts.md): Understand projects, workspaces, sessions, runs, and checkpoints.
 
-## Build with the API
+## Integration paths
 
-- [Customer agents](docs/features/customer-agents/README.md): Keep customer identity, files, conversations and scheduled work connected.
+- [Customer agents](docs/features/customer-agents/README.md): Optional customer-specific setup over core projects, worktrees, presets, runs and connections.
+- [Customer-agent quickstart](docs/features/customer-agents/quickstart.md): Ensure a customer assistant, send messages and retrieve saved files through ownership-checked SDK methods.
+- [Customer account connections](docs/features/customer-agents/connections.md): Embed capability choices, verified account consent, permission editing and disconnect in your app.
 - [File memory starter](docs/features/customer-agents/memory.md): Install an optional editable memory and task convention.
 - [Personal agent example](examples/personal-agent/README.md): Run a complete customer-isolated personal agent app and adapt its ownership, persistence and recovery boundaries.
 - [Customer data recipes](examples/integrations/README.md): Connect Supabase, Prisma, Pinecone or a customer-scoped MCP server with runnable local fixtures.
+
+## Cloud and self-hosting
+
+- [Macrofold Cloud](docs/cloud/README.md): Connect to the managed service and start building without operating infrastructure.
+- [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
+
+## Build with the API
+
 - [API overview](docs/features/api/README.md): Connect your application, start an agent, and retrieve its finished work.
 - [SDKs](docs/features/api/sdks/README.md): Choose a Macrofold client for TypeScript, Python, Go, Rust, or Java.
 - [TypeScript SDK](sdk/typescript/README.md): Use typed requests and recoverable event streams in TypeScript.
@@ -24,11 +34,6 @@
 - [Rust SDK](sdk/rust/README.md): Make typed API requests and stream agent progress in Rust.
 - [Java SDK](sdk/java/README.md): Make typed API requests and stream agent progress in Java.
 - [Terminal CLI](docs/features/cli/README.md): Link a project, chat remotely, use worktrees, and transfer files.
-
-## Cloud and self-hosting
-
-- [Macrofold Cloud](docs/cloud/README.md): Connect to the managed service and start building without operating infrastructure.
-- [Self-hosting](docs/operations/README.md): Understand the hosting components and choose a deployment guide.
 
 ## Guides
 

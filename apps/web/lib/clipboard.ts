@@ -16,7 +16,7 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Keep feedback local to the action and invalidate it when its content changes. */
+/** Show success for three seconds; recopying restarts feedback for the same content. */
 export function useCopyFeedback(content?: string) {
   const [feedback, setFeedback] = useState<{
     content?: string;
@@ -25,16 +25,19 @@ export function useCopyFeedback(content?: string) {
     copied: boolean;
   }>({ status: 'idle', copied: false });
   const operation = useRef(0);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useLayoutEffect(() => {
     setFeedback({ content, status: 'idle', copied: false });
     return () => {
       operation.current += 1;
+      clearTimeout(resetTimer.current);
     };
   }, [content]);
 
   async function copy(text: string) {
     const current = ++operation.current;
+    clearTimeout(resetTimer.current);
     setFeedback((previous) => ({
       content,
       text,
@@ -50,6 +53,9 @@ export function useCopyFeedback(content?: string) {
       return false;
     }
     setFeedback({ content, text, status: 'copied', copied: true });
+    resetTimer.current = setTimeout(() => {
+      if (current === operation.current) setFeedback({ content, status: 'idle', copied: false });
+    }, 3000);
     return true;
   }
 

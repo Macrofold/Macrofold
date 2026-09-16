@@ -134,6 +134,25 @@ function DevelopersView() {
           </p>
           <pre className="code-block">{code}</pre>
         </section>
+        <section className="panel" aria-label="Integration paths">
+          <SectionHeading title="Optional · Integration paths" />
+          <p>
+            Building an assistant for each customer? The Customer agents path handles setup and ownership
+            using the same projects, worktrees, presets and runs. Add account connections when your customers
+            need them.
+          </p>
+          <div className="button-row">
+            <Link href="/docs/customer-agents/quickstart" className="button secondary">
+              Build customer agents <ArrowRight size={14} />
+            </Link>
+            <Link href="/docs/customer-agents/connections" className="text-link">
+              Embed account connections <ArrowRight size={14} />
+            </Link>
+          </div>
+          <p className="muted">
+            A use-case-specific shortcut. Core APIs remain available for your own resource layout.
+          </p>
+        </section>
         <section className="panel">
           <SectionHeading title="03 · Build with the full contract" />
           <p>

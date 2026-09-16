@@ -27,6 +27,15 @@ const fixture = nativeModelFixture({
 });
 const broker = nativeBroker();
 const observed = fixture.observed;
+function assertClaudeWorkspaceContext(requests) {
+  if (harness !== 'claude-code') return;
+  const messages = requests.filter((request) => request.path.split('?')[0].endsWith('/messages'));
+  assert(messages.length > 0, 'Claude must send a model request');
+  assert(
+    messages.every((request) => request.hasWorkspaceContext && request.hasPersistenceGuidance),
+    'Claude model requests must identify the persistent workspace and temporary-file boundary',
+  );
+}
 const server = http.createServer((req, res) =>
   req.url === '/mcp' ? broker.handle(req, res) : fixture.handler(req, res),
 );
@@ -105,6 +114,7 @@ const result = JSON.parse(await readFile('/platform-control/result.json', 'utf8'
 console.log(JSON.stringify({ harness, calls: fixture.calls, observed, result }));
 assert.equal(result.outcome, cancellation ? 'cancelled' : failureMode ? 'failure' : 'success');
 assert.equal(result.persistence, 'captured');
+assertClaudeWorkspaceContext(observed);
 if (toolMode || permissionMode)
   assert.equal(broker.calls, 1, 'The native agent must invoke the authorized MCP broker exactly once');
 assert.equal(await readFile('/workspace/native.txt', 'utf8'), 'native tool persisted\n');
@@ -164,6 +174,7 @@ await writeFile(
     ...configuration,
     runId: crypto.randomUUID(),
     prompt: 'Confirm the prior task is complete.',
+    ...(harness === 'claude-code' ? { instructions: 'Keep the fixture note unchanged.' } : {}),
     resumeId: result.resumeId,
     deadline: new Date(Date.now() + duration).toISOString(),
   }),
@@ -175,6 +186,12 @@ const resumed = JSON.parse(await readFile('/platform-control/result.json', 'utf8
 console.log(JSON.stringify({ harness, continuation: resumed, requests: observed.slice(previousCount) }));
 assert.equal(resumed.outcome, 'success');
 assert.equal(resumed.resumeId, result.resumeId);
+assertClaudeWorkspaceContext(observed.slice(previousCount));
+if (harness === 'claude-code')
+  assert(
+    observed.slice(previousCount).some((request) => request.hasRunInstructions),
+    'Custom run instructions must reach the resumed Claude conversation alongside workspace guidance',
+  );
 assert(
   observed.slice(previousCount).some((o) => o.hasPriorPrompt),
   'Continuation must restore native conversation context',

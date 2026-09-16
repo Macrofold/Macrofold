@@ -2,8 +2,8 @@
 package macrofold
 import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
-type Client struct { *APIClient; Projects *ProjectsResource;Workspaces *WorkspacesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource }
-func resources(api *APIClient) *Client { return &Client{APIClient:api, Projects:&ProjectsResource{api},Workspaces:&WorkspacesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},} }
+type Client struct { *APIClient; Projects *ProjectsResource;Workspaces *WorkspacesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource }
+func resources(api *APIClient) *Client { return &Client{APIClient:api, Projects:&ProjectsResource{api},Workspaces:&WorkspacesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},} }
 
 type ProjectsResource struct {client *APIClient}
 func (r *ProjectsResource) CancelDeletion(ctx context.Context, projectId string, options ...RequestOption) (*Project, error) {
@@ -1668,6 +1668,229 @@ func (r *SlackConnectionsResource) List(ctx context.Context, options ...RequestO
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
 
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type CustomerAgentsResource struct {client *APIClient}
+func (r *CustomerAgentsResource) AuthorizeConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerConnectionAuthorize, options ...RequestOption) (*CustomerConnectionAuthorization, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.CustomerAgentsAPI.AuthorizeCustomerAgentConnection(ctx, customerId, customerAgentId, connectionId)
+        if input != nil {call = call.CustomerConnectionAuthorize(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) CancelRun(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*Run, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.CustomerAgentsAPI.CancelCustomerAgentRun(ctx, customerId, customerAgentId, runId)
+        call = call.Body(map[string]interface{}{})
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) CompleteConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerConnectionComplete, options ...RequestOption) (*CustomerAgentConnection, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.CustomerAgentsAPI.CompleteCustomerAgentConnection(ctx, customerId, customerAgentId, connectionId)
+        if input != nil {call = call.CustomerConnectionComplete(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) CreateConnection(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentConnectionCreate, options ...RequestOption) (*CustomerAgentConnection, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.CustomerAgentsAPI.CreateCustomerAgentConnection(ctx, customerId, customerAgentId)
+        if input != nil {call = call.CustomerAgentConnectionCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) DeleteConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, options ...RequestOption) error {
+        settings, err := requestOptions(options, false); if err != nil {return err}
+
+
+        call := r.client.CustomerAgentsAPI.DeleteCustomerAgentConnection(ctx, customerId, customerAgentId, connectionId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        response, callError := call.Execute()
+        return requestError(callError, response, "")
+      }
+func (r *CustomerAgentsResource) Ensure(ctx context.Context, customerId string, input *CustomerAgentEnsure, options ...RequestOption) (*CustomerAgentBinding, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.CustomerAgentsAPI.EnsureCustomerAgent(ctx, customerId)
+        if input != nil {call = call.CustomerAgentEnsure(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) Get(ctx context.Context, customerId string, customerAgentId string, options ...RequestOption) (*CustomerAgentBinding, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.CustomerAgentsAPI.GetCustomerAgent(ctx, customerId, customerAgentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *CustomerAgentsResource) GetRun(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*Run, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.CustomerAgentsAPI.GetCustomerAgentRun(ctx, customerId, customerAgentId, runId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *CustomerAgentsResource) GetRunResult(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*RunResult, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.CustomerAgentsAPI.GetCustomerAgentRunResult(ctx, customerId, customerAgentId, runId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCustomerAgentConnectionsParams struct {Cursor *string;Limit *int32}
+func (r *CustomerAgentsResource) ListConnections(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentConnectionsParams, options ...RequestOption) (*CustomerAgentConnectionPage, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCustomerAgentConnectionsParams{}}
+        call := r.client.CustomerAgentsAPI.ListCustomerAgentConnections(ctx, customerId, customerAgentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCustomerAgentConversationsParams struct {Cursor *string;Limit *int32}
+func (r *CustomerAgentsResource) ListConversations(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentConversationsParams, options ...RequestOption) (*ListSessions200Response, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCustomerAgentConversationsParams{}}
+        call := r.client.CustomerAgentsAPI.ListCustomerAgentConversations(ctx, customerId, customerAgentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCustomerAgentFilesParams struct {Path *string;Query *string;Recursive *bool;Cursor *string;Limit *int32}
+func (r *CustomerAgentsResource) ListFiles(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentFilesParams, options ...RequestOption) (*FileListing, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCustomerAgentFilesParams{}}
+        call := r.client.CustomerAgentsAPI.ListCustomerAgentFiles(ctx, customerId, customerAgentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Path != nil {call = call.Path(*params.Path)}
+if params.Query != nil {call = call.Query(*params.Query)}
+if params.Recursive != nil {call = call.Recursive(*params.Recursive)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCustomerAgentRunEventsParams struct {After *string;Cursor *string;Limit *int32}
+func (r *CustomerAgentsResource) ListRunEvents(ctx context.Context, customerId string, customerAgentId string, runId string, params *ListCustomerAgentRunEventsParams, options ...RequestOption) (*ListRunEvents200Response, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCustomerAgentRunEventsParams{}}
+        call := r.client.CustomerAgentsAPI.ListCustomerAgentRunEvents(ctx, customerId, customerAgentId, runId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.After != nil {call = call.After(*params.After)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCustomerAgentsParams struct {Cursor *string;Limit *int32}
+func (r *CustomerAgentsResource) List(ctx context.Context, customerId string, params *ListCustomerAgentsParams, options ...RequestOption) (*CustomerAgentPage, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCustomerAgentsParams{}}
+        call := r.client.CustomerAgentsAPI.ListCustomerAgents(ctx, customerId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ReadCustomerAgentFileParams struct {Path string;Download *bool}
+func (r *CustomerAgentsResource) ReadFile(ctx context.Context, customerId string, customerAgentId string, params *ReadCustomerAgentFileParams, options ...RequestOption) (*os.File, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.CustomerAgentsAPI.ReadCustomerAgentFile(ctx, customerId, customerAgentId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.Path(params.Path)
+if params.Download != nil {call = call.Download(*params.Download)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *CustomerAgentsResource) SendMessage(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentMessage, options ...RequestOption) (*RunAccepted, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.CustomerAgentsAPI.SendCustomerAgentMessage(ctx, customerId, customerAgentId)
+        if input != nil {call = call.CustomerAgentMessage(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *CustomerAgentsResource) StreamRun(ctx context.Context, customerID, customerAgentID, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.streamTarget(ctx,runID,after,customerID,customerAgentID,receive,options...) }
+type UpdateCustomerAgentConnectionPermissionsParams struct {IfMatch string}
+func (r *CustomerAgentsResource) UpdateConnectionPermissions(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerAgentConnectionPermissions, params *UpdateCustomerAgentConnectionPermissionsParams, options ...RequestOption) (*CustomerAgentConnection, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.CustomerAgentsAPI.UpdateCustomerAgentConnectionPermissions(ctx, customerId, customerAgentId, connectionId)
+        if input != nil {call = call.CustomerAgentConnectionPermissions(*input)}
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }

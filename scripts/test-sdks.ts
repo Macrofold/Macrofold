@@ -48,6 +48,23 @@ await withFixtureDatabase(async (env) => {
       });
     }
     fixture.MACROFOLD_FIXTURE_FILES_WORKSPACE = workspace;
+    const customer = await client.customerAgents.ensure('customer / 日本語', {
+      key: 'assistant',
+      name: 'SDK customer fixture',
+      configuration: {
+        harness: 'codex',
+        model: 'fixture-model',
+        billing_mode: 'managed',
+        limits: { max_cost_micro_usd: '2000000' },
+      },
+    });
+    const message = await client.customerAgents.sendMessage(customer.customer_id, customer.id, {
+      prompt: 'Verify the optional customer-agent path.',
+    });
+    await client.customerAgents.waitRun(customer.customer_id, customer.id, message.run_id);
+    fixture.MACROFOLD_FIXTURE_CUSTOMER_AGENT = customer.id;
+    fixture.MACROFOLD_FIXTURE_CUSTOMER_RUN = message.run_id;
+
     await command(['exec', 'tsx', 'tests/fixtures/sdk-journey.ts'], fixture);
     await command(['exec', 'python', '-m', 'pytest', 'sdk/python/tests', '-q'], fixture);
     await command(['exec', 'python', '-m', 'pyright', '--project', 'sdk/python/pyrightconfig.json'], fixture);

@@ -10,7 +10,7 @@ export const requestMethod = <K extends Operation>(operation: K): RequestMethod<
 type Value<T> = T[keyof T];
 type Content<T> = T extends { content: infer C } ? Value<C> : undefined;
 type Responses<O extends Operation> = operations[O] extends { responses: infer R } ? R : never;
-export type Result<O extends Operation> = O extends 'readFile'
+export type Result<O extends Operation> = O extends 'readFile' | 'readCustomerAgentFile'
   ? Uint8Array
   : Content<Responses<O>[Extract<keyof Responses<O>, 200 | 201 | 202 | 204>]>;
 type Body<O extends Operation> = operations[O] extends { requestBody?: infer R }
@@ -205,7 +205,8 @@ export class Client extends Resources {
     const response = await this.raw(operation, requestOptions);
     if (response.status === 204) return undefined as Result<O>;
     try {
-      if (operation === 'readFile') return new Uint8Array(await response.arrayBuffer()) as Result<O>;
+      if (operation === 'readFile' || operation === 'readCustomerAgentFile')
+        return new Uint8Array(await response.arrayBuffer()) as Result<O>;
       return (await response.json()) as Result<O>;
     } catch {
       if (options.signal?.aborted) throw options.signal.reason;
@@ -217,10 +218,59 @@ export class Client extends Resources {
       );
     }
   }
-  /** Reconnects from the last yielded durable event, including after a server stream rotation. */
-  async *stream(
+  stream(runId: string, options: { after?: string; signal?: AbortSignal } = {}) {
+    return this.streamFrom(
+      {
+        open: (cursor) =>
+          this.raw('streamRun', {
+            params: { path: { run_id: runId }, query: { after: cursor } },
+            headers: { Accept: 'text/event-stream', 'Last-Event-ID': cursor },
+            signal: options.signal,
+          }),
+        get: () => this.request('getRun', { params: { path: { run_id: runId } }, signal: options.signal }),
+        events: (cursor) =>
+          this.request('listRunEvents', {
+            params: { path: { run_id: runId }, query: { after: cursor, limit: 100 } },
+            signal: options.signal,
+          }),
+      },
+      options,
+    );
+  }
+  /** Optional customer-agent integration path; every reconnect rechecks the binding. */
+  streamCustomerAgent(
+    customerId: string,
+    customerAgentId: string,
     runId: string,
     options: { after?: string; signal?: AbortSignal } = {},
+  ) {
+    const path = { customer_id: customerId, customer_agent_id: customerAgentId, run_id: runId };
+    return this.streamFrom(
+      {
+        open: (cursor) =>
+          this.raw('streamCustomerAgentRun', {
+            params: { path, query: { after: cursor } },
+            headers: { Accept: 'text/event-stream', 'Last-Event-ID': cursor },
+            signal: options.signal,
+          }),
+        get: () => this.request('getCustomerAgentRun', { params: { path }, signal: options.signal }),
+        events: (cursor) =>
+          this.request('listCustomerAgentRunEvents', {
+            params: { path, query: { after: cursor, limit: 100 } },
+            signal: options.signal,
+          }),
+      },
+      options,
+    );
+  }
+  /** One cursor/reconnect algorithm for primitive and integration-path event streams. */
+  private async *streamFrom(
+    source: {
+      open(cursor: string): Promise<Response>;
+      get(): Promise<Schema['Run']>;
+      events(cursor: string): Promise<{ data: Schema['Event'][] }>;
+    },
+    options: { after?: string; signal?: AbortSignal },
   ): AsyncGenerator<Schema['Event']> {
     if (options.after !== undefined && !/^\d+$/.test(options.after))
       throw new Error('Use a numeric event cursor');
@@ -229,11 +279,7 @@ export class Client extends Resources {
     for (;;) {
       options.signal?.throwIfAborted();
       try {
-        const response = await this.raw('streamRun', {
-          params: { path: { run_id: runId }, query: { after: cursor } },
-          headers: { Accept: 'text/event-stream', 'Last-Event-ID': cursor },
-          signal: options.signal,
-        });
+        const response = await source.open(cursor);
         for await (const frame of sseFrames(response, options.signal)) {
           if (!frame.data) continue;
           let event: Schema['Event'];
@@ -249,16 +295,10 @@ export class Client extends Resources {
           yield event;
           if (['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(event.type)) return;
         }
-        const run = await this.request('getRun', {
-          params: { path: { run_id: runId } },
-          signal: options.signal,
-        });
+        const run = await source.get();
         if (['succeeded', 'failed', 'cancelled', 'timed_out'].includes(run.status)) {
           // A caller reconnecting after the terminal event already rendered does not wait forever.
-          const remaining = await this.request('listRunEvents', {
-            params: { path: { run_id: runId }, query: { after: cursor, limit: 100 } },
-            signal: options.signal,
-          });
+          const remaining = await source.events(cursor);
           if (!remaining.data.length) return;
         }
       } catch (error) {

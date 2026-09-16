@@ -1,5 +1,6 @@
 package dev.macrofold;
 
+import dev.macrofold.api.CustomerAgentsApi;
 import dev.macrofold.api.RunsApi;
 import dev.macrofold.model.Event;
 import dev.macrofold.model.Run;
@@ -16,25 +17,49 @@ import java.util.function.Predicate;
 public class Client extends Resources {
   private final String token;
 
-  public Client() {this(DEFAULT_ORIGIN,environmentKey());}
-  public Client(String apiKey) {this(DEFAULT_ORIGIN,apiKey);}
-  public static Builder builder(){return new Builder();}
-  public static final class Builder {
-    private String origin=DEFAULT_ORIGIN;
-    private String apiKey;
-    public Builder baseURL(String value){origin=value;return this;}
-    public Builder apiKey(String value){apiKey=value;return this;}
-    public Client build(){return new Client(origin,apiKey == null ? environmentKey() : apiKey);}
+  public Client() {
+    this(DEFAULT_ORIGIN, environmentKey());
   }
-  private static String environmentKey(){return System.getenv("MACROFOLD_API_KEY");}
+
+  public Client(String apiKey) {
+    this(DEFAULT_ORIGIN, apiKey);
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+    private String origin = DEFAULT_ORIGIN;
+    private String apiKey;
+
+    public Builder baseURL(String value) {
+      origin = value;
+      return this;
+    }
+
+    public Builder apiKey(String value) {
+      apiKey = value;
+      return this;
+    }
+
+    public Client build() {
+      return new Client(origin, apiKey == null ? environmentKey() : apiKey);
+    }
+  }
+
+  private static String environmentKey() {
+    return System.getenv("MACROFOLD_API_KEY");
+  }
 
   public Client(String origin, String token) {
     super(
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER),
         createDefaultObjectMapper(),
         validateOrigin(origin));
-    if(token == null || token.isBlank())
-      throw new IllegalArgumentException("Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.");
+    if (token == null || token.isBlank())
+      throw new IllegalArgumentException(
+          "Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.");
     this.token = token;
     setReadTimeout(Duration.ofSeconds(70));
     setConnectTimeout(Duration.ofSeconds(15));
@@ -70,20 +95,53 @@ public class Client extends Resources {
   }
 
   @Override
-  protected void streamInOrganization(UUID runId, String after, UUID organization, Predicate<Event> receive)
+  protected void streamInOrganization(
+      UUID runId, String after, UUID organization, Predicate<Event> receive)
       throws IOException, InterruptedException, ApiException {
+    streamTarget(null, null, runId, after, organization, receive);
+  }
+
+  @Override
+  protected void streamCustomerInOrganization(
+      String customerId,
+      UUID customerAgentId,
+      UUID runId,
+      String after,
+      UUID organization,
+      Predicate<Event> receive)
+      throws IOException, InterruptedException, ApiException {
+    streamTarget(customerId, customerAgentId, runId, after, organization, receive);
+  }
+
+  private void streamTarget(
+      String customerId,
+      UUID customerAgentId,
+      UUID runId,
+      String after,
+      UUID organization,
+      Predicate<Event> receive)
+      throws IOException, InterruptedException, ApiException {
+    String path =
+        customerAgentId == null
+            ? "/v1/runs/" + runId
+            : "/v1/integration-paths/customer-agents/"
+                + java.net.URLEncoder.encode(customerId, StandardCharsets.UTF_8).replace("+", "%20")
+                + "/"
+                + customerAgentId
+                + "/runs/"
+                + runId;
     if (after == null || !after.matches("[0-9]+"))
       throw new IllegalArgumentException("Use a numeric event cursor");
     BigInteger cursor = new BigInteger(after);
     int failures = 0;
     RunsApi runs = new RunsApi(this);
+    CustomerAgentsApi customers = new CustomerAgentsApi(this);
     java.util.concurrent.ScheduledExecutorService deadlines =
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
     try {
       while (true) {
         HttpRequest.Builder request =
-            HttpRequest.newBuilder(
-                    URI.create(getBaseUri() + "/v1/runs/" + runId + "/stream?after=" + cursor))
+            HttpRequest.newBuilder(URI.create(getBaseUri() + path + "/stream?after=" + cursor))
                 .header("Authorization", "Bearer " + token)
                 .header("X-Client-Type", "sdk")
                 .header("Accept", "text/event-stream")
@@ -161,11 +219,24 @@ public class Client extends Resources {
           Thread.sleep(Math.min(10000, 250L << failures));
           continue;
         }
-        Run run = runs.getRun(runId, organization);
+        Run run =
+            customerAgentId == null
+                ? runs.getRun(runId, organization)
+                : customers.getCustomerAgentRun(customerId, customerAgentId, runId, organization);
         if (java.util.Set.of("succeeded", "failed", "cancelled", "timed_out")
                 .contains(run.getStatus().getValue())
-            && runs.listRunEvents(runId, cursor.toString(), null, 1, organization).getData().isEmpty())
-          return;
+            && (customerAgentId == null
+                    ? runs.listRunEvents(runId, cursor.toString(), null, 1, organization)
+                    : customers.listCustomerAgentRunEvents(
+                        customerId,
+                        customerAgentId,
+                        runId,
+                        organization,
+                        cursor.toString(),
+                        null,
+                        1))
+                .getData()
+                .isEmpty()) return;
         Thread.sleep(250);
       }
     } finally {

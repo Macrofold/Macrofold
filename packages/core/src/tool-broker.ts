@@ -103,7 +103,8 @@ export async function executeGrantedTool(
   );
   const fee = BigInt(rate),
     fingerprint = sha256(canonical({ connectionId, tool: tool.name, args }));
-  const setup = connection.kind === 'composio' ? await enabledConnector(String(connection.provider)) : undefined;
+  const setup =
+    connection.kind === 'composio' ? await enabledConnector(String(connection.provider)) : undefined;
   if (connection.kind === 'composio') {
     assert(
       connection.external_account_id && connection.identity_verified,
@@ -212,7 +213,7 @@ export async function executeGrantedTool(
       const response = await composio().tools.execute(
         tool.name,
         {
-          userId: `${cap.organization}:${connection.owner_subject_id}`,
+          userId: connection.provider_subject_id || `${cap.organization}:${connection.owner_subject_id}`,
           connectedAccountId: String(connection.external_account_id),
           version: setup.toolkit_version,
           arguments: args,

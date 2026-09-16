@@ -18,12 +18,19 @@ public abstract class Resources extends ApiClient {
   protected Resources(java.net.http.HttpClient.Builder http, com.fasterxml.jackson.databind.ObjectMapper mapper, String origin) {super(http,mapper,origin);}
   public abstract void stream(UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   protected abstract void streamInOrganization(UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
+  protected abstract void streamCustomerInOrganization(String customerId,UUID customerAgentId,UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   ${groups.map((g) => `public ${pascal(g)}Resource ${g}(){return new ${pascal(g)}Resource(this,RequestOptions.defaults());}`).join('\n')}
 `,
   ];
   for (const group of groups) {
     const methods: string[] = [];
     for (const op of ops.filter((o) => o.contract.group === group)) {
+      if (op.originalId === 'streamCustomerAgentRun') {
+        methods.push(
+          `public void streamRun(String customerId,UUID customerAgentId,UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {client.streamCustomerInOrganization(customerId,customerAgentId,runId,after,options.organization(),receive);}`,
+        );
+        continue;
+      }
       if (op.originalId === 'streamRun') {
         methods.push(`public void stream(UUID runId,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {stream(runId,"0",receive);}
           public void stream(UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {client.streamInOrganization(runId,after,options.organization(),receive);}

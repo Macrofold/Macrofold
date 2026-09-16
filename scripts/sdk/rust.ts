@@ -15,6 +15,12 @@ impl Client { ${groups.map((g) => `pub fn ${snake(g)}(&self) -> ${pascal(g)}Reso
   for (const group of groups) {
     const methods: string[] = [];
     for (const op of ops.filter((o) => o.contract.group === group)) {
+      if (op.originalId === 'streamCustomerAgentRun') {
+        methods.push(
+          `pub async fn stream_run(&self, customer_id:&str, customer_agent_id:&str, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_target(run_id,after,self.options.organization.as_deref(),Some((customer_id,customer_agent_id)),receive).await}`,
+        );
+        continue;
+      }
       if (op.originalId === 'streamRun') {
         methods.push(
           `pub async fn stream(&self, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_in_organization(run_id,after,self.options.organization.as_deref(),receive).await}`,
@@ -57,7 +63,7 @@ impl Client { ${groups.map((g) => `pub fn ${snake(g)}(&self) -> ${pascal(g)}Reso
         const val = `params.${p.name}`;
         return scalar(p) === 'String' ? (p.required ? `&${val}` : `${val}.as_deref()`) : val;
       });
-      methods.push(`pub async fn ${snake(op.contract.name)}(${signature}) -> Result<${op.originalId === 'readFile' ? 'reqwest::Response' : op.returnType || '()'},ClientError> {
+      methods.push(`pub async fn ${snake(op.contract.name)}(${signature}) -> Result<${['readFile', 'readCustomerAgentFile'].includes(op.originalId) ? 'reqwest::Response' : op.returnType || '()'},ClientError> {
         ${key ? 'let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());' : ''}
         crate::apis::${op.module}::${op.id}(self.client.configuration(), ${arguments_.join(', ')}).await
           .map_err(|error|crate::request_error(error,${key ? 'Some(key)' : 'None'}))

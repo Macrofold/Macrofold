@@ -364,7 +364,11 @@ importers:
         specifier: 0.28.1
         version: 0.28.1
 
-  sdk/typescript: {}
+  sdk/typescript:
+    dependencies:
+      react:
+        specifier: '>=19'
+        version: 19.2.8
 
 packages:
 

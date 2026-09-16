@@ -15,6 +15,10 @@ A project is a lasting home for work. A run is one task performed inside it.
 | Connection   | Grants access to a provider or tool                 | An MCP server or model key      |
 | Agent preset | Reuses harness, model, and run configuration        | A code-review setup             |
 
+## Optional integration paths
+
+[Customer agents](../features/customer-agents/README.md) is a use-case-specific shortcut over this resource model. It binds your application's authenticated customer to a dedicated project, worktree and preset, and checks ownership when sending messages or managing connections. It is not a new core agent type or a requirement for running agents.
+
 ## What persists
 
 Persistent project files and compatible native session state survive ordinary run completion. Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.

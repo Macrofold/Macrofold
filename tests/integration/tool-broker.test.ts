@@ -43,49 +43,56 @@ afterEach(() => {
     else process.env[key] = env[key];
   }
 });
-it('pins Composio execution to the granted account when another account is connected later', async () => {
-  const fixture = await prepared('composio');
-  process.env.COMPOSIO_MICRO_USD_PER_CALL = '0';
-  const second = await transaction(fixture.p.organizationId, async (tx) => {
-    const first = fixture.connection;
-    return resources.create(tx, 'connections', fixture.p.organizationId, {
-      ...first,
-      name: 'Personal',
-      external_account_id: 'personal-account',
+it.each([undefined, 'customer_opaque-app-subject'])(
+  'pins connector execution to its account and bound provider subject (%s)',
+  async (subject) => {
+    const fixture = await prepared('composio');
+    if (subject)
+      await transaction(fixture.p.organizationId, (tx) =>
+        resources.update(tx, 'connections', fixture.connection.id, { provider_subject_id: subject }),
+      );
+    process.env.COMPOSIO_MICRO_USD_PER_CALL = '0';
+    const second = await transaction(fixture.p.organizationId, async (tx) => {
+      const first = fixture.connection;
+      return resources.create(tx, 'connections', fixture.p.organizationId, {
+        ...first,
+        name: 'Personal',
+        external_account_id: 'personal-account',
+      });
     });
-  });
-  const execute = vi.fn(async () => ({ data: { account: 'research' }, successful: true }));
-  vi.spyOn(connections, 'composio').mockReturnValue({ tools: { execute } } as unknown as ReturnType<
-    typeof connections.composio
-  >);
-  await executeGrantedTool(
-    fixture.cap,
-    fixture.connection.id,
-    fixture.tool,
-    { message: 'Read research' },
-    'named-1',
-  );
-  expect(execute.mock.calls[0]).toEqual([
-    fixture.tool.name,
-    {
-      userId: `${fixture.p.organizationId}:${fixture.p.userId}`,
-      connectedAccountId: 'research-account',
-      version: 'fixture-version',
-      arguments: { message: 'Read research' },
-    },
-    { signal: expect.any(AbortSignal) },
-  ]);
-  await expect(
-    executeGrantedTool(fixture.cap, second.id, fixture.tool, { message: 'Read personal' }, 'named-2'),
-  ).rejects.toMatchObject({ code: 'tool_not_granted' });
-  await transaction(fixture.p.organizationId, (tx) =>
-    resources.update(tx, 'connections', fixture.connection.id, { status: 'expired' }),
-  );
-  await expect(
-    executeGrantedTool(fixture.cap, fixture.connection.id, fixture.tool, { message: 'Retry' }, 'named-3'),
-  ).rejects.toMatchObject({ code: 'tool_not_granted' });
-  expect(execute).toHaveBeenCalledOnce();
-});
+    const execute = vi.fn(async () => ({ data: { account: 'research' }, successful: true }));
+    vi.spyOn(connections, 'composio').mockReturnValue({ tools: { execute } } as unknown as ReturnType<
+      typeof connections.composio
+    >);
+    await executeGrantedTool(
+      fixture.cap,
+      fixture.connection.id,
+      fixture.tool,
+      { message: 'Read research' },
+      'named-1',
+    );
+    expect(execute.mock.calls[0]).toEqual([
+      fixture.tool.name,
+      {
+        userId: subject || `${fixture.p.organizationId}:${fixture.p.userId}`,
+        connectedAccountId: 'research-account',
+        version: 'fixture-version',
+        arguments: { message: 'Read research' },
+      },
+      { signal: expect.any(AbortSignal) },
+    ]);
+    await expect(
+      executeGrantedTool(fixture.cap, second.id, fixture.tool, { message: 'Read personal' }, 'named-2'),
+    ).rejects.toMatchObject({ code: 'tool_not_granted' });
+    await transaction(fixture.p.organizationId, (tx) =>
+      resources.update(tx, 'connections', fixture.connection.id, { status: 'expired' }),
+    );
+    await expect(
+      executeGrantedTool(fixture.cap, fixture.connection.id, fixture.tool, { message: 'Retry' }, 'named-3'),
+    ).rejects.toMatchObject({ code: 'tool_not_granted' });
+    expect(execute).toHaveBeenCalledOnce();
+  },
+);
 afterAll(async () => {
   await fixtureOperator((db) => db.query("DELETE FROM connector_enablement WHERE toolkit='gmail'"));
   await pool.end();

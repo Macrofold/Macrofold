@@ -7,6 +7,7 @@ node_modules/
 !.env.test.example
 !.env.docker.example
 .data/
+/output/
 /coverage/
 .stryker-tmp/
 reports/mutation/
@@ -24,6 +25,7 @@ __pycache__/
 .venv/
 /sdk/python/build/
 .neon
+/apps/web/public/swarm-media/
 
 .coverage
 .coverage.*

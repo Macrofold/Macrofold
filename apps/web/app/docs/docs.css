@@ -6,16 +6,25 @@
   --docs-muted: var(--app-ink-2);
   --docs-line: var(--app-line);
   --docs-accent: var(--app-accent);
+  --docs-bg: var(--app-bg);
   --docs-surface: var(--app-surface);
   --docs-raised: var(--app-surface-2);
   --docs-wash: var(--app-accent-wash);
+  --docs-code-surface: var(--docs-surface);
   color: var(--docs-ink);
   font-family: var(--app-font);
   font-size: 14px;
   line-height: 1.6;
 }
+/* Swap the original light canvas into accents and code; keep the page white. */
+:root[data-theme='light'] :is(.docs-site, .docs-search-dialog, .docs-mobile-menu) {
+  --docs-bg: var(--app-surface);
+  --docs-wash: var(--app-bg);
+  --docs-raised: var(--docs-wash);
+  --docs-code-surface: var(--docs-wash);
+}
 .docs-site {
-  background: var(--app-bg);
+  background: var(--docs-bg);
   min-height: 100vh;
 }
 .docs-site * {
@@ -44,7 +53,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--app-bg) 96%, transparent);
+  background: color-mix(in srgb, var(--docs-bg) 96%, transparent);
   backdrop-filter: blur(16px);
 }
 .docs-brand {
@@ -299,7 +308,7 @@
   background: var(--docs-raised);
 }
 .docs-prose pre {
-  background: var(--docs-surface);
+  background: var(--docs-code-surface);
   border: 1px solid var(--docs-line);
   border-radius: 10px;
   padding: 20px 22px;
@@ -319,7 +328,7 @@
   border: 1px solid var(--docs-line);
   border-radius: 10px;
   overflow: hidden;
-  background: var(--docs-surface);
+  background: var(--docs-code-surface);
 }
 .docs-code-header {
   display: flex;
@@ -846,7 +855,7 @@
   border-color: var(--app-line-2);
 }
 .docs-code-header > span {
-  color: var(--app-ember);
+  color: var(--docs-accent);
 }
 .docs-search-results > p button,
 .docs-connectors > p button {

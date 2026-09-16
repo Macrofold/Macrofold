@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -24,6 +23,8 @@ import { CodePanel, MotionSurface } from './controls';
 import { CustomerStory } from './customer-story';
 import { ProductStory } from './story';
 import { BrandLockup } from '../brand-lockup';
+import { SwarmPlaylist } from './swarm-playlist';
+import { swarmMediaBase } from './swarm-media';
 import './site.css';
 
 const contributor = docsSourceUrl('CONTRIBUTING.md');
@@ -282,16 +283,9 @@ export function LandingSite({ name = 'Macrofold' }: { name?: string }) {
       <SiteHeader name={name} />
       <main id="main-content">
         <section className="mf-hero" aria-label="Introduction">
-          <div className="mf-hero-art" aria-hidden="true">
-            <Image
-              src="/concepts/swarm.png"
-              alt=""
-              width={1536}
-              height={1024}
-              priority
-              sizes="(max-width: 800px) 100vw, 80vw"
-            />
-            <div />
+          <div className="mf-hero-art">
+            <SwarmPlaylist baseUrl={swarmMediaBase(process.env.MARKETING_MEDIA_BASE_URL)} />
+            <div className="mf-hero-shade" aria-hidden="true" />
           </div>
           <div className="mf-hero-copy">
             <h1 className="mf-gleam">{headline}</h1>

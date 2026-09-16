@@ -187,3 +187,65 @@ it('creates managed auth with the installed SDK and never retries an ambiguous P
   await expect(connectorSetupProvider().createManaged('gmail')).rejects.toThrow();
   expect(http).toHaveBeenCalledTimes(2);
 });
+
+it('customer consent uses the exact subject, alias and pinned account without retrying account creation', async () => {
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  const { composioCustomerConsent } = await import('../../packages/providers/src/composio-consent');
+  let posts = 0;
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    const address = new URL(String(url));
+    if (init?.method === 'GET') {
+      expect(address.searchParams.get('user_ids')).toBe('customer_opaque-subject');
+      return Response.json({ items: [], next_cursor: null, total_pages: 0 });
+    }
+    posts++;
+    expect(address.pathname).toBe('/api/v3.1/connected_accounts/link');
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      user_id: 'customer_opaque-subject',
+      alias: 'immutable-connection',
+      auth_config_id: 'fixture-auth',
+      callback_url: 'https://macrofold.example/integrations/composio/callback',
+    });
+    return Response.json({ message: 'Uncertain response' }, { status: 503 });
+  });
+  await expect(
+    composioCustomerConsent.start({
+      subject: 'customer_opaque-subject',
+      connectionId: 'immutable-connection',
+      authConfigId: 'fixture-auth',
+      callbackUrl: 'https://macrofold.example/integrations/composio/callback',
+    }),
+  ).rejects.toThrow();
+  expect(posts).toBe(1);
+});
+
+it('verifies opaque customer consent through a fixed endpoint and checks the active account with the installed SDK', async () => {
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  const { completeComposioConsent } = await import('../../packages/providers/src/composio-consent');
+  const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    if (init?.method === 'POST') {
+      expect(String(url)).toBe('https://backend.composio.dev/api/v3.1/connected_accounts/complete_auth');
+      expect(init.redirect).toBe('error');
+      expect(JSON.parse(String(init.body))).toEqual({
+        session_uri: 'http://169.254.169.254/not-a-fetch-target',
+        user_id: 'customer_opaque-subject',
+      });
+      return Response.json({ connected_account_id: 'verified-account', toolkit_slug: 'gmail' });
+    }
+    expect(String(url)).toBe('https://backend.composio.dev/api/v3.1/connected_accounts/verified-account');
+    return Response.json({
+      id: 'verified-account',
+      status: 'ACTIVE',
+      is_disabled: false,
+      toolkit: { slug: 'gmail' },
+      auth_config: { id: 'fixture-auth', is_composio_managed: true, is_disabled: false },
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+      status_reason: null,
+    });
+  });
+  expect(
+    await completeComposioConsent('http://169.254.169.254/not-a-fetch-target', 'customer_opaque-subject'),
+  ).toEqual({ accountId: 'verified-account', toolkit: 'gmail' });
+  expect(http).toHaveBeenCalledTimes(2);
+});

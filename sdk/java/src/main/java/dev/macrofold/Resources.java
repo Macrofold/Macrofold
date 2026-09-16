@@ -11,6 +11,7 @@ public abstract class Resources extends ApiClient {
   protected Resources(java.net.http.HttpClient.Builder http, com.fasterxml.jackson.databind.ObjectMapper mapper, String origin) {super(http,mapper,origin);}
   public abstract void stream(UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   protected abstract void streamInOrganization(UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
+  protected abstract void streamCustomerInOrganization(String customerId,UUID customerAgentId,UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   public ProjectsResource projects(){return new ProjectsResource(this,RequestOptions.defaults());}
 public WorkspacesResource workspaces(){return new WorkspacesResource(this,RequestOptions.defaults());}
 public AgentsResource agents(){return new AgentsResource(this,RequestOptions.defaults());}
@@ -35,6 +36,7 @@ public IntegrationsResource integrations(){return new IntegrationsResource(this,
 public OrganizationsResource organizations(){return new OrganizationsResource(this,RequestOptions.defaults());}
 public TriggersResource triggers(){return new TriggersResource(this,RequestOptions.defaults());}
 public SlackConnectionsResource slackConnections(){return new SlackConnectionsResource(this,RequestOptions.defaults());}
+public CustomerAgentsResource customerAgents(){return new CustomerAgentsResource(this,RequestOptions.defaults());}
 
 public static final class GetProjectParams {
         private Boolean includeConnections;
@@ -1460,6 +1462,184 @@ public ListSlackConnections200Response list() throws ApiException {
 
 
         try {return new SlackConnectionsApi(client).listSlackConnections(options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+    }
+public static final class ListCustomerAgentConnectionsParams {
+        private UUID cursor;
+private Integer limit;
+        public ListCustomerAgentConnectionsParams(){}
+        public ListCustomerAgentConnectionsParams cursor(UUID value){this.cursor=value;return this;}
+public ListCustomerAgentConnectionsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListCustomerAgentConversationsParams {
+        private UUID cursor;
+private Integer limit;
+        public ListCustomerAgentConversationsParams(){}
+        public ListCustomerAgentConversationsParams cursor(UUID value){this.cursor=value;return this;}
+public ListCustomerAgentConversationsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListCustomerAgentFilesParams {
+        private String path;
+private String query;
+private Boolean recursive;
+private String cursor;
+private Integer limit;
+        public ListCustomerAgentFilesParams(){}
+        public ListCustomerAgentFilesParams path(String value){this.path=value;return this;}
+public ListCustomerAgentFilesParams query(String value){this.query=value;return this;}
+public ListCustomerAgentFilesParams recursive(Boolean value){this.recursive=value;return this;}
+public ListCustomerAgentFilesParams cursor(String value){this.cursor=value;return this;}
+public ListCustomerAgentFilesParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListCustomerAgentRunEventsParams {
+        private String after;
+private String cursor;
+private Integer limit;
+        public ListCustomerAgentRunEventsParams(){}
+        public ListCustomerAgentRunEventsParams after(String value){this.after=value;return this;}
+public ListCustomerAgentRunEventsParams cursor(String value){this.cursor=value;return this;}
+public ListCustomerAgentRunEventsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ListCustomerAgentsParams {
+        private UUID cursor;
+private Integer limit;
+        public ListCustomerAgentsParams(){}
+        public ListCustomerAgentsParams cursor(UUID value){this.cursor=value;return this;}
+public ListCustomerAgentsParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class ReadCustomerAgentFileParams {
+        private String path;
+private Boolean download;
+        public ReadCustomerAgentFileParams(String path){this.path=Objects.requireNonNull(path,"path");}
+        public ReadCustomerAgentFileParams path(String value){this.path=value;return this;}
+public ReadCustomerAgentFileParams download(Boolean value){this.download=value;return this;}
+      }
+public static final class UpdateCustomerAgentConnectionPermissionsParams {
+        private String ifMatch;
+        public UpdateCustomerAgentConnectionPermissionsParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
+        public UpdateCustomerAgentConnectionPermissionsParams ifMatch(String value){this.ifMatch=value;return this;}
+      }
+public static final class CustomerAgentsResource {
+      private final Resources client; private final RequestOptions options;
+      private CustomerAgentsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public CustomerAgentsResource withOptions(RequestOptions options){return new CustomerAgentsResource(client,Objects.requireNonNull(options));}
+      public CustomerConnectionAuthorization authorizeConnection(String customerId,UUID customerAgentId,UUID connectionId,CustomerConnectionAuthorize input) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).authorizeCustomerAgentConnection(customerId,customerAgentId,connectionId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Run cancelRun(String customerId,UUID customerAgentId,UUID runId) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).cancelCustomerAgentRun(customerId,customerAgentId,runId,key,new HashMap<>(),options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public CustomerAgentConnection completeConnection(String customerId,UUID customerAgentId,UUID connectionId,CustomerConnectionComplete input) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).completeCustomerAgentConnection(customerId,customerAgentId,connectionId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public CustomerAgentConnection createConnection(String customerId,UUID customerAgentId,CustomerAgentConnectionCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).createCustomerAgentConnection(customerId,customerAgentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public void deleteConnection(String customerId,UUID customerAgentId,UUID connectionId) throws ApiException {
+
+
+        try {new CustomerAgentsApi(client).deleteCustomerAgentConnection(customerId,customerAgentId,connectionId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public CustomerAgentBinding ensure(String customerId,CustomerAgentEnsure input) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).ensureCustomerAgent(customerId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public CustomerAgentBinding get(String customerId,UUID customerAgentId) throws ApiException {
+
+
+        try {return new CustomerAgentsApi(client).getCustomerAgent(customerId,customerAgentId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public Run getRun(String customerId,UUID customerAgentId,UUID runId) throws ApiException {
+
+
+        try {return new CustomerAgentsApi(client).getCustomerAgentRun(customerId,customerAgentId,runId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public RunResult getRunResult(String customerId,UUID customerAgentId,UUID runId) throws ApiException {
+
+
+        try {return new CustomerAgentsApi(client).getCustomerAgentRunResult(customerId,customerAgentId,runId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public CustomerAgentConnectionPage listConnections(String customerId,UUID customerAgentId) throws ApiException {
+        return listConnections(customerId,customerAgentId,new ListCustomerAgentConnectionsParams());
+      }
+public CustomerAgentConnectionPage listConnections(String customerId,UUID customerAgentId,ListCustomerAgentConnectionsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).listCustomerAgentConnections(customerId,customerAgentId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ListSessions200Response listConversations(String customerId,UUID customerAgentId) throws ApiException {
+        return listConversations(customerId,customerAgentId,new ListCustomerAgentConversationsParams());
+      }
+public ListSessions200Response listConversations(String customerId,UUID customerAgentId,ListCustomerAgentConversationsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).listCustomerAgentConversations(customerId,customerAgentId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public FileListing listFiles(String customerId,UUID customerAgentId) throws ApiException {
+        return listFiles(customerId,customerAgentId,new ListCustomerAgentFilesParams());
+      }
+public FileListing listFiles(String customerId,UUID customerAgentId,ListCustomerAgentFilesParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).listCustomerAgentFiles(customerId,customerAgentId,options.organization(),params.path,params.query,params.recursive,params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ListRunEvents200Response listRunEvents(String customerId,UUID customerAgentId,UUID runId) throws ApiException {
+        return listRunEvents(customerId,customerAgentId,runId,new ListCustomerAgentRunEventsParams());
+      }
+public ListRunEvents200Response listRunEvents(String customerId,UUID customerAgentId,UUID runId,ListCustomerAgentRunEventsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).listCustomerAgentRunEvents(customerId,customerAgentId,runId,options.organization(),params.after,params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public CustomerAgentPage list(String customerId) throws ApiException {
+        return list(customerId,new ListCustomerAgentsParams());
+      }
+public CustomerAgentPage list(String customerId,ListCustomerAgentsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).listCustomerAgents(customerId,options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public File readFile(String customerId,UUID customerAgentId,ReadCustomerAgentFileParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).readCustomerAgentFile(customerId,customerAgentId,params.path,options.organization(),params.download);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public RunAccepted sendMessage(String customerId,UUID customerAgentId,CustomerAgentMessage input) throws ApiException {
+        String key=options.identity();
+
+        try {return new CustomerAgentsApi(client).sendCustomerAgentMessage(customerId,customerAgentId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public void streamRun(String customerId,UUID customerAgentId,UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {client.streamCustomerInOrganization(customerId,customerAgentId,runId,after,options.organization(),receive);}
+public CustomerAgentConnection updateConnectionPermissions(String customerId,UUID customerAgentId,UUID connectionId,CustomerAgentConnectionPermissions input,UpdateCustomerAgentConnectionPermissionsParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new CustomerAgentsApi(client).updateCustomerAgentConnectionPermissions(customerId,customerAgentId,connectionId,params.ifMatch,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }

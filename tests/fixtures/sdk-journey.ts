@@ -17,6 +17,29 @@ await assert.rejects(
   client.workspaces.readFile(filesWorkspace, { path: 'missing.txt' }),
   (error: unknown) => error instanceof ApiError && error.status === 404,
 );
+const customerId = 'customer / 日本語',
+  customerAgentId = process.env.MACROFOLD_FIXTURE_CUSTOMER_AGENT!,
+  customerRunId = process.env.MACROFOLD_FIXTURE_CUSTOMER_RUN!;
+assert.equal(
+  (await client.customerAgents.get(customerId, customerAgentId)).integration_path,
+  'customer-agents',
+);
+const customerEvents = [];
+for await (const event of client.customerAgents.streamRun(customerId, customerAgentId, customerRunId))
+  customerEvents.push(event);
+assert.equal(customerEvents.at(-1)?.type, 'run.succeeded');
+assert.match(
+  new TextDecoder().decode(
+    await client.customerAgents.readFile(customerId, customerAgentId, {
+      path: `notes/run-${customerRunId}.md`,
+    }),
+  ),
+  /optional customer-agent path/,
+);
+await assert.rejects(
+  client.customerAgents.getRun('wrong customer', customerAgentId, customerRunId),
+  (e: unknown) => e instanceof ApiError && e.status === 404,
+);
 const project = await client.projects.create({ name: 'TypeScript application fixture' });
 assert(project.default_workspace_id);
 const workspaceId = project.default_workspace_id;

@@ -12,11 +12,22 @@ import type { operations } from './schema.js';
 import { streamRunText, waitForRun, type WaitOptions } from './run-helpers.js';
 export const DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)};
 export type RequestSettings = { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string,string> };
-type Transport = Pick<Client, 'request' | 'stream'>;`,
+type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent'>;`,
   ];
   for (const group of groups) {
     const methods: string[] = [];
     for (const op of operations.filter((o) => o.group === group)) {
+      if (op.id === 'streamCustomerAgentRun') {
+        methods.push(`/** Stream through the optional customer-agent integration path. */
+          streamRun(customerId: string, customerAgentId: string, runId: string, options: {after?: string; signal?: AbortSignal} = {}) { return this.client.streamCustomerAgent(customerId, customerAgentId, runId, options); }
+          waitRun(customerId: string, customerAgentId: string, runId: string, options: WaitOptions = {}) {
+            return waitForRun({ get: (id, settings) => this.getRun(customerId, customerAgentId, id, settings), getResult: (id, settings) => this.getRunResult(customerId, customerAgentId, id, settings) }, runId, options);
+          }
+          streamText(customerId: string, customerAgentId: string, runId: string, options: {after?: string; signal?: AbortSignal} = {}) {
+            return streamRunText(this.streamRun(customerId, customerAgentId, runId, options), () => this.waitRun(customerId, customerAgentId, runId, {signal:options.signal}));
+          }`);
+        continue;
+      }
       if (op.id === 'streamRun') {
         methods.push(`/** Stream live or historical events; reconnects from the last delivered cursor. */
           stream(runId: string, options: {after?: string; signal?: AbortSignal} = {}) { return this.client.stream(runId, options); }
@@ -85,6 +96,7 @@ type Transport = Pick<Client, 'request' | 'stream'>;`,
   content.push(`export abstract class Resources {
     abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
     abstract stream(runId: string, options?: {after?:string; signal?:AbortSignal}): AsyncGenerator<Schema['Event']>;
+    abstract streamCustomerAgent(customerId: string, customerAgentId: string, runId: string, options?: {after?:string; signal?:AbortSignal}): AsyncGenerator<Schema['Event']>;
     ${groups.map((group) => `readonly ${group} = new ${pascal(group)}Resource(this);`).join('\n')}
   }`);
   await writeFile(

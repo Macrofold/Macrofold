@@ -1,17 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { ArrowRight, Pause, Play, Terminal } from 'lucide-react';
 import Link from 'next/link';
 import { CopyButton } from '../copy-button';
 import { examples } from './examples';
 
+const MotionContext = createContext({ paused: false, explicit: false });
+export const useMarketingMotion = () => useContext(MotionContext);
+
 export function MotionSurface({ children, className = '' }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   // Playback is the visitor's choice. Visibility may suspend rendering, but
   // returning to the page must never turn that choice into a permanent pause.
   const [motionOverride, setMotionOverride] = useState<'playing' | 'paused'>('playing');
+  const [explicit, setExplicit] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
   const [benefitsVisible, setBenefitsVisible] = useState(false);
@@ -82,25 +86,35 @@ export function MotionSurface({ children, className = '' }: { children: ReactNod
     };
   }, []);
   return (
-    <div
-      className={`mf-site ${className}`.trim()}
-      ref={ref}
-      data-motion={paused || hidden ? 'paused' : 'playing'}
-      data-motion-override={motionOverride}
-      data-hero-visible={heroVisible}
-      data-benefits-visible={benefitsVisible}
+    <MotionContext.Provider
+      value={{
+        paused,
+        explicit,
+      }}
     >
-      {children}
-      <button
-        className="mf-motion"
-        type="button"
-        aria-pressed={paused}
-        onClick={() => setMotionOverride(paused ? 'playing' : 'paused')}
+      <div
+        className={`mf-site ${className}`.trim()}
+        ref={ref}
+        data-motion={paused || hidden ? 'paused' : 'playing'}
+        data-motion-override={motionOverride}
+        data-hero-visible={heroVisible}
+        data-benefits-visible={benefitsVisible}
       >
-        {paused ? <Play size={12} /> : <Pause size={12} />}
-        {paused ? 'Play animations' : 'Pause animations'}
-      </button>
-    </div>
+        {children}
+        <button
+          className="mf-motion"
+          type="button"
+          aria-pressed={paused}
+          onClick={() => {
+            setExplicit(true);
+            setMotionOverride(paused ? 'playing' : 'paused');
+          }}
+        >
+          {paused ? <Play size={12} /> : <Pause size={12} />}
+          {paused ? 'Play animations' : 'Pause animations'}
+        </button>
+      </div>
+    </MotionContext.Provider>
   );
 }
 

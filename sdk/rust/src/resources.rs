@@ -24,7 +24,8 @@ pub fn transfers(&self) -> TransfersResource<'_> {TransfersResource {client:self
 pub fn integrations(&self) -> IntegrationsResource<'_> {IntegrationsResource {client:self, options:RequestOptions::default()}}
 pub fn organizations(&self) -> OrganizationsResource<'_> {OrganizationsResource {client:self, options:RequestOptions::default()}}
 pub fn triggers(&self) -> TriggersResource<'_> {TriggersResource {client:self, options:RequestOptions::default()}}
-pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnectionsResource {client:self, options:RequestOptions::default()}} }
+pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnectionsResource {client:self, options:RequestOptions::default()}}
+pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}} }
 
 #[derive(Debug,Clone,Default)] pub struct GetProjectParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct GetWorktreeOptionsParams {pub name: Option<String>,pub branch: Option<String>}
@@ -795,6 +796,103 @@ pub async fn list_channels(&self, connection_id: &str, params: ListSlackConnecti
 pub async fn list(&self) -> Result<models::ListSlackConnections200Response,ClientError> {
 
         crate::apis::slack_connections_api::list_slack_connections(self.client.configuration(), self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+    }
+#[derive(Debug,Clone,Default)] pub struct ListCustomerAgentConnectionsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListCustomerAgentConversationsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListCustomerAgentFilesParams {pub path: Option<String>,pub query: Option<String>,pub recursive: Option<bool>,pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListCustomerAgentRunEventsParams {pub after: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListCustomerAgentsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct ReadCustomerAgentFileParams {pub path: String,pub download: Option<bool>}
+#[derive(Debug,Clone)] pub struct UpdateCustomerAgentConnectionPermissionsParams {pub if_match: String}
+pub struct CustomerAgentsResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> CustomerAgentsResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn authorize_connection(&self, customer_id: &str, customer_agent_id: &str, connection_id: &str, input: models::CustomerConnectionAuthorize) -> Result<models::CustomerConnectionAuthorization,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::authorize_customer_agent_connection(self.client.configuration(), customer_id, customer_agent_id, connection_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn cancel_run(&self, customer_id: &str, customer_agent_id: &str, run_id: &str) -> Result<models::Run,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::cancel_customer_agent_run(self.client.configuration(), customer_id, customer_agent_id, run_id, &key, serde_json::json!({}), self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn complete_connection(&self, customer_id: &str, customer_agent_id: &str, connection_id: &str, input: models::CustomerConnectionComplete) -> Result<models::CustomerAgentConnection,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::complete_customer_agent_connection(self.client.configuration(), customer_id, customer_agent_id, connection_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_connection(&self, customer_id: &str, customer_agent_id: &str, input: models::CustomerAgentConnectionCreate) -> Result<models::CustomerAgentConnection,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::create_customer_agent_connection(self.client.configuration(), customer_id, customer_agent_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete_connection(&self, customer_id: &str, customer_agent_id: &str, connection_id: &str) -> Result<(),ClientError> {
+
+        crate::apis::customer_agents_api::delete_customer_agent_connection(self.client.configuration(), customer_id, customer_agent_id, connection_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn ensure(&self, customer_id: &str, input: models::CustomerAgentEnsure) -> Result<models::CustomerAgentBinding,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::ensure_customer_agent(self.client.configuration(), customer_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get(&self, customer_id: &str, customer_agent_id: &str) -> Result<models::CustomerAgentBinding,ClientError> {
+
+        crate::apis::customer_agents_api::get_customer_agent(self.client.configuration(), customer_id, customer_agent_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_run(&self, customer_id: &str, customer_agent_id: &str, run_id: &str) -> Result<models::Run,ClientError> {
+
+        crate::apis::customer_agents_api::get_customer_agent_run(self.client.configuration(), customer_id, customer_agent_id, run_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_run_result(&self, customer_id: &str, customer_agent_id: &str, run_id: &str) -> Result<models::RunResult,ClientError> {
+
+        crate::apis::customer_agents_api::get_customer_agent_run_result(self.client.configuration(), customer_id, customer_agent_id, run_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_connections(&self, customer_id: &str, customer_agent_id: &str, params: ListCustomerAgentConnectionsParams) -> Result<models::CustomerAgentConnectionPage,ClientError> {
+
+        crate::apis::customer_agents_api::list_customer_agent_connections(self.client.configuration(), customer_id, customer_agent_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_conversations(&self, customer_id: &str, customer_agent_id: &str, params: ListCustomerAgentConversationsParams) -> Result<models::ListSessions200Response,ClientError> {
+
+        crate::apis::customer_agents_api::list_customer_agent_conversations(self.client.configuration(), customer_id, customer_agent_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_files(&self, customer_id: &str, customer_agent_id: &str, params: ListCustomerAgentFilesParams) -> Result<models::FileListing,ClientError> {
+
+        crate::apis::customer_agents_api::list_customer_agent_files(self.client.configuration(), customer_id, customer_agent_id, self.options.organization.as_deref(), params.path.as_deref(), params.query.as_deref(), params.recursive, params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_run_events(&self, customer_id: &str, customer_agent_id: &str, run_id: &str, params: ListCustomerAgentRunEventsParams) -> Result<models::ListRunEvents200Response,ClientError> {
+
+        crate::apis::customer_agents_api::list_customer_agent_run_events(self.client.configuration(), customer_id, customer_agent_id, run_id, self.options.organization.as_deref(), params.after.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, customer_id: &str, params: ListCustomerAgentsParams) -> Result<models::CustomerAgentPage,ClientError> {
+
+        crate::apis::customer_agents_api::list_customer_agents(self.client.configuration(), customer_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn read_file(&self, customer_id: &str, customer_agent_id: &str, params: ReadCustomerAgentFileParams) -> Result<reqwest::Response,ClientError> {
+
+        crate::apis::customer_agents_api::read_customer_agent_file(self.client.configuration(), customer_id, customer_agent_id, &params.path, self.options.organization.as_deref(), params.download).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn send_message(&self, customer_id: &str, customer_agent_id: &str, input: models::CustomerAgentMessage) -> Result<models::RunAccepted,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::customer_agents_api::send_customer_agent_message(self.client.configuration(), customer_id, customer_agent_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn stream_run(&self, customer_id:&str, customer_agent_id:&str, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_target(run_id,after,self.options.organization.as_deref(),Some((customer_id,customer_agent_id)),receive).await}
+pub async fn update_connection_permissions(&self, customer_id: &str, customer_agent_id: &str, connection_id: &str, input: models::CustomerAgentConnectionPermissions, params: UpdateCustomerAgentConnectionPermissionsParams) -> Result<models::CustomerAgentConnection,ClientError> {
+
+        crate::apis::customer_agents_api::update_customer_agent_connection_permissions(self.client.configuration(), customer_id, customer_agent_id, connection_id, &params.if_match, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
     }

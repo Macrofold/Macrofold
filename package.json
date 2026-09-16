@@ -5,6 +5,8 @@
   "packageManager": "pnpm@10.33.0",
   "type": "module",
   "scripts": {
+    "media:swarm": "tsx scripts/swarm-media.ts",
+    "preview:swarm": "tsx scripts/swarm-media.ts --stage && tsx scripts/preview-swarm.ts",
     "dev": "pnpm --filter @platform/web dev",
     "build": "pnpm --filter @platform/web build",
     "start": "pnpm --filter @platform/web start",

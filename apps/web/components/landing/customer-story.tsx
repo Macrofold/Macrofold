@@ -64,8 +64,9 @@ export function CustomerStory() {
         </ol>
       </div>
       <p className="mf-customer-note">
-        Illustrative workflow: agents take turns on persisted files. Your app owns customer identity; the
-        optional memory starter guides what agents save. Separate conversations keep their own history.
+        Customer agents is an optional integration path over Macrofold’s projects, worktrees, presets and
+        runs. Your app owns customer identity. This illustrative workflow uses ordinary files and separate
+        conversations; the optional memory starter guides what agents save.
       </p>
       <Link className="mf-text-link" href="/docs/customer-agents">
         Build this customer experience <ArrowRight size={15} />

@@ -1,0 +1,66 @@
+@import 'macrofold/react.css';
+.customer-connect-site {
+  --border: var(--app-line);
+  --accent: var(--app-accent);
+  min-height: 100dvh;
+  padding: 32px;
+  background: var(--app-bg);
+  color: var(--app-ink);
+}
+.customer-connect-site > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1040px;
+  margin: auto;
+}
+.customer-connect-brand img {
+  width: 155px;
+  height: auto;
+}
+:root[data-theme='light'] .customer-connect-brand img {
+  filter: brightness(0);
+}
+.customer-connect-panel {
+  max-width: 540px;
+  margin: 64px auto 24px;
+  padding: 32px;
+  border: 1px solid var(--app-line);
+  border-radius: 20px;
+  background: var(--app-surface);
+}
+.customer-connect-panel h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 20px 0 12px;
+}
+.customer-connect-panel p {
+  line-height: 1.6;
+}
+.customer-connect-eyebrow,
+.customer-connect-note,
+.customer-connect-panel footer {
+  color: var(--app-ink-2);
+  font-size: 13px;
+}
+.customer-connect-panel footer {
+  margin-top: 28px;
+}
+.customer-connect-panel > .button {
+  width: 100%;
+  margin-top: 12px;
+}
+.customer-connect-panel [role='alert'] {
+  color: var(--app-danger);
+}
+@media (max-width: 600px) {
+  .customer-connect-site {
+    --border: var(--app-line);
+    --accent: var(--app-accent);
+    padding: 20px 16px;
+  }
+  .customer-connect-panel {
+    margin-top: 32px;
+    padding: 24px;
+  }
+}

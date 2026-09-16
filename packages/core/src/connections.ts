@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { composio } from '../../providers/src/composio';
+import { composioTools } from '../../providers/src/composio-consent';
 export { composio } from '../../providers/src/composio';
 import { enabledConnector } from './connector-enablement';
 import type { Tx } from '../../db';
@@ -212,29 +213,10 @@ export async function connectionTools(c: resources.Document<'connections'>): Pro
     }));
   if (c.kind === 'composio') {
     const setup = await enabledConnector(String(c.provider));
-    const sdk = composio();
-    // The high-level raw-tools helper discards next_cursor. Use its public API
-    // client so a large toolkit does not silently hide tools after the first page.
-    return collectToolPages(async (cursor, signal) => {
-      const page = await sdk.getClient().tools.list(
-        {
-          toolkit_slug: String(c.provider),
-          toolkit_versions: { [setup.toolkit]: setup.toolkit_version },
-          limit: 100,
-          ...(cursor ? { cursor } : {}),
-        },
-        { signal },
-      );
-      return {
-        items: page.items.map((t) => ({
-          name: t.slug,
-          description: t.description,
-          input_schema: t.input_parameters || {},
-          granted: grants.includes(t.slug),
-        })),
-        nextCursor: page.next_cursor,
-      };
-    });
+    return (await composioTools(setup.toolkit, setup.toolkit_version)).map((t) => ({
+      ...t,
+      granted: grants.includes(t.name),
+    }));
   }
   return withMcp(c, (client) =>
     collectToolPages(async (cursor, signal) => {

@@ -6,12 +6,22 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 
 test('branded docs preserve appearance across guides and mobile search', async ({ page }) => {
+  // Contrast belongs to the settled theme, not an intermediate cross-theme fade.
+  const settleAppearance = () =>
+    expect
+      .poll(() =>
+        page.evaluate(
+          () => document.getAnimations().filter((animation) => animation instanceof CSSTransition).length,
+        ),
+      )
+      .toBe(0);
   await page.goto('/docs/customer-agents');
   await expect(page).toHaveTitle('Customer agents · Macrofold Docs');
   await expect(page.getByRole('banner').getByRole('img', { name: 'Macrofold' })).toBeVisible();
   for (const theme of ['dark', 'light'] as const) {
     await page.getByRole('button', { name: `Use ${theme} theme`, exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await settleAppearance();
     expect(
       (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
     ).toEqual([]);
@@ -32,6 +42,7 @@ test('branded docs preserve appearance across guides and mobile search', async (
   await page.getByRole('button', { name: 'Open documentation menu' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Use dark theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await settleAppearance();
   expect(
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
   ).toEqual([]);

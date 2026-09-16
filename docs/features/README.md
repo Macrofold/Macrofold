@@ -17,6 +17,6 @@ These guides apply to Macrofold Cloud and self-hosted deployments. Each feature 
 
 [Triggers and scheduled tasks](triggers/README.md) connect Slack messages, incoming webhooks and recurring prompts to saved agents and persistent projects.
 
-## Customer-agent applications
+## Optional integration paths
 
-[Customer agents](customer-agents/README.md) connects external customer identity, named-agent records, worktrees, presets, sessions, memory and schedules. Start with the linked reference app and file-memory convention.
+[Customer agents](customer-agents/README.md) is a use-case-specific convenience API over projects, worktrees, presets, sessions, runs and connections. Start with its SDK quickstart and embedded connection guide, or compose the core API directly with the linked reference app. File memory and schedules remain independent options.

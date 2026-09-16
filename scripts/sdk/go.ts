@@ -16,6 +16,12 @@ func resources(api *APIClient) *Client { return &Client{APIClient:api, ${groups.
   for (const group of groups) {
     lines.push(`type ${pascal(group)}Resource struct {client *APIClient}`);
     for (const op of ops.filter((o) => o.contract.group === group)) {
+      if (op.originalId === 'streamCustomerAgentRun') {
+        lines.push(
+          `func (r *CustomerAgentsResource) StreamRun(ctx context.Context, customerID, customerAgentID, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.streamTarget(ctx,runID,after,customerID,customerAgentID,receive,options...) }`,
+        );
+        continue;
+      }
       if (op.originalId === 'streamRun') {
         lines.push(
           `func (r *RunsResource) Stream(ctx context.Context, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.Stream(ctx,runID,after,receive,options...) }`,

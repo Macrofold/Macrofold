@@ -56,6 +56,8 @@ Keep deployment administration credentials separate from application credentials
 
 You still own account enrollment and billing details, provider login/MFA and OAuth consent, domain ownership, spending and pricing decisions, legal/support information, and custody of recovery codes. After access is granted, the agent can perform the associated configuration. It should request only a specific missing input or inaccessible action and continue independent work. Sending test emails or running paid acceptance requires the agreed recipients and budget.
 
+Keep a private deployment record outside the repository throughout setup. For each step, record the command or console action, target environment, observed result, verification, and any remaining decision or manual action. Record the accepted source revision, runtime digest and deployment identity when available. Include failures and their resolution so setup can resume without repeating mutations. Never record secret values or temporary login codes; reference their protected storage location instead. Keep reusable instructions in this guide and unresolved release checks in the [maintainer checklist](../maintainers/TODO.md).
+
 ## Release automation
 
 This walkthrough deploys each environment explicitly. The checked-in GitHub Actions workflows run verification; they do not currently deploy staging or automatically promote production. Following this guide does not install a release pipeline. First-time account setup and recurring releases are separate tasks: later releases reuse the retained environment settings and credentials described under [Upgrade and roll back](#upgrade-and-roll-back).

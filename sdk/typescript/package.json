@@ -9,7 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./react.css": "./dist/react.css"
   },
   "files": [
     "dist",
@@ -21,7 +26,15 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').copyFileSync('src/schema.d.ts','dist/schema.d.ts')\""
+    "build": "tsc -p tsconfig.json && node -e \"for (const name of ['schema.d.ts','react.css']) require('node:fs').copyFileSync('src/'+name,'dist/'+name)\""
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
 }

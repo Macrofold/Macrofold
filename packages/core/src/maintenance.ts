@@ -67,6 +67,12 @@ export async function dispatchOrganizationMaintenance() {
       await transaction(org.id, async (tx) => {
         await reconcileFinance(tx, org.id);
         await tx.query("DELETE FROM oauth_attempts WHERE expires_at<now()-interval '1 day'");
+        await tx.query(
+          'UPDATE customer_connection_authorizations SET provider_session_ciphertext=NULL WHERE expires_at<now() AND provider_session_ciphertext IS NOT NULL',
+        );
+        await tx.query(
+          "DELETE FROM customer_connection_authorizations WHERE expires_at<now()-interval '1 day' AND status NOT IN ('starting','verifying')",
+        );
         await tx.query('DELETE FROM github_user_links WHERE expires_at<now()');
         await tx.query("DELETE FROM organization_invitations WHERE expires_at<now()-interval '30 days'");
         // Keep idempotency responses for 30 days; this includes one-time key/invitation secrets.

@@ -1,6 +1,12 @@
 # Dashboard UI verification
 
-Contributor evidence for the [dashboard interface](implementation.md) and [design language](../../product/design-language.md). This record separates the current motion/copy follow-up, file/navigation acceptance, and earlier dashboard polish. Neither establishes a deployed release or live provider acceptance.
+Contributor evidence for the [dashboard interface](implementation.md) and [design language](../../product/design-language.md). This record separates current copy timing from earlier motion, file/navigation, and dashboard acceptance. None establishes a deployed release or live provider acceptance.
+
+## Copy confirmation timing
+
+The shared copy control now returns from its green check to the copy icon three seconds after a successful write. Copying again restarts the timer after success; changed content, failure and unmount still invalidate feedback. Earlier persistent-check evidence below describes the previous behavior.
+
+All seven cases in `tests/browser/copy-feedback.spec.ts` passed against the local development preview using isolated browser contexts and public pages, without changing account data. The suite verifies the three-second deadline with a controlled browser clock, repeated clipboard writes and timer restart, unchanged labels/dimensions, animated checks in both motion modes, changed content, pending writes, denied clipboard access, and late completions after unmount. No production build or provider acceptance was rerun for this client-only change.
 
 ## Worktree editor and explicit playback
 

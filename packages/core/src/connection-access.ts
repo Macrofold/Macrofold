@@ -242,6 +242,7 @@ export async function patchAccess(
   connectionId: string,
   patch: Schema['ConnectionAccessPatch'],
   expected: string,
+  preparedCatalog?: Schema['Tool'][],
 ) {
   // Discovery can rotate OAuth credentials independently. Never hold the parent lock here.
   requireScopes(p, ['connections:write']);
@@ -250,7 +251,7 @@ export async function patchAccess(
   assertAccessVersion(before, expected);
   const additions = patch.tools?.filter((tool) => !before.access_tools.includes(tool)) || [];
   if (additions.length) requireGrant(p);
-  const catalog = additions.length ? await connectionTools(before) : [];
+  const catalog = additions.length ? (preparedCatalog ?? (await connectionTools(before))) : [];
   const c = await lockAccess(tx, p, connectionId, expected);
   if (patch.organization_wide === true && !c.access_organization_wide) requireGrant(p, true);
   if (additions.length) {

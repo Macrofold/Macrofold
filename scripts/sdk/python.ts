@@ -78,6 +78,17 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
       `class ${pascal(group)}Resource:\n    def __init__(self, client: Client):\n        self._client = client\n`,
     );
     for (const op of ops.filter((o) => o.contract.group === group)) {
+      if (op.originalId === 'streamCustomerAgentRun') {
+        content.push(`    def stream_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
+        stream = self._client.stream_customer_agent(customer_id, str(customer_agent_id), str(run_id), after=after)
+        try:
+            for event in stream:
+                yield models.Event.model_validate(event)
+        finally:
+            stream.close()
+`);
+        continue;
+      }
       if (op.originalId === 'streamRun') {
         content.push(`    def stream(self, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
         stream = self._client.stream(str(run_id), after=after)
@@ -148,8 +159,11 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
         if (['from', 'type', 'class', 'in', 'is', 'not', 'global'].includes(field.name)) field.name += '_';
       const paths = fields.filter((f) => f.location === 'path');
       const keywords = fields.filter((f) => f.location !== 'path');
-      const result =
-        op.originalId === 'readFile' ? 'bytes' : op.returnType ? `models.${op.returnType}` : 'None';
+      const result = ['readFile', 'readCustomerAgentFile'].includes(op.originalId)
+        ? 'bytes'
+        : op.returnType
+          ? `models.${op.returnType}`
+          : 'None';
       content.push(`    def ${snake(contract.name)}(self${paths.map((f) => `, ${f.name}: ${f.type}`).join('')}, *, ${keywords.map((f) => `${f.name}: ${f.type}${f.required ? '' : ' | Omit = OMIT'}, `).join('')}request_options: RequestOptions | None = None) -> ${result}:
         options = request_options or RequestOptions()
         identity = options.identity(${['GET', 'HEAD'].includes(contract.method) ? 'False' : 'True'})

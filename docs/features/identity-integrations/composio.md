@@ -18,6 +18,10 @@ Open **Platform → selected project → Settings → API Keys** in the [Composi
 
 A scoped key needs the capabilities the integration uses: toolkit/tool metadata, auth configurations, connected-account lifecycle, tool execution, and sessions if enabled. Catalog read permission does not establish execution permission; see [project key permissions](https://docs.composio.dev/kb/guide/platform-project-api-key-permissions).
 
+## Customer-facing consent
+
+The optional [Customer agents integration path](../customer-agents/connections.md) lets an app authenticate its own customers and offer hosted consent without Macrofold accounts. It reuses this deployment setup and verified callback, but uses an opaque customer-specific provider subject and an authenticated app completion step. Dashboard consent remains for platform members; reconnect customer accounts through the app that created them.
+
 ## Enable an app toolkit
 
 A toolkit appearing in the catalog does not mean it is ready to connect in this deployment. Macrofold has generic Composio discovery and execution, but its current connection flow requires an auth configuration and toolkit version for each enabled app. Adding a supported toolkit normally needs configuration rather than a new app-specific adapter.
@@ -73,7 +77,7 @@ An enabled toolkit is deployment configuration shared by users, not a shared con
 
 ## Connect an application user
 
-The implementation uses the stable Composio identity `organizationId:userId`, an owner-bound local connection, a persisted auth-config ID, and an exact persisted toolkit-version pin. The existing broker uses supported direct tool execution; unrestricted session meta-tools are not exposed to agents.
+The dashboard flow uses the stable Composio identity `organizationId:userId`, an owner-bound local connection, a persisted auth-config ID, and an exact persisted toolkit-version pin. The existing broker uses supported direct tool execution; unrestricted session meta-tools are not exposed to agents.
 
 Multiple accounts use Connect Link's `allowMultiple` option and the local connection UUID as a stable unique alias. Rename changes only the display name; each run resolves current access and selects exact connection IDs. Reconnect uses Composio's account refresh operation, preserving the provider account ID. A new attempt invalidates earlier pending attempts, and verified completion also checks active provider status. See [named connections](named-connections.md) and [Composio's multiple-account guidance](https://docs.composio.dev/docs/authentication/managing-multiple-connected-accounts).
 

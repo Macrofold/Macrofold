@@ -1,6 +1,6 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 126 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 144 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
 Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.projects().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
@@ -262,3 +262,26 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `createSlackConnection` | `slackConnections.create` | `slack_connections.create` | `SlackConnections.Create` |
 | `deleteSlackConnection` | `slackConnections.delete` | `slack_connections.delete` | `SlackConnections.Delete` |
 | `listSlackConnectionChannels` | `slackConnections.listChannels` | `slack_connections.list_channels` | `SlackConnections.ListChannels` |
+
+## CustomerAgents
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `ensureCustomerAgent` | `customerAgents.ensure` | `customer_agents.ensure` | `CustomerAgents.Ensure` |
+| `listCustomerAgents` | `customerAgents.list` | `customer_agents.list` | `CustomerAgents.List` |
+| `getCustomerAgent` | `customerAgents.get` | `customer_agents.get` | `CustomerAgents.Get` |
+| `sendCustomerAgentMessage` | `customerAgents.sendMessage` | `customer_agents.send_message` | `CustomerAgents.SendMessage` |
+| `listCustomerAgentConversations` | `customerAgents.listConversations` | `customer_agents.list_conversations` | `CustomerAgents.ListConversations` |
+| `getCustomerAgentRun` | `customerAgents.getRun` | `customer_agents.get_run` | `CustomerAgents.GetRun` |
+| `getCustomerAgentRunResult` | `customerAgents.getRunResult` | `customer_agents.get_run_result` | `CustomerAgents.GetRunResult` |
+| `listCustomerAgentRunEvents` | `customerAgents.listRunEvents` | `customer_agents.list_run_events` | `CustomerAgents.ListRunEvents` |
+| `streamCustomerAgentRun` | `customerAgents.streamRun` | `customer_agents.stream_run` | `CustomerAgents.StreamRun` |
+| `cancelCustomerAgentRun` | `customerAgents.cancelRun` | `customer_agents.cancel_run` | `CustomerAgents.CancelRun` |
+| `listCustomerAgentFiles` | `customerAgents.listFiles` | `customer_agents.list_files` | `CustomerAgents.ListFiles` |
+| `readCustomerAgentFile` | `customerAgents.readFile` | `customer_agents.read_file` | `CustomerAgents.ReadFile` |
+| `listCustomerAgentConnections` | `customerAgents.listConnections` | `customer_agents.list_connections` | `CustomerAgents.ListConnections` |
+| `createCustomerAgentConnection` | `customerAgents.createConnection` | `customer_agents.create_connection` | `CustomerAgents.CreateConnection` |
+| `deleteCustomerAgentConnection` | `customerAgents.deleteConnection` | `customer_agents.delete_connection` | `CustomerAgents.DeleteConnection` |
+| `updateCustomerAgentConnectionPermissions` | `customerAgents.updateConnectionPermissions` | `customer_agents.update_connection_permissions` | `CustomerAgents.UpdateConnectionPermissions` |
+| `authorizeCustomerAgentConnection` | `customerAgents.authorizeConnection` | `customer_agents.authorize_connection` | `CustomerAgents.AuthorizeConnection` |
+| `completeCustomerAgentConnection` | `customerAgents.completeConnection` | `customer_agents.complete_connection` | `CustomerAgents.CompleteConnection` |

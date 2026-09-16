@@ -38,28 +38,42 @@
     "slug": "customer-agents",
     "source": "docs/features/customer-agents/README.md",
     "title": "Customer agents",
-    "section": "Build with the API",
-    "description": "Keep customer identity, files, conversations and scheduled work connected."
+    "section": "Integration paths",
+    "description": "Optional customer-specific setup over core projects, worktrees, presets, runs and connections."
+  },
+  {
+    "slug": "customer-agents/quickstart",
+    "source": "docs/features/customer-agents/quickstart.md",
+    "title": "Customer-agent quickstart",
+    "section": "Integration paths",
+    "description": "Ensure a customer assistant, send messages and retrieve saved files through ownership-checked SDK methods."
+  },
+  {
+    "slug": "customer-agents/connections",
+    "source": "docs/features/customer-agents/connections.md",
+    "title": "Customer account connections",
+    "section": "Integration paths",
+    "description": "Embed capability choices, verified account consent, permission editing and disconnect in your app."
   },
   {
     "slug": "customer-agents/memory",
     "source": "docs/features/customer-agents/memory.md",
     "title": "File memory starter",
-    "section": "Build with the API",
+    "section": "Integration paths",
     "description": "Install an optional editable memory and task convention."
   },
   {
     "slug": "customer-agents/example",
     "source": "examples/personal-agent/README.md",
     "title": "Personal agent example",
-    "section": "Build with the API",
+    "section": "Integration paths",
     "description": "Run a complete customer-isolated personal agent app and adapt its ownership, persistence and recovery boundaries."
   },
   {
     "slug": "customer-agents/integrations",
     "source": "examples/integrations/README.md",
     "title": "Customer data recipes",
-    "section": "Build with the API",
+    "section": "Integration paths",
     "description": "Connect Supabase, Prisma, Pinecone or a customer-scoped MCP server with runnable local fixtures."
   },
   {

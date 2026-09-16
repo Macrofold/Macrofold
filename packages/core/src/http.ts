@@ -1,3 +1,4 @@
+import { getCustomerBinding, customerRun } from './customer-agents';
 import { pool, transaction, lock } from '../../db';
 import { config } from './config';
 import { identify, requireScopes, type Principal } from './auth';
@@ -96,8 +97,17 @@ export async function handleApi(request: Request) {
       throw new AppError(429, 'rate_limited', 'Too many requests. Retry in one minute.');
     }
     const query = new URL(request.url).searchParams;
-    if (matched.operation.operationId === 'streamRun') {
-      await transaction(p.organizationId, (tx) => getRun(tx, matched.params.run_id, p));
+    if (['streamRun', 'streamCustomerAgentRun'].includes(matched.operation.operationId)) {
+      await transaction(p.organizationId, async (tx) => {
+        if (matched.operation.operationId === 'streamCustomerAgentRun')
+          return customerRun(
+            tx,
+            p,
+            await getCustomerBinding(tx, p, matched.params.customer_id, matched.params.customer_agent_id),
+            matched.params.run_id,
+          );
+        return getRun(tx, matched.params.run_id, p);
+      });
       const after = request.headers.get('last-event-id') || query.get('after') || '0';
       assert(/^\d+$/.test(after), 400, 'invalid_cursor', 'Use a numeric event sequence.');
       headers.set('Content-Type', 'text/event-stream');

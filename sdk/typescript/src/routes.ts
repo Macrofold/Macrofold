@@ -503,5 +503,77 @@ export const routes = {
   "resolveConnectionAccess": {
     "method": "POST",
     "path": "/v1/connection-access/resolve"
+  },
+  "ensureCustomerAgent": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}"
+  },
+  "listCustomerAgents": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}"
+  },
+  "getCustomerAgent": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}"
+  },
+  "sendCustomerAgentMessage": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/messages"
+  },
+  "listCustomerAgentConversations": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/conversations"
+  },
+  "getCustomerAgentRun": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}"
+  },
+  "getCustomerAgentRunResult": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/result"
+  },
+  "listCustomerAgentRunEvents": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/events"
+  },
+  "streamCustomerAgentRun": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/stream"
+  },
+  "cancelCustomerAgentRun": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/cancel"
+  },
+  "listCustomerAgentFiles": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/files"
+  },
+  "readCustomerAgentFile": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/file"
+  },
+  "listCustomerAgentConnections": {
+    "method": "GET",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections"
+  },
+  "createCustomerAgentConnection": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections"
+  },
+  "deleteCustomerAgentConnection": {
+    "method": "DELETE",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}"
+  },
+  "updateCustomerAgentConnectionPermissions": {
+    "method": "PATCH",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/permissions"
+  },
+  "authorizeCustomerAgentConnection": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/authorize"
+  },
+  "completeCustomerAgentConnection": {
+    "method": "POST",
+    "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/complete"
   }
 } as const;

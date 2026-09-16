@@ -42,9 +42,16 @@ export class ClaudeAdapter implements HarnessAdapter {
           ANTHROPIC_API_KEY: c.token,
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
         },
-        ...(c.instructions
-          ? { systemPrompt: { type: 'preset', preset: 'claude_code', append: c.instructions } }
-          : {}),
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          append: [
+            `Your persistent project workspace is ${c.workspace}. Save requested deliverables there. Files in /tmp or elsewhere outside the workspace are not included in project checkpoints. Verify output files in the workspace before reporting completion.`,
+            c.instructions,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
         mcpServers: {
           ...(c.toolGrants
             ? {

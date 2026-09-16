@@ -51,6 +51,10 @@ Small file mutations use a bounded storage preparation lease, immutable object/G
 
 Dashboard public data access uses the typed operation interface in `lib/dashboard-data.ts`. `components/files/use-file-document.ts` owns the editor buffer and conflict revision, while the browser component owns tree presentation. Global focus, hover, scrollbar and reduced-motion rules live in `app/interaction.css`; see [dashboard implementation](../features/dashboard/implementation.md).
 
+## Optional integration paths
+
+[Customer-agent composition](../features/customer-agents/implementation.md) keeps app identity mapping in `customer-agents.ts`, operation delegation in `customer-agent-handlers.ts`, capability-to-policy mapping in `customer-agent-connections.ts`, and short-lived consent in `customer-connect.ts`. Provider protocol details stay behind `CustomerConnectorProvider`; execution and permission enforcement remain in their existing owners. Public endpoint names, SDK grouping and documentation identify this as an optional use-case path.
+
 ## Connector access
 
 The pure connection-access-policy module defines exact matching and selection precedence. connection-access owns tenant SQL queries and versioned edits; connection-access-resolution owns previews, admission and current snapshot checks. The broker consumes this resolver at listing and final dispatch. Providers own protocol details and cannot grant authority. [Implementation map and activation](../engineering/testing/connection-access.md).

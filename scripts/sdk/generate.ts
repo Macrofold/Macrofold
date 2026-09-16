@@ -107,6 +107,12 @@ try {
       );
     }
     if (language === 'rust') {
+      // Generated urlencode uses form semantics; path segments must encode spaces as %20, not +.
+      await replaceOnce(
+        path.join(output, 'src/apis/mod.rs'),
+        '::url::form_urlencoded::byte_serialize(s.as_ref().as_bytes()).collect()',
+        '::url::form_urlencoded::byte_serialize(s.as_ref().as_bytes()).collect::<String>().replace("+", "%20")',
+      );
       await replaceOnce(
         path.join(output, 'src/apis/workspaces_api.rs'),
         'let file = TokioFile::open(p_body_body).await?;',

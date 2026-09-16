@@ -12,13 +12,17 @@ SDKs default to `https://app.macrofold.ai`. For a self-hosted, local, or staging
 
 ## Three steps
 
-| Step | SDK operation | Result |
-| --- | --- | --- |
-| Choose a home for the files | `projects.create` | A project you can reuse |
-| Give the agent a task | `runs.create` | An accepted run ID |
-| Get the finished work | `runs.wait`, then `workspaces.readFile` | Response text and persisted file bytes |
+| Step                        | SDK operation                           | Result                                 |
+| --------------------------- | --------------------------------------- | -------------------------------------- |
+| Choose a home for the files | `projects.create`                       | A project you can reuse                |
+| Give the agent a task       | `runs.create`                           | An accepted run ID                     |
+| Get the finished work       | `runs.wait`, then `workspaces.readFile` | Response text and persisted file bytes |
 
 Method spelling follows each language's conventions. Use `streamText` / `stream_text` when you want text as it arrives, or `events` for tool activity and structured progress. [Choose a language](sdks/README.md).
+
+## Optional integration paths
+
+The core API exposes reusable projects, worktrees, presets, sessions, runs and connections. **Integration paths** package those capabilities for a particular use case without replacing them. [Customer agents](../customer-agents/README.md) adds customer ownership resolution, atomic setup and embedded connection consent under `/v1/integration-paths/customer-agents`. Choose it when each app customer needs an assistant; use the core API directly for a different resource layout. OpenAPI marks these operations with `x-platform-layer: integration-path` and the `customerAgents` tag.
 
 ## Build on it
 

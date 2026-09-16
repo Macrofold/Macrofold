@@ -8,7 +8,7 @@ export type RequestSettings = {
   idempotencyKey?: string;
   headers?: Record<string, string>;
 };
-type Transport = Pick<Client, 'request' | 'stream'>;
+type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent'>;
 export type ListProjectsOptions = {
   cursor?: NonNullable<operations['listProjects']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listProjects']['parameters']['query']>['limit'];
@@ -1754,9 +1754,327 @@ export class SlackConnectionsResource {
     });
   }
 }
+export type EnsureCustomerAgentOptions = NonNullable<
+  operations['ensureCustomerAgent']['requestBody']
+>['content']['application/json'];
+export type ListCustomerAgentsOptions = {
+  cursor?: NonNullable<operations['listCustomerAgents']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listCustomerAgents']['parameters']['query']>['limit'];
+};
+export type SendCustomerAgentMessageOptions = NonNullable<
+  operations['sendCustomerAgentMessage']['requestBody']
+>['content']['application/json'];
+export type ListCustomerAgentConversationsOptions = {
+  cursor?: NonNullable<operations['listCustomerAgentConversations']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listCustomerAgentConversations']['parameters']['query']>['limit'];
+};
+export type ListCustomerAgentRunEventsOptions = {
+  after?: NonNullable<operations['listCustomerAgentRunEvents']['parameters']['query']>['after'];
+  cursor?: NonNullable<operations['listCustomerAgentRunEvents']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listCustomerAgentRunEvents']['parameters']['query']>['limit'];
+};
+export type CancelCustomerAgentRunOptions = NonNullable<
+  operations['cancelCustomerAgentRun']['requestBody']
+>['content']['application/json'];
+export type ListCustomerAgentFilesOptions = {
+  path?: NonNullable<operations['listCustomerAgentFiles']['parameters']['query']>['path'];
+  query?: NonNullable<operations['listCustomerAgentFiles']['parameters']['query']>['query'];
+  recursive?: NonNullable<operations['listCustomerAgentFiles']['parameters']['query']>['recursive'];
+  cursor?: NonNullable<operations['listCustomerAgentFiles']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listCustomerAgentFiles']['parameters']['query']>['limit'];
+};
+export type ReadCustomerAgentFileOptions = {
+  download?: NonNullable<operations['readCustomerAgentFile']['parameters']['query']>['download'];
+  path: NonNullable<operations['readCustomerAgentFile']['parameters']['query']>['path'];
+};
+export type ListCustomerAgentConnectionsOptions = {
+  cursor?: NonNullable<operations['listCustomerAgentConnections']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listCustomerAgentConnections']['parameters']['query']>['limit'];
+};
+export type CreateCustomerAgentConnectionOptions = NonNullable<
+  operations['createCustomerAgentConnection']['requestBody']
+>['content']['application/json'];
+export type UpdateCustomerAgentConnectionPermissionsOptions = NonNullable<
+  operations['updateCustomerAgentConnectionPermissions']['requestBody']
+>['content']['application/json'] & {
+  ifMatch: NonNullable<
+    operations['updateCustomerAgentConnectionPermissions']['parameters']['header']
+  >['If-Match'];
+};
+export type AuthorizeCustomerAgentConnectionOptions = NonNullable<
+  operations['authorizeCustomerAgentConnection']['requestBody']
+>['content']['application/json'];
+export type CompleteCustomerAgentConnectionOptions = NonNullable<
+  operations['completeCustomerAgentConnection']['requestBody']
+>['content']['application/json'];
+export class CustomerAgentsResource {
+  constructor(private client: Transport) {}
+  ensure(
+    customerId: string,
+    options: EnsureCustomerAgentOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'ensureCustomerAgent'>> {
+    return this.client.request('ensureCustomerAgent', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId } },
+      body: options,
+    });
+  }
+  list(
+    customerId: string,
+    options: ListCustomerAgentsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listCustomerAgents'>> {
+    return this.client.request('listCustomerAgents', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId }, query: { cursor: options.cursor, limit: options.limit } },
+    });
+  }
+  get(
+    customerId: string,
+    customerAgentId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getCustomerAgent'>> {
+    return this.client.request('getCustomerAgent', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId } },
+    });
+  }
+  sendMessage(
+    customerId: string,
+    customerAgentId: string,
+    options: SendCustomerAgentMessageOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'sendCustomerAgentMessage'>> {
+    return this.client.request('sendCustomerAgentMessage', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId } },
+      body: options,
+    });
+  }
+  listConversations(
+    customerId: string,
+    customerAgentId: string,
+    options: ListCustomerAgentConversationsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listCustomerAgentConversations'>> {
+    return this.client.request('listCustomerAgentConversations', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  getRun(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getCustomerAgentRun'>> {
+    return this.client.request('getCustomerAgentRun', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId, run_id: runId } },
+    });
+  }
+  getRunResult(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'getCustomerAgentRunResult'>> {
+    return this.client.request('getCustomerAgentRunResult', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId, run_id: runId } },
+    });
+  }
+  listRunEvents(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    options: ListCustomerAgentRunEventsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listCustomerAgentRunEvents'>> {
+    return this.client.request('listCustomerAgentRunEvents', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId, run_id: runId },
+        query: { after: options.after, cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  /** Stream through the optional customer-agent integration path. */
+  streamRun(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    options: { after?: string; signal?: AbortSignal } = {},
+  ) {
+    return this.client.streamCustomerAgent(customerId, customerAgentId, runId, options);
+  }
+  waitRun(customerId: string, customerAgentId: string, runId: string, options: WaitOptions = {}) {
+    return waitForRun(
+      {
+        get: (id, settings) => this.getRun(customerId, customerAgentId, id, settings),
+        getResult: (id, settings) => this.getRunResult(customerId, customerAgentId, id, settings),
+      },
+      runId,
+      options,
+    );
+  }
+  streamText(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    options: { after?: string; signal?: AbortSignal } = {},
+  ) {
+    return streamRunText(this.streamRun(customerId, customerAgentId, runId, options), () =>
+      this.waitRun(customerId, customerAgentId, runId, { signal: options.signal }),
+    );
+  }
+  cancelRun(
+    customerId: string,
+    customerAgentId: string,
+    runId: string,
+    options: CancelCustomerAgentRunOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'cancelCustomerAgentRun'>> {
+    return this.client.request('cancelCustomerAgentRun', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId, run_id: runId } },
+      body: options,
+    });
+  }
+  listFiles(
+    customerId: string,
+    customerAgentId: string,
+    options: ListCustomerAgentFilesOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listCustomerAgentFiles'>> {
+    return this.client.request('listCustomerAgentFiles', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId },
+        query: {
+          path: options.path,
+          query: options.query,
+          recursive: options.recursive,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+      },
+    });
+  }
+  readFile(
+    customerId: string,
+    customerAgentId: string,
+    options: ReadCustomerAgentFileOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'readCustomerAgentFile'>> {
+    return this.client.request('readCustomerAgentFile', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId },
+        query: { download: options.download, path: options.path },
+      },
+    });
+  }
+  listConnections(
+    customerId: string,
+    customerAgentId: string,
+    options: ListCustomerAgentConnectionsOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listCustomerAgentConnections'>> {
+    return this.client.request('listCustomerAgentConnections', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId },
+        query: { cursor: options.cursor, limit: options.limit },
+      },
+    });
+  }
+  createConnection(
+    customerId: string,
+    customerAgentId: string,
+    options: CreateCustomerAgentConnectionOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createCustomerAgentConnection'>> {
+    return this.client.request('createCustomerAgentConnection', {
+      ...requestOptions,
+      params: { path: { customer_id: customerId, customer_agent_id: customerAgentId } },
+      body: options,
+    });
+  }
+  deleteConnection(
+    customerId: string,
+    customerAgentId: string,
+    connectionId: string,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'deleteCustomerAgentConnection'>> {
+    return this.client.request('deleteCustomerAgentConnection', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId, connection_id: connectionId },
+      },
+    });
+  }
+  updateConnectionPermissions(
+    customerId: string,
+    customerAgentId: string,
+    connectionId: string,
+    options: UpdateCustomerAgentConnectionPermissionsOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'updateCustomerAgentConnectionPermissions'>> {
+    const { ifMatch, ...body } = options;
+    return this.client.request('updateCustomerAgentConnectionPermissions', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId, connection_id: connectionId },
+        header: { 'If-Match': ifMatch },
+      },
+      body: body,
+    });
+  }
+  authorizeConnection(
+    customerId: string,
+    customerAgentId: string,
+    connectionId: string,
+    options: AuthorizeCustomerAgentConnectionOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'authorizeCustomerAgentConnection'>> {
+    return this.client.request('authorizeCustomerAgentConnection', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId, connection_id: connectionId },
+      },
+      body: options,
+    });
+  }
+  completeConnection(
+    customerId: string,
+    customerAgentId: string,
+    connectionId: string,
+    options: CompleteCustomerAgentConnectionOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'completeCustomerAgentConnection'>> {
+    return this.client.request('completeCustomerAgentConnection', {
+      ...requestOptions,
+      params: {
+        path: { customer_id: customerId, customer_agent_id: customerAgentId, connection_id: connectionId },
+      },
+      body: options,
+    });
+  }
+}
 export abstract class Resources {
   abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
   abstract stream(
+    runId: string,
+    options?: { after?: string; signal?: AbortSignal },
+  ): AsyncGenerator<Schema['Event']>;
+  abstract streamCustomerAgent(
+    customerId: string,
+    customerAgentId: string,
     runId: string,
     options?: { after?: string; signal?: AbortSignal },
   ): AsyncGenerator<Schema['Event']>;
@@ -1784,4 +2102,5 @@ export abstract class Resources {
   readonly organizations = new OrganizationsResource(this);
   readonly triggers = new TriggersResource(this);
   readonly slackConnections = new SlackConnectionsResource(this);
+  readonly customerAgents = new CustomerAgentsResource(this);
 }

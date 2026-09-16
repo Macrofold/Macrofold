@@ -3,6 +3,7 @@ import { it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
+import * as composioProvider from '../../packages/providers/src/composio';
 import { startComposio, finishComposio } from '../../packages/core/src/composio-auth';
 import { patchAccess } from '../../packages/core/src/connection-access';
 import * as connections from '../../packages/core/src/connections';
@@ -21,7 +22,7 @@ beforeAll(async () => {
   b = await fixtureAccount('Other connector user');
   process.env.COMPOSIO_API_KEY = 'fixture-no-real-account';
   process.env.COMPOSIO_CALLBACK_VERIFICATION_ENABLED = 'true';
-  vi.spyOn(connections, 'composio').mockReturnValue({
+  vi.spyOn(composioProvider, 'composio').mockReturnValue({
     connectedAccounts: {
       link: async (user: string, _config: string, options: { alias: string; allowMultiple: boolean }) => {
         expect(user).toBe(`${a.p.organizationId}:${a.p.userId}`);

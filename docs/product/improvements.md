@@ -25,48 +25,48 @@ The first message maps directly to independent persisted workspaces and separate
 
 Ranks 1–10 were implemented September 11, 2026. [Implementation boundaries, verification and deliberate limits](../engineering/testing/customer-agents.md) distinguish completed local functionality from remaining live-service acceptance.
 
-| Rank | ID | Improvement | Impact | Difficulty | Status |
-| --- | --- | --- | --- | --- | --- |
-| 1 | [DOC-01](#doc-01-explain-customer-state-and-agent-identity) | Explain customer state and agent identity | 5/5 | 1/10 | Done |
-| 2 | [INT-01](#int-01-make-connector-enablement-automatic-or-operator-guided) | Make connector enablement automatic or operator-guided | 5/5 | 4/10 | Done |
-| 3 | [MKT-01](#mkt-01-present-customer-information-as-the-lasting-resource) | Present customer information as the lasting resource | 5/5 | 2/10 | Done |
-| 4 | [PRD-01](#prd-01-make-trigger-quotas-configurable) | Make trigger quotas configurable | 4/5 | 2/10 | Done |
-| 5 | [PRD-02](#prd-02-offer-an-optional-file-based-memory-template) | Offer an optional file-based memory template | 5/5 | 3/10 | Done |
-| 6 | [EX-01](#ex-01-build-a-complete-named-personal-agent-application) | Build a complete named personal-agent application | 5/5 | 4/10 | Done |
-| 7 | [INT-02](#int-02-expand-model-coverage-through-capability-based-catalog-policy) | Expand model coverage through capability-based catalog policy | 5/5 | 4/10 | Done |
-| 8 | [UX-01](#ux-01-connect-templates-to-scheduled-work) | Connect templates to scheduled work | 4/5 | 2/10 | Done |
-| 9 | [EX-02](#ex-02-add-database-and-integration-recipes) | Add database and integration recipes | 4/5 | 3/10 | Done |
-| 10 | [PRD-03](#prd-03-package-customer-agent-identity-and-sdk-setup-helpers) | Package customer-agent identity and SDK setup helpers | 5/5 | 5/10 | Done |
-| 11 | [UX-02](#ux-02-make-onboarding-resumable-and-show-integration-success) | Make onboarding resumable and show integration success | 4/5 | 3/10 | Proposed |
-| 12 | [EX-03](#ex-03-version-and-expand-reusable-agent-examples-and-skills) | Version and expand reusable agent examples and skills | 4/5 | 4/10 | Proposed |
-| 13 | [BIZ-01](#biz-01-model-pricing-and-improve-cost-explanation) | Model pricing and improve cost explanation | 5/5 | 4/10 | Proposed |
-| 14 | [DOC-02](#doc-02-create-task-specific-integration-briefs) | Create task-specific integration briefs | 3/5 | 2/10 | Proposed |
-| 15 | [INT-03](#int-03-support-model-vision-inputs) | Support model vision inputs | 5/5 | 5/10 | Proposed |
-| 16 | [INT-04](#int-04-offer-image-generation-as-a-shared-tool-service) | Offer image generation as a shared tool service | 4/5 | 5/10 | Proposed |
-| 17 | [INT-05](#int-05-expose-shared-services-to-both-agents-and-applications) | Expose shared services to both agents and applications | 5/5 | 6/10 | Proposed |
-| 18 | [ARC-01](#arc-01-reuse-warm-execution-environments-safely) | Reuse warm execution environments safely | 5/5 | 7/10 | Proposed |
-| 19 | [PRD-04](#prd-04-represent-ongoing-tasks-across-runs) | Represent ongoing tasks across runs | 5/5 | 6/10 | Proposed |
-| 20 | [UX-03](#ux-03-add-a-notification-center) | Add a notification center | 4/5 | 5/10 | Proposed |
-| 21 | [PRD-05](#prd-05-package-explicit-multi-agent-handoffs) | Package explicit multi-agent handoffs | 4/5 | 6/10 | Proposed |
-| 22 | [PRD-06](#prd-06-offer-managed-memory-as-an-optional-service) | Offer managed memory as an optional service | 4/5 | 7/10 | Proposed |
-| 23 | [PRD-07](#prd-07-unify-agent-lifecycle-controls) | Unify agent lifecycle controls | 4/5 | 6/10 | Proposed |
-| 24 | [EX-04](#ex-04-compare-configurations-on-representative-tasks) | Compare configurations on representative tasks | 3/5 | 4/10 | Proposed |
-| 25 | [ARC-02](#arc-02-add-a-bounded-responses-compatibility-facade) | Add a bounded Responses compatibility facade | 4/5 | 6/10 | Proposed |
-| 26 | [PRD-08](#prd-08-manage-fleets-of-customer-agents) | Manage fleets of customer agents | 4/5 | 7/10 | Proposed |
-| 27 | [UX-04](#ux-04-improve-api-key-lifecycle-ux) | Improve API-key lifecycle UX | 3/5 | 3/10 | Proposed |
-| 28 | [UX-05](#ux-05-add-global-authorized-resource-search) | Add global authorized resource search | 3/5 | 4/10 | Proposed |
-| 29 | [UX-06](#ux-06-improve-privacy-and-data-controls) | Improve privacy and data controls | 3/5 | 5/10 | Proposed |
-| 30 | [UX-07](#ux-07-add-service-account-administration) | Add service-account administration | 3/5 | 5/10 | Proposed |
-| 31 | [UX-08](#ux-08-extend-team-roles-and-groups) | Extend team roles and groups | 3/5 | 6/10 | Proposed |
-| 32 | [UX-09](#ux-09-build-the-hosted-account-assistant-with-reviewable-actions) | Build the hosted account assistant with reviewable actions | 3/5 | 7/10 | Proposed |
-| 33 | [UX-10](#ux-10-offer-a-contextual-support-handoff) | Offer a contextual support handoff | 2/5 | 4/10 | Proposed |
-| 34 | [INT-06](#int-06-expand-media-and-artifact-experiences) | Expand media and artifact experiences | 3/5 | 7/10 | Proposed |
-| 35 | [PRD-10](#prd-10-extend-recurring-work-and-steering-policies) | Extend recurring-work and steering policies | 3/5 | 6/10 | Proposed |
-| 36 | [PRD-09](#prd-09-explore-live-artifact-collaboration) | Explore live artifact collaboration | 2/5 | 7/10 | Proposed |
-| 37 | [ARC-03](#arc-03-evaluate-durable-orchestration-alternatives-when-coordination-requires-them) | Evaluate durable orchestration alternatives when coordination requires them | 3/5 | 8/10 | Deferred — conditional evaluation |
-| 38 | [OPS-01](#ops-01-automate-staged-releases-and-controlled-promotion) | Automate staged releases and controlled promotion | 3/5 | 7/10 | Proposed |
-| 39 | [INT-07](#int-07-add-further-harnesses-only-for-demonstrated-capability-gaps) | Add further harnesses only for demonstrated capability gaps | 2/5 | 5/10 | Proposed |
-| 40 | [MKT-02](#mkt-02-evaluate-exported-motion-or-video-only-when-resumed) | Evaluate exported motion or video only when resumed | 2/5 | 5/10 | Deferred — user preference |
+| Rank | ID                                                                                            | Improvement                                                                 | Impact | Difficulty | Status                            |
+| ---- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------ | ---------- | --------------------------------- |
+| 1    | [DOC-01](#doc-01-explain-customer-state-and-agent-identity)                                   | Explain customer state and agent identity                                   | 5/5    | 1/10       | Done                              |
+| 2    | [INT-01](#int-01-make-connector-enablement-automatic-or-operator-guided)                      | Make connector enablement automatic or operator-guided                      | 5/5    | 4/10       | Done                              |
+| 3    | [MKT-01](#mkt-01-present-customer-information-as-the-lasting-resource)                        | Present customer information as the lasting resource                        | 5/5    | 2/10       | Done                              |
+| 4    | [PRD-01](#prd-01-make-trigger-quotas-configurable)                                            | Make trigger quotas configurable                                            | 4/5    | 2/10       | Done                              |
+| 5    | [PRD-02](#prd-02-offer-an-optional-file-based-memory-template)                                | Offer an optional file-based memory template                                | 5/5    | 3/10       | Done                              |
+| 6    | [EX-01](#ex-01-build-a-complete-named-personal-agent-application)                             | Build a complete named personal-agent application                           | 5/5    | 4/10       | Done                              |
+| 7    | [INT-02](#int-02-expand-model-coverage-through-capability-based-catalog-policy)               | Expand model coverage through capability-based catalog policy               | 5/5    | 4/10       | Done                              |
+| 8    | [UX-01](#ux-01-connect-templates-to-scheduled-work)                                           | Connect templates to scheduled work                                         | 4/5    | 2/10       | Done                              |
+| 9    | [EX-02](#ex-02-add-database-and-integration-recipes)                                          | Add database and integration recipes                                        | 4/5    | 3/10       | Done                              |
+| 10   | [PRD-03](#prd-03-package-customer-agent-identity-and-sdk-setup-helpers)                       | Package customer-agent identity and SDK setup helpers                       | 5/5    | 5/10       | Done                              |
+| 11   | [UX-02](#ux-02-make-onboarding-resumable-and-show-integration-success)                        | Make onboarding resumable and show integration success                      | 4/5    | 3/10       | Proposed                          |
+| 12   | [EX-03](#ex-03-version-and-expand-reusable-agent-examples-and-skills)                         | Version and expand reusable agent examples and skills                       | 4/5    | 4/10       | Proposed                          |
+| 13   | [BIZ-01](#biz-01-model-pricing-and-improve-cost-explanation)                                  | Model pricing and improve cost explanation                                  | 5/5    | 4/10       | Proposed                          |
+| 14   | [DOC-02](#doc-02-create-task-specific-integration-briefs)                                     | Create task-specific integration briefs                                     | 3/5    | 2/10       | Proposed                          |
+| 15   | [INT-03](#int-03-support-model-vision-inputs)                                                 | Support model vision inputs                                                 | 5/5    | 5/10       | Proposed                          |
+| 16   | [INT-04](#int-04-offer-image-generation-as-a-shared-tool-service)                             | Offer image generation as a shared tool service                             | 4/5    | 5/10       | Proposed                          |
+| 17   | [INT-05](#int-05-expose-shared-services-to-both-agents-and-applications)                      | Expose shared services to both agents and applications                      | 5/5    | 6/10       | Proposed                          |
+| 18   | [ARC-01](#arc-01-reuse-warm-execution-environments-safely)                                    | Reuse warm execution environments safely                                    | 5/5    | 7/10       | Proposed                          |
+| 19   | [PRD-04](#prd-04-represent-ongoing-tasks-across-runs)                                         | Represent ongoing tasks across runs                                         | 5/5    | 6/10       | Proposed                          |
+| 20   | [UX-03](#ux-03-add-a-notification-center)                                                     | Add a notification center                                                   | 4/5    | 5/10       | Proposed                          |
+| 21   | [PRD-05](#prd-05-package-explicit-multi-agent-handoffs)                                       | Package explicit multi-agent handoffs                                       | 4/5    | 6/10       | Proposed                          |
+| 22   | [PRD-06](#prd-06-offer-managed-memory-as-an-optional-service)                                 | Offer managed memory as an optional service                                 | 4/5    | 7/10       | Proposed                          |
+| 23   | [PRD-07](#prd-07-unify-agent-lifecycle-controls)                                              | Unify agent lifecycle controls                                              | 4/5    | 6/10       | Proposed                          |
+| 24   | [EX-04](#ex-04-compare-configurations-on-representative-tasks)                                | Compare configurations on representative tasks                              | 3/5    | 4/10       | Proposed                          |
+| 25   | [ARC-02](#arc-02-add-a-bounded-responses-compatibility-facade)                                | Add a bounded Responses compatibility facade                                | 4/5    | 6/10       | Proposed                          |
+| 26   | [PRD-08](#prd-08-manage-fleets-of-customer-agents)                                            | Manage fleets of customer agents                                            | 4/5    | 7/10       | Proposed                          |
+| 27   | [UX-04](#ux-04-improve-api-key-lifecycle-ux)                                                  | Improve API-key lifecycle UX                                                | 3/5    | 3/10       | Proposed                          |
+| 28   | [UX-05](#ux-05-add-global-authorized-resource-search)                                         | Add global authorized resource search                                       | 3/5    | 4/10       | Proposed                          |
+| 29   | [UX-06](#ux-06-improve-privacy-and-data-controls)                                             | Improve privacy and data controls                                           | 3/5    | 5/10       | Proposed                          |
+| 30   | [UX-07](#ux-07-add-service-account-administration)                                            | Add service-account administration                                          | 3/5    | 5/10       | Proposed                          |
+| 31   | [UX-08](#ux-08-extend-team-roles-and-groups)                                                  | Extend team roles and groups                                                | 3/5    | 6/10       | Proposed                          |
+| 32   | [UX-09](#ux-09-build-the-hosted-account-assistant-with-reviewable-actions)                    | Build the hosted account assistant with reviewable actions                  | 3/5    | 7/10       | Proposed                          |
+| 33   | [UX-10](#ux-10-offer-a-contextual-support-handoff)                                            | Offer a contextual support handoff                                          | 2/5    | 4/10       | Proposed                          |
+| 34   | [INT-06](#int-06-expand-media-and-artifact-experiences)                                       | Expand media and artifact experiences                                       | 3/5    | 7/10       | Proposed                          |
+| 35   | [PRD-10](#prd-10-extend-recurring-work-and-steering-policies)                                 | Extend recurring-work and steering policies                                 | 3/5    | 6/10       | Proposed                          |
+| 36   | [PRD-09](#prd-09-explore-live-artifact-collaboration)                                         | Explore live artifact collaboration                                         | 2/5    | 7/10       | Proposed                          |
+| 37   | [ARC-03](#arc-03-evaluate-durable-orchestration-alternatives-when-coordination-requires-them) | Evaluate durable orchestration alternatives when coordination requires them | 3/5    | 8/10       | Deferred — conditional evaluation |
+| 38   | [OPS-01](#ops-01-automate-staged-releases-and-controlled-promotion)                           | Automate staged releases and controlled promotion                           | 3/5    | 7/10       | Proposed                          |
+| 39   | [INT-07](#int-07-add-further-harnesses-only-for-demonstrated-capability-gaps)                 | Add further harnesses only for demonstrated capability gaps                 | 2/5    | 5/10       | Proposed                          |
+| 40   | [MKT-02](#mkt-02-evaluate-exported-motion-or-video-only-when-resumed)                         | Evaluate exported motion or video only when resumed                         | 2/5    | 5/10       | Deferred — user preference        |
 
 ## Product
 
@@ -94,10 +94,10 @@ Ranks 1–10 were implemented September 11, 2026. [Implementation boundaries, ve
 
 **Rank:** 10 · **Impact:** 5/5 · **Difficulty:** 5/10 · **Status:** Done · **Added:** 2026-09-10 · **Owner:** Unassigned
 
-- **Description:** Provide a small composition layer linking an external customer reference, named agent, preset/configuration, workspace and sessions. Start with starter-app records/helpers; promote a core resource only when repeated workflows justify it.
+- **Description:** Provide a small composition layer linking an external customer reference, named agent, preset/configuration, workspace and sessions. Offer it as an optional use-case integration path over core primitives, retaining direct core composition for custom layouts.
 - **Rationale/benefit:** Reduces resource plumbing while leaving ownership explicit.
 - **Strategic benefit:** A coherent customer-agent API can make this use case easier than composing HarnessRouter sessions.
-- **Current state:** The reference app separates typed [records and durable step storage](../../examples/personal-agent/store.ts), [SDK composition](../../examples/personal-agent/service.ts), and [HTTP/authentication](../../examples/personal-agent/server.ts). Verified customer identity scopes every agent/conversation lookup.
+- **Current state:** The optional [Customer agents integration path](../features/customer-agents/README.md) now offers atomic bindings, ownership-checked messages/runs/files, generated SDK resources, hosted customer connector consent and optional React permissions controls. It is explicitly a use-case path in the API, docs, developer UI and marketing. The [reference app](../../examples/personal-agent/README.md) remains an alternative that composes core APIs directly.
 - **Completion/dependencies:** Done September 11. Fresh conversations reuse the owned worktree and permissions; the platform Agent remains a reusable preset. Single-process SQLite is a deliberate runnable default, with multi-instance locking/store replacement documented together.
 
 ### PRD-04 Represent ongoing tasks across runs
@@ -494,7 +494,7 @@ Ranks 1–10 were implemented September 11, 2026. [Implementation boundaries, ve
 
 ## Completed documentation work
 
-| ID | Description | Rationale and strategic benefit | Difficulty | Added | Status | Result |
-| --- | --- | --- | --- | --- | --- | --- |
-| DOC-03 | Explain per-toolkit Composio enablement | Prevents catalog availability being mistaken for ready customer connections; clarifies INT-01 | 1/10 | 2026-09-10 | Done | [Setup guide](../features/identity-integrations/composio.md) now describes auth-config/version mappings and the enabling sequence. No connectors were enabled. |
-| DOC-04 | Refresh competition research and consolidate proposals | Preserves accurate positioning and one ranked implementation tracker | 2/10 | 2026-09-10 | Done | Updated comparison, migrated proposal lists, retained orchestration research and linked the tracker from parent documents. No product features were implemented. |
+| ID     | Description                                            | Rationale and strategic benefit                                                               | Difficulty | Added      | Status | Result                                                                                                                                                           |
+| ------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ---------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DOC-03 | Explain per-toolkit Composio enablement                | Prevents catalog availability being mistaken for ready customer connections; clarifies INT-01 | 1/10       | 2026-09-10 | Done   | [Setup guide](../features/identity-integrations/composio.md) now describes auth-config/version mappings and the enabling sequence. No connectors were enabled.   |
+| DOC-04 | Refresh competition research and consolidate proposals | Preserves accurate positioning and one ranked implementation tracker                          | 2/10       | 2026-09-10 | Done   | Updated comparison, migrated proposal lists, retained orchestration research and linked the tracker from parent documents. No product features were implemented. |

@@ -14,6 +14,9 @@ export function nativeModelFixture(options?: {
     model?: string;
     hasPriorPrompt: boolean;
     hasAnswer: boolean;
+    hasWorkspaceContext: boolean;
+    hasPersistenceGuidance: boolean;
+    hasRunInstructions: boolean;
     permissionDenied: boolean;
     leakedSecret: boolean;
     fileSaved: boolean;

@@ -5,7 +5,7 @@ import { examples } from '../../apps/web/components/landing/examples';
 type CopyMotion = { property: string; frames: number[]; state: string }[];
 
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
-  test(`${reducedMotion}: copy retains its label and check, copies again, and resets for changed content`, async ({
+  test(`${reducedMotion}: copy animates its check, retains its label, and resets for changed content`, async ({
     page,
     context,
   }) => {
@@ -65,10 +65,6 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(examples.TypeScript);
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
 
-    await page.clock.install();
-    await page.clock.fastForward(60_000);
-    await expect(copy).toHaveAttribute('data-copy-state', 'copied');
-    await expect(icon).toHaveAttribute('data-copied', 'true');
     // A checked button must perform a new write, even if another app replaced the clipboard.
     await page.evaluate(() => navigator.clipboard.writeText('Replaced clipboard fixture'));
     await copy.click();
@@ -85,6 +81,38 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
   });
 }
+
+test('the copy check clears after three seconds and copying again restarts the timer', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/docs/agents');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: fixtureOrigin });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const copy = page.locator('.docs-prompt-block').getByRole('button', { name: 'Copy prompt', exact: true });
+  const icon = copy.locator('.copy-feedback-icon');
+  const source = await page.getByRole('region', { name: 'Setup prompt', exact: true }).innerText();
+
+  await copy.click();
+  await expect(copy).toHaveAttribute('data-copy-state', 'copied');
+  await page.clock.runFor(2000);
+  await expect(icon).toHaveAttribute('data-copied', 'true');
+  await page.evaluate(() => navigator.clipboard.writeText('Replaced clipboard fixture'));
+  await copy.click();
+  await expect(copy).toHaveAttribute('data-copy-state', 'copied');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(source);
+
+  await page.clock.runFor(2999);
+  await expect(icon).toHaveAttribute('data-copied', 'true');
+  await page.clock.runFor(1);
+  await expect(copy).toHaveAttribute('data-copy-state', 'idle');
+  await expect(icon).toHaveAttribute('data-copied', 'false');
+  await expect(copy.getByRole('status')).toBeEmpty();
+  await expect(copy).toHaveAccessibleName('Copy prompt');
+  await expect(copy).toBeEnabled();
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+});
 
 type ClipboardFixture = { complete: (accepted: boolean) => void; settled: Promise<void> };
 

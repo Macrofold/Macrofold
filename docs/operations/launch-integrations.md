@@ -34,6 +34,8 @@ Test installation, signed webhook reception, repository selection, a protected-b
 
 Use a separate Stripe test environment and a separate application ledger for staging. Create monthly USD Pro and Scale prices matching the application display fields and included credits. Starter does not require a recurring price. Set the two price IDs, runtime key, and endpoint signing secret.
 
+Check **Settings → Managed Payments** in the selected Stripe test environment. This integration uses standard Checkout; keep Managed Payments disabled by default. Some new sandboxes enable it automatically, which rejects the inline execution-credit product because it has no Managed Payments tax code. Changing the sandbox default does not change live settings. After correcting a definitive provider rejection, verify that no Checkout session was created before starting a fresh request; unchanged retries retain their idempotency key. See [Managed Payments setup](https://docs.stripe.com/payments/managed-payments/set-up).
+
 Configure a snapshot-event webhook destination at `APP_ORIGIN/webhooks/stripe`, using an event API version tested with the repository's pinned Stripe SDK and [billing event processor](../../packages/core/src/billing-events.ts). The receiver expects `data.object`; a thin-event destination is not interchangeable. Select these fourteen events explicitly:
 
 - Checkout: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`.

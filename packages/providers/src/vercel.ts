@@ -95,16 +95,7 @@ export class VercelMachines implements MachineProvider, SandboxTools {
                 .filter(Boolean),
             ],
             subnets: {
-              deny: [
-                '10.0.0.0/8',
-                '127.0.0.0/8',
-                '169.254.0.0/16',
-                '172.16.0.0/12',
-                '192.168.0.0/16',
-                '::1/128',
-                'fc00::/7',
-                'fe80::/10',
-              ],
+              deny: ['10.0.0.0/8', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.168.0.0/16'],
             },
           },
         });
@@ -141,6 +132,20 @@ export class VercelMachines implements MachineProvider, SandboxTools {
   }
   async prepare(binding: MachineBinding, configuration: NativeConfiguration) {
     const session = await this.session(binding);
+    // Vercel rejects IPv6 CIDRs. Disable IPv6 in the VM before exposing run
+    // credentials or starting native code; retain the IPv4 egress firewall.
+    const network = await session.runCommand({
+      cmd: 'sysctl',
+      args: ['-w', 'net.ipv6.conf.all.disable_ipv6=1', 'net.ipv6.conf.default.disable_ipv6=1'],
+      sudo: true,
+      timeoutMs: 10_000,
+    });
+    assert(
+      network.exitCode === 0,
+      502,
+      'runtime_network_setup_failed',
+      'Unable to enforce the runtime network restrictions.',
+    );
     const setup = await session.runCommand({
       cmd: 'mkdir',
       args: ['-p', '/platform-control/restore/chunks'],

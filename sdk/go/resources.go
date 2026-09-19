@@ -2,15 +2,15 @@
 package macrofold
 import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
-type Client struct { *APIClient; Projects *ProjectsResource;Workspaces *WorkspacesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource }
-func resources(api *APIClient) *Client { return &Client{APIClient:api, Projects:&ProjectsResource{api},Workspaces:&WorkspacesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},} }
+type Client struct { *APIClient; Workspaces *WorkspacesResource;Worktrees *WorktreesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource;Inferences *InferencesResource;Tasks *TasksResource;Sandboxes *SandboxesResource }
+func resources(api *APIClient) *Client { return &Client{APIClient:api, Workspaces:&WorkspacesResource{api},Worktrees:&WorktreesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},Inferences:&InferencesResource{api},Tasks:&TasksResource{api},Sandboxes:&SandboxesResource{api},} }
 
-type ProjectsResource struct {client *APIClient}
-func (r *ProjectsResource) CancelDeletion(ctx context.Context, projectId string, options ...RequestOption) (*Project, error) {
+type WorkspacesResource struct {client *APIClient}
+func (r *WorkspacesResource) CancelDeletion(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
-        call := r.client.ProjectsAPI.CancelProjectDeletion(ctx, projectId)
+        call := r.client.WorkspacesAPI.CancelWorkspaceDeletion(ctx, workspaceId)
 
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
@@ -18,23 +18,11 @@ func (r *ProjectsResource) CancelDeletion(ctx context.Context, projectId string,
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
-func (r *ProjectsResource) Create(ctx context.Context, input *ProjectCreate, options ...RequestOption) (*Project, error) {
+func (r *WorkspacesResource) Create(ctx context.Context, input *WorkspaceCreate, options ...RequestOption) (*Workspace, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
-        call := r.client.ProjectsAPI.CreateProject(ctx)
-        if input != nil {call = call.ProjectCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *ProjectsResource) CreateWorkspace(ctx context.Context, projectId string, input *WorkspaceCreate, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-
-        call := r.client.ProjectsAPI.CreateWorkspace(ctx, projectId)
+        call := r.client.WorkspacesAPI.CreateWorkspace(ctx)
         if input != nil {call = call.WorkspaceCreate(*input)}
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
@@ -42,151 +30,15 @@ func (r *ProjectsResource) CreateWorkspace(ctx context.Context, projectId string
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
-func (r *ProjectsResource) Delete(ctx context.Context, projectId string, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-
-        call := r.client.ProjectsAPI.DeleteProject(ctx, projectId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type GetProjectParams struct {IncludeConnections *bool;AgentId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
-func (r *ProjectsResource) Get(ctx context.Context, projectId string, params *GetProjectParams, options ...RequestOption) (*Project, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &GetProjectParams{}}
-        call := r.client.ProjectsAPI.GetProject(ctx, projectId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.IncludeConnections != nil {call = call.IncludeConnections(*params.IncludeConnections)}
-if params.AgentId != nil {call = call.AgentId(*params.AgentId)}
-if params.ConnectionsLimit != nil {call = call.ConnectionsLimit(*params.ConnectionsLimit)}
-if params.ConnectionsCursor != nil {call = call.ConnectionsCursor(*params.ConnectionsCursor)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type GetWorktreeOptionsParams struct {Name *string;Branch *string}
-func (r *ProjectsResource) GetWorktreeOptions(ctx context.Context, projectId string, params *GetWorktreeOptionsParams, options ...RequestOption) (*WorktreeOptions, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &GetWorktreeOptionsParams{}}
-        call := r.client.ProjectsAPI.GetWorktreeOptions(ctx, projectId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.Name != nil {call = call.Name(*params.Name)}
-if params.Branch != nil {call = call.Branch(*params.Branch)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type ListProjectsParams struct {Cursor *string;Limit *int32;Query *string;Archived *bool}
-func (r *ProjectsResource) List(ctx context.Context, params *ListProjectsParams, options ...RequestOption) (*ListProjects200Response, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &ListProjectsParams{}}
-        call := r.client.ProjectsAPI.ListProjects(ctx)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
-if params.Limit != nil {call = call.Limit(*params.Limit)}
-if params.Query != nil {call = call.Query(*params.Query)}
-if params.Archived != nil {call = call.Archived(*params.Archived)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type ListWorkspacesParams struct {Cursor *string;Limit *int32}
-func (r *ProjectsResource) ListWorkspaces(ctx context.Context, projectId string, params *ListWorkspacesParams, options ...RequestOption) (*ListWorkspaces200Response, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &ListWorkspacesParams{}}
-        call := r.client.ProjectsAPI.ListWorkspaces(ctx, projectId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
-if params.Limit != nil {call = call.Limit(*params.Limit)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-func (r *ProjectsResource) ScheduleDeletion(ctx context.Context, projectId string, input *ProjectDeletion, options ...RequestOption) (*Project, error) {
+func (r *WorkspacesResource) CreateWorktree(ctx context.Context, workspaceId string, input *WorktreeCreate, options ...RequestOption) (*Operation, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
-        call := r.client.ProjectsAPI.ScheduleProjectDeletion(ctx, projectId)
-        if input != nil {call = call.ProjectDeletion(*input)}
+        call := r.client.WorkspacesAPI.CreateWorktree(ctx, workspaceId)
+        if input != nil {call = call.WorktreeCreate(*input)}
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
 
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *ProjectsResource) Update(ctx context.Context, projectId string, input *ProjectPatch, options ...RequestOption) (*Project, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-
-        call := r.client.ProjectsAPI.UpdateProject(ctx, projectId)
-        if input != nil {call = call.ProjectPatch(*input)}
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type WorkspacesResource struct {client *APIClient}
-func (r *WorkspacesResource) CreateCheckpoint(ctx context.Context, workspaceId string, input *CheckpointCreate, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-
-        call := r.client.WorkspacesAPI.CreateCheckpoint(ctx, workspaceId)
-        if input != nil {call = call.CheckpointCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-type CreateFolderParams struct {IfMatch string}
-func (r *WorkspacesResource) CreateFolder(ctx context.Context, workspaceId string, input *FolderCreate, params *CreateFolderParams, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-        if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.CreateFolder(ctx, workspaceId)
-        if input != nil {call = call.FolderCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        call = call.IfMatch(params.IfMatch)
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *WorkspacesResource) CreateTransfer(ctx context.Context, workspaceId string, input *TransferCreate, options ...RequestOption) (*Transfer, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-
-        call := r.client.WorkspacesAPI.CreateTransfer(ctx, workspaceId)
-        if input != nil {call = call.TransferCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-type DeleteFileParams struct {Path string;IfMatch string}
-func (r *WorkspacesResource) DeleteFile(ctx context.Context, workspaceId string, params *DeleteFileParams, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-
-        if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.DeleteFile(ctx, workspaceId)
-
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        call = call.Path(params.Path)
-call = call.IfMatch(params.IfMatch)
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
@@ -202,96 +54,58 @@ func (r *WorkspacesResource) Delete(ctx context.Context, workspaceId string, opt
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type DuplicateFileParams struct {IfMatch string}
-func (r *WorkspacesResource) DuplicateFile(ctx context.Context, workspaceId string, input *FileDuplicate, params *DuplicateFileParams, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-        if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.DuplicateFile(ctx, workspaceId)
-        if input != nil {call = call.FileDuplicate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        call = call.IfMatch(params.IfMatch)
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *WorkspacesResource) GetSync(ctx context.Context, workspaceId string, options ...RequestOption) (*GitSync, error) {
+type GetWorkspaceParams struct {IncludeConnections *bool;AgentId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
+func (r *WorkspacesResource) Get(ctx context.Context, workspaceId string, params *GetWorkspaceParams, options ...RequestOption) (*Workspace, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
-
-        call := r.client.WorkspacesAPI.GetSync(ctx, workspaceId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-func (r *WorkspacesResource) Get(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-
+        if params == nil {params = &GetWorkspaceParams{}}
         call := r.client.WorkspacesAPI.GetWorkspace(ctx, workspaceId)
 
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
+        if params.IncludeConnections != nil {call = call.IncludeConnections(*params.IncludeConnections)}
+if params.AgentId != nil {call = call.AgentId(*params.AgentId)}
+if params.ConnectionsLimit != nil {call = call.ConnectionsLimit(*params.ConnectionsLimit)}
+if params.ConnectionsCursor != nil {call = call.ConnectionsCursor(*params.ConnectionsCursor)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type GetWorkspaceDiffParams struct {BaseCheckpointId *string;Path *string;Cursor *string;Limit *int32}
-func (r *WorkspacesResource) GetDiff(ctx context.Context, workspaceId string, params *GetWorkspaceDiffParams, options ...RequestOption) (*WorkspaceDiff, error) {
+type GetWorktreeOptionsParams struct {Name *string;Branch *string}
+func (r *WorkspacesResource) GetWorktreeOptions(ctx context.Context, workspaceId string, params *GetWorktreeOptionsParams, options ...RequestOption) (*WorktreeOptions, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
-        if params == nil {params = &GetWorkspaceDiffParams{}}
-        call := r.client.WorkspacesAPI.GetWorkspaceDiff(ctx, workspaceId)
+        if params == nil {params = &GetWorktreeOptionsParams{}}
+        call := r.client.WorkspacesAPI.GetWorktreeOptions(ctx, workspaceId)
 
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.BaseCheckpointId != nil {call = call.BaseCheckpointId(*params.BaseCheckpointId)}
-if params.Path != nil {call = call.Path(*params.Path)}
-if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
-if params.Limit != nil {call = call.Limit(*params.Limit)}
+        if params.Name != nil {call = call.Name(*params.Name)}
+if params.Branch != nil {call = call.Branch(*params.Branch)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListCheckpointsParams struct {Cursor *string;Limit *int32}
-func (r *WorkspacesResource) ListCheckpoints(ctx context.Context, workspaceId string, params *ListCheckpointsParams, options ...RequestOption) (*ListCheckpoints200Response, error) {
+type ListWorkspacesParams struct {Cursor *string;Limit *int32;Query *string;Archived *bool}
+func (r *WorkspacesResource) List(ctx context.Context, params *ListWorkspacesParams, options ...RequestOption) (*ListWorkspaces200Response, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
-        if params == nil {params = &ListCheckpointsParams{}}
-        call := r.client.WorkspacesAPI.ListCheckpoints(ctx, workspaceId)
+        if params == nil {params = &ListWorkspacesParams{}}
+        call := r.client.WorkspacesAPI.ListWorkspaces(ctx)
 
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
-if params.Limit != nil {call = call.Limit(*params.Limit)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type ListFilesParams struct {Path *string;Cursor *string;Limit *int32;Query *string;Recursive *bool}
-func (r *WorkspacesResource) ListFiles(ctx context.Context, workspaceId string, params *ListFilesParams, options ...RequestOption) (*FileListing, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &ListFilesParams{}}
-        call := r.client.WorkspacesAPI.ListFiles(ctx, workspaceId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.Path != nil {call = call.Path(*params.Path)}
-if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
 if params.Query != nil {call = call.Query(*params.Query)}
-if params.Recursive != nil {call = call.Recursive(*params.Recursive)}
+if params.Archived != nil {call = call.Archived(*params.Archived)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListTransfersParams struct {Cursor *string;Limit *int32}
-func (r *WorkspacesResource) ListTransfers(ctx context.Context, workspaceId string, params *ListTransfersParams, options ...RequestOption) (*ListTransfers200Response, error) {
+type ListWorktreesParams struct {Cursor *string;Limit *int32}
+func (r *WorkspacesResource) ListWorktrees(ctx context.Context, workspaceId string, params *ListWorktreesParams, options ...RequestOption) (*ListWorktrees200Response, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
-        if params == nil {params = &ListTransfersParams{}}
-        call := r.client.WorkspacesAPI.ListTransfers(ctx, workspaceId)
+        if params == nil {params = &ListWorktreesParams{}}
+        call := r.client.WorkspacesAPI.ListWorktrees(ctx, workspaceId)
 
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
@@ -300,52 +114,12 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ReadFileParams struct {Path string;Download *bool}
-func (r *WorkspacesResource) ReadFile(ctx context.Context, workspaceId string, params *ReadFileParams, options ...RequestOption) (*os.File, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.ReadFile(ctx, workspaceId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        call = call.Path(params.Path)
-if params.Download != nil {call = call.Download(*params.Download)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type RenameFileParams struct {Path string;IfMatch string}
-func (r *WorkspacesResource) RenameFile(ctx context.Context, workspaceId string, input *FileRename, params *RenameFileParams, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-        if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.RenameFile(ctx, workspaceId)
-        if input != nil {call = call.FileRename(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        call = call.Path(params.Path)
-call = call.IfMatch(params.IfMatch)
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *WorkspacesResource) Restore(ctx context.Context, workspaceId string, input *RestoreRequest, options ...RequestOption) (*Operation, error) {
+func (r *WorkspacesResource) ScheduleDeletion(ctx context.Context, workspaceId string, input *WorkspaceDeletion, options ...RequestOption) (*Workspace, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
-        call := r.client.WorkspacesAPI.RestoreWorkspace(ctx, workspaceId)
-        if input != nil {call = call.RestoreRequest(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *WorkspacesResource) Sync(ctx context.Context, workspaceId string, input *SyncWorkspaceRequest, options ...RequestOption) (*Operation, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-
-
-        call := r.client.WorkspacesAPI.SyncWorkspace(ctx, workspaceId)
-        if input != nil {call = call.SyncWorkspaceRequest(*input)}
+        call := r.client.WorkspacesAPI.ScheduleWorkspaceDeletion(ctx, workspaceId)
+        if input != nil {call = call.WorkspaceDeletion(*input)}
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
 
@@ -364,12 +138,238 @@ func (r *WorkspacesResource) Update(ctx context.Context, workspaceId string, inp
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
+type WorktreesResource struct {client *APIClient}
+func (r *WorktreesResource) CreateCheckpoint(ctx context.Context, worktreeId string, input *CheckpointCreate, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.WorktreesAPI.CreateCheckpoint(ctx, worktreeId)
+        if input != nil {call = call.CheckpointCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type CreateFolderParams struct {IfMatch string}
+func (r *WorktreesResource) CreateFolder(ctx context.Context, worktreeId string, input *FolderCreate, params *CreateFolderParams, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.WorktreesAPI.CreateFolder(ctx, worktreeId)
+        if input != nil {call = call.FolderCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) CreateTransfer(ctx context.Context, worktreeId string, input *TransferCreate, options ...RequestOption) (*Transfer, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.WorktreesAPI.CreateTransfer(ctx, worktreeId)
+        if input != nil {call = call.TransferCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type DeleteFileParams struct {Path string;IfMatch string}
+func (r *WorktreesResource) DeleteFile(ctx context.Context, worktreeId string, params *DeleteFileParams, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.WorktreesAPI.DeleteFile(ctx, worktreeId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.Path(params.Path)
+call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) Delete(ctx context.Context, worktreeId string, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.WorktreesAPI.DeleteWorktree(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type DuplicateFileParams struct {IfMatch string}
+func (r *WorktreesResource) DuplicateFile(ctx context.Context, worktreeId string, input *FileDuplicate, params *DuplicateFileParams, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.WorktreesAPI.DuplicateFile(ctx, worktreeId)
+        if input != nil {call = call.FileDuplicate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) GetSync(ctx context.Context, worktreeId string, options ...RequestOption) (*GitSync, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.WorktreesAPI.GetSync(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *WorktreesResource) Get(ctx context.Context, worktreeId string, options ...RequestOption) (*Worktree, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.WorktreesAPI.GetWorktree(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type GetWorktreeDiffParams struct {BaseCheckpointId *string;Path *string;Cursor *string;Limit *int32}
+func (r *WorktreesResource) GetDiff(ctx context.Context, worktreeId string, params *GetWorktreeDiffParams, options ...RequestOption) (*WorktreeDiff, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &GetWorktreeDiffParams{}}
+        call := r.client.WorktreesAPI.GetWorktreeDiff(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.BaseCheckpointId != nil {call = call.BaseCheckpointId(*params.BaseCheckpointId)}
+if params.Path != nil {call = call.Path(*params.Path)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListCheckpointsParams struct {Cursor *string;Limit *int32}
+func (r *WorktreesResource) ListCheckpoints(ctx context.Context, worktreeId string, params *ListCheckpointsParams, options ...RequestOption) (*ListCheckpoints200Response, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListCheckpointsParams{}}
+        call := r.client.WorktreesAPI.ListCheckpoints(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListFilesParams struct {Path *string;Cursor *string;Limit *int32;Query *string;Recursive *bool}
+func (r *WorktreesResource) ListFiles(ctx context.Context, worktreeId string, params *ListFilesParams, options ...RequestOption) (*FileListing, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListFilesParams{}}
+        call := r.client.WorktreesAPI.ListFiles(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Path != nil {call = call.Path(*params.Path)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+if params.Query != nil {call = call.Query(*params.Query)}
+if params.Recursive != nil {call = call.Recursive(*params.Recursive)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListTransfersParams struct {Cursor *string;Limit *int32}
+func (r *WorktreesResource) ListTransfers(ctx context.Context, worktreeId string, params *ListTransfersParams, options ...RequestOption) (*ListTransfers200Response, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListTransfersParams{}}
+        call := r.client.WorktreesAPI.ListTransfers(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ReadFileParams struct {Path string;Download *bool}
+func (r *WorktreesResource) ReadFile(ctx context.Context, worktreeId string, params *ReadFileParams, options ...RequestOption) (*os.File, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.WorktreesAPI.ReadFile(ctx, worktreeId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.Path(params.Path)
+if params.Download != nil {call = call.Download(*params.Download)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type RenameFileParams struct {Path string;IfMatch string}
+func (r *WorktreesResource) RenameFile(ctx context.Context, worktreeId string, input *FileRename, params *RenameFileParams, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.WorktreesAPI.RenameFile(ctx, worktreeId)
+        if input != nil {call = call.FileRename(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.Path(params.Path)
+call = call.IfMatch(params.IfMatch)
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) Restore(ctx context.Context, worktreeId string, input *RestoreRequest, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.WorktreesAPI.RestoreWorktree(ctx, worktreeId)
+        if input != nil {call = call.RestoreRequest(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) Sync(ctx context.Context, worktreeId string, input *SyncWorktreeRequest, options ...RequestOption) (*Operation, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.WorktreesAPI.SyncWorktree(ctx, worktreeId)
+        if input != nil {call = call.SyncWorktreeRequest(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *WorktreesResource) Update(ctx context.Context, worktreeId string, input *WorktreePatch, options ...RequestOption) (*Worktree, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.WorktreesAPI.UpdateWorktree(ctx, worktreeId)
+        if input != nil {call = call.WorktreePatch(*input)}
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
 type WriteFileParams struct {Path string;IfMatch string;CreateOnly *bool}
-func (r *WorkspacesResource) WriteFile(ctx context.Context, workspaceId string, content *os.File, params *WriteFileParams, options ...RequestOption) (*Operation, error) {
+func (r *WorktreesResource) WriteFile(ctx context.Context, worktreeId string, content *os.File, params *WriteFileParams, options ...RequestOption) (*Operation, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if content == nil {return nil, missingParameter("content")}
         if params == nil {return nil, missingParameter("params")}
-        call := r.client.WorkspacesAPI.WriteFile(ctx, workspaceId)
+        call := r.client.WorktreesAPI.WriteFile(ctx, worktreeId)
         if content != nil {call = call.Body(content)}
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
@@ -404,7 +404,7 @@ func (r *AgentsResource) Delete(ctx context.Context, agentId string, options ...
         response, callError := call.Execute()
         return requestError(callError, response, "")
       }
-type GetAgentParams struct {IncludeConnections *bool;ProjectId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
+type GetAgentParams struct {IncludeConnections *bool;WorkspaceId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
 func (r *AgentsResource) Get(ctx context.Context, agentId string, params *GetAgentParams, options ...RequestOption) (*Agent, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -414,7 +414,7 @@ func (r *AgentsResource) Get(ctx context.Context, agentId string, params *GetAge
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.IncludeConnections != nil {call = call.IncludeConnections(*params.IncludeConnections)}
-if params.ProjectId != nil {call = call.ProjectId(*params.ProjectId)}
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
 if params.ConnectionsLimit != nil {call = call.ConnectionsLimit(*params.ConnectionsLimit)}
 if params.ConnectionsCursor != nil {call = call.ConnectionsCursor(*params.ConnectionsCursor)}
         result, response, callError := call.Execute()
@@ -448,7 +448,7 @@ func (r *AgentsResource) Update(ctx context.Context, agentId string, input *Agen
         return result, requestError(callError, response, "")
       }
 type SessionsResource struct {client *APIClient}
-func (r *SessionsResource) ContinueRun(ctx context.Context, sessionId string, input *MessageCreate, options ...RequestOption) (*RunAccepted, error) {
+func (r *SessionsResource) ContinueRun(ctx context.Context, sessionId string, input *MessageCreate, options ...RequestOption) (*NativeRunAccepted, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -484,7 +484,7 @@ func (r *SessionsResource) Get(ctx context.Context, sessionId string, options ..
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListSessionsParams struct {Cursor *string;Limit *int32;WorkspaceId *string}
+type ListSessionsParams struct {Cursor *string;Limit *int32;WorktreeId *string}
 func (r *SessionsResource) List(ctx context.Context, params *ListSessionsParams, options ...RequestOption) (*ListSessions200Response, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -495,7 +495,7 @@ func (r *SessionsResource) List(ctx context.Context, params *ListSessionsParams,
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
-if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
@@ -512,7 +512,7 @@ func (r *RunsResource) Cancel(ctx context.Context, runId string, options ...Requ
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
-func (r *RunsResource) Create(ctx context.Context, input *RunCreate, options ...RequestOption) (*RunAccepted, error) {
+func (r *RunsResource) Create(ctx context.Context, input *RunCreate, options ...RequestOption) (*NativeRunAccepted, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -577,7 +577,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListRunsParams struct {Status *string;ProjectId *string;From *time.Time;To *time.Time;Cursor *string;Limit *int32;WorkspaceId *string;SessionId *string}
+type ListRunsParams struct {Status *string;WorkspaceId *string;From *time.Time;To *time.Time;Cursor *string;Limit *int32;WorktreeId *string;SessionId *string}
 func (r *RunsResource) List(ctx context.Context, params *ListRunsParams, options ...RequestOption) (*ListRuns200Response, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -587,12 +587,12 @@ func (r *RunsResource) List(ctx context.Context, params *ListRunsParams, options
 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.Status != nil {call = call.Status(*params.Status)}
-if params.ProjectId != nil {call = call.ProjectId(*params.ProjectId)}
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
 if params.From != nil {call = call.From(*params.From)}
 if params.To != nil {call = call.To(*params.To)}
 if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
-if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
 if params.SessionId != nil {call = call.SessionId(*params.SessionId)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
@@ -611,6 +611,18 @@ func (r *RunsResource) SubmitInput(ctx context.Context, runId string, input *Run
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 type ArtifactsResource struct {client *APIClient}
+func (r *ArtifactsResource) Delete(ctx context.Context, artifactId string, options ...RequestOption) error {
+        settings, err := requestOptions(options, true); if err != nil {return err}
+
+
+        call := r.client.ArtifactsAPI.DeleteArtifact(ctx, artifactId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        response, callError := call.Execute()
+        return requestError(callError, response, settings.idempotencyKey)
+      }
 func (r *ArtifactsResource) Download(ctx context.Context, artifactId string, options ...RequestOption) (*Download, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -710,7 +722,7 @@ func (r *ConnectionsResource) GetAccess(ctx context.Context, connectionId string
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListConnectionAccessRulesParams struct {Cursor *string;Limit *int32;ProjectId *string;AgentId *string;Sort *string;Direction *string}
+type ListConnectionAccessRulesParams struct {Cursor *string;Limit *int32;WorkspaceId *string;AgentId *string;Sort *string;Direction *string}
 func (r *ConnectionsResource) ListAccessRules(ctx context.Context, connectionId string, params *ListConnectionAccessRulesParams, options ...RequestOption) (*ConnectionAccessRulePage, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -721,14 +733,14 @@ func (r *ConnectionsResource) ListAccessRules(ctx context.Context, connectionId 
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
-if params.ProjectId != nil {call = call.ProjectId(*params.ProjectId)}
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
 if params.AgentId != nil {call = call.AgentId(*params.AgentId)}
 if params.Sort != nil {call = call.Sort(*params.Sort)}
 if params.Direction != nil {call = call.Direction(*params.Direction)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListConnectionsParams struct {Cursor *string;Limit *int32;ProjectId *string;AgentId *string}
+type ListConnectionsParams struct {Cursor *string;Limit *int32;WorkspaceId *string;AgentId *string}
 func (r *ConnectionsResource) List(ctx context.Context, params *ListConnectionsParams, options ...RequestOption) (*ContextualConnectionPage, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -739,7 +751,7 @@ func (r *ConnectionsResource) List(ctx context.Context, params *ListConnectionsP
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
         if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
-if params.ProjectId != nil {call = call.ProjectId(*params.ProjectId)}
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
 if params.AgentId != nil {call = call.AgentId(*params.AgentId)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
@@ -1059,6 +1071,32 @@ func (r *BillingResource) GetStorage(ctx context.Context, options ...RequestOpti
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
+type ListBillingUsageParams struct {From time.Time;To time.Time;WorkspaceId *string;WorktreeId *string;RunId *string;SessionId *string;CustomerId *string;AgentKey *string;Provider *string;Model *string;Kind *string;BillingMode *string;Cursor *string;Limit *int32}
+func (r *BillingResource) ListUsage(ctx context.Context, params *ListBillingUsageParams, options ...RequestOption) (*BillingUsagePage, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {return nil, missingParameter("params")}
+        call := r.client.BillingAPI.ListBillingUsage(ctx)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        call = call.From(params.From)
+call = call.To(params.To)
+if params.WorkspaceId != nil {call = call.WorkspaceId(*params.WorkspaceId)}
+if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
+if params.RunId != nil {call = call.RunId(*params.RunId)}
+if params.SessionId != nil {call = call.SessionId(*params.SessionId)}
+if params.CustomerId != nil {call = call.CustomerId(*params.CustomerId)}
+if params.AgentKey != nil {call = call.AgentKey(*params.AgentKey)}
+if params.Provider != nil {call = call.Provider(*params.Provider)}
+if params.Model != nil {call = call.Model(*params.Model)}
+if params.Kind != nil {call = call.Kind(*params.Kind)}
+if params.BillingMode != nil {call = call.BillingMode(*params.BillingMode)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
 func (r *BillingResource) UpdateStoragePolicy(ctx context.Context, input *StoragePolicy, options ...RequestOption) (*Storage, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
@@ -1337,11 +1375,11 @@ func (r *TransfersResource) Get(ctx context.Context, transferId string, options 
         return result, requestError(callError, response, "")
       }
 type IntegrationsResource struct {client *APIClient}
-func (r *IntegrationsResource) DisconnectGithub(ctx context.Context, projectId string, options ...RequestOption) (*Project, error) {
+func (r *IntegrationsResource) DisconnectGithub(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
-        call := r.client.IntegrationsAPI.DisconnectGithub(ctx, projectId)
+        call := r.client.IntegrationsAPI.DisconnectGithub(ctx, workspaceId)
 
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
@@ -1868,7 +1906,7 @@ if params.Download != nil {call = call.Download(*params.Download)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-func (r *CustomerAgentsResource) SendMessage(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentMessage, options ...RequestOption) (*RunAccepted, error) {
+func (r *CustomerAgentsResource) SendMessage(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentMessage, options ...RequestOption) (*NativeRunAccepted, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1893,4 +1931,238 @@ func (r *CustomerAgentsResource) UpdateConnectionPermissions(ctx context.Context
         call = call.IfMatch(params.IfMatch)
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
+      }
+type InferencesResource struct {client *APIClient}
+func (r *InferencesResource) CreateBoundedAgentRun(ctx context.Context, input *BoundedAgentCreate, options ...RequestOption) (*RunAccepted, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.InferencesAPI.CreateBoundedAgentRun(ctx)
+        if input != nil {call = call.BoundedAgentCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *InferencesResource) CreateContextArtifact(ctx context.Context, input *ContextArtifactCreate, options ...RequestOption) (*ContextArtifact, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.InferencesAPI.CreateContextArtifact(ctx)
+        if input != nil {call = call.ContextArtifactCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *InferencesResource) CreateDecisionDefinition(ctx context.Context, input *DecisionDefinitionCreate, options ...RequestOption) (*DecisionDefinition, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.InferencesAPI.CreateDecisionDefinition(ctx)
+        if input != nil {call = call.DecisionDefinitionCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *InferencesResource) Create(ctx context.Context, input *InferenceCreate, options ...RequestOption) (*RunAccepted, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.InferencesAPI.CreateInference(ctx)
+        if input != nil {call = call.InferenceCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *InferencesResource) DeleteContextArtifact(ctx context.Context, artifactId string, options ...RequestOption) (*ContextArtifact, error) {
+
+
+
+        call := r.client.InferencesAPI.DeleteContextArtifact(ctx, artifactId)
+
+
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *InferencesResource) DeleteDecisionDefinition(ctx context.Context, definitionId string, options ...RequestOption) (*DecisionDefinition, error) {
+
+
+
+        call := r.client.InferencesAPI.DeleteDecisionDefinition(ctx, definitionId)
+
+
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *InferencesResource) GetContextArtifact(ctx context.Context, artifactId string, options ...RequestOption) (*ContextArtifact, error) {
+
+
+
+        call := r.client.InferencesAPI.GetContextArtifact(ctx, artifactId)
+
+
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *InferencesResource) GetDecisionDefinition(ctx context.Context, definitionId string, options ...RequestOption) (*DecisionDefinition, error) {
+
+
+
+        call := r.client.InferencesAPI.GetDecisionDefinition(ctx, definitionId)
+
+
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type TasksResource struct {client *APIClient}
+func (r *TasksResource) CloseDecision(ctx context.Context, taskId string, options ...RequestOption) (*DecisionTask, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.TasksAPI.CloseDecisionTask(ctx, taskId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *TasksResource) CreateDecision(ctx context.Context, input *DecisionTaskCreate, options ...RequestOption) (*DecisionTask, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.TasksAPI.CreateDecisionTask(ctx)
+        if input != nil {call = call.DecisionTaskCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *TasksResource) GetDecision(ctx context.Context, taskId string, options ...RequestOption) (*DecisionTask, error) {
+
+
+
+        call := r.client.TasksAPI.GetDecisionTask(ctx, taskId)
+
+
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *TasksResource) RecordOutcome(ctx context.Context, taskId string, input *ApplicationOutcome, options ...RequestOption) (*DecisionTask, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.TasksAPI.RecordTaskOutcome(ctx, taskId)
+        if input != nil {call = call.ApplicationOutcome(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *TasksResource) WakeDecision(ctx context.Context, taskId string, input *DecisionTaskWake, options ...RequestOption) (*DecisionTask, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.TasksAPI.WakeDecisionTask(ctx, taskId)
+        if input != nil {call = call.DecisionTaskWake(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+type SandboxesResource struct {client *APIClient}
+func (r *SandboxesResource) Create(ctx context.Context, input *SandboxCreate, options ...RequestOption) (*Sandbox, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+        if input == nil {return nil, missingParameter("input")}
+
+        call := r.client.SandboxesAPI.CreateSandbox(ctx)
+        if input != nil {call = call.SandboxCreate(*input)}
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *SandboxesResource) Destroy(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.SandboxesAPI.DestroySandbox(ctx, sandboxId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *SandboxesResource) Get(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+
+        call := r.client.SandboxesAPI.GetSandbox(ctx, sandboxId)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+type ListSandboxesParams struct {WorktreeId *string;Cursor *string;Limit *int32}
+func (r *SandboxesResource) List(ctx context.Context, params *ListSandboxesParams, options ...RequestOption) (*SandboxPage, error) {
+        settings, err := requestOptions(options, false); if err != nil {return nil, err}
+
+        if params == nil {params = &ListSandboxesParams{}}
+        call := r.client.SandboxesAPI.ListSandboxes(ctx)
+
+
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+        if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
+if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
+if params.Limit != nil {call = call.Limit(*params.Limit)}
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, "")
+      }
+func (r *SandboxesResource) Pause(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.SandboxesAPI.PauseSandbox(ctx, sandboxId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
+      }
+func (r *SandboxesResource) Resume(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+        settings, err := requestOptions(options, true); if err != nil {return nil, err}
+
+
+        call := r.client.SandboxesAPI.ResumeSandbox(ctx, sandboxId)
+
+        call = call.IdempotencyKey(settings.idempotencyKey)
+        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
+
+        result, response, callError := call.Execute()
+        return result, requestError(callError, response, settings.idempotencyKey)
       }

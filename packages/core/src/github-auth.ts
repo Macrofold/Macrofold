@@ -38,7 +38,7 @@ function configured() {
   );
 }
 export function githubManager(p: Principal) {
-  requireScopes(p, ['projects:write']);
+  requireScopes(p, ['workspaces:write']);
   assert(
     ['owner', 'admin'].includes(p.role),
     403,
@@ -56,13 +56,13 @@ export async function startGithub(request: Request) {
     'browser_required',
     'Use your signed-in dashboard to connect GitHub.',
   );
-  const project = new URL(request.url).searchParams.get('project_id');
+  const workspace = new URL(request.url).searchParams.get('workspace_id');
   const attempt = id();
   await transaction(p.organizationId, async (tx) => {
-    if (project) await resources.get(tx, 'projects', project, p);
+    if (workspace) await resources.get(tx, 'workspaces', workspace, p);
     await tx.query(
       "INSERT INTO oauth_attempts(id,organization_id,user_id,provider,data,expires_at) VALUES($1,$2,$3,'github',$4,now()+interval '10 minutes')",
-      [attempt, p.organizationId, p.userId, JSON.stringify({ project_id: project })],
+      [attempt, p.organizationId, p.userId, JSON.stringify({ workspace_id: workspace })],
     );
   });
   const state = seal({ attempt, org: p.organizationId, user: p.userId, expires: Date.now() + 600000 });
@@ -156,7 +156,7 @@ export async function finishGithub(request: Request, transport: typeof fetch = f
   return new Response(null, {
     status: 302,
     headers: {
-      location: attempt.project_id ? `/projects/${attempt.project_id}?tab=git` : '/connections',
+      location: attempt.workspace_id ? `/workspaces/${attempt.workspace_id}?tab=git` : '/connections',
       'set-cookie': `${isLocal() ? 'github-state' : '__Host-github-state'}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${isLocal() ? '' : '; Secure'}`,
       'cache-control': 'no-store',
       'referrer-policy': 'no-referrer',

@@ -1,5 +1,5 @@
 use macrofold::{
-    resources::{ListCheckpointsParams, ListProjectsParams, WriteFileParams},
+    resources::{ListCheckpointsParams, ListWorkspacesParams, WriteFileParams},
     Client, RequestOptions,
 };
 use tokio::{
@@ -11,17 +11,17 @@ const ID: &str = "00000000-0000-4000-8000-000000000001";
 #[test]
 fn typed_file_results_preserve_existing_export_and_sync_metadata() {
     let result: macrofold::models::OperationResult = serde_json::from_value(serde_json::json!({
-        "project_id": ID,
+        "workspace_id": ID,
         "format": "git_bundle",
-        "download_url": "https://objects.example.test/workspace.bundle",
+        "download_url": "https://objects.example.test/worktree.bundle",
         "manifest_url": "https://objects.example.test/manifest.json",
         "source_commit": "source",
-        "sync": {"workspace_id": ID, "status": "synced", "updated_at": "2026-09-10T00:00:00Z", "target_commit": "target"}
+        "sync": {"worktree_id": ID, "status": "synced", "updated_at": "2026-09-10T00:00:00Z", "target_commit": "target"}
     })).unwrap();
-    assert_eq!(result.project_id.unwrap().to_string(), ID);
+    assert_eq!(result.workspace_id.unwrap().to_string(), ID);
     assert_eq!(
         result.download_url.as_deref(),
-        Some("https://objects.example.test/workspace.bundle")
+        Some("https://objects.example.test/worktree.bundle")
     );
     assert_eq!(
         result.manifest_url.as_deref(),
@@ -92,8 +92,8 @@ async fn resource_error_retains_identity_without_repeating_mutation() {
         .build()
         .unwrap();
     let error = client
-        .projects()
-        .create(macrofold::models::ProjectCreate::new("Research".into()))
+        .workspaces()
+        .create(macrofold::models::WorkspaceCreate::new("Research".into()))
         .await
         .unwrap_err();
     let failure = error.downcast_ref::<macrofold::RequestError>().unwrap();
@@ -159,8 +159,8 @@ async fn typed_request_preserves_query_and_authorization() {
     let (origin, requests) = server(vec![(200, r#"{"data":[],"next_cursor":null}"#.into())]).await;
     let client = Client::with_credentials(&origin, "fixture").unwrap();
     let result = client
-        .projects()
-        .list(ListProjectsParams {
+        .workspaces()
+        .list(ListWorkspacesParams {
             limit: Some(3),
             ..Default::default()
         })
@@ -173,7 +173,7 @@ async fn typed_request_preserves_query_and_authorization() {
 }
 #[tokio::test]
 async fn stream_reconnects_without_duplicates_and_preserves_utf8() {
-    let succeeded = serde_json::json!({"id":ID,"organization_id":ID,"session_id":ID,"workspace_id":ID,"harness":"codex","model":"simulator","status":"succeeded","created_at":"2026-09-07T00:00:00Z"}).to_string();
+    let succeeded = serde_json::json!({"id":ID,"kind":"native_agent","workspace_id":ID,"organization_id":ID,"session_id":ID,"worktree_id":ID,"harness":"codex","model":"simulator","status":"succeeded","created_at":"2026-09-07T00:00:00Z"}).to_string();
     let remaining = format!(
         r#"{{"data":[{}],"next_cursor":null}}"#,
         event("2", "run.succeeded")
@@ -262,24 +262,24 @@ fn origin_and_financial_precision() {
 
 #[tokio::test]
 async fn mutation_and_binary_wire_contract() {
-    let project = serde_json::json!({"id":ID,"organization_id":ID,"name":"Research","persistence":"persistent","created_at":"2026-09-07T00:00:00Z"}).to_string();
+    let workspace = serde_json::json!({"id":ID,"organization_id":ID,"name":"Research","persistence":"persistent","created_at":"2026-09-07T00:00:00Z"}).to_string();
     let operation = serde_json::json!({"id":ID,"kind":"file.write","status":"succeeded","created_at":"2026-09-07T00:00:00Z","result":{"revision":"revision-2"}}).to_string();
-    let (origin, requests) = server(vec![(201, project), (200, operation)]).await;
+    let (origin, requests) = server(vec![(201, workspace), (200, operation)]).await;
     let client = Client::with_credentials(&origin, "fixture").unwrap();
-    let project = client
-        .projects()
+    let workspace = client
+        .workspaces()
         .with_options(RequestOptions {
             idempotency_key: Some("request-1".into()),
             ..Default::default()
         })
-        .create(macrofold::models::ProjectCreate::new("Research".into()))
+        .create(macrofold::models::WorkspaceCreate::new("Research".into()))
         .await
         .unwrap();
-    assert_eq!(project.name, "Research");
+    assert_eq!(workspace.name, "Research");
     let file = std::env::temp_dir().join(format!("macrofold-{}", uuid::Uuid::new_v4()));
     tokio::fs::write(&file, b"hello\0world").await.unwrap();
     let result = client
-        .workspaces()
+        .worktrees()
         .with_options(RequestOptions {
             idempotency_key: Some("request-2".into()),
             ..Default::default()
@@ -319,15 +319,15 @@ async fn application_workflow() {
     let client =
         Client::with_credentials(&origin, &std::env::var("MACROFOLD_FIXTURE_KEY").unwrap())
             .unwrap();
-    let files_workspace = std::env::var("MACROFOLD_FIXTURE_FILES_WORKSPACE").unwrap();
+    let files_worktree = std::env::var("MACROFOLD_FIXTURE_FILES_WORKTREE").unwrap();
     for (path, expected) in [
         ("notes/日本語 + #?.bin", vec![0, 255, 10, 128]),
         ("empty.txt", vec![]),
     ] {
         let response = client
-            .workspaces()
+            .worktrees()
             .read_file(
-                &files_workspace,
+                &files_worktree,
                 macrofold::resources::ReadFileParams {
                     path: path.into(),
                     download: None,
@@ -341,9 +341,9 @@ async fn application_workflow() {
         );
     }
     let error = client
-        .workspaces()
+        .worktrees()
         .read_file(
-            &files_workspace,
+            &files_worktree,
             macrofold::resources::ReadFileParams {
                 path: "missing.txt".into(),
                 download: None,
@@ -354,7 +354,7 @@ async fn application_workflow() {
     let failure = error.downcast_ref::<macrofold::RequestError>().unwrap();
     let source = failure
         .source
-        .downcast_ref::<macrofold::apis::Error<macrofold::apis::workspaces_api::ReadFileError>>()
+        .downcast_ref::<macrofold::apis::Error<macrofold::apis::worktrees_api::ReadFileError>>()
         .unwrap();
     match source {
         macrofold::apis::Error::ResponseError(response) => {
@@ -362,22 +362,22 @@ async fn application_workflow() {
         }
         other => panic!("expected an HTTP missing-file error, got {other:?}"),
     }
-    let project = client
-        .projects()
-        .create(macrofold::models::ProjectCreate::new(
+    let workspace = client
+        .workspaces()
+        .create(macrofold::models::WorkspaceCreate::new(
             "Rust application fixture".into(),
         ))
         .await
         .unwrap();
-    let workspace_id = project.default_workspace_id.unwrap().to_string();
-    let workspace = client.workspaces().get(&workspace_id).await.unwrap();
+    let worktree_id = workspace.default_worktree_id.unwrap().to_string();
+    let worktree = client.worktrees().get(&worktree_id).await.unwrap();
     let folder = client
-        .workspaces()
+        .worktrees()
         .create_folder(
-            &workspace_id,
+            &worktree_id,
             macrofold::models::FolderCreate::new("examples".into()),
             macrofold::resources::CreateFolderParams {
-                if_match: workspace.revision,
+                if_match: worktree.revision,
             },
         )
         .await
@@ -389,9 +389,9 @@ async fn application_workflow() {
         macrofold::models::file_entry::Type::Directory
     );
     let renamed = client
-        .workspaces()
+        .worktrees()
         .rename_file(
-            &workspace_id,
+            &worktree_id,
             macrofold::models::FileRename::new("examples/renamed.txt".into()),
             macrofold::resources::RenameFileParams {
                 path: "examples/.gitkeep".into(),
@@ -404,9 +404,9 @@ async fn application_workflow() {
         .unwrap();
     assert_eq!(renamed.previous_path.as_deref(), Some("examples/.gitkeep"));
     let listing = client
-        .workspaces()
+        .worktrees()
         .list_files(
-            &workspace_id,
+            &worktree_id,
             macrofold::resources::ListFilesParams {
                 recursive: Some(false),
                 ..Default::default()
@@ -430,7 +430,7 @@ async fn application_workflow() {
         ))
         .await
         .unwrap();
-    body.project_id = Some(project.id);
+    body.workspace_id = Some(workspace.id);
     body.agent_id = Some(agent.id);
     let run = client.runs().create(body).await.unwrap();
     let mut text = String::new();
@@ -455,9 +455,9 @@ async fn application_workflow() {
         macrofold::models::run::Status::Succeeded
     );
     assert!(!client
-        .workspaces()
+        .worktrees()
         .list_checkpoints(
-            &run.workspace_id.to_string(),
+            &run.worktree_id.to_string(),
             ListCheckpointsParams::default()
         )
         .await
@@ -465,9 +465,9 @@ async fn application_workflow() {
         .data
         .is_empty());
     let note = client
-        .workspaces()
+        .worktrees()
         .read_file(
-            &run.workspace_id.to_string(),
+            &run.worktree_id.to_string(),
             macrofold::resources::ReadFileParams {
                 path: format!("notes/run-{}.md", run.run_id),
                 download: None,
@@ -485,7 +485,7 @@ async fn application_workflow() {
 }
 
 fn helper_state(status: &str) -> String {
-    serde_json::json!({"id":ID,"organization_id":ID,"session_id":ID,"workspace_id":ID,"harness":"codex","model":"fixture","status":status,"failure_code":"fixture_failure","created_at":"2026-09-07T00:00:00Z"}).to_string()
+    serde_json::json!({"id":ID,"kind":"native_agent","workspace_id":ID,"organization_id":ID,"session_id":ID,"worktree_id":ID,"harness":"codex","model":"fixture","status":status,"failure_code":"fixture_failure","created_at":"2026-09-07T00:00:00Z"}).to_string()
 }
 fn helper_result(persistence: &str, outcome: &str) -> String {
     serde_json::json!({"run_id":ID,"final":true,"output_text":"Hello 🌍","execution_outcome":outcome,"persistence_status":persistence,"checkpoint_id":ID}).to_string()

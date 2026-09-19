@@ -1,5 +1,5 @@
 import { lock, type Tx } from '../../db';
-import { type Principal, requireProject, requireScopes } from './auth';
+import { type Principal, requireWorkspace, requireScopes } from './auth';
 import { actorAuthorized } from './actor-authorization';
 import { AppError, assert } from './errors';
 import { id, seal, sha256, token, unseal } from './crypto';
@@ -25,7 +25,7 @@ async function slackSetup<T>(operation: () => Promise<T>): Promise<T> {
 
 export type TriggerInput = {
   name: string;
-  project_id: string;
+  workspace_id: string;
   agent_id: string;
   kind: 'slack' | 'webhook' | 'schedule';
   prompt: string;
@@ -36,11 +36,11 @@ export type TriggerInput = {
   slack_connection_id?: string;
   channel_id?: string;
 };
-export type TriggerActor = Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'projectIds'>;
+export type TriggerActor = Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'workspaceIds'>;
 export type TriggerRow = {
   id: string;
   organization_id: string;
-  project_id: string;
+  workspace_id: string;
   agent_id: string;
   kind: TriggerInput['kind'];
   name: string;
@@ -77,7 +77,7 @@ export function presentTrigger(t: TriggerRow) {
   return {
     id: t.id,
     name: t.name,
-    project_id: t.project_id,
+    workspace_id: t.workspace_id,
     agent_id: t.agent_id,
     kind: t.kind,
     prompt: t.prompt,
@@ -100,7 +100,7 @@ async function findTrigger(tx: Tx, p: Principal, triggerId: string) {
     await tx.query<TriggerRow>('SELECT * FROM triggers WHERE id=$1 AND deleted_at IS NULL', [triggerId])
   ).rows[0];
   assert(t, 404, 'not_found', 'Trigger not found.');
-  requireProject(p, t.project_id);
+  requireWorkspace(p, t.workspace_id);
   return t;
 }
 export async function getTrigger(tx: Tx, p: Principal, triggerId: string, write = false) {
@@ -120,7 +120,7 @@ export async function triggerPrincipal(tx: Tx, t: TriggerRow): Promise<Principal
   if (
     !(await actorAuthorized(tx, {
       organization_id: t.organization_id,
-      project_id: t.project_id,
+      workspace_id: t.workspace_id,
       config: {
         user_id: a.userId!,
         principal_id: a.id,
@@ -150,14 +150,14 @@ export async function triggerPrincipal(tx: Tx, t: TriggerRow): Promise<Principal
     ...a,
     organizationId: t.organization_id,
     role,
-    scopes: ['runs:write', 'projects:read', 'runs:read'],
+    scopes: ['runs:write', 'workspaces:read', 'runs:read'],
     operator: false,
   };
 }
 function connectionManager(p: Principal) {
   requireScopes(p, ['connections:write']);
   assert(
-    p.userId && !p.projectIds.length,
+    p.userId && !p.workspaceIds.length,
     403,
     'forbidden',
     'Use an unrestricted organization credential to manage Slack connections.',
@@ -257,17 +257,17 @@ export async function listSlackChannels(
   return slackSetup(() => provider.channels(unseal<SlackSecrets>(c.secret_ciphertext).bot_token, cursor));
 }
 export async function saveTrigger(tx: Tx, p: Principal, input: TriggerInput, triggerId?: string) {
-  requireScopes(p, ['triggers:write', 'runs:write', 'projects:read', 'runs:read']);
+  requireScopes(p, ['triggers:write', 'runs:write', 'workspaces:read', 'runs:read']);
   assert(p.userId, 403, 'forbidden', 'A verified user must own a trigger.');
   if (triggerId) await tx.query('SELECT id FROM triggers WHERE id=$1 FOR UPDATE', [triggerId]);
   const previous = triggerId ? await getTrigger(tx, p, triggerId, true) : undefined;
   assert(
-    !previous || previous.project_id === input.project_id,
+    !previous || previous.workspace_id === input.workspace_id,
     400,
-    'trigger_project_immutable',
-    'Create a new trigger to change its project. Existing delivery history stays with its original project.',
+    'trigger_workspace_immutable',
+    'Create a new trigger to change its workspace. Existing delivery history stays with its original workspace.',
   );
-  await resources.get(tx, 'projects', input.project_id, p);
+  await resources.get(tx, 'workspaces', input.workspace_id, p);
   await resources.get(tx, 'agents', input.agent_id, p);
   assert(
     !previous || previous.kind === input.kind,
@@ -280,7 +280,7 @@ export async function saveTrigger(tx: Tx, p: Principal, input: TriggerInput, tri
     userId: p.userId,
     kind: p.kind,
     oauthTokenId: p.oauthTokenId,
-    projectIds: p.projectIds,
+    workspaceIds: p.workspaceIds,
   };
   const next = input.kind === 'schedule' ? nextOccurrence(input.cron || '', input.timezone || 'UTC') : null;
   if (input.kind === 'slack') {
@@ -317,15 +317,15 @@ export async function saveTrigger(tx: Tx, p: Principal, input: TriggerInput, tri
   const secret = !previous && input.kind === 'webhook' ? token('trigger') : undefined;
   const t = (
     await tx.query<TriggerRow>(
-      `INSERT INTO triggers(id,organization_id,project_id,agent_id,kind,name,prompt,enabled,actor,settings,secret_hash,slack_connection_id,channel_id,next_fire_at,max_runs_per_day)
+      `INSERT INTO triggers(id,organization_id,workspace_id,agent_id,kind,name,prompt,enabled,actor,settings,secret_hash,slack_connection_id,channel_id,next_fire_at,max_runs_per_day)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-    ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,agent_id=excluded.agent_id,name=excluded.name,prompt=excluded.prompt,enabled=excluded.enabled,
+    ON CONFLICT(id) DO UPDATE SET workspace_id=excluded.workspace_id,agent_id=excluded.agent_id,name=excluded.name,prompt=excluded.prompt,enabled=excluded.enabled,
       actor=excluded.actor,settings=excluded.settings,slack_connection_id=excluded.slack_connection_id,channel_id=excluded.channel_id,
       next_fire_at=excluded.next_fire_at,max_runs_per_day=excluded.max_runs_per_day,revision=triggers.revision+1,updated_at=now() RETURNING *`,
       [
         triggerId || id(),
         p.organizationId,
-        input.project_id,
+        input.workspace_id,
         input.agent_id,
         input.kind,
         input.name,
@@ -419,8 +419,8 @@ export async function listTriggers(tx: Tx, p: Principal, query: URLSearchParams)
   const rows = (
     await tx.query<TriggerRow>(
       `SELECT * FROM triggers WHERE deleted_at IS NULL AND ($1::uuid IS NULL OR id<$1)
-    AND ($2::text IS NULL OR kind=$2) AND (cardinality($3::uuid[])=0 OR project_id=ANY($3)) ORDER BY id DESC LIMIT $4`,
-      [query.get('cursor'), query.get('kind'), p.projectIds, limit + 1],
+    AND ($2::text IS NULL OR kind=$2) AND (cardinality($3::uuid[])=0 OR workspace_id=ANY($3)) ORDER BY id DESC LIMIT $4`,
+      [query.get('cursor'), query.get('kind'), p.workspaceIds, limit + 1],
     )
   ).rows;
   return {

@@ -12,19 +12,19 @@ const item = z.object({
   ),
 });
 export type StdioCatalogItem = z.infer<typeof item>;
-const pathField = { type: 'string', description: 'Absolute path within /workspace.' };
+const pathField = { type: 'string', description: 'Absolute path within /worktree.' };
 const defaults: StdioCatalogItem[] = [
   {
     package: '@modelcontextprotocol/server-filesystem',
     version: '2026.8.31',
     label: 'Filesystem · official MCP reference server',
     command: '/opt/platform/node_modules/.bin/mcp-server-filesystem',
-    args: ['/workspace'],
+    args: ['/worktree'],
     environment_keys: [],
     tools: [
       {
         name: 'read_text_file',
-        description: 'Read a UTF-8 workspace file.',
+        description: 'Read a UTF-8 worktree file.',
         input_schema: {
           type: 'object',
           properties: { path: pathField },
@@ -34,7 +34,7 @@ const defaults: StdioCatalogItem[] = [
       },
       {
         name: 'write_file',
-        description: 'Write a UTF-8 file in the current workspace. Replaces existing contents.',
+        description: 'Write a UTF-8 file in the current worktree. Replaces existing contents.',
         input_schema: {
           type: 'object',
           properties: { path: pathField, content: { type: 'string' } },
@@ -44,7 +44,7 @@ const defaults: StdioCatalogItem[] = [
       },
       {
         name: 'list_directory',
-        description: 'List entries in a workspace directory.',
+        description: 'List entries in a worktree directory.',
         input_schema: {
           type: 'object',
           properties: { path: pathField },

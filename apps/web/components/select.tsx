@@ -20,7 +20,7 @@ type SelectProps = AriaAttributes & {
   className?: string;
 };
 
-/** One keyboard-accessible control for forms, filters and workspace navigation. */
+/** One keyboard-accessible control for forms, filters and worktree navigation. */
 export function Select({
   options,
   value,
@@ -37,7 +37,7 @@ export function Select({
   const [internalValue, setInternalValue] = useState(defaultValue);
   const selected = value ?? internalValue;
   // Radix reserves the empty string for clearing. Keep actual form values empty,
-  // while allowing an explicit "All projects"/"Custom configuration" menu item.
+  // while allowing an explicit "All workspaces"/"Custom configuration" menu item.
   const emptyItem = useId();
   const emptyLabel = options.find((option) => option.value === '')?.label;
   return (

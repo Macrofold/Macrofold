@@ -108,7 +108,7 @@ export async function saveConnection(
   );
   if (merged.kind === 'model') {
     assert(
-      ['openai', 'anthropic', 'openrouter'].includes(String(merged.provider)),
+      ['openai', 'anthropic', 'openrouter', 'typesafe'].includes(String(merged.provider)),
       400,
       'provider_unsupported',
       'Choose a supported model provider.',

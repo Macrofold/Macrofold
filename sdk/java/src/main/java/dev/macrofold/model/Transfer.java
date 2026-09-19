@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -39,7 +39,7 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Transfer.JSON_PROPERTY_ID,
-  Transfer.JSON_PROPERTY_WORKSPACE_ID,
+  Transfer.JSON_PROPERTY_WORKTREE_ID,
   Transfer.JSON_PROPERTY_DIRECTION,
   Transfer.JSON_PROPERTY_BASE_REVISION,
   Transfer.JSON_PROPERTY_STATUS,
@@ -58,9 +58,9 @@ public class Transfer {
   @javax.annotation.Nonnull
   private UUID id;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   /**
    * Gets or Sets direction
@@ -215,27 +215,27 @@ public class Transfer {
   }
 
 
-  public Transfer workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public Transfer worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -524,7 +524,7 @@ public class Transfer {
     }
     Transfer transfer = (Transfer) o;
     return Objects.equals(this.id, transfer.id) &&
-        Objects.equals(this.workspaceId, transfer.workspaceId) &&
+        Objects.equals(this.worktreeId, transfer.worktreeId) &&
         Objects.equals(this.direction, transfer.direction) &&
         Objects.equals(this.baseRevision, transfer.baseRevision) &&
         Objects.equals(this.status, transfer.status) &&
@@ -540,7 +540,7 @@ public class Transfer {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, workspaceId, direction, baseRevision, status, dryRun, actions, expiresAt, createdAt, operationId, resultRevision, checkpointId, localReceiptComplete);
+    return Objects.hash(id, worktreeId, direction, baseRevision, status, dryRun, actions, expiresAt, createdAt, operationId, resultRevision, checkpointId, localReceiptComplete);
   }
 
   @Override
@@ -548,7 +548,7 @@ public class Transfer {
     StringBuilder sb = new StringBuilder();
     sb.append("class Transfer {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    direction: ").append(toIndentedString(direction)).append("\n");
     sb.append("    baseRevision: ").append(toIndentedString(baseRevision)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
@@ -609,9 +609,9 @@ public class Transfer {
       joiner.add(String.format(java.util.Locale.ROOT, "%sid%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `direction` to the URL query string

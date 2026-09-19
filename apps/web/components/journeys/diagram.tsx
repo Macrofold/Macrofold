@@ -180,9 +180,9 @@ export function JourneyDiagram({ stage, form, useCase }: { stage: number; form: 
         role="img"
         aria-label={
           multiple
-            ? 'Independent agent worktrees linked to one project'
+            ? 'Independent agent worktrees linked to one workspace'
             : connectors
-              ? 'An agent with explicitly granted tools around its workspace'
+              ? 'An agent with explicitly granted tools around its worktree'
               : 'A prompt entering an agent with its persistent files'
         }
       >
@@ -306,7 +306,7 @@ export function JourneyDiagram({ stage, form, useCase }: { stage: number; form: 
           </>
         ) : stage === 3 ? (
           <>
-            API + API + CLI + UI <span>→</span> the same project
+            API + API + CLI + UI <span>→</span> the same workspace
           </>
         ) : (
           <>Explicit connections. Task-scoped access.</>

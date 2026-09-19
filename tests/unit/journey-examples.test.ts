@@ -8,7 +8,7 @@ import { publicConnectors } from '../../apps/web/lib/docs/connectors';
 import snapshot from '../../packages/providers/data/connector-catalog.json';
 
 it('runs and streams the displayed new-run example through the public SDK and API schema', async () => {
-  const project = 'a527a0ef-609d-4682-8a20-c1987312d142';
+  const workspace = 'a527a0ef-609d-4682-8a20-c1987312d142';
   const event = { sequence: '1', type: 'output.delta', data: { text: 'Working prototype' } };
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
     const path = new URL(String(url)).pathname;
@@ -39,13 +39,13 @@ it('runs and streams the displayed new-run example through the public SDK and AP
   const write = vi.fn();
   await runInNewContext(
     `(async () => { ${examples.TypeScript.replace("import { Macrofold } from 'macrofold';", '')} })()`,
-    { Macrofold: FixtureMacrofold, project_id: project, process: { stdout: { write } } },
+    { Macrofold: FixtureMacrofold, workspace_id: workspace, process: { stdout: { write } } },
     { timeout: 1000 },
   );
   expect(fetcher).toHaveBeenCalledTimes(4);
   const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
   expect(body).toEqual({
-    project_id: project,
+    workspace_id: workspace,
     harness: 'codex',
     model: 'gpt-5.4-mini',
     billing_mode: 'managed',

@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,7 +24,7 @@ pub enum GetOperationError {
 }
 
 
-/// Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+/// Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
 pub async fn get_operation(configuration: &configuration::Configuration, operation_id: &str, x_organization_id: Option<&str>) -> Result<models::Operation, Error<GetOperationError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_operation_id = operation_id;

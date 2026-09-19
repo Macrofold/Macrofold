@@ -3,7 +3,7 @@ import { config, isLocal } from '../../packages/core/src/config';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../../tests/fixtures/account';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import { admitRun } from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { handleModelRequest } from '../../packages/core/src/model-gateway';
@@ -98,11 +98,11 @@ try {
       const rate = rates[provider];
       let connectionId: string | undefined;
       const runId = await transaction(p.organizationId, async (tx) => {
-        const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Live fixture' });
-        const workspace = (await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' }))
-          .result as { workspace_id: string };
+        const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Live fixture' });
+        const worktree = (await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' }))
+          .result as { worktree_id: string };
         const run = await admitRun(tx, p, {
-          workspace_id: workspace.workspace_id,
+          worktree_id: worktree.worktree_id,
           harness: 'codex',
           model: 'fixture-model',
           billing_mode: 'managed',

@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -11,53 +11,40 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// WorkspaceCreate : Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceCreate {
-    /// Optional. Leave empty for smart naming.
-    #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(rename = "checkpoint_id", skip_serializing_if = "Option::is_none")]
-    pub checkpoint_id: Option<uuid::Uuid>,
-    /// Optional. Leave empty for smart naming.
-    #[serde(rename = "branch", skip_serializing_if = "Option::is_none")]
-    pub branch: Option<String>,
-    #[serde(rename = "source", skip_serializing_if = "Option::is_none")]
-    pub source: Option<Box<models::WorkspaceSource>>,
-    /// Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
-    #[serde(rename = "branch_mode", skip_serializing_if = "Option::is_none")]
-    pub branch_mode: Option<BranchMode>,
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(rename = "persistence", skip_serializing_if = "Option::is_none")]
+    pub persistence: Option<Persistence>,
+    #[serde(rename = "github", skip_serializing_if = "Option::is_none")]
+    pub github: Option<Box<models::WorkspaceCreateGithub>>,
     #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Box<models::AgentPermissions>>,
 }
 
 impl WorkspaceCreate {
-    /// Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder.
-    pub fn new() -> WorkspaceCreate {
+    pub fn new(name: String) -> WorkspaceCreate {
         WorkspaceCreate {
-            name: None,
-            checkpoint_id: None,
-            branch: None,
-            source: None,
-            branch_mode: None,
+            name,
+            persistence: None,
+            github: None,
             permissions: None,
         }
     }
 }
-/// Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum BranchMode {
-    #[serde(rename = "auto")]
-    Auto,
-    #[serde(rename = "new")]
-    New,
-    #[serde(rename = "existing")]
-    Existing,
+pub enum Persistence {
+    #[serde(rename = "persistent")]
+    Persistent,
+    #[serde(rename = "ephemeral")]
+    Ephemeral,
 }
 
-impl Default for BranchMode {
-    fn default() -> BranchMode {
-        Self::Auto
+impl Default for Persistence {
+    fn default() -> Persistence {
+        Self::Persistent
     }
 }
 

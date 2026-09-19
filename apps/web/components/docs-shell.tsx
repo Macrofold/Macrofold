@@ -202,7 +202,7 @@ export function DocsShell({
                   <p className="docs-search-label" role="status">
                     {query ? `${matches.length} matching pages` : 'Explore the documentation'}
                   </p>
-                  {!matches.length && <p>No matching pages. Try “workspace”, “API”, or “billing”.</p>}
+                  {!matches.length && <p>No matching pages. Try “worktree”, “API”, or “billing”.</p>}
                   {matches.map((entry) => (
                     <Link href={entry.url} key={entry.url} onClick={() => setOpen(false)}>
                       <FileText size={18} />

@@ -181,16 +181,16 @@ export function CodePanel() {
         </summary>
         <div>
           <p>
-            Create a project in the dashboard and set <code>project_id</code> and{' '}
+            Create a workspace in the dashboard and set <code>workspace_id</code> and{' '}
             <code>MACROFOLD_API_KEY</code>. Choose a compatible model from the catalog: this example uses
             OpenAI’s GPT-5.4 mini with Codex. The catalog determines the provider. Managed execution uses your
             credits; no saved session or agent preset is required.
           </p>
           <p>
             Follow the <Link href="/docs/sdk">SDK installation guide</Link>. Go is a function body with{' '}
-            <code>ctx</code>, <code>projectID</code>, <code>fmt</code>, and the SDK import. Rust runs in an
-            async function with a parsed project UUID. Install the <Link href="/docs/cli">Macrofold CLI</Link>
-            , then log in and link a project.
+            <code>ctx</code>, <code>workspaceID</code>, <code>fmt</code>, and the SDK import. Rust runs in an
+            async function with a parsed workspace UUID. Install the <Link href="/docs/cli">Macrofold CLI</Link>
+            , then log in and link a workspace.
           </p>
           <p>
             cURL uses <code>jq</code> to read the run ID. Keep the request key and body to recover an

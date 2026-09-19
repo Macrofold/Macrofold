@@ -60,14 +60,14 @@ const benefits = [
   },
   {
     title: 'Start at the right moment.',
-    body: 'Trigger an agent from a Slack message, a webhook, or a recurring schedule. Connect an agent preset to a project and let the work begin.',
+    body: 'Trigger an agent from a Slack message, a webhook, or a recurring schedule. Connect an agent preset to a workspace and let the work begin.',
     link: '/docs/triggers',
     label: 'Set up a trigger',
     icon: Webhook,
   },
   {
     title: 'Pick up where you left off.',
-    body: 'Continue a compatible native session with its conversation and project files. Give another instruction without rebuilding the context from scratch.',
+    body: 'Continue a compatible native session with its conversation and workspace files. Give another instruction without rebuilding the context from scratch.',
     link: '/docs/runs',
     label: 'Explore sessions',
     icon: History,
@@ -81,7 +81,7 @@ const benefits = [
   },
   {
     title: 'Scope access to the task.',
-    body: 'Choose the projects, connections, and tools an agent can use. Scoped grants and server-side authorization keep access tied to the task.',
+    body: 'Choose the workspaces, connections, and tools an agent can use. Scoped grants and server-side authorization keep access tied to the task.',
     link: '/docs/connections',
     label: 'Control access',
     icon: ShieldCheck,
@@ -148,7 +148,7 @@ function BenefitVisual({ index }: { index: number }) {
   if (index === 3)
     return (
       <div className="mf-benefit-visual mf-stream" aria-hidden="true">
-        {['Reading project files', 'Running tools', 'Writing the result'].map((t, i) => (
+        {['Reading workspace files', 'Running tools', 'Writing the result'].map((t, i) => (
           <span key={t} style={{ animationDelay: `${i * 350}ms` }}>
             <i />
             {t}
@@ -164,7 +164,7 @@ function BenefitVisual({ index }: { index: number }) {
         <div>
           <span>
             <Check size={12} />
-            Selected project
+            Selected workspace
           </span>
           <span>
             <Check size={12} />
@@ -314,7 +314,7 @@ export function LandingSite({ name = 'Macrofold' }: { name?: string }) {
               Start with a few lines of code.
             </h2>
             <p>
-              Choose a project, harness, and model.
+              Choose a workspace, harness, and model.
               <br />
               Give it a task. Let it work.
             </p>

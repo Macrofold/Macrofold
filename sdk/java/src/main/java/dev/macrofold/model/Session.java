@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -44,7 +44,7 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Session.JSON_PROPERTY_ID,
-  Session.JSON_PROPERTY_WORKSPACE_ID,
+  Session.JSON_PROPERTY_WORKTREE_ID,
   Session.JSON_PROPERTY_HARNESS,
   Session.JSON_PROPERTY_MODEL,
   Session.JSON_PROPERTY_CREATED_AT,
@@ -61,9 +61,9 @@ public class Session {
   @javax.annotation.Nonnull
   private UUID id;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   /**
    * Gets or Sets harness
@@ -206,27 +206,27 @@ public class Session {
   }
 
 
-  public Session workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public Session worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -484,7 +484,7 @@ public class Session {
     }
     Session session = (Session) o;
     return Objects.equals(this.id, session.id) &&
-        Objects.equals(this.workspaceId, session.workspaceId) &&
+        Objects.equals(this.worktreeId, session.worktreeId) &&
         Objects.equals(this.harness, session.harness) &&
         Objects.equals(this.model, session.model) &&
         Objects.equals(this.createdAt, session.createdAt) &&
@@ -502,7 +502,7 @@ public class Session {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, workspaceId, harness, model, createdAt, billingMode, providerConnectionId, connectionGrants, limits, hashCodeNullable(agentId), hashCodeNullable(agentVersion));
+    return Objects.hash(id, worktreeId, harness, model, createdAt, billingMode, providerConnectionId, connectionGrants, limits, hashCodeNullable(agentId), hashCodeNullable(agentVersion));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -517,7 +517,7 @@ public class Session {
     StringBuilder sb = new StringBuilder();
     sb.append("class Session {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    harness: ").append(toIndentedString(harness)).append("\n");
     sb.append("    model: ").append(toIndentedString(model)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
@@ -576,9 +576,9 @@ public class Session {
       joiner.add(String.format(java.util.Locale.ROOT, "%sid%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `harness` to the URL query string

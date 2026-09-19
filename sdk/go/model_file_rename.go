@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -21,7 +21,7 @@ var _ MappedNullable = &FileRename{}
 
 // FileRename struct for FileRename
 type FileRename struct {
-	// Relative workspace path without traversal, empty segments, or reserved platform paths.
+	// Relative worktree path without traversal, empty segments, or reserved platform paths.
 	NewPath string `json:"new_path"`
 }
 

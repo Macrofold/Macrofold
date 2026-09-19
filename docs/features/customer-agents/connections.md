@@ -1,6 +1,6 @@
 # Connect a customer’s accounts
 
-Let customers connect an app, choose understandable permissions, and change or remove access from your interface. This belongs to the optional **Customer agents integration path**. It reuses core named connections, tool ceilings, project/preset rules and dispatch-time checks; it does not create another permission system.
+Let customers connect an app, choose understandable permissions, and change or remove access from your interface. This belongs to the optional **Customer agents integration path**. It reuses core named connections, tool ceilings, workspace/preset rules and dispatch-time checks; it does not create another permission system.
 
 ## Before offering Connect
 
@@ -82,7 +82,7 @@ const connected = await client.customerAgents.completeConnection(
 
 4. Mark your callback state completed only after a confirmed response. Redirect to a clean app URL and reload the connections list. Do not render or log the code. Use `Cache-Control: no-store` and `Referrer-Policy: no-referrer` on your callback response; redact callback query strings from access logs.
 
-Macrofold verifies the provider session against a customer-specific opaque subject, checks the exact account/toolkit and current authority, then grants only the selected tools to this binding’s exact project + preset. Starting later runs through this path explicitly selects the linked, healthy, approved accounts. Another customer’s binding or connection ID returns 404.
+Macrofold verifies the provider session against a customer-specific opaque subject, checks the exact account/toolkit and current authority, then grants only the selected tools to this binding’s exact workspace + preset. Starting later runs through this path explicitly selects the linked, healthy, approved accounts. Another customer’s binding or connection ID returns 404.
 
 ## 4. Embed the optional React controls
 

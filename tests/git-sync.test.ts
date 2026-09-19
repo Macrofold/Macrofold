@@ -7,7 +7,7 @@ it('imports, pushes, reconciles retry and preserves both versions on conflict ov
   const server = await gitServer(),
     org = crypto.randomUUID();
   try {
-    const initial = await gitRevision(org, 'main', [], [], 'Empty workspace');
+    const initial = await gitRevision(org, 'main', [], [], 'Empty worktree');
     const imported = await synchronizeGit(
       org,
       'main',

@@ -43,7 +43,7 @@ import { Modal } from './ui';
 import { DashboardFreshness, dashboardIdentityChanged } from './dashboard-freshness';
 const navigation = [
   { href: '/', label: 'Home', icon: LayoutDashboard },
-  { href: '/projects', label: 'Projects', icon: FolderOpen },
+  { href: '/workspaces', label: 'Workspaces', icon: FolderOpen },
   { href: '/runs', label: 'Runs', icon: Activity },
   { href: '/agents', label: 'Agent presets', icon: Bot },
   { href: '/templates', label: 'Templates', icon: LayoutGrid },
@@ -187,7 +187,7 @@ export function Shell({
           />
         )}
         <aside
-          id="workspace-sidebar"
+          id="worktree-sidebar"
           className={clsx('sidebar', mobile && 'mobile-open')}
           inert={mobileView && !mobile}
         >
@@ -213,7 +213,7 @@ export function Shell({
                 className="sidebar-collapse icon-button"
                 aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
                 aria-expanded={!collapsed}
-                aria-controls="workspace-navigation"
+                aria-controls="worktree-navigation"
                 onClick={toggleCollapsed}
               >
                 <SidebarIcon icon={collapsed ? PanelLeftOpen : PanelLeftClose} size={17} />
@@ -227,8 +227,8 @@ export function Shell({
               <kbd>⌘ K</kbd>
             </button>
           </SidebarHint>
-          <nav id="workspace-navigation" aria-label="Main navigation">
-            <div className="nav-label">Projects</div>
+          <nav id="worktree-navigation" aria-label="Main navigation">
+            <div className="nav-label">Workspaces</div>
             {navigation.map((item) => (
               <SidebarHint key={item.href} enabled={iconRail} label={item.label}>
                 <Link
@@ -435,7 +435,7 @@ export function Shell({
             {...handleProps}
             className="resize-handle sidebar-resize-handle"
             aria-label="Resize navigation"
-            aria-controls="workspace-sidebar"
+            aria-controls="worktree-sidebar"
             data-resizing={isResizing || undefined}
           />
         </aside>
@@ -446,7 +446,7 @@ export function Shell({
                 className="icon-button mobile-menu"
                 aria-label="Open navigation"
                 aria-expanded={mobile}
-                aria-controls="workspace-sidebar"
+                aria-controls="worktree-sidebar"
                 onClick={() => setMobile(true)}
               >
                 <Menu size={19} />
@@ -491,7 +491,7 @@ export function Shell({
           <div className="command-list">
             {!links.some((item) => item.label.toLowerCase().includes(term.toLowerCase())) &&
               !'developer quickstart'.includes(term.toLowerCase()) && (
-                <p className="muted">No matching pages. Try projects, runs, or connections.</p>
+                <p className="muted">No matching pages. Try workspaces, runs, or connections.</p>
               )}
             {[...links, { href: '/developers', label: 'Developer quickstart', icon: Terminal }]
               .filter((v) => v.label.toLowerCase().includes(term.toLowerCase()))

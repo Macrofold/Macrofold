@@ -175,10 +175,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </QueryClientProvider>
   );
 }
-export const money = (micro: string | number | undefined) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(
-    Number(micro || 0) / 1000000,
-  );
+export function money(micro: string | number | undefined) {
+  const amount = Number(micro || 0) / 1000000;
+  // Small decisions can cost less than a cent; do not present a nonzero charge as free.
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: amount !== 0 && Math.abs(amount) < 0.01 ? 6 : 2,
+  }).format(amount);
+}
 export function relative(value: string) {
   const seconds = (Date.now() - Date.parse(value)) / 1000;
   if (seconds < 60) return 'Just now';

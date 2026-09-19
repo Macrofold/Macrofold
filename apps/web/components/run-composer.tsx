@@ -1,4 +1,7 @@
 'use client';
+import { RunAttachments, type PendingAttachment } from './run-attachments';
+import { attachmentIssue } from '../../../packages/contracts/media';
+import { uploadWorktreeFiles } from '../lib/upload-workspace-files';
 import { request, useData, useDataPages } from '../lib/dashboard-data';
 import { PermissionEditor } from './permission-editor';
 import { harnesses } from '../../../packages/contracts/harnesses';
@@ -13,24 +16,24 @@ import { AccessResourceSelect } from './access-resource-select';
 import { Select } from './select';
 import { ProviderLabel } from './provider-logo';
 import { connectionLogoProvider, modelLogoProvider } from '../lib/provider-branding';
-import { Button, Field, Modal } from './ui';
+import { Button, ErrorState, Field, Loading, Modal } from './ui';
 export function RunComposer({
   open,
   onOpenChange,
-  workspaceId,
+  worktreeId,
   sessionId,
   initialPrompt = '',
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  workspaceId?: string;
+  worktreeId?: string;
   sessionId?: string;
   initialPrompt?: string;
 }) {
   const router = useRouter(),
     client = useQueryClient();
   const [prompt, setPrompt] = useState(initialPrompt),
-    [requestedProject, setProject] = useState(''),
+    [requestedWorkspace, setWorkspace] = useState(''),
     [harness, setHarness] = useState<Schema['SessionCreate']['harness']>('codex'),
     [permissions, setPermissions] = useState<Schema['AgentPermissions']>(),
     [requestedModel, setModel] = useState(''),
@@ -45,29 +48,53 @@ export function RunComposer({
     [queueHours, setQueueHours] = useState('24'),
     [schedulingClass, setSchedulingClass] = useState<'interactive' | 'background'>('interactive'),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [attachments, setAttachments] = useState<PendingAttachment[]>([]),
+    [uploadProgress, setUploadProgress] = useState('');
   const policy = useData(open ? { operation: 'getExecutionPolicy' } : undefined);
   const maxMinutes = (policy.data?.max_timeout_seconds || 1800) / 60;
   const effectiveTimeout = Math.min(Number(timeout), maxMinutes);
-  const projects = useDataPages(open ? { operation: 'listProjects' } : undefined);
+  const workspaces = useDataPages(open ? { operation: 'listWorkspaces' } : undefined);
   const models = useDataPages(open ? { operation: 'listModels' } : undefined);
   const connections = useDataPages(open ? { operation: 'listConnections' } : undefined);
   const presetQuery = useData(
     open && preset ? { operation: 'getAgent', params: { path: { agent_id: preset } } } : undefined,
   );
   const selectedPreset = presetQuery.data;
-  const activeProjects = projects.data?.data.filter((item) => !item.archived) || [];
-  const project = requestedProject || activeProjects[0]?.id || '';
-  const available = models.data?.data.filter((item) => item.enabled && item.harnesses.includes(harness)) || [];
+  const sessionQuery = useData(
+    open && sessionId ? { operation: 'getSession', params: { path: { session_id: sessionId } } } : undefined,
+  );
+  const activeWorkspaces = workspaces.data?.data.filter((item) => !item.archived) || [];
+  const workspace = requestedWorkspace || activeWorkspaces[0]?.id || '';
+  const available =
+    models.data?.data.filter((item) => item.enabled && item.harnesses.includes(harness)) || [];
   const model = available.some((item) => item.id === requestedModel)
     ? requestedModel
     : available[0]?.id || '';
+  const selectedConfiguration = sessionId ? sessionQuery.data : preset ? selectedPreset : { harness, model };
+  const attachmentConfigurationPending =
+    attachments.length > 0 &&
+    (models.isPending || (sessionId ? sessionQuery.isPending : !!preset && presetQuery.isPending));
+  const attachmentQueryFailure =
+    attachments.length > 0
+      ? [models, ...(sessionId ? [sessionQuery] : preset ? [presetQuery] : [])].find((query) => query.error)
+      : undefined;
+  // Recompute against the active selection, including presets and immutable sessions.
+  // An unsupported choice leaves the draft intact and prevents uploads or run creation.
+  const attachmentError = attachmentIssue(
+    attachments.map(({ path, file }) => ({ path, size: file.size })),
+    {
+      harness: selectedConfiguration?.harness || '',
+      model: selectedConfiguration?.model || '',
+      provider: models.data?.data.find((item) => item.id === selectedConfiguration?.model)?.provider || '',
+    },
+  )?.message;
   const accessContext: Schema['ConnectionAccessResolve'] = {
     ...(sessionId
       ? { session_id: sessionId }
-      : workspaceId
-        ? { workspace_id: workspaceId }
-        : { project_id: project }),
+      : worktreeId
+        ? { worktree_id: worktreeId }
+        : { workspace_id: workspace }),
     ...(!sessionId && preset ? { agent_id: preset } : {}),
     ...(permissions ? { permissions } : {}),
   };
@@ -80,6 +107,7 @@ export function RunComposer({
     <Modal
       open={open}
       onOpenChange={(next) => {
+        if (busy) return;
         if (!next) setAccessChoice(undefined);
         onOpenChange(next);
       }}
@@ -90,7 +118,8 @@ export function RunComposer({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          if (accessPending) return;
+          if (accessPending || attachmentConfigurationPending || attachmentQueryFailure || attachmentError)
+            return;
           setBusy(true);
           setError('');
           try {
@@ -106,7 +135,7 @@ export function RunComposer({
               ...(sessionId
                 ? { queue_if_busy: true }
                 : {
-                    ...(workspaceId ? { workspace_id: workspaceId } : { project_id: project }),
+                    ...(worktreeId ? { worktree_id: worktreeId } : { workspace_id: workspace }),
                     ...(preset
                       ? { agent_id: preset }
                       : {
@@ -117,6 +146,22 @@ export function RunComposer({
                         }),
                   }),
             };
+            if (attachments.length) {
+              const target =
+                worktreeId ||
+                (sessionId
+                  ? (await request('getSession', { params: { path: { session_id: sessionId } } }))
+                      .worktree_id
+                  : (await request('getWorkspace', { params: { path: { workspace_id: workspace } } }))
+                      .default_worktree_id);
+              if (!target) throw new Error('Create a worktree in this workspace before attaching files.');
+              await uploadWorktreeFiles(target, attachments, setUploadProgress);
+              body.attachments = attachments.map((item) => item.path);
+              if (!sessionId) {
+                delete body.workspace_id;
+                body.worktree_id = target;
+              }
+            }
             if (permissions) body.permissions = permissions;
             if (choice.selection !== undefined) body.connection_grants = choice.selection;
             if (choice.overrides.length) body.connection_access_overrides = choice.overrides;
@@ -129,6 +174,7 @@ export function RunComposer({
             await client.invalidateQueries();
             onOpenChange(false);
             setPrompt('');
+            setAttachments([]);
             setAccessChoice(undefined);
             router.push(`/runs/${result.run_id}`);
             toast.success('Run saved. Follow its queue status here.');
@@ -136,15 +182,16 @@ export function RunComposer({
             setError((error as Error).message);
           } finally {
             setBusy(false);
+            setUploadProgress('');
           }
         }}
       >
-        {!workspaceId && !sessionId && (
+        {!worktreeId && !sessionId && (
           <AccessResourceSelect
-            kind="project"
-            label="Project"
-            value={project}
-            onChange={setProject}
+            kind="workspace"
+            label="Workspace"
+            value={workspace}
+            onChange={setWorkspace}
             optional={false}
             activeOnly
           />
@@ -172,11 +219,20 @@ export function RunComposer({
             required
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Explore this project, make a change, or investigate a question…"
+            placeholder="Explore this workspace, make a change, or investigate a question…"
             autoFocus
             rows={6}
           />
         </Field>
+        <RunAttachments value={attachments} onChange={setAttachments} onError={setError} disabled={busy} />
+        {attachmentConfigurationPending && <Loading label="Checking attachment compatibility…" />}
+        {attachmentQueryFailure?.error && (
+          <ErrorState
+            error={attachmentQueryFailure.error}
+            retry={() => void attachmentQueryFailure.refetch()}
+          />
+        )}
+        {uploadProgress && <p role="status">{uploadProgress}</p>}
         {!sessionId && !preset && (
           <div className="form-grid">
             <Field label="Harness">
@@ -321,7 +377,7 @@ export function RunComposer({
                 )}
               </>
             )}
-            {(sessionId || workspaceId || project) && (
+            {(sessionId || worktreeId || workspace) && (
               <RunAccess
                 key={contextKey}
                 context={accessContext}
@@ -336,9 +392,9 @@ export function RunComposer({
             )}
           </div>
         )}
-        {error && (
+        {(error || (!attachmentConfigurationPending && !attachmentQueryFailure && attachmentError)) && (
           <div className="form-error" role="alert">
-            {error}
+            {error || attachmentError}
           </div>
         )}
         <div className="composer-footer">
@@ -351,7 +407,14 @@ export function RunComposer({
           <Button
             busy={busy}
             type="submit"
-            disabled={accessPending || !prompt.trim() || (!sessionId && !preset && !model)}
+            disabled={
+              accessPending ||
+              attachmentConfigurationPending ||
+              !!attachmentQueryFailure ||
+              !!attachmentError ||
+              !prompt.trim() ||
+              (!sessionId && !preset && !model)
+            }
           >
             Start run <ArrowUp size={16} />
           </Button>

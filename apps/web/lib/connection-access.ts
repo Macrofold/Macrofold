@@ -7,7 +7,7 @@ import { dataKey, request } from './dashboard-data';
 /** Every consumer of eligibility uses the same cache invalidation boundary. */
 export function accessQuery(key: readonly unknown[]) {
   const path = String(key[0]);
-  return ['/v1/connections', '/v1/connection-access', '/v1/projects', '/v1/agents', '/v1/sessions'].some(
+  return ['/v1/connections', '/v1/connection-access', '/v1/workspaces', '/v1/agents', '/v1/sessions'].some(
     (prefix) => path.startsWith(prefix),
   );
 }

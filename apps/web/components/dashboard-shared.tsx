@@ -30,25 +30,25 @@ export function Stat({
     </div>
   );
 }
-export function ProjectCard({ project, index = 0 }: { project: Schema['Project']; index?: number }) {
+export function WorkspaceCard({ workspace, index = 0 }: { workspace: Schema['Workspace']; index?: number }) {
   return (
-    <Link href={`/projects/${project.id}`} className="project-card">
-      <div className="project-card-top">
-        <span className={`project-icon color-${index % 4}`}>
+    <Link href={`/workspaces/${workspace.id}`} className="workspace-card">
+      <div className="workspace-card-top">
+        <span className={`workspace-icon color-${index % 4}`}>
           <FolderOpen size={21} />
         </span>
-        <ArrowUpRight size={17} className="project-arrow" />
+        <ArrowUpRight size={17} className="workspace-arrow" />
       </div>
-      <h3>{project.name}</h3>
-      <p>{project.github ? 'Connected to GitHub' : 'Persistent files and agent worktrees'}</p>
-      <div className="project-card-footer">
+      <h3>{workspace.name}</h3>
+      <p>{workspace.github ? 'Connected to GitHub' : 'Persistent files and agent worktrees'}</p>
+      <div className="workspace-card-footer">
         <span>
           <GitBranch size={13} />
-          {project.github?.target_branch || 'main'}
+          {workspace.github?.target_branch || 'main'}
         </span>
         <span>
           <span className="tiny-dot" />
-          {project.archived ? 'Archived' : 'Persistent'}
+          {workspace.archived ? 'Archived' : 'Persistent'}
         </span>
       </div>
     </Link>
@@ -81,9 +81,9 @@ export function RunTable({ runs }: { runs: Schema['Run'][] }) {
             <tr key={run.id}>
               <td>
                 <Link className="run-name" href={`/runs/${run.id}`}>
-                  <ProviderLogo provider={run.harness} name={harnessLabel(run.harness)} size={28} />
+                  {run.harness ? <ProviderLogo provider={run.harness} name={harnessLabel(run.harness)} size={28} /> : <Activity size={28} />}
                   <span>
-                    <strong>{harnessLabel(run.harness)} run</strong>
+                    <strong>{run.harness ? harnessLabel(run.harness) : run.kind === 'inference' ? 'Inference' : 'Bounded agent'} run</strong>
                     <small>
                       {run.id.slice(-8)}
                       {['scheduled', 'slack', 'webhook'].includes(run.client_type || '')

@@ -53,7 +53,7 @@ function nodeText(node: MarkdownNode): string {
 }
 
 /** Prefix IDs so customer headings cannot shadow document/browser properties. */
-export function workspaceHeadingAnchors() {
+export function worktreeHeadingAnchors() {
   return (tree: MarkdownNode) => {
     const slugs = new Map<string, number>();
     const visit = (node: MarkdownNode) => {
@@ -69,8 +69,8 @@ export function workspaceHeadingAnchors() {
         const slug = count ? `${base}-${count}` : base;
         node.properties = {
           ...node.properties,
-          id: `workspace-heading-${slug}`,
-          'data-workspace-heading': slug,
+          id: `worktree-heading-${slug}`,
+          'data-worktree-heading': slug,
         };
       }
       node.children?.forEach(visit);

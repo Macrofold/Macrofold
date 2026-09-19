@@ -20,7 +20,7 @@ describe('homepage examples at the public SDK boundary', () => {
         Macrofold: FixtureClient,
         baseURL: 'https://fixture.invalid',
         token: 'fixture-key',
-        project_id: 'fixture-project',
+        workspace_id: 'fixture-workspace',
         model: 'gpt-5.4-mini',
       },
       { timeout: 1000 },
@@ -34,7 +34,7 @@ describe('homepage examples at the public SDK boundary', () => {
     ]);
     expect(calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
       {
-        project_id: 'fixture-project',
+        workspace_id: 'fixture-workspace',
         harness: 'codex',
         model: 'gpt-5.4-mini',
         billing_mode: 'managed',

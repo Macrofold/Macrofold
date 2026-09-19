@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import { handleApi } from '../../packages/core/src/http';
+import { serveObject } from '../../packages/core/src/transfers';
 import { config, isLocal } from '../../packages/core/src/config';
 
 // The actual API boundary on loopback, with a separately running simulator worker.
@@ -25,7 +26,11 @@ createServer(async (incoming, outgoing) => {
         ? {}
         : { body: Readable.toWeb(incoming), duplex: 'half' }),
     } as RequestInit);
-    const response = await handleApi(request);
+    // Exercise signed downloads through the same boundary as the web application's /objects route.
+    const object = new URL(request.url).pathname.match(/^\/objects\/([^/]+)$/);
+    const response = object
+      ? await serveObject(request, decodeURIComponent(object[1]))
+      : await handleApi(request);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body)
       Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).pipe(outgoing);

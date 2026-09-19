@@ -25,8 +25,8 @@ from the existing secret environment; never ask me to paste it into chat, print
 it, commit it, or expose it to the browser. If missing, tell me exactly where
 to configure it securely. Use an API key issued by the selected deployment.
 
-First implement one project -> run -> completed result flow. Reuse project and
-workspace IDs instead of creating new ones on every request. Use an enabled
+First implement one workspace -> run -> completed result flow. Reuse workspace and
+worktree IDs instead of creating new ones on every request. Use an enabled
 model and an explicit run budget; ask before paid execution if no budget was
 authorized. A local simulator run uses fixture-model and makes no model calls.
 
@@ -38,14 +38,14 @@ requests. Never blindly restart a run with an uncertain outcome.
 
 If the feature needs saved files or multiple agents, read:
 - [Read persisted files](../features/workspaces/read-files.md)
-- [Share a workspace between agents](../features/workspaces/shared-agents.md)
+- [Share a worktree between agents](../features/workspaces/shared-agents.md)
 Wait for persistence before reading the new files or starting the next writer.
-Two agents may take turns in one workspace; parallel writers need independent
-workspaces and an explicit merge. Shared files do not share conversations.
+Two agents may take turns in one worktree; parallel writers need independent
+worktrees and an explicit merge. Shared files do not share conversations.
 
 Test the complete feature against free local simulation or deterministic
 fixtures, including failure and recovery. Report what passed, any manual
-setup, and any untested paid/cloud behavior. Do not overwrite this project's
+setup, and any untested paid/cloud behavior. Do not overwrite this workspace's
 existing instructions or replace its architecture with a new demo app.
 ```
 
@@ -67,7 +67,7 @@ Documentation is public; accessing runs and files still requires authorized cred
 
 ## Keep context in your application
 
-Save the adapted brief as a Markdown file in your own repository and reference it from your coding agent's project instructions. Keep only your integration goals, documentation links, and non-secret configuration there. Your tool's file attachment or project-rule mechanism can supply it in later sessions.
+Save the adapted brief as a Markdown file in your own repository and reference it from your coding agent's workspace instructions. Keep only your integration goals, documentation links, and non-secret configuration there. Your tool's file attachment or workspace-rule mechanism can supply it in later sessions.
 
 For additional features, point the agent to [connectors](../features/identity-integrations/README.md), [triggers](../features/triggers/README.md), or [CLI workflows](../features/cli/README.md). Add one feature at a time after the first run works.
 

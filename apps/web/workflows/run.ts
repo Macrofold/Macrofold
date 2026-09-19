@@ -7,7 +7,12 @@ async function advance(organization: string, runId: string, generation: number) 
   if (!(await renewWorkflow(organization, runId, generation))) return { superseded: true } as const;
   const { advanceCloudRun } = await import('@platform/core/cloud-engine');
   const { machines } = await import('@platform/providers/machines');
-  return advanceCloudRun(organization, runId, machines());
+  const { flushTracesInBackground } = await import('../lib/trace-background');
+  try {
+    return await advanceCloudRun(organization, runId, machines);
+  } finally {
+    flushTracesInBackground();
+  }
 }
 advance.maxRetries = WORKFLOW_STEP_RETRIES;
 
@@ -31,7 +36,7 @@ export async function agentRun(organization: string, runId: string, generation =
       await dispatchWaitingRuns(organization, runId, generation);
       return { runId };
     }
-    await sleep(`${result.delaySeconds}s`);
+    if (result.delaySeconds > 0) await sleep(`${result.delaySeconds}s`);
   }
   await dispatchWaitingRuns(organization, runId, generation);
   return { runId };

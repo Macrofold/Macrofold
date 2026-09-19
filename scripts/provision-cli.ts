@@ -12,6 +12,7 @@ try {
   await owner.query('BEGIN');
   for (const resource of [
     { suffix: '/v1', name: 'Customer API', scopes: customerScopes },
+    { suffix: '/mcp', name: 'Customer MCP', scopes: customerScopes },
     {
       suffix: '/admin/v1',
       name: 'Operator API',
@@ -55,7 +56,7 @@ try {
     ON CONFLICT("clientId") DO UPDATE SET "clientSecret"=excluded."clientSecret","updatedAt"=now()`,
     [id(), resourceVerifierClientId, seal(resourceVerifierSecret())],
   );
-  for (const suffix of ['/v1', '/admin/v1', '/admin/mcp'])
+  for (const suffix of ['/v1', '/mcp', '/admin/v1', '/admin/mcp'])
     await owner.query(
       `INSERT INTO auth."oauthClientResource"(id,"clientId","resourceId","createdAt") VALUES($1,$2,$3,now()) ON CONFLICT DO NOTHING`,
       [id(), resourceVerifierClientId, config.origin + suffix],

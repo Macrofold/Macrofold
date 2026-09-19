@@ -6,7 +6,7 @@ Open **[/concepts](http://localhost:3210/concepts)** in the local app to compare
 
 **The final homepage uses Swarm, Foundation, and simple Fanout.** See the [marketing site](site/README.md) for current behavior and implementation. The [journey design library](journeys/README.md) at `/journeys` preserves ten earlier diagram treatments.
 
-The new [homepage studies](homepages/README.md) develop it into ten full-page alternatives at `/homepages`, using that round’s headline, simpler code, and animated workspace explanations. The original gallery stays available for comparison.
+The new [homepage studies](homepages/README.md) develop it into ten full-page alternatives at `/homepages`, using that round’s headline, simpler code, and animated worktree explanations. The original gallery stays available for comparison.
 
 ## Original directions
 
@@ -29,9 +29,9 @@ The latest separate [Swarm Myriad collection](swarm-myriad/README.md) retains 80
 
 ## Product story
 
-Every direction describes the same implemented product: Claude Code, Codex, and OpenCode in cloud sandboxes, accessed through the API, CLI, and dashboard. Persistent project files, checkpoints, retained run history, optional GitHub synchronization, scoped integrations, and explicit limits are the foundation.
+Every direction describes the same implemented product: Claude Code, Codex, and OpenCode in cloud sandboxes, accessed through the API, CLI, and dashboard. Persistent workspace files, checkpoints, retained run history, optional GitHub synchronization, scoped integrations, and explicit limits are the foundation.
 
-The abstract hero evokes possibility without turning its artwork into a literal product metaphor. The page then moves through an API example, an interactive request → execute → keep → continue walkthrough, a shared-project diagram, capabilities, integrations, and open-source setup. Setup details stay in a disclosure and linked guides. Examples use the actual `macrofold` SDK imports and source installation; they do not advertise unpublished registry packages.
+The abstract hero evokes possibility without turning its artwork into a literal product metaphor. The page then moves through an API example, an interactive request → execute → keep → continue walkthrough, a shared-workspace diagram, capabilities, integrations, and open-source setup. Setup details stay in a disclosure and linked guides. Examples use the actual `macrofold` SDK imports and source installation; they do not advertise unpublished registry packages.
 
 ## Implementation and motion
 

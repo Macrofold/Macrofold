@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -11,15 +11,15 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// RunCreate : Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
+/// RunCreate : Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RunCreate {
     #[serde(rename = "prompt")]
     pub prompt: String,
-    #[serde(rename = "project_id", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<uuid::Uuid>,
     #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<uuid::Uuid>,
+    #[serde(rename = "worktree_id", skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<uuid::Uuid>,
     #[serde(rename = "session_id", skip_serializing_if = "Option::is_none")]
     pub session_id: Option<uuid::Uuid>,
     #[serde(rename = "agent_id", skip_serializing_if = "Option::is_none")]
@@ -46,7 +46,7 @@ pub struct RunCreate {
     /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
     #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
     pub scheduling_class: Option<SchedulingClass>,
-    /// Only session follow-ups can queue behind workspace work.
+    /// Only session follow-ups can queue behind worktree work.
     #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
     pub queue_if_busy: Option<bool>,
     #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
@@ -54,15 +54,26 @@ pub struct RunCreate {
     /// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
     #[serde(rename = "connection_access_overrides", skip_serializing_if = "Option::is_none")]
     pub connection_access_overrides: Option<Vec<models::Grant>>,
+    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<String>>,
+    #[serde(rename = "sandbox_id", skip_serializing_if = "Option::is_none")]
+    pub sandbox_id: Option<uuid::Uuid>,
+    /// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
+    #[serde(rename = "keep_warm_seconds", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub keep_warm_seconds: Option<Option<i32>>,
+    /// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
+    #[serde(rename = "sandbox_max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
+    pub sandbox_max_cost_micro_usd: Option<String>,
 }
 
 impl RunCreate {
-    /// Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
+    /// Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
     pub fn new(prompt: String) -> RunCreate {
         RunCreate {
             prompt,
-            project_id: None,
             workspace_id: None,
+            worktree_id: None,
             session_id: None,
             agent_id: None,
             harness: None,
@@ -77,10 +88,14 @@ impl RunCreate {
             queue_if_busy: None,
             permissions: None,
             connection_access_overrides: None,
+            attachments: None,
+            sandbox_id: None,
+            keep_warm_seconds: None,
+            sandbox_max_cost_micro_usd: None,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Harness {
     #[serde(rename = "codex")]
@@ -102,7 +117,7 @@ impl Default for Harness {
         Self::Codex
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum BillingMode {
     #[serde(rename = "byok")]

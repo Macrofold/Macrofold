@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -42,13 +42,13 @@ import dev.macrofold.ApiClient;
  * Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
  */
 @JsonPropertyOrder({
-  OperationResult.JSON_PROPERTY_WORKSPACE_ID,
+  OperationResult.JSON_PROPERTY_WORKTREE_ID,
   OperationResult.JSON_PROPERTY_REVISION,
   OperationResult.JSON_PROPERTY_CHECKPOINT_ID,
   OperationResult.JSON_PROPERTY_PATH,
   OperationResult.JSON_PROPERTY_PREVIOUS_PATH,
   OperationResult.JSON_PROPERTY_ENTRY,
-  OperationResult.JSON_PROPERTY_PROJECT_ID,
+  OperationResult.JSON_PROPERTY_WORKSPACE_ID,
   OperationResult.JSON_PROPERTY_TRANSFER_ID,
   OperationResult.JSON_PROPERTY_DELIVERY_ID,
   OperationResult.JSON_PROPERTY_LOCAL_RECEIPT_COMPLETE,
@@ -65,9 +65,9 @@ import dev.macrofold.ApiClient;
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class OperationResult {
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nullable
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_REVISION = "revision";
   @javax.annotation.Nullable
@@ -89,9 +89,9 @@ public class OperationResult {
   @javax.annotation.Nullable
   private FileEntry entry;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
-  private UUID projectId;
+  private UUID workspaceId;
 
   public static final String JSON_PROPERTY_TRANSFER_ID = "transfer_id";
   @javax.annotation.Nullable
@@ -183,27 +183,27 @@ public class OperationResult {
   public OperationResult() { 
   }
 
-  public OperationResult workspaceId(@javax.annotation.Nullable UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public OperationResult worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -327,27 +327,27 @@ public class OperationResult {
   }
 
 
-  public OperationResult projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public OperationResult workspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getProjectId() {
-    return projectId;
+  public UUID getWorkspaceId() {
+    return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
 
@@ -718,13 +718,13 @@ public class OperationResult {
       return false;
     }
     OperationResult operationResult = (OperationResult) o;
-    return Objects.equals(this.workspaceId, operationResult.workspaceId) &&
+    return Objects.equals(this.worktreeId, operationResult.worktreeId) &&
         Objects.equals(this.revision, operationResult.revision) &&
         Objects.equals(this.checkpointId, operationResult.checkpointId) &&
         Objects.equals(this.path, operationResult.path) &&
         Objects.equals(this.previousPath, operationResult.previousPath) &&
         Objects.equals(this.entry, operationResult.entry) &&
-        Objects.equals(this.projectId, operationResult.projectId) &&
+        Objects.equals(this.workspaceId, operationResult.workspaceId) &&
         Objects.equals(this.transferId, operationResult.transferId) &&
         Objects.equals(this.deliveryId, operationResult.deliveryId) &&
         Objects.equals(this.localReceiptComplete, operationResult.localReceiptComplete) &&
@@ -743,20 +743,20 @@ public class OperationResult {
 
   @Override
   public int hashCode() {
-    return Objects.hash(workspaceId, revision, checkpointId, path, previousPath, entry, projectId, transferId, deliveryId, localReceiptComplete, format, downloadUrl, manifestUrl, expiresAt, sizeBytes, sha256, manifestSha256, exportCommit, sourceCommit, sync, additionalProperties);
+    return Objects.hash(worktreeId, revision, checkpointId, path, previousPath, entry, workspaceId, transferId, deliveryId, localReceiptComplete, format, downloadUrl, manifestUrl, expiresAt, sizeBytes, sha256, manifestSha256, exportCommit, sourceCommit, sync, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OperationResult {\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    revision: ").append(toIndentedString(revision)).append("\n");
     sb.append("    checkpointId: ").append(toIndentedString(checkpointId)).append("\n");
     sb.append("    path: ").append(toIndentedString(path)).append("\n");
     sb.append("    previousPath: ").append(toIndentedString(previousPath)).append("\n");
     sb.append("    entry: ").append(toIndentedString(entry)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    transferId: ").append(toIndentedString(transferId)).append("\n");
     sb.append("    deliveryId: ").append(toIndentedString(deliveryId)).append("\n");
     sb.append("    localReceiptComplete: ").append(toIndentedString(localReceiptComplete)).append("\n");
@@ -815,9 +815,9 @@ public class OperationResult {
 
     StringJoiner joiner = new StringJoiner("&");
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `revision` to the URL query string
@@ -845,9 +845,9 @@ public class OperationResult {
       joiner.add(getEntry().toUrlQueryString(prefix + "entry" + suffix));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `transfer_id` to the URL query string

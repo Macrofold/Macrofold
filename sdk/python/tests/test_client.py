@@ -14,10 +14,10 @@ def test_mutation_reuses_idempotency_after_lost_response(monkeypatch):
         keys.append(request.headers["Idempotency-Key"])
         if len(keys) == 1:
             raise httpx.ReadError("lost response")
-        return httpx.Response(201, json={"id": "project"})
+        return httpx.Response(201, json={"id": "workspace"})
 
     with Client("https://agents.example.test", "fixture", transport=httpx.MockTransport(handler)) as client:
-        assert client.request("createProject", body={"name": "Test"}) == {"id": "project"}
+        assert client.request("createWorkspace", body={"name": "Test"}) == {"id": "workspace"}
     assert len(keys) == 2 and keys[0] == keys[1]
 
 
@@ -61,7 +61,7 @@ def test_truncated_mutation_body_preserves_recovery_identity():
 
     with Client("https://agents.example.test", "fixture", transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(TransportError) as error:
-            client.request("createProject", body={"name": "Test"})
+            client.request("createWorkspace", body={"name": "Test"})
         assert identities == [error.value.idempotency_key]
         assert error.value.idempotency_key
 
@@ -81,7 +81,7 @@ def test_retry_refreshes_supplier_preserving_identity_and_honoring_bounded_retry
         return httpx.Response(429, headers={'Retry-After': '99999'}) if len(calls) == 1 else httpx.Response(201, json={'id': 'p'})
 
     with Client('https://agents.example.test', lambda: next(tokens), organization='org-a', transport=httpx.MockTransport(handler)) as client:
-        assert client.request('createProject', body={'name': 'p'}, idempotency_key='stable') == {'id': 'p'}
+        assert client.request('createWorkspace', body={'name': 'p'}, idempotency_key='stable') == {'id': 'p'}
     assert waits == [60]
     assert [c.headers['authorization'] for c in calls] == ['Bearer old', 'Bearer fresh']
     assert [c.headers['idempotency-key'] for c in calls] == ['stable', 'stable']
@@ -117,7 +117,7 @@ def test_binary_response_path_encoding_and_validation():
         return httpx.Response(200, content=b'\x00\xff\x10')
 
     with Client('https://agents.example.test', 'fixture', transport=httpx.MockTransport(handler)) as client:
-        assert client.request('readFile', path={'workspace_id': 'space / one'}, query={'path': 'dir/a.txt'}) == b'\x00\xff\x10'
+        assert client.request('readFile', path={'worktree_id': 'space / one'}, query={'path': 'dir/a.txt'}) == b'\x00\xff\x10'
         assert 'space%20%2F%20one' in str(calls[0].url)
         with pytest.raises(ValueError, match='Missing path parameter'):
             client.request('readFile')

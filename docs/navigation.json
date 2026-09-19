@@ -18,28 +18,35 @@
     "source": "docs/features/api/quickstart.md",
     "title": "API quickstart",
     "section": "Start here",
-    "description": "Create a project and stream your first API-triggered run."
+    "description": "Create a workspace and stream your first API-triggered run."
+  },
+  {
+    "slug": "mcp",
+    "source": "docs/features/mcp/README.md",
+    "title": "MCP for coding agents",
+    "section": "Start here",
+    "description": "Configure shared agents and start cloud runs directly from Codex, Claude Code, or another MCP client."
   },
   {
     "slug": "quickstart",
     "source": "docs/getting-started/quickstart.md",
     "title": "Quickstart",
     "section": "Start here",
-    "description": "Create a project, start an agent, and review its saved work."
+    "description": "Create a workspace, start an agent, and review its saved work."
   },
   {
     "slug": "concepts",
     "source": "docs/getting-started/concepts.md",
     "title": "Core concepts",
     "section": "Start here",
-    "description": "Understand projects, workspaces, sessions, runs, and checkpoints."
+    "description": "Understand workspaces, worktrees, sessions, runs, and checkpoints."
   },
   {
     "slug": "customer-agents",
     "source": "docs/features/customer-agents/README.md",
     "title": "Customer agents",
     "section": "Integration paths",
-    "description": "Optional customer-specific setup over core projects, worktrees, presets, runs and connections."
+    "description": "Optional customer-specific setup over core workspaces, worktrees, presets, runs and connections."
   },
   {
     "slug": "customer-agents/quickstart",
@@ -89,6 +96,13 @@
     "title": "Self-hosting",
     "section": "Cloud and self-hosting",
     "description": "Understand the hosting components and choose a deployment guide."
+  },
+  {
+    "slug": "observability",
+    "source": "docs/features/observability/README.md",
+    "title": "Execution tracing",
+    "section": "Cloud and self-hosting",
+    "description": "Inspect model calls, customer context, token usage and costs in a private Langfuse tracing workspace."
   },
   {
     "slug": "api",
@@ -144,14 +158,14 @@
     "source": "docs/features/cli/README.md",
     "title": "Terminal CLI",
     "section": "Build with the API",
-    "description": "Link a project, chat remotely, use worktrees, and transfer files."
+    "description": "Link a workspace, chat remotely, use worktrees, and transfer files."
   },
   {
     "slug": "dashboard",
     "source": "docs/features/dashboard/README.md",
     "title": "Dashboard",
     "section": "Guides",
-    "description": "Navigate projects, files, run history, access, and usage."
+    "description": "Navigate workspaces, files, run history, access, and usage."
   },
   {
     "slug": "runs",
@@ -159,6 +173,41 @@
     "title": "Runs and agents",
     "section": "Guides",
     "description": "Select a harness, follow progress, continue work, and cancel safely."
+  },
+  {
+    "slug": "sandboxes",
+    "source": "docs/features/execution/sandboxes.md",
+    "title": "Warm sandboxes and servers",
+    "section": "Guides",
+    "description": "Reuse compute across runs, or create, pause, resume and destroy long-running servers."
+  },
+  {
+    "slug": "decisions",
+    "source": "docs/features/decisions/README.md",
+    "title": "Explicit-context decisions",
+    "section": "Guides",
+    "description": "Submit typed decisions with explicit evidence and budgets, without a worktree."
+  },
+  {
+    "slug": "decisions/context",
+    "source": "docs/features/decisions/context.md",
+    "title": "Context and definitions",
+    "section": "Guides",
+    "description": "Publish immutable evidence and reusable contracts with audience and retention boundaries."
+  },
+  {
+    "slug": "decisions/tasks",
+    "source": "docs/features/decisions/tasks.md",
+    "title": "Bounded agents and tasks",
+    "section": "Guides",
+    "description": "Inspect granted evidence and coordinate decisions, investigations and application review."
+  },
+  {
+    "slug": "decisions/examples",
+    "source": "examples/decisions/README.md",
+    "title": "Decision examples",
+    "section": "Guides",
+    "description": "Adapt customer-exception and actor-decision contracts with unknown and stale evidence."
   },
   {
     "slug": "harnesses",
@@ -172,7 +221,7 @@
     "source": "docs/features/execution/permissions.md",
     "title": "Agent permissions",
     "section": "Guides",
-    "description": "Restrict files and tools at the project, worktree and run level."
+    "description": "Restrict files and tools at the workspace, worktree and run level."
   },
   {
     "slug": "models",
@@ -184,15 +233,15 @@
   {
     "slug": "workspaces",
     "source": "docs/features/workspaces/README.md",
-    "title": "Workspaces and Git",
+    "title": "Worktrees and Git",
     "section": "Guides",
     "description": "Persist files, create branches, restore checkpoints, and synchronize GitHub."
   },
   {
     "slug": "workspaces/shared-agents",
     "source": "docs/features/workspaces/shared-agents.md",
-    "title": "Share a workspace",
-    "description": "Hand persisted files between agents and choose independent workspaces for parallel work.",
+    "title": "Share a worktree",
+    "description": "Hand persisted files between agents and choose independent worktrees for parallel work.",
     "section": "Guides"
   },
   {
@@ -201,6 +250,13 @@
     "title": "Read persisted files",
     "section": "Guides",
     "description": "Retrieve complete saved file contents by path through HTTP or any Macrofold SDK."
+  },
+  {
+    "slug": "media",
+    "source": "docs/features/media/README.md",
+    "title": "Files and media",
+    "section": "Guides",
+    "description": "Attach images and documents, preview saved media, and download agent deliverables."
   },
   {
     "slug": "connections",
@@ -214,7 +270,7 @@
     "source": "docs/features/identity-integrations/connection-access.md",
     "title": "Connector access rules",
     "section": "Guides",
-    "description": "Approve tools, configure project and preset permissions, and preview one-run access."
+    "description": "Approve tools, configure workspace and preset permissions, and preview one-run access."
   },
   {
     "slug": "connections/named-accounts",
@@ -249,7 +305,7 @@
     "source": "docs/features/triggers/slack.md",
     "title": "Slack bots",
     "section": "Guides",
-    "description": "Connect a Slack bot to a persistent project and reply to messages."
+    "description": "Connect a Slack bot to a persistent workspace and reply to messages."
   },
   {
     "slug": "triggers/webhooks",
@@ -273,6 +329,13 @@
     "description": "Understand plans, concurrency, budgets, reserved credits, and retention."
   },
   {
+    "slug": "billing/usage",
+    "source": "docs/features/billing/usage.md",
+    "title": "Detailed billing usage",
+    "section": "Guides",
+    "description": "Query itemized charges and model token usage by time, workspace, worktree, run, or customer."
+  },
+  {
     "slug": "api/conventions",
     "source": "docs/features/api/conventions.md",
     "title": "API conventions",
@@ -290,7 +353,7 @@
     "slug": "api/http-quickstart",
     "source": "docs/features/api/http-quickstart.md",
     "title": "HTTP quickstart",
-    "description": "Create a project and run using cURL, with explicit request identities and streaming.",
+    "description": "Create a workspace and run using cURL, with explicit request identities and streaming.",
     "section": "Reference"
   },
   {
@@ -376,5 +439,12 @@
     "title": "Unified Harness Interface",
     "section": "Development",
     "description": "Contribute a native harness with the shared adapter contract, runtime integration, and deterministic tests."
+  },
+  {
+    "slug": "self-hosting/sandboxes",
+    "source": "docs/features/execution/sandboxes/operations.md",
+    "title": "Host long-running servers",
+    "section": "Deploy and operate",
+    "description": "Configure disposable Render services and operate their lifecycle and compute budgets."
   }
 ]

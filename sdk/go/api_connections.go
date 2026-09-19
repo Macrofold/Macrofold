@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -977,7 +977,7 @@ type ApiListConnectionAccessRulesRequest struct {
 	xOrganizationId *string
 	cursor *string
 	limit *int32
-	projectId *string
+	workspaceId *string
 	agentId *string
 	sort *string
 	direction *string
@@ -999,8 +999,8 @@ func (r ApiListConnectionAccessRulesRequest) Limit(limit int32) ApiListConnectio
 	return r
 }
 
-func (r ApiListConnectionAccessRulesRequest) ProjectId(projectId string) ApiListConnectionAccessRulesRequest {
-	r.projectId = &projectId
+func (r ApiListConnectionAccessRulesRequest) WorkspaceId(workspaceId string) ApiListConnectionAccessRulesRequest {
+	r.workspaceId = &workspaceId
 	return r
 }
 
@@ -1070,8 +1070,8 @@ func (a *ConnectionsAPIService) ListConnectionAccessRulesExecute(r ApiListConnec
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
-	if r.projectId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	if r.workspaceId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
 	}
 	if r.agentId != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")
@@ -1296,7 +1296,7 @@ type ApiListConnectionsRequest struct {
 	cursor *string
 	limit *int32
 	xOrganizationId *string
-	projectId *string
+	workspaceId *string
 	agentId *string
 }
 
@@ -1316,8 +1316,8 @@ func (r ApiListConnectionsRequest) XOrganizationId(xOrganizationId string) ApiLi
 	return r
 }
 
-func (r ApiListConnectionsRequest) ProjectId(projectId string) ApiListConnectionsRequest {
-	r.projectId = &projectId
+func (r ApiListConnectionsRequest) WorkspaceId(workspaceId string) ApiListConnectionsRequest {
+	r.workspaceId = &workspaceId
 	return r
 }
 
@@ -1376,8 +1376,8 @@ func (a *ConnectionsAPIService) ListConnectionsExecute(r ApiListConnectionsReque
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
-	if r.projectId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	if r.workspaceId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
 	}
 	if r.agentId != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")

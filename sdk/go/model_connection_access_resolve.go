@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -19,8 +19,8 @@ var _ MappedNullable = &ConnectionAccessResolve{}
 
 // ConnectionAccessResolve struct for ConnectionAccessResolve
 type ConnectionAccessResolve struct {
-	ProjectId *string `json:"project_id,omitempty"`
 	WorkspaceId *string `json:"workspace_id,omitempty"`
+	WorktreeId *string `json:"worktree_id,omitempty"`
 	SessionId *string `json:"session_id,omitempty"`
 	AgentId *string `json:"agent_id,omitempty"`
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
@@ -43,38 +43,6 @@ func NewConnectionAccessResolve() *ConnectionAccessResolve {
 func NewConnectionAccessResolveWithDefaults() *ConnectionAccessResolve {
 	this := ConnectionAccessResolve{}
 	return &this
-}
-
-// GetProjectId returns the ProjectId field value if set, zero value otherwise.
-func (o *ConnectionAccessResolve) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId) {
-		var ret string
-		return ret
-	}
-	return *o.ProjectId
-}
-
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *ConnectionAccessResolve) GetProjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProjectId) {
-		return nil, false
-	}
-	return o.ProjectId, true
-}
-
-// HasProjectId returns a boolean if a field has been set.
-func (o *ConnectionAccessResolve) HasProjectId() bool {
-	if o != nil && !IsNil(o.ProjectId) {
-		return true
-	}
-
-	return false
-}
-
-// SetProjectId gets a reference to the given string and assigns it to the ProjectId field.
-func (o *ConnectionAccessResolve) SetProjectId(v string) {
-	o.ProjectId = &v
 }
 
 // GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
@@ -107,6 +75,38 @@ func (o *ConnectionAccessResolve) HasWorkspaceId() bool {
 // SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
 func (o *ConnectionAccessResolve) SetWorkspaceId(v string) {
 	o.WorkspaceId = &v
+}
+
+// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise.
+func (o *ConnectionAccessResolve) GetWorktreeId() string {
+	if o == nil || IsNil(o.WorktreeId) {
+		var ret string
+		return ret
+	}
+	return *o.WorktreeId
+}
+
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectionAccessResolve) GetWorktreeIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorktreeId) {
+		return nil, false
+	}
+	return o.WorktreeId, true
+}
+
+// HasWorktreeId returns a boolean if a field has been set.
+func (o *ConnectionAccessResolve) HasWorktreeId() bool {
+	if o != nil && !IsNil(o.WorktreeId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorktreeId gets a reference to the given string and assigns it to the WorktreeId field.
+func (o *ConnectionAccessResolve) SetWorktreeId(v string) {
+	o.WorktreeId = &v
 }
 
 // GetSessionId returns the SessionId field value if set, zero value otherwise.
@@ -279,11 +279,11 @@ func (o ConnectionAccessResolve) MarshalJSON() ([]byte, error) {
 
 func (o ConnectionAccessResolve) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.ProjectId) {
-		toSerialize["project_id"] = o.ProjectId
-	}
 	if !IsNil(o.WorkspaceId) {
 		toSerialize["workspace_id"] = o.WorkspaceId
+	}
+	if !IsNil(o.WorktreeId) {
+		toSerialize["worktree_id"] = o.WorktreeId
 	}
 	if !IsNil(o.SessionId) {
 		toSerialize["session_id"] = o.SessionId

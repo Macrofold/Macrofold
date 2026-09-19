@@ -2,7 +2,7 @@
 
 Keep one product knowledge base, with two setup paths: connect to Macrofold Cloud or operate a self-hosted deployment. Put a copyable coding-agent brief beside the human quickstart. Teach one successful task before presenting the complete API.
 
-This research extends the [documentation reference library](research.md). It covers every company requested for this review, selected open-source projects, current agent onboarding, and established usability guidance. Observations below describe published pages and source configuration; recommendations are our design judgments, not measured conversion improvements.
+This research extends the [documentation reference library](research.md). It covers every company requested for this review, selected open-source workspaces, current agent onboarding, and established usability guidance. Observations below describe published pages and source configuration; recommendations are our design judgments, not measured conversion improvements.
 
 ## Reference comparison
 
@@ -26,7 +26,7 @@ All nine homepages and their linked documentation entry points were inspected. D
 
 [Trigger.dev](https://trigger.dev/docs/self-hosting/overview) places the operating model, version alignment, feature comparison, and deployment choices in a dedicated guide. Its [repository](https://github.com/triggerdotdev/trigger.dev) keeps development and product usage discoverable. This supports explaining genuine differences instead of promising that changing an SDK URL migrates data or supplies equivalent infrastructure.
 
-[OpenCode](https://opencode.ai/docs) progresses through installation, provider configuration, project initialization, and concrete work. Its agent instructions are project context, distinct from a full API reference. The useful pattern is a small reusable instruction file pointing to deeper material, not a giant prompt copied into every project.
+[OpenCode](https://opencode.ai/docs) progresses through installation, provider configuration, workspace initialization, and concrete work. Its agent instructions are workspace context, distinct from a full API reference. The useful pattern is a small reusable instruction file pointing to deeper material, not a giant prompt copied into every workspace.
 
 ## Verified documentation technology
 
@@ -53,7 +53,7 @@ For Macrofold, the landing page gives equal visual weight to Cloud and self-host
 
 ### Help the coding agent complete a feature
 
-The [Build with AI brief](../../getting-started/agents.md) asks for a product goal and deployment, then directs the agent to current SDK installation, API behavior, and recovery guidance. It fits an existing application, keeps credentials server-side, reuses project IDs, preserves mutation identity, and tests a complete result. Optional workspace and connector guides are linked instead of embedded wholesale.
+The [Build with AI brief](../../getting-started/agents.md) asks for a product goal and deployment, then directs the agent to current SDK installation, API behavior, and recovery guidance. It fits an existing application, keeps credentials server-side, reuses workspace IDs, preserves mutation identity, and tests a complete result. Optional worktree and connector guides are linked instead of embedded wholesale.
 
 The recent [empirical study of coding-agent documentation use](https://arxiv.org/abs/2608.20195) examines discovery, reading, and writing as related activities, emphasizing actionability and verification. It is preliminary empirical evidence, not proof that a particular prompt or UI improves Macrofold outcomes. Our immediate evidence is executable examples and link/browser tests; user task success remains to be measured.
 

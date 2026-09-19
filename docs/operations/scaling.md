@@ -46,7 +46,7 @@ The standalone alternative runs the same domain and provider code with Node web/
 | `GLOBAL_CONCURRENT_RUN_LIMIT` | Defaults to `50`; validated from `1` through `10000` | Global execution admission ceiling; requires deploying updated scheduler configuration |
 | Organization concurrency | Starter: `2`; Pro: `10`; Scale: `50` | Additional plan ceiling; raising the global limit does not change these |
 | Active slot states | `provisioning`, `running`, `waiting_for_input`, `persisting` | Input waits and persistence occupy capacity too |
-| Workspace writer | One active execution per workspace | Independent worktree/workspace folders can run concurrently |
+| Worktree writer | One active execution per worktree | Independent worktree folders can run concurrently |
 | Queue expiry | New rows: creation time + `24 hours` | Request `queue_timeout_seconds` may shorten to 1–86,400 seconds; migrations 024/027 preserve old deadlines |
 | Execution timeout | Default `min(900, account cap)` seconds; Starter/Pro/Scale caps `1800`/`3600`/`7200` | Separate from time spent queued; begins when claimed |
 | Sandbox shape | `2` vCPUs; persistent sandbox, immutable runtime image | Resource sizing is currently adapter code, not a customer autoscaling control |
@@ -63,7 +63,7 @@ The standalone alternative runs the same domain and provider code with Node web/
 
 Sources: [configuration](../../packages/core/src/config.ts), [run admission](../../packages/core/src/runs.ts), [claim coordination](../../packages/core/src/engine.ts), [initial schema](../../packages/db/001_initial.sql), [cloud phases](../../packages/core/src/cloud-engine.ts), [sandbox adapter](../../packages/providers/src/vercel.ts), [poller](../../packages/core/src/portable-dispatch.ts), [worker](../../scripts/worker.ts), and [SSE implementation](../../packages/core/src/events.ts).
 
-The single-writer boundary is the **workspace**, which represents an independently writable checkout/worktree. A project can contain several. Merely choosing different Git branch names inside the same writable folder does not make concurrent writes safe.
+The single-writer boundary is the **worktree**, an independently writable checkout. A workspace can contain several. Merely choosing different Git branch names inside the same writable folder does not make concurrent writes safe.
 
 ## 3. Provider limits to record
 
@@ -204,7 +204,7 @@ First measure this path. The simplest improvements are combining appropriate rea
 
 ### D. Coordinating execution starts
 
-`claimRun` locks the organization and workspace, then takes the shared PostgreSQL advisory transaction lock named `capacity:global`, counts active runs, and transitions an eligible run to `provisioning` in the same transaction.
+`claimRun` locks the organization and worktree, then takes the shared PostgreSQL advisory transaction lock named `capacity:global`, counts active runs, and transitions an eligible run to `provisioning` in the same transaction.
 
 The global lock serializes **execution-start claims** so two schedulers cannot both consume the last slot. It does not serialize whole agent executions or every public API request. It remains held until the claim transaction commits, including its event/state writes.
 
@@ -212,7 +212,7 @@ Measure lock wait and claim latency under burst admission. Keep the protected tr
 
 ### E. Data growth and worktree contention
 
-Execution capacity does not remove a workspace's writer boundary. A backlog entirely targeting one worktree stays serial even with free global slots. Display this reason and let customers create independent worktrees through the existing product interfaces.
+Execution capacity does not remove a worktree's writer boundary. A backlog entirely targeting one worktree stays serial even with free global slots. Display this reason and let customers create independent worktrees through the existing product interfaces.
 
 Track growth of `api_requests`, run events, usage/ledger records, manifests, object versions, and indexes. General request analytics already adds database writes; polling, model calls, and tools amplify work beyond externally submitted job count. As history grows, inspect slow reporting queries and vacuum/index health. Add summaries or partitioning only for demonstrated growth patterns. Financial records and customer files need explicit retention policies, not emergency deletion to make a benchmark pass.
 
@@ -268,7 +268,7 @@ Use monitoring permissions appropriate to the operator. These queries deliberate
 ## 7. Implemented controls and next measurements
 
 1. **Queue waiting and history:** PostgreSQL owns blocked waiting, with 24-hour defaults for new jobs. Bounded Workflow continuations preserve execution identity and reservations. Cancellation and expiry retain history and release funds; existing deadlines are unchanged.
-2. **Organization fairness:** weighted virtual service coordinates eligible starts through PostgreSQL. Interactive work has first priority; workspace ordering and plan/global limits still apply. Workflow and standalone workers share the same admission decision.
+2. **Organization fairness:** weighted virtual service coordinates eligible starts through PostgreSQL. Interactive work has first priority; worktree ordering and plan/global limits still apply. Workflow and standalone workers share the same admission decision.
 3. **Queue visibility:** API, dashboard and CLI expose elapsed wait, waiting reason, expiry and cancellation without a global position or start-time estimate.
 4. **Capacity reporting:** operator reports expose active slots versus the configured ceiling, eligible backlog, oldest eligible wait, start latency and per-account waiting. Management REST/MCP remains read-only.
 5. **Next measurements:** quantify Sandbox control requests and database/stream load before increasing capacity. Extend provider/pool telemetry or optimize queries only where measurements show a bottleneck. Deployed replay, recovery and transfer acceptance remain release checks.
@@ -286,7 +286,7 @@ Use **50 → 100 → 200** as candidate stages, not certified capacities. Higher
 ### Before each increase
 
 1. Fill in the capacity worksheet below. Confirm current provider terms/account allowances and budget. Check shared team consumption and recovery headroom.
-2. Establish arrival rates, duration distribution, queue age, eligible backlog, Sandbox API volume, Workflow history, and database baselines. A workspace or organization limit may explain the queue without a global shortage.
+2. Establish arrival rates, duration distribution, queue age, eligible backlog, Sandbox API volume, Workflow history, and database baselines. A worktree or organization limit may explain the queue without a global shortage.
 3. Pass the relevant free correctness/load checks. Resolve phase-history or request-budget failures before enabling more real executions.
 4. If database measurements require resizing, perform it first and confirm recovery. Check model/token capacity and storage/persistence throughput independently.
 5. Record the previous deployment, runtime image digest, database migration version, and all effective scheduler configurations.
@@ -329,12 +329,12 @@ Use isolated disposable data, synthetic tenants, local storage, and provider dou
 | Test | Required assertions |
 | --- | --- |
 | Multiple schedulers | Three or more independent worker processes contend for shared jobs; no duplicate execution starts, exceeded global/organization limits, or leaked leases |
-| Capacity ramp | Candidate limits 50, 100, 200; enough tenants and independent workspaces to reach each limit; record the local machine's ceiling rather than blaming the application for load-generator exhaustion |
-| Fairness | Heavy tenant backlog plus newly arriving small tenants; eligible organizations receive turns across replicas; blocked workspaces do not block unrelated tenants |
+| Capacity ramp | Candidate limits 50, 100, 200; enough tenants and independent worktrees to reach each limit; record the local machine's ceiling rather than blaming the application for load-generator exhaustion |
+| Fairness | Heavy tenant backlog plus newly arriving small tenants; eligible organizations receive turns across replicas; blocked worktrees do not block unrelated tenants |
 | Long queue | Advance a deterministic clock through 24 hours; verify cancellation, expiry, reservation release, and restart survival; count the full Workflow event/step budget, including retries and persistence |
 | Long execution | Exercise timeout, input wait, shutdown, and final persistence under concurrent load; keep execution and queue deadlines independent |
 | Streaming | Many viewers of one run and many distinct runs; slow consumers, disconnects, reconnect storms, and replay; no gaps or cross-tenant events; measure query and memory growth |
-| Persistent files | Representative large projects and worst supported entry counts; interrupted restore/checkpoint, checksum mismatch, same-key object contention, concurrent independent worktrees |
+| Persistent files | Representative large workspaces and worst supported entry counts; interrupted restore/checkpoint, checksum mismatch, same-key object contention, concurrent independent worktrees |
 | Provider pressure | Inject quota `429`, creation throttles, slow reads, timeouts, and ambiguous acknowledgments; bounded retries and recovery without re-executing user side effects |
 | Worker/database loss | Kill a worker after claiming and after native launch; reconnect after database restart; retain files and reconcile reservations/leases |
 | API pressure | Separate read, submit, token/tool gateway, auth, webhook, and reporting traffic; test rate-limit isolation and clear rejection behavior |
@@ -361,7 +361,7 @@ These are starting engineering targets to agree before a test, not current SLAs:
 - Zero cross-tenant access, duplicate native execution caused by dispatch, financial invariant violations, or lost committed files.
 - No admission above the effective configured cap; no starvation of an eligible organization across completed scheduling rounds.
 - Under the defined target load, ordinary metadata API p95 below 500 ms and unexpected 5xx below 0.1%, excluding deliberate fault-injection windows and documented throttles.
-- In an under-capacity scenario with eligible jobs and a healthy provider, p95 queue-to-provisioning below 60 seconds. Measure end-to-end ready-to-run separately; this does not apply to blocked workspaces or an already full fleet.
+- In an under-capacity scenario with eligible jobs and a healthy provider, p95 queue-to-provisioning below 60 seconds. Measure end-to-end ready-to-run separately; this does not apply to blocked worktrees or an already full fleet.
 - No sustained growth in eligible backlog, application-pool waits, or cleanup backlog when arrivals are below measured service capacity.
 - Worst supported queue/runtime/filesystem scenario remains below Workflow history limits with an explicit margin for retries.
 - No sustained provider throttling at target load; sufficient control-request and compute headroom for cancellation/recovery.
@@ -403,7 +403,7 @@ Conclusion: validated workload envelope and remaining limits:
 
 | Signal | Suggested initial response |
 | --- | --- |
-| True oldest/p95 queue age rises | Split by eligibility reason and organization; distinguish workload pressure from a blocked workspace, plan limit, or stalled dispatcher |
+| True oldest/p95 queue age rises | Split by eligibility reason and organization; distinguish workload pressure from a blocked worktree, plan limit, or stalled dispatcher |
 | Slots remain full and eligible backlog grows | Check provider/database/model headroom, then consider the next tested cap |
 | Free slots but eligible jobs do not start | Inspect fairness/dispatch leases, deployment versions, throttling, and expired credentials |
 | Sandbox control quota or creation throttles | Slow/coalesce control operations or starts; do not simply add workers |

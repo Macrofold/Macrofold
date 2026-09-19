@@ -9,7 +9,7 @@ const pool = new pg.Pool({
 test.afterAll(async () => {
   await pool.end();
 });
-test('finds projects and files beyond the first page and exposes every cursor page', async ({ page }) => {
+test('finds workspaces and files beyond the first page and exposes every cursor page', async ({ page }) => {
   const headers = { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     email = randomUUID() + '@example.test',
     password = 'local-pages-fixture-2026';
@@ -25,19 +25,19 @@ test('finds projects and files beyond the first page and exposes every cursor pa
   ).toBeTruthy();
   const identity = await (await page.request.get('/v1/me')).json(),
     org = identity.organization_id;
-  const project = await (
-    await page.request.post('/v1/projects', {
+  const workspace = await (
+    await page.request.post('/v1/workspaces', {
       headers,
-      data: { name: 'Explorer project', persistence: 'persistent' },
+      data: { name: 'Explorer workspace', persistence: 'persistent' },
     })
   ).json();
-  expect(project).toHaveProperty('default_workspace_id');
+  expect(workspace).toHaveProperty('default_worktree_id');
   const tx = await pool.connect();
   try {
     await tx.query('BEGIN');
     await tx.query("SELECT set_config('app.organization_id',$1,true)", [org]);
     for (let i = 0; i < 105; i++)
-      await tx.query('INSERT INTO projects(id,organization_id,data) VALUES($1,$2,$3)', [
+      await tx.query('INSERT INTO workspaces(id,organization_id,data) VALUES($1,$2,$3)', [
         randomUUID(),
         org,
         JSON.stringify({
@@ -53,23 +53,23 @@ test('finds projects and files beyond the first page and exposes every cursor pa
   } finally {
     tx.release();
   }
-  await page.goto('/projects');
-  await expect(page.locator('.project-list-row')).toHaveCount(25);
+  await page.goto('/workspaces');
+  await expect(page.locator('.workspace-list-row')).toHaveCount(25);
   for (const count of [50, 75, 100, 106]) {
-    await page.getByRole('button', { name: 'More projects', exact: true }).click();
-    await expect(page.locator('.project-list-row')).toHaveCount(count);
+    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    await expect(page.locator('.workspace-list-row')).toHaveCount(count);
   }
-  await expect(page.getByRole('button', { name: 'More projects', exact: true })).toHaveCount(0);
-  await page.getByLabel('Search projects').fill('research 104');
-  await expect(page.locator('.project-list-row')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'More workspaces', exact: true })).toHaveCount(0);
+  await page.getByLabel('Search workspaces').fill('research 104');
+  await expect(page.locator('.workspace-list-row')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Archived research 104' })).toBeVisible();
-  await page.getByLabel('Search projects').fill('Explorer project');
-  await page.getByRole('heading', { name: 'Explorer project' }).click();
+  await page.getByLabel('Search workspaces').fill('Explorer workspace');
+  await page.getByRole('heading', { name: 'Explorer workspace' }).click();
   // Fixture contents share a real persisted object; only filenames are expanded directly.
-  let ws = await (await page.request.get(`/v1/workspaces/${project.default_workspace_id}`)).json();
+  let ws = await (await page.request.get(`/v1/worktrees/${workspace.default_worktree_id}`)).json();
   expect(
     (
-      await page.request.put(`/v1/workspaces/${ws.id}/file?path=source.txt`, {
+      await page.request.put(`/v1/worktrees/${ws.id}/file?path=source.txt`, {
         headers: { ...headers, 'Content-Type': 'application/octet-stream', 'If-Match': ws.revision },
         data: 'verified pagination fixture',
       })
@@ -79,11 +79,11 @@ test('finds projects and files beyond the first page and exposes every cursor pa
   try {
     await db.query('BEGIN');
     await db.query("SELECT set_config('app.organization_id',$1,true)", [org]);
-    const files = (await db.query("SELECT data->'files' AS files FROM workspaces WHERE id=$1", [ws.id]))
+    const files = (await db.query("SELECT data->'files' AS files FROM worktrees WHERE id=$1", [ws.id]))
       .rows[0].files;
     const source = files.find((f: any) => f.path === 'source.txt');
     await db.query(
-      `UPDATE workspaces SET data=jsonb_set(data,'{files}',$2),revision=revision+1 WHERE id=$1`,
+      `UPDATE worktrees SET data=jsonb_set(data,'{files}',$2),revision=revision+1 WHERE id=$1`,
       [
         ws.id,
         JSON.stringify(

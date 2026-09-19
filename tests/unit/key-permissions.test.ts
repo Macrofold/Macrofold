@@ -7,7 +7,7 @@ const customerScopes = Object.keys(
 );
 const reads = [
   'identity:read',
-  'projects:read',
+  'workspaces:read',
   'files:read',
   'runs:read',
   'connections:read',
@@ -16,7 +16,7 @@ const reads = [
   'organizations:read',
   'triggers:read',
 ];
-const administration = ['billing:write', 'keys:write', 'organizations:write', 'projects:delete'];
+const administration = ['billing:write', 'keys:write', 'organizations:write', 'workspaces:delete'];
 
 describe('API-key permission shortcuts', () => {
   it('read-only includes every supported read permission and no mutations', () => {
@@ -27,7 +27,7 @@ describe('API-key permission shortcuts', () => {
     expect(scopes.sort()).toEqual(
       [
         ...reads,
-        'projects:write',
+        'workspaces:write',
         'files:write',
         'runs:write',
         'connections:write',

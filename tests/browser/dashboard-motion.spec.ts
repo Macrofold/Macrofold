@@ -115,17 +115,17 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 
-      const projectName = `Motion project ${randomUUID()}`;
-      const created = await page.request.post('/v1/projects', {
+      const workspaceName = `Motion workspace ${randomUUID()}`;
+      const created = await page.request.post('/v1/workspaces', {
         headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
-        data: { name: projectName, persistence: 'persistent' },
+        data: { name: workspaceName, persistence: 'persistent' },
       });
       expect(created.ok()).toBe(true);
-      const project: Schema['Project'] = await created.json();
+      const workspace: Schema['Workspace'] = await created.json();
       const keyName = `Motion table ${randomUUID()}`;
       const createdKey = await page.request.post('/v1/api-keys', {
         headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
-        data: { name: keyName, scopes: ['projects:read'], project_id: project.id },
+        data: { name: keyName, scopes: ['workspaces:read'], workspace_id: workspace.id },
       });
       expect(createdKey.ok()).toBe(true);
       const key: Schema['NewApiKey'] = await createdKey.json();
@@ -136,49 +136,49 @@ for (const theme of ['light', 'dark'] as const) {
           await page.goto('/');
           const setup = page
             .getByRole('region', { name: 'Getting started' })
-            .getByRole('link', { name: /Create a project/ });
+            .getByRole('link', { name: /Create a workspace/ });
           await expect(setup).toBeVisible();
           await leaveHover(page);
-          const setupLabel = setup.getByText('Create a project', { exact: true });
+          const setupLabel = setup.getByText('Create a workspace', { exact: true });
           await expectFade(setupLabel, ['color'], () => setup.hover());
           await expectFade(setupLabel, ['color'], () => leaveHover(page));
 
-          const projectsNav = page
+          const workspacesNav = page
             .getByRole('navigation', { name: 'Main navigation' })
-            .getByRole('link', { name: 'Projects', exact: true });
-          await expectFade(projectsNav, ['background-color'], () => projectsNav.hover());
+            .getByRole('link', { name: 'Workspaces', exact: true });
+          await expectFade(workspacesNav, ['background-color'], () => workspacesNav.hover());
           if (
             reducedMotion === 'reduce' &&
             (await page.locator('html').getAttribute('data-dashboard-motion')) !== 'playing'
           ) {
-            const icon = projectsNav.locator('svg');
+            const icon = workspacesNav.locator('svg');
             expect(await icon.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
             await expect(icon).toHaveCSS('transform', 'none');
           }
-          await expectFade(projectsNav, ['background-color'], () => leaveHover(page));
-          await projectsNav.click();
-          const list = page.getByRole('region', { name: 'Project list', exact: true });
+          await expectFade(workspacesNav, ['background-color'], () => leaveHover(page));
+          await workspacesNav.click();
+          const list = page.getByRole('region', { name: 'Workspace list', exact: true });
           await page.getByRole('button', { name: 'List view', exact: true }).click();
           await expect(list).toBeVisible();
-          const search = page.getByRole('textbox', { name: 'Search projects', exact: true });
-          await search.fill(projectName);
-          const projectLink = page.getByRole('main').getByRole('link').filter({ hasText: projectName });
-          await expect(projectLink).toBeVisible();
+          const search = page.getByRole('textbox', { name: 'Search workspaces', exact: true });
+          await search.fill(workspaceName);
+          const workspaceLink = page.getByRole('main').getByRole('link').filter({ hasText: workspaceName });
+          await expect(workspaceLink).toBeVisible();
           await leaveHover(page);
-          await expectFade(projectLink, ['background-color'], () => projectLink.hover());
-          await expectFade(projectLink, ['background-color'], () => leaveHover(page));
+          await expectFade(workspaceLink, ['background-color'], () => workspaceLink.hover());
+          await expectFade(workspaceLink, ['background-color'], () => leaveHover(page));
 
-          const create = page.getByRole('button', { name: 'New project', exact: true });
+          const create = page.getByRole('button', { name: 'New workspace', exact: true });
           await expectFade(create, ['background-color'], () => create.hover());
           await expectFade(create, ['background-color'], () => leaveHover(page));
 
           await page.getByRole('button', { name: 'Grid view', exact: true }).click();
           await expect(list).toHaveCount(0);
           await leaveHover(page);
-          await expectFade(projectLink, ['border-top-color'], () => projectLink.hover());
-          await expectFade(projectLink, ['border-top-color'], () => leaveHover(page));
+          await expectFade(workspaceLink, ['border-top-color'], () => workspaceLink.hover());
+          await expectFade(workspaceLink, ['border-top-color'], () => leaveHover(page));
 
-          const status = page.getByRole('combobox', { name: 'Project status', exact: true });
+          const status = page.getByRole('combobox', { name: 'Workspace status', exact: true });
           await status.click();
           const menu = page.getByRole('listbox');
           await expect(menu).toBeVisible();
@@ -192,9 +192,9 @@ for (const theme of ['light', 'dark'] as const) {
         });
 
         await test.step(`${reducedMotion}: keyboard focus fades in and out without doubled indicators`, async () => {
-          const search = page.getByRole('textbox', { name: 'Search projects', exact: true });
+          const search = page.getByRole('textbox', { name: 'Search workspaces', exact: true });
           const surface = page.locator('.input-surface').filter({ has: search });
-          const status = page.getByRole('combobox', { name: 'Project status', exact: true });
+          const status = page.getByRole('combobox', { name: 'Workspace status', exact: true });
           await expect(status).toBeFocused();
           await expectFade(surface, ['border-top-color', 'box-shadow'], () => status.press('Shift+Tab'));
           await expect(search).toBeFocused();
@@ -204,9 +204,9 @@ for (const theme of ['light', 'dark'] as const) {
           await expectFade(surface, ['border-top-color', 'box-shadow'], () => search.press('Tab'));
           await expect(status).toBeFocused();
 
-          await page.getByRole('button', { name: 'New project', exact: true }).click();
-          const dialog = page.getByRole('dialog', { name: 'Create a project', exact: true });
-          const name = dialog.getByRole('textbox', { name: 'Project name', exact: true });
+          await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+          const dialog = page.getByRole('dialog', { name: 'Create a workspace', exact: true });
+          const name = dialog.getByRole('textbox', { name: 'Workspace name', exact: true });
           const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
           await expect(name).toBeFocused();
           await settle(name);
@@ -270,10 +270,10 @@ test('forced colors keeps a system outline on standalone and composite fields', 
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
-  await page.goto('/projects');
-  const search = page.getByRole('textbox', { name: 'Search projects', exact: true });
+  await page.goto('/workspaces');
+  const search = page.getByRole('textbox', { name: 'Search workspaces', exact: true });
   await expect(search).toBeVisible();
-  const status = page.getByRole('combobox', { name: 'Project status', exact: true });
+  const status = page.getByRole('combobox', { name: 'Workspace status', exact: true });
   await status.focus();
   await status.press('Shift+Tab');
   await expect(search).toBeFocused();
@@ -293,8 +293,8 @@ test('forced colors keeps a system outline on standalone and composite fields', 
   await expect(search).toHaveCSS('outline-style', 'none');
   await expect(search).toHaveCSS('box-shadow', 'none');
 
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
-  const name = page.getByRole('textbox', { name: 'Project name', exact: true });
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+  const name = page.getByRole('textbox', { name: 'Workspace name', exact: true });
   await expect(name).toBeFocused();
   await expect(name).toHaveCSS('outline-style', 'solid');
   await expect(name).toHaveCSS('outline-width', '2px');
@@ -332,14 +332,14 @@ test('playing motion visibly rotates the composer border and shines loading text
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route('**/v1/projects?*', async (route) => {
+  await page.route('**/v1/workspaces?*', async (route) => {
     await gate;
     await route.continue();
   });
   try {
     await page
       .getByRole('navigation', { name: 'Main navigation' })
-      .getByRole('link', { name: 'Projects', exact: true })
+      .getByRole('link', { name: 'Workspaces', exact: true })
       .click();
     const loading = page.getByRole('status').filter({ hasText: /^Loading…$/ });
     await expect(loading).toBeVisible();
@@ -360,12 +360,12 @@ test('playing motion visibly rotates the composer border and shines loading text
     release();
     await page.unrouteAll({ behavior: 'wait' });
   }
-  const status = page.getByRole('combobox', { name: 'Project status' });
-  const search = page.getByRole('textbox', { name: 'Search projects' });
+  const status = page.getByRole('combobox', { name: 'Workspace status' });
+  const search = page.getByRole('textbox', { name: 'Search workspaces' });
   const a = (await search.boundingBox())!,
     b = (await status.boundingBox())!;
   expect(b.x - a.x - a.width).toBeLessThan(50);
-  const heading = (await page.getByRole('heading', { name: 'Projects', exact: true }).boundingBox())!;
+  const heading = (await page.getByRole('heading', { name: 'Workspaces', exact: true }).boundingBox())!;
   await status.click();
   await expect(page.getByRole('listbox')).toBeVisible();
   // Install the observer before clicking; an unawaited locator evaluation can

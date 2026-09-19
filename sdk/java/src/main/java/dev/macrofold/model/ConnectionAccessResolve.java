@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -38,8 +38,8 @@ import dev.macrofold.ApiClient;
  * ConnectionAccessResolve
  */
 @JsonPropertyOrder({
-  ConnectionAccessResolve.JSON_PROPERTY_PROJECT_ID,
   ConnectionAccessResolve.JSON_PROPERTY_WORKSPACE_ID,
+  ConnectionAccessResolve.JSON_PROPERTY_WORKTREE_ID,
   ConnectionAccessResolve.JSON_PROPERTY_SESSION_ID,
   ConnectionAccessResolve.JSON_PROPERTY_AGENT_ID,
   ConnectionAccessResolve.JSON_PROPERTY_CONNECTION_GRANTS,
@@ -48,13 +48,13 @@ import dev.macrofold.ApiClient;
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class ConnectionAccessResolve {
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
-  @javax.annotation.Nullable
-  private UUID projectId;
-
   public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
   private UUID workspaceId;
+
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  @javax.annotation.Nullable
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_SESSION_ID = "session_id";
   @javax.annotation.Nullable
@@ -79,30 +79,6 @@ public class ConnectionAccessResolve {
   public ConnectionAccessResolve() { 
   }
 
-  public ConnectionAccessResolve projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
-    return this;
-  }
-
-  /**
-   * Get projectId
-   * @return projectId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getProjectId() {
-    return projectId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
-  }
-
-
   public ConnectionAccessResolve workspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
     return this;
@@ -124,6 +100,30 @@ public class ConnectionAccessResolve {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
+  }
+
+
+  public ConnectionAccessResolve worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
+    return this;
+  }
+
+  /**
+   * Get worktreeId
+   * @return worktreeId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorktreeId() {
+    return worktreeId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -275,8 +275,8 @@ public class ConnectionAccessResolve {
       return false;
     }
     ConnectionAccessResolve connectionAccessResolve = (ConnectionAccessResolve) o;
-    return Objects.equals(this.projectId, connectionAccessResolve.projectId) &&
-        Objects.equals(this.workspaceId, connectionAccessResolve.workspaceId) &&
+    return Objects.equals(this.workspaceId, connectionAccessResolve.workspaceId) &&
+        Objects.equals(this.worktreeId, connectionAccessResolve.worktreeId) &&
         Objects.equals(this.sessionId, connectionAccessResolve.sessionId) &&
         Objects.equals(this.agentId, connectionAccessResolve.agentId) &&
         Objects.equals(this.connectionGrants, connectionAccessResolve.connectionGrants) &&
@@ -286,15 +286,15 @@ public class ConnectionAccessResolve {
 
   @Override
   public int hashCode() {
-    return Objects.hash(projectId, workspaceId, sessionId, agentId, connectionGrants, connectionAccessOverrides, permissions);
+    return Objects.hash(workspaceId, worktreeId, sessionId, agentId, connectionGrants, connectionAccessOverrides, permissions);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class ConnectionAccessResolve {\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");

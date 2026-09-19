@@ -43,13 +43,13 @@ test('composite fields have one focus indicator, subtle border motion, and hidde
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
   await expect(page.locator('html')).toHaveCSS('scrollbar-width', 'none');
 
-  await page.goto('/projects');
-  const search = page.getByRole('textbox', { name: 'Search projects' });
+  await page.goto('/workspaces');
+  const search = page.getByRole('textbox', { name: 'Search workspaces' });
   await search.fill('');
   await expect(search).toHaveCSS('box-shadow', 'none');
   await expect(page.locator('.search-input')).not.toHaveCSS('box-shadow', 'none');
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
-  const name = page.getByRole('textbox', { name: 'Project name', exact: true });
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+  const name = page.getByRole('textbox', { name: 'Workspace name', exact: true });
   await name.fill('Focus inspection only');
   await expect(name).toHaveCSS('outline-style', 'none');
   await expect(name).not.toHaveCSS('box-shadow', 'none');
@@ -68,11 +68,11 @@ test('waiting labels shimmer accessibly and actual save toasts transition quickl
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route('**/v1/projects?*', async (route) => {
+  await page.route('**/v1/workspaces?*', async (route) => {
     await pending;
     await route.continue();
   });
-  await page.goto('/projects');
+  await page.goto('/workspaces');
   const waiting = page
     .getByRole('status')
     .filter({ hasText: /^Loading…$/ })
@@ -88,13 +88,13 @@ test('waiting labels shimmer accessibly and actual save toasts transition quickl
   }
   await expect(waiting).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  const created = await page.request.post('/v1/projects', {
+  const created = await page.request.post('/v1/workspaces', {
     headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     data: { name: 'Interaction fixture ' + randomUUID() },
   });
   expect(created.ok()).toBe(true);
-  const project = await created.json();
-  await page.goto(`/projects/${project.id}`);
+  const workspace = await created.json();
+  await page.goto(`/workspaces/${workspace.id}`);
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'File path' }).fill('motion.md');
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
@@ -121,22 +121,22 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('menuitem', { name: 'Pause animations', exact: true }).click();
     await page.keyboard.press('Escape');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-    await page.goto('/projects');
+    await page.goto('/workspaces');
     // The fetched grid confirms the lazily loaded view is interactive after a full navigation.
-    await expect(page.getByRole('region', { name: 'Project list', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'New project', exact: true }).click();
-    const projectName = `Busy contrast ${theme} ${randomUUID()}`;
-    await page.getByRole('textbox', { name: 'Project name', exact: true }).fill(projectName);
+    await expect(page.getByRole('region', { name: 'Workspace list', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    const workspaceName = `Busy contrast ${theme} ${randomUUID()}`;
+    await page.getByRole('textbox', { name: 'Workspace name', exact: true }).fill(workspaceName);
 
     let release!: () => void;
     const pending = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route('**/v1/projects', async (route) => {
+    await page.route('**/v1/workspaces', async (route) => {
       if (route.request().method() === 'POST') await pending;
       await route.continue();
     });
-    const create = page.getByRole('button', { name: 'Create project', exact: true });
+    const create = page.getByRole('button', { name: 'Create workspace', exact: true });
     const waiting = create.locator('.waiting-text');
     try {
       await create.click();
@@ -194,6 +194,6 @@ for (const theme of ['light', 'dark'] as const) {
       release();
     }
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: projectName, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: workspaceName, exact: true })).toBeVisible();
   });
 }

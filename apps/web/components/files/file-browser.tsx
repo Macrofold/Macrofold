@@ -1,5 +1,7 @@
 'use client';
 
+import { mediaFormat } from '../../../../packages/contracts/media';
+import { MediaPreview } from './media-preview';
 import { markdown } from '@codemirror/lang-markdown';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -54,10 +56,10 @@ const visibleEntry = (entry: Schema['FileEntry'], hidden: boolean) =>
 type FileAction = 'file' | 'folder' | 'delete';
 
 export function FileBrowser({
-  workspace,
+  worktree,
   onDirtyChange,
 }: {
-  workspace: Schema['Workspace'];
+  worktree: Schema['Worktree'];
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const client = useQueryClient();
@@ -77,7 +79,7 @@ export function FileBrowser({
   const mutationRef = useRef(false);
   const choseEntry = useRef(false);
   const document = useFileDocument({
-    workspace,
+    worktree,
     selected,
     isMutating: () => mutationRef.current,
     onCreateError: setActionError,
@@ -92,14 +94,21 @@ export function FileBrowser({
     },
   });
   const { text, dirty, revision, saving, saveError, content, changeText, save } = document;
-  const rootPath = `/v1/workspaces/${workspace.id}`;
+  const rootPath = `/v1/worktrees/${worktree.id}`;
   const selectedPath = selected?.path ?? '';
+  const format = mediaFormat(selectedPath);
+  const mediaFile = Boolean(format && format.kind !== 'text');
+  const textDocument =
+    selected?.type === 'file' &&
+    !mediaFile &&
+    Number(selected.size_bytes ?? 0) <= 4 * 1024 * 1024 &&
+    !text.includes('\0');
   const markdownFile =
     isMarkdown(selectedPath) || (!selectedPath.split('/').pop()?.includes('.') && /^#{1,6}\s+\S/m.test(text));
   const currentDirectory = selected?.type === 'directory' ? selected.path : parentDirectory(selectedPath);
   const isFile = Boolean(selected && selected.type !== 'directory');
   const selectionBlocked = saving || mutating;
-  const writesBlocked = workspace.status === 'busy' || dirty || selectionBlocked;
+  const writesBlocked = worktree.status === 'busy' || dirty || selectionBlocked;
   const panel = useResizablePanel({
     storageKey: 'macrofold.files.width',
     defaultWidth: 260,
@@ -107,12 +116,12 @@ export function FileBrowser({
     maxWidth: 520,
   });
   const directories = new Set(['', ...expanded, currentDirectory]);
-  const listing = useDirectoryListings(workspace.id, directories);
+  const listing = useDirectoryListings(worktree.id, directories);
   const matches = useDataPages(
     search
       ? {
           operation: 'listFiles',
-          params: { path: { workspace_id: workspace.id }, query: { limit: 100, query: search } },
+          params: { path: { worktree_id: worktree.id }, query: { limit: 100, query: search } },
         }
       : undefined,
     false,
@@ -184,7 +193,7 @@ export function FileBrowser({
       openEntry(null);
       return;
     }
-    openEntry(entries.get(filePath) ?? { path: filePath, type: 'file', revision: workspace.revision });
+    openEntry(entries.get(filePath) ?? { path: filePath, type: 'file', revision: worktree.revision });
     setAnchor(heading);
   }
   function begin(next: FileAction, target = selectedPath) {
@@ -224,14 +233,14 @@ export function FileBrowser({
     source = targetPath,
     destination = path,
   ): Promise<boolean> {
-    if (mutationRef.current || document.isSaving() || dirty || workspace.status === 'busy') return false;
+    if (mutationRef.current || document.isSaving() || dirty || worktree.status === 'busy') return false;
     mutationRef.current = true;
     setMutating(true);
     setActionError('');
     try {
-      const current = client.getQueryData<Schema['Workspace']>([rootPath]);
-      const headers = { 'If-Match': current?.revision ?? workspace.revision };
-      const params = { path: { workspace_id: workspace.id }, header: headers };
+      const current = client.getQueryData<Schema['Worktree']>([rootPath]);
+      const headers = { 'If-Match': current?.revision ?? worktree.revision };
+      const params = { path: { worktree_id: worktree.id }, header: headers };
       const operation =
         kind === 'folder'
           ? await request('createFolder', { params, body: { path: destination } })
@@ -243,11 +252,11 @@ export function FileBrowser({
                   body: { new_path: destination },
                 })
               : await request('deleteFile', { params: { ...params, query: { path: source } } });
-      const result = await publishFileMutation(client, workspace.id, operation);
+      const result = await publishFileMutation(client, worktree.id, operation);
       choseEntry.current = true;
       if (kind === 'delete' && source === selectedPath) {
-        await client.cancelQueries({ queryKey: ['file', workspace.id, selectedPath] });
-        client.removeQueries({ queryKey: ['file', workspace.id, selectedPath] });
+        await client.cancelQueries({ queryKey: ['file', worktree.id, selectedPath] });
+        client.removeQueries({ queryKey: ['file', worktree.id, selectedPath] });
         setSelected(
           currentDirectory ? { path: currentDirectory, type: 'directory', revision: result.revision } : null,
         );
@@ -260,9 +269,9 @@ export function FileBrowser({
         if (kind === 'rename') {
           // A concurrent source edit can precede this rename. Only the destination GET
           // can pair its actual bytes with a revision; never relabel an old source buffer.
-          await client.cancelQueries({ queryKey: ['file', workspace.id] });
-          client.removeQueries({ queryKey: ['file', workspace.id, result.path] });
-          client.removeQueries({ queryKey: ['file', workspace.id, selectedPath] });
+          await client.cancelQueries({ queryKey: ['file', worktree.id] });
+          client.removeQueries({ queryKey: ['file', worktree.id, result.path] });
+          client.removeQueries({ queryKey: ['file', worktree.id, selectedPath] });
           document.reset();
         }
         setSelected(next);
@@ -280,11 +289,7 @@ export function FileBrowser({
       setMutating(false);
     }
   }
-  const reading =
-    isFile &&
-    selected?.type === 'file' &&
-    Number(selected.size_bytes ?? 0) <= 4 * 1024 * 1024 &&
-    content.isPending;
+  const reading = textDocument && content.isPending;
   const readFailed = Boolean(content.error && !dirty);
   const saveLabel = saving
     ? 'Saving…'
@@ -310,15 +315,15 @@ export function FileBrowser({
   return (
     <>
       <div
-        className="file-browser workspace-file-browser"
+        className="file-browser worktree-file-browser"
         data-resizing={panel.isResizing || undefined}
         style={{ '--file-tree-width': `${panel.width}px` } as CSSProperties}
       >
-        <div className="file-tree" id="workspace-file-explorer">
+        <div className="file-tree" id="worktree-file-explorer">
           <div className="file-tree-heading">
             <strong>Explorer</strong>
             <div className="file-tree-actions">
-              <FileUpload workspace={workspace} disabled={writesBlocked} directory={currentDirectory} />
+              <FileUpload worktree={worktree} disabled={writesBlocked} directory={currentDirectory} />
               <button
                 className="icon-button"
                 title="New folder"
@@ -362,7 +367,7 @@ export function FileBrowser({
                 if (writesBlocked) return;
                 try {
                   const file = JSON.parse(event.dataTransfer.getData('application/x-macrofold-file'));
-                  if (file.workspaceId === workspace.id && typeof file.path === 'string')
+                  if (file.worktreeId === worktree.id && typeof file.path === 'string')
                     moveFile(file.path, '');
                 } catch {
                   /* Ignore unrelated payloads. */
@@ -370,7 +375,7 @@ export function FileBrowser({
               }}
             >
               <FolderOpen size={15} />
-              {workspace.name ?? 'Untitled worktree'}
+              {worktree.name ?? 'Untitled worktree'}
             </button>
             {(search ? matches.isPending : root?.loading && !root.entries.length) ? (
               <Loading />
@@ -383,7 +388,7 @@ export function FileBrowser({
               <>
                 <FileTree
                   nodes={nodes}
-                  workspaceId={workspace.id}
+                  worktreeId={worktree.id}
                   writesBlocked={writesBlocked}
                   renamePath={renamePath}
                   onRenameStart={setRenamePath}
@@ -406,7 +411,7 @@ export function FileBrowser({
                     })
                   }
                   onSelect={(path) =>
-                    openEntry(entries.get(path) ?? { path, type: 'directory', revision: workspace.revision })
+                    openEntry(entries.get(path) ?? { path, type: 'directory', revision: worktree.revision })
                   }
                   onRetry={listing.retry}
                   hasMorePaths={search ? undefined : hasMorePaths}
@@ -435,7 +440,7 @@ export function FileBrowser({
             <span className="tiny-dot" />
             {dirty
               ? 'Draft not saved'
-              : workspace.status === 'busy'
+              : worktree.status === 'busy'
                 ? 'Last verified checkpoint'
                 : 'All files persisted'}
             <button
@@ -453,7 +458,7 @@ export function FileBrowser({
           {...panel.handleProps}
           className="resize-handle file-resize-handle"
           aria-label="Resize file explorer"
-          aria-controls="workspace-file-explorer"
+          aria-controls="worktree-file-explorer"
           data-resizing={panel.isResizing || undefined}
         />
         <section className="file-editor" aria-label="File viewer">
@@ -479,7 +484,7 @@ export function FileBrowser({
                         <strong title={selectedPath}>{part}</strong>
                       ) : (
                         <button
-                          onClick={() => openEntry({ path, type: 'directory', revision: workspace.revision })}
+                          onClick={() => openEntry({ path, type: 'directory', revision: worktree.revision })}
                           disabled={selectionBlocked}
                         >
                           {part}
@@ -488,7 +493,7 @@ export function FileBrowser({
                     </span>
                   );
                 })}
-              {!selectedPath && <strong>{workspace.name ?? 'Untitled worktree'}</strong>}
+              {!selectedPath && <strong>{worktree.name ?? 'Untitled worktree'}</strong>}
               {dirty && <span className="dirty-dot" title="Unsaved changes" />}
             </nav>
             {isFile && (
@@ -563,7 +568,7 @@ export function FileBrowser({
               {saveError} Your draft is still here.
               <Button
                 variant="ghost"
-                disabled={saving || workspace.status === 'busy'}
+                disabled={saving || worktree.status === 'busy'}
                 onClick={() => void save()}
               >
                 Retry save
@@ -575,7 +580,7 @@ export function FileBrowser({
               <div className="directory-view">
                 <div className="directory-view-heading">
                   <FolderOpen size={23} />
-                  <h2>{selectedPath.split('/').pop() || workspace.name || 'Untitled worktree'}</h2>
+                  <h2>{selectedPath.split('/').pop() || worktree.name || 'Untitled worktree'}</h2>
                 </div>
                 {directory?.loading && !directory.entries.length ? (
                   <Loading />
@@ -637,6 +642,14 @@ export function FileBrowser({
                 title="Symbolic link"
                 description="Open the target file from the explorer. Links are never followed outside the worktree."
               />
+            ) : mediaFile ? (
+              <MediaPreview
+                key={selectedPath}
+                worktreeId={worktree.id}
+                path={selectedPath}
+                revision={worktree.revision}
+                size={Number(selected?.size_bytes || 0)}
+              />
             ) : Number(selected?.size_bytes ?? 0) > 4 * 1024 * 1024 ||
               (!content.isPending && !content.error && text.includes('\0')) ? (
               <Empty
@@ -677,7 +690,7 @@ export function FileBrowser({
                 filePath={selectedPath}
                 onOpenFile={openPath}
                 initialAnchor={anchor}
-                editable={workspace.status !== 'busy'}
+                editable={worktree.status !== 'busy'}
                 onChange={changeText}
               />
             ) : (
@@ -686,7 +699,7 @@ export function FileBrowser({
                 theme={theme}
                 height="100%"
                 extensions={markdownFile ? [markdown()] : []}
-                editable={workspace.status !== 'busy'}
+                editable={worktree.status !== 'busy'}
                 onChange={changeText}
                 basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true }}
                 onCreateEditor={(view) => view.contentDOM.setAttribute('aria-label', 'File editor')}
@@ -697,12 +710,14 @@ export function FileBrowser({
           <div className="editor-footer">
             <span>
               {isFile
-                ? workspace.status === 'busy'
+                ? worktree.status === 'busy'
                   ? 'Read only while an agent is working'
-                  : 'UTF-8'
+                  : textDocument
+                    ? 'UTF-8'
+                    : 'Original file'
                 : 'Folders and files'}
             </span>
-            {isFile && (
+            {textDocument && (
               <span className="file-save-status" role="status" aria-live="polite">
                 {!saving && !reading && <SaveIcon size={14} aria-hidden="true" />}
                 <WaitingText active={saving || reading}>{saveLabel}</WaitingText>
@@ -711,7 +726,7 @@ export function FileBrowser({
             <span>
               {dirty
                 ? 'Autosaves after 2 seconds of inactivity'
-                : `Revision ${isFile ? revision : workspace.revision}`}
+                : `Revision ${textDocument ? revision : worktree.revision}`}
             </span>
           </div>
         </section>

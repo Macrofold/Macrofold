@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -40,13 +40,13 @@ pub enum ListGithubRepositoriesError {
 }
 
 
-pub async fn disconnect_github(configuration: &configuration::Configuration, project_id: &str, idempotency_key: &str, x_organization_id: Option<&str>) -> Result<models::Project, Error<DisconnectGithubError>> {
+pub async fn disconnect_github(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<DisconnectGithubError>> {
     // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_project_id = project_id;
+    let p_path_workspace_id = workspace_id;
     let p_header_idempotency_key = idempotency_key;
     let p_header_x_organization_id = x_organization_id;
 
-    let uri_str = format!("{}/v1/projects/{project_id}/github", configuration.base_path, project_id=crate::apis::urlencode(p_path_project_id));
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/github", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::DELETE, &uri_str);
 
     if let Some(ref user_agent) = configuration.user_agent {
@@ -78,8 +78,8 @@ pub async fn disconnect_github(configuration: &configuration::Configuration, pro
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Project`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Project`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Workspace`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Workspace`")))),
         }
     } else {
         let content = resp.text().await?;

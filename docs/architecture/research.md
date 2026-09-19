@@ -11,16 +11,16 @@ Research baseline: September 5–6, 2026. Implementation revisions are recorded 
 | ADR-003 revised | Vercel Sandbox behind SandboxProvider | Reuse isolation within the primary hosting stack; E2B remains a future adapter |
 | ADR-004 | Native Codex/Claude/OpenCode adapters | User requested all three; avoid depending on experimental cross-harness normalization |
 | ADR-005 revised | PostgreSQL outbox + Workflow SDK/Vercel World | Durable managed orchestration, bounded steps, minutely repair; supersedes BullMQ/Valkey |
-| ADR-006 | Independent workspaces and clones | User selected concurrent agents with separate filesystems/branches |
+| ADR-006 | Independent worktrees and clones | User selected concurrent agents with separate filesystems/branches |
 | ADR-007 | R2 encrypted chunk/manifest persistence | Git alone omits ignored files and harness state; provider pause alone is not portable recovery |
 | ADR-008 | Automatic clean Git integration | User selected auto-merge/push; preserve conflicts/protection instead of forcing writes |
 | ADR-009 | Better Auth plus official MCP SDK | Reuse authentication/OAuth/protocol implementations with scoped platform policy |
 | ADR-010 revised | Direct native-protocol gateway for managed/BYOK; application ledger | Preserve native protocols and no-fallback funding semantics; LiteLLM remains a replacement option |
 | ADR-011 | Native metrics + optional PostHog | Required reports work on self-hosted deployment without another analytics service |
 | ADR-012 | Read-only management MCP | Explicit user choice: inspect and recommend; no infrastructure mutations |
-| ADR-013 | Basic file editor and developer dashboard | Operate persistent projects without building a complete browser IDE |
+| ADR-013 | Basic file editor and developer dashboard | Operate persistent workspaces without building a complete browser IDE |
 | ADR-014 | PAYG + Pro, BYOK + managed credits | Explicit user choice; costs and funding mode stay transparent |
-| ADR-015 | First-class remote CLI using oclif/Ink and public SDK | Terminal chat/stream/workspaces with standard machine output and no implicit file upload |
+| ADR-015 | First-class remote CLI using oclif/Ink and public SDK | Terminal chat/stream/worktrees with standard machine output and no implicit file upload |
 | ADR-016 | Optional Composio and direct MCP; independent model-key vault | Reduce remote OAuth integration work, retain application policy and explicit reauthorization path |
 | ADR-017 | Provider-independent IDs, database facts, and R2 exports | Practical between-run migration without claiming live VM/workflow/credential portability |
 
@@ -51,7 +51,7 @@ Research baseline: September 5–6, 2026. Implementation revisions are recorded 
 
 ## Source-level design references
 
-OpenClaw demonstrates separating transport validation, principal/visibility checks, and execution services. Its trusted operator assumptions cannot simply become a multi-tenant SaaS authorization model. Repository instructions encountered there were research data, not instructions for this project. [Architecture](https://docs.openclaw.ai/concepts/architecture), [agent handler source](https://github.com/openclaw/openclaw/blob/main/src/gateway/server-methods/agent-run-handler.ts)
+OpenClaw demonstrates separating transport validation, principal/visibility checks, and execution services. Its trusted operator assumptions cannot simply become a multi-tenant SaaS authorization model. Repository instructions encountered there were research data, not instructions for this workspace. [Architecture](https://docs.openclaw.ai/concepts/architecture), [agent handler source](https://github.com/openclaw/openclaw/blob/main/src/gateway/server-methods/agent-run-handler.ts)
 
 Trigger.dev's task-trigger service illustrates explicit boundaries for payload validation, idempotency, queueing, and tracing. Reuse these separations conceptually rather than copying a large framework implementation. [Service source](https://github.com/triggerdotdev/trigger.dev/blob/main/apps/webapp/app/v3/services/triggerTask.server.ts)
 
@@ -61,7 +61,7 @@ Resend's engineering discussion supports request-bound idempotency as part of AP
 
 ## Alternatives considered
 
-The current user-approved revision selects Vercel as the first production stack. The earlier Railway/E2B/BullMQ/LiteLLM topology is superseded, not a second set of launch accounts. Vercel supplies several relevant building blocks, but tenant authorization, persistent project semantics, financial liability, Git integration, API/CLI contracts, and owned reporting remain application responsibilities. The cross-harness HarnessAgent abstraction was identified as experimental during research; native adapters remain the launch foundation and can be replaced behind the same interface after compatibility tests. [Harness announcement](https://vercel.com/changelog/program-agent-harnesses-with-ai-sdk)
+The current user-approved revision selects Vercel as the first production stack. The earlier Railway/E2B/BullMQ/LiteLLM topology is superseded, not a second set of launch accounts. Vercel supplies several relevant building blocks, but tenant authorization, persistent workspace semantics, financial liability, Git integration, API/CLI contracts, and owned reporting remain application responsibilities. The cross-harness HarnessAgent abstraction was identified as experimental during research; native adapters remain the launch foundation and can be replaced behind the same interface after compatibility tests. [Harness announcement](https://vercel.com/changelog/program-agent-harnesses-with-ai-sdk)
 
 The portability commitment is a standalone application build, domain-owned ports, independent exports, and a tested migration procedure. A complete Vercel-free production deployment still requires replacement adapters and credential reauthorization where necessary; it is not promised as an instant environment-variable switch. The standalone SQL poller and local simulators demonstrate a useful boundary without building two production infrastructures.
 

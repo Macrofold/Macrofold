@@ -12,7 +12,7 @@ These are the application defaults. A hosted operator can configure subscription
 | Pro     | $29 + usage          | $10              | 10              | 60 minutes        | 10 GiB  | 90 days              |
 | Scale   | $199 + usage         | $50              | 50              | 120 minutes       | 50 GiB  | 90 days              |
 
-Starter's API plan identifier is `payg`. Owners and admins can set lower organization concurrency and runtime limits. Concurrency is a maximum shared across projects, not an immediate-start guarantee. One writer per workspace still applies.
+Starter's API plan identifier is `payg`. Owners and admins can set lower organization concurrency and runtime limits. Concurrency is a maximum shared across workspaces, not an immediate-start guarantee. One writer per worktree still applies.
 
 ## Run budgets and reserved credits
 
@@ -26,10 +26,14 @@ Managed inference uses configured platform credentials and the published model r
 
 Revoked or unavailable BYOK credentials cause an error; they never silently switch to managed funding. Configure provider-side spending limits as well as a run budget.
 
+## Retrieve itemized usage
+
+Use `GET /v1/billing/usage` for detailed model tokens and model/tool/compute/storage charges, with explicit timestamps, resource/customer filters and pagination. Follow the [billing usage guide](usage.md) for a copyable request, SDK methods, and exact money/token semantics.
+
 ## Storage and retention
 
 Storage overage is disabled by default. An owner can enable it with a monthly budget and prepaid balance. The default rate is $0.10 per GiB per 30-day month. Storage is measured periodically; accepted work can finish preserving files before subsequent writes are blocked for exhausted allowance.
 
-Detailed run history expires separately from current project files, retained checkpoints, native session state, and accounting. Purchased credits do not expire; included subscription credits expire at the paid period's end.
+Detailed run history expires separately from current workspace files, retained checkpoints, native session state, and accounting. Purchased credits do not expire; included subscription credits expire at the paid period's end.
 
-See [usage reporting](../operations/README.md), [workspaces](../workspaces/README.md), and [accounting implementation](implementation.md) for more detail.
+See [usage reporting](../operations/README.md), [worktrees](../workspaces/README.md), and [accounting implementation](implementation.md) for more detail.

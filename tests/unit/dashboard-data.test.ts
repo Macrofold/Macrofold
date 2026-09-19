@@ -9,7 +9,7 @@ it('calls browser fetch with the global receiver when reading a document through
   });
   const client = new Client({ baseURL: 'http://localhost', sessionAuth: true, retries: 0 });
   const response = await client.raw('readFile', {
-    params: { path: { workspace_id: 'fixture' }, query: { path: 'notes.md' } },
+    params: { path: { worktree_id: 'fixture' }, query: { path: 'notes.md' } },
   });
   expect(await response.text()).toBe('Persisted contents');
   expect(response.headers.get('etag')).toBe('"revision"');
@@ -29,8 +29,8 @@ it('reuses an aborted mutation identity when the same action is explicitly retri
     }),
   );
   const body = { name: `Aborted ${crypto.randomUUID()}` };
-  await expect(request('createProject', { body, signal: controller.signal })).rejects.toThrow();
-  await request('createProject', { body });
+  await expect(request('createWorkspace', { body, signal: controller.signal })).rejects.toThrow();
+  await request('createWorkspace', { body });
   expect(new Headers(calls[0].headers).get('Idempotency-Key')).toBe(
     new Headers(calls[1].headers).get('Idempotency-Key'),
   );
@@ -38,7 +38,7 @@ it('reuses an aborted mutation identity when the same action is explicitly retri
 it('builds URL/cache keys from the same contract, including Unicode paths and escaped query values', () => {
   const query = {
     operation: 'listFiles' as const,
-    params: { path: { workspace_id: 'id/escaped' }, query: { path: '日本語 + #?.md', recursive: false } },
+    params: { path: { worktree_id: 'id/escaped' }, query: { path: '日本語 + #?.md', recursive: false } },
   };
   const key = dataKey(query)[0];
   expect(key).toBe(requestPath(query.operation, query.params));
@@ -56,12 +56,12 @@ it('retains the mutation identity after a lost response and passes cancellation 
     }),
   );
   const options = { body: { name: `Recovery ${crypto.randomUUID()}` } };
-  await expect(request('createProject', options)).rejects.toMatchObject({ code: 'connection_interrupted' });
-  await request('createProject', options);
+  await expect(request('createWorkspace', options)).rejects.toMatchObject({ code: 'connection_interrupted' });
+  await request('createWorkspace', options);
   expect(new Headers(calls[0].headers).get('Idempotency-Key')).toBe(
     new Headers(calls[1].headers).get('Idempotency-Key'),
   );
   const controller = new AbortController();
-  await request('getProject', { params: { path: { project_id: 'id' } }, signal: controller.signal });
+  await request('getWorkspace', { params: { path: { workspace_id: 'id' } }, signal: controller.signal });
   expect(calls[2].signal).toBe(controller.signal);
 });

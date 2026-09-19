@@ -12,11 +12,11 @@ The auth service initializes once per module instance on first use. Importing ro
 
 Browser cookies are provider-managed Secure/HttpOnly/SameSite in production. Mutations check the exact configured Origin. The dashboard exposes profile/password, MFA, sessions/devices, connected OAuth applications, team invitations/roles and organization selection. Password changes can revoke other sessions. App revocation removes both access and refresh authority. The configured operator allowlist is server-side, not a user-selectable role.
 
-An API key is generated with high-entropy randomness, shown once, stored by hash with prefix, scopes, optional projects, expiry and revocation. It cannot exceed its creator's effective authority. Keys belong to one organization; `X-Organization-Id` cannot redirect one into another. OAuth tokens select only current memberships. The browser's active-organization cookie is a selector and is reauthorized on every request. Switching reloads caches to prevent showing the prior organization as current.
+An API key is generated with high-entropy randomness, shown once, stored by hash with prefix, scopes, optional workspaces, expiry and revocation. It cannot exceed its creator's effective authority. Keys belong to one organization; `X-Organization-Id` cannot redirect one into another. OAuth tokens select only current memberships. The browser's active-organization cookie is a selector and is reauthorized on every request. Switching reloads caches to prevent showing the prior organization as current.
 
 Owner changes serialize and preserve at least one owner. Admins manage members/viewers; owners control ownership. Invitations bind a verified email, expire after seven days, are single-use and require current inviter authority. Links are created for explicit sharing rather than automatically emailing someone. Removal/demotion revokes relevant keys and requests cancellation of ongoing work; future model/tool calls recheck authority. Tenant audit records expose access changes.
 
-Tenant RLS and service-level ownership checks are both required. Nested resources and async operations carry organization/project/scope bindings. A raw resource ID or operation ID is never bearer access. Model/tool execution rechecks current actor, permission, run generation, deadline, cancellation and grants. A malicious MCP description, repository instruction or model response cannot modify any of those facts.
+Tenant RLS and service-level ownership checks are both required. Nested resources and async operations carry organization/workspace/scope bindings. A raw resource ID or operation ID is never bearer access. Model/tool execution rechecks current actor, permission, run generation, deadline, cancellation and grants. A malicious MCP description, repository instruction or model response cannot modify any of those facts.
 
 ## OAuth, CLI and management agents
 
@@ -40,9 +40,9 @@ Named Claude subscription configurations and optional backup policies can be sav
 
 ## Connector choices
 
-The [Composio setup guide](composio.md) covers project credentials, application identity binding and the distinction between CLI login and verified provider execution.
+The [Composio setup guide](composio.md) covers workspace credentials, application identity binding and the distinction between CLI login and verified provider execution.
 
-Composio is optional for its maintained OAuth/app-tool catalog. It complements Better Auth rather than replacing platform identity. The platform owns connected-account identity binding, explicit grants, tool versions and retail metering. Configuration requires a project key, auth configuration IDs, pinned toolkit versions and callback identity verification. A callback URL/account ID alone does not authenticate a connected account. The returning owner, pending attempt and verified provider response must match.
+Composio is optional for its maintained OAuth/app-tool catalog. It complements Better Auth rather than replacing platform identity. The platform owns connected-account identity binding, explicit grants, tool versions and retail metering. Configuration requires a workspace key, auth configuration IDs, pinned toolkit versions and callback identity verification. A callback URL/account ID alone does not authenticate a connected account. The returning owner, pending attempt and verified provider response must match.
 
 Direct MCP uses the official SDK for Streamable HTTP, discovery, PKCE, supported dynamic client registration or preconfigured clients and refresh. The callback binds browser/user/organization/connection and is single-use. Refresh is serialized; rotated credentials survive a later tool error. Issuer/endpoints stay pinned while credentials exist. To change service identity, create a new connection rather than forwarding old credentials to an edited URL.
 
@@ -66,7 +66,7 @@ GitHub App authorization verifies current user repository permission and selecte
 
 Production requires HTTPS, independent auth/vault secrets, restricted database login, private object storage, email configuration, an immutable runtime image and configured maintenance. Paid execution starts disabled. Set the global active-run limit, tenant limits, provider spending limits and hosting-edge abuse protection before inviting users. These controls have separate purposes; no one limit replaces the others.
 
-Project deletion has explicit recent-auth confirmation, seven-day undo and delayed collection. Account closure is initially operator-assisted because subscriptions, ownership transfer, financial retention and external revocation require coordinated decisions. The launch guide specifies the closure procedure and requires a real support channel; there is no misleading one-click erase-everywhere button. Public privacy/terms/retention and vendor account approvals are operator-owned publication inputs.
+Workspace deletion has explicit recent-auth confirmation, seven-day undo and delayed collection. Account closure is initially operator-assisted because subscriptions, ownership transfer, financial retention and external revocation require coordinated decisions. The launch guide specifies the closure procedure and requires a real support channel; there is no misleading one-click erase-everywhere button. Public privacy/terms/retention and vendor account approvals are operator-owned publication inputs.
 
 Authentication throttling uses Better Auth's PostgreSQL storage in production, so replicas share counters. The unpaid local profile explicitly bypasses this login throttle while retaining domain API limits and MFA account lockout. Expired auth counters are collected after one day. Deploy behind an edge that overwrites client-IP headers; untrusted forwarded headers cannot be a reliable abuse boundary.
 

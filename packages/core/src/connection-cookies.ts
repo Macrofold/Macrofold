@@ -6,7 +6,7 @@ export const connectionCookieName = (flow: Flow) =>
 export const connectionCookie = (flow: Flow, value = '', age = 0) =>
   `${connectionCookieName(flow)}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${isLocal() ? '' : '; Secure'}`;
 
-/** Both journeys use the provider's one project-wide callback. Starting one invalidates the other browser cookie. */
+/** Both journeys use the provider's one workspace-wide callback. Starting one invalidates the other browser cookie. */
 export function startConnectionCookies(flow: Flow, state: string, initial: HeadersInit) {
   const headers = new Headers(initial);
   headers.append('set-cookie', connectionCookie(flow, state, 600));

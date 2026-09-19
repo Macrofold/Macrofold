@@ -1,14 +1,16 @@
 # Core concepts
 
-A project is a lasting home for work. A run is one task performed inside it.
+A **workspace owns a distinct file tree**. Its **worktrees are checkouts** used to edit and execute against that tree. A run is one task.
+
+**Projects are not implemented yet.** They will be grouping containers for organizing workspaces; they do not appear as a current API resource.
 
 ## Resource model
 
 | Resource     | Purpose                                             | Example                         |
 | ------------ | --------------------------------------------------- | ------------------------------- |
 | Organization | Shares membership, permissions, credits, and limits | Your team                       |
-| Project      | Groups related files and workspaces                 | A research repository           |
-| Workspace    | Owns an independent working folder and Git branch   | A feature branch                |
+| Workspace      | Owns a distinct file tree                 | A research repository           |
+| Worktree    | Checks out a workspace, optionally on a branch   | A feature branch                |
 | Session      | Keeps a compatible native agent conversation        | An ongoing investigation        |
 | Run          | Executes one prompt with a deadline and budget      | Update the report               |
 | Checkpoint   | Records a verified recoverable file revision        | The files after a completed run |
@@ -17,17 +19,17 @@ A project is a lasting home for work. A run is one task performed inside it.
 
 ## Optional integration paths
 
-[Customer agents](../features/customer-agents/README.md) is a use-case-specific shortcut over this resource model. It binds your application's authenticated customer to a dedicated project, worktree and preset, and checks ownership when sending messages or managing connections. It is not a new core agent type or a requirement for running agents.
+[Customer agents](../features/customer-agents/README.md) is a use-case-specific shortcut over this resource model. It binds your application's authenticated customer to a dedicated workspace, worktree and preset, and checks ownership when sending messages or managing connections. It is not a new core agent type or a requirement for running agents.
 
 ## What persists
 
-Persistent project files and compatible native session state survive ordinary run completion. Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.
+Persistent workspace files and compatible native session state survive ordinary run completion. Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.
 
 A lost sandbox can lose changes since the last published checkpoint. Saved checkpoints, current file revisions, and Git status are visible separately so you can identify what is recoverable.
 
 ## Parallel work
 
-Different agents can share a workspace by taking turns: wait for persistence, then give its `workspace_id` to the next run. Their conversations remain separate. Only one active writer can modify a workspace; a new agent receives `workspace_busy` while work is pending. Create another workspace for parallel tasks. See [sharing a workspace](../features/workspaces/shared-agents.md). Organization concurrency limits apply across workspaces and projects; available global capacity also affects when a run starts.
+Different agents can share a worktree by taking turns: wait for persistence, then give its `worktree_id` to the next run. Their conversations remain separate. Only one active writer can modify a worktree; a new agent receives `worktree_busy` while work is pending. Create another worktree for parallel tasks. See [sharing a worktree](../features/workspaces/shared-agents.md). Organization concurrency limits apply across worktrees and workspaces; available global capacity also affects when a run starts.
 
 ## Three independent clocks
 
@@ -39,4 +41,4 @@ Different agents can share a workspace by taking turns: wait for persistence, th
 
 The API returns a run ID when it accepts work. Follow the status, stream events, or retrieve the result until it is final. Cancellation requests stop future work and preserve recoverable files; they cannot reverse actions already taken by external tools.
 
-Read [runs and agents](../features/execution/README.md), [workspaces](../features/workspaces/README.md), and [billing](../features/billing/README.md) for the full behavior.
+Read [runs and agents](../features/execution/README.md), [worktrees](../features/workspaces/README.md), and [billing](../features/billing/README.md) for the full behavior.

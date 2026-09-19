@@ -14,14 +14,14 @@ import { toast } from 'sonner';
 import { api, useApi, type Schema } from '../lib/client';
 import { Badge, Button, Field, Modal } from './ui';
 export function GitView({
-  project,
   workspace,
+  worktree,
 }: {
-  project: Schema['Project'];
   workspace: Schema['Workspace'];
+  worktree: Schema['Worktree'];
 }) {
   const client = useQueryClient();
-  const sync = useApi<Schema['GitSync']>(`/v1/workspaces/${workspace.id}/sync`);
+  const sync = useApi<Schema['GitSync']>(`/v1/worktrees/${worktree.id}/sync`);
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [installation, setInstallation] = useState(''),
@@ -40,7 +40,7 @@ export function GitView({
   const perform = async (mode: 'pull' | 'push' | 'pull_request') => {
     setBusy(true);
     try {
-      await api(`/v1/workspaces/${workspace.id}/sync`, 'POST', { mode });
+      await api(`/v1/worktrees/${worktree.id}/sync`, 'POST', { mode });
       toast.success('Git operation queued');
       await sync.refetch();
     } catch (e) {
@@ -54,44 +54,44 @@ export function GitView({
       <div className="git-illustration">
         <GitBranch size={48} />
       </div>
-      <h2>{project.github ? 'Your repository, kept in sync.' : 'Your files already have a history.'}</h2>
+      <h2>{workspace.github ? 'Your repository, kept in sync.' : 'Your files already have a history.'}</h2>
       <p>
-        {project.github
+        {workspace.github
           ? 'Bring in remote changes, publish this branch, or open a draft pull request. Conflicts keep both versions available for review.'
           : 'Every checkpoint keeps a Git revision alongside your persistent files. Connect GitHub whenever you are ready to collaborate.'}
       </p>
       <div className="git-revision">
         <ShieldCheck size={16} />
         <span>
-          {workspace.git_status === 'attention'
+          {worktree.git_status === 'attention'
             ? 'Files preserved · Git needs attention'
-            : workspace.branch
-              ? `Versioned on ${workspace.branch}`
+            : worktree.branch
+              ? `Versioned on ${worktree.branch}`
               : 'Branch will be named on the first run'}
         </span>
-        {workspace.git_commit && <code>{workspace.git_commit.slice(0, 12)}</code>}
+        {worktree.git_commit && <code>{worktree.git_commit.slice(0, 12)}</code>}
       </div>
-      {workspace.git_status === 'attention' && (
+      {worktree.git_status === 'attention' && (
         <p role="status">
-          {workspace.git_error}. Use a native agent session to inspect and repair repository state; file
+          {worktree.git_error}. Use a native agent session to inspect and repair repository state; file
           checkpoints remain available.
         </p>
       )}
-      {project.github ? (
+      {workspace.github ? (
         <>
           <label className="git-auto-sync">
             <input
               type="checkbox"
-              checked={Boolean(project.github.auto_sync)}
+              checked={Boolean(workspace.github.auto_sync)}
               disabled={busy}
               onChange={async (e) => {
                 setBusy(true);
                 try {
                   await api(
-                    `/v1/projects/${project.id}`,
+                    `/v1/workspaces/${workspace.id}`,
                     'PATCH',
-                    { github: { ...project.github, auto_sync: e.target.checked } },
-                    { 'If-Match': `"${project.revision}"` },
+                    { github: { ...workspace.github, auto_sync: e.target.checked } },
+                    { 'If-Match': `"${workspace.revision}"` },
                   );
                   await client.invalidateQueries();
                 } catch (error) {
@@ -106,16 +106,16 @@ export function GitView({
           <label className="git-auto-sync">
             <input
               type="checkbox"
-              checked={Boolean(project.github.auto_pull)}
+              checked={Boolean(workspace.github.auto_pull)}
               disabled={busy}
               onChange={async (e) => {
                 setBusy(true);
                 try {
                   await api(
-                    `/v1/projects/${project.id}`,
+                    `/v1/workspaces/${workspace.id}`,
                     'PATCH',
-                    { github: { ...project.github, auto_pull: e.target.checked } },
-                    { 'If-Match': `"${project.revision}"` },
+                    { github: { ...workspace.github, auto_pull: e.target.checked } },
+                    { 'If-Match': `"${workspace.revision}"` },
                   );
                   await client.invalidateQueries();
                 } catch (error) {
@@ -127,16 +127,16 @@ export function GitView({
             />{' '}
             Fetch and merge incoming changes when idle
           </label>
-          {workspace.remote_change && (
+          {worktree.remote_change && (
             <p role="status">
-              {workspace.remote_change.deleted
+              {worktree.remote_change.deleted
                 ? 'The remote target branch was deleted. Choose a new target before syncing.'
                 : 'Remote changes are available. Fetch and merge to bring them into this worktree.'}
             </p>
           )}
           <Badge status={sync.data?.status || 'pending'} />
           <p className="mono">
-            Repository {project.github.repository_id} · target {project.github.target_branch}
+            Repository {workspace.github.repository_id} · target {workspace.github.target_branch}
           </p>
           {sync.data?.error_code && (
             <div className="git-notice" role="status">
@@ -147,7 +147,7 @@ export function GitView({
               </strong>
               <p>
                 {sync.data.error_code}. Your files are preserved. The agent can inspect the local branch and
-                refs/remotes/origin/{project.github.target_branch} to resolve differences.
+                refs/remotes/origin/{workspace.github.target_branch} to resolve differences.
               </p>
               {sync.data.conflicting_paths?.map((p) => (
                 <code key={p}>{p}</code>
@@ -160,9 +160,9 @@ export function GitView({
               Fetch and merge
             </Button>
             <Button busy={busy} onClick={() => perform('push')}>
-              Sync to {project.github.target_branch}
+              Sync to {workspace.github.target_branch}
             </Button>
-            {workspace.branch !== project.github.target_branch && (
+            {worktree.branch !== workspace.github.target_branch && (
               <Button variant="secondary" busy={busy} onClick={() => perform('pull_request')}>
                 <GitPullRequest size={16} />
                 Open draft PR
@@ -184,7 +184,7 @@ export function GitView({
             onClick={async () => {
               setBusy(true);
               try {
-                await api(`/v1/projects/${project.id}/github`, 'DELETE');
+                await api(`/v1/workspaces/${workspace.id}/github`, 'DELETE');
                 await client.invalidateQueries();
                 toast.success('Repository disconnected. Files and Git history are preserved.');
               } catch (e) {
@@ -212,12 +212,12 @@ export function GitView({
         open={open}
         onOpenChange={setOpen}
         title="Connect a repository"
-        description="Choose the GitHub repository this project can read and publish to. Organization owners and admins manage this connection."
+        description="Choose the GitHub repository this workspace can read and publish to. Organization owners and admins manage this connection."
       >
         {!installations.data ? (
           <div className="git-connect-step">
             <p>Authorize your GitHub account so we can verify the repositories you can write to.</p>
-            <a className="button primary" href={`/integrations/github/install?project_id=${project.id}`}>
+            <a className="button primary" href={`/integrations/github/install?workspace_id=${workspace.id}`}>
               Authorize GitHub <ArrowUpRight size={15} />
             </a>
             {installations.error && <p className="muted">{installations.error.message}</p>}
@@ -230,7 +230,7 @@ export function GitView({
               setError('');
               try {
                 await api(
-                  `/v1/projects/${project.id}`,
+                  `/v1/workspaces/${workspace.id}`,
                   'PATCH',
                   {
                     github: {
@@ -240,7 +240,7 @@ export function GitView({
                       auto_sync: autoSync,
                     },
                   },
-                  { 'If-Match': `"${project.revision}"` },
+                  { 'If-Match': `"${workspace.revision}"` },
                 );
                 await client.invalidateQueries();
                 setOpen(false);

@@ -6,15 +6,15 @@ const client = new Macrofold({
   apiKey: process.env.MACROFOLD_FIXTURE_KEY!,
 });
 assert.equal(new URL(client.baseURL).hostname, '127.0.0.1');
-const filesWorkspace = process.env.MACROFOLD_FIXTURE_FILES_WORKSPACE;
-assert(filesWorkspace, 'Run pnpm test:sdks to create the isolated file fixture.');
+const filesWorktree = process.env.MACROFOLD_FIXTURE_FILES_WORKTREE;
+assert(filesWorktree, 'Run pnpm test:sdks to create the isolated file fixture.');
 assert.deepEqual(
-  await client.workspaces.readFile(filesWorkspace, { path: 'notes/日本語 + #?.bin' }),
+  await client.worktrees.readFile(filesWorktree, { path: 'notes/日本語 + #?.bin' }),
   new Uint8Array([0, 255, 10, 128]),
 );
-assert.deepEqual(await client.workspaces.readFile(filesWorkspace, { path: 'empty.txt' }), new Uint8Array());
+assert.deepEqual(await client.worktrees.readFile(filesWorktree, { path: 'empty.txt' }), new Uint8Array());
 await assert.rejects(
-  client.workspaces.readFile(filesWorkspace, { path: 'missing.txt' }),
+  client.worktrees.readFile(filesWorktree, { path: 'missing.txt' }),
   (error: unknown) => error instanceof ApiError && error.status === 404,
 );
 const customerId = 'customer / 日本語',
@@ -40,27 +40,27 @@ await assert.rejects(
   client.customerAgents.getRun('wrong customer', customerAgentId, customerRunId),
   (e: unknown) => e instanceof ApiError && e.status === 404,
 );
-const project = await client.projects.create({ name: 'TypeScript application fixture' });
-assert(project.default_workspace_id);
-const workspaceId = project.default_workspace_id;
-const folder = await client.workspaces.createFolder(workspaceId, {
+const workspace = await client.workspaces.create({ name: 'TypeScript application fixture' });
+assert(workspace.default_worktree_id);
+const worktreeId = workspace.default_worktree_id;
+const folder = await client.worktrees.createFolder(worktreeId, {
   path: 'examples',
-  ifMatch: (await client.workspaces.get(workspaceId)).revision,
+  ifMatch: (await client.worktrees.get(worktreeId)).revision,
 });
 assert.equal(folder.result?.entry?.type, 'directory');
 assert(folder.result?.revision);
-const renamed = await client.workspaces.renameFile(workspaceId, {
+const renamed = await client.worktrees.renameFile(worktreeId, {
   path: 'examples/.gitkeep',
   new_path: 'examples/renamed.txt',
   ifMatch: folder.result.revision,
 });
 assert.equal(renamed.result?.previous_path, 'examples/.gitkeep');
 assert.deepEqual(
-  (await client.workspaces.listFiles(workspaceId, { recursive: false })).entries.map((entry) => entry.type),
+  (await client.worktrees.listFiles(worktreeId, { recursive: false })).entries.map((entry) => entry.type),
   ['directory'],
 );
 assert.deepEqual(
-  await client.workspaces.readFile(workspaceId, { path: 'examples/renamed.txt' }),
+  await client.worktrees.readFile(worktreeId, { path: 'examples/renamed.txt' }),
   new Uint8Array(),
 );
 const agent = await client.agents.create({
@@ -82,29 +82,35 @@ const approved = await client.connections.updateAccess(connection.id, {
   ifMatch: `"${initialAccess.version}"`,
 });
 const permission = await client.connections.createAccessRule(connection.id, {
-  scope: 'project_agent',
-  project_id: project.id,
+  scope: 'workspace_agent',
+  workspace_id: workspace.id,
   agent_id: agent.id,
   ifMatch: `"${approved.version}"`,
 });
 assert.equal(permission.version, '3');
 assert.equal(
-  (await client.projects.get(project.id, { include_connections: true, agent_id: agent.id })).connections
+  (await client.workspaces.get(workspace.id, { include_connections: true, agent_id: agent.id })).connections
     ?.data[0].id,
   connection.id,
 );
 assert.equal(
-  (await client.connections.resolveAccess({ project_id: project.id, agent_id: agent.id })).data[0].tools[0],
+  (await client.connections.resolveAccess({ workspace_id: workspace.id, agent_id: agent.id })).data[0].tools[0],
   'web_search',
 );
 await client.agents.update(agent.id, { connection_grants: [] });
 assert.deepEqual((await client.agents.get(agent.id)).connection_grants, []);
 await client.agents.update(agent.id, { connection_grants: null });
 assert.equal((await client.agents.get(agent.id)).connection_grants, undefined);
+await client.worktrees.writeFile(worktreeId, {
+  path: 'brief.md',
+  content: new TextEncoder().encode('SDK document fixture'),
+  ifMatch: (await client.worktrees.get(worktreeId)).revision,
+});
 const run = await client.runs.create({
-  project_id: project.id,
+  workspace_id: workspace.id,
   agent_id: agent.id,
   prompt: 'Verify TypeScript persisted execution.',
+  attachments: ['brief.md'],
 });
 const events = [];
 let text = '';
@@ -117,15 +123,22 @@ assert.equal(result.final, true);
 assert.match(result.output_text!, /Simulation completed/);
 assert.equal(text, result.output_text);
 assert.equal(result.persistence_status, 'verified');
-assert.ok((await client.workspaces.listCheckpoints(run.workspace_id)).data.length);
-const note = await client.workspaces.readFile(run.workspace_id, { path: `notes/run-${run.run_id}.md` });
+const artifacts = await client.runs.listArtifacts(run.run_id);
+assert.equal(artifacts.data.length, 1);
+const download = await client.artifacts.download(artifacts.data[0].id);
+// A signed download is self-authorizing; never forward the customer's API key.
+const downloaded = await fetch(download.url);
+assert(downloaded.ok);
+assert.match(await downloaded.text(), /Simulation completed/);
+assert.ok((await client.worktrees.listCheckpoints(run.worktree_id)).data.length);
+const note = await client.worktrees.readFile(run.worktree_id, { path: `notes/run-${run.run_id}.md` });
 assert.match(new TextDecoder().decode(note), /Verify TypeScript persisted execution/);
 const replay = [];
 for await (const event of client.runs.stream(run.run_id, { after: events.at(-2)!.sequence }))
   replay.push(event.sequence);
 assert.deepEqual(replay, [events.at(-1)!.sequence]);
 assert.equal((await client.runs.cancel(run.run_id)).status, 'succeeded');
-// A long simulated response keeps earlier workspace work ahead of the queued follow-up.
+// A long simulated response keeps earlier worktree work ahead of the queued follow-up.
 const blocker = await client.runs.create({
   session_id: run.session_id,
   prompt: 'Fixture work. '.repeat(100),

@@ -12,9 +12,9 @@ export async function chat(context: Context, existing?: Schema['Session']) {
   const client = context.client,
     settings = execution(context.flags);
   let session = existing || (await context.session());
-  const workspace = session
-    ? await client.request('getWorkspace', { params: { path: { workspace_id: session.workspace_id } } })
-    : await context.workspace();
+  const worktree = session
+    ? await client.request('getWorktree', { params: { path: { worktree_id: session.worktree_id } } })
+    : await context.worktree();
   async function ensureSession() {
     if (session) return session;
     if (!settings.harness || !settings.model)
@@ -22,15 +22,15 @@ export async function chat(context: Context, existing?: Schema['Session']) {
         'A new chat needs --harness and --model. macrofold doctor lists the available catalog.',
       );
     session = await client.request('createSession', {
-      body: { ...settings, harness: settings.harness, model: settings.model, workspace_id: workspace.id },
+      body: { ...settings, harness: settings.harness, model: settings.model, worktree_id: worktree.id },
     });
-    if (context.linked) await context.link(workspace, context.linked.root, session.id);
+    if (context.linked) await context.link(worktree, context.linked.root, session.id);
     return session;
   }
   await ensureSession();
   if (context.flags.plain || process.env.TERM === 'dumb' || !process.stdout.isTTY) {
     process.stderr.write(
-      `Hosted chat · ${terminalText(workspace.name)} · ${session!.harness}/${session!.model}\n/help for commands.\n`,
+      `Hosted chat · ${terminalText(worktree.name)} · ${session!.harness}/${session!.model}\n/help for commands.\n`,
     );
     while (true) {
       const text = (await prompt('› ')).trim();
@@ -52,11 +52,11 @@ export async function chat(context: Context, existing?: Schema['Session']) {
       if (text.startsWith('/')) {
         const value =
           text === '/diff'
-            ? await client.request('getWorkspaceDiff', { params: { path: { workspace_id: workspace.id } } })
+            ? await client.request('getWorktreeDiff', { params: { path: { worktree_id: worktree.id } } })
             : text === '/connections'
               ? await client.request('listConnections')
               : text === '/status'
-                ? await client.request('getWorkspace', { params: { path: { workspace_id: workspace.id } } })
+                ? await client.request('getWorktree', { params: { path: { worktree_id: worktree.id } } })
                 : { message: 'Unknown command. Use /help.' };
         process.stderr.write(terminalText(JSON.stringify(value, null, 2)) + '\n');
         continue;
@@ -76,8 +76,8 @@ export async function chat(context: Context, existing?: Schema['Session']) {
     }
   }
   const state: TerminalState = {
-    title: `${workspace.name} · hosted workspace`,
-    subtitle: `${workspace.branch || 'main'} · ${session!.harness} / ${session!.model} · session ${session!.id}`,
+    title: `${worktree.name} · hosted worktree`,
+    subtitle: `${worktree.branch || 'main'} · ${session!.harness} / ${session!.model} · session ${session!.id}`,
     status: 'Ready · files stay in the cloud',
     lines: [],
     busy: false,
@@ -216,13 +216,13 @@ export async function chat(context: Context, existing?: Schema['Session']) {
         }
         session = undefined;
         await ensureSession();
-        state.subtitle = `${workspace.branch || 'main'} · ${session!.harness}/${session!.model} · session ${session!.id}`;
+        state.subtitle = `${worktree.branch || 'main'} · ${session!.harness}/${session!.model} · session ${session!.id}`;
         add('New conversation ready.');
         return;
       }
       if (command === '/worktree') {
         add(
-          `Selected: ${workspace.name} (${workspace.id}). Detach and use macrofold worktree use NAME to switch.`,
+          `Selected: ${worktree.name} (${worktree.id}). Detach and use macrofold worktree use NAME to switch.`,
         );
         return;
       }
@@ -243,7 +243,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
           {
             run_id: entry.runId,
             session_id: session!.id,
-            workspace_id: workspace.id,
+            worktree_id: worktree.id,
             status: 'running',
             urls: { status: '', events: '', stream: '', result: '' },
           },
@@ -253,11 +253,11 @@ export async function chat(context: Context, existing?: Schema['Session']) {
       }
       const value =
         command === '/status'
-          ? await client.request('getWorkspace', { params: { path: { workspace_id: workspace.id } } })
+          ? await client.request('getWorktree', { params: { path: { worktree_id: worktree.id } } })
           : command === '/connections'
             ? await client.request('listConnections')
             : command === '/diff'
-              ? await client.request('getWorkspaceDiff', { params: { path: { workspace_id: workspace.id } } })
+              ? await client.request('getWorktreeDiff', { params: { path: { worktree_id: worktree.id } } })
               : { message: 'Unknown command. Use /help.' };
       add(JSON.stringify(value, null, 2));
       return;

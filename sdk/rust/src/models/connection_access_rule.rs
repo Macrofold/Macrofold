@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -19,12 +19,12 @@ pub struct ConnectionAccessRule {
     pub connection_id: uuid::Uuid,
     #[serde(rename = "scope")]
     pub scope: Scope,
-    #[serde(rename = "project_id", deserialize_with = "Option::deserialize")]
-    pub project_id: Option<uuid::Uuid>,
+    #[serde(rename = "workspace_id", deserialize_with = "Option::deserialize")]
+    pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "agent_id", deserialize_with = "Option::deserialize")]
     pub agent_id: Option<uuid::Uuid>,
-    #[serde(rename = "project_name", deserialize_with = "Option::deserialize")]
-    pub project_name: Option<String>,
+    #[serde(rename = "workspace_name", deserialize_with = "Option::deserialize")]
+    pub workspace_name: Option<String>,
     #[serde(rename = "agent_name", deserialize_with = "Option::deserialize")]
     pub agent_name: Option<String>,
     #[serde(rename = "unavailable")]
@@ -36,14 +36,14 @@ pub struct ConnectionAccessRule {
 }
 
 impl ConnectionAccessRule {
-    pub fn new(id: uuid::Uuid, connection_id: uuid::Uuid, scope: Scope, project_id: Option<uuid::Uuid>, agent_id: Option<uuid::Uuid>, project_name: Option<String>, agent_name: Option<String>, unavailable: bool, created_at: chrono::DateTime<chrono::FixedOffset>, updated_at: chrono::DateTime<chrono::FixedOffset>) -> ConnectionAccessRule {
+    pub fn new(id: uuid::Uuid, connection_id: uuid::Uuid, scope: Scope, workspace_id: Option<uuid::Uuid>, agent_id: Option<uuid::Uuid>, workspace_name: Option<String>, agent_name: Option<String>, unavailable: bool, created_at: chrono::DateTime<chrono::FixedOffset>, updated_at: chrono::DateTime<chrono::FixedOffset>) -> ConnectionAccessRule {
         ConnectionAccessRule {
             id,
             connection_id,
             scope,
-            project_id,
+            workspace_id,
             agent_id,
-            project_name,
+            workspace_name,
             agent_name,
             unavailable,
             created_at,
@@ -51,20 +51,20 @@ impl ConnectionAccessRule {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Scope {
-    #[serde(rename = "project")]
-    Project,
+    #[serde(rename = "workspace")]
+    Workspace,
     #[serde(rename = "agent")]
     Agent,
-    #[serde(rename = "project_agent")]
-    ProjectAgent,
+    #[serde(rename = "workspace_agent")]
+    WorkspaceAgent,
 }
 
 impl Default for Scope {
     fn default() -> Scope {
-        Self::Project
+        Self::Workspace
     }
 }
 

@@ -25,7 +25,7 @@ User totals/new/verified use human identity and current included organization me
 
 ## Query and retention policy
 
-Default interval is the last 30 days; a request can span at most 366 days. Usage dimensions include day/hour/organization/model/provider/harness/billing mode. Output is bounded to 1,000 dimensions and reports truncation explicitly. Operator SQL has a 30-second statement timeout; a timeout becomes an actionable bounded-query error. Paged raw request/account lists default to 25 and max 100. Account and project searches happen before pagination. The request table's quick filter explicitly filters loaded rows; REST supports server route/status filters.
+Default interval is the last 30 days; a request can span at most 366 days. Usage dimensions include day/hour/organization/model/provider/harness/billing mode. Output is bounded to 1,000 dimensions and reports truncation explicitly. Operator SQL has a 30-second statement timeout; a timeout becomes an actionable bounded-query error. Paged raw request/account lists default to 25 and max 100. Account and workspace searches happen before pagination. The request table's quick filter explicitly filters loaded rows; REST supports server route/status filters.
 
 Request, product-event and human-activity metadata are retained for 400 days in bounded maintenance batches. Queries reaching beyond retained request/activity facts identify the missing retention source. Run/financial identities have separate accounting retention; detailed customer traces expire at 30/90 days. Operator access audits are immutable to the runtime role and have no automatic purge. The operator must define longer statutory/business retention separately; this product does not claim an arbitrary global compliance policy.
 
@@ -49,7 +49,7 @@ Suggested agent instruction: read the operating report and growth/usage for the 
 
 ## Optional PostHog
 
-Native reporting works without an analytics vendor. Export requires `POSTHOG_ENABLED=true`, US/EU region, project token, explicit start timestamp and daily event-attempt budget. It is disabled in local mode even with a token present. The SQL outbox claims at most 100 events, consumes budget before network delivery, retries at most eight times and preserves stable event UUID/name/timestamp/actor across retries.
+Native reporting works without an analytics vendor. Export requires `POSTHOG_ENABLED=true`, US/EU region, workspace token, explicit start timestamp and daily event-attempt budget. It is disabled in local mode even with a token present. The SQL outbox claims at most 100 events, consumes budget before network delivery, retries at most eight times and preserves stable event UUID/name/timestamp/actor across retries.
 
 The projection includes only allowlisted names, pseudonymous actor ID/type, organization ID and definition version, with person-profile processing disabled. It never spreads arbitrary event JSON. No browser analytics SDK or session replay is installed. Delivery failure does not affect product mutation or native reports. PostHog deduplication is eventual and downstream destinations may observe duplicates. Operators own the vendor plan, privacy/consent requirements and downstream deletion policy. [Batch capture](https://posthog.com/docs/api/capture), [event identity/deduplication](https://posthog.com/docs/data/events).
 

@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -34,8 +34,8 @@ import java.io.File;
 import dev.macrofold.model.FileListing;
 import dev.macrofold.model.ListRunEvents200Response;
 import dev.macrofold.model.ListSessions200Response;
+import dev.macrofold.model.NativeRunAccepted;
 import dev.macrofold.model.Run;
-import dev.macrofold.model.RunAccepted;
 import dev.macrofold.model.RunResult;
 import java.net.URI;
 import java.util.UUID;
@@ -2533,10 +2533,10 @@ public class CustomerAgentsApi {
    * @param idempotencyKey  (required)
    * @param customerAgentMessage  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return RunAccepted
+   * @return NativeRunAccepted
    * @throws ApiException if fails to make API call
    */
-  public RunAccepted sendCustomerAgentMessage(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+  public NativeRunAccepted sendCustomerAgentMessage(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
     return sendCustomerAgentMessage(customerId, customerAgentId, idempotencyKey, customerAgentMessage, xOrganizationId, null);
   }
 
@@ -2549,11 +2549,11 @@ public class CustomerAgentsApi {
    * @param customerAgentMessage  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return RunAccepted
+   * @return NativeRunAccepted
    * @throws ApiException if fails to make API call
    */
-  public RunAccepted sendCustomerAgentMessage(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<RunAccepted> localVarResponse = sendCustomerAgentMessageWithHttpInfo(customerId, customerAgentId, idempotencyKey, customerAgentMessage, xOrganizationId, headers);
+  public NativeRunAccepted sendCustomerAgentMessage(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<NativeRunAccepted> localVarResponse = sendCustomerAgentMessageWithHttpInfo(customerId, customerAgentId, idempotencyKey, customerAgentMessage, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
@@ -2565,10 +2565,10 @@ public class CustomerAgentsApi {
    * @param idempotencyKey  (required)
    * @param customerAgentMessage  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;RunAccepted&gt;
+   * @return ApiResponse&lt;NativeRunAccepted&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<RunAccepted> sendCustomerAgentMessageWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+  public ApiResponse<NativeRunAccepted> sendCustomerAgentMessageWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
     return sendCustomerAgentMessageWithHttpInfo(customerId, customerAgentId, idempotencyKey, customerAgentMessage, xOrganizationId, null);
   }
 
@@ -2581,10 +2581,10 @@ public class CustomerAgentsApi {
    * @param customerAgentMessage  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;RunAccepted&gt;
+   * @return ApiResponse&lt;NativeRunAccepted&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<RunAccepted> sendCustomerAgentMessageWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  public ApiResponse<NativeRunAccepted> sendCustomerAgentMessageWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CustomerAgentMessage customerAgentMessage, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     HttpRequest.Builder localVarRequestBuilder = sendCustomerAgentMessageRequestBuilder(customerId, customerAgentId, idempotencyKey, customerAgentMessage, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
@@ -2600,7 +2600,7 @@ public class CustomerAgentsApi {
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<RunAccepted>(
+          return new ApiResponse<NativeRunAccepted>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -2610,10 +2610,10 @@ public class CustomerAgentsApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        RunAccepted responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<RunAccepted>() {});
+        NativeRunAccepted responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<NativeRunAccepted>() {});
 
 
-        return new ApiResponse<RunAccepted>(
+        return new ApiResponse<NativeRunAccepted>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue

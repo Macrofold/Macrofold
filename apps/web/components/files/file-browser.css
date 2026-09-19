@@ -1,13 +1,13 @@
-.workspace-file-browser {
+.worktree-file-browser {
   min-height: 0;
 }
-.workspace-file-browser .file-tree {
+.worktree-file-browser .file-tree {
   width: var(--file-tree-width);
   max-width: 45%;
   min-height: 0;
   border-right: 0;
 }
-.workspace-file-browser .file-tree-heading {
+.worktree-file-browser .file-tree-heading {
   flex: 0 0 auto;
   padding: 10px 12px;
   height: 49px;
@@ -20,7 +20,7 @@
   height: 27px;
   width: 27px;
 }
-.workspace-file-browser .file-search {
+.worktree-file-browser .file-search {
   display: flex;
   flex: 0 0 auto;
   margin: 9px;
@@ -29,7 +29,7 @@
   border: 1px solid var(--app-line);
   border-radius: 6px;
 }
-.workspace-file-browser .file-search input {
+.worktree-file-browser .file-search input {
   padding: 0;
   min-height: 0;
   border-radius: 0;
@@ -58,14 +58,14 @@
   background: var(--app-accent-wash);
   color: var(--app-accent);
 }
-.workspace-file-browser .file-tree-footer {
+.worktree-file-browser .file-tree-footer {
   flex: 0 0 auto;
   padding: 7px 10px;
   font-size: 10px;
   gap: 6px;
   white-space: nowrap;
 }
-.workspace-file-browser .file-tree-footer .icon-button {
+.worktree-file-browser .file-tree-footer .icon-button {
   margin-left: auto;
   width: 25px;
   height: 25px;
@@ -79,12 +79,12 @@
 .file-resize-handle::after {
   inset: 0 2px;
 }
-.workspace-file-browser .file-editor {
+.worktree-file-browser .file-editor {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-.workspace-file-browser .editor-bar {
+.worktree-file-browser .editor-bar {
   min-height: 49px;
   height: auto;
   flex: 0 0 auto;
@@ -159,14 +159,14 @@
 .file-viewer-content .cm-scroller {
   overflow: auto;
 }
-.workspace-file-browser .editor-footer {
+.worktree-file-browser .editor-footer {
   flex: 0 0 auto;
   min-height: 33px;
   padding: 8px 12px;
   gap: 10px;
   font-size: 10px;
 }
-.workspace-file-browser .file-save-status {
+.worktree-file-browser .file-save-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -215,22 +215,22 @@
 .directory-entries button > svg {
   flex-shrink: 0;
 }
-.workspace-file-browser .empty {
+.worktree-file-browser .empty {
   padding: 36px 24px;
 }
 @media (max-width: 1000px) {
   .file-view-switcher button svg {
     display: none;
   }
-  .workspace-file-browser .editor-footer > span:last-child {
+  .worktree-file-browser .editor-footer > span:last-child {
     display: none;
   }
 }
 @media (max-width: 760px) {
-  .workspace-file-browser {
+  .worktree-file-browser {
     flex-direction: column;
   }
-  .workspace-file-browser .file-tree {
+  .worktree-file-browser .file-tree {
     flex: 0 0 190px;
     width: 100%;
     max-width: none;
@@ -238,21 +238,21 @@
     overflow: hidden;
     border-bottom: 1px solid var(--app-line);
   }
-  .workspace-file-browser .file-tree-heading {
+  .worktree-file-browser .file-tree-heading {
     height: 38px;
   }
-  .workspace-file-browser .file-search {
+  .worktree-file-browser .file-search {
     margin: 5px 9px;
     padding: 5px 8px;
   }
-  .workspace-file-browser .file-tree-footer,
+  .worktree-file-browser .file-tree-footer,
   .file-resize-handle {
     display: none;
   }
-  .workspace-file-browser .file-editor {
+  .worktree-file-browser .file-editor {
     flex: 1 1 0;
   }
-  .workspace-file-browser .editor-bar {
+  .worktree-file-browser .editor-bar {
     padding: 6px 8px;
     gap: 5px;
   }

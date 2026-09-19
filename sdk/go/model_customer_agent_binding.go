@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -27,9 +27,9 @@ type CustomerAgentBinding struct {
 	CustomerId string `json:"customer_id"`
 	Key string `json:"key"`
 	Name string `json:"name"`
-	ProjectId string `json:"project_id"`
-	AgentId string `json:"agent_id"`
 	WorkspaceId string `json:"workspace_id"`
+	AgentId string `json:"agent_id"`
+	WorktreeId string `json:"worktree_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -39,16 +39,16 @@ type _CustomerAgentBinding CustomerAgentBinding
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewCustomerAgentBinding(id string, integrationPath string, customerId string, key string, name string, projectId string, agentId string, workspaceId string, createdAt time.Time) *CustomerAgentBinding {
+func NewCustomerAgentBinding(id string, integrationPath string, customerId string, key string, name string, workspaceId string, agentId string, worktreeId string, createdAt time.Time) *CustomerAgentBinding {
 	this := CustomerAgentBinding{}
 	this.Id = id
 	this.IntegrationPath = integrationPath
 	this.CustomerId = customerId
 	this.Key = key
 	this.Name = name
-	this.ProjectId = projectId
-	this.AgentId = agentId
 	this.WorkspaceId = workspaceId
+	this.AgentId = agentId
+	this.WorktreeId = worktreeId
 	this.CreatedAt = createdAt
 	return &this
 }
@@ -181,28 +181,28 @@ func (o *CustomerAgentBinding) SetName(v string) {
 	o.Name = v
 }
 
-// GetProjectId returns the ProjectId field value
-func (o *CustomerAgentBinding) GetProjectId() string {
+// GetWorkspaceId returns the WorkspaceId field value
+func (o *CustomerAgentBinding) GetWorkspaceId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.ProjectId
+	return o.WorkspaceId
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
 // and a boolean to check if the value has been set.
-func (o *CustomerAgentBinding) GetProjectIdOk() (*string, bool) {
+func (o *CustomerAgentBinding) GetWorkspaceIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.ProjectId, true
+	return &o.WorkspaceId, true
 }
 
-// SetProjectId sets field value
-func (o *CustomerAgentBinding) SetProjectId(v string) {
-	o.ProjectId = v
+// SetWorkspaceId sets field value
+func (o *CustomerAgentBinding) SetWorkspaceId(v string) {
+	o.WorkspaceId = v
 }
 
 // GetAgentId returns the AgentId field value
@@ -229,28 +229,28 @@ func (o *CustomerAgentBinding) SetAgentId(v string) {
 	o.AgentId = v
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *CustomerAgentBinding) GetWorkspaceId() string {
+// GetWorktreeId returns the WorktreeId field value
+func (o *CustomerAgentBinding) GetWorktreeId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *CustomerAgentBinding) GetWorkspaceIdOk() (*string, bool) {
+func (o *CustomerAgentBinding) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return &o.WorktreeId, true
 }
 
-// SetWorkspaceId sets field value
-func (o *CustomerAgentBinding) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *CustomerAgentBinding) SetWorktreeId(v string) {
+	o.WorktreeId = v
 }
 
 // GetCreatedAt returns the CreatedAt field value
@@ -292,9 +292,9 @@ func (o CustomerAgentBinding) ToMap() (map[string]interface{}, error) {
 	toSerialize["customer_id"] = o.CustomerId
 	toSerialize["key"] = o.Key
 	toSerialize["name"] = o.Name
-	toSerialize["project_id"] = o.ProjectId
-	toSerialize["agent_id"] = o.AgentId
 	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["agent_id"] = o.AgentId
+	toSerialize["worktree_id"] = o.WorktreeId
 	toSerialize["created_at"] = o.CreatedAt
 	return toSerialize, nil
 }
@@ -309,9 +309,9 @@ func (o *CustomerAgentBinding) UnmarshalJSON(data []byte) (err error) {
 		"customer_id",
 		"key",
 		"name",
-		"project_id",
-		"agent_id",
 		"workspace_id",
+		"agent_id",
+		"worktree_id",
 		"created_at",
 	}
 

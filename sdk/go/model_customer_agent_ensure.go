@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -19,7 +19,7 @@ import (
 // checks if the CustomerAgentEnsure type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &CustomerAgentEnsure{}
 
-// CustomerAgentEnsure Integration path only. Creates one project, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts.
+// CustomerAgentEnsure Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts.
 type CustomerAgentEnsure struct {
 	Key string `json:"key"`
 	Name string `json:"name"`

@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -425,14 +425,14 @@ public class AgentsApi {
    * @param agentId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param includeConnections  (optional, default to false)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param connectionsLimit  (optional, default to 25)
    * @param connectionsCursor  (optional)
    * @return Agent
    * @throws ApiException if fails to make API call
    */
-  public Agent getAgent(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
-    return getAgent(agentId, xOrganizationId, includeConnections, projectId, connectionsLimit, connectionsCursor, null);
+  public Agent getAgent(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
+    return getAgent(agentId, xOrganizationId, includeConnections, workspaceId, connectionsLimit, connectionsCursor, null);
   }
 
   /**
@@ -441,15 +441,15 @@ public class AgentsApi {
    * @param agentId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param includeConnections  (optional, default to false)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param connectionsLimit  (optional, default to 25)
    * @param connectionsCursor  (optional)
    * @param headers Optional headers to include in the request
    * @return Agent
    * @throws ApiException if fails to make API call
    */
-  public Agent getAgent(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
-    ApiResponse<Agent> localVarResponse = getAgentWithHttpInfo(agentId, xOrganizationId, includeConnections, projectId, connectionsLimit, connectionsCursor, headers);
+  public Agent getAgent(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
+    ApiResponse<Agent> localVarResponse = getAgentWithHttpInfo(agentId, xOrganizationId, includeConnections, workspaceId, connectionsLimit, connectionsCursor, headers);
     return localVarResponse.getData();
   }
 
@@ -459,14 +459,14 @@ public class AgentsApi {
    * @param agentId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param includeConnections  (optional, default to false)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param connectionsLimit  (optional, default to 25)
    * @param connectionsCursor  (optional)
    * @return ApiResponse&lt;Agent&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Agent> getAgentWithHttpInfo(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
-    return getAgentWithHttpInfo(agentId, xOrganizationId, includeConnections, projectId, connectionsLimit, connectionsCursor, null);
+  public ApiResponse<Agent> getAgentWithHttpInfo(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
+    return getAgentWithHttpInfo(agentId, xOrganizationId, includeConnections, workspaceId, connectionsLimit, connectionsCursor, null);
   }
 
   /**
@@ -475,15 +475,15 @@ public class AgentsApi {
    * @param agentId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param includeConnections  (optional, default to false)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param connectionsLimit  (optional, default to 25)
    * @param connectionsCursor  (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;Agent&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Agent> getAgentWithHttpInfo(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getAgentRequestBuilder(agentId, xOrganizationId, includeConnections, projectId, connectionsLimit, connectionsCursor, headers);
+  public ApiResponse<Agent> getAgentWithHttpInfo(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getAgentRequestBuilder(agentId, xOrganizationId, includeConnections, workspaceId, connectionsLimit, connectionsCursor, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -530,7 +530,7 @@ public class AgentsApi {
     }
   }
 
-  private HttpRequest.Builder getAgentRequestBuilder(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder getAgentRequestBuilder(@javax.annotation.Nonnull UUID agentId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'agentId' is set
     if (agentId == null) {
       throw new ApiException(400, "Missing the required parameter 'agentId' when calling getAgent");
@@ -546,8 +546,8 @@ public class AgentsApi {
     String localVarQueryParameterBaseName;
     localVarQueryParameterBaseName = "include_connections";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("include_connections", includeConnections));
-    localVarQueryParameterBaseName = "project_id";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("project_id", projectId));
+    localVarQueryParameterBaseName = "workspace_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("workspace_id", workspaceId));
     localVarQueryParameterBaseName = "connections_limit";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("connections_limit", connectionsLimit));
     localVarQueryParameterBaseName = "connections_cursor";

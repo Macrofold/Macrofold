@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -23,7 +23,7 @@ var _ MappedNullable = &Session{}
 // Session struct for Session
 type Session struct {
 	Id string `json:"id"`
-	WorkspaceId string `json:"workspace_id"`
+	WorktreeId string `json:"worktree_id"`
 	Harness string `json:"harness"`
 	Model string `json:"model"`
 	CreatedAt time.Time `json:"created_at"`
@@ -43,10 +43,10 @@ type _Session Session
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSession(id string, workspaceId string, harness string, model string, createdAt time.Time) *Session {
+func NewSession(id string, worktreeId string, harness string, model string, createdAt time.Time) *Session {
 	this := Session{}
 	this.Id = id
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	this.Harness = harness
 	this.Model = model
 	this.CreatedAt = createdAt
@@ -85,28 +85,28 @@ func (o *Session) SetId(v string) {
 	o.Id = v
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *Session) GetWorkspaceId() string {
+// GetWorktreeId returns the WorktreeId field value
+func (o *Session) GetWorktreeId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *Session) GetWorkspaceIdOk() (*string, bool) {
+func (o *Session) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return &o.WorktreeId, true
 }
 
-// SetWorkspaceId sets field value
-func (o *Session) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *Session) SetWorktreeId(v string) {
+	o.WorktreeId = v
 }
 
 // GetHarness returns the Harness field value
@@ -404,7 +404,7 @@ func (o Session) MarshalJSON() ([]byte, error) {
 func (o Session) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["id"] = o.Id
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["worktree_id"] = o.WorktreeId
 	toSerialize["harness"] = o.Harness
 	toSerialize["model"] = o.Model
 	toSerialize["created_at"] = o.CreatedAt
@@ -435,7 +435,7 @@ func (o *Session) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"id",
-		"workspace_id",
+		"worktree_id",
 		"harness",
 		"model",
 		"created_at",

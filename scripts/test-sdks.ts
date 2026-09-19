@@ -6,6 +6,7 @@ import path from 'node:path';
 import { withFixtureDatabase } from './fixture-database';
 import { background, command, ready } from './coverage/processes';
 import { Client } from '../sdk/typescript/src/client';
+import pg from 'pg';
 
 const reservation = createServer().listen(0, '127.0.0.1');
 await once(reservation, 'listening');
@@ -34,20 +35,20 @@ await withFixtureDatabase(async (env) => {
   try {
     await ready(env.APP_ORIGIN!, server.child);
     const client = new Client({ baseURL: env.APP_ORIGIN!, apiKey: seed.api_key });
-    const project = await client.projects.create({ name: 'Shared file-read fixture' });
-    const workspace = project.default_workspace_id;
-    assert(workspace, 'The fixture project must have a default workspace.');
+    const workspace = await client.workspaces.create({ name: 'Shared file-read fixture' });
+    const worktree = workspace.default_worktree_id;
+    assert(worktree, 'The fixture workspace must have a default worktree.');
     for (const [path, content] of [
       ['notes/日本語 + #?.bin', new Uint8Array([0, 255, 10, 128])],
       ['empty.txt', new Uint8Array()],
     ] as const) {
-      await client.workspaces.writeFile(workspace, {
+      await client.worktrees.writeFile(worktree, {
         path,
         content,
-        ifMatch: (await client.workspaces.get(workspace)).revision,
+        ifMatch: (await client.worktrees.get(worktree)).revision,
       });
     }
-    fixture.MACROFOLD_FIXTURE_FILES_WORKSPACE = workspace;
+    fixture.MACROFOLD_FIXTURE_FILES_WORKTREE = worktree;
     const customer = await client.customerAgents.ensure('customer / 日本語', {
       key: 'assistant',
       name: 'SDK customer fixture',
@@ -58,8 +59,14 @@ await withFixtureDatabase(async (env) => {
         limits: { max_cost_micro_usd: '2000000' },
       },
     });
+    await client.worktrees.writeFile(customer.worktree_id, {
+      path: 'brief.md',
+      content: new TextEncoder().encode('Customer document fixture'),
+      ifMatch: (await client.worktrees.get(customer.worktree_id)).revision,
+    });
     const message = await client.customerAgents.sendMessage(customer.customer_id, customer.id, {
       prompt: 'Verify the optional customer-agent path.',
+      attachments: ['brief.md'],
     });
     await client.customerAgents.waitRun(customer.customer_id, customer.id, message.run_id);
     fixture.MACROFOLD_FIXTURE_CUSTOMER_AGENT = customer.id;
@@ -83,6 +90,23 @@ await withFixtureDatabase(async (env) => {
       fixture,
     );
     await command(['exec', 'mvn', '-B', '-q', '-f', 'sdk/java/pom.xml', 'verify'], fixture);
+  } catch (error) {
+    // Retain content-free failure reasons before the disposable database is removed.
+    const database = new pg.Client({ connectionString: env.MIGRATION_DATABASE_URL });
+    try {
+      await database.connect();
+      console.error(
+        'Fixture run failures:',
+        (
+          await database.query(
+            "SELECT id,status,result->>'failure_code' AS failure_code FROM runs WHERE status='failed'",
+          )
+        ).rows,
+      );
+    } finally {
+      await database.end();
+    }
+    throw error;
   } finally {
     await Promise.all([server.stop(), worker.stop()]);
   }

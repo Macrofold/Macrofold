@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -66,6 +66,8 @@ type APIClient struct {
 
 	HarnessesAPI *HarnessesAPIService
 
+	InferencesAPI *InferencesAPIService
+
 	IntegrationsAPI *IntegrationsAPIService
 
 	MeAPI *MeAPIService
@@ -78,15 +80,17 @@ type APIClient struct {
 
 	OrganizationsAPI *OrganizationsAPIService
 
-	ProjectsAPI *ProjectsAPIService
-
 	RequestsAPI *RequestsAPIService
 
 	RunsAPI *RunsAPIService
 
+	SandboxesAPI *SandboxesAPIService
+
 	SessionsAPI *SessionsAPIService
 
 	SlackConnectionsAPI *SlackConnectionsAPIService
+
+	TasksAPI *TasksAPIService
 
 	TransfersAPI *TransfersAPIService
 
@@ -99,6 +103,8 @@ type APIClient struct {
 	WebhookEndpointsAPI *WebhookEndpointsAPIService
 
 	WorkspacesAPI *WorkspacesAPIService
+
+	WorktreesAPI *WorktreesAPIService
 }
 
 type service struct {
@@ -125,23 +131,26 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.ConnectionsAPI = (*ConnectionsAPIService)(&c.common)
 	c.CustomerAgentsAPI = (*CustomerAgentsAPIService)(&c.common)
 	c.HarnessesAPI = (*HarnessesAPIService)(&c.common)
+	c.InferencesAPI = (*InferencesAPIService)(&c.common)
 	c.IntegrationsAPI = (*IntegrationsAPIService)(&c.common)
 	c.MeAPI = (*MeAPIService)(&c.common)
 	c.ModelsAPI = (*ModelsAPIService)(&c.common)
 	c.OperationsAPI = (*OperationsAPIService)(&c.common)
 	c.OperatorAPI = (*OperatorAPIService)(&c.common)
 	c.OrganizationsAPI = (*OrganizationsAPIService)(&c.common)
-	c.ProjectsAPI = (*ProjectsAPIService)(&c.common)
 	c.RequestsAPI = (*RequestsAPIService)(&c.common)
 	c.RunsAPI = (*RunsAPIService)(&c.common)
+	c.SandboxesAPI = (*SandboxesAPIService)(&c.common)
 	c.SessionsAPI = (*SessionsAPIService)(&c.common)
 	c.SlackConnectionsAPI = (*SlackConnectionsAPIService)(&c.common)
+	c.TasksAPI = (*TasksAPIService)(&c.common)
 	c.TransfersAPI = (*TransfersAPIService)(&c.common)
 	c.TriggersAPI = (*TriggersAPIService)(&c.common)
 	c.UsageAPI = (*UsageAPIService)(&c.common)
 	c.WebhookDeliveriesAPI = (*WebhookDeliveriesAPIService)(&c.common)
 	c.WebhookEndpointsAPI = (*WebhookEndpointsAPIService)(&c.common)
 	c.WorkspacesAPI = (*WorkspacesAPIService)(&c.common)
+	c.WorktreesAPI = (*WorktreesAPIService)(&c.common)
 
 	return c
 }

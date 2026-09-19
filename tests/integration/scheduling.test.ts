@@ -1,9 +1,9 @@
 import { afterAll, afterEach, expect, it } from 'vitest';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
-import { admitRun, getRun, cancelRun, presentRuns } from '../../packages/core/src/runs';
+import { admitRun, getNativeRun as getRun, cancelRun, presentRuns } from '../../packages/core/src/runs';
 import { claimRun, maintainRuns } from '../../packages/core/src/engine';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import { plans, getExecutionPolicy } from '../../packages/core/src/plans';
 import { updateExecutionPolicy } from '../../packages/core/src/organizations';
@@ -26,10 +26,10 @@ async function account(plan = 'payg') {
 }
 async function submit(a: Account, input: Partial<Parameters<typeof admitRun>[2]> = {}) {
   return transaction(a.p.organizationId, async (tx) => {
-    const project = await resources.create(tx, 'projects', a.p.organizationId, { name: 'Scheduler fixture' });
-    const ws = await createWorkspace(tx, a.p, project.id, { name: 'main', branch: 'main' });
+    const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, { name: 'Scheduler fixture' });
+    const ws = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
     return admitRun(tx, a.p, {
-      workspace_id: String((ws.result as { workspace_id: string }).workspace_id),
+      worktree_id: String((ws.result as { worktree_id: string }).worktree_id),
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
@@ -101,7 +101,7 @@ it.each(plans())('$name enforces its runtime ceiling and exposes configurable ac
   });
 });
 
-it('keeps workspace ordering ahead of interactive priority, and explains each capacity constraint', async () => {
+it('keeps worktree ordering ahead of interactive priority, and explains each capacity constraint', async () => {
   const a = await account(),
     b = await account();
   await transaction(a.p.organizationId, (tx) => updateExecutionPolicy(tx, a.p, { concurrency_limit: 1 }));
@@ -117,7 +117,7 @@ it('keeps workspace ordering ahead of interactive priority, and explains each ca
   const independent = await submit(a);
   const read = (org: string, run: string) =>
     transaction(org, async (tx) => (await presentRuns(tx, [await getRun(tx, run)]))[0]);
-  expect((await read(a.p.organizationId, next.run_id)).waiting_reason).toBe('earlier_workspace_work');
+  expect((await read(a.p.organizationId, next.run_id)).waiting_reason).toBe('earlier_worktree_work');
   expect(await claimRun(a.p.organizationId, next.run_id)).toBeNull();
   const started = await claimRun(a.p.organizationId, first.run_id);
   expect(started?.deadline!.getTime()! - started?.started_at!.getTime()!).toBe(900000);
@@ -133,7 +133,7 @@ it('keeps workspace ordering ahead of interactive priority, and explains each ca
   const neighbor = await submit(b);
   expect((await read(b.p.organizationId, neighbor.run_id)).waiting_reason).toBe('global_capacity');
   await retire(a, first.run_id);
-  expect(await claimRun(b.p.organizationId, neighbor.run_id)).toBeNull(); // interactive workspace follow-up wins now
+  expect(await claimRun(b.p.organizationId, neighbor.run_id)).toBeNull(); // interactive worktree follow-up wins now
   expect(await claimRun(a.p.organizationId, next.run_id)).not.toBeNull();
 });
 
@@ -275,7 +275,7 @@ it('authorizes execution policy mutations and validates deadline input through t
   ).rejects.toMatchObject({ status: 403 });
   await expect(
     transaction(a.p.organizationId, (tx) =>
-      updateExecutionPolicy(tx, { ...a.p, projectIds: [id()] }, { concurrency_limit: 1 }),
+      updateExecutionPolicy(tx, { ...a.p, workspaceIds: [id()] }, { concurrency_limit: 1 }),
     ),
   ).rejects.toMatchObject({ status: 403 });
 });
@@ -286,7 +286,7 @@ it('cloud retries preserve waiting and explicitly finish expiry before touching 
   const queued = await transaction(a.p.organizationId, (tx) =>
     admitRun(tx, a.p, {
       session_id: first.session_id,
-      prompt: 'Wait for workspace',
+      prompt: 'Wait for worktree',
       queue_if_busy: true,
     }),
   );

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -12,30 +12,30 @@ package macrofold
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // checks if the WorkspaceCreate type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &WorkspaceCreate{}
 
-// WorkspaceCreate Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder.
+// WorkspaceCreate struct for WorkspaceCreate
 type WorkspaceCreate struct {
-	// Optional. Leave empty for smart naming.
-	Name *string `json:"name,omitempty"`
-	CheckpointId *string `json:"checkpoint_id,omitempty"`
-	// Optional. Leave empty for smart naming.
-	Branch *string `json:"branch,omitempty"`
-	Source *WorkspaceSource `json:"source,omitempty"`
-	// Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
-	BranchMode *string `json:"branch_mode,omitempty"`
+	Name string `json:"name"`
+	Persistence *string `json:"persistence,omitempty"`
+	Github *WorkspaceCreateGithub `json:"github,omitempty"`
 	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _WorkspaceCreate WorkspaceCreate
 
 // NewWorkspaceCreate instantiates a new WorkspaceCreate object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewWorkspaceCreate() *WorkspaceCreate {
+func NewWorkspaceCreate(name string) *WorkspaceCreate {
 	this := WorkspaceCreate{}
+	this.Name = name
 	return &this
 }
 
@@ -47,164 +47,92 @@ func NewWorkspaceCreateWithDefaults() *WorkspaceCreate {
 	return &this
 }
 
-// GetName returns the Name field value if set, zero value otherwise.
+// GetName returns the Name field value
 func (o *WorkspaceCreate) GetName() string {
-	if o == nil || IsNil(o.Name) {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Name
+
+	return o.Name
 }
 
-// GetNameOk returns a tuple with the Name field value if set, nil otherwise
+// GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
 func (o *WorkspaceCreate) GetNameOk() (*string, bool) {
-	if o == nil || IsNil(o.Name) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Name, true
+	return &o.Name, true
 }
 
-// HasName returns a boolean if a field has been set.
-func (o *WorkspaceCreate) HasName() bool {
-	if o != nil && !IsNil(o.Name) {
-		return true
-	}
-
-	return false
-}
-
-// SetName gets a reference to the given string and assigns it to the Name field.
+// SetName sets field value
 func (o *WorkspaceCreate) SetName(v string) {
-	o.Name = &v
+	o.Name = v
 }
 
-// GetCheckpointId returns the CheckpointId field value if set, zero value otherwise.
-func (o *WorkspaceCreate) GetCheckpointId() string {
-	if o == nil || IsNil(o.CheckpointId) {
+// GetPersistence returns the Persistence field value if set, zero value otherwise.
+func (o *WorkspaceCreate) GetPersistence() string {
+	if o == nil || IsNil(o.Persistence) {
 		var ret string
 		return ret
 	}
-	return *o.CheckpointId
+	return *o.Persistence
 }
 
-// GetCheckpointIdOk returns a tuple with the CheckpointId field value if set, nil otherwise
+// GetPersistenceOk returns a tuple with the Persistence field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *WorkspaceCreate) GetCheckpointIdOk() (*string, bool) {
-	if o == nil || IsNil(o.CheckpointId) {
+func (o *WorkspaceCreate) GetPersistenceOk() (*string, bool) {
+	if o == nil || IsNil(o.Persistence) {
 		return nil, false
 	}
-	return o.CheckpointId, true
+	return o.Persistence, true
 }
 
-// HasCheckpointId returns a boolean if a field has been set.
-func (o *WorkspaceCreate) HasCheckpointId() bool {
-	if o != nil && !IsNil(o.CheckpointId) {
+// HasPersistence returns a boolean if a field has been set.
+func (o *WorkspaceCreate) HasPersistence() bool {
+	if o != nil && !IsNil(o.Persistence) {
 		return true
 	}
 
 	return false
 }
 
-// SetCheckpointId gets a reference to the given string and assigns it to the CheckpointId field.
-func (o *WorkspaceCreate) SetCheckpointId(v string) {
-	o.CheckpointId = &v
+// SetPersistence gets a reference to the given string and assigns it to the Persistence field.
+func (o *WorkspaceCreate) SetPersistence(v string) {
+	o.Persistence = &v
 }
 
-// GetBranch returns the Branch field value if set, zero value otherwise.
-func (o *WorkspaceCreate) GetBranch() string {
-	if o == nil || IsNil(o.Branch) {
-		var ret string
+// GetGithub returns the Github field value if set, zero value otherwise.
+func (o *WorkspaceCreate) GetGithub() WorkspaceCreateGithub {
+	if o == nil || IsNil(o.Github) {
+		var ret WorkspaceCreateGithub
 		return ret
 	}
-	return *o.Branch
+	return *o.Github
 }
 
-// GetBranchOk returns a tuple with the Branch field value if set, nil otherwise
+// GetGithubOk returns a tuple with the Github field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *WorkspaceCreate) GetBranchOk() (*string, bool) {
-	if o == nil || IsNil(o.Branch) {
+func (o *WorkspaceCreate) GetGithubOk() (*WorkspaceCreateGithub, bool) {
+	if o == nil || IsNil(o.Github) {
 		return nil, false
 	}
-	return o.Branch, true
+	return o.Github, true
 }
 
-// HasBranch returns a boolean if a field has been set.
-func (o *WorkspaceCreate) HasBranch() bool {
-	if o != nil && !IsNil(o.Branch) {
+// HasGithub returns a boolean if a field has been set.
+func (o *WorkspaceCreate) HasGithub() bool {
+	if o != nil && !IsNil(o.Github) {
 		return true
 	}
 
 	return false
 }
 
-// SetBranch gets a reference to the given string and assigns it to the Branch field.
-func (o *WorkspaceCreate) SetBranch(v string) {
-	o.Branch = &v
-}
-
-// GetSource returns the Source field value if set, zero value otherwise.
-func (o *WorkspaceCreate) GetSource() WorkspaceSource {
-	if o == nil || IsNil(o.Source) {
-		var ret WorkspaceSource
-		return ret
-	}
-	return *o.Source
-}
-
-// GetSourceOk returns a tuple with the Source field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *WorkspaceCreate) GetSourceOk() (*WorkspaceSource, bool) {
-	if o == nil || IsNil(o.Source) {
-		return nil, false
-	}
-	return o.Source, true
-}
-
-// HasSource returns a boolean if a field has been set.
-func (o *WorkspaceCreate) HasSource() bool {
-	if o != nil && !IsNil(o.Source) {
-		return true
-	}
-
-	return false
-}
-
-// SetSource gets a reference to the given WorkspaceSource and assigns it to the Source field.
-func (o *WorkspaceCreate) SetSource(v WorkspaceSource) {
-	o.Source = &v
-}
-
-// GetBranchMode returns the BranchMode field value if set, zero value otherwise.
-func (o *WorkspaceCreate) GetBranchMode() string {
-	if o == nil || IsNil(o.BranchMode) {
-		var ret string
-		return ret
-	}
-	return *o.BranchMode
-}
-
-// GetBranchModeOk returns a tuple with the BranchMode field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *WorkspaceCreate) GetBranchModeOk() (*string, bool) {
-	if o == nil || IsNil(o.BranchMode) {
-		return nil, false
-	}
-	return o.BranchMode, true
-}
-
-// HasBranchMode returns a boolean if a field has been set.
-func (o *WorkspaceCreate) HasBranchMode() bool {
-	if o != nil && !IsNil(o.BranchMode) {
-		return true
-	}
-
-	return false
-}
-
-// SetBranchMode gets a reference to the given string and assigns it to the BranchMode field.
-func (o *WorkspaceCreate) SetBranchMode(v string) {
-	o.BranchMode = &v
+// SetGithub gets a reference to the given WorkspaceCreateGithub and assigns it to the Github field.
+func (o *WorkspaceCreate) SetGithub(v WorkspaceCreateGithub) {
+	o.Github = &v
 }
 
 // GetPermissions returns the Permissions field value if set, zero value otherwise.
@@ -249,25 +177,67 @@ func (o WorkspaceCreate) MarshalJSON() ([]byte, error) {
 
 func (o WorkspaceCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.Name) {
-		toSerialize["name"] = o.Name
+	toSerialize["name"] = o.Name
+	if !IsNil(o.Persistence) {
+		toSerialize["persistence"] = o.Persistence
 	}
-	if !IsNil(o.CheckpointId) {
-		toSerialize["checkpoint_id"] = o.CheckpointId
-	}
-	if !IsNil(o.Branch) {
-		toSerialize["branch"] = o.Branch
-	}
-	if !IsNil(o.Source) {
-		toSerialize["source"] = o.Source
-	}
-	if !IsNil(o.BranchMode) {
-		toSerialize["branch_mode"] = o.BranchMode
+	if !IsNil(o.Github) {
+		toSerialize["github"] = o.Github
 	}
 	if !IsNil(o.Permissions) {
 		toSerialize["permissions"] = o.Permissions
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *WorkspaceCreate) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varWorkspaceCreate := _WorkspaceCreate{}
+
+	err = json.Unmarshal(data, &varWorkspaceCreate)
+
+	if err != nil {
+		return err
+	}
+
+	*o = WorkspaceCreate(varWorkspaceCreate)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "persistence")
+		delete(additionalProperties, "github")
+		delete(additionalProperties, "permissions")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableWorkspaceCreate struct {

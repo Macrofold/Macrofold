@@ -1,4 +1,4 @@
-/** Presentation choices only; every study uses the same public API and project model. */
+/** Presentation choices only; every study uses the same public API and workspace model. */
 export const studyBrand = 'Macrofold';
 export const headline = 'Stand on the Shoulders of Giants.';
 export const subtitle =
@@ -11,7 +11,7 @@ export const homepages = [
     hero: 'split',
     story: 'scroll',
     diagram: 'branches',
-    description: 'A quiet split hero. One evolving project diagram follows the five chapters.',
+    description: 'A quiet split hero. One evolving workspace diagram follows the five chapters.',
     introduction: 'Everything you like about local agents. Available to your product.',
     references: 'Resend · Neon · LiveKit',
     accent: 'ice',
@@ -22,7 +22,7 @@ export const homepages = [
     hero: 'cinematic',
     story: 'scroll',
     diagram: 'layers',
-    description: 'A full-bleed particle field and a luminous, layered workspace narrative.',
+    description: 'A full-bleed particle field and a luminous, layered worktree narrative.',
     introduction: 'A small request. A much bigger working environment.',
     references: 'Inngest · Modal · Exa',
     accent: 'violet',
@@ -79,7 +79,7 @@ export const homepages = [
     diagram: 'layers',
     description:
       'Offset composition and alternating dimensional diagrams, presented as a field of capabilities.',
-    introduction: 'Your project is the starting point. Keep building from there.',
+    introduction: 'Your workspace is the starting point. Keep building from there.',
     references: 'Exa · Supabase · Pinecone',
     accent: 'violet',
   },
@@ -90,7 +90,7 @@ export const homepages = [
     story: 'tabs',
     diagram: 'lanes',
     description: 'A product-focused split hero and a routing view you can explore by interface.',
-    introduction: 'One project. As many ways in as your product needs.',
+    introduction: 'One workspace. As many ways in as your product needs.',
     references: 'Composio · Merge · LiveKit',
     accent: 'green',
   },
@@ -101,7 +101,7 @@ export const homepages = [
     story: 'rail',
     diagram: 'circuit',
     description: 'A typographic opening and a deliberate, step-by-step product presentation.',
-    introduction: 'Follow one project from its first file to its next task.',
+    introduction: 'Follow one workspace from its first file to its next task.',
     references: 'Firecrawl · Inngest · Replicate',
     accent: 'pearl',
   },
@@ -111,7 +111,7 @@ export const homepages = [
     hero: 'cinematic',
     story: 'scroll',
     diagram: 'terminal',
-    description: 'The expansive Swarm hero gives way to a precise, scroll-linked developer workspace.',
+    description: 'The expansive Swarm hero gives way to a precise, scroll-linked developer worktree.',
     introduction: 'The complete working context, behind one API.',
     references: 'Resend · WorkOS · OpenAI',
     accent: 'ice',
@@ -122,22 +122,22 @@ export type DiagramStyle = Homepage['diagram'];
 
 export const stages = [
   {
-    id: 'project',
-    label: 'Project',
+    id: 'workspace',
+    label: 'Workspace',
     title: 'Start with a directory. Just like you do locally.',
-    body: 'Source code, instructions, notes, and artifacts live together in a project. Give the agent a real working folder, with the files it needs to make progress.',
-    detail: 'A project groups your hosted workspaces.',
-    local: 'Your local project directory',
-    cloud: 'A project your application can address',
+    body: 'Source code, instructions, notes, and artifacts live together in a workspace. Give the agent a real working folder, with the files it needs to make progress.',
+    detail: 'A workspace groups your hosted worktrees.',
+    local: 'Your local workspace directory',
+    cloud: 'A workspace your application can address',
     link: '/docs/workspaces',
   },
   {
     id: 'worktrees',
     label: 'Worktrees',
     title: 'Let independent tasks work side by side.',
-    body: 'Fan the project out into separate worktrees. Put Codex on one task, Claude Code on another, and OpenCode on a third. Each works in its own sandbox and branch.',
+    body: 'Fan the workspace out into separate worktrees. Put Codex on one task, Claude Code on another, and OpenCode on a third. Each works in its own sandbox and branch.',
     detail:
-      'One active writer per workspace. Parallel work uses independent workspaces, within your account limits.',
+      'One active writer per worktree. Parallel work uses independent worktrees, within your account limits.',
     local: 'Separate branches and working folders',
     cloud: 'Independent agent executions',
     link: '/docs/workspaces',
@@ -150,13 +150,13 @@ export const stages = [
     detail:
       'Verified checkpoints preserve files. GitHub sync is optional; conflicts stay visible and never force a push.',
     local: 'Files on disk and Git history',
-    cloud: 'Persistent workspaces and optional GitHub sync',
+    cloud: 'Persistent worktrees and optional GitHub sync',
     link: '/docs/workspaces',
   },
   {
     id: 'interfaces',
     label: 'API, CLI & UI',
-    title: 'The same project, wherever you work.',
+    title: 'The same workspace, wherever you work.',
     body: 'Start from your application. Check in from your terminal. Review files, output, and run history in the dashboard. All three interfaces address the same hosted work.',
     detail: 'Linking the CLI selects remote context; it does not silently upload your local files.',
     local: 'A terminal open beside your editor',
@@ -167,9 +167,9 @@ export const stages = [
     id: 'routing',
     label: 'In your product',
     title: 'Put each agent exactly where it is useful.',
-    body: 'Let a backend request target one workspace and a CLI command target another. Inspect either from the UI. Stream progress, collect the result, and send the next task.',
+    body: 'Let a backend request target one worktree and a CLI command target another. Inspect either from the UI. Stream progress, collect the result, and send the next task.',
     detail:
-      'Requests choose an authorized project, workspace, or session. Interfaces do not bypass workspace serialization.',
+      'Requests choose an authorized workspace, worktree, or session. Interfaces do not bypass worktree serialization.',
     local: 'You choose which agent to talk to',
     cloud: 'Your product can make that choice too',
     link: '/docs/api/quickstart',

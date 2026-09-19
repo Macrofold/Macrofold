@@ -8,9 +8,31 @@ Claude Code still uses one official Agent SDK adapter. Named subscription config
 
 The database admits a run and commits an outbox record in the same transaction. The Next.js transport dispatches that outbox after responding; a scheduled maintenance route repairs missed dispatches. Vercel Workflow advances a small domain state machine. Workflow arguments contain organization and run identifiers, not credentials, prompts, or file contents. Those remain in the application database and encrypted object store.
 
-The phases are input preparation, machine provisioning, hydration, restore, launch, polling, snapshot indexing, chunk upload and verification, publication, and cleanup. A database phase lease fences concurrent workers. The named VM is `run-<run UUID>`. The native supervisor creates a non-removable atomic execution marker before launching a harness. A lost launch acknowledgement can cause a second launch request, but the marker prevents the prompt from executing twice. Unknown external tool outcomes are recorded as unknown and are not silently replayed.
+The phases are input preparation, machine provisioning, hydration, restore, launch, polling, snapshot indexing, chunk upload and verification, publication, and cleanup. A database phase lease fences concurrent workers. Default VMs use `run-<run UUID>`; reusable compute has a separate sandbox identity and a per-run control directory. The native supervisor creates a non-removable atomic execution marker before launching a harness. A lost launch acknowledgement can cause a second launch request, but the marker prevents the prompt from executing twice. Unknown external tool outcomes are recorded as unknown and are not silently replayed.
 
 The Vercel adapter deliberately calls `Sandbox.get({name, resume: false})`, checks the original session identifier, and performs I/O through `currentSession()`. High-level Sandbox I/O can resume a stopped machine. Session-bound I/O avoids that behavior. A stopped or replaced VM is a recovery condition. The platform does not resume an agent merely to inspect its status. [SDK reference](https://vercel.com/docs/sandbox/sdk-reference)
+
+## Startup latency and measurement
+
+Ready phases advance without an artificial timer in both Workflow and the standalone SQL worker. Pending restore checks still wait three seconds, active execution polls every two seconds, and contention/failure backoff remains explicit. A completed native process drains its remaining transcript immediately. Every advance retains the existing phase lease; Workflow still hands off after 128 advances to bound history. See [waiting and history limits](workflow-history.md).
+
+[Hydration](../../../packages/core/src/execution-hydration.ts) stages up to 32 restore objects and 4 MiB of decoded data in one provider call. Up to four object-store reads run concurrently; all are drained before propagating a failure. Chunk hashes and sizes are verified before upload. The byte cap accommodates one full checkpoint chunk and both compute adapters. For 32 small chunks that fit the cap, this replaces 32 sandbox lookups/uploads and eight hydration passes with one upload/pass.
+
+SQL marks a batch processed only after the provider acknowledges the entire upload. A failed or ambiguous upload retries the same immutable paths; it cannot skip partially written objects or launch before restoration verifies the checkpoint. Larger batches can retransmit more bytes after a failure, bounded by the same 4 MiB cap. Restore format, atomic file publication, native launch markers, reservations and recovery snapshots are unchanged.
+
+`runs.execution_binding.phaseTimings` stores bounded, internal per-phase measurements: epoch-millisecond `startedAt`/`completedAt`, accumulated `activeMs`, and `attempts`. Active time covers phase work and caught failures, excluding phase-lease acquisition and the final state write. Wall time includes waits between attempts; killed attempts that never persist their final state are not counted. Existing run `created_at`/`started_at` measure queue-to-claim time. Provision includes sandbox creation and preparation; launch measures dispatch acknowledgement, not the first model token. These measurements contain no prompts, paths or credentials and do not add public API fields or analytics events.
+
+Runs use disposable compute by default. Opt-in [reusable sandboxes](sandboxes.md) retain machines and compatible native harness sessions between runs. A live hit skips hydration and harness initialization while refreshing run credentials; a cold miss restores verified files and session state. Model processing and network time remain, so compare phase timings and real first-response latency.
+
+## Reusable sandbox lifecycle
+
+`core/src/sandboxes.ts` owns tenant/workspace authorization, worktree affinity, concurrency, lifecycle leases, idle expiry and separate compute reservations. `contracts/sandbox-control.ts` defines the provider-neutral lifecycle and private control protocol. Admission selects Docker for both local modes, Vercel for hosted ordinary sandboxes and Render for hosted long-running servers. Local long-running containers have no provider lifetime cutoff; ordinary containers retain their bounded timeout. `providers/sandboxes.ts` constructs the selected adapter; provider-specific transport objects do not enter domain state beyond a small serialized binding. `SandboxMachines` adapts a borrowed environment to the existing run machine port.
+
+A sandbox has one active run until cleanup, even after that run becomes terminal. Lifecycle operations reject active ownership. Docker pause (including long-running workers) and ordinary cloud pause delete physical compute; resume creates a new generation; Render pause suspends its service. Destroy retires the logical ID and never modifies durable checkpoints. Provider loss is replaceable only before preparation; run calls then require the original binding and root-control boot ID. Failed provider lookup never means absence.
+
+The root control service serializes operations and uses per-run control directories with persistent execution/restore markers. Cold preparation clears worktree/home before verified hydration; compatible live sessions retain both. Capture suspends retained native processes and terminates other agent-UID writers. Release requires quiescence, removes run credentials and staging, and retains small tombstones rejecting late requests. A compatible next run continues the loaded native session. Failed persistence stops reuse and keeps the prior checkpoint authoritative; reusable compute does not yet retain a provider recovery-disk snapshot. The existing degraded-worktree recovery flow remains required.
+
+[Server operations](sandboxes/operations.md) explains pricing, maintenance and provider limitations; [acceptance](sandboxes/verification.md) distinguishes local evidence from live checks.
 
 ## Runtime image and process isolation
 
@@ -20,9 +42,9 @@ The root supervisor starts the native worker as UID 10001, without sudo rights. 
 
 The Vercel firewall API rejects IPv6 CIDR entries. The adapter sends private/loopback/link-local IPv4 denies and disables IPv6 on existing and future VM interfaces with root-owned sysctl settings before writing the run configuration. Failure to apply those settings stops preparation before native launch; the unprivileged agent cannot re-enable IPv6. The application and reviewed-domain allowlist remains in force. A bounded staging probe verified the provider rejection, successful IPv4 provisioning, and removal of IPv6 interface addresses after the sysctl command.
 
-The supervisor owns a protected control directory. Native state lives in `/agent-home`; user files live in `/workspace`. Before capture, the supervisor terminates processes belonging to the agent UID, including daemonized descendants. This separates a quiescent checkpoint from a copy made while agents are still writing. Cancellation and timeouts still enter the capture path. An agent failure is independent from persistence success.
+The supervisor owns a protected control directory. Native state lives in `/agent-home`; user files live in `/worktree`. Before capture, the supervisor terminates processes belonging to the agent UID, including daemonized descendants. This separates a quiescent checkpoint from a copy made while agents are still writing. Cancellation and timeouts still enter the capture path. An agent failure is independent from persistence success.
 
-Claude Code always receives the SDK's `claude_code` system-prompt preset, including when a run has no custom instructions. The adapter appends the persistent workspace path and explains that `/tmp` and other paths outside the workspace are excluded from project checkpoints, then appends any run instructions. The SDK's minimal default omits project context; setting the process working directory alone does not give the model that context. This guidance does not constrain unrestricted shell access or prove that a requested file exists: verify the published workspace contents separately from successful execution. See [the SDK prompt contract](https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts).
+Claude Code always receives the SDK's `claude_code` system-prompt preset, including when a run has no custom instructions. The adapter appends the persistent worktree path and explains that `/tmp` and other paths outside the worktree are excluded from workspace checkpoints, then appends any run instructions. The SDK's minimal default omits workspace context; setting the process working directory alone does not give the model that context. This guidance does not constrain unrestricted shell access or prove that a requested file exists: verify the published worktree contents separately from successful execution. See [the SDK prompt contract](https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts).
 
 All six adapters implement the [universal permission policy](permissions.md) through native tool restrictions and shared checked file tools. Native configuration is controller-owned; Codex profiles and temporary MCP endpoints are rebuilt on continuation, while native conversation state remains portable.
 
@@ -44,7 +66,7 @@ Pi uses `createAgentSession`, the official `SessionManager`, in-memory runtime c
 
 Hermes and DeepSeek share only their private process framing/cleanup helper. The existing supervisor still owns cancellation, deadlines, execution identity, process-tree shutdown and capture for every harness. No scheduler, hosting provider or public streaming system was added.
 
-Native session files persist in `.hermes`, `.dsh/sessions` and `.pi/agent/sessions`. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from project files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
+Native session files persist in `.hermes`, `.dsh/sessions` and `.pi/agent/sessions`. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from workspace files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
 
 Pinned versions, image cost and release checks are recorded in [dependency review](../../engineering/dependencies.md) and [harness acceptance](../../engineering/testing/harnesses.md).
 
@@ -54,13 +76,13 @@ The portable checkpoint includes regular files and symbolic links, including ign
 
 Files are split into 4 MiB content-addressed chunks. Each chunk is encrypted before object storage. An encrypted manifest records chunk hashes, complete file hash, size, mode and timestamp. The control plane verifies chunks and the complete file hash before atomically publishing a checkpoint. Large file verification streams chunks, bounding memory use. Public file transfer and editor limits remain separate from the internal checkpoint format.
 
-The initial runtime limits are 10 GiB and 100,000 persistent file entries across workspace and native home. Exceeding a capture limit fails persistence explicitly. The last verified checkpoint stays available, the VM recovery snapshot is retained, and further writers are blocked until recovery or an explicit restore. Provider recovery snapshots expire after seven days by default; they are an emergency recovery mechanism, not the long-term source of truth. Successful portable publication permits VM and temporary snapshot cleanup.
+The initial runtime limits are 10 GiB and 100,000 persistent file entries across worktree and native home. Exceeding a capture limit fails persistence explicitly. The last verified checkpoint stays available, a default per-run VM recovery snapshot is retained (reusable servers stop without retaining a disk snapshot), and further writers are blocked until recovery or an explicit restore. Provider recovery snapshots expire after seven days by default; they are an emergency recovery mechanism, not the long-term source of truth. Successful portable publication permits VM and temporary snapshot cleanup.
 
 Git data is stored separately from the dashboard's editable file collection. Native home state belongs to the session and is restored when that session continues. The same run model rate card is frozen at admission, so configuration changes cannot retroactively alter its retail token rates.
 
 ## Model and connector accounting
 
-The model gateway supports the reviewed OpenAI Responses/chat, Anthropic Messages, and OpenRouter chat routes. It accepts text and client-executed tools. Hosted billable tools, media and server-side conversation references require separately reviewed accounting and are rejected by this route. Before every upstream request it reserves a conservative token bound plus the remaining compute allowance. Streaming usage settles that reservation; a missing final usage frame remains explicitly provisional. BYOK never falls back to managed credentials.
+The model gateway supports the reviewed OpenAI Responses/chat, Anthropic Messages, and OpenRouter chat routes. It accepts text, client-executed tools, and bounded inline images for the reviewed combinations in the [media guide](../media/README.md). Documents are extracted inside the runtime before model dispatch. Hosted billable tools, other native media, remote file/image references and server-side conversation references remain rejected by this route. Before every upstream request it reserves a conservative token bound plus the remaining compute allowance. Streaming usage settles that reservation; a missing final usage frame remains explicitly provisional. BYOK never falls back to managed credentials.
 
 Codex's client-executed `tool_search` declaration is allowed only with explicit `execution: "client"`; absent or server execution remains rejected. This enables native tool discovery without admitting provider-hosted billable search. The complete Docker journey exercises the pinned Codex declaration, and gateway tests cover both allowed and denied forms. [OpenAI client-executed tool search](https://developers.openai.com/api/docs/guides/tools-tool-search).
 
@@ -70,7 +92,7 @@ The published compute rate currently covers the run's configured execution windo
 
 ## Local Docker execution
 
-The [Docker development guide](../../getting-started/local-development/docker.md) connects public API admission to the same persisted phases through `DockerMachines` and the standalone SQL worker. Local infrastructure remains separate from simulated inference. The adapter keeps owned container identity, protected supervisor state, scoped gateway credentials and independent encrypted checkpoints. Successful runs remove their containers; failed persistence retains a stopped recovery layer. Docker is trusted contributor compute, while production retains Vercel microVM isolation. See [architecture and acceptance](../../engineering/development-modes.md).
+The [Docker development guide](../../getting-started/local-development/docker.md) connects public API admission to the same persisted phases through `DockerMachines` and the standalone SQL worker. Local infrastructure remains separate from simulated inference. The adapter keeps owned container identity, protected supervisor state, scoped gateway credentials and independent encrypted checkpoints. Default successful runs remove their containers; explicitly reusable containers follow the sandbox idle policy. Failed persistence retains a stopped recovery layer. Docker is trusted contributor compute, while production retains Vercel microVM isolation. See [architecture and acceptance](../../engineering/development-modes.md).
 
 ## Validation boundary
 
@@ -81,3 +103,21 @@ These tests do not prove Vercel account quotas, image acceptance, production egr
 ## Built-in model catalog
 
 The [model catalog guide](models.md) owns discovery, compatibility, pricing, refresh and operator commands. Model configuration is bundled with the application and cached in PostgreSQL; routine availability changes do not require environment edits. Accepted runs keep their own prices, and reconciliation never substitutes a current catalog price.
+
+## Large model request transport
+
+Native adapters share a per-worker loopback bridge in `packages/runtime/src/model-transport.ts`. Small requests preserve the existing gateway route; requests above 4 MiB stage authenticated ciphertext in private object storage and send a short-lived claim to the same metering gateway. Streaming responses, current actor checks and financial settlement remain unchanged. The complete request is capped at 8 MiB. See [media transport decisions](../media/implementation.md) for encryption, cleanup and deployment requirements.
+
+## Lightweight execution boundary
+
+Runs are discriminated as `native_agent`, `inference` or `bounded_agent`. The lifecycle in this guide describes native execution. Lightweight dispatch happens before constructing a machine provider and never acquires a worktree writer or restores a conversation. It uses the same financial reservation, run observation and scheduler; [decision execution](../decisions/implementation.md) owns its invocation receipts and recovery. Capability gating must cover every dispatcher before admission is enabled.
+
+## Execution tracing
+
+The [observability integration](../observability/README.md) captures model calls at the gateway, surfaced harness/tool events, lifecycle timings and final run results. Its independent exporter receives shared tenant/workspace/worktree/customer attribution and separate compute charges; no tracing credentials enter a sandbox. See [ownership and lifecycle](../observability/implementation.md).
+
+## Resident harness ownership
+
+The sandbox control process owns one resident worker. A compatible follow-up uses the same native conversation; session, configuration, grants and checkpoint identity fence reuse. A mismatch tears down the resident process before hydration. The shared loopback model/tool transport captures current run authorization for each request and rejects requests while idle. Model calls retain their existing staging, budget, trace and no-blind-retry behavior.
+
+The root supervisor suspends retained native processes, terminates tool descendants and verifies stopped writers before snapshot capture. Failed/cancelled turns discard resident state. The next run must not reuse processes after an external file edit, restore, policy change, pause or native process loss. Sandbox release publishes the new checkpoint identity only after domain persistence succeeds. This is one loaded session per server, not a multi-session memory pool. See [reuse compute](sandboxes.md) for the public contract.

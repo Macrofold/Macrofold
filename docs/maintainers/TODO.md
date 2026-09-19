@@ -4,9 +4,30 @@ This is the central list of unresolved release work. It is not part of the publi
 
 Product and architecture proposals are tracked separately in [ranked improvements](../product/improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
 
+## Reusable sandbox acceptance
+
+- [ ] Apply migration 040, publish the matching runtime image with the control service and current parser dependencies, then deploy API/worker together. Configure Render owner/key, immutable registry image, plan, explicit compute price and enablement; ensure maintenance runs continuously. Do not treat adapter tests as hosted enablement.
+- [ ] Verify bounded Render create, same-server follow-up, asynchronous suspend confirmation, resume/rehydration, destroy/new-disk behavior, process restart fencing and provider invoice reconciliation. Verify no persistent disk, no platform credentials in agent processes, and reviewed network access. Repeat Vercel reuse/expiry recovery on a plan supporting the configured lifetime. See [sandbox acceptance](../features/execution/sandboxes/verification.md).
+- [ ] Exercise provider outage and maintenance backlog; confirm active servers do not starve idle cleanup, uncertain deletion retains reservations, and separate compute holds reconcile. Reusable servers currently stop without a provider disk-recovery snapshot when capture fails; accept this limitation before offering that route for valuable uncheckpointed work.
+
+## Execution tracing acceptance
+
+- [ ] Configure private Langfuse project keys and the matching HTTPS region URL on the deployed web application and every worker; set environment/release labels and restart them. Verify real native model requests and conversation continuation, post-stream `after()` flushing, Workflow step export, and graceful worker drain. Local live Jev/API readback does not establish hosted lifecycle behavior.
+- [ ] Accept backend access/retention and the separate external deletion policy. Exercise exporter outage/overload without affecting execution or settlement; verify costs once per billable observation and customer/worktree metadata on all children. See [tracing verification](../features/observability/verification.md).
+
+## Startup latency acceptance
+
+- [ ] Accept immediate phase advancement and batched hydration on deployed Workflow and Linux AMD64 compute. Exercise a fresh run and conversation continuation with many small files and multi-chunk files; verify exact restored bytes/session history, one native launch, checkpoint publication and released reservations. Local tests use PostgreSQL 14 and provider fixtures; repeat the configured PostgreSQL 17 CI checks. Docker was unavailable during this change's local verification.
+- [ ] Compare queue-to-claim time, internal [phase timings](../features/execution/runtime.md#startup-latency-and-measurement), orchestration gaps, first model response and browser delivery on representative workloads. Check upload/control API counts and failure retries as well as latency. No deployed speedup is established by local fixture timings. Compare the separate [warm sandbox implementation](../features/execution/sandboxes.md) using the same measurements.
+
+## Multimedia release acceptance
+
+- [ ] Build and publish the updated native runtime image (including document-worker and pinned parser dependencies), then deploy the matching API/worker version. Run the [media acceptance commands](../features/media/verification.md) against the release image.
+- [ ] Verify a bounded real image/document run and private artifact download on staging for each enabled image combination. Local protocol fixtures do not establish model entitlement, Vercel isolation, deployed PDF playback or actual invoice reconciliation. Exercise a cumulative native image/history request above 4 MiB through encrypted object staging on the hosted gateway; verify the 8 MiB complete-request ceiling, configured storage egress and cleanup. Keep OCR, audio/video analysis and built-in generation deferred as documented.
+
 ## Public repository and distribution
 
-- [ ] Resolve the four-field first-run API: harness, provider, model, and prompt. Define workspace creation and funding defaults before changing admission, OpenAPI, generated SDKs, and examples together. Current examples accurately retain the required project and billing mode; provider selection comes from the catalog.
+- [ ] Resolve the four-field first-run API: harness, provider, model, and prompt. Define workspace creation and funding defaults before changing admission, OpenAPI, generated SDKs, and examples together. Current examples accurately retain the required workspace and billing mode; provider selection comes from the catalog.
 
 - [ ] Enable GitHub private vulnerability reporting. The public repository API currently reports it disabled. Verify the private report flow, then update SECURITY.md with its working direct link.
 - [ ] Publish a monitored maintainer contact and community reporting route; update security and conduct policies together. Do not publish a personal email without its owner's approval.
@@ -19,7 +40,7 @@ Product and architecture proposals are tracked separately in [ranked improvement
 ## Development modes and complete agent acceptance
 
 - [x] Verify the rebuilt-image Claude Haiku file-writing retest: the operator confirmed `hello.txt` and its contents after refresh, and supplied a final successful API result with verified persistence and a checkpoint ID. Network-disabled context, capture, restore and permission tests also pass. See [harness acceptance](../engineering/testing/harnesses.md).
-- [x] Observe local live continuation updating the existing file and retaining both lines after refresh. Verify local CLI device login, project listing and doctor (`ok: true`, zero inference requests). The operator also supplied dashboard evidence of zero reserved funds and aggregate usage charges; see [harness acceptance](../engineering/testing/harnesses.md).
+- [x] Observe local live continuation updating the existing file and retaining both lines after refresh. Verify local CLI device login, workspace listing and doctor (`ok: true`, zero inference requests). The operator also supplied dashboard evidence of zero reserved funds and aggregate usage charges; see [harness acceptance](../engineering/testing/harnesses.md).
 - [ ] Reconcile exact per-run settled cost for the local Haiku tests with provider usage; the dashboard's period aggregate does not identify the cost of an individual run.
 
 - [ ] Accept the pinned Hermes, DeepSeek and Pi adapters on Linux AMD64/Vercel and live managed/BYOK routes under a new approved budget. Verify image startup, long conversations/compaction, external MCP revocation and interruption recovery. See [harness acceptance](../engineering/testing/harnesses.md).
@@ -32,10 +53,10 @@ Follow the [implementation brief](../engineering/development-modes.md) and keep 
 
 ## Automated staging and production releases
 
-The current launch guide is an explicit deployment walkthrough. Implement and accept a separate release workflow before documenting automatic deployment as available. Reuse the existing verification jobs; this work does not replace the isolated staging and production environments.
+The staging workflow and release coordinator are implemented with exact-SHA verification, serialization, image scanning, migrations, candidate readiness and promotion gates. [Configure and activate it](../operations/staging-releases.md) only when staging resumes. Production release automation remains deferred; the launch guide is still the production procedure.
 
 - [ ] Configure separate GitHub deployment environments with explicit Vercel team/project identities, environment-scoped secrets, and administrative migration credentials unavailable to the application. Keep deployment credentials out of fork and untrusted pull-request jobs.
-- [ ] Trigger a release from a reviewed immutable commit after every required verification job for that commit passes. Serialize releases and prevent a delayed older run from promoting over a newer release; do not cancel a migration or partially completed release blindly.
+- [x] Implement exact-SHA staging release gating, serialization and stale-main checks; failure-path unit tests pass. Hosted activation and acceptance are still required.
 - [ ] Rehearse and apply staging migrations, publish the matching native runtime image, deploy staging, then run deployed API/browser acceptance using synthetic accounts. Keep paid native/provider checks explicitly budgeted and distinguish them from free fixtures and metadata checks.
 - [ ] Apply only backward-compatible production migrations and prepare that same source revision with production settings and a ready immutable runtime digest. Verify image availability in the production project's registry; do not assume a staging image reference grants cross-project access.
 - [ ] Prepare the production deployment with `--prod --skip-domain`, run non-mutating readiness checks against its deployment URL, and promote that exact deployment only after success. This candidate already uses production resources. Keep destructive tests in isolated staging. See [Vercel promotion](https://vercel.com/docs/deployments/promoting-a-deployment).
@@ -47,28 +68,31 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 - [ ] Accept the redesigned dashboard on deployed Cloud and self-hosted origins in Safari, Firefox, and physical mobile devices. Verify theme persistence, editor drafts, nested account-menu keyboard/screen-reader navigation, reduced-motion/forced-color focus, hidden-scrollbar scrolling, waiting sheen, clipboard feedback, and copied documentation URLs. Keep the account assistant labeled as a UI preview until a separately reviewed hosted implementation exists; see [dashboard improvements](../product/improvements.md#dashboard).
 
-- [ ] Reconcile existing production auth/vault/cron key sets with stored encrypted credentials in the private operator record. Import only restricted runtime credentials; retain migration-owner access separately.
-- [ ] Verify the production Neon history window and protection flag, configure the recommended seven-day history on a supporting paid plan, enable branch protection, and rehearse isolated PITR. The supplied setup handoff reports six-hour history and protection disabled; this documentation review did not re-query account metadata. Follow [database safeguards](../operations/neon.md#production-recovery-safeguards).
+- [x] Reconcile production auth/vault/cron keys against stored encrypted OAuth credentials. Retained verifier decryption and authenticated introspection pass; the dedicated app project receives only restricted runtime credentials, with migration-owner access retained separately.
+- [ ] Complete production account/provider acceptance at `app.macrofold.ai`. Dedicated app deployment, canonical health/login/docs/schema, authenticated maintenance, login-first routing, migrations through 034, scoped R2 write/read/delete and staging-denial checks, CORS/expiry, and production registry publication pass. The production operator is registered with verified email and enabled two-factor authentication; authenticated dashboard and Operations checks pass. A separate production Anthropic workspace has an operator-approved $100 monthly limit and a scoped key deployed; Haiku metadata discovery and application catalog refresh pass without inference. Stripe live onboarding is complete; live Pro/Scale prices and the default Customer Portal are configured. Runtime key creation, the version-pinned production webhook, capability checks, payment settlement and funded production execution remain pending. Registration is enabled at the operator’s request; admission and inference remain disabled. The separate marketing project is preserved.
+- [x] Activate the approved Neon Launch plan, set production history to seven days and protect its root branch. Reapplied fixed 0.25-CU limits to existing computes and project defaults after the upgrade raised them. Staging remains paused with cron disabled and compute idle; spending notifications are enabled at a $20 threshold. The $25/month target is not a provider-enforced hard cap.
+- [ ] Rotate the production Anthropic runtime key before its October 17, 2026 expiration and verify the replacement before revoking the old key.
+- [ ] Rehearse isolated Neon PITR and paired object/key recovery; configured retention and branch protection do not establish a successful recovery. Follow [database safeguards](../operations/neon.md#production-recovery-safeguards).
 - [ ] Complete staging acceptance after the healthy redeployment. Isolated database migrations, scoped storage access, verified sender, immutable runtime publication and canonical health now pass. The Stripe test destination is enabled at the canonical origin after signature/reachability probes; the default test Portal is saved and API-verified. Application-created sandbox top-up, actual signed delivery, exact ledger credit and Portal entry now pass; subscription changes and reversal cases remain pending. Follow [project selection](../operations/launch-environment.md#staging-and-vercel-project-selection) and [billing activation](../operations/launch-integrations.md#activate-and-test-staging-billing).
-- [ ] Verify deployed Workflow/native execution and supported provider quotas. The accepted staging source and Ready Linux AMD64 runtime are deployed in `iad1`; the enabled minutely Cron has returned HTTP 200 and direct maintenance reports no component failures. The first native run failed before model dispatch because Vercel rejected IPv6 CIDRs. Bounded probes confirmed the cause and a VM-level IPv6-disable repair; deploy the tested adapter and repeat native/persistence acceptance. These checks do not establish successful agent execution.
+- [ ] Verify deployed Workflow/native execution and supported provider quotas. The accepted staging source and Ready Linux AMD64 runtime are deployed in `iad1`; the enabled minutely Cron has returned HTTP 200 and direct maintenance reports no component failures. Managed Claude Code / Haiku now passes file creation and continuation in separate sandboxes, preserving native history and file contents, verifying checkpoints, settling complete usage and releasing reservations. Both sandboxes were removed. Broader harness, quota, recovery and sustained-capacity checks remain; see [hosted evidence](../engineering/testing/harnesses.md#hosted-claude-acceptance).
 - [ ] Complete password-reset email delivery. The staging sender is verified and domain-scoped; operator signup verification and MFA now pass. Production sender acceptance remains separate.
-- [ ] Verify staged transfers, checkpoint restoration, and object/database/key recovery. Staging R2 write/read/delete, private access, exact-origin CORS, temporary-prefix lifecycle and denial of production access now pass; this does not establish application-level recovery or production storage acceptance.
-- [ ] Verify authentication, MFA, invitation, CLI device/OAuth refresh/revocation, organization switching, and ownership changes on the hosted deployment.
+- [ ] Verify independent object/database/key recovery. Staging R2 access/CORS/lifecycle checks, a 5 MiB dashboard upload/download with matching bytes, and application checkpoint restoration now pass. The restore retained the previous state as a recovery point. Independent disaster recovery and production storage acceptance remain pending.
+- [ ] Complete hosted password recovery, invitation, positive OAuth refresh/rotation, API-key revocation, organization switching and ownership changes. Verified operator/MFA, CLI device login, identity/workspace/doctor access and server-side logout revocation pass. The CLI empty-response reporting fix passes focused and built-subprocess checks; see [identity acceptance](../engineering/testing/sdk-resources.md#hosted-cli-identity-acceptance).
 - [ ] Rehearse backup recovery and document measured RPO/RTO in the private release record. Publish deployment support, privacy, terms, and retention policies.
 
 ## Execution, integrations, and money
 
-- [ ] Deploy migration 034 and accept the [Customer agents integration path](../features/customer-agents/implementation.md) with two synthetic app customers and two real accounts of one toolkit. Verify the project's registered HTTPS callback, cross-site cookies, authenticated app return, exact account reconnect, permission revocation during consent, provider-subject execution and uncertain-account reconciliation. Local fixtures are not live OAuth acceptance. Migrate the preview only when restarting the intended preview revision.
+- [ ] Deploy migration 034 and accept the [Customer agents integration path](../features/customer-agents/implementation.md) with two synthetic app customers and two real accounts of one toolkit. Verify the workspace's registered HTTPS callback, cross-site cookies, authenticated app return, exact account reconnect, permission revocation during consent, provider-subject execution and uncertain-account reconciliation. Local fixtures are not live OAuth acceptance. Migrate the preview only when restarting the intended preview revision.
 
 - [ ] Obtain Anthropic approval for the exact hosted native subscription arrangement, then implement the isolated authentication/controller boundary, generation-fenced credential persistence, quota preflight, budgeted API fallback, continuation and separate usage accounting. Named configurations are implemented; these execution capabilities are not. The previous four-task live authorization is exhausted. See [design and acceptance requirements](../engineering/testing/named-connections.md).
 - [ ] Accept two real Composio accounts of the same toolkit through HTTPS consent, pinned execution, rename/reconnect, and upstream revocation. Fixtures verify SDK account-selection shapes but do not establish actual provider account identity or revocation.
 
 - [ ] Accept [model catalog refresh](../features/execution/models.md) in deployed maintenance after migration 029. Verify account entitlements, fresh/stale cache behavior across instances, OpenRouter routing price ceilings and vendor invoice reconciliation with separately approved inference budgets. Free metadata checks do not establish native execution acceptance.
-- [ ] Run a bounded native cloud task and continuation for each supported harness/model route. Managed/BYOK gateway protocol tests passed for OpenAI, Anthropic, and OpenRouter; they do not establish native Sandbox execution.
+- [ ] Run a bounded native cloud task and continuation for each supported harness/model route. Managed Claude Code / Haiku passes the short staging file and native-session continuation journey. Other native routes remain pending; managed/BYOK gateway protocol tests alone do not establish their Sandbox execution.
 - [ ] Complete deployed Composio callback acceptance, a narrowly granted action through the run broker, and live revocation rejection. Local GitHub consent, verified callback activation and one authenticated profile read with a provider log ID pass; see [live acceptance](../engineering/testing/live-integrations.md#github-callback-acceptance).
 - [ ] Complete authenticated search-provider, remote/stdio MCP, and GitHub App synchronization/revocation tests using synthetic data and explicit budgets.
 - [ ] Complete Stripe subscription Checkout, Portal plan changes/cancellation, recurring invoice, duplicate/out-of-order event, refund/dispute, and reconciliation acceptance before enabling live money flows. Staging top-up settlement and Portal entry pass. Keep the sandbox Managed Payments default disabled for the current standard Checkout integration.
-- [ ] Rotate the expiring staging Anthropic key before October 16, 2026; retain workspace isolation and the configured $1 monthly cap. Metadata access passes; native run acceptance remains separate.
+- [ ] Rotate the expiring staging Anthropic key before October 16, 2026; retain workspace isolation and the configured $1 monthly cap. Metadata access and the short managed Claude staging journey pass; broader route and vendor-invoice acceptance remains separate.
 - [ ] Verify deployed Workflow handoff, ambiguous launch recovery, maximum persistence workloads, cancellation, and queue expiry without duplicate execution or lost reservations.
 - [ ] Verify dashboard SSE flushing, server timeout/reconnect, permission revocation, cross-instance behavior, and connection costs through the deployed edge.
 - [ ] Validate sustained fairness and capacity on the deployed topology before increasing limits. The local 11-case suite passes eight/50-slot workloads on a quiet host; it does not validate 50 live sandboxes or deployed provider quotas.
@@ -77,7 +101,7 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 - [ ] Set a real public `SUPPORT_EMAIL` for Business/Enterprise sales links. A missing or placeholder address currently yields a working billing-guide link rather than an invented contact. Confirm the Business $1,000/month offer’s concurrency, runtime, storage, retention, credits, and support terms before activation; add reviewed entitlements and Stripe prices before offering self-serve checkout. Enterprise remains individually quoted.
 
-- [ ] Build the reviewed marketing release source before publication. [Site verification](../product/marketing/site/verification.md) records browser, calculator, TypeScript, and remaining device/background-tab acceptance.
+- [x] Build and publish the reviewed marketing release source. [Site verification](../product/marketing/site/verification.md) records browser, calculator, TypeScript, and remaining device/background-tab acceptance.
 
 - [ ] Confirm the hosted API origin and publish SDK packages before replacing source-installation guidance. Journey examples use the SDK’s actual `app.macrofold.ai` default.
 
@@ -101,7 +125,7 @@ The current launch guide is an explicit deployment walkthrough. Implement and ac
 
 ## Ongoing quality
 
-- [ ] Update and accept the DeepSeek runtime dependency chain for the `js-yaml` empty-merge CPU advisory (patched in 4.3.2). The September 10 production audit reports one high finding through `@deepseek-ai/cordis-plugin-include`; none belongs to the new Tiptap editor dependencies.
+- [x] Patch the DeepSeek/Cordis `js-yaml` advisory and devalue advisory, update runtime OS/npm/Python vulnerable dependencies, and gate complete-image scans in verification. Current production dependency audit and fixable high/critical image scan are clean; native replay fixtures pass. Publish/accept the matching hosted runtime before claiming deployment remediation.
 
 The [coverage gap audit](../engineering/testing/gaps.md) and [mutation record](../engineering/testing/mutation.md) own detailed test debt. Remaining targets include authentication recovery branches, persistence failures, cloud execution policy, and surviving meaningful mutants. No exclusions or superficial assertions should replace those checks.
 
@@ -129,5 +153,24 @@ Complete the [live Slack and cloud scheduling checks](../engineering/testing/tri
 
 ## Marketing media activation
 
-- Connect the dedicated marketing-media bucket to its production custom domain, verify CDN caching and byte ranges, set `MARKETING_MEDIA_BASE_URL` and redeploy. The [playlist setup guide](../product/marketing/site/swarm-playlist.md) contains complete commands. Preserve private workspace bucket access.
+- [x] Connect the dedicated marketing-media bucket to its production custom domain, verify CDN caching and byte ranges, configure the dedicated marketing homepage and deploy. The [playlist setup guide](../product/marketing/site/swarm-playlist.md) contains the reusable procedure. Private workspace bucket access is unchanged.
+- [x] Deploy the dedicated application and enable production registration at the operator’s request. The signed-out app homepage opens login; the marketing site remains separate. Production account verification and customer execution acceptance remain tracked above.
 - Verify 1.3× playlist transitions, autoplay, clear loading/failure backgrounds, offscreen suspension and sustained playback on physical iPhone Safari and Android Chrome with constrained bandwidth. Local desktop playback does not establish these device results.
+
+## Reliability acceptance
+
+- [ ] Rehearse the shared encrypted database/object/key archive against isolated hosted Neon/R2 targets. Local recovery passes integrity checks, file reads and conversation continuation; it does not establish a production RPO/RTO. Pause every writer and retain the independent keyring as required by [recovery operations](../operations/recovery.md).
+- [x] Complete production customer MCP OAuth sign-in/consent and verify tool discovery/read calls in Codex. The desktop session discovers the deployed tools and completes an authenticated `listProjects` call with HTTP 200; global configuration reports OAuth authentication. Canonical readiness, metadata and unauthorized rejection also pass. Production mutations and native paid run execution remain subject to the production execution gates above.
+
+## Explicit-context decision release
+
+Local implementation is capability gated. Complete the [decision release acceptance](../features/decisions/verification.md#remaining-release-gates) before enabling it: compatible migration/restore and worker fencing, hosted and direct-provider acceptance, hosted latency/capacity, independent evidence GC/restore, and provisional-charge reconciliation. Local real OpenRouter Jev managed choice/BYOK score passed; direct TypeSafe/Anthropic decisions, provider-side revocation and real ambiguous completion remain unverified. No production enablement was performed by this change.
+
+### Itemized billing and background traces
+
+Apply additive migration 039 before deploying the itemized billing API; indexes preserve all existing financial facts. Verify hosted filtered/paginated usage, BYOK zero-charge handling and final run reconciliation. Exercise a slow/unavailable Langfuse endpoint and verify Workflow steps continue while `waitUntil` owns bounded exports; request/stream routes retain `after`. Local tests do not establish hosted lifecycle retention.
+
+## Workspace terminology and resident harness release
+
+- Coordinate migration 041 with the matching API, SDK, CLI, dashboard and runtime image. Drain old writers; back up database/object storage; do not run mixed contracts. See [terminology rollout](../architecture/resource-terminology.md). Local disposable migration and regression checks pass. The inactive local development database was backed up and migrated through 041; hosted databases still require coordinated rollout. The matching local Docker image has been built.
+- Publish the new runtime image and verify same-session live reuse, cancellation, idle expiry and a cold checkpoint miss on hosted Vercel/Render. Offline Docker acceptance covers all six pinned harnesses with current run credentials and connector calls; it does not establish hosted acceptance or zero model-response latency.

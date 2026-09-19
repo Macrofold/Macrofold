@@ -1,7 +1,9 @@
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { jwt, twoFactor } from 'better-auth/plugins';
 import { oauthProvider, oauthDeviceAuthorization } from '@better-auth/oauth-provider';
+import { cimd } from '@better-auth/cimd';
+import { safeFetch } from '../../providers/src/network';
 import { UnsecuredJWT } from 'jose';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
@@ -35,7 +37,10 @@ export async function sendMail(to: string, subject: string, text: string) {
     if (result.error) throw new Error('Email delivery failed');
   }
 }
-const createAuth = () =>
+// Each server owns fresh plugin instances; OAuth extensions mutate their provider during initialization.
+export const createAuth = (
+  rateLimit: BetterAuthOptions['rateLimit'] = { enabled: !isLocal(), storage: 'database' },
+) =>
   betterAuth({
     database: authPool,
     baseURL: config.origin,
@@ -45,7 +50,7 @@ const createAuth = () =>
     appName: config.name,
     // Node's production build mode must not change the unpaid local fixture profile.
     // Persist production counters across Functions instead of per-instance memory.
-    rateLimit: { enabled: !isLocal(), storage: 'database' },
+    rateLimit,
     advanced: {
       database: { generateId: () => id() },
       cookies: { session_token: { name: isLocal() ? 'platform.session' : '__Secure-session' } },
@@ -85,7 +90,7 @@ const createAuth = () =>
             await transaction(null, async (tx) => {
               await tx.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [
                 org,
-                `${user.name.split(' ')[0]}'s workspace`,
+                `${user.name.split(' ')[0]}'s team`,
               ]);
               await tx.query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'owner')", [
                 org,
@@ -120,9 +125,17 @@ const createAuth = () =>
         consentPage: '/consent',
         // Only signed, unexpired authorization requests can retrieve pre-login metadata.
         allowPublicClientPrelogin: true,
+        // Public MCP clients still need PKCE and explicit user consent. Registration
+        // grants client capability only; it cannot grant operator resources/scopes.
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        clientRegistrationRequirePKCE: true,
+        clientRegistrationDefaultResources: [`${config.origin}/mcp`],
+        clientRegistrationDefaultScopes: customerScopes,
         scopes: [...customerScopes, ...operatorScopes],
         resources: [
           { identifier: `${config.origin}/v1`, allowedScopes: customerScopes },
+          { identifier: `${config.origin}/mcp`, allowedScopes: customerScopes },
           { identifier: `${config.origin}/admin/v1`, allowedScopes: operatorScopes },
           { identifier: `${config.origin}/admin/mcp`, allowedScopes: operatorScopes },
         ],
@@ -133,6 +146,7 @@ const createAuth = () =>
         resourcePrivileges: async ({ user }) =>
           Boolean(user && config.operatorEmails.includes(user.email.toLowerCase())),
       }),
+      cimd({ fetchClientMetadataResource: safeFetch, metadataProfile: 'mcp-2026-07-28' }),
       oauthDeviceAuthorization({
         verificationUri: `${config.origin}/device`,
         expiresIn: '10m',
@@ -178,23 +192,26 @@ export type Principal = {
   role: string;
   kind: 'user' | 'api_key' | 'operator';
   scopes: string[];
-  projectIds: string[];
+  workspaceIds: string[];
   operator: boolean;
   oauthTokenId?: string;
+  oauthAudience?: string;
 };
-export async function identify(request: Request, adminAudience?: string): Promise<Principal> {
+export async function identify(request: Request, audience = `${config.origin}/v1`): Promise<Principal> {
   assertSecurityConfiguration();
+  const operatorAudience =
+    audience === `${config.origin}/admin/v1` || audience === `${config.origin}/admin/mcp`;
   const bearer = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   const selector = request.headers.get('x-organization-id');
   let userId: string | undefined,
     principalId = '',
     scopes: string[] = customerScopes,
-    projects: string[] = [],
+    workspaces: string[] = [],
     keyOrg: string | undefined,
     kind: Principal['kind'] = 'user',
     oauthTokenId: string | undefined;
   if (bearer?.startsWith('sk_')) {
-    assert(!adminAudience, 401, 'unauthenticated', 'Customer API keys cannot access operator APIs.');
+    assert(!operatorAudience, 401, 'unauthenticated', 'Customer API keys cannot access operator APIs.');
     const found = await pool.query(
       'SELECT * FROM api_keys WHERE key_hash=$1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now())',
       [sha256(bearer)],
@@ -204,7 +221,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
     userId = key.user_id;
     principalId = key.id;
     scopes = key.scopes;
-    projects = key.project_ids;
+    workspaces = key.workspace_ids;
     keyOrg = key.organization_id;
     kind = 'api_key';
     assert(
@@ -228,7 +245,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
       // This payload comes from the trusted in-process authorization server, never from a caller.
       // jose performs the standard audience/issuer/time validation without a redundant loopback HTTP call.
       const claims = UnsecuredJWT.decode(new UnsecuredJWT(introspection).encode(), {
-        audience: adminAudience || `${config.origin}/v1`,
+        audience,
         issuer: `${config.origin}/auth`,
       }).payload;
       const tokenRecord = (
@@ -240,7 +257,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
       oauthTokenId = tokenRecord.id;
       const linked = await pool.query(
         `SELECT 1 FROM auth."oauthClientResource" cr JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE cr."clientId"=$1 AND cr."resourceId"=$2 AND r.disabled=false`,
-        [claims.client_id, adminAudience || `${config.origin}/v1`],
+        [claims.client_id, audience],
       );
       assert(
         linked.rowCount,
@@ -248,7 +265,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
         'unauthenticated',
         'This client is no longer allowed to access the resource.',
       );
-      if (adminAudience && claims.client_id && (!claims.sub || claims.sub === claims.client_id)) {
+      if (operatorAudience && claims.client_id && (!claims.sub || claims.sub === claims.client_id)) {
         const service = (
           await pool.query('SELECT * FROM service_clients WHERE client_id=$1 AND enabled=true', [
             claims.client_id,
@@ -262,7 +279,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
           role: 'operator',
           kind: 'operator',
           scopes: requested.filter((s) => service.scopes.includes(s)),
-          projectIds: [],
+          workspaceIds: [],
           operator: true,
           oauthTokenId,
         };
@@ -330,7 +347,7 @@ export async function identify(request: Request, adminAudience?: string): Promis
   const m = membership.rows.find((v) => v.organization_id === target);
   assert(m, 403, 'forbidden', 'You cannot access this organization.');
   const operator = config.operatorEmails.includes(user.rows[0].email.toLowerCase());
-  if (adminAudience) {
+  if (operatorAudience) {
     assert(operator, 403, 'forbidden', 'Platform operator access is required.');
     if (!bearer) scopes = operatorScopes;
     kind = 'operator';
@@ -343,9 +360,10 @@ export async function identify(request: Request, adminAudience?: string): Promis
     role: m.role,
     kind,
     scopes,
-    projectIds: projects,
+    workspaceIds: workspaces,
     operator,
     oauthTokenId,
+    ...(oauthTokenId ? { oauthAudience: audience } : {}),
   };
 }
 export function requireScopes(p: Principal, scopes: string[]) {
@@ -358,6 +376,6 @@ export function requireScopes(p: Principal, scopes: string[]) {
   if (scopes.some((s) => s.endsWith(':write') || s.endsWith(':delete')))
     assert(p.role !== 'viewer', 403, 'forbidden', 'Viewer access cannot modify resources.');
 }
-export function requireProject(p: Principal, projectId: string) {
-  assert(!p.projectIds.length || p.projectIds.includes(projectId), 404, 'not_found', 'Project not found.');
+export function requireWorkspace(p: Principal, workspaceId: string | null) {
+  assert(!p.workspaceIds.length || (workspaceId !== null && p.workspaceIds.includes(workspaceId)), 404, 'not_found', 'Workspace not found.');
 }

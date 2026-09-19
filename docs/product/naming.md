@@ -1,16 +1,16 @@
 # Twenty possible names
 
-Alternative naming concepts considered for the project, now presented publicly as Macrofold. Meanings below are concise historical/scientific associations, not claims of ownership or uniqueness. Domain, trademark, repository, app-store, pronunciation, and regional-language checks are required before selecting a name; no availability claim is made here. The initial five-name collision screen below is based on public product pages, not a trademark review.
+Alternative naming concepts considered for the workspace, now presented publicly as Macrofold. Meanings below are concise historical/scientific associations, not claims of ownership or uniqueness. Domain, trademark, repository, app-store, pronunciation, and regional-language checks are required before selecting a name; no availability claim is made here. The initial five-name collision screen below is based on public product pages, not a trademark review.
 
 | Name | Pronunciation | Association | Why it fits | Branding consideration |
 |---|---|---|---|---|
 | Noesis | noh-EE-sis | Intellectual apprehension | A thoughtful, capable working agent | Philosophical term already used in software/services |
-| Ariadne | air-ee-AD-nee | Mythic guidance through a labyrinth | Continuing work through complicated projects | Elegant but spelling/pronunciation vary |
+| Ariadne | air-ee-AD-nee | Mythic guidance through a labyrinth | Continuing work through complicated workspaces | Elegant but spelling/pronunciation vary |
 | Clio | KLEE-oh | Muse of history | Persistent records and inspectable work | Strong existing commercial associations |
 | Thales | THAY-leez | Early Greek philosophy and mathematics | General inquiry and practical reasoning | Major established technology/defense brand |
 | Hypatia | hy-PAY-shuh | Historical mathematician and philosopher | Learning, rigor, and independent thought | Distinctive but four syllables |
 | Kepler | KEP-ler | Mathematical description of planetary motion | Reliable coordination and discovery | Widely used name in science/software |
-| Hestia | HES-tee-uh | Hearth and continuity | A lasting home for projects and agents | Softer positioning; existing software uses |
+| Hestia | HES-tee-uh | Hearth and continuity | A lasting home for workspaces and agents | Softer positioning; existing software uses |
 | Telos | TELL-oss | Purpose or end | Work directed toward an outcome | Short but heavily used abstract brand term |
 | Praxis | PRAK-sis | Practice and purposeful action | An agent that does useful work | Many established uses |
 | Monad | MOH-nad | A unit in philosophy and mathematics | A self-contained execution abstraction | Strong software/crypto associations |

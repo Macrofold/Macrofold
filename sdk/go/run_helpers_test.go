@@ -15,7 +15,7 @@ func finalResult(persistence, outcome string) string {
 	return fmt.Sprintf(`{"run_id":%q,"final":true,"output_text":"Hello 🌍","execution_outcome":%q,"persistence_status":%q,"checkpoint_id":%q}`, testID, outcome, persistence, testID)
 }
 func helperState(status string) string {
-	return fmt.Sprintf(`{"id":%q,"organization_id":%q,"session_id":%q,"workspace_id":%q,"harness":"codex","model":"fixture","status":%q,"failure_code":"fixture_failure","created_at":"2026-09-07T00:00:00Z"}`, testID, testID, testID, testID, status)
+	return fmt.Sprintf(`{"id":%q,"kind":"native_agent","workspace_id":%q,"organization_id":%q,"session_id":%q,"worktree_id":%q,"harness":"codex","model":"fixture","status":%q,"failure_code":"fixture_failure","created_at":"2026-09-07T00:00:00Z"}`, testID, testID, testID, testID, testID, status)
 }
 
 func TestTextFiltersReplayAndPreservesOrganization(t *testing.T) {

@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -38,7 +38,7 @@ import dev.macrofold.ApiClient;
  * GitSync
  */
 @JsonPropertyOrder({
-  GitSync.JSON_PROPERTY_WORKSPACE_ID,
+  GitSync.JSON_PROPERTY_WORKTREE_ID,
   GitSync.JSON_PROPERTY_STATUS,
   GitSync.JSON_PROPERTY_SOURCE_COMMIT,
   GitSync.JSON_PROPERTY_TARGET_COMMIT,
@@ -49,9 +49,9 @@ import dev.macrofold.ApiClient;
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class GitSync {
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   /**
    * Gets or Sets status
@@ -131,27 +131,27 @@ public class GitSync {
   public GitSync() { 
   }
 
-  public GitSync workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public GitSync worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -343,7 +343,7 @@ public class GitSync {
       return false;
     }
     GitSync gitSync = (GitSync) o;
-    return Objects.equals(this.workspaceId, gitSync.workspaceId) &&
+    return Objects.equals(this.worktreeId, gitSync.worktreeId) &&
         Objects.equals(this.status, gitSync.status) &&
         Objects.equals(this.sourceCommit, gitSync.sourceCommit) &&
         Objects.equals(this.targetCommit, gitSync.targetCommit) &&
@@ -355,14 +355,14 @@ public class GitSync {
 
   @Override
   public int hashCode() {
-    return Objects.hash(workspaceId, status, sourceCommit, targetCommit, conflictingPaths, errorCode, updatedAt, pullRequestUrl);
+    return Objects.hash(worktreeId, status, sourceCommit, targetCommit, conflictingPaths, errorCode, updatedAt, pullRequestUrl);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class GitSync {\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    sourceCommit: ").append(toIndentedString(sourceCommit)).append("\n");
     sb.append("    targetCommit: ").append(toIndentedString(targetCommit)).append("\n");
@@ -414,9 +414,9 @@ public class GitSync {
 
     StringJoiner joiner = new StringJoiner("&");
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `status` to the URL query string

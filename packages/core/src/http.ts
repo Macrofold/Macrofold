@@ -4,7 +4,7 @@ import { config } from './config';
 import { identify, requireScopes, type Principal } from './auth';
 import { id, sha256, seal, unseal, canonical } from './crypto';
 import { AppError, assert, errorBody } from './errors';
-import { matchRoute, validateParameters, validateBody, responseFor } from './http-contract';
+import { matchRoute, validateParameters, validateBody, responseFor, operationScopes } from './http-contract';
 import { handlers, preparations } from './api-handlers';
 import { getRun } from './runs';
 import { streamEvents } from './events';
@@ -12,7 +12,7 @@ import { adminReport } from './reports';
 import { organizationManager } from './organizations';
 import { boundedBody } from './body';
 
-export async function handleApi(request: Request) {
+export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'rest') {
   const requestId = id(),
     start = Date.now();
   let principal: Principal | undefined;
@@ -37,7 +37,8 @@ export async function handleApi(request: Request) {
     route = matched.path;
     validateParameters(matched.operation, request, matched.params);
     const admin = route.startsWith('/admin/');
-    principal = await identify(request, admin ? `${config.origin}/admin/v1` : undefined);
+    const audience = `${config.origin}${admin ? '/admin/v1' : surface === 'mcp' ? '/mcp' : '/v1'}`;
+    principal = await identify(request, audience);
     const p = principal;
     await pool.query(
       'UPDATE api_requests SET organization_id=$2,principal_id=$3,principal_type=$4,user_id=$5,route=$6 WHERE request_id=$1',
@@ -50,17 +51,17 @@ export async function handleApi(request: Request) {
         route,
       ],
     );
-    const scopeKey = admin ? 'OperatorOAuth' : 'CustomerOAuth';
-    const scopes = matched.operation.security?.find((s) => scopeKey in s)?.[scopeKey] || [];
+    // Scopes apply to every credential kind, including API-key-only operations.
+    const scopes = operationScopes(matched.operation);
     requireScopes(p, scopes);
     if (scopes.includes('usage:read') || scopes.includes('billing:write'))
       assert(
-        !p.projectIds.length,
+        !p.workspaceIds.length,
         403,
         'forbidden',
         'Organization-wide financial and usage reports require an unrestricted organization credential.',
       );
-    if (scopes.includes('projects:delete'))
+    if (scopes.includes('workspaces:delete'))
       assert(
         ['owner', 'admin'].includes(p.role),
         403,
@@ -69,10 +70,10 @@ export async function handleApi(request: Request) {
       );
     if (scopes.some((s) => s.startsWith('organizations:'))) {
       assert(
-        !p.projectIds.length,
+        !p.workspaceIds.length,
         403,
         'forbidden',
-        'Organization administration requires a credential without project restrictions.',
+        'Organization administration requires a credential without workspace restrictions.',
       );
       if (
         matched.operation.operationId !== 'createOrganization' &&
@@ -83,10 +84,10 @@ export async function handleApi(request: Request) {
     }
     if (scopes.some((s) => s.startsWith('webhooks:')))
       assert(
-        !p.projectIds.length && ['owner', 'admin'].includes(p.role),
+        !p.workspaceIds.length && ['owner', 'admin'].includes(p.role),
         403,
         'organization_admin_required',
-        'Organization webhook management requires an administrator credential without project restrictions.',
+        'Organization webhook management requires an administrator credential without workspace restrictions.',
       );
     const count = await pool.query(
       'INSERT INTO rate_limits(key,bucket,count) VALUES($1,$2,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.bucket=excluded.bucket THEN rate_limits.count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count',
@@ -190,7 +191,7 @@ export async function handleApi(request: Request) {
     const prepared = prepare && !replay ? await prepare(context) : undefined;
     let outcome;
     try {
-      const current = prepared ? await identify(request) : p;
+      const current = prepared ? await identify(request, audience) : p;
       assert(
         current.organizationId === p.organizationId && current.id === p.id,
         403,

@@ -3,11 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
-import { runNativeBridge } from './native-bridge';
+import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { deepSeekPermissionSettings } from './permission-settings';
 
 export class DeepSeekAdapter implements HarnessAdapter {
+  private bridge = new NativeBridge();
+  close() {
+    this.bridge.close();
+  }
   async run(context: HarnessContext): Promise<NativeResult> {
     const { configuration: c, signal } = context;
     const guarded = permissionAdapters.deepseek.translate(c.permissions || []).mode === 'guarded';
@@ -102,7 +106,7 @@ export class DeepSeekAdapter implements HarnessAdapter {
       { mode: 0o600 },
     );
     const bin = fileURLToPath(new URL('lib/bin.js', import.meta.resolve('@deepseek-ai/dsh/package.json')));
-    return runNativeBridge(
+    return this.bridge.run(
       'DeepSeek',
       process.execPath,
       [bin, '--profile', 'sdk-minimal', '--patch', patch],

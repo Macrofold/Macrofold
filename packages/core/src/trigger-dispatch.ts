@@ -114,12 +114,12 @@ export async function dispatchTriggerDelivery(
       if (t.revision !== d.trigger_revision) return finish(tx, d, 'trigger_configuration_changed');
       const earlier = await tx.query(
         `SELECT 1 FROM trigger_deliveries d JOIN triggers t ON t.id=d.trigger_id
-        WHERE t.project_id=$1 AND t.enabled AND t.deleted_at IS NULL AND d.status='pending' AND d.trigger_revision=t.revision
+        WHERE t.workspace_id=$1 AND t.enabled AND t.deleted_at IS NULL AND d.status='pending' AND d.trigger_revision=t.revision
           AND d.expires_at>$2 AND d.id<$3 LIMIT 1`,
-        [t.project_id, now, d.id],
+        [t.workspace_id, now, d.id],
       );
       if (earlier.rowCount) {
-        await tx.query("UPDATE trigger_deliveries SET error_code='earlier_workspace_work' WHERE id=$1", [
+        await tx.query("UPDATE trigger_deliveries SET error_code='earlier_worktree_work' WHERE id=$1", [
           d.id,
         ]);
         await later(
@@ -130,7 +130,7 @@ export async function dispatchTriggerDelivery(
         );
         return;
       }
-      // Admission locks the workspace and rechecks its writer, grants, models and financial limits.
+      // Admission locks the worktree and rechecks its writer, grants, models and financial limits.
       // Roll back only this admission on a policy rejection, then retain a visible receipt outcome.
       await tx.query('SAVEPOINT trigger_admission');
       try {
@@ -138,7 +138,7 @@ export async function dispatchTriggerDelivery(
           tx,
           p,
           {
-            project_id: t.project_id,
+            workspace_id: t.workspace_id,
             agent_id: t.agent_id,
             prompt: unseal<string>(d.prompt_ciphertext),
             scheduling_class: 'background',
@@ -166,7 +166,7 @@ export async function dispatchTriggerDelivery(
         if (!(e instanceof AppError)) throw e;
         if (
           [
-            'workspace_busy',
+            'worktree_busy',
             'admission_paused',
             'execution_disabled',
             'storage_capacity_unavailable',

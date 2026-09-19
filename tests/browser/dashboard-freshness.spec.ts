@@ -27,7 +27,7 @@ async function setup(page: Page) {
     headers: headers(),
     data: {
       name: 'External test client',
-      scopes: ['projects:read', 'projects:write', 'runs:read', 'runs:write', 'files:read', 'files:write'],
+      scopes: ['workspaces:read', 'workspaces:write', 'runs:read', 'runs:write', 'files:read', 'files:write'],
     },
   });
   expect(key.ok()).toBe(true);
@@ -35,18 +35,18 @@ async function setup(page: Page) {
     baseURL: config.origin,
     extraHTTPHeaders: { Authorization: 'Bearer ' + (await key.json()).secret },
   });
-  const projectResponse = await external.post('/v1/projects', {
+  const workspaceResponse = await external.post('/v1/workspaces', {
     headers: headers(),
-    data: { name: 'Live project ' + randomUUID(), persistence: 'persistent' },
+    data: { name: 'Live workspace ' + randomUUID(), persistence: 'persistent' },
   });
-  expect(projectResponse.ok()).toBe(true);
-  return { external, project: await projectResponse.json(), me };
+  expect(workspaceResponse.ok()).toBe(true);
+  return { external, workspace: await workspaceResponse.json(), me };
 }
 
 test('external API runs refresh history and overview while navigation preserves one shared subscription', async ({
   page,
 }) => {
-  const { external, project } = await setup(page);
+  const { external, workspace } = await setup(page);
   const streams: string[] = [],
     detailed: string[] = [],
     errors: string[] = [];
@@ -64,7 +64,7 @@ test('external API runs refresh history and overview while navigation preserves 
     const accepted = await external.post('/v1/runs', {
       headers: headers(),
       data: {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'codex',
         model: 'fixture-model',
         prompt: 'Create a persistent hello file',
@@ -78,8 +78,8 @@ test('external API runs refresh history and overview while navigation preserves 
     await expect(row).toContainText('succeeded');
     await page.getByRole('link', { name: 'Home', exact: true }).click();
     await expect(page.getByRole('row').filter({ hasText: run.run_id.slice(-8) })).toBeVisible();
-    await page.getByRole('link', { name: 'Projects', exact: true }).click();
-    await page.getByRole('heading', { name: project.name }).click();
+    await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+    await page.getByRole('heading', { name: workspace.name }).click();
     await expect(page.getByRole('combobox', { name: 'Active worktree' })).toBeVisible();
     await page.getByRole('link', { name: 'Runs', exact: true }).click();
     await page.getByRole('link', { name: `Open run ${run.run_id.slice(-8)}` }).click();
@@ -94,7 +94,7 @@ test('external API runs refresh history and overview while navigation preserves 
 });
 
 test('reconnection reloads authoritative state even when the change signal was missed', async ({ page }) => {
-  const { external, project } = await setup(page);
+  const { external, workspace } = await setup(page);
   let release = () => {};
   const reconnect = new Promise<void>((resolve) => {
     release = resolve;
@@ -112,7 +112,7 @@ test('reconnection reloads authoritative state even when the change signal was m
     const accepted = await external.post('/v1/runs', {
       headers: headers(),
       data: {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'codex',
         model: 'fixture-model',
         prompt: 'Reconnect fixture',
@@ -132,7 +132,7 @@ test('reconnection reloads authoritative state even when the change signal was m
 test('periodic reconciliation recovers initial identity failure and refreshes without streaming', async ({
   page,
 }) => {
-  const { external, project } = await setup(page);
+  const { external, workspace } = await setup(page);
   await page.clock.install();
   let identityAvailable = false;
   let subscriptions = 0;
@@ -152,7 +152,7 @@ test('periodic reconciliation recovers initial identity failure and refreshes wi
     const accepted = await external.post('/v1/runs', {
       headers: headers(),
       data: {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'codex',
         model: 'fixture-model',
         prompt: 'Polling fallback fixture',
@@ -172,18 +172,18 @@ test('periodic reconciliation recovers initial identity failure and refreshes wi
 });
 
 test('saved files, checkpoints and Git status refresh without discarding editor state', async ({ page }) => {
-  const { external, project, me } = await setup(page);
-  const workspace = project.default_workspace_id;
+  const { external, workspace, me } = await setup(page);
+  const worktree = workspace.default_worktree_id;
   const save = async (content: string) => {
-    const current = await (await external.get(`/v1/workspaces/${workspace}`)).json();
-    const result = await external.put(`/v1/workspaces/${workspace}/file?path=live.txt`, {
+    const current = await (await external.get(`/v1/worktrees/${worktree}`)).json();
+    const result = await external.put(`/v1/worktrees/${worktree}/file?path=live.txt`, {
       headers: { ...headers(), 'Content-Type': 'application/octet-stream', 'If-Match': current.revision },
       data: content,
     });
     expect(result.ok(), await result.text()).toBe(true);
   };
   try {
-    await page.goto(`/projects/${project.id}`);
+    await page.goto(`/workspaces/${workspace.id}`);
     await expect(page.getByText('No files yet. Add your first file or start an agent run.')).toBeVisible();
     await save('Saved remotely');
     await expect(page.getByRole('treeitem', { name: 'live.txt', exact: true })).toBeVisible();
@@ -195,7 +195,7 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
       return window.scrollY;
     });
     const refreshed = page.waitForResponse(
-      (r) => r.url().includes(`/v1/workspaces/${workspace}/file?`) && r.request().method() === 'GET',
+      (r) => r.url().includes(`/v1/worktrees/${worktree}/file?`) && r.request().method() === 'GET',
     );
     await save('Changed by another user');
     await refreshed;
@@ -213,7 +213,7 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     const checkpoints = page.getByRole('button', { name: 'Pin checkpoint', exact: true });
     await expect(checkpoints).toHaveCount(3);
     expect(
-      (await external.post(`/v1/workspaces/${workspace}/checkpoints`, { headers: headers(), data: {} })).ok(),
+      (await external.post(`/v1/worktrees/${worktree}/checkpoints`, { headers: headers(), data: {} })).ok(),
     ).toBe(true);
     await expect(checkpoints).toHaveCount(4);
     // A worker-equivalent committed status fixture; no GitHub network operation.
@@ -221,15 +221,15 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     try {
       await tx.query('BEGIN');
       await tx.query("SELECT set_config('app.organization_id',$1,true)", [me.organization_id]);
-      await tx.query('UPDATE projects SET data=data || $2::jsonb WHERE id=$1', [
-        project.id,
+      await tx.query('UPDATE workspaces SET data=data || $2::jsonb WHERE id=$1', [
+        workspace.id,
         JSON.stringify({
           github: { installation_id: 'fixture', repository: 'fixture/repository', target_branch: 'main' },
         }),
       ]);
-      await tx.query('UPDATE workspaces SET data=data || $2::jsonb WHERE id=$1', [
-        workspace,
-        JSON.stringify({ sync: { workspace_id: workspace, status: 'pending' } }),
+      await tx.query('UPDATE worktrees SET data=data || $2::jsonb WHERE id=$1', [
+        worktree,
+        JSON.stringify({ sync: { worktree_id: worktree, status: 'pending' } }),
       ]);
       await tx.query('COMMIT');
     } finally {
@@ -237,16 +237,16 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
     }
     await page.getByRole('tab', { name: 'Git sync', exact: true }).click();
     await expect(page.getByText('Your repository, kept in sync.')).toBeVisible();
-    const statusRefresh = page.waitForResponse((r) => r.url().endsWith(`/v1/workspaces/${workspace}/sync`));
+    const statusRefresh = page.waitForResponse((r) => r.url().endsWith(`/v1/worktrees/${worktree}/sync`));
     const tx2 = await pool.connect();
     try {
       await tx2.query('BEGIN');
       await tx2.query("SELECT set_config('app.organization_id',$1,true)", [me.organization_id]);
-      await tx2.query('UPDATE workspaces SET data=data || $2::jsonb WHERE id=$1', [
-        workspace,
+      await tx2.query('UPDATE worktrees SET data=data || $2::jsonb WHERE id=$1', [
+        worktree,
         JSON.stringify({
           sync: {
-            workspace_id: workspace,
+            worktree_id: worktree,
             status: 'conflict',
             error_code: 'Fixture merge conflict',
             updated_at: new Date().toISOString(),
@@ -265,7 +265,7 @@ test('saved files, checkpoints and Git status refresh without discarding editor 
 });
 
 test('organization switching and logout close old subscriptions across tabs', async ({ page, context }) => {
-  const { external, project, me } = await setup(page);
+  const { external, workspace, me } = await setup(page);
   const second = await context.newPage();
   try {
     const created = await page.request.post('/v1/organizations', {
@@ -278,9 +278,9 @@ test('organization switching and logout close old subscriptions across tabs', as
     second.on('request', (req) => {
       if (new URL(req.url()).pathname === '/account/events') requests.push(req.url());
     });
-    await page.goto('/projects');
-    await second.goto('/projects');
-    await expect(second.getByRole('heading', { name: project.name })).toBeVisible();
+    await page.goto('/workspaces');
+    await second.goto('/workspaces');
+    await expect(second.getByRole('heading', { name: workspace.name })).toBeVisible();
     await expect.poll(() => requests.length).toBe(1);
     await second.getByRole('button', { name: 'Ask Macrofold', exact: true }).click();
     const assistantQuestion = second.getByRole('textbox', { name: 'Ask Macrofold a question' });
@@ -299,7 +299,7 @@ test('organization switching and logout close old subscriptions across tabs', as
     await expect(second.getByRole('button', { name: 'Account menu', exact: true })).toContainText(
       'Other organization',
     );
-    await expect(second.getByRole('heading', { name: project.name })).toHaveCount(0);
+    await expect(second.getByRole('heading', { name: workspace.name })).toHaveCount(0);
     await second.getByRole('button', { name: 'Ask Macrofold', exact: true }).click();
     await expect(second.getByRole('log', { name: 'Assistant conversation' })).toBeEmpty();
     await expect(assistantQuestion).toHaveValue('');
@@ -310,7 +310,7 @@ test('organization switching and logout close old subscriptions across tabs', as
     await external.post('/v1/runs', {
       headers: headers(),
       data: {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'codex',
         model: 'fixture-model',
         prompt: 'Old organization run',

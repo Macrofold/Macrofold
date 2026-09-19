@@ -15,6 +15,7 @@ it('reports a failed checkpoint as an unsuccessful run even if native execution 
   expect(
     outcomeExit({ run_id: 'run', final: true, execution_outcome: 'success', persistence_status: 'verified' }),
   ).toBe(0);
+  expect(outcomeExit({run_id:'inference',final:true,execution_outcome:'success',persistence_status:'not_required'})).toBe(0);
 });
 
 it('lets the server choose a runtime within the account cap unless the user specifies one', () => {
@@ -39,7 +40,7 @@ it('exposes a lost mutation response identity in the CLI error envelope', async 
   });
   try {
     process.chdir(directory);
-    expect(await main(['project', 'create', 'Fixture', '--json'])).toBe(7);
+    expect(await main(['workspace', 'create', 'Fixture', '--json'])).toBe(7);
     const result = JSON.parse(output);
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe('transport_unknown');

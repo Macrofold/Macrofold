@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct NewTrigger {
     #[serde(rename = "name")]
     pub name: String,
-    #[serde(rename = "project_id")]
-    pub project_id: uuid::Uuid,
+    #[serde(rename = "workspace_id")]
+    pub workspace_id: uuid::Uuid,
     #[serde(rename = "agent_id")]
     pub agent_id: uuid::Uuid,
     #[serde(rename = "kind")]
@@ -55,10 +55,10 @@ pub struct NewTrigger {
 }
 
 impl NewTrigger {
-    pub fn new(name: String, project_id: uuid::Uuid, agent_id: uuid::Uuid, kind: Kind, prompt: String, enabled: bool, max_runs_per_day: i32, slack_connection_id: Option<uuid::Uuid>, channel_id: Option<String>, id: uuid::Uuid, next_fire_at: Option<chrono::DateTime<chrono::FixedOffset>>, last_error_code: Option<String>, last_fired_at: Option<chrono::DateTime<chrono::FixedOffset>>, webhook_url: Option<String>, created_at: chrono::DateTime<chrono::FixedOffset>, updated_at: chrono::DateTime<chrono::FixedOffset>) -> NewTrigger {
+    pub fn new(name: String, workspace_id: uuid::Uuid, agent_id: uuid::Uuid, kind: Kind, prompt: String, enabled: bool, max_runs_per_day: i32, slack_connection_id: Option<uuid::Uuid>, channel_id: Option<String>, id: uuid::Uuid, next_fire_at: Option<chrono::DateTime<chrono::FixedOffset>>, last_error_code: Option<String>, last_fired_at: Option<chrono::DateTime<chrono::FixedOffset>>, webhook_url: Option<String>, created_at: chrono::DateTime<chrono::FixedOffset>, updated_at: chrono::DateTime<chrono::FixedOffset>) -> NewTrigger {
         NewTrigger {
             name,
-            project_id,
+            workspace_id,
             agent_id,
             kind,
             prompt,
@@ -79,7 +79,7 @@ impl NewTrigger {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Kind {
     #[serde(rename = "slack")]

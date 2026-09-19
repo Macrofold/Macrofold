@@ -59,12 +59,12 @@ test('adds sandbox MCP and BYOK search connections, then grants only selected to
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
-  const projectName = `Tool grant journey ${Date.now()}`;
-  await page.getByRole('textbox', { name: 'Project name' }).fill(projectName);
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  await expect(page.getByRole('heading', { name: projectName })).toBeVisible();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+  const workspaceName = `Tool grant journey ${Date.now()}`;
+  await page.getByRole('textbox', { name: 'Workspace name' }).fill(workspaceName);
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
+  await expect(page.getByRole('heading', { name: workspaceName })).toBeVisible();
   await page.getByRole('button', { name: 'New run', exact: true }).click();
   await page
     .getByRole('textbox', { name: 'What would you like to get done?' })

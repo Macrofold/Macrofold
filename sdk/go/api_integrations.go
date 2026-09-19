@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -26,7 +26,7 @@ type IntegrationsAPIService service
 type ApiDisconnectGithubRequest struct {
 	ctx context.Context
 	ApiService *IntegrationsAPIService
-	projectId string
+	workspaceId string
 	idempotencyKey *string
 	xOrganizationId *string
 }
@@ -42,7 +42,7 @@ func (r ApiDisconnectGithubRequest) XOrganizationId(xOrganizationId string) ApiD
 	return r
 }
 
-func (r ApiDisconnectGithubRequest) Execute() (*Project, *http.Response, error) {
+func (r ApiDisconnectGithubRequest) Execute() (*Workspace, *http.Response, error) {
 	return r.ApiService.DisconnectGithubExecute(r)
 }
 
@@ -50,25 +50,25 @@ func (r ApiDisconnectGithubRequest) Execute() (*Project, *http.Response, error) 
 DisconnectGithub disconnectGithub
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param projectId
+ @param workspaceId
  @return ApiDisconnectGithubRequest
 */
-func (a *IntegrationsAPIService) DisconnectGithub(ctx context.Context, projectId string) ApiDisconnectGithubRequest {
+func (a *IntegrationsAPIService) DisconnectGithub(ctx context.Context, workspaceId string) ApiDisconnectGithubRequest {
 	return ApiDisconnectGithubRequest{
 		ApiService: a,
 		ctx: ctx,
-		projectId: projectId,
+		workspaceId: workspaceId,
 	}
 }
 
 // Execute executes the request
-//  @return Project
-func (a *IntegrationsAPIService) DisconnectGithubExecute(r ApiDisconnectGithubRequest) (*Project, *http.Response, error) {
+//  @return Workspace
+func (a *IntegrationsAPIService) DisconnectGithubExecute(r ApiDisconnectGithubRequest) (*Workspace, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *Project
+		localVarReturnValue  *Workspace
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "IntegrationsAPIService.DisconnectGithub")
@@ -76,8 +76,8 @@ func (a *IntegrationsAPIService) DisconnectGithubExecute(r ApiDisconnectGithubRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/projects/{project_id}/github"
-	localVarPath = strings.Replace(localVarPath, "{"+"project_id"+"}", url.PathEscape(parameterValueToString(r.projectId, "projectId")), -1)
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/github"
+	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

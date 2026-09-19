@@ -55,7 +55,7 @@ for (const study of homepages) {
     }
     const routing = page.locator('.hp-diagram[data-stage="4"]');
     await routing.getByRole('button', { name: 'CLI', exact: true }).click();
-    await expect(routing).toContainText('CLI → OpenCode workspaces');
+    await expect(routing).toContainText('CLI → OpenCode worktrees');
     await expect(routing.locator('.hp-tree-selected')).toHaveCount(1);
     for (const icon of await routing.locator('.hp-input-picker svg').all()) {
       await expect(icon).toHaveCSS('width', '14px');
@@ -127,7 +127,7 @@ test('feature steps work by keyboard and without JavaScript', async ({ page, bro
   for (let i = 1; i < 5; i++) await page.getByRole('button', { name: 'Next feature' }).click();
   await expect(page.getByRole('button', { name: 'Next feature' })).toBeDisabled();
   await page.getByRole('tab', { name: /In your product/ }).press('Home');
-  await expect(page.getByRole('tab', { name: '01 Project', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: '01 Workspace', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );

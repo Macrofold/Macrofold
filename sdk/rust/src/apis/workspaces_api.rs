@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -13,38 +13,28 @@ use reqwest;
 use serde::{Deserialize, Serialize, de::Error as _};
 use crate::{apis::ResponseContent, models};
 use super::{Error, configuration, ContentType};
-use tokio::fs::File as TokioFile;
-use tokio_util::codec::{BytesCodec, FramedRead};
 
 
-/// struct for typed errors of method [`create_checkpoint`]
+/// struct for typed errors of method [`cancel_workspace_deletion`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum CreateCheckpointError {
+pub enum CancelWorkspaceDeletionError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`create_folder`]
+/// struct for typed errors of method [`create_workspace`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum CreateFolderError {
+pub enum CreateWorkspaceError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`create_transfer`]
+/// struct for typed errors of method [`create_worktree`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum CreateTransferError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`delete_file`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DeleteFileError {
+pub enum CreateWorktreeError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
@@ -57,22 +47,6 @@ pub enum DeleteWorkspaceError {
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`duplicate_file`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DuplicateFileError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`get_sync`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum GetSyncError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
 /// struct for typed errors of method [`get_workspace`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -81,66 +55,34 @@ pub enum GetWorkspaceError {
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`get_workspace_diff`]
+/// struct for typed errors of method [`get_worktree_options`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum GetWorkspaceDiffError {
+pub enum GetWorktreeOptionsError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`list_checkpoints`]
+/// struct for typed errors of method [`list_workspaces`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ListCheckpointsError {
+pub enum ListWorkspacesError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`list_files`]
+/// struct for typed errors of method [`list_worktrees`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ListFilesError {
+pub enum ListWorktreesError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`list_transfers`]
+/// struct for typed errors of method [`schedule_workspace_deletion`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ListTransfersError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`read_file`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ReadFileError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`rename_file`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RenameFileError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`restore_workspace`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RestoreWorkspaceError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
-
-/// struct for typed errors of method [`sync_workspace`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SyncWorkspaceError {
+pub enum ScheduleWorkspaceDeletionError {
     DefaultResponse(models::Error),
     UnknownValue(serde_json::Value),
 }
@@ -153,187 +95,20 @@ pub enum UpdateWorkspaceError {
     UnknownValue(serde_json::Value),
 }
 
-/// struct for typed errors of method [`write_file`]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WriteFileError {
-    DefaultResponse(models::Error),
-    UnknownValue(serde_json::Value),
-}
 
-
-/// 
-pub async fn create_checkpoint(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, checkpoint_create: models::CheckpointCreate, x_organization_id: Option<&str>) -> Result<models::Operation, Error<CreateCheckpointError>> {
+///
+pub async fn cancel_workspace_deletion(configuration: &configuration::Configuration, idempotency_key: &str, workspace_id: &str, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<CancelWorkspaceDeletionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
     let p_header_idempotency_key = idempotency_key;
-    let p_body_checkpoint_create = checkpoint_create;
+    let p_path_workspace_id = workspace_id;
     let p_header_x_organization_id = x_organization_id;
 
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/checkpoints", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_checkpoint_create);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<CreateCheckpointError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-pub async fn create_folder(configuration: &configuration::Configuration, workspace_id: &str, if_match: &str, idempotency_key: &str, folder_create: models::FolderCreate, x_organization_id: Option<&str>) -> Result<models::Operation, Error<CreateFolderError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_header_if_match = if_match;
-    let p_header_idempotency_key = idempotency_key;
-    let p_body_folder_create = folder_create;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/folders", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("If-Match", p_header_if_match.to_string());
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_folder_create);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<CreateFolderError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-pub async fn create_transfer(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, transfer_create: models::TransferCreate, x_organization_id: Option<&str>) -> Result<models::Transfer, Error<CreateTransferError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_header_idempotency_key = idempotency_key;
-    let p_body_transfer_create = transfer_create;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/transfers", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_transfer_create);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Transfer`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Transfer`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<CreateTransferError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
-pub async fn delete_file(configuration: &configuration::Configuration, workspace_id: &str, path: &str, if_match: &str, idempotency_key: &str, x_organization_id: Option<&str>) -> Result<models::Operation, Error<DeleteFileError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_path = path;
-    let p_header_if_match = if_match;
-    let p_header_idempotency_key = idempotency_key;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/file", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/deletion", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::DELETE, &uri_str);
 
-    req_builder = req_builder.query(&[("path", &p_query_path.to_string())]);
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
     }
-    req_builder = req_builder.header("If-Match", p_header_if_match.to_string());
     req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
     if let Some(param_value) = p_header_x_organization_id {
         req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
@@ -360,17 +135,118 @@ pub async fn delete_file(configuration: &configuration::Configuration, workspace
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Workspace`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Workspace`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<CancelWorkspaceDeletionError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+///
+pub async fn create_workspace(configuration: &configuration::Configuration, idempotency_key: &str, workspace_create: models::WorkspaceCreate, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<CreateWorkspaceError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_header_idempotency_key = idempotency_key;
+    let p_body_workspace_create = workspace_create;
+    let p_header_x_organization_id = x_organization_id;
+
+    let uri_str = format!("{}/v1/workspaces", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
+    if let Some(param_value) = p_header_x_organization_id {
+        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
+    }
+    if let Some(ref token) = configuration.oauth_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+    if let Some(ref token) = configuration.bearer_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+    req_builder = req_builder.json(&p_body_workspace_create);
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Workspace`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Workspace`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<CreateWorkspaceError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+///
+pub async fn create_worktree(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, worktree_create: models::WorktreeCreate, x_organization_id: Option<&str>) -> Result<models::Operation, Error<CreateWorktreeError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_path_workspace_id = workspace_id;
+    let p_header_idempotency_key = idempotency_key;
+    let p_body_worktree_create = worktree_create;
+    let p_header_x_organization_id = x_organization_id;
+
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/worktrees", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
+    if let Some(param_value) = p_header_x_organization_id {
+        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
+    }
+    if let Some(ref token) = configuration.oauth_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+    if let Some(ref token) = configuration.bearer_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+    req_builder = req_builder.json(&p_body_worktree_create);
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
             ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
             ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
         }
     } else {
         let content = resp.text().await?;
-        let entity: Option<DeleteFileError> = serde_json::from_str(&content).ok();
+        let entity: Option<CreateWorktreeError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
 
-/// 
+/// Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
 pub async fn delete_workspace(configuration: &configuration::Configuration, workspace_id: &str, x_organization_id: Option<&str>) -> Result<models::Operation, Error<DeleteWorkspaceError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
@@ -417,115 +293,31 @@ pub async fn delete_workspace(configuration: &configuration::Configuration, work
     }
 }
 
-/// Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-pub async fn duplicate_file(configuration: &configuration::Configuration, workspace_id: &str, if_match: &str, idempotency_key: &str, file_duplicate: models::FileDuplicate, x_organization_id: Option<&str>) -> Result<models::Operation, Error<DuplicateFileError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_header_if_match = if_match;
-    let p_header_idempotency_key = idempotency_key;
-    let p_body_file_duplicate = file_duplicate;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/files/duplicate", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("If-Match", p_header_if_match.to_string());
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_file_duplicate);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<DuplicateFileError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
-pub async fn get_sync(configuration: &configuration::Configuration, workspace_id: &str, x_organization_id: Option<&str>) -> Result<models::GitSync, Error<GetSyncError>> {
+/// Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+pub async fn get_workspace(configuration: &configuration::Configuration, workspace_id: &str, x_organization_id: Option<&str>, include_connections: Option<bool>, agent_id: Option<&str>, connections_limit: Option<i32>, connections_cursor: Option<&str>) -> Result<models::Workspace, Error<GetWorkspaceError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
     let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/sync", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::GitSync`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::GitSync`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<GetSyncError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
-pub async fn get_workspace(configuration: &configuration::Configuration, workspace_id: &str, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<GetWorkspaceError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_header_x_organization_id = x_organization_id;
+    let p_query_include_connections = include_connections;
+    let p_query_agent_id = agent_id;
+    let p_query_connections_limit = connections_limit;
+    let p_query_connections_cursor = connections_cursor;
 
     let uri_str = format!("{}/v1/workspaces/{workspace_id}", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
+    if let Some(ref param_value) = p_query_include_connections {
+        req_builder = req_builder.query(&[("include_connections", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_agent_id {
+        req_builder = req_builder.query(&[("agent_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_connections_limit {
+        req_builder = req_builder.query(&[("connections_limit", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_connections_cursor {
+        req_builder = req_builder.query(&[("connections_cursor", &param_value.to_string())]);
+    }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
     }
@@ -564,30 +356,22 @@ pub async fn get_workspace(configuration: &configuration::Configuration, workspa
     }
 }
 
-/// Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-pub async fn get_workspace_diff(configuration: &configuration::Configuration, workspace_id: &str, base_checkpoint_id: Option<&str>, path: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::WorkspaceDiff, Error<GetWorkspaceDiffError>> {
+/// Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
+pub async fn get_worktree_options(configuration: &configuration::Configuration, workspace_id: &str, x_organization_id: Option<&str>, name: Option<&str>, branch: Option<&str>) -> Result<models::WorktreeOptions, Error<GetWorktreeOptionsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
-    let p_query_base_checkpoint_id = base_checkpoint_id;
-    let p_query_path = path;
-    let p_query_cursor = cursor;
-    let p_query_limit = limit;
     let p_header_x_organization_id = x_organization_id;
+    let p_query_name = name;
+    let p_query_branch = branch;
 
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/diff", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/worktree-options", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
-    if let Some(ref param_value) = p_query_base_checkpoint_id {
-        req_builder = req_builder.query(&[("base_checkpoint_id", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_name {
+        req_builder = req_builder.query(&[("name", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_path {
-        req_builder = req_builder.query(&[("path", &param_value.to_string())]);
-    }
-    if let Some(ref param_value) = p_query_cursor {
-        req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
-    }
-    if let Some(ref param_value) = p_query_limit {
-        req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_branch {
+        req_builder = req_builder.query(&[("branch", &param_value.to_string())]);
     }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
@@ -617,88 +401,28 @@ pub async fn get_workspace_diff(configuration: &configuration::Configuration, wo
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::WorkspaceDiff`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::WorkspaceDiff`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::WorktreeOptions`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::WorktreeOptions`")))),
         }
     } else {
         let content = resp.text().await?;
-        let entity: Option<GetWorkspaceDiffError> = serde_json::from_str(&content).ok();
+        let entity: Option<GetWorktreeOptionsError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
 
-/// 
-pub async fn list_checkpoints(configuration: &configuration::Configuration, workspace_id: &str, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListCheckpoints200Response, Error<ListCheckpointsError>> {
+///
+pub async fn list_workspaces(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, query: Option<&str>, archived: Option<bool>) -> Result<models::ListWorkspaces200Response, Error<ListWorkspacesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_cursor = cursor;
-    let p_query_limit = limit;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/checkpoints", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
-
-    if let Some(ref param_value) = p_query_cursor {
-        req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
-    }
-    if let Some(ref param_value) = p_query_limit {
-        req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
-    }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListCheckpoints200Response`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListCheckpoints200Response`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<ListCheckpointsError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
-pub async fn list_files(configuration: &configuration::Configuration, workspace_id: &str, path: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, query: Option<&str>, recursive: Option<bool>) -> Result<models::FileListing, Error<ListFilesError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_path = path;
     let p_query_cursor = cursor;
     let p_query_limit = limit;
     let p_header_x_organization_id = x_organization_id;
     let p_query_query = query;
-    let p_query_recursive = recursive;
+    let p_query_archived = archived;
 
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/files", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let uri_str = format!("{}/v1/workspaces", configuration.base_path);
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
-    if let Some(ref param_value) = p_query_path {
-        req_builder = req_builder.query(&[("path", &param_value.to_string())]);
-    }
     if let Some(ref param_value) = p_query_cursor {
         req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
     }
@@ -708,8 +432,8 @@ pub async fn list_files(configuration: &configuration::Configuration, workspace_
     if let Some(ref param_value) = p_query_query {
         req_builder = req_builder.query(&[("query", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_recursive {
-        req_builder = req_builder.query(&[("recursive", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_archived {
+        req_builder = req_builder.query(&[("archived", &param_value.to_string())]);
     }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
@@ -739,25 +463,25 @@ pub async fn list_files(configuration: &configuration::Configuration, workspace_
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::FileListing`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::FileListing`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListWorkspaces200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListWorkspaces200Response`")))),
         }
     } else {
         let content = resp.text().await?;
-        let entity: Option<ListFilesError> = serde_json::from_str(&content).ok();
+        let entity: Option<ListWorkspacesError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
 
-/// 
-pub async fn list_transfers(configuration: &configuration::Configuration, workspace_id: &str, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListTransfers200Response, Error<ListTransfersError>> {
+///
+pub async fn list_worktrees(configuration: &configuration::Configuration, workspace_id: &str, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListWorktrees200Response, Error<ListWorktreesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
     let p_query_cursor = cursor;
     let p_query_limit = limit;
     let p_header_x_organization_id = x_organization_id;
 
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/transfers", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/worktrees", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
     if let Some(ref param_value) = p_query_cursor {
@@ -794,122 +518,25 @@ pub async fn list_transfers(configuration: &configuration::Configuration, worksp
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListTransfers200Response`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListTransfers200Response`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListWorktrees200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListWorktrees200Response`")))),
         }
     } else {
         let content = resp.text().await?;
-        let entity: Option<ListTransfersError> = serde_json::from_str(&content).ok();
+        let entity: Option<ListWorktreesError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
 
-/// Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
-pub async fn read_file(configuration: &configuration::Configuration, workspace_id: &str, path: &str, x_organization_id: Option<&str>, download: Option<bool>) -> Result<reqwest::Response, Error<ReadFileError>> {
+///
+pub async fn schedule_workspace_deletion(configuration: &configuration::Configuration, idempotency_key: &str, workspace_id: &str, workspace_deletion: models::WorkspaceDeletion, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<ScheduleWorkspaceDeletionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_path = path;
-    let p_header_x_organization_id = x_organization_id;
-    let p_query_download = download;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/file", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
-
-    req_builder = req_builder.query(&[("path", &p_query_path.to_string())]);
-    if let Some(ref param_value) = p_query_download {
-        req_builder = req_builder.query(&[("download", &param_value.to_string())]);
-    }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-
-    if !status.is_client_error() && !status.is_server_error() {
-        Ok(resp)
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<ReadFileError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
-pub async fn rename_file(configuration: &configuration::Configuration, workspace_id: &str, path: &str, if_match: &str, idempotency_key: &str, file_rename: models::FileRename, x_organization_id: Option<&str>) -> Result<models::Operation, Error<RenameFileError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_path = path;
-    let p_header_if_match = if_match;
     let p_header_idempotency_key = idempotency_key;
-    let p_body_file_rename = file_rename;
-    let p_header_x_organization_id = x_organization_id;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/file", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::PATCH, &uri_str);
-
-    req_builder = req_builder.query(&[("path", &p_query_path.to_string())]);
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("If-Match", p_header_if_match.to_string());
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_file_rename);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<RenameFileError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
-pub async fn restore_workspace(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, restore_request: models::RestoreRequest, x_organization_id: Option<&str>) -> Result<models::Operation, Error<RestoreWorkspaceError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
-    let p_header_idempotency_key = idempotency_key;
-    let p_body_restore_request = restore_request;
+    let p_body_workspace_deletion = workspace_deletion;
     let p_header_x_organization_id = x_organization_id;
 
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/restore", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
+    let uri_str = format!("{}/v1/workspaces/{workspace_id}/deletion", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
 
     if let Some(ref user_agent) = configuration.user_agent {
@@ -925,7 +552,7 @@ pub async fn restore_workspace(configuration: &configuration::Configuration, wor
     if let Some(ref token) = configuration.bearer_access_token {
         req_builder = req_builder.bearer_auth(token.to_owned());
     };
-    req_builder = req_builder.json(&p_body_restore_request);
+    req_builder = req_builder.json(&p_body_workspace_deletion);
 
     let req = req_builder.build()?;
     let resp = configuration.client.execute(req).await?;
@@ -942,68 +569,17 @@ pub async fn restore_workspace(configuration: &configuration::Configuration, wor
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Workspace`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Workspace`")))),
         }
     } else {
         let content = resp.text().await?;
-        let entity: Option<RestoreWorkspaceError> = serde_json::from_str(&content).ok();
+        let entity: Option<ScheduleWorkspaceDeletionError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
 
-/// 
-pub async fn sync_workspace(configuration: &configuration::Configuration, workspace_id: &str, idempotency_key: &str, x_organization_id: Option<&str>, sync_workspace_request: Option<models::SyncWorkspaceRequest>) -> Result<models::Operation, Error<SyncWorkspaceError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_header_idempotency_key = idempotency_key;
-    let p_header_x_organization_id = x_organization_id;
-    let p_body_sync_workspace_request = sync_workspace_request;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/sync", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
-
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    req_builder = req_builder.json(&p_body_sync_workspace_request);
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<SyncWorkspaceError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// 
+///
 pub async fn update_workspace(configuration: &configuration::Configuration, workspace_id: &str, workspace_patch: models::WorkspacePatch, x_organization_id: Option<&str>) -> Result<models::Workspace, Error<UpdateWorkspaceError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_workspace_id = workspace_id;
@@ -1048,68 +624,6 @@ pub async fn update_workspace(configuration: &configuration::Configuration, work
     } else {
         let content = resp.text().await?;
         let entity: Option<UpdateWorkspaceError> = serde_json::from_str(&content).ok();
-        Err(Error::ResponseError(ResponseContent { status, content, entity }))
-    }
-}
-
-/// Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-pub async fn write_file(configuration: &configuration::Configuration, workspace_id: &str, path: &str, if_match: &str, idempotency_key: &str, body: std::path::PathBuf, x_organization_id: Option<&str>, create_only: Option<bool>) -> Result<models::Operation, Error<WriteFileError>> {
-    // add a prefix to parameters to efficiently prevent name collisions
-    let p_path_workspace_id = workspace_id;
-    let p_query_path = path;
-    let p_header_if_match = if_match;
-    let p_header_idempotency_key = idempotency_key;
-    let p_body_body = body;
-    let p_header_x_organization_id = x_organization_id;
-    let p_query_create_only = create_only;
-
-    let uri_str = format!("{}/v1/workspaces/{workspace_id}/file", configuration.base_path, workspace_id=crate::apis::urlencode(p_path_workspace_id));
-    let mut req_builder = configuration.client.request(reqwest::Method::PUT, &uri_str);
-
-    req_builder = req_builder.query(&[("path", &p_query_path.to_string())]);
-    if let Some(ref param_value) = p_query_create_only {
-        req_builder = req_builder.query(&[("create_only", &param_value.to_string())]);
-    }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
-    }
-    req_builder = req_builder.header("If-Match", p_header_if_match.to_string());
-    req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
-    if let Some(param_value) = p_header_x_organization_id {
-        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(ref token) = configuration.oauth_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    if let Some(ref token) = configuration.bearer_access_token {
-        req_builder = req_builder.bearer_auth(token.to_owned());
-    };
-    let file = TokioFile::open(p_body_body).await?;
-    req_builder = req_builder.header(reqwest::header::CONTENT_TYPE, "application/octet-stream").header(reqwest::header::CONTENT_LENGTH, file.metadata().await?.len());
-    let stream = FramedRead::new(file, BytesCodec::new());
-    req_builder = req_builder.body(reqwest::Body::wrap_stream(stream));
-
-    let req = req_builder.build()?;
-    let resp = configuration.client.execute(req).await?;
-
-    let status = resp.status();
-    let content_type = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream");
-    let content_type = super::ContentType::from(content_type);
-
-    if !status.is_client_error() && !status.is_server_error() {
-        let content = resp.text().await?;
-        match content_type {
-            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::Operation`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::Operation`")))),
-        }
-    } else {
-        let content = resp.text().await?;
-        let entity: Option<WriteFileError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }

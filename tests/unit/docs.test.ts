@@ -17,7 +17,7 @@ import { GET as openapi } from '../../apps/web/app/openapi.json/route';
 it('serves current API metadata with the deployment origin', async () => {
   const response = await openapi().json();
   expect(response.info.title).toBe('Macrofold API');
-  expect(response.info.description).toContain('Manage persistent projects');
+  expect(response.info.description).toContain('Manage persistent workspaces');
   expect(response.info.description).not.toContain('Design contract');
   expect(response.servers).toEqual([{ url: process.env.APP_ORIGIN || 'http://localhost:3210' }]);
   expect(response.paths['/v1/runs'].post.operationId).toBe('createRun');
@@ -58,7 +58,7 @@ it('keeps the setup prompt readable and its links scoped to the documentation de
     const prompt = setupPrompt(origin);
     expect(prompt).toContain('Feature to build:');
     expect(prompt).toContain('MACROFOLD_API_KEY');
-    expect(prompt).toContain('workspace');
+    expect(prompt).toContain('worktree');
     const links = [...prompt.matchAll(/\]\(([^)]+)\)/g)].map((match) => new URL(match[1]));
     expect(links.length).toBeGreaterThanOrEqual(6);
     for (const link of links) {

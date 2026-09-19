@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -23,7 +23,7 @@ var _ MappedNullable = &WorktreeOptionsBranchesInner{}
 type WorktreeOptionsBranchesInner struct {
 	Name string `json:"name"`
 	Ref string `json:"ref"`
-	WorkspaceId string `json:"workspace_id"`
+	WorktreeId string `json:"worktree_id"`
 }
 
 type _WorktreeOptionsBranchesInner WorktreeOptionsBranchesInner
@@ -32,11 +32,11 @@ type _WorktreeOptionsBranchesInner WorktreeOptionsBranchesInner
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewWorktreeOptionsBranchesInner(name string, ref string, workspaceId string) *WorktreeOptionsBranchesInner {
+func NewWorktreeOptionsBranchesInner(name string, ref string, worktreeId string) *WorktreeOptionsBranchesInner {
 	this := WorktreeOptionsBranchesInner{}
 	this.Name = name
 	this.Ref = ref
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	return &this
 }
 
@@ -96,28 +96,28 @@ func (o *WorktreeOptionsBranchesInner) SetRef(v string) {
 	o.Ref = v
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *WorktreeOptionsBranchesInner) GetWorkspaceId() string {
+// GetWorktreeId returns the WorktreeId field value
+func (o *WorktreeOptionsBranchesInner) GetWorktreeId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *WorktreeOptionsBranchesInner) GetWorkspaceIdOk() (*string, bool) {
+func (o *WorktreeOptionsBranchesInner) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return &o.WorktreeId, true
 }
 
-// SetWorkspaceId sets field value
-func (o *WorktreeOptionsBranchesInner) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *WorktreeOptionsBranchesInner) SetWorktreeId(v string) {
+	o.WorktreeId = v
 }
 
 func (o WorktreeOptionsBranchesInner) MarshalJSON() ([]byte, error) {
@@ -132,7 +132,7 @@ func (o WorktreeOptionsBranchesInner) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["name"] = o.Name
 	toSerialize["ref"] = o.Ref
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["worktree_id"] = o.WorktreeId
 	return toSerialize, nil
 }
 
@@ -143,7 +143,7 @@ func (o *WorktreeOptionsBranchesInner) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"name",
 		"ref",
-		"workspace_id",
+		"worktree_id",
 	}
 
 	allProperties := make(map[string]interface{})

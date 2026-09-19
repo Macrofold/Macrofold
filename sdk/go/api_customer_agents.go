@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -2335,7 +2335,7 @@ func (r ApiSendCustomerAgentMessageRequest) XOrganizationId(xOrganizationId stri
 	return r
 }
 
-func (r ApiSendCustomerAgentMessageRequest) Execute() (*RunAccepted, *http.Response, error) {
+func (r ApiSendCustomerAgentMessageRequest) Execute() (*NativeRunAccepted, *http.Response, error) {
 	return r.ApiService.SendCustomerAgentMessageExecute(r)
 }
 
@@ -2359,13 +2359,13 @@ func (a *CustomerAgentsAPIService) SendCustomerAgentMessage(ctx context.Context,
 }
 
 // Execute executes the request
-//  @return RunAccepted
-func (a *CustomerAgentsAPIService) SendCustomerAgentMessageExecute(r ApiSendCustomerAgentMessageRequest) (*RunAccepted, *http.Response, error) {
+//  @return NativeRunAccepted
+func (a *CustomerAgentsAPIService) SendCustomerAgentMessageExecute(r ApiSendCustomerAgentMessageRequest) (*NativeRunAccepted, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *RunAccepted
+		localVarReturnValue  *NativeRunAccepted
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "CustomerAgentsAPIService.SendCustomerAgentMessage")

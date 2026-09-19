@@ -13,7 +13,7 @@ import {
   uuid,
 } from './context';
 import { deviceLogin, logout, profileSummaries, saveProfile } from './profiles';
-import { findLink, unlinkProject } from './local-project';
+import { findLink, unlinkWorkspace } from './local-workspace';
 import { release } from './settings';
 import { CliError, confirm, prompt, readStdin, terminalText } from './output';
 import { streamCommand, outcomeExit } from './stream';
@@ -102,48 +102,48 @@ export const handlers: Record<string, Handler> = {
   },
   logout: async ({ flags }) => result(await logout(stringOption(flags, 'profile'))),
   whoami: async ({ context }) => result(await (await context()).identity()),
-  'project list': async ({ context, flags }) =>
-    result(await (await context()).client.request('listProjects', { params: { query: page(flags) } })),
-  'project create': async ({ context, args, flags }) =>
+  'workspace list': async ({ context, flags }) =>
+    result(await (await context()).client.request('listWorkspaces', { params: { query: page(flags) } })),
+  'workspace create': async ({ context, args, flags }) =>
     result(
       await (
         await context()
-      ).client.request('createProject', {
+      ).client.request('createWorkspace', {
         body: {
-          name: required(args.join(' '), 'Project name'),
+          name: required(args.join(' '), 'Workspace name'),
           persistence: flags.ephemeral ? 'ephemeral' : 'persistent',
         },
       }),
     ),
-  'project show': async ({ context, args }) => result(await (await context()).project(args[0])),
+  'workspace show': async ({ context, args }) => result(await (await context()).workspace(args[0])),
   link: async ({ context, args, flags }) => {
     const ctx = await context(),
-      project = await ctx.project(required(args[0] || stringOption(flags, 'project'), 'Project'));
-    const workspace = await ctx.workspace(stringOption(flags, 'workspace') || project.default_workspace_id);
-    if (workspace.project_id !== project.id) throw new CliError('Workspace and project do not match.', 5);
-    return result(await ctx.link(workspace, process.cwd()));
+      workspace = await ctx.workspace(required(args[0] || stringOption(flags, 'workspace'), 'Workspace'));
+    const worktree = await ctx.worktree(stringOption(flags, 'worktree') || workspace.default_worktree_id);
+    if (worktree.workspace_id !== workspace.id) throw new CliError('Worktree and workspace do not match.', 5);
+    return result(await ctx.link(worktree, process.cwd()));
   },
   unlink: async () => {
     const linked = await findLink();
     if (!linked) throw new CliError('This directory is not linked.');
-    await unlinkProject(linked.root);
+    await unlinkWorkspace(linked.root);
     return result({ unlinked: true, directory: linked.root });
   },
   'worktree list': async ({ context, flags }) => {
     const ctx = await context();
     return result(
-      await ctx.client.request('listWorkspaces', {
-        params: { path: { project_id: (await ctx.project()).id }, query: page(flags) },
+      await ctx.client.request('listWorktrees', {
+        params: { path: { workspace_id: (await ctx.workspace()).id }, query: page(flags) },
       }),
     );
   },
   'worktree create': async ({ context, args, flags }) => {
     const ctx = await context(),
       from = stringOption(flags, 'from');
-    const operation = await ctx.client.request('createWorkspace', {
-      params: { path: { project_id: (await ctx.project()).id } },
+    const operation = await ctx.client.request('createWorktree', {
+      params: { path: { workspace_id: (await ctx.workspace()).id } },
       body: {
-        name: required(args[0], 'Workspace name'),
+        name: required(args[0], 'Worktree name'),
         branch: stringOption(flags, 'branch'),
         ...(from
           ? {
@@ -156,39 +156,39 @@ export const handlers: Record<string, Handler> = {
     });
     const value = await completed(ctx, operation);
     if (flags.use) {
-      const workspaceId = String(value.result?.workspace_id || value.result?.id || '');
-      if (!uuid(workspaceId)) throw new CliError('Workspace creation returned no workspace ID.', 7);
-      await ctx.link(await ctx.workspace(workspaceId));
+      const worktreeId = String(value.result?.worktree_id || value.result?.id || '');
+      if (!uuid(worktreeId)) throw new CliError('Worktree creation returned no worktree ID.', 7);
+      await ctx.link(await ctx.worktree(worktreeId));
     }
     return result(value);
   },
   'worktree use': async ({ context, args }) => {
     const ctx = await context();
-    return result(await ctx.link(await ctx.workspace(required(args[0], 'Workspace'))));
+    return result(await ctx.link(await ctx.worktree(required(args[0], 'Worktree'))));
   },
   'worktree remove': async ({ context, args, flags }) => {
     const ctx = await context(),
-      workspace = await ctx.workspace(required(args[0], 'Workspace'));
-    await confirm(`Delete remote workspace ${terminalText(workspace.name)}?`, Boolean(flags.yes));
+      worktree = await ctx.worktree(required(args[0], 'Worktree'));
+    await confirm(`Delete remote worktree ${terminalText(worktree.name)}?`, Boolean(flags.yes));
     return result(
       await completed(
         ctx,
-        await ctx.client.request('deleteWorkspace', { params: { path: { workspace_id: workspace.id } } }),
+        await ctx.client.request('deleteWorktree', { params: { path: { worktree_id: worktree.id } } }),
       ),
     );
   },
   'worktree checkout': async ({ context, args, flags }) => {
     const ctx = await context();
     if (!ctx.linked) throw new CliError('Link this local Git repository first.');
-    const workspace = await ctx.workspace(args[0]);
+    const worktree = await ctx.worktree(args[0]);
     const value = await checkout(
       ctx.client,
       ctx.linked.root,
-      workspace,
+      worktree,
       required(stringOption(flags, 'local'), '--local PATH'),
       stringOption(flags, 'branch'),
     );
-    await ctx.link(workspace, value.directory);
+    await ctx.link(worktree, value.directory);
     return result(value);
   },
   run: async ({ context, args, flags }) => {
@@ -223,7 +223,7 @@ export const handlers: Record<string, Handler> = {
       run = await ctx.client.request('createRun', {
         body: {
           prompt: text,
-          workspace_id: (await ctx.workspace()).id,
+          worktree_id: (await ctx.worktree()).id,
           ...(agentId
             ? {
                 agent_id: agentId,
@@ -259,7 +259,7 @@ export const handlers: Record<string, Handler> = {
         params: {
           query: {
             ...page(flags),
-            workspace_id: stringOption(flags, 'workspace') ? (await ctx.workspace()).id : undefined,
+            worktree_id: stringOption(flags, 'worktree') ? (await ctx.worktree()).id : undefined,
             session_id: stringOption(flags, 'session'),
             status: stringOption(flags, 'status'),
           },
@@ -319,9 +319,9 @@ export const handlers: Record<string, Handler> = {
         params: {
           query: {
             ...page(flags),
-            workspace_id: stringOption(flags, 'workspace')
-              ? (await ctx.workspace()).id
-              : ctx.linked?.link.workspaceId,
+            worktree_id: stringOption(flags, 'worktree')
+              ? (await ctx.worktree()).id
+              : ctx.linked?.link.worktreeId,
           },
         },
       }),
@@ -336,7 +336,7 @@ export const handlers: Record<string, Handler> = {
     const ctx = await context();
     return result(
       await ctx.client.request('listFiles', {
-        params: { path: { workspace_id: (await ctx.workspace()).id }, query: page(flags) },
+        params: { path: { worktree_id: (await ctx.worktree()).id }, query: page(flags) },
       }),
     );
   },
@@ -344,7 +344,7 @@ export const handlers: Record<string, Handler> = {
     const ctx = await context(),
       file = required(args[0], 'File path');
     const bytes = await ctx.client.request('readFile', {
-      params: { path: { workspace_id: (await ctx.workspace()).id }, query: { path: file } },
+      params: { path: { worktree_id: (await ctx.worktree()).id }, query: { path: file } },
     });
     const target = stringOption(flags, 'output');
     if (target) {
@@ -358,11 +358,11 @@ export const handlers: Record<string, Handler> = {
   },
   'files diff': async ({ context, args, flags }) => {
     const ctx = await context(),
-      workspace = await ctx.workspace();
+      worktree = await ctx.worktree();
     if (flags.local) {
       if (!ctx.linked) throw new CliError('Link the local folder before comparing files.');
       return result(
-        await transferFiles(ctx.client, ctx.linked.root, workspace.id, 'push', args, {
+        await transferFiles(ctx.client, ctx.linked.root, worktree.id, 'push', args, {
           dryRun: true,
           includeIgnored: Boolean(flags['include-ignored']),
           delete: Boolean(flags.delete),
@@ -371,9 +371,9 @@ export const handlers: Record<string, Handler> = {
       );
     }
     return result(
-      await ctx.client.request('getWorkspaceDiff', {
+      await ctx.client.request('getWorktreeDiff', {
         params: {
-          path: { workspace_id: workspace.id },
+          path: { worktree_id: worktree.id },
           query: { ...page(flags), path: args[0], base_checkpoint_id: stringOption(flags, 'from') },
         },
       }),
@@ -383,7 +383,7 @@ export const handlers: Record<string, Handler> = {
     const ctx = await context();
     return result(
       await ctx.client.request('listCheckpoints', {
-        params: { path: { workspace_id: (await ctx.workspace()).id }, query: page(flags) },
+        params: { path: { worktree_id: (await ctx.worktree()).id }, query: page(flags) },
       }),
     );
   },
@@ -393,7 +393,7 @@ export const handlers: Record<string, Handler> = {
       await completed(
         ctx,
         await ctx.client.request('createCheckpoint', {
-          params: { path: { workspace_id: (await ctx.workspace()).id } },
+          params: { path: { worktree_id: (await ctx.worktree()).id } },
           body: { pinned: Boolean(flags.pin) },
         }),
       ),
@@ -401,16 +401,16 @@ export const handlers: Record<string, Handler> = {
   },
   'checkpoint restore': async ({ context, args, flags }) => {
     const ctx = await context(),
-      workspace = await ctx.workspace();
+      worktree = await ctx.worktree();
     await confirm(
-      `Restore files in ${terminalText(workspace.name)} from this checkpoint?`,
+      `Restore files in ${terminalText(worktree.name)} from this checkpoint?`,
       Boolean(flags.yes),
     );
     return result(
       await completed(
         ctx,
-        await ctx.client.request('restoreWorkspace', {
-          params: { path: { workspace_id: workspace.id } },
+        await ctx.client.request('restoreWorktree', {
+          params: { path: { worktree_id: worktree.id } },
           body: { checkpoint_id: required(args[0], 'Checkpoint ID') },
         }),
       ),
@@ -419,7 +419,7 @@ export const handlers: Record<string, Handler> = {
   'git status': async ({ context }) => {
     const ctx = await context();
     return result(
-      await ctx.client.request('getSync', { params: { path: { workspace_id: (await ctx.workspace()).id } } }),
+      await ctx.client.request('getSync', { params: { path: { worktree_id: (await ctx.worktree()).id } } }),
     );
   },
   'git sync': async ({ context }) => {
@@ -427,8 +427,8 @@ export const handlers: Record<string, Handler> = {
     return result(
       await completed(
         ctx,
-        await ctx.client.request('syncWorkspace', {
-          params: { path: { workspace_id: (await ctx.workspace()).id } },
+        await ctx.client.request('syncWorktree', {
+          params: { path: { worktree_id: (await ctx.worktree()).id } },
           body: {},
         }),
       ),
@@ -496,7 +496,7 @@ for (const direction of ['push', 'pull'] as const)
     const ctx = await context();
     if (!ctx.linked) throw new CliError('Link the local folder first.');
     return result(
-      await transferFiles(ctx.client, ctx.linked.root, (await ctx.workspace()).id, direction, args, {
+      await transferFiles(ctx.client, ctx.linked.root, (await ctx.worktree()).id, direction, args, {
         dryRun: Boolean(flags['dry-run']),
         includeIgnored: Boolean(flags['include-ignored']),
         delete: Boolean(flags.delete),

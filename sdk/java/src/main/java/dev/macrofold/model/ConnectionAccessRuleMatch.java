@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -40,9 +40,9 @@ import dev.macrofold.ApiClient;
 @JsonPropertyOrder({
   ConnectionAccessRuleMatch.JSON_PROPERTY_RULE_ID,
   ConnectionAccessRuleMatch.JSON_PROPERTY_SCOPE,
-  ConnectionAccessRuleMatch.JSON_PROPERTY_PROJECT_ID,
+  ConnectionAccessRuleMatch.JSON_PROPERTY_WORKSPACE_ID,
   ConnectionAccessRuleMatch.JSON_PROPERTY_AGENT_ID,
-  ConnectionAccessRuleMatch.JSON_PROPERTY_PROJECT_NAME,
+  ConnectionAccessRuleMatch.JSON_PROPERTY_WORKSPACE_NAME,
   ConnectionAccessRuleMatch.JSON_PROPERTY_AGENT_NAME
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
@@ -55,11 +55,11 @@ public class ConnectionAccessRuleMatch {
    * Gets or Sets scope
    */
   public enum ScopeEnum {
-    PROJECT(String.valueOf("project")),
+    WORKSPACE(String.valueOf("workspace")),
 
     AGENT(String.valueOf("agent")),
 
-    PROJECT_AGENT(String.valueOf("project_agent"));
+    WORKSPACE_AGENT(String.valueOf("workspace_agent"));
 
     private String value;
 
@@ -92,14 +92,14 @@ public class ConnectionAccessRuleMatch {
   @javax.annotation.Nonnull
   private ScopeEnum scope;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
-  private JsonNullable<UUID> projectId = JsonNullable.<UUID>undefined();
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  private JsonNullable<UUID> workspaceId = JsonNullable.<UUID>undefined();
 
   public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
   private JsonNullable<UUID> agentId = JsonNullable.<UUID>undefined();
 
-  public static final String JSON_PROPERTY_PROJECT_NAME = "project_name";
-  private JsonNullable<String> projectName = JsonNullable.<String>undefined();
+  public static final String JSON_PROPERTY_WORKSPACE_NAME = "workspace_name";
+  private JsonNullable<String> workspaceName = JsonNullable.<String>undefined();
 
   public static final String JSON_PROPERTY_AGENT_NAME = "agent_name";
   private JsonNullable<String> agentName = JsonNullable.<String>undefined();
@@ -155,35 +155,35 @@ public class ConnectionAccessRuleMatch {
   }
 
 
-  public ConnectionAccessRuleMatch projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = JsonNullable.<UUID>of(projectId);
+  public ConnectionAccessRuleMatch workspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = JsonNullable.<UUID>of(workspaceId);
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nullable
   @JsonIgnore
-  public UUID getProjectId() {
-        return projectId.orElse(null);
+  public UUID getWorkspaceId() {
+        return workspaceId.orElse(null);
   }
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public JsonNullable<UUID> getProjectId_JsonNullable() {
-    return projectId;
+  public JsonNullable<UUID> getWorkspaceId_JsonNullable() {
+    return workspaceId;
   }
 
-  @JsonProperty(JSON_PROPERTY_PROJECT_ID)
-  public void setProjectId_JsonNullable(JsonNullable<UUID> projectId) {
-    this.projectId = projectId;
+  @JsonProperty(JSON_PROPERTY_WORKSPACE_ID)
+  public void setWorkspaceId_JsonNullable(JsonNullable<UUID> workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = JsonNullable.<UUID>of(projectId);
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = JsonNullable.<UUID>of(workspaceId);
   }
 
 
@@ -219,35 +219,35 @@ public class ConnectionAccessRuleMatch {
   }
 
 
-  public ConnectionAccessRuleMatch projectName(@javax.annotation.Nullable String projectName) {
-    this.projectName = JsonNullable.<String>of(projectName);
+  public ConnectionAccessRuleMatch workspaceName(@javax.annotation.Nullable String workspaceName) {
+    this.workspaceName = JsonNullable.<String>of(workspaceName);
     return this;
   }
 
   /**
-   * Get projectName
-   * @return projectName
+   * Get workspaceName
+   * @return workspaceName
    */
   @javax.annotation.Nullable
   @JsonIgnore
-  public String getProjectName() {
-        return projectName.orElse(null);
+  public String getWorkspaceName() {
+        return workspaceName.orElse(null);
   }
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_NAME, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_NAME, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public JsonNullable<String> getProjectName_JsonNullable() {
-    return projectName;
+  public JsonNullable<String> getWorkspaceName_JsonNullable() {
+    return workspaceName;
   }
 
-  @JsonProperty(JSON_PROPERTY_PROJECT_NAME)
-  public void setProjectName_JsonNullable(JsonNullable<String> projectName) {
-    this.projectName = projectName;
+  @JsonProperty(JSON_PROPERTY_WORKSPACE_NAME)
+  public void setWorkspaceName_JsonNullable(JsonNullable<String> workspaceName) {
+    this.workspaceName = workspaceName;
   }
 
-  public void setProjectName(@javax.annotation.Nullable String projectName) {
-    this.projectName = JsonNullable.<String>of(projectName);
+  public void setWorkspaceName(@javax.annotation.Nullable String workspaceName) {
+    this.workspaceName = JsonNullable.<String>of(workspaceName);
   }
 
 
@@ -297,9 +297,9 @@ public class ConnectionAccessRuleMatch {
     ConnectionAccessRuleMatch connectionAccessRuleMatch = (ConnectionAccessRuleMatch) o;
     return Objects.equals(this.ruleId, connectionAccessRuleMatch.ruleId) &&
         Objects.equals(this.scope, connectionAccessRuleMatch.scope) &&
-        equalsNullable(this.projectId, connectionAccessRuleMatch.projectId) &&
+        equalsNullable(this.workspaceId, connectionAccessRuleMatch.workspaceId) &&
         equalsNullable(this.agentId, connectionAccessRuleMatch.agentId) &&
-        equalsNullable(this.projectName, connectionAccessRuleMatch.projectName) &&
+        equalsNullable(this.workspaceName, connectionAccessRuleMatch.workspaceName) &&
         equalsNullable(this.agentName, connectionAccessRuleMatch.agentName);
   }
 
@@ -309,7 +309,7 @@ public class ConnectionAccessRuleMatch {
 
   @Override
   public int hashCode() {
-    return Objects.hash(ruleId, scope, hashCodeNullable(projectId), hashCodeNullable(agentId), hashCodeNullable(projectName), hashCodeNullable(agentName));
+    return Objects.hash(ruleId, scope, hashCodeNullable(workspaceId), hashCodeNullable(agentId), hashCodeNullable(workspaceName), hashCodeNullable(agentName));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -325,9 +325,9 @@ public class ConnectionAccessRuleMatch {
     sb.append("class ConnectionAccessRuleMatch {\n");
     sb.append("    ruleId: ").append(toIndentedString(ruleId)).append("\n");
     sb.append("    scope: ").append(toIndentedString(scope)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
-    sb.append("    projectName: ").append(toIndentedString(projectName)).append("\n");
+    sb.append("    workspaceName: ").append(toIndentedString(workspaceName)).append("\n");
     sb.append("    agentName: ").append(toIndentedString(agentName)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -383,9 +383,9 @@ public class ConnectionAccessRuleMatch {
       joiner.add(String.format(java.util.Locale.ROOT, "%sscope%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getScope()))));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `agent_id` to the URL query string
@@ -393,9 +393,9 @@ public class ConnectionAccessRuleMatch {
       joiner.add(String.format(java.util.Locale.ROOT, "%sagent_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getAgentId()))));
     }
 
-    // add `project_name` to the URL query string
-    if (getProjectName() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_name%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectName()))));
+    // add `workspace_name` to the URL query string
+    if (getWorkspaceName() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_name%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceName()))));
     }
 
     // add `agent_name` to the URL query string

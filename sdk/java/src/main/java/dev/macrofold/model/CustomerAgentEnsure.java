@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -31,7 +31,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import dev.macrofold.ApiClient;
 /**
- * Integration path only. Creates one project, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts.
+ * Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts.
  */
 @JsonPropertyOrder({
   CustomerAgentEnsure.JSON_PROPERTY_KEY,

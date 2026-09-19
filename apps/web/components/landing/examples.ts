@@ -1,10 +1,10 @@
-/** New runs select their harness directly; project setup is disclosed beside the examples. */
+/** New runs select their harness directly; workspace setup is disclosed beside the examples. */
 export const examples = {
   TypeScript: `import { Macrofold } from 'macrofold';
 
 const macrofold = new Macrofold();
 const run = await macrofold.runs.create({
-  project_id,
+  workspace_id,
   harness: 'codex',
   model: 'gpt-5.4-mini',
   billing_mode: 'managed',
@@ -18,7 +18,7 @@ for await (const text of macrofold.runs.streamText(run.run_id)) {
 
 macrofold = Macrofold()
 run = macrofold.runs.create(
-    project_id=project_id,
+    workspace_id=workspace_id,
     harness='codex',
     model='gpt-5.4-mini',
     billing_mode='managed',
@@ -33,7 +33,7 @@ macrofold.close()`,
 if err != nil { return err }
 
 input := macrofold.NewRunCreate("Build a working prototype.")
-input.SetProjectId(projectID)
+input.SetWorkspaceId(workspaceID)
 input.SetHarness("codex")
 input.SetModel("gpt-5.4-mini")
 input.SetBillingMode("managed")
@@ -48,7 +48,7 @@ return client.Runs.StreamText(ctx, run.RunId, "0", func(text string) error {
 let mut input = macrofold::models::RunCreate::new(
     "Build a working prototype.".into(),
 );
-input.project_id = Some(project_id);
+input.workspace_id = Some(workspace_id);
 input.harness = Some(macrofold::models::run_create::Harness::Codex);
 input.model = Some("gpt-5.4-mini".into());
 input.billing_mode = Some(macrofold::models::run_create::BillingMode::Managed);
@@ -64,7 +64,7 @@ RUN_ID=$(curl -sS https://app.macrofold.ai/v1/runs \\
   -H "Idempotency-Key: $REQUEST_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-    "project_id": "<project-id>",
+    "workspace_id": "<workspace-id>",
     "harness": "codex",
     "model": "gpt-5.4-mini",
     "billing_mode": "managed",

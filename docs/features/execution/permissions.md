@@ -1,6 +1,6 @@
 # Agent permissions
 
-Configure `permissions` on a project, worktree or new run. This controls the agent's access; it does not change the human user's API-key scopes or grant a connection the user has not authorized. Project and worktree Settings expose the same editor as Advanced options in worktree creation and new runs.
+Configure `permissions` on a workspace, worktree or new run. This controls the agent's access; it does not change the human user's API-key scopes or grant a connection the user has not authorized. Workspace and worktree Settings expose the same editor as Advanced options in worktree creation and new runs.
 
 ```json
 {
@@ -15,7 +15,7 @@ Configure `permissions` on a project, worktree or new run. This controls the age
 
 Patterns are case-sensitive, relative to the worktree, and support `*`, `**`, and `?`. Dotfiles participate in matching. Absolute paths, traversal, backslashes, negation, brace expansion and character classes are rejected. Omitted include lists inherit all access; an empty include list allows nothing. All layers must allow an action, and an exclusion at any layer wins. Writes additionally require read access. Tool patterns use `connection-ID/tool-name`; [connector access](../identity-integrations/connection-access.md) and the server-resolved frozen run selection remain mandatory. An omitted selection inherits current eligible tools; it does not bypass policy.
 
-The server freezes the three permission layers at admission, before reserving funds, and returns them as `permission_layers` on the run. Stop pending project runs before editing project or worktree permissions. A session keeps its original policy, including its run-level restrictions; start a new session after changing that policy. This prevents a conversation that has already read protected content from being relabeled with narrower access.
+The server freezes the three permission layers at admission, before reserving funds, and returns them as `permission_layers` on the run. Stop pending workspace runs before editing workspace or worktree permissions. A session keeps its original policy, including its run-level restrictions; start a new session after changing that policy. This prevents a conversation that has already read protected content from being relabeled with narrower access.
 
 ## Harness support
 
@@ -24,8 +24,8 @@ Connector include/exclude rules apply to all six harnesses at broker discovery a
 | Harness | Native permission mapping | Checked file transport |
 | --- | --- | --- |
 | Codex | Named filesystem profile denies native worktree access (including `apply_patch`); shell, hooks, plugins, subagents and other execution extensions disabled | App-server dynamic tool |
-| Claude Code | SDK tool allowlist, explicit builtin deny list, no project settings or additional MCP configuration | SDK MCP tool |
-| OpenCode | Native default-deny permission map; only questions, checked files and authorized broker tools allowed; project configuration, LSP and formatters disabled | Loopback MCP |
+| Claude Code | SDK tool allowlist, explicit builtin deny list, no workspace settings or additional MCP configuration | SDK MCP tool |
+| OpenCode | Native default-deny permission map; only questions, checked files and authorized broker tools allowed; workspace configuration, LSP and formatters disabled | Loopback MCP |
 | Hermes | Explicit native toolsets for clarification, checked files and authorized broker tools | Native registry handler forwarding to loopback MCP |
 | DeepSeek | Minimal profile disables both shell dialects and the bare filesystem editor; native agent/session loop retained | Loopback MCP |
 | Pi | Builtin tools disabled; explicit custom-tool allowlist | SDK custom tool |

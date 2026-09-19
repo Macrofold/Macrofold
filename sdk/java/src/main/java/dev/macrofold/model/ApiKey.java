@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -41,7 +41,7 @@ import dev.macrofold.ApiClient;
   ApiKey.JSON_PROPERTY_NAME,
   ApiKey.JSON_PROPERTY_PREFIX,
   ApiKey.JSON_PROPERTY_SCOPES,
-  ApiKey.JSON_PROPERTY_PROJECT_ID,
+  ApiKey.JSON_PROPERTY_WORKSPACE_ID,
   ApiKey.JSON_PROPERTY_LAST_USED_AT,
   ApiKey.JSON_PROPERTY_EXPIRES_AT,
   ApiKey.JSON_PROPERTY_REVOKED_AT
@@ -64,9 +64,9 @@ public class ApiKey {
   @javax.annotation.Nonnull
   private List<String> scopes = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
-  private UUID projectId;
+  private UUID workspaceId;
 
   public static final String JSON_PROPERTY_LAST_USED_AT = "last_used_at";
   @javax.annotation.Nullable
@@ -187,27 +187,27 @@ public class ApiKey {
   }
 
 
-  public ApiKey projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public ApiKey workspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getProjectId() {
-    return projectId;
+  public UUID getWorkspaceId() {
+    return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
 
@@ -299,7 +299,7 @@ public class ApiKey {
         Objects.equals(this.name, apiKey.name) &&
         Objects.equals(this.prefix, apiKey.prefix) &&
         Objects.equals(this.scopes, apiKey.scopes) &&
-        Objects.equals(this.projectId, apiKey.projectId) &&
+        Objects.equals(this.workspaceId, apiKey.workspaceId) &&
         Objects.equals(this.lastUsedAt, apiKey.lastUsedAt) &&
         Objects.equals(this.expiresAt, apiKey.expiresAt) &&
         Objects.equals(this.revokedAt, apiKey.revokedAt);
@@ -307,7 +307,7 @@ public class ApiKey {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, prefix, scopes, projectId, lastUsedAt, expiresAt, revokedAt);
+    return Objects.hash(id, name, prefix, scopes, workspaceId, lastUsedAt, expiresAt, revokedAt);
   }
 
   @Override
@@ -318,7 +318,7 @@ public class ApiKey {
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    prefix: ").append(toIndentedString(prefix)).append("\n");
     sb.append("    scopes: ").append(toIndentedString(scopes)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    lastUsedAt: ").append(toIndentedString(lastUsedAt)).append("\n");
     sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
     sb.append("    revokedAt: ").append(toIndentedString(revokedAt)).append("\n");
@@ -390,9 +390,9 @@ public class ApiKey {
       }
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `last_used_at` to the URL query string

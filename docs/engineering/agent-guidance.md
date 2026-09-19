@@ -19,7 +19,7 @@ Scoped `AGENTS.md` files in the web app, core, database, providers, runtime, CLI
 | OpenCode                     | Uses `AGENTS.md`; the root explicitly requires reading the complete baseline and affected scoped instructions. A Markdown link alone is not an automatic import.                                                                                                  |
 | Other agents and review bots | Configure the tool to read root `AGENTS.md`, then follow the same routing. No claim is made that an arbitrary tool discovers these files automatically.                                                                                                           |
 
-Instruction loading depends on the harness version, startup directory, and user configuration. Start a fresh session after changing startup instructions. Do not copy all rules into every tool's configuration or globally install these project-specific policies. Official loading documentation and its limits are linked in [the research reference](agent-guidance/research.md#instruction-loading-and-context).
+Instruction loading depends on the harness version, startup directory, and user configuration. Start a fresh session after changing startup instructions. Do not copy all rules into every tool's configuration or globally install these workspace-specific policies. Official loading documentation and its limits are linked in [the research reference](agent-guidance/research.md#instruction-loading-and-context).
 
 ## Engineering approach
 

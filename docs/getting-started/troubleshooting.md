@@ -10,15 +10,15 @@ A job that remains queued locally often means the second terminal is missing `pn
 
 ## A run is waiting
 
-The run's waiting fields explain whether global capacity, account concurrency, or earlier workspace work blocks it. Inspect the deadline and held credits. Create another workspace for independent file changes, lower other workload where appropriate, or cancel an unneeded run. No exact global queue position or start time is guaranteed.
+The run's waiting fields explain whether global capacity, account concurrency, or earlier worktree work blocks it. Inspect the deadline and held credits. Create another worktree for independent file changes, lower other workload where appropriate, or cancel an unneeded run. No exact global queue position or start time is guaranteed.
 
 ## Access is denied
 
-Confirm the active organization, current membership, key scopes, and project restrictions. A key belongs to one organization. Revoked connector grants and removed memberships affect subsequent requests, including already queued work. Sign in again for expired sessions or use the account's recovery flow for MFA.
+Confirm the active organization, current membership, key scopes, and workspace restrictions. A key belongs to one organization. Revoked connector grants and removed memberships affect subsequent requests, including already queued work. Sign in again for expired sessions or use the account's recovery flow for MFA.
 
 ## A file save returns 409 or 412
 
-A `409 workspace_busy` means another writer owns the workspace. Wait for it to finish or use a separate workspace. A `412 stale_revision` means files changed after your read; refresh, compare, and reapply the edit. Do not retry with an invented revision.
+A `409 worktree_busy` means another writer owns the worktree. Wait for it to finish or use a separate worktree. A `412 stale_revision` means files changed after your read; refresh, compare, and reapply the edit. Do not retry with an invented revision.
 
 ## Git synchronization failed
 

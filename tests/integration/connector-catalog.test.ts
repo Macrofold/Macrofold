@@ -16,7 +16,7 @@ afterAll(async () => {
   await authPool.end();
 });
 
-it('requires authentication and connections scope, and projects only public metadata', async () => {
+it('requires authentication and connections scope, and workspaces only public metadata', async () => {
   const url = `${config.origin}/v1/connector-catalog`;
   expect((await handleApi(new Request(url))).status).toBe(401);
   const limited = await transaction(account.p.organizationId, (tx) =>

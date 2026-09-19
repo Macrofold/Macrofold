@@ -6,20 +6,20 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Your projects', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your workspaces', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/overview-desktop.png', fullPage: true });
   const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
-  const name = `Browser workspace ${Date.now()}`;
-  await page.getByRole('textbox', { name: 'Project name' }).fill(name);
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+  const name = `Browser worktree ${Date.now()}`;
+  await page.getByRole('textbox', { name: 'Workspace name' }).fill(name);
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.getByRole('button', { name: 'Open in CLI', exact: true }).click();
   const handoff = page.getByRole('dialog');
   await expect(handoff).toContainText(`macrofold login --host '${fixtureOrigin}'`);
   await expect(handoff).toContainText('macrofold link ');
-  await expect(handoff).toContainText('--workspace');
+  await expect(handoff).toContainText('--worktree');
   await expect(handoff).not.toContainText('Bearer');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
@@ -39,7 +39,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   const gate = new Promise<void>((resolve) => {
     releaseRefresh = resolve;
   });
-  const fileURL = '**/v1/workspaces/*/file?path=hello.md';
+  const fileURL = '**/v1/worktrees/*/file?path=hello.md';
   await page.route(fileURL, async (route) => {
     if (route.request().method() !== 'GET') return route.continue();
     refreshStarted();
@@ -67,7 +67,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await page.getByRole('button', { name: 'New run', exact: true }).click();
   await page
     .getByRole('textbox', { name: 'What would you like to get done?' })
-    .fill('Review the project and record progress.');
+    .fill('Review the workspace and record progress.');
   await page.getByRole('button', { name: 'Start run', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Work, completed.' })).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.markdown-output')).toContainText('Simulation completed');
@@ -105,7 +105,7 @@ test('dashboard → persistent files → streamed run → history', async ({ pag
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.screenshot({ path: 'test-results/git-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'test-results/project-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/workspace-mobile.png', fullPage: true });
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   expect(errors).toEqual([]);
   expect(audit.violations.map((v) => ({ id: v.id, impact: v.impact, count: v.nodes.length }))).toEqual([]);

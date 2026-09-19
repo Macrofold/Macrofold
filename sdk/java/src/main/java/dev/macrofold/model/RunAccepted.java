@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -43,14 +43,16 @@ import dev.macrofold.ApiClient;
 @JsonPropertyOrder({
   RunAccepted.JSON_PROPERTY_RUN_ID,
   RunAccepted.JSON_PROPERTY_SESSION_ID,
-  RunAccepted.JSON_PROPERTY_WORKSPACE_ID,
+  RunAccepted.JSON_PROPERTY_WORKTREE_ID,
   RunAccepted.JSON_PROPERTY_STATUS,
   RunAccepted.JSON_PROPERTY_URLS,
   RunAccepted.JSON_PROPERTY_QUEUE_EXPIRES_AT,
   RunAccepted.JSON_PROPERTY_WAIT_SECONDS,
   RunAccepted.JSON_PROPERTY_WAITING_REASON,
   RunAccepted.JSON_PROPERTY_RESERVED_MICRO_USD,
-  RunAccepted.JSON_PROPERTY_SCHEDULING_CLASS
+  RunAccepted.JSON_PROPERTY_SCHEDULING_CLASS,
+  RunAccepted.JSON_PROPERTY_KIND,
+  RunAccepted.JSON_PROPERTY_SANDBOX_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunAccepted {
@@ -59,12 +61,12 @@ public class RunAccepted {
   private UUID runId;
 
   public static final String JSON_PROPERTY_SESSION_ID = "session_id";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private UUID sessionId;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
-  @javax.annotation.Nonnull
-  private UUID workspaceId;
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  @javax.annotation.Nullable
+  private UUID worktreeId;
 
   /**
    * Gets or Sets status
@@ -127,7 +129,7 @@ public class RunAccepted {
 
     ACCOUNT_CONCURRENCY(String.valueOf("account_concurrency")),
 
-    EARLIER_WORKSPACE_WORK(String.valueOf("earlier_workspace_work")),
+    EARLIER_WORKTREE_WORK(String.valueOf("earlier_worktree_work")),
 
     SCHEDULER_TURN(String.valueOf("scheduler_turn")),
 
@@ -135,7 +137,11 @@ public class RunAccepted {
 
     DEADLINE_EXPIRED(String.valueOf("deadline_expired")),
 
-    WORKSPACE_UNAVAILABLE(String.valueOf("workspace_unavailable"));
+    WORKTREE_UNAVAILABLE(String.valueOf("worktree_unavailable")),
+
+    LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
+
+    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity"));
 
     private String value;
 
@@ -210,6 +216,50 @@ public class RunAccepted {
   @javax.annotation.Nullable
   private SchedulingClassEnum schedulingClass;
 
+  /**
+   * Gets or Sets kind
+   */
+  public enum KindEnum {
+    NATIVE_AGENT(String.valueOf("native_agent")),
+
+    INFERENCE(String.valueOf("inference")),
+
+    BOUNDED_AGENT(String.valueOf("bounded_agent"));
+
+    private String value;
+
+    KindEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static KindEnum fromValue(String value) {
+      for (KindEnum b : KindEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_KIND = "kind";
+  @javax.annotation.Nullable
+  private KindEnum kind;
+
+  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
+  private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
+
   public RunAccepted() { 
   }
 
@@ -237,7 +287,7 @@ public class RunAccepted {
   }
 
 
-  public RunAccepted sessionId(@javax.annotation.Nonnull UUID sessionId) {
+  public RunAccepted sessionId(@javax.annotation.Nullable UUID sessionId) {
     this.sessionId = sessionId;
     return this;
   }
@@ -246,42 +296,42 @@ public class RunAccepted {
    * Get sessionId
    * @return sessionId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public UUID getSessionId() {
     return sessionId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setSessionId(@javax.annotation.Nonnull UUID sessionId) {
+  public void setSessionId(@javax.annotation.Nullable UUID sessionId) {
     this.sessionId = sessionId;
   }
 
 
-  public RunAccepted workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public RunAccepted worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -462,6 +512,62 @@ public class RunAccepted {
   }
 
 
+  public RunAccepted kind(@javax.annotation.Nullable KindEnum kind) {
+    this.kind = kind;
+    return this;
+  }
+
+  /**
+   * Get kind
+   * @return kind
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public KindEnum getKind() {
+    return kind;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setKind(@javax.annotation.Nullable KindEnum kind) {
+    this.kind = kind;
+  }
+
+
+  public RunAccepted sandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+    return this;
+  }
+
+  /**
+   * Reusable compute ID, when selected or created by keep_warm_seconds.
+   * @return sandboxId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getSandboxId() {
+        return sandboxId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getSandboxId_JsonNullable() {
+    return sandboxId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_SANDBOX_ID)
+  public void setSandboxId_JsonNullable(JsonNullable<UUID> sandboxId) {
+    this.sandboxId = sandboxId;
+  }
+
+  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+  }
+
+
   /**
    * Return true if this RunAccepted object is equal to o.
    */
@@ -476,14 +582,16 @@ public class RunAccepted {
     RunAccepted runAccepted = (RunAccepted) o;
     return Objects.equals(this.runId, runAccepted.runId) &&
         Objects.equals(this.sessionId, runAccepted.sessionId) &&
-        Objects.equals(this.workspaceId, runAccepted.workspaceId) &&
+        Objects.equals(this.worktreeId, runAccepted.worktreeId) &&
         Objects.equals(this.status, runAccepted.status) &&
         Objects.equals(this.urls, runAccepted.urls) &&
         Objects.equals(this.queueExpiresAt, runAccepted.queueExpiresAt) &&
         Objects.equals(this.waitSeconds, runAccepted.waitSeconds) &&
         equalsNullable(this.waitingReason, runAccepted.waitingReason) &&
         Objects.equals(this.reservedMicroUsd, runAccepted.reservedMicroUsd) &&
-        Objects.equals(this.schedulingClass, runAccepted.schedulingClass);
+        Objects.equals(this.schedulingClass, runAccepted.schedulingClass) &&
+        Objects.equals(this.kind, runAccepted.kind) &&
+        equalsNullable(this.sandboxId, runAccepted.sandboxId);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -492,7 +600,7 @@ public class RunAccepted {
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, sessionId, workspaceId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass);
+    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind, hashCodeNullable(sandboxId));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -508,7 +616,7 @@ public class RunAccepted {
     sb.append("class RunAccepted {\n");
     sb.append("    runId: ").append(toIndentedString(runId)).append("\n");
     sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    urls: ").append(toIndentedString(urls)).append("\n");
     sb.append("    queueExpiresAt: ").append(toIndentedString(queueExpiresAt)).append("\n");
@@ -516,6 +624,8 @@ public class RunAccepted {
     sb.append("    waitingReason: ").append(toIndentedString(waitingReason)).append("\n");
     sb.append("    reservedMicroUsd: ").append(toIndentedString(reservedMicroUsd)).append("\n");
     sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
+    sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
+    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -570,9 +680,9 @@ public class RunAccepted {
       joiner.add(String.format(java.util.Locale.ROOT, "%ssession_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSessionId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `status` to the URL query string
@@ -608,6 +718,16 @@ public class RunAccepted {
     // add `scheduling_class` to the URL query string
     if (getSchedulingClass() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sscheduling_class%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSchedulingClass()))));
+    }
+
+    // add `kind` to the URL query string
+    if (getKind() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%skind%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKind()))));
+    }
+
+    // add `sandbox_id` to the URL query string
+    if (getSandboxId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
     }
 
     return joiner.toString();

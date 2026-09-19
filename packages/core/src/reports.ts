@@ -81,10 +81,10 @@ export async function usageReport(tx: Tx, query: URLSearchParams, admin = false,
   if (!admin) {
     const counts = (
       await tx.query(
-        `SELECT (SELECT count(*)::text FROM projects WHERE coalesce(data->>'archived','false')<>'true' AND coalesce(data->>'deleted','false')<>'true') AS projects,(SELECT count(*)::text FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting')) AS active`,
+        `SELECT (SELECT count(*)::text FROM workspaces WHERE coalesce(data->>'archived','false')<>'true' AND coalesce(data->>'deleted','false')<>'true') AS workspaces,(SELECT count(*)::text FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting')) AS active`,
       )
     ).rows[0];
-    current.push(metric('projects_active', counts.projects), metric('runs_active', counts.active));
+    current.push(metric('workspaces_active', counts.workspaces), metric('runs_active', counts.active));
   }
   const grouped: Metric[] = [];
   const group = query.get('group_by');

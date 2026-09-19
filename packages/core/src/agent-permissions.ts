@@ -21,37 +21,37 @@ export function validatePermissions(policy: AgentPermissions | undefined) {
 }
 /** Serialize edits and admission. Active agents retain their accepted authority;
  * callers must stop pending runs before changing the enclosing policy. */
-export async function editPermissions(tx: Tx, projectId: string, policy: AgentPermissions | undefined) {
+export async function editPermissions(tx: Tx, workspaceId: string, policy: AgentPermissions | undefined) {
   if (policy === undefined) return;
   validatePermissions(policy);
-  await lock(tx, `project-permissions:${projectId}`);
+  await lock(tx, `workspace-permissions:${workspaceId}`);
   const active = await tx.query(
-    "SELECT 1 FROM runs WHERE project_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting') LIMIT 1",
-    [projectId],
+    "SELECT 1 FROM runs WHERE workspace_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting') LIMIT 1",
+    [workspaceId],
   );
   assert(
     !active.rowCount,
     409,
     'permissions_in_use',
-    'Stop pending project runs before changing agent permissions.',
+    'Stop pending workspace runs before changing agent permissions.',
   );
 }
 export async function admitPermissions(
   tx: Tx,
-  project: resources.Document<'projects'>,
   workspace: resources.Document<'workspaces'>,
+  worktree: resources.Document<'worktrees'>,
   session: resources.Document<'sessions'>,
   policy: AgentPermissions | undefined,
   harness: HarnessName,
 ) {
   validatePermissions(policy);
-  // Re-read after acquiring the same lock used by project/worktree policy edits.
-  await lock(tx, `project-permissions:${project.id}`);
-  const currentProject = await resources.get(tx, 'projects', project.id);
+  // Re-read after acquiring the same lock used by workspace/worktree policy edits.
+  await lock(tx, `workspace-permissions:${workspace.id}`);
   const currentWorkspace = await resources.get(tx, 'workspaces', workspace.id);
+  const currentWorktree = await resources.get(tx, 'worktrees', worktree.id);
   const layers = permissionLayers(
-    currentProject.permissions,
     currentWorkspace.permissions,
+    currentWorktree.permissions,
     policy ?? session.run_permissions,
   );
   try {

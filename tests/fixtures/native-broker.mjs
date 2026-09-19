@@ -7,14 +7,14 @@ import {
 } from '/opt/platform/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js';
 import assert from 'node:assert/strict';
 
-export function nativeBroker() {
+export function nativeBroker(expectedToken = () => 'fixture-local-only') {
   let calls = 0;
   return {
     get calls() {
       return calls;
     },
     async handle(req, res) {
-      assert.equal(req.headers.authorization, 'Bearer fixture-local-only');
+      assert.equal(req.headers.authorization, `Bearer ${expectedToken()}`);
       const server = new Server({ name: 'fixture', version: '1.0.0' }, { capabilities: { tools: {} } });
       server.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [

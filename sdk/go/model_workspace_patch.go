@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -20,8 +20,13 @@ var _ MappedNullable = &WorkspacePatch{}
 // WorkspacePatch struct for WorkspacePatch
 type WorkspacePatch struct {
 	Name *string `json:"name,omitempty"`
+	Github *WorkspaceCreateGithub `json:"github,omitempty"`
+	Archived *bool `json:"archived,omitempty"`
 	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
+
+type _WorkspacePatch WorkspacePatch
 
 // NewWorkspacePatch instantiates a new WorkspacePatch object
 // This constructor will assign default values to properties that have it defined,
@@ -72,6 +77,70 @@ func (o *WorkspacePatch) SetName(v string) {
 	o.Name = &v
 }
 
+// GetGithub returns the Github field value if set, zero value otherwise.
+func (o *WorkspacePatch) GetGithub() WorkspaceCreateGithub {
+	if o == nil || IsNil(o.Github) {
+		var ret WorkspaceCreateGithub
+		return ret
+	}
+	return *o.Github
+}
+
+// GetGithubOk returns a tuple with the Github field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *WorkspacePatch) GetGithubOk() (*WorkspaceCreateGithub, bool) {
+	if o == nil || IsNil(o.Github) {
+		return nil, false
+	}
+	return o.Github, true
+}
+
+// HasGithub returns a boolean if a field has been set.
+func (o *WorkspacePatch) HasGithub() bool {
+	if o != nil && !IsNil(o.Github) {
+		return true
+	}
+
+	return false
+}
+
+// SetGithub gets a reference to the given WorkspaceCreateGithub and assigns it to the Github field.
+func (o *WorkspacePatch) SetGithub(v WorkspaceCreateGithub) {
+	o.Github = &v
+}
+
+// GetArchived returns the Archived field value if set, zero value otherwise.
+func (o *WorkspacePatch) GetArchived() bool {
+	if o == nil || IsNil(o.Archived) {
+		var ret bool
+		return ret
+	}
+	return *o.Archived
+}
+
+// GetArchivedOk returns a tuple with the Archived field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *WorkspacePatch) GetArchivedOk() (*bool, bool) {
+	if o == nil || IsNil(o.Archived) {
+		return nil, false
+	}
+	return o.Archived, true
+}
+
+// HasArchived returns a boolean if a field has been set.
+func (o *WorkspacePatch) HasArchived() bool {
+	if o != nil && !IsNil(o.Archived) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchived gets a reference to the given bool and assigns it to the Archived field.
+func (o *WorkspacePatch) SetArchived(v bool) {
+	o.Archived = &v
+}
+
 // GetPermissions returns the Permissions field value if set, zero value otherwise.
 func (o *WorkspacePatch) GetPermissions() AgentPermissions {
 	if o == nil || IsNil(o.Permissions) {
@@ -117,10 +186,45 @@ func (o WorkspacePatch) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Name) {
 		toSerialize["name"] = o.Name
 	}
+	if !IsNil(o.Github) {
+		toSerialize["github"] = o.Github
+	}
+	if !IsNil(o.Archived) {
+		toSerialize["archived"] = o.Archived
+	}
 	if !IsNil(o.Permissions) {
 		toSerialize["permissions"] = o.Permissions
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
+}
+
+func (o *WorkspacePatch) UnmarshalJSON(data []byte) (err error) {
+	varWorkspacePatch := _WorkspacePatch{}
+
+	err = json.Unmarshal(data, &varWorkspacePatch)
+
+	if err != nil {
+		return err
+	}
+
+	*o = WorkspacePatch(varWorkspacePatch)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "github")
+		delete(additionalProperties, "archived")
+		delete(additionalProperties, "permissions")
+		o.AdditionalProperties = additionalProperties
+	}
+
+	return err
 }
 
 type NullableWorkspacePatch struct {

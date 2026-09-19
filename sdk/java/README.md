@@ -24,7 +24,7 @@ Add this dependency to your application's `pom.xml`:
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a workspace ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```java
 import dev.macrofold.Macrofold;
@@ -35,7 +35,7 @@ public class Example {
     public static void main(String[] args) throws Exception {
         Macrofold client = new Macrofold();
         var run = client.runs().create(new RunCreate()
-            .projectId(UUID.fromString("YOUR_PROJECT_ID"))
+            .workspaceId(UUID.fromString("YOUR_WORKSPACE_ID"))
             .harness(RunCreate.HarnessEnum.CODEX)
             .model("gpt-5.4-mini")
             .billingMode(RunCreate.BillingModeEnum.MANAGED)
@@ -59,7 +59,7 @@ var client = Macrofold.builder()
 
 ## Resource methods
 
-`client.runs().get(id)` fetches a run; `client.runs().cancel(id)` cancels it. Query/header options use named parameter classes: `client.projects().list(new Resources.ListProjectsParams().limit(20))`. `client.projects().list()` uses defaults. Import `dev.macrofold.Resources` for parameter classes.
+`client.runs().get(id)` fetches a run; `client.runs().cancel(id)` cancels it. Query/header options use named parameter classes: `client.workspaces().list(new Resources.ListWorkspacesParams().limit(20))`. `client.workspaces().list()` uses defaults. Import `dev.macrofold.Resources` for parameter classes.
 
 [Every public operation](../../docs/features/api/sdks/reference.md) has a typed resource method. Models expose fluent setters and typed getters. The API validates required fields, selector combinations, ownership, and model/BYOK configuration. Money remains decimal strings. Pages expose `getData()` and `getNextCursor()`.
 
@@ -89,8 +89,8 @@ Both text streaming and waiting raise `RunFailedException` for failed, cancelled
 
 ```java
 client.runs().wait(run.getRunId());
-var file = client.workspaces().readFile(
-    run.getWorkspaceId(), new Resources.ReadFileParams("hello.txt"));
+var file = client.worktrees().readFile(
+    run.getWorktreeId(), new Resources.ReadFileParams("hello.txt"));
 try {
     System.out.println(java.nio.file.Files.readString(file.toPath()));
 } finally {
@@ -104,7 +104,7 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 ## Advanced access
 
-Generated classes such as `new ProjectsApi(client)` remain available, including `WithHttpInfo` variants for response headers and status. Low-level mutations still require explicit idempotency keys. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
+Generated classes such as `new WorkspacesApi(client)` remain available, including `WithHttpInfo` variants for response headers and status. Low-level mutations still require explicit idempotency keys. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
 
 See [API conventions](../../docs/features/api/conventions.md) for permissions, errors, and asynchronous work.
 

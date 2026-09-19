@@ -16,7 +16,7 @@ The pinned generator needs small, assertion-checked binary transport adaptations
 
 ## Resource generation
 
-The shared generation implementation lives under `scripts/sdk/`. A shared descriptor derives resource names from OpenAPI tags and operation IDs; only keyword collisions such as session continuation and checkpoint export need shared naming exceptions. All 121 contract operations must map exactly once in each language. `scripts/sdk/config.json` owns the common origin.
+The shared generation implementation lives under `scripts/sdk/`. A shared descriptor derives resource names from OpenAPI tags and operation IDs; only keyword collisions such as session continuation and checkpoint export need shared naming exceptions. All contract operations must map exactly once in each language. `scripts/sdk/config.json` owns the common origin.
 
 A small OpenAPI Generator API template exports parameter and return-type metadata using the vendor's resolved model names, nullability, and parameter locations. Language facade templates delegate to the generated transport rather than reproduce endpoints. TypeScript options derive directly from generated operation declarations. Python flattens body/query/header fields into keyword arguments, emits nested TypedDict inputs, and uses generated Pydantic response models. Omitted fields remain distinct from JSON null; UUIDs and datetimes serialize through Pydantic's JSON encoder. Empty action bodies are supplied by the facade instead of requiring empty dictionaries from callers.
 

@@ -53,7 +53,7 @@ Each provider was reviewed for entry paths, technical depth, layout, and agent s
 
 **AI-first development.** The Claude API skill selects documentation by language, API surface, and task. Anthropic explicitly describes this as progressive disclosure to limit unnecessary context. [Claude API skill](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/claude-api-skill).
 
-**Apply to Macrofold.** Explain project, workspace, agent preset, and run relationships before presenting configuration choices. A future integration skill should route to focused references instead of embedding every SDK and feature in one large instruction file.
+**Apply to Macrofold.** Explain workspace, worktree, agent preset, and run relationships before presenting configuration choices. A future integration skill should route to focused references instead of embedding every SDK and feature in one large instruction file.
 
 ### Exa
 
@@ -123,7 +123,7 @@ Each provider was reviewed for entry paths, technical depth, layout, and agent s
 
 **AI-first development.** LiveKit documents equivalent documentation retrieval through its CLI and Docs MCP, raw Markdown, indexes, and starter repositories containing agent instructions. The retrieval interface supports finding pages and reading their full context. [Coding-agent support](https://docs.livekit.io/intro/coding-agents/).
 
-**Apply to Macrofold.** Treat documentation lookup as a complete browse/search/read journey. Include narrowly scoped integration instructions in starter projects. Keep essential steps available in text even when videos or chat are provided.
+**Apply to Macrofold.** Treat documentation lookup as a complete browse/search/read journey. Include narrowly scoped integration instructions in starter workspaces. Keep essential steps available in text even when videos or chat are provided.
 
 ### Composio
 
@@ -198,7 +198,7 @@ Do not mirror every source-code directory in user navigation. A codebase map ser
 
 ### Keep the first journey narrow
 
-A first-run guide should introduce only the resources required by that path. For example, a saved-agent journey can explain that the preset determines execution configuration and the project identifies persistent files. It should then show submission and one result-reading method.
+A first-run guide should introduce only the resources required by that path. For example, a saved-agent journey can explain that the preset determines execution configuration and the workspace identifies persistent files. It should then show submission and one result-reading method.
 
 Link to alternate harnesses, advanced event processing, Git workflows, pricing rules, and deployment internals after the first result. Necessary prerequisites, permissions, and spending implications must remain visible before the relevant action. Progressive disclosure is about ordering complexity, not removing material facts. [Progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/).
 
@@ -210,7 +210,7 @@ Maintain a shared conceptual model and operation reference. Explain origin and c
 
 | Path | Documentation should explain | Documentation should not assume |
 | --- | --- | --- |
-| Macrofold Cloud | Account/project setup, API credentials, enabled capabilities, billing, first run | That the customer operates workers or databases |
+| Macrofold Cloud | Account/workspace setup, API credentials, enabled capabilities, billing, first run | That the customer operates workers or databases |
 | Self-hosted Macrofold | Supported deployment, origin, identity configuration, providers, storage, operating responsibilities | That a local development server is a hardened deployment |
 | Contributor simulation | Disposable services, fixtures, expected simulated behavior, test commands | That a free local pass establishes live provider or cloud acceptance |
 
@@ -308,7 +308,7 @@ For Macrofold, the main API overview should remain much shorter than its operati
 
 ### Inputs and authentication
 
-Every public operation needs a clear purpose, stable operation identifier, method/path, resource relationship, and authorization requirements. Distinguish organization-level permissions, project/resource access, API-key scopes, and dashboard cookie authentication where relevant.
+Every public operation needs a clear purpose, stable operation identifier, method/path, resource relationship, and authorization requirements. Distinguish organization-level permissions, workspace/resource access, API-key scopes, and dashboard cookie authentication where relevant.
 
 Document required versus optional separately from nullable versus non-nullable. For each field, supply its type, accepted values, units, bounds, default, and omission behavior. Explain cross-field constraints, mutually exclusive fields, and configuration inherited from an agent preset. Avoid relying solely on generated schema syntax for rules spanning multiple fields.
 
@@ -324,7 +324,7 @@ Macrofold needs particularly clear explanations of:
 - Completion of agent work versus completion of persistence.
 - Full-result retrieval versus plain-text streaming versus structured historical events.
 - Detaching from a stream or timing out a wait versus explicitly cancelling execution.
-- Workspace sharing and serialization, including how a caller observes blocked work.
+- Worktree sharing and serialization, including how a caller observes blocked work.
 - Persistent files, checkpoint visibility, and when programmatic reads see saved changes.
 - Funding method, accepted prices, reservations, usage, and terminal settlement.
 
@@ -357,17 +357,17 @@ The proposed Macrofold brief should specify:
 | Element | What it should communicate |
 | --- | --- |
 | Goal | The application behavior to implement and the observable first result |
-| Existing project | Inspect the user's language, framework, conventions, and existing integration before editing |
+| Existing workspace | Inspect the user's language, framework, conventions, and existing integration before editing |
 | Environment | Use the chosen Cloud, staging, local, or self-hosted origin; do not invent it |
 | Credentials | Identify the required credential and where the user configures it securely; never request it in a prompt |
-| Resources | Reuse or create the intended project and agent preset; record returned IDs |
+| Resources | Reuse or create the intended workspace and agent preset; record returned IDs |
 | Contract | Read direct links to the quickstart, SDK guide, relevant operations, and lifecycle behavior |
 | Implementation | Use the official SDK and a small complete change consistent with the application |
 | Verification | Run the supported free simulation or fixtures; check the returned result and saved file |
 | Authority | Do not infer permission to spend, deploy, connect third-party accounts, or broaden access |
 | Handoff | Explain what works, what was tested, and which manual setup remains |
 
-Keep one authoritative prompt source and derive copy actions from it. Publish concrete current links when implementing it. Avoid placeholder links presented as working documentation and avoid embedding a repository-wide contributor policy in a customer's project.
+Keep one authoritative prompt source and derive copy actions from it. Publish concrete current links when implementing it. Avoid placeholder links presented as working documentation and avoid embedding a repository-wide contributor policy in a customer's workspace.
 
 Offer a universal copy action first. Tool-specific “Open in…” actions are conveniences; they should preserve the same brief and explain what is transmitted. Do not silently include account identifiers, prompts, files, or credentials in an external assistant URL.
 
@@ -490,10 +490,10 @@ Use deterministic simulation for routine documentation examples. Live acceptance
 Test the documentation using realistic tasks without providing undocumented hints:
 
 1. Explain the product and choose an appropriate setup path.
-2. Invoke a saved agent against a project and retrieve the completed output.
+2. Invoke a saved agent against a workspace and retrieve the completed output.
 3. Stream plain text, then explain how detaching differs from cancellation.
 4. Read a file written during a completed run.
-5. Reuse a workspace for another run and identify why a run is waiting.
+5. Reuse a worktree for another run and identify why a run is waiting.
 6. Select the intended named connection without changing another agent's account.
 7. Handle invalid credentials, insufficient scope, a budget failure, and throttling.
 8. Recover from an interrupted stream without confusing replay with duplicate execution.

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -283,7 +283,7 @@ type ApiGetAgentRequest struct {
 	agentId string
 	xOrganizationId *string
 	includeConnections *bool
-	projectId *string
+	workspaceId *string
 	connectionsLimit *int32
 	connectionsCursor *string
 }
@@ -299,8 +299,8 @@ func (r ApiGetAgentRequest) IncludeConnections(includeConnections bool) ApiGetAg
 	return r
 }
 
-func (r ApiGetAgentRequest) ProjectId(projectId string) ApiGetAgentRequest {
-	r.projectId = &projectId
+func (r ApiGetAgentRequest) WorkspaceId(workspaceId string) ApiGetAgentRequest {
+	r.workspaceId = &workspaceId
 	return r
 }
 
@@ -364,8 +364,8 @@ func (a *AgentsAPIService) GetAgentExecute(r ApiGetAgentRequest) (*Agent, *http.
 		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", defaultValue, "form", "")
 		r.includeConnections = &defaultValue
 	}
-	if r.projectId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	if r.workspaceId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
 	}
 	if r.connectionsLimit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", r.connectionsLimit, "form", "")

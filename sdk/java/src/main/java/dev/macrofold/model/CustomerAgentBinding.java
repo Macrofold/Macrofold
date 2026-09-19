@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -40,9 +40,9 @@ import dev.macrofold.ApiClient;
   CustomerAgentBinding.JSON_PROPERTY_CUSTOMER_ID,
   CustomerAgentBinding.JSON_PROPERTY_KEY,
   CustomerAgentBinding.JSON_PROPERTY_NAME,
-  CustomerAgentBinding.JSON_PROPERTY_PROJECT_ID,
-  CustomerAgentBinding.JSON_PROPERTY_AGENT_ID,
   CustomerAgentBinding.JSON_PROPERTY_WORKSPACE_ID,
+  CustomerAgentBinding.JSON_PROPERTY_AGENT_ID,
+  CustomerAgentBinding.JSON_PROPERTY_WORKTREE_ID,
   CustomerAgentBinding.JSON_PROPERTY_CREATED_AT
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
@@ -100,17 +100,17 @@ public class CustomerAgentBinding {
   @javax.annotation.Nonnull
   private String name;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nonnull
-  private UUID projectId;
+  private UUID workspaceId;
 
   public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
   @javax.annotation.Nonnull
   private UUID agentId;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_CREATED_AT = "created_at";
   @javax.annotation.Nonnull
@@ -239,27 +239,27 @@ public class CustomerAgentBinding {
   }
 
 
-  public CustomerAgentBinding projectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
+  public CustomerAgentBinding workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getProjectId() {
-    return projectId;
+  public UUID getWorkspaceId() {
+    return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
+  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
 
@@ -287,27 +287,27 @@ public class CustomerAgentBinding {
   }
 
 
-  public CustomerAgentBinding workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public CustomerAgentBinding worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -352,15 +352,15 @@ public class CustomerAgentBinding {
         Objects.equals(this.customerId, customerAgentBinding.customerId) &&
         Objects.equals(this.key, customerAgentBinding.key) &&
         Objects.equals(this.name, customerAgentBinding.name) &&
-        Objects.equals(this.projectId, customerAgentBinding.projectId) &&
-        Objects.equals(this.agentId, customerAgentBinding.agentId) &&
         Objects.equals(this.workspaceId, customerAgentBinding.workspaceId) &&
+        Objects.equals(this.agentId, customerAgentBinding.agentId) &&
+        Objects.equals(this.worktreeId, customerAgentBinding.worktreeId) &&
         Objects.equals(this.createdAt, customerAgentBinding.createdAt);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, integrationPath, customerId, key, name, projectId, agentId, workspaceId, createdAt);
+    return Objects.hash(id, integrationPath, customerId, key, name, workspaceId, agentId, worktreeId, createdAt);
   }
 
   @Override
@@ -372,9 +372,9 @@ public class CustomerAgentBinding {
     sb.append("    customerId: ").append(toIndentedString(customerId)).append("\n");
     sb.append("    key: ").append(toIndentedString(key)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
-    sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -445,9 +445,9 @@ public class CustomerAgentBinding {
       joiner.add(String.format(java.util.Locale.ROOT, "%sname%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getName()))));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `agent_id` to the URL query string
@@ -455,9 +455,9 @@ public class CustomerAgentBinding {
       joiner.add(String.format(java.util.Locale.ROOT, "%sagent_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getAgentId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `created_at` to the URL query string

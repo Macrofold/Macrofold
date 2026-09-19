@@ -1,12 +1,17 @@
+import { releaseSandbox } from './sandboxes';
+import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { transaction, type Tx } from '../../db';
+import { transaction, afterCommit, type Tx } from '../../db';
+import { runTraceContext } from './run-tracing';
+import { recordTrace } from './tracing';
 import { id, sha256 } from './crypto';
 import { assert, AppError } from './errors';
 import { config } from './config';
 import { claimRun, principalFor } from './engine';
-import { getRun, terminal } from './runs';
+import type { NativeRunRow } from './runs';
+import { getRun, getNativeRun, requireNativeRun, terminal } from './runs';
 import { emit } from './events';
 import { settle } from './ledger';
 import { computeMaximum } from './catalog';
@@ -17,7 +22,8 @@ import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { isNativeAuthPath } from '../../runtime/src/auth-paths';
-import { describeContent, readContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
+import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
+import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
 
@@ -49,6 +55,10 @@ export type ExecutionState = {
   lock?: string;
   lockExpires?: number;
   failures?: number;
+  /** Internal timings only; wall time includes orchestration waits and retries. */
+  phaseTimings?: Partial<
+    Record<Phase, { startedAt: number; completedAt?: number; activeMs: number; attempts: number }>
+  >;
 };
 type ExecutionObject = { id: string; kind: string; name: string; data: Record<string, unknown> };
 const object = async (tx: Tx, org: string, run: string, kind: string, name: string, data: unknown) =>
@@ -56,12 +66,17 @@ const object = async (tx: Tx, org: string, run: string, kind: string, name: stri
     'INSERT INTO execution_objects(id,organization_id,run_id,kind,name,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(run_id,kind,name) DO NOTHING',
     [id(), org, run, kind, name, JSON.stringify(data)],
   );
-async function pending(org: string, run: string, kinds: string[], count = 4) {
+async function pending<T extends ExecutionObject = ExecutionObject>(
+  org: string,
+  run: string,
+  kinds: string[],
+  count = 4,
+) {
   return transaction(
     org,
     async (tx) =>
       (
-        await tx.query<ExecutionObject>(
+        await tx.query<T>(
           'SELECT * FROM execution_objects WHERE run_id=$1 AND kind=ANY($2::text[]) AND NOT processed ORDER BY kind,name LIMIT $3',
           [run, kinds, count],
         )
@@ -82,9 +97,14 @@ async function processed(org: string, objects: ExecutionObject[]) {
 export async function advanceCloudRun(
   org: string,
   runId: string,
-  provider: MachineProvider,
+  machineProvider: MachineProvider | ((run: NativeRunRow) => MachineProvider),
 ): Promise<{ done: boolean; delaySeconds: number; queued?: boolean }> {
   let run = await transaction(org, (tx) => getRun(tx, runId));
+  if (run.kind !== 'native_agent') {
+    const { advanceInference } = await import('./inference-engine');
+    return advanceInference(org, runId);
+  }
+  const provider = typeof machineProvider === 'function' ? machineProvider(run) : machineProvider;
   if (run.config.execution_provider && run.config.execution_provider !== config.execution)
     return { done: false, delaySeconds: 60, queued: run.status === 'queued' };
   if (run.status === 'queued') {
@@ -98,6 +118,7 @@ export async function advanceCloudRun(
         queued: current.status === 'queued',
       };
     }
+    requireNativeRun(claimed);
     run = claimed;
   }
   let state = (run.execution_binding || {
@@ -109,7 +130,7 @@ export async function advanceCloudRun(
   const claim = id();
   const owns = await transaction(org, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-    const current = await getRun(tx, runId);
+    const current = await getNativeRun(tx, runId);
     state = (current.execution_binding || state) as ExecutionState;
     if (state.lock && (state.lockExpires || 0) > Date.now()) return false;
     state = { ...state, lock: claim, lockExpires: Date.now() + 120_000 };
@@ -120,7 +141,12 @@ export async function advanceCloudRun(
     return true;
   });
   if (!owns) return { done: false, delaySeconds: 5 };
-  let delaySeconds = 1;
+  const phase = state.phase;
+  const started = performance.now();
+  const timings = (state.phaseTimings ??= {});
+  const timing = (timings[phase] ??= { startedAt: Date.now(), activeMs: 0, attempts: 0 });
+  // Ready work needs another durable step, not a timer. Only actual waits opt in below.
+  let delaySeconds = 0;
   try {
     if (['input', 'provision', 'hydrate', 'restore', 'restore_wait', 'launch'].includes(state.phase))
       assert(
@@ -131,7 +157,7 @@ export async function advanceCloudRun(
       );
     if (state.phase === 'input') {
       const source = await transaction(org, async (tx) => {
-        const ws = await resources.get(tx, 'workspaces', run.workspace_id),
+        const ws = await resources.get(tx, 'worktrees', run.worktree_id),
           session = await resources.get(tx, 'sessions', run.session_id);
         return [
           ...((ws.files || []) as FileRecord[])
@@ -191,10 +217,29 @@ export async function advanceCloudRun(
       assert(model, 503, 'model_unavailable', 'The configured model is unavailable.');
       const configuration: NativeConfiguration = {
         runId,
+        ...(run.config.sandbox_id
+          ? {
+              warm: {
+                sessionId: run.session_id,
+                checkpointId: await transaction(
+                  org,
+                  async (tx) =>
+                    (await resources.get(tx, 'worktrees', run.worktree_id)).latest_checkpoint_id ?? null,
+                ),
+                toolFingerprint: sha256(
+                  JSON.stringify({
+                    grants: run.config.connection_grants || [],
+                    access: run.config.connection_access || [],
+                  }),
+                ),
+              },
+            }
+          : {}),
         harness: run.config.harness,
         model: run.config.model,
         provider: model.provider,
         prompt: run.config.prompt,
+        attachments: run.config.attachments,
         instructions: run.config.instructions,
         workspace: '/workspace',
         stateHome: '/agent-home',
@@ -211,19 +256,19 @@ export async function advanceCloudRun(
         toolGrants: Boolean(run.config.connection_grants?.length),
         permissions: run.config.permission_layers,
       };
-      await provider.prepare(state.machine, configuration);
-      state.phase = 'hydrate';
+      const prepared = await provider.prepare(state.machine, configuration);
+      state.phase = prepared?.reused ? 'launch' : 'hydrate';
     } else if (state.phase === 'hydrate') {
-      const objects = await pending(org, runId, ['input_chunk', 'input_page']);
-      for (const item of objects) {
-        const content =
-          item.kind === 'input_chunk'
-            ? await readContent(String(item.data.key), String(item.data.sha256))
-            : Buffer.from(JSON.stringify(item.data.entries));
-        const dest = item.kind === 'input_chunk' ? `chunks/${item.name}` : `page-${item.name}.json`;
-        await provider.stage(state.machine!, [{ path: `/platform-control/restore/${dest}`, content }]);
-        await processed(org, [item]);
-      }
+      const objects = await pending<RestoreObject>(
+        org,
+        runId,
+        ['input_chunk', 'input_page'],
+        RESTORE_BATCH_OBJECTS,
+      );
+      const batch = await stageRestoreObjects(provider, state.machine!, objects);
+      // A partial/uncertain write is retried under the same content-addressed paths.
+      // Publish progress only after the whole provider batch has acknowledged success.
+      await processed(org, batch);
       if (!objects.length) state.phase = 'restore';
     } else if (state.phase === 'restore') {
       await provider.restore(state.machine!);
@@ -234,7 +279,7 @@ export async function advanceCloudRun(
         result !== 'failure',
         502,
         'restore_failed',
-        'The workspace failed integrity verification during restore.',
+        'The worktree failed integrity verification during restore.',
       );
       if (result === 'success') state.phase = 'launch';
       else delaySeconds = 3;
@@ -302,14 +347,14 @@ export async function advanceCloudRun(
           await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
           await emit(tx, org, runId, 'run.persisting', {}, { id: 'lifecycle', sequence: 2 });
         });
-      } else delaySeconds = 2;
+      } else if (!result.result) delaySeconds = 2;
     } else if (state.phase === 'index') {
       const page = await provider.snapshotPage(state.machine!, state.indexOffset || 0);
       assert(
         page.totalBytes <= 10 * 1024 ** 3 && page.total <= 100_000,
         413,
         'checkpoint_storage_limit',
-        'The workspace exceeds its configured persistence limit.',
+        'The worktree exceeds its configured persistence limit.',
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
@@ -369,6 +414,8 @@ export async function advanceCloudRun(
         const recovery = await provider.close(state.machine, Boolean(state.preserve));
         state.snapshotId = recovery.snapshotId;
       }
+      if (!state.machine && run.config.sandbox_id)
+        await releaseSandbox(org, run.config.sandbox_id, runId, 0, true);
       state.phase = 'done';
       await transaction(org, (tx) =>
         tx.query(
@@ -379,6 +426,9 @@ export async function advanceCloudRun(
     }
     state.failures = 0;
   } catch (error) {
+    if (error instanceof AppError && error.code === 'sandbox_starting') {
+      return { done: false, delaySeconds: 3 };
+    }
     state.failures = (state.failures || 0) + 1;
     const code = error instanceof AppError ? error.code : 'execution_transport_failed';
     if (state.failures >= 3 && state.phase !== 'close') {
@@ -396,6 +446,9 @@ export async function advanceCloudRun(
     }
     delaySeconds = Math.min(60, 2 ** state.failures);
   } finally {
+    timing.activeMs += Math.round(performance.now() - started);
+    timing.attempts++;
+    if (state.phase !== phase) timing.completedAt = Date.now();
     delete state.lock;
     delete state.lockExpires;
     await transaction(org, (tx) =>
@@ -426,11 +479,12 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
   await settleOrphanModelRequests(org, runId);
   await transaction(org, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-    const run = await getRun(tx, runId);
+    const run = await getNativeRun(tx, runId);
     if (terminal(run.status)) return;
-    const ws = await resources.get(tx, 'workspaces', run.workspace_id);
+    const ws = await resources.get(tx, 'worktrees', run.worktree_id);
     const verified = !state.error && state.result?.persistence === 'captured';
     let checkpointId: string | undefined;
+    let artifactIds: string[] = [];
     if (verified) {
       const objects = (
         await tx.query('SELECT data FROM execution_objects WHERE run_id=$1 AND kind=$2 AND processed', [
@@ -451,21 +505,22 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
       const cp = await checkpoint(
         tx,
         principalFor(run),
-        run.workspace_id,
+        run.worktree_id,
         'Agent run',
         files,
         guardedToolsRequired(run.config.permission_layers || []) ? ws.git_files : gitFiles,
       );
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       checkpointId = cp.id;
-      await resources.update(tx, 'workspaces', run.workspace_id, { ...checkpointState(cp), status: 'idle' });
+      artifactIds = await publishArtifacts(tx, run, ws.files || [], files);
+      await resources.update(tx, 'worktrees', run.worktree_id, { ...checkpointState(cp), status: 'idle' });
       await resources.update(tx, 'sessions', run.session_id, {
         state_files: home,
         native_session_id: state.result?.resumeId,
       });
       await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
     } else
-      await resources.update(tx, 'workspaces', run.workspace_id, {
+      await resources.update(tx, 'worktrees', run.worktree_id, {
         status: state.machine ? 'degraded' : 'idle',
         recovery_run_id: state.machine ? runId : undefined,
       });
@@ -504,7 +559,7 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
       ...(checkpointId ? { checkpoint_id: checkpointId } : {}),
       last_verified_checkpoint_id: ws.latest_checkpoint_id,
       failure_code: state.error || state.result?.failureCode,
-      artifact_ids: [],
+      artifact_ids: artifactIds,
       sync_status: 'disabled',
     };
     await settle(tx, org, runId, BigInt(run.reservation_micro_usd), cost);
@@ -514,7 +569,26 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
       JSON.stringify(value),
       cost.toString(),
     ]);
-    if (verified && (await queueAutomaticSync(tx, principalFor(run), run.workspace_id, runId)))
+    const traceContext = await runTraceContext(tx, run);
+    if (traceContext)
+      afterCommit(tx, () =>
+        recordTrace({
+          context: traceContext,
+          id: 'billing:compute',
+          name: 'billing.compute',
+          type: 'event',
+          startedAt: run.started_at || run.created_at,
+          endedAt: new Date(),
+          chargedMicroUsd: compute.toString(),
+          metadata: {
+            elapsed_seconds: elapsed,
+            charged_micro_usd: compute.toString(),
+            rate_micro_usd_per_minute: run.config.compute_rate_micro_usd_per_minute,
+            provider_cost_status: 'unavailable',
+          },
+        }),
+      );
+    if (verified && (await queueAutomaticSync(tx, principalFor(run), run.worktree_id, runId)))
       value.sync_status = 'pending';
     await emit(tx, org, runId, `run.${status}`, { ...value, status });
     await tx.query(

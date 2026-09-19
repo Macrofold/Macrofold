@@ -17,7 +17,7 @@ After adding the import below, run `go mod tidy`.
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a workspace ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```go
 package main
@@ -33,7 +33,7 @@ func main() {
     if err != nil { panic(err) }
     ctx := context.Background()
     input := macrofold.NewRunCreate("Create hello.txt containing Hello world.")
-    input.SetProjectId("YOUR_PROJECT_ID")
+    input.SetWorkspaceId("YOUR_WORKSPACE_ID")
     input.SetHarness("codex")
     input.SetModel("gpt-5.4-mini")
     input.SetBillingMode("managed")
@@ -58,7 +58,7 @@ client, err := macrofold.NewClient(
 
 ## Resource methods
 
-`client.Runs.Get(ctx, id)` returns a typed run; `client.Runs.Cancel(ctx, id)` cancels it. Methods take path identifiers, a typed body where applicable, and a typed parameter struct for query/header options. For example, `client.Projects.List(ctx, nil)` lists projects with default pagination. Pass `*ListProjectsParams` to set a cursor or limit.
+`client.Runs.Get(ctx, id)` returns a typed run; `client.Runs.Cancel(ctx, id)` cancels it. Methods take path identifiers, a typed body where applicable, and a typed parameter struct for query/header options. For example, `client.Workspaces.List(ctx, nil)` lists workspaces with default pagination. Pass `*ListWorkspacesParams` to set a cursor or limit.
 
 [Every public operation](../../docs/features/api/sdks/reference.md) has a resource method. Model constructors set required fields; the API validates selector combinations, authorization, and model/BYOK configuration. Money remains decimal strings.
 
@@ -90,7 +90,7 @@ Import `time` for this timeout example. `Wait` polls until execution and persist
 
 ```go
 if _, err := client.Runs.Wait(ctx, run.RunId); err != nil { panic(err) }
-file, err := client.Workspaces.ReadFile(ctx, run.WorkspaceId, &macrofold.ReadFileParams{Path: "hello.txt"})
+file, err := client.Worktrees.ReadFile(ctx, run.WorktreeId, &macrofold.ReadFileParams{Path: "hello.txt"})
 if err != nil { panic(err) }
 defer os.Remove(file.Name())
 defer file.Close()
@@ -105,7 +105,7 @@ Direct reads return the complete file up to 4 MiB. During execution they use the
 
 ## Advanced access
 
-Generated builders remain available through `client.APIClient`, including `client.ProjectsAPI.ListProjects(ctx).Execute()`. These expose status/headers directly and require explicit idempotency for mutations. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
+Generated builders remain available through `client.APIClient`, including `client.WorkspacesAPI.ListWorkspaces(ctx).Execute()`. These expose status/headers directly and require explicit idempotency for mutations. Constructors require HTTPS except on loopback hosts and refuse redirects. For refreshed OAuth tokens, construct a new client with the renewed token.
 
 See [API conventions](../../docs/features/api/conventions.md) for permissions, asynchronous work, and errors.
 

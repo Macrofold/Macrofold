@@ -236,7 +236,7 @@ export function VerifyEmail() {
   return (
     <AuthActionFrame
       title="Check your inbox."
-      description="Verify your email address to start using your workspace."
+      description="Verify your email address to start using your worktree."
     >
       {sent ? (
         <div className="success-note">If this account needs verification, a new link is on its way.</div>

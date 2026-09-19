@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct TriggerPatch {
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(rename = "project_id", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<uuid::Uuid>,
+    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "agent_id", skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<uuid::Uuid>,
     #[serde(rename = "prompt", skip_serializing_if = "Option::is_none")]
@@ -39,7 +39,7 @@ impl TriggerPatch {
     pub fn new() -> TriggerPatch {
         TriggerPatch {
             name: None,
-            project_id: None,
+            workspace_id: None,
             agent_id: None,
             prompt: None,
             enabled: None,

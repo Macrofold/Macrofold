@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -19,11 +19,11 @@ import (
 // checks if the RunCreate type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &RunCreate{}
 
-// RunCreate Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
+// RunCreate Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
 type RunCreate struct {
 	Prompt string `json:"prompt"`
-	ProjectId *string `json:"project_id,omitempty"`
 	WorkspaceId *string `json:"workspace_id,omitempty"`
+	WorktreeId *string `json:"worktree_id,omitempty"`
 	SessionId *string `json:"session_id,omitempty"`
 	AgentId *string `json:"agent_id,omitempty"`
 	Harness *string `json:"harness,omitempty"`
@@ -39,11 +39,18 @@ type RunCreate struct {
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
-	// Only session follow-ups can queue behind workspace work.
+	// Only session follow-ups can queue behind worktree work.
 	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
 	Permissions *AgentPermissions `json:"permissions,omitempty"`
 	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
 	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
+	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+	Attachments []string `json:"attachments,omitempty"`
+	SandboxId *string `json:"sandbox_id,omitempty"`
+	// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
+	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
+	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
+	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
 }
 
 type _RunCreate RunCreate
@@ -90,38 +97,6 @@ func (o *RunCreate) SetPrompt(v string) {
 	o.Prompt = v
 }
 
-// GetProjectId returns the ProjectId field value if set, zero value otherwise.
-func (o *RunCreate) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId) {
-		var ret string
-		return ret
-	}
-	return *o.ProjectId
-}
-
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetProjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProjectId) {
-		return nil, false
-	}
-	return o.ProjectId, true
-}
-
-// HasProjectId returns a boolean if a field has been set.
-func (o *RunCreate) HasProjectId() bool {
-	if o != nil && !IsNil(o.ProjectId) {
-		return true
-	}
-
-	return false
-}
-
-// SetProjectId gets a reference to the given string and assigns it to the ProjectId field.
-func (o *RunCreate) SetProjectId(v string) {
-	o.ProjectId = &v
-}
-
 // GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
 func (o *RunCreate) GetWorkspaceId() string {
 	if o == nil || IsNil(o.WorkspaceId) {
@@ -152,6 +127,38 @@ func (o *RunCreate) HasWorkspaceId() bool {
 // SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
 func (o *RunCreate) SetWorkspaceId(v string) {
 	o.WorkspaceId = &v
+}
+
+// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise.
+func (o *RunCreate) GetWorktreeId() string {
+	if o == nil || IsNil(o.WorktreeId) {
+		var ret string
+		return ret
+	}
+	return *o.WorktreeId
+}
+
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetWorktreeIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorktreeId) {
+		return nil, false
+	}
+	return o.WorktreeId, true
+}
+
+// HasWorktreeId returns a boolean if a field has been set.
+func (o *RunCreate) HasWorktreeId() bool {
+	if o != nil && !IsNil(o.WorktreeId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorktreeId gets a reference to the given string and assigns it to the WorktreeId field.
+func (o *RunCreate) SetWorktreeId(v string) {
+	o.WorktreeId = &v
 }
 
 // GetSessionId returns the SessionId field value if set, zero value otherwise.
@@ -602,6 +609,144 @@ func (o *RunCreate) SetConnectionAccessOverrides(v []Grant) {
 	o.ConnectionAccessOverrides = v
 }
 
+// GetAttachments returns the Attachments field value if set, zero value otherwise.
+func (o *RunCreate) GetAttachments() []string {
+	if o == nil || IsNil(o.Attachments) {
+		var ret []string
+		return ret
+	}
+	return o.Attachments
+}
+
+// GetAttachmentsOk returns a tuple with the Attachments field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetAttachmentsOk() ([]string, bool) {
+	if o == nil || IsNil(o.Attachments) {
+		return nil, false
+	}
+	return o.Attachments, true
+}
+
+// HasAttachments returns a boolean if a field has been set.
+func (o *RunCreate) HasAttachments() bool {
+	if o != nil && !IsNil(o.Attachments) {
+		return true
+	}
+
+	return false
+}
+
+// SetAttachments gets a reference to the given []string and assigns it to the Attachments field.
+func (o *RunCreate) SetAttachments(v []string) {
+	o.Attachments = v
+}
+
+// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
+func (o *RunCreate) GetSandboxId() string {
+	if o == nil || IsNil(o.SandboxId) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxId
+}
+
+// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetSandboxIdOk() (*string, bool) {
+	if o == nil || IsNil(o.SandboxId) {
+		return nil, false
+	}
+	return o.SandboxId, true
+}
+
+// HasSandboxId returns a boolean if a field has been set.
+func (o *RunCreate) HasSandboxId() bool {
+	if o != nil && !IsNil(o.SandboxId) {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
+func (o *RunCreate) SetSandboxId(v string) {
+	o.SandboxId = &v
+}
+
+// GetKeepWarmSeconds returns the KeepWarmSeconds field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *RunCreate) GetKeepWarmSeconds() int32 {
+	if o == nil || IsNil(o.KeepWarmSeconds.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.KeepWarmSeconds.Get()
+}
+
+// GetKeepWarmSecondsOk returns a tuple with the KeepWarmSeconds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *RunCreate) GetKeepWarmSecondsOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.KeepWarmSeconds.Get(), o.KeepWarmSeconds.IsSet()
+}
+
+// HasKeepWarmSeconds returns a boolean if a field has been set.
+func (o *RunCreate) HasKeepWarmSeconds() bool {
+	if o != nil && o.KeepWarmSeconds.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetKeepWarmSeconds gets a reference to the given NullableInt32 and assigns it to the KeepWarmSeconds field.
+func (o *RunCreate) SetKeepWarmSeconds(v int32) {
+	o.KeepWarmSeconds.Set(&v)
+}
+// SetKeepWarmSecondsNil sets the value for KeepWarmSeconds to be an explicit nil
+func (o *RunCreate) SetKeepWarmSecondsNil() {
+	o.KeepWarmSeconds.Set(nil)
+}
+
+// UnsetKeepWarmSeconds ensures that no value is present for KeepWarmSeconds, not even an explicit nil
+func (o *RunCreate) UnsetKeepWarmSeconds() {
+	o.KeepWarmSeconds.Unset()
+}
+
+// GetSandboxMaxCostMicroUsd returns the SandboxMaxCostMicroUsd field value if set, zero value otherwise.
+func (o *RunCreate) GetSandboxMaxCostMicroUsd() string {
+	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxMaxCostMicroUsd
+}
+
+// GetSandboxMaxCostMicroUsdOk returns a tuple with the SandboxMaxCostMicroUsd field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetSandboxMaxCostMicroUsdOk() (*string, bool) {
+	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
+		return nil, false
+	}
+	return o.SandboxMaxCostMicroUsd, true
+}
+
+// HasSandboxMaxCostMicroUsd returns a boolean if a field has been set.
+func (o *RunCreate) HasSandboxMaxCostMicroUsd() bool {
+	if o != nil && !IsNil(o.SandboxMaxCostMicroUsd) {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxMaxCostMicroUsd gets a reference to the given string and assigns it to the SandboxMaxCostMicroUsd field.
+func (o *RunCreate) SetSandboxMaxCostMicroUsd(v string) {
+	o.SandboxMaxCostMicroUsd = &v
+}
+
 func (o RunCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -613,11 +758,11 @@ func (o RunCreate) MarshalJSON() ([]byte, error) {
 func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["prompt"] = o.Prompt
-	if !IsNil(o.ProjectId) {
-		toSerialize["project_id"] = o.ProjectId
-	}
 	if !IsNil(o.WorkspaceId) {
 		toSerialize["workspace_id"] = o.WorkspaceId
+	}
+	if !IsNil(o.WorktreeId) {
+		toSerialize["worktree_id"] = o.WorktreeId
 	}
 	if !IsNil(o.SessionId) {
 		toSerialize["session_id"] = o.SessionId
@@ -660,6 +805,18 @@ func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ConnectionAccessOverrides) {
 		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
+	}
+	if !IsNil(o.Attachments) {
+		toSerialize["attachments"] = o.Attachments
+	}
+	if !IsNil(o.SandboxId) {
+		toSerialize["sandbox_id"] = o.SandboxId
+	}
+	if o.KeepWarmSeconds.IsSet() {
+		toSerialize["keep_warm_seconds"] = o.KeepWarmSeconds.Get()
+	}
+	if !IsNil(o.SandboxMaxCostMicroUsd) {
+		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
 	}
 	return toSerialize, nil
 }

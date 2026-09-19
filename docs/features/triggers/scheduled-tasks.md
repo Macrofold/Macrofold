@@ -1,11 +1,11 @@
 # Scheduled tasks
 
-Save a prompt and let an agent run it repeatedly against persistent project files. Tasks run on the server with the dashboard closed.
+Save a prompt and let an agent run it repeatedly against persistent workspace files. Tasks run on the server with the dashboard closed.
 
 ## Create a task
 
 1. Open **Scheduled tasks → New task**.
-2. Give the task a name and choose its project and agent preset.
+2. Give the task a name and choose its workspace and agent preset.
 3. Write the prompt, such as “Prepare a morning briefing and save it in reports/.”
 4. Choose hourly, daily, weekday, weekly, or custom cron timing. Confirm the timezone. Custom cron appears only when selected; unusual intake caps live under **Advanced delivery limits**.
 5. Review the preset, per-run budget and funding, then expand **Review connections and tools** if needed. Choose **Create scheduled task** to enable it. The card shows its next occurrence.
@@ -14,7 +14,7 @@ Use **Run now** to test the saved instructions. **History** links each delivery 
 
 ## Start from an example
 
-Open **Templates**, choose Weekly project digest or Personal assistant, then **Use and schedule**. Edit the prefilled instructions, choose a compatible model and funding, and save the preset with its per-run budget. The next form keeps that preset and task name. Choose a project once, confirm timing and access, and enable the schedule. Weekly digest starts with Mondays at 09:00; other starters begin daily at 09:00. The timezone defaults to your browser's IANA timezone and remains editable.
+Open **Templates**, choose Weekly workspace digest or Personal assistant, then **Use and schedule**. Edit the prefilled instructions, choose a compatible model and funding, and save the preset with its per-run budget. The next form keeps that preset and task name. Choose a workspace once, confirm timing and access, and enable the schedule. Weekly digest starts with Mondays at 09:00; other starters begin daily at 09:00. The timezone defaults to your browser's IANA timezone and remains editable.
 
 An existing preset has **Schedule this preset** on its card. Saving a preset alone neither enables recurring work nor starts a run. A schedule uses the preset's saved tool selection and current access rules; reviewing it never creates grants. Each occurrence uses its own budget. A monthly budget is a separate account control.
 
@@ -32,7 +32,7 @@ Cron uses five fields: minute, hour, day of month, month, and day of week. Timez
 
 The minimum interval is one minute. Delivery limits still apply: increase the default 100-per-day cap for frequent schedules, up to 1,000. The cron parser uses the selected timezone, including daylight-saving transitions. Prefer UTC when fixed UTC times matter.
 
-A scheduled time makes work **eligible**; it does not reserve immediate capacity. The local worker checks maintenance approximately every 15 seconds. Vercel’s configured maintenance cron runs once per minute. Under normal light load, allow roughly one to two maintenance ticks for admission and dispatch, plus existing workspace/capacity waiting. Provider slowness or backlog can increase that delay.
+A scheduled time makes work **eligible**; it does not reserve immediate capacity. The local worker checks maintenance approximately every 15 seconds. Vercel’s configured maintenance cron runs once per minute. Under normal light load, allow roughly one to two maintenance ticks for admission and dispatch, plus existing worktree/capacity waiting. Provider slowness or backlog can increase that delay.
 
 If the service misses several occurrences, it coalesces them into **at most one** delivery and advances to the next future time. If the task’s previous occurrence is still waiting or running, the new occurrence is skipped. The card reports the last skip reason. Runs are never interrupted to make room for a newer occurrence.
 
@@ -40,6 +40,6 @@ If the service misses several occurrences, it coalesces them into **at most one*
 
 Edit its prompt, preset, cadence, timezone or intake limit. The creator can pause and resume it; organization administrators can pause it too. **Run now** requires an enabled task and uses the same limits and admission checks.
 
-Saving configuration invalidates deliveries that have not yet become runs. Already accepted runs preserve their configuration. Pausing or deleting a task stops future work; cancel a particular accepted run from its run page if needed. Undoing project deletion does not automatically resume its paused triggers.
+Saving configuration invalidates deliveries that have not yet become runs. Already accepted runs preserve their configuration. Pausing or deleting a task stops future work; cancel a particular accepted run from its run page if needed. Undoing workspace deletion does not automatically resume its paused triggers.
 
-Each occurrence uses a new session and the same project workspace. The preset’s configuration is resolved when the run is admitted. Keep connector permissions and BYOK credentials current; failures appear in task history.
+Each occurrence uses a new session and the same workspace worktree. The preset’s configuration is resolved when the run is admitted. Keep connector permissions and BYOK credentials current; failures appear in task history.

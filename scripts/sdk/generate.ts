@@ -101,7 +101,7 @@ try {
     }
     if (language === 'java') {
       await replaceOnce(
-        path.join(output, 'src/main/java/dev/macrofold/api/WorkspacesApi.java'),
+        path.join(output, 'src/main/java/dev/macrofold/api/WorktreesApi.java'),
         'byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(body);\n      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));',
         'localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofFile(body.toPath()));',
       );
@@ -114,7 +114,7 @@ try {
         '::url::form_urlencoded::byte_serialize(s.as_ref().as_bytes()).collect::<String>().replace("+", "%20")',
       );
       await replaceOnce(
-        path.join(output, 'src/apis/workspaces_api.rs'),
+        path.join(output, 'src/apis/worktrees_api.rs'),
         'let file = TokioFile::open(p_body_body).await?;',
         'let file = TokioFile::open(p_body_body).await?;\n    req_builder = req_builder.header(reqwest::header::CONTENT_TYPE, "application/octet-stream").header(reqwest::header::CONTENT_LENGTH, file.metadata().await?.len());',
       );
@@ -152,12 +152,15 @@ try {
     generated.push(
       ...(await generators[language as keyof typeof generators](await metadata(output), destination)),
     );
-    // Vendor templates emit indentation-only and empty Javadoc lines. Normalize these in the owner
+    // Vendor templates emit indentation-only and empty documentation lines. Normalize these in the owner
     // so regeneration does not reintroduce whitespace errors into reviewed output.
     for (const file of generated) {
       const target = path.join(destination, file);
       const source = await readFile(target, 'utf8');
-      await writeFile(target, source.replace(/^[\t ]+$/gm, '').replace(/^([\t ]*\*)[\t ]+$/gm, '$1'));
+      await writeFile(
+        target,
+        source.replace(/^[\t ]+$/gm, '').replace(/^([\t ]*(?:\*|\/\/\/))[\t ]+$/gm, '$1'),
+      );
     }
     // Remove only paths recorded by the previous generation, never hand-maintained helpers/tests.
     const manifest = path.join(destination, '.generated-files.json');

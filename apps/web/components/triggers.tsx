@@ -83,7 +83,7 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
         description={
           scheduled
             ? 'Save a prompt. Choose a cadence. Your agents keep working, even when you’re offline.'
-            : 'Turn Slack messages and incoming webhooks into work in your persistent projects.'
+            : 'Turn Slack messages and incoming webhooks into work in your persistent workspaces.'
         }
         action={
           <div className="row-actions">
@@ -105,7 +105,7 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
         <div>
           <strong>Same agents. Same files. A new starting point.</strong>
           <p>
-            Choose a project and agent preset. Every run keeps its usual budget, permissions, history and
+            Choose a workspace and agent preset. Every run keeps its usual budget, permissions, history and
             cancellation controls.{' '}
             <Link href={scheduled ? '/docs/triggers/scheduled-tasks' : '/docs/triggers'}>Setup guide →</Link>
           </p>
@@ -122,7 +122,7 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
         <ScheduleFromPreset
           key={presetId}
           id={presetId}
-          weekly={params.get('template') === 'weekly-project-digest'}
+          weekly={params.get('template') === 'weekly-workspace-digest'}
           close={closePreset}
           saved={() => {
             closePreset();
@@ -184,7 +184,7 @@ export function TriggersView({ scheduled = false }: { scheduled?: boolean }) {
                   {t.last_error_code && (
                     <span role="status">Last occurrence: {t.last_error_code.replaceAll('_', ' ')}</span>
                   )}
-                  <Link href={`/projects/${t.project_id}`}>Open project →</Link>
+                  <Link href={`/workspaces/${t.workspace_id}`}>Open workspace →</Link>
                 </div>
                 <div className="row-actions trigger-actions">
                   <Button variant="ghost" onClick={() => setSelected(t)}>
@@ -356,7 +356,7 @@ function ScheduleFromPreset({
         if (!open) close();
       }}
       title="Schedule a preset"
-      description="Review the preset, then choose its project and schedule."
+      description="Review the preset, then choose its workspace and schedule."
     >
       {preset.error ? (
         <ErrorState error={preset.error} retry={() => void preset.refetch()} />
@@ -387,10 +387,10 @@ function TriggerForm({
     [prompt, setPrompt] = useState(
       initial?.prompt ||
         (preset
-          ? 'Follow your saved instructions using the current project files. Update your report and summarize what changed.'
+          ? 'Follow your saved instructions using the current workspace files. Update your report and summarize what changed.'
           : ''),
     ),
-    [project, setProject] = useState(initial?.project_id || ''),
+    [workspace, setWorkspace] = useState(initial?.workspace_id || ''),
     [agent, setAgent] = useState(initial?.agent_id || preset?.id || ''),
     [connection, setConnection] = useState(initial?.slack_connection_id || ''),
     [channel, setChannel] = useState(initial?.channel_id || ''),
@@ -401,7 +401,7 @@ function TriggerForm({
     [limit, setLimit] = useState(initial?.max_runs_per_day || 100),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const projects = usePages<Schema['Project']>('/v1/projects?archived=false&limit=100'),
+  const workspaces = usePages<Schema['Workspace']>('/v1/workspaces?archived=false&limit=100'),
     agents = usePages<Schema['Agent']>('/v1/agents?limit=100');
   const connections = useApi<Page<Schema['SlackConnection']>>(
     kind === 'slack' ? '/v1/slack-connections' : undefined,
@@ -412,7 +412,7 @@ function TriggerForm({
   const selectedPreset = useData(
     agent ? { operation: 'getAgent', params: { path: { agent_id: agent } } } : undefined,
   );
-  const access = useConnectionAccess(project && agent ? { project_id: project, agent_id: agent } : undefined);
+  const access = useConnectionAccess(workspace && agent ? { workspace_id: workspace, agent_id: agent } : undefined);
   const availableAgents = agents.data?.data || [];
   const availableChannels = channels.data?.data || [];
   return (
@@ -422,7 +422,7 @@ function TriggerForm({
         if (!open && !busy) close();
       }}
       title={initial ? 'Edit task configuration' : scheduled ? 'New scheduled task' : 'Create trigger'}
-      description="The preset supplies the harness, model, tools and billing. The project supplies persistent files."
+      description="The preset supplies the harness, model, tools and billing. The workspace supplies persistent files."
       wide
     >
       <form
@@ -434,7 +434,7 @@ function TriggerForm({
           const input: Schema['TriggerCreate'] = {
             name,
             kind,
-            project_id: project,
+            workspace_id: workspace,
             agent_id: agent,
             prompt,
             max_runs_per_day: limit,
@@ -479,14 +479,14 @@ function TriggerForm({
           </Field>
         )}
         <div className="form-grid">
-          <Field label="Project">
+          <Field label="Workspace">
             <Select
               required
-              value={project}
+              value={workspace}
               disabled={!!initial}
-              onValueChange={setProject}
-              placeholder={projects.isPending ? 'Loading projects…' : 'Choose project'}
-              options={(projects.data?.data || []).map((p) => ({ value: p.id, label: p.name }))}
+              onValueChange={setWorkspace}
+              placeholder={workspaces.isPending ? 'Loading workspaces…' : 'Choose workspace'}
+              options={(workspaces.data?.data || []).map((p) => ({ value: p.id, label: p.name }))}
             />
           </Field>
           <Field label="Agent preset">
@@ -502,9 +502,9 @@ function TriggerForm({
             />
           </Field>
         </div>
-        {projects.hasNextPage && (
-          <Button type="button" variant="ghost" onClick={() => projects.fetchNextPage()}>
-            More projects
+        {workspaces.hasNextPage && (
+          <Button type="button" variant="ghost" onClick={() => workspaces.fetchNextPage()}>
+            More workspaces
           </Button>
         )}
         {agents.hasNextPage && (
@@ -512,13 +512,13 @@ function TriggerForm({
             More presets
           </Button>
         )}
-        {!projects.isPending && !projects.data?.data.length && (
-          <Link href="/projects">Create a project first →</Link>
+        {!workspaces.isPending && !workspaces.data?.data.length && (
+          <Link href="/workspaces">Create a workspace first →</Link>
         )}
         {!agents.isPending && !agents.data?.data.length && (
           <Link href="/agents">Create an agent preset first →</Link>
         )}
-        {(projects.error || agents.error) && <ErrorState error={(projects.error || agents.error)!} />}
+        {(workspaces.error || agents.error) && <ErrorState error={(workspaces.error || agents.error)!} />}
         <Field
           label="Prompt"
           hint={
@@ -653,7 +653,7 @@ function TriggerForm({
             />
           </Field>
         </details>
-        {project && agent && (
+        {workspace && agent && (
           <section className="schedule-review" aria-label="Review schedule">
             <h3>Review before enabling</h3>
             {selectedPreset.isPending ? (
@@ -675,7 +675,7 @@ function TriggerForm({
                     .
                   </p>
                   <p className="form-hint">
-                    Each occurrence starts a fresh conversation in the project’s main worktree. Preset changes
+                    Each occurrence starts a fresh conversation in the workspace’s main worktree. Preset changes
                     apply to future runs.
                   </p>
                 </>
@@ -739,7 +739,7 @@ function TriggerForm({
             type="submit"
             busy={busy}
             disabled={
-              !project ||
+              !workspace ||
               !agent ||
               selectedPreset.isPending ||
               !!selectedPreset.error ||
@@ -887,7 +887,7 @@ function SlackConnections({ close }: { close: () => void }) {
         {connections.data?.data.map((c) => (
           <div key={c.id} className="trigger-slack-connection">
             <strong>{c.name}</strong>
-            <span className="muted">Workspace {c.team_id}</span>
+            <span className="muted">Worktree {c.team_id}</span>
             <Field label={`${c.name} Events request URL`}>
               <input readOnly value={c.events_url} />
             </Field>

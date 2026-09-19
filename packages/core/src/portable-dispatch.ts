@@ -4,7 +4,7 @@ import type { MachineProvider } from './ports';
 import { pendingRunCandidates } from './scheduling';
 /** The SQL state machine owns execution identity in either orchestration backend.
  * Claim due work, advance once, and durably schedule its next observation. */
-export async function dispatchCloudPoller(provider: MachineProvider, concurrency = 4, organization?: string) {
+export async function dispatchCloudPoller(provider: MachineProvider | ((run: import('./runs').NativeRunRow) => MachineProvider), concurrency = 4, organization?: string) {
   const pending = await pendingRunCandidates(100);
   const claims = await pool.query(
     `WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='run' AND state<>'done' AND available_at<=now() AND ($2::uuid IS NULL OR organization_id=$2)
@@ -21,8 +21,9 @@ export async function dispatchCloudPoller(provider: MachineProvider, concurrency
         if (!result.queued)
           await pool.query(
             "UPDATE dispatch_jobs SET available_at=now()+($2::integer*interval '1 second') WHERE id=$1 AND state<>'done'",
-            [job.id, Math.max(1, result.delaySeconds)],
+            [job.id, result.delaySeconds],
           );
+        return !result.done && !result.queued && result.delaySeconds === 0;
       } catch {
         await pool.query(
           "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds',error='poller_advance_failed' WHERE id=$1 AND state<>'done'",
@@ -32,5 +33,9 @@ export async function dispatchCloudPoller(provider: MachineProvider, concurrency
       }
     }),
   );
-  return { advanced: claims.rowCount || 0, failed: results.filter((r) => r.status === 'rejected').length };
+  return {
+    advanced: claims.rowCount || 0,
+    failed: results.filter((r) => r.status === 'rejected').length,
+    ready: results.some((r) => r.status === 'fulfilled' && r.value),
+  };
 }

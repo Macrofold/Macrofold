@@ -16,7 +16,7 @@ export function AccessResourceSelect({
   activeOnly = false,
   onUnavailable,
 }: {
-  kind: 'project' | 'agent';
+  kind: 'workspace' | 'agent';
   value: string;
   onChange: (id: string) => void;
   label: string;
@@ -28,17 +28,17 @@ export function AccessResourceSelect({
 }) {
   const [search, setSearch] = useState('');
   const query = useDataPages(
-    kind === 'project'
+    kind === 'workspace'
       ? {
-          operation: 'listProjects',
+          operation: 'listWorkspaces',
           params: { query: { query: search, ...(activeOnly ? { archived: false } : {}) } },
         }
       : { operation: 'listAgents', params: { query: { query: search } } },
   );
   const selected = useData(
     value
-      ? kind === 'project'
-        ? { operation: 'getProject', params: { path: { project_id: value } } }
+      ? kind === 'workspace'
+        ? { operation: 'getWorkspace', params: { path: { workspace_id: value } } }
         : { operation: 'getAgent', params: { path: { agent_id: value } } }
       : undefined,
   );
@@ -57,7 +57,7 @@ export function AccessResourceSelect({
           disabled={disabled}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder={`Search ${kind === 'agent' ? 'presets' : 'projects'}…`}
+          placeholder={`Search ${kind === 'agent' ? 'presets' : 'workspaces'}…`}
         />
       </Field>
       <Field label={label}>
@@ -70,7 +70,7 @@ export function AccessResourceSelect({
             {
               value: '',
               label:
-                emptyLabel ?? (optional ? `All ${kind === 'agent' ? 'presets' : 'projects'}` : 'Choose…'),
+                emptyLabel ?? (optional ? `All ${kind === 'agent' ? 'presets' : 'workspaces'}` : 'Choose…'),
               disabled: !optional,
             },
             ...options,
@@ -78,7 +78,7 @@ export function AccessResourceSelect({
         />
       </Field>
       {query.error && <ErrorState error={query.error} retry={() => void query.refetch()} />}
-      <More query={query} label={`More ${kind === 'agent' ? 'presets' : 'projects'}`} />
+      <More query={query} label={`More ${kind === 'agent' ? 'presets' : 'workspaces'}`} />
     </div>
   );
 }

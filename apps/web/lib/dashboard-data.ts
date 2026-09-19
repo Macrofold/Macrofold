@@ -99,7 +99,7 @@ export function useDataPages<K extends ListOperation>(
 }
 
 /** Content and ETag are read together; a buffer never borrows a newer tree revision. */
-export async function readDocument(workspaceId: string, path: string, signal: AbortSignal) {
+export async function readDocument(worktreeId: string, path: string, signal: AbortSignal) {
   const client = new Client({
     baseURL: window.location.origin,
     sessionAuth: true,
@@ -107,7 +107,7 @@ export async function readDocument(workspaceId: string, path: string, signal: Ab
     retries: 0,
   });
   const response = await client.raw('readFile', {
-    params: { path: { workspace_id: workspaceId }, query: { path } },
+    params: { path: { worktree_id: worktreeId }, query: { path } },
     signal,
   });
   return { text: await response.text(), revision: (response.headers.get('etag') ?? '').replaceAll('"', '') };

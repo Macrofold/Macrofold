@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -20,7 +20,7 @@ var _ MappedNullable = &OperationResult{}
 
 // OperationResult Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
 type OperationResult struct {
-	WorkspaceId *string `json:"workspace_id,omitempty"`
+	WorktreeId *string `json:"worktree_id,omitempty"`
 	Revision *string `json:"revision,omitempty"`
 	CheckpointId *string `json:"checkpoint_id,omitempty"`
 	// Created, saved, renamed, or removed path for a file mutation.
@@ -29,7 +29,7 @@ type OperationResult struct {
 	PreviousPath *string `json:"previous_path,omitempty"`
 	// Authoritative resulting file or directory entry, absent for deletion.
 	Entry *FileEntry `json:"entry,omitempty"`
-	ProjectId *string `json:"project_id,omitempty"`
+	WorkspaceId *string `json:"workspace_id,omitempty"`
 	TransferId *string `json:"transfer_id,omitempty"`
 	DeliveryId *string `json:"delivery_id,omitempty"`
 	LocalReceiptComplete *bool `json:"local_receipt_complete,omitempty"`
@@ -65,36 +65,36 @@ func NewOperationResultWithDefaults() *OperationResult {
 	return &this
 }
 
-// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
-func (o *OperationResult) GetWorkspaceId() string {
-	if o == nil || IsNil(o.WorkspaceId) {
+// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise.
+func (o *OperationResult) GetWorktreeId() string {
+	if o == nil || IsNil(o.WorktreeId) {
 		var ret string
 		return ret
 	}
-	return *o.WorkspaceId
+	return *o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *OperationResult) GetWorkspaceIdOk() (*string, bool) {
-	if o == nil || IsNil(o.WorkspaceId) {
+func (o *OperationResult) GetWorktreeIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorktreeId) {
 		return nil, false
 	}
-	return o.WorkspaceId, true
+	return o.WorktreeId, true
 }
 
-// HasWorkspaceId returns a boolean if a field has been set.
-func (o *OperationResult) HasWorkspaceId() bool {
-	if o != nil && !IsNil(o.WorkspaceId) {
+// HasWorktreeId returns a boolean if a field has been set.
+func (o *OperationResult) HasWorktreeId() bool {
+	if o != nil && !IsNil(o.WorktreeId) {
 		return true
 	}
 
 	return false
 }
 
-// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
-func (o *OperationResult) SetWorkspaceId(v string) {
-	o.WorkspaceId = &v
+// SetWorktreeId gets a reference to the given string and assigns it to the WorktreeId field.
+func (o *OperationResult) SetWorktreeId(v string) {
+	o.WorktreeId = &v
 }
 
 // GetRevision returns the Revision field value if set, zero value otherwise.
@@ -257,36 +257,36 @@ func (o *OperationResult) SetEntry(v FileEntry) {
 	o.Entry = &v
 }
 
-// GetProjectId returns the ProjectId field value if set, zero value otherwise.
-func (o *OperationResult) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId) {
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
+func (o *OperationResult) GetWorkspaceId() string {
+	if o == nil || IsNil(o.WorkspaceId) {
 		var ret string
 		return ret
 	}
-	return *o.ProjectId
+	return *o.WorkspaceId
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *OperationResult) GetProjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProjectId) {
+func (o *OperationResult) GetWorkspaceIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkspaceId) {
 		return nil, false
 	}
-	return o.ProjectId, true
+	return o.WorkspaceId, true
 }
 
-// HasProjectId returns a boolean if a field has been set.
-func (o *OperationResult) HasProjectId() bool {
-	if o != nil && !IsNil(o.ProjectId) {
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *OperationResult) HasWorkspaceId() bool {
+	if o != nil && !IsNil(o.WorkspaceId) {
 		return true
 	}
 
 	return false
 }
 
-// SetProjectId gets a reference to the given string and assigns it to the ProjectId field.
-func (o *OperationResult) SetProjectId(v string) {
-	o.ProjectId = &v
+// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
+func (o *OperationResult) SetWorkspaceId(v string) {
+	o.WorkspaceId = &v
 }
 
 // GetTransferId returns the TransferId field value if set, zero value otherwise.
@@ -715,8 +715,8 @@ func (o OperationResult) MarshalJSON() ([]byte, error) {
 
 func (o OperationResult) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.WorkspaceId) {
-		toSerialize["workspace_id"] = o.WorkspaceId
+	if !IsNil(o.WorktreeId) {
+		toSerialize["worktree_id"] = o.WorktreeId
 	}
 	if !IsNil(o.Revision) {
 		toSerialize["revision"] = o.Revision
@@ -733,8 +733,8 @@ func (o OperationResult) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Entry) {
 		toSerialize["entry"] = o.Entry
 	}
-	if !IsNil(o.ProjectId) {
-		toSerialize["project_id"] = o.ProjectId
+	if !IsNil(o.WorkspaceId) {
+		toSerialize["workspace_id"] = o.WorkspaceId
 	}
 	if !IsNil(o.TransferId) {
 		toSerialize["transfer_id"] = o.TransferId
@@ -797,13 +797,13 @@ func (o *OperationResult) UnmarshalJSON(data []byte) (err error) {
 	additionalProperties := make(map[string]interface{})
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
-		delete(additionalProperties, "workspace_id")
+		delete(additionalProperties, "worktree_id")
 		delete(additionalProperties, "revision")
 		delete(additionalProperties, "checkpoint_id")
 		delete(additionalProperties, "path")
 		delete(additionalProperties, "previous_path")
 		delete(additionalProperties, "entry")
-		delete(additionalProperties, "project_id")
+		delete(additionalProperties, "workspace_id")
 		delete(additionalProperties, "transfer_id")
 		delete(additionalProperties, "delivery_id")
 		delete(additionalProperties, "local_receipt_complete")

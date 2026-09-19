@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { authPool, pool, transaction } from '../../packages/db';
 import { admitRun, cancelRun, getRun, submitInput } from '../../packages/core/src/runs';
 import { claimRun } from '../../packages/core/src/engine';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import { fixtureAccount } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
@@ -39,13 +39,13 @@ afterAll(async () => {
 });
 async function queued(limits?: { timeout_seconds: number; max_cost_micro_usd: string }) {
   return transaction(account.p.organizationId, async (tx) => {
-    const project = await resources.create(tx, 'projects', account.p.organizationId, {
+    const workspace = await resources.create(tx, 'workspaces', account.p.organizationId, {
       name: 'State fixture',
     });
-    const created = await createWorkspace(tx, account.p, project.id, { name: 'main', branch: 'main' });
-    const workspace = (created.result as { workspace_id: string }).workspace_id;
+    const created = await createWorktree(tx, account.p, workspace.id, { name: 'main', branch: 'main' });
+    const worktree = (created.result as { worktree_id: string }).worktree_id;
     return admitRun(tx, account.p, {
-      workspace_id: workspace,
+      worktree_id: worktree,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',

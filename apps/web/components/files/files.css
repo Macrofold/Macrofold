@@ -1,8 +1,8 @@
-.workspace-file-tree {
+.worktree-file-tree {
   min-width: 0;
   padding: 6px 4px;
 }
-.workspace-tree-row {
+.worktree-tree-row {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -16,26 +16,26 @@
   user-select: none;
   outline-offset: -2px;
 }
-.workspace-tree-row:hover {
+.worktree-tree-row:hover {
   background: var(--app-surface-2);
 }
-.workspace-tree-row[aria-selected='true'] {
+.worktree-tree-row[aria-selected='true'] {
   background: var(--app-accent-wash-2);
   color: var(--app-ink);
 }
-.workspace-tree-row:focus-visible {
+.worktree-tree-row:focus-visible {
   outline: 1px solid var(--blue);
 }
-.workspace-file-tree[aria-disabled='true'] .workspace-tree-name {
+.worktree-file-tree[aria-disabled='true'] .worktree-tree-name {
   opacity: 0.65;
 }
-.workspace-tree-name {
+.worktree-tree-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.workspace-tree-chevron {
+.worktree-tree-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -48,13 +48,13 @@
   padding: 0;
   cursor: pointer;
 }
-.workspace-tree-chevron svg {
+.worktree-tree-chevron svg {
   transition: transform 120ms ease;
 }
-.workspace-tree-chevron [data-expanded='true'] {
+.worktree-tree-chevron [data-expanded='true'] {
   transform: rotate(90deg);
 }
-.workspace-file-icon {
+.worktree-file-icon {
   flex: 0 0 auto;
   color: var(--muted);
   stroke-width: 1.6;
@@ -70,7 +70,7 @@
 .file-icon-image {
   color: var(--app-lilac, var(--muted));
 }
-.workspace-tree-status {
+.worktree-tree-status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -80,7 +80,7 @@
   font-size: 12px;
   color: var(--muted);
 }
-.workspace-tree-action {
+.worktree-tree-action {
   border: 0;
   background: none;
   padding: 3px;
@@ -88,26 +88,26 @@
   cursor: pointer;
   font: inherit;
 }
-.workspace-tree-status[aria-disabled='true'] {
+.worktree-tree-status[aria-disabled='true'] {
   cursor: wait;
   opacity: 0.6;
 }
-.workspace-markdown-preview {
+.worktree-markdown-preview {
   min-width: 0;
   padding: 24px clamp(18px, 4vw, 54px) 64px;
   color: var(--ink);
 }
-.workspace-markdown-body {
+.worktree-markdown-body {
   max-width: 880px;
   margin: 0 auto;
   font-size: 14px;
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
-.workspace-markdown-body > :first-child {
+.worktree-markdown-body > :first-child {
   margin-top: 0;
 }
-.workspace-markdown-body :is(h1, h2, h3, h4, h5, h6) {
+.worktree-markdown-body :is(h1, h2, h3, h4, h5, h6) {
   font-family: inherit;
   font-weight: 600;
   line-height: 1.3;
@@ -116,60 +116,60 @@
   scroll-margin-top: 20px;
   color: var(--ink);
 }
-.workspace-markdown-body h1 {
+.worktree-markdown-body h1 {
   font-size: 28px;
 }
-.workspace-markdown-body h2 {
+.worktree-markdown-body h2 {
   font-size: 22px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
-.workspace-markdown-body h3 {
+.worktree-markdown-body h3 {
   font-size: 18px;
 }
-.workspace-markdown-body :is(h4, h5, h6) {
+.worktree-markdown-body :is(h4, h5, h6) {
   font-size: 15px;
 }
-.workspace-markdown-body p {
+.worktree-markdown-body p {
   margin: 0.9em 0;
 }
-.workspace-markdown-body :is(ul, ol) {
+.worktree-markdown-body :is(ul, ol) {
   padding-left: 1.7em;
   margin: 0.9em 0;
 }
-.workspace-markdown-body li {
+.worktree-markdown-body li {
   margin: 0.3em 0;
 }
-.workspace-markdown-body .contains-task-list {
+.worktree-markdown-body .contains-task-list {
   list-style: none;
   padding-left: 0.5em;
 }
-.workspace-markdown-body .task-list-item input {
+.worktree-markdown-body .task-list-item input {
   margin-right: 8px;
   accent-color: var(--blue);
 }
-.workspace-markdown-body blockquote {
+.worktree-markdown-body blockquote {
   margin: 1.2em 0;
   padding: 2px 18px;
   border-left: 3px solid var(--blue);
   color: var(--muted);
 }
-.workspace-markdown-body hr {
+.worktree-markdown-body hr {
   border: 0;
   border-top: 1px solid var(--line);
   margin: 24px 0;
 }
-.workspace-markdown-body a,
-.workspace-markdown-link {
+.worktree-markdown-body a,
+.worktree-markdown-link {
   color: var(--blue);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.workspace-markdown-body a > svg {
+.worktree-markdown-body a > svg {
   margin-left: 4px;
   vertical-align: middle;
 }
-.workspace-markdown-link {
+.worktree-markdown-link {
   display: inline;
   font: inherit;
   background: none;
@@ -178,21 +178,21 @@
   cursor: pointer;
   text-align: inherit;
 }
-.workspace-markdown-body :not(pre) > code {
+.worktree-markdown-body :not(pre) > code {
   padding: 2px 5px;
   border-radius: 4px;
   background: var(--app-surface-2);
   font-family: var(--app-mono);
   font-size: 0.9em;
 }
-.workspace-markdown-code {
+.worktree-markdown-code {
   overflow: hidden;
   margin: 18px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--app-surface, var(--paper));
 }
-.workspace-markdown-codebar {
+.worktree-markdown-codebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -203,7 +203,7 @@
   color: var(--muted);
   font-size: 12px;
 }
-.workspace-markdown-codebar .copy-button {
+.worktree-markdown-codebar .copy-button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -213,7 +213,7 @@
   font: inherit;
   cursor: pointer;
 }
-.workspace-markdown-code pre {
+.worktree-markdown-code pre {
   margin: 0;
   padding: 16px;
   overflow: auto;
@@ -221,36 +221,36 @@
   font-size: 12px;
   white-space: pre;
 }
-.workspace-markdown-table {
+.worktree-markdown-table {
   overflow: auto;
   margin: 18px 0;
   border: 1px solid var(--line);
   border-radius: 7px;
 }
-.workspace-markdown-table table {
+.worktree-markdown-table table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
-.workspace-markdown-table :is(th, td) {
+.worktree-markdown-table :is(th, td) {
   border: 1px solid var(--line);
   border-top: 0;
   border-left: 0;
   padding: 9px 12px;
   text-align: left;
 }
-.workspace-markdown-table th {
+.worktree-markdown-table th {
   background: var(--app-surface-2);
   font-weight: 600;
   text-transform: none;
 }
-.workspace-markdown-table tr:last-child td {
+.worktree-markdown-table tr:last-child td {
   border-bottom: 0;
 }
-.workspace-markdown-table :is(th, td):last-child {
+.worktree-markdown-table :is(th, td):last-child {
   border-right: 0;
 }
-.workspace-markdown-image {
+.worktree-markdown-image {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -264,16 +264,16 @@
   text-align: left;
   text-decoration: none !important;
 }
-button.workspace-markdown-image {
+button.worktree-markdown-image {
   cursor: pointer;
 }
-.workspace-markdown-image small {
+.worktree-markdown-image small {
   display: block;
   color: var(--muted);
   font-size: 11px;
 }
-.workspace-markdown-outline,
-.workspace-markdown-frontmatter {
+.worktree-markdown-outline,
+.worktree-markdown-frontmatter {
   max-width: 880px;
   margin: 0 auto 20px;
   border-bottom: 1px solid var(--line);
@@ -281,56 +281,56 @@ button.workspace-markdown-image {
   font-size: 12px;
   color: var(--muted);
 }
-.workspace-markdown-outline summary,
-.workspace-markdown-frontmatter summary {
+.worktree-markdown-outline summary,
+.worktree-markdown-frontmatter summary {
   cursor: pointer;
   width: fit-content;
 }
-.workspace-markdown-outline summary svg {
+.worktree-markdown-outline summary svg {
   vertical-align: middle;
   margin: 0 5px 0 3px;
 }
-.workspace-markdown-outline nav {
+.worktree-markdown-outline nav {
   display: flex;
   flex-direction: column;
   padding-top: 8px;
   gap: 2px;
 }
-.workspace-markdown-outline nav a {
+.worktree-markdown-outline nav a {
   padding-block: 3px;
   color: var(--muted);
   text-decoration: none;
 }
-.workspace-markdown-outline nav a:hover {
+.worktree-markdown-outline nav a:hover {
   color: var(--blue);
 }
-.workspace-markdown-frontmatter pre {
+.worktree-markdown-frontmatter pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .workspace-tree-chevron svg {
+  .worktree-tree-chevron svg {
     transition: none;
   }
 }
-.workspace-tree-menu {
+.worktree-tree-menu {
   margin-left: auto;
   flex: 0 0 24px;
   width: 24px;
   height: 23px;
   opacity: 0;
 }
-.workspace-tree-row:hover .workspace-tree-menu,
-.workspace-tree-row:focus-within .workspace-tree-menu,
-.workspace-tree-menu[data-state='open'] {
+.worktree-tree-row:hover .worktree-tree-menu,
+.worktree-tree-row:focus-within .worktree-tree-menu,
+.worktree-tree-menu[data-state='open'] {
   opacity: 1;
 }
-.workspace-tree-row[data-drop='true'] {
+.worktree-tree-row[data-drop='true'] {
   background: var(--app-accent-wash);
   box-shadow: inset 0 0 0 1px var(--app-accent);
 }
-.workspace-tree-rename {
+.worktree-tree-rename {
   min-width: 0;
   width: 100%;
   padding: 3px 5px;

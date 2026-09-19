@@ -87,7 +87,7 @@ async function authorizeAttempt(tx: Tx, a: Authorization) {
         tx,
         {
           organization_id: a.organization_id,
-          project_id: b.project_id,
+          workspace_id: b.workspace_id,
           config: {
             user_id: p.userId!,
             principal_id: p.id,

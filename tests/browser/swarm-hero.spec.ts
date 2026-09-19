@@ -38,20 +38,20 @@ test('hero advances through all studies at 1.3x with only one playing decoder', 
           rate: (el as HTMLVideoElement).playbackRate,
         })),
     );
-  await expect.poll(playing).toEqual([{ src: expect.stringContaining('druse-1440.h264.mp4'), rate: 1.3 }]);
+  await expect.poll(playing).toEqual([{ src: expect.stringContaining('tetrarch-1440.h264.mp4'), rate: 1.3 }]);
   await expect.poll(() => requested.size).toBe(2);
   for (const name of [
-    'thalassa',
-    'tetrarch',
-    'viscera',
-    'aperiodic',
-    'plexus',
-    'maelstrom',
     'hypercell',
-    'chitin',
-    'coronet',
+    'aperiodic',
     'alveoli',
     'druse',
+    'plexus',
+    'coronet',
+    'viscera',
+    'thalassa',
+    'chitin',
+    'maelstrom',
+    'tetrarch',
   ]) {
     await page.locator('.mf-swarm video').evaluateAll((elements) => {
       const current = elements.find((el) => !(el as HTMLVideoElement).paused) as HTMLVideoElement | undefined;
@@ -93,7 +93,7 @@ test('mobile video autoplays even with reduced motion enabled', async ({ page })
   });
   await page.goto('/site', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.mf-swarm')).toHaveAttribute('data-status', 'playing');
-  expect(requested[0]).toContain('druse-960.h264.mp4');
+  expect(requested[0]).toContain('tetrarch-960.h264.mp4');
   await expect(page.locator('.mf-swarm button')).toHaveCount(0);
 });
 
@@ -123,9 +123,14 @@ test('failed desktop media falls back to mobile and an unavailable collection le
   await expect(page.locator('.mf-hero-art img')).toHaveCount(0);
   await expect(page.locator('.mf-swarm video').first()).toHaveCSS('opacity', '0');
   await expect(page.locator('.mf-swarm video').last()).toHaveCSS('opacity', '0');
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.getByRole('heading', { level: 1 }).click();
+  await expect(page.locator('.mf-swarm')).toHaveAttribute('data-status', 'playing');
 });
 
-test('browser autoplay refusal leaves the background clear without a play prompt', async ({ page }) => {
+test('browser autoplay refusal recovers on an ordinary page interaction without a play prompt', async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     const play = HTMLMediaElement.prototype.play;
     let blocked = true;
@@ -143,6 +148,23 @@ test('browser autoplay refusal leaves the background clear without a play prompt
   await expect(page.locator('.mf-swarm video').first()).toHaveCSS('opacity', '0');
   await expect(page.locator('.mf-swarm video').last()).toHaveCSS('opacity', '0');
   await expect(page.locator('.mf-swarm button')).toHaveCount(0);
+  await page.getByRole('heading', { level: 1 }).click();
+  await expect(page.locator('.mf-swarm')).toHaveAttribute('data-status', 'playing');
+  await expect
+    .poll(() =>
+      page
+        .locator('.mf-swarm video')
+        .first()
+        .evaluate((el: HTMLVideoElement) => el.currentTime),
+    )
+    .toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Pause animations', exact: true }).click();
+  await page.getByRole('heading', { level: 1 }).click();
+  expect(
+    await page
+      .locator('.mf-swarm video')
+      .evaluateAll((nodes) => nodes.every((el) => (el as HTMLVideoElement).paused)),
+  ).toBe(true);
 });
 
 test('data saving autoplays the smaller video without consent', async ({ page }) => {

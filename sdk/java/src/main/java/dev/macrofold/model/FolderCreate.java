@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -50,7 +50,7 @@ public class FolderCreate {
   }
 
   /**
-   * Relative workspace path without traversal, empty segments, or reserved platform paths.
+   * Relative worktree path without traversal, empty segments, or reserved platform paths.
    * @return path
    */
   @javax.annotation.Nonnull

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -25,7 +25,7 @@ type Identity struct {
 	UserId *string `json:"user_id,omitempty"`
 	Organizations []IdentityOrganizationsInner `json:"organizations"`
 	EffectiveScopes []string `json:"effective_scopes"`
-	ProjectRestrictions []string `json:"project_restrictions"`
+	WorkspaceRestrictions []string `json:"workspace_restrictions"`
 	Capabilities CliCapabilities `json:"capabilities"`
 	OrganizationId *string `json:"organization_id,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -37,13 +37,13 @@ type _Identity Identity
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewIdentity(principalId string, principalType string, organizations []IdentityOrganizationsInner, effectiveScopes []string, projectRestrictions []string, capabilities CliCapabilities) *Identity {
+func NewIdentity(principalId string, principalType string, organizations []IdentityOrganizationsInner, effectiveScopes []string, workspaceRestrictions []string, capabilities CliCapabilities) *Identity {
 	this := Identity{}
 	this.PrincipalId = principalId
 	this.PrincipalType = principalType
 	this.Organizations = organizations
 	this.EffectiveScopes = effectiveScopes
-	this.ProjectRestrictions = projectRestrictions
+	this.WorkspaceRestrictions = workspaceRestrictions
 	this.Capabilities = capabilities
 	return &this
 }
@@ -184,28 +184,28 @@ func (o *Identity) SetEffectiveScopes(v []string) {
 	o.EffectiveScopes = v
 }
 
-// GetProjectRestrictions returns the ProjectRestrictions field value
-func (o *Identity) GetProjectRestrictions() []string {
+// GetWorkspaceRestrictions returns the WorkspaceRestrictions field value
+func (o *Identity) GetWorkspaceRestrictions() []string {
 	if o == nil {
 		var ret []string
 		return ret
 	}
 
-	return o.ProjectRestrictions
+	return o.WorkspaceRestrictions
 }
 
-// GetProjectRestrictionsOk returns a tuple with the ProjectRestrictions field value
+// GetWorkspaceRestrictionsOk returns a tuple with the WorkspaceRestrictions field value
 // and a boolean to check if the value has been set.
-func (o *Identity) GetProjectRestrictionsOk() ([]string, bool) {
+func (o *Identity) GetWorkspaceRestrictionsOk() ([]string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.ProjectRestrictions, true
+	return o.WorkspaceRestrictions, true
 }
 
-// SetProjectRestrictions sets field value
-func (o *Identity) SetProjectRestrictions(v []string) {
-	o.ProjectRestrictions = v
+// SetWorkspaceRestrictions sets field value
+func (o *Identity) SetWorkspaceRestrictions(v []string) {
+	o.WorkspaceRestrictions = v
 }
 
 // GetCapabilities returns the Capabilities field value
@@ -281,7 +281,7 @@ func (o Identity) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["organizations"] = o.Organizations
 	toSerialize["effective_scopes"] = o.EffectiveScopes
-	toSerialize["project_restrictions"] = o.ProjectRestrictions
+	toSerialize["workspace_restrictions"] = o.WorkspaceRestrictions
 	toSerialize["capabilities"] = o.Capabilities
 	if !IsNil(o.OrganizationId) {
 		toSerialize["organization_id"] = o.OrganizationId
@@ -303,7 +303,7 @@ func (o *Identity) UnmarshalJSON(data []byte) (err error) {
 		"principal_type",
 		"organizations",
 		"effective_scopes",
-		"project_restrictions",
+		"workspace_restrictions",
 		"capabilities",
 	}
 
@@ -339,7 +339,7 @@ func (o *Identity) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "user_id")
 		delete(additionalProperties, "organizations")
 		delete(additionalProperties, "effective_scopes")
-		delete(additionalProperties, "project_restrictions")
+		delete(additionalProperties, "workspace_restrictions")
 		delete(additionalProperties, "capabilities")
 		delete(additionalProperties, "organization_id")
 		o.AdditionalProperties = additionalProperties

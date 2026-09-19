@@ -6,7 +6,7 @@ Each recorded check should identify the source revision, app deployment, runtime
 
 Verify all five SDKs against the activated hosted origin, including typed requests/results, SSE replay/reconnection, and synthetic credential revocation. [Resource SDK acceptance](../engineering/testing/sdk-resources.md) records local proof and the unactivated canonical-origin boundary.
 
-After native checkpoint publication, verify path-based file reads in all five SDKs, including empty/binary files and foreign-project denial. Verify the `download=true` capability returns a complete file larger than 4 MiB from deployed storage without forwarding the API key. These pass with local encrypted objects; deployed R2/routing acceptance remains required.
+After native checkpoint publication, verify path-based file reads in all five SDKs, including empty/binary files and foreign-workspace denial. Verify the `download=true` capability returns a complete file larger than 4 MiB from deployed storage without forwarding the API key. These pass with local encrypted objects; deployed R2/routing acceptance remains required.
 
 Use a saved preset to verify plain-text streaming and `wait()` through deployed execution/checkpoint publication. Confirm that failure/cancellation raises the SDK's typed run error, a wait deadline leaves execution active, and reconnecting never repeats a delivered sequence. These are local-fixture passes; deployed transport and native-agent acceptance remain separate.
 
@@ -20,7 +20,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 - [ ] Auth/vault/cron keys match existing encrypted records. Retained decrypt keys and recovery copies are available.
 - [ ] HTTPS origin, domain, email sender, edge abuse controls, and public signup policy are configured.
 - [ ] Signup, verification, reset, MFA/recovery, invitations, session expiry, and OAuth/device refresh/revocation work with synthetic accounts.
-- [ ] Cross-organization reads, role/scope/project restrictions, ownership changes, and revoked delegated authority are denied as expected.
+- [ ] Cross-organization reads, role/scope/workspace restrictions, ownership changes, and revoked delegated authority are denied as expected.
 
 ## Native execution and persistence
 
@@ -59,7 +59,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 ## Capacity and release controls
 
 - [ ] Required CI, package, native, browser, coverage, and mutation checks pass on the release revision with synthetic fixtures and no production secrets.
-- [ ] Quiet-host sustained and burst tests verify limits, workspace ordering, fair opportunities for new accounts, cancellation, expiry, and worker failure.
+- [ ] Quiet-host sustained and burst tests verify limits, worktree ordering, fair opportunities for new accounts, cancellation, expiry, and worker failure.
 - [ ] Vendor Sandbox/model quotas, database connection budget, function duration, image access, and region headroom are verified before raising the ceiling.
 - [ ] Monitor active executions, eligible backlog, oldest wait, waiting by account, submission-to-start latency, maintenance age, and financial drift.
 - [ ] Neon CPU, connections, database/history growth, latency, and billed active compute are monitored. Capacity and cost estimates account for Cron/polling that can prevent suspension.

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -23,7 +23,7 @@ var _ MappedNullable = &Artifact{}
 // Artifact struct for Artifact
 type Artifact struct {
 	Id string `json:"id"`
-	RunId string `json:"run_id"`
+	RunId NullableString `json:"run_id"`
 	Name string `json:"name"`
 	MediaType string `json:"media_type"`
 	// Non-negative integer count as a decimal string.
@@ -38,7 +38,7 @@ type _Artifact Artifact
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewArtifact(id string, runId string, name string, mediaType string, sizeBytes string, sha256 string) *Artifact {
+func NewArtifact(id string, runId NullableString, name string, mediaType string, sizeBytes string, sha256 string) *Artifact {
 	this := Artifact{}
 	this.Id = id
 	this.RunId = runId
@@ -82,27 +82,29 @@ func (o *Artifact) SetId(v string) {
 }
 
 // GetRunId returns the RunId field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *Artifact) GetRunId() string {
-	if o == nil {
+	if o == nil || o.RunId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.RunId
+	return *o.RunId.Get()
 }
 
 // GetRunIdOk returns a tuple with the RunId field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Artifact) GetRunIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.RunId, true
+	return o.RunId.Get(), o.RunId.IsSet()
 }
 
 // SetRunId sets field value
 func (o *Artifact) SetRunId(v string) {
-	o.RunId = v
+	o.RunId.Set(&v)
 }
 
 // GetName returns the Name field value
@@ -244,7 +246,7 @@ func (o Artifact) MarshalJSON() ([]byte, error) {
 func (o Artifact) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["id"] = o.Id
-	toSerialize["run_id"] = o.RunId
+	toSerialize["run_id"] = o.RunId.Get()
 	toSerialize["name"] = o.Name
 	toSerialize["media_type"] = o.MediaType
 	toSerialize["size_bytes"] = o.SizeBytes

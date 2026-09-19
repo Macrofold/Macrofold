@@ -9,13 +9,13 @@ These preserve the earlier headline and subtitle for comparison. The current dir
 | Version    | Opening                                | Product explanation                   | Useful comparison                                             |
 | ---------- | -------------------------------------- | ------------------------------------- | ------------------------------------------------------------- |
 | Foundation | Quiet split hero                       | One scrolling branch diagram          | The most direct interpretation of the requested sequence      |
-| Immersion  | Full-width particle field              | Scrolling layered workspaces          | A more expansive first impression                             |
+| Immersion  | Full-width particle field              | Scrolling layered worktrees          | A more expansive first impression                             |
 | Precision  | Framed, compact composition            | Selectable circuit diagram            | Fast scanning and deliberate exploration                      |
 | Chapters   | Large editorial typography             | Five alternating illustrated chapters | Reading each feature without a shared sticky panel            |
 | Workbench  | Compact developer opening              | File-and-terminal explorer            | Familiar developer controls and less page travel              |
-| Panorama   | Broad computational horizon            | Scrolling horizontal execution lanes  | Making independent workspaces easy to distinguish             |
+| Panorama   | Broad computational horizon            | Scrolling horizontal execution lanes  | Making independent worktrees easy to distinguish             |
 | Atlas      | Offset composition                     | Alternating layered diagrams          | A less conventional rhythm with complete visible explanations |
-| Relay      | Split product opening                  | Selectable routing diagram            | Understanding which interface targets which workspace         |
+| Relay      | Split product opening                  | Selectable routing diagram            | Understanding which interface targets which worktree         |
 | Sequence   | Typographic opening                    | Previous/next feature sequence        | A guided explanation without scroll-driven changes            |
 | Synthesis  | Expansive, left-aligned particle field | Scrolling terminal-style diagram      | Combining a grand hero with a precise working environment     |
 
@@ -23,15 +23,15 @@ Start with **Foundation**, **Immersion**, and **Relay** to compare a balanced pa
 
 ## One coherent product story
 
-The five stages keep the same project visible: files and instructions; independent worktrees with native agents; checkpoint history and optional GitHub sync; API, CLI, and dashboard access; then requests routed to particular workspaces. Choose an interface in the final diagram to highlight its example destinations.
+The five stages keep the same workspace visible: files and instructions; independent worktrees with native agents; checkpoint history and optional GitHub sync; API, CLI, and dashboard access; then requests routed to particular worktrees. Choose an interface in the final diagram to highlight its example destinations.
 
-The illustrations preserve actual boundaries. A project groups workspaces; each workspace has one active writer. Independent work uses independent workspaces within account limits. Saved checkpoints and optional GitHub synchronization are distinct; synchronization never promises to resolve conflicts automatically. CLI linking selects remote context rather than silently uploading a local folder.
+The illustrations preserve actual boundaries. A workspace groups worktrees; each worktree has one active writer. Independent work uses independent worktrees within account limits. Saved checkpoints and optional GitHub synchronization are distinct; synchronization never promises to resolve conflicts automatically. CLI linking selects remote context rather than silently uploading a local folder.
 
 Additional animated panels introduce streaming, granted tools, and execution/spending limits. Supported harnesses, model providers, tools, search integrations, open-source availability, and deeper guides finish the page. All diagrams are illustrations, not customer telemetry.
 
 ## Code before detail
 
-The example panel separates **Run**, **Stream**, and **Continue**, with TypeScript, Python, cURL, and CLI tabs. New API runs show the five required values: project, harness, model, billing mode, and prompt. Optional budgets, timeouts, and defensive setup checks stay out of the main snippet. A disclosure explains credentials, source installation, model selection, funding, and CLI linking.
+The example panel separates **Run**, **Stream**, and **Continue**, with TypeScript, Python, cURL, and CLI tabs. New API runs show the five required values: workspace, harness, model, billing mode, and prompt. Optional budgets, timeouts, and defensive setup checks stay out of the main snippet. A disclosure explains credentials, source installation, model selection, funding, and CLI linking.
 
 Continuation uses the returned session ID after the current run finishes. The API contract and SDK remain unchanged. Python examples use explicit clients and closure, without `with`. cURL exposes its idempotency key; the SDK owns mutation identities and stream reconnection. The [API quickstart](../../../features/api/quickstart.md) and [SDK guides](../../../features/api/sdks/README.md) remain authoritative for full setup.
 

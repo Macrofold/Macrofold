@@ -1,31 +1,39 @@
+import { controlDirectory } from './control-directory';
 import { permissionLayersSchema } from '../../contracts/permissions';
-import { spawn } from 'node:child_process';
+import { agentProcesses, freezeAgent, stopAgent, signalAgent } from './agent-processes';
+import { warmSessionKey } from './warm-session';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import {
-  appendFile,
-  chmod,
-  chown,
-  lstat,
-  mkdir,
-  readFile,
-  readdir,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { appendFile, chmod, chown, lstat, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { harnessNames } from '../../contracts/harnesses';
+import { mediaLimits } from '../../contracts/media';
 import { atomicJSON, captureSnapshot } from './manifest';
 import type { NativeConfiguration, NativeResult } from './types';
 
 const UID = 10001;
 export const runtimeConfiguration = z.object({
   runId: z.uuid(),
+  warm: z
+    .object({ sessionId: z.uuid(), checkpointId: z.string().nullable(), toolFingerprint: z.string() })
+    .optional(),
   harness: z.enum(harnessNames),
   model: z.string().min(1),
   provider: z.enum(['openai', 'anthropic', 'openrouter']),
   prompt: z.string(),
   instructions: z.string().optional(),
+  attachments: z
+    .array(
+      z.object({
+        path: z.string().min(1).max(4096),
+        sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        size_bytes: z.string().regex(/^\d+$/),
+        media_type: z.string().min(1),
+      }),
+    )
+    .max(mediaLimits.attachments)
+    .optional(),
   workspace: z.string(),
   stateHome: z.string(),
   gatewayURL: z.url(),
@@ -36,39 +44,33 @@ export const runtimeConfiguration = z.object({
   toolGrants: z.boolean(),
   permissions: permissionLayersSchema.optional(),
 });
-async function killAgentProcesses() {
-  // A separate UID catches daemonized grandchildren that escaped the original process group.
-  for (const pid of await readdir('/proc'))
-    if (/^\d+$/.test(pid)) {
-      try {
-        if ((await lstat(`/proc/${pid}`)).uid === UID) process.kill(Number(pid), 'SIGKILL');
-      } catch (error) {
-        if (!['ESRCH', 'ENOENT'].includes((error as NodeJS.ErrnoException).code || '')) throw error;
-      }
-    }
+export type ResidentWorker = {
+  child?: ChildProcessWithoutNullStreams;
+  key?: string;
+  checkpointId?: string | null;
+  resumeId?: string;
+  processes: Set<number>;
+};
+export async function discardResident(resident: ResidentWorker) {
+  await stopAgent();
+  resident.child?.stdin.destroy();
+  resident.child = undefined;
+  resident.key = undefined;
+  resident.processes.clear();
 }
-async function hasLiveAgentProcesses() {
-  for (const pid of await readdir('/proc'))
-    if (/^\d+$/.test(pid)) {
-      try {
-        if ((await lstat(`/proc/${pid}`)).uid === UID) {
-          const status = await readFile(`/proc/${pid}/status`, 'utf8');
-          if (!/^State:\s+Z/m.test(status)) return true;
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      }
-    }
-  return false;
-}
-export async function supervise(configurationPath: string, workerPath: string) {
+export async function supervise(configurationPath: string, workerPath: string, resident?: ResidentWorker) {
   if (process.platform !== 'linux' || process.getuid?.() !== 0)
     throw new Error('Supervisor requires an isolated Linux sandbox and its root user.');
   const c: NativeConfiguration = runtimeConfiguration.parse(
     JSON.parse(await readFile(configurationPath, 'utf8')),
   );
   const directory = path.dirname(configurationPath);
-  if (c.workspace !== '/workspace' || c.stateHome !== '/agent-home' || directory !== '/platform-control')
+  if (
+    c.workspace !== '/workspace' ||
+    c.stateHome !== '/agent-home' ||
+    (directory !== controlDirectory() &&
+      !(resident && /^\/platform-control\/runs\/[a-f0-9-]+$/.test(directory)))
+  )
     throw new Error('Unexpected runtime directories');
   // This atomic marker is deliberately never removed. A retried dispatch cannot repeat native side effects.
   try {
@@ -118,15 +120,25 @@ export async function supervise(configurationPath: string, workerPath: string) {
   let result: NativeResult | undefined,
     pendingInput: string | undefined,
     failure: 'cancelled' | 'timed_out' | undefined;
-  const child = spawn(process.execPath, [workerPath, workerConfig], {
-    cwd: c.workspace,
-    uid: UID,
-    gid: UID,
-    env: { PATH: process.env.PATH, NODE_ENV: 'production', HOME: c.stateHome, LANG: 'C.UTF-8' },
-    detached: true,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+  const reused = Boolean(resident?.child);
+  const child =
+    resident?.child ||
+    spawn(process.execPath, [workerPath, workerConfig], {
+      cwd: c.workspace,
+      uid: UID,
+      gid: UID,
+      env: { PATH: process.env.PATH, NODE_ENV: 'production', HOME: c.stateHome, LANG: 'C.UTF-8' },
+      detached: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
   child.stderr.resume();
+  if (resident && !reused) resident.processes = new Set([child.pid!]);
+  let finish!: () => void;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  child.once('exit', finish);
+  child.once('error', finish);
   let dispatch = Promise.resolve();
   const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
   lines.on('line', (line) => {
@@ -139,8 +151,15 @@ export async function supervise(configurationPath: string, workerPath: string) {
         } catch {
           return;
         }
-        if (message.type === 'event') await event(message.event.type, message.event.data);
-        if (message.type === 'result') result = message.result;
+        if (message.type === 'event') {
+          if (resident && !reused && message.event.type === 'runtime.started')
+            resident.processes = new Set((await agentProcesses()).keys());
+          await event(message.event.type, message.event.data);
+        }
+        if (message.type === 'result') {
+          result = message.result;
+          finish();
+        }
         if (message.type === 'input') {
           pendingInput = message.id;
           await atomicJSON(path.join(directory, 'input.json'), {
@@ -154,6 +173,10 @@ export async function supervise(configurationPath: string, workerPath: string) {
         child.kill('SIGTERM');
       });
   });
+  if (reused && resident) {
+    child.stdin.write(`${JSON.stringify({ type: 'turn', configuration: c })}\n`);
+    for (const pid of resident.processes) signalAgent(pid, 'SIGCONT');
+  }
   let stopAt: number | undefined,
     checking = false;
   const timer = setInterval(() => {
@@ -173,7 +196,7 @@ export async function supervise(configurationPath: string, workerPath: string) {
           child.kill('SIGTERM');
         }
       }
-      if (stopAt && Date.now() - stopAt > 4000) await killAgentProcesses();
+      if (stopAt && Date.now() - stopAt > 4000) await stopAgent();
       if (pendingInput && !failure) {
         try {
           const response = JSON.parse(await readFile(path.join(directory, 'answer.json'), 'utf8'));
@@ -197,26 +220,39 @@ export async function supervise(configurationPath: string, workerPath: string) {
         checking = false;
       });
   }, 500);
+  let retained = false;
   try {
-    const exited = new Promise<void>((resolve) => {
-      child.once('exit', () => resolve());
-      child.once('error', () => resolve());
-    });
-    const closed = new Promise<void>((resolve) => child.once('close', () => resolve()));
-    await exited;
-    // A daemon can retain the worker's stdout. Stop all writers before waiting for
-    // pipe closure, then drain the final result; `exit` alone can precede stdout.
-    await killAgentProcesses();
-    await closed;
-    await dispatch;
+    if (resident && c.warm) {
+      await finished;
+      await dispatch;
+      if (!failure && result?.outcome === 'success' && child.exitCode === null && !child.killed) {
+        await freezeAgent(resident.processes);
+        resident.child = child;
+        resident.key = warmSessionKey(c);
+        resident.resumeId = result.resumeId;
+        retained = true;
+      }
+    } else {
+      await new Promise<void>((resolve) => {
+        if (child.exitCode !== null) resolve();
+        else {
+          child.once('exit', resolve);
+          child.once('error', resolve);
+        }
+      });
+      await stopAgent();
+      if (!child.stdout.destroyed) await new Promise<void>((resolve) => child.once('close', resolve));
+      await dispatch;
+    }
   } finally {
     clearInterval(timer);
-    await killAgentProcesses();
-  }
-  // SIGKILL is asynchronous. No checkpoint is claimed quiescent until the UID has no live processes.
-  for (let i = 0; i < 20; i++) {
-    await killAgentProcesses();
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    lines.close();
+    child.removeListener('exit', finish);
+    child.removeListener('error', finish);
+    if (!retained) {
+      await stopAgent();
+      if (resident) await discardResident(resident);
+    }
   }
   await unlink(workerConfig).catch(() => {});
   await atomicJSON(path.join(directory, 'status.json'), {
@@ -226,10 +262,13 @@ export async function supervise(configurationPath: string, workerPath: string) {
   let persistence: 'captured' | 'failed' = 'captured',
     persistenceError: string | undefined;
   try {
-    if (await hasLiveAgentProcesses()) throw new Error('checkpoint_writers_remain');
+    const live = await agentProcesses();
+    if ([...live.values()].some((state) => !retained || state !== 'T'))
+      throw new Error('checkpoint_writers_remain');
     await captureSnapshot({ workspace: c.workspace, home: c.stateHome }, path.join(directory, 'snapshot'));
   } catch (error) {
     persistence = 'failed';
+    if (resident) await discardResident(resident);
     persistenceError =
       error instanceof Error && error.message.startsWith('checkpoint_')
         ? error.message

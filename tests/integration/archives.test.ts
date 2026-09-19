@@ -32,9 +32,9 @@ it('exports actual tar content with user manifest-name collisions, executable mo
   ];
   const create = async (f: FileRecord[]) =>
     transaction(p.organizationId, async (tx) => {
-      const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Archive' });
+      const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Archive' });
       const cp = await resources.create(tx, 'checkpoints', p.organizationId, {
-        project_id: project.id,
+        workspace_id: workspace.id,
         verification: 'verified',
         files: f,
         git_files: [],
@@ -51,11 +51,11 @@ it('exports actual tar content with user manifest-name collisions, executable mo
   try {
     await writeFile(path.join(dir, 'export.tar.gz'), Buffer.from(await response.arrayBuffer()));
     await extractTar({ cwd: dir, file: path.join(dir, 'export.tar.gz') });
-    expect(await readFile(path.join(dir, 'workspace/manifest.json'), 'utf8')).toBe('user content');
+    expect(await readFile(path.join(dir, 'worktree/manifest.json'), 'utf8')).toBe('user content');
     expect(JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8')).files).toHaveLength(4);
-    expect(await readFile(path.join(dir, 'workspace/cache/private.txt'), 'utf8')).toBe('ignored');
-    expect(await readlink(path.join(dir, 'workspace/shortcut'))).toBe('manifest.json');
-    expect((await lstat(path.join(dir, 'workspace/bin/run.sh'))).mode & 0o111).toBe(0o111);
+    expect(await readFile(path.join(dir, 'worktree/cache/private.txt'), 'utf8')).toBe('ignored');
+    expect(await readlink(path.join(dir, 'worktree/shortcut'))).toBe('manifest.json');
+    expect((await lstat(path.join(dir, 'worktree/bin/run.sh'))).mode & 0o111).toBe(0o111);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

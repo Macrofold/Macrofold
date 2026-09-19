@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -21,8 +21,8 @@ pub struct ApiKey {
     pub prefix: String,
     #[serde(rename = "scopes")]
     pub scopes: Vec<String>,
-    #[serde(rename = "project_id", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<uuid::Uuid>,
+    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "last_used_at", skip_serializing_if = "Option::is_none")]
     pub last_used_at: Option<chrono::DateTime<chrono::FixedOffset>>,
     #[serde(rename = "expires_at", skip_serializing_if = "Option::is_none")]
@@ -38,7 +38,7 @@ impl ApiKey {
             name,
             prefix,
             scopes,
-            project_id: None,
+            workspace_id: None,
             last_used_at: None,
             expires_at: None,
             revoked_at: None,

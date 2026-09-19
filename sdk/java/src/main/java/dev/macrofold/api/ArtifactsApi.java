@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -162,6 +162,128 @@ public class ArtifactsApi {
       file.deleteOnExit(); // best effort cleanup
     }
     return file;
+  }
+
+  /**
+   * Release a published artifact
+   * Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+   * @param artifactId  (required)
+   * @param idempotencyKey  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @throws ApiException if fails to make API call
+   */
+  public void deleteArtifact(@javax.annotation.Nonnull UUID artifactId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    deleteArtifact(artifactId, idempotencyKey, xOrganizationId, null);
+  }
+
+  /**
+   * Release a published artifact
+   * Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+   * @param artifactId  (required)
+   * @param idempotencyKey  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @throws ApiException if fails to make API call
+   */
+  public void deleteArtifact(@javax.annotation.Nonnull UUID artifactId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    deleteArtifactWithHttpInfo(artifactId, idempotencyKey, xOrganizationId, headers);
+  }
+
+  /**
+   * Release a published artifact
+   * Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+   * @param artifactId  (required)
+   * @param idempotencyKey  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return ApiResponse&lt;Void&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Void> deleteArtifactWithHttpInfo(@javax.annotation.Nonnull UUID artifactId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return deleteArtifactWithHttpInfo(artifactId, idempotencyKey, xOrganizationId, null);
+  }
+
+  /**
+   * Release a published artifact
+   * Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+   * @param artifactId  (required)
+   * @param idempotencyKey  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return ApiResponse&lt;Void&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Void> deleteArtifactWithHttpInfo(@javax.annotation.Nonnull UUID artifactId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteArtifactRequestBuilder(artifactId, idempotencyKey, xOrganizationId, headers);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      InputStream localVarResponseBody = null;
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteArtifact", localVarResponse);
+        }
+        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
+        if (localVarResponseBody != null) {
+          localVarResponseBody.readAllBytes();
+        }
+        return new ApiResponse<>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            null
+        );
+      } finally {
+        if (localVarResponseBody != null) {
+          localVarResponseBody.close();
+        }
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteArtifactRequestBuilder(@javax.annotation.Nonnull UUID artifactId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    // verify the required parameter 'artifactId' is set
+    if (artifactId == null) {
+      throw new ApiException(400, "Missing the required parameter 'artifactId' when calling deleteArtifact");
+    }
+    // verify the required parameter 'idempotencyKey' is set
+    if (idempotencyKey == null) {
+      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling deleteArtifact");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/v1/artifacts/{artifact_id}"
+        .replace("{artifact_id}", ApiClient.urlEncode(artifactId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    if (xOrganizationId != null) {
+      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
+    }
+    if (idempotencyKey != null) {
+      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
+    }
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    // Add custom headers if provided
+    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
   }
 
   /**

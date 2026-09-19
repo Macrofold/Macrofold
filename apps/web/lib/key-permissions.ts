@@ -9,8 +9,8 @@ type Preset = 'read-only' | 'read-write' | 'full-access';
 // decision. OAuth refresh authority and operator scopes do not belong on API keys.
 export const keyPermissions = {
   'identity:read': { label: 'View identity', preset: 'read-only' },
-  'projects:read': { label: 'View projects and worktrees', preset: 'read-only' },
-  'projects:write': { label: 'Manage projects and worktrees', preset: 'read-write' },
+  'workspaces:read': { label: 'View workspaces and worktrees', preset: 'read-only' },
+  'workspaces:write': { label: 'Manage workspaces and worktrees', preset: 'read-write' },
   'files:read': { label: 'Read files and checkpoints', preset: 'read-only' },
   'files:write': { label: 'Edit files, restore checkpoints and sync Git', preset: 'read-write' },
   'runs:read': { label: 'View presets, sessions and runs', preset: 'read-only' },
@@ -26,7 +26,7 @@ export const keyPermissions = {
   'billing:write': { label: 'Manage billing', preset: 'full-access' },
   'keys:write': { label: 'Manage API keys', preset: 'full-access' },
   'organizations:write': { label: 'Manage teams, roles and invitations', preset: 'full-access' },
-  'projects:delete': { label: 'Schedule or cancel permanent project deletion', preset: 'full-access' },
+  'workspaces:delete': { label: 'Schedule or cancel permanent workspace deletion', preset: 'full-access' },
 } satisfies Record<KeyScope, { label: string; preset: Preset }>;
 
 export const keyPermissionPresets = [
@@ -39,13 +39,13 @@ export const keyPermissionPresets = [
     value: 'read-write',
     label: 'Read & write',
     description:
-      'Run agents and manage projects, files, connections and automation. Excludes billing, API-key and team administration, and permanent project deletion.',
+      'Run agents and manage workspaces, files, connections and automation. Excludes billing, API-key and team administration, and permanent workspace deletion.',
   },
   {
     value: 'full-access',
     label: 'Full access',
     description:
-      'All available API permissions, including billing, API-key and team administration, and permanent project deletion. Your role and project limits still apply.',
+      'All available API permissions, including billing, API-key and team administration, and permanent workspace deletion. Your role and workspace limits still apply.',
   },
   { value: 'custom', label: 'Custom', description: 'Choose exactly which permissions this key needs.' },
 ] as const;

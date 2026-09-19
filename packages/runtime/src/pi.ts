@@ -15,59 +15,74 @@ import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { piBrokerTools } from './pi-tools';
 
 export class PiAdapter implements HarnessAdapter {
+  private resident?: {
+    session: Awaited<ReturnType<typeof createAgentSession>>['session'];
+    resumeId: string;
+    broker: Awaited<ReturnType<typeof piBrokerTools>>;
+    lifetime: AbortController;
+  };
+  async close() {
+    const resident = this.resident;
+    this.resident = undefined;
+    if (resident) {
+      resident.lifetime.abort();
+      resident.session.dispose();
+      await resident.broker.close();
+    }
+  }
   async run({ configuration: c, signal, emit }: HarnessContext): Promise<NativeResult> {
-    const guarded = permissionAdapters.pi.translate(c.permissions || []).mode === 'guarded';
-    const files = permissionFileTools(c.workspace, c.permissions || []);
     signal.throwIfAborted();
-    const agentDir = path.join(c.stateHome, '.pi/agent');
-    const sessions = path.join(agentDir, 'sessions');
-    if (c.resumeId && path.basename(c.resumeId) !== c.resumeId) throw new Error('Invalid Pi session');
-    // Pi opens a new session for a missing file. A requested continuation must fail instead.
-    if (c.resumeId) await access(path.join(sessions, c.resumeId));
-    const sessionManager = c.resumeId
-      ? SessionManager.open(path.join(sessions, c.resumeId), sessions, c.workspace)
-      : SessionManager.create(c.workspace, sessions);
-    const modelRuntime = await ModelRuntime.create({
-      credentials: new InMemoryCredentialStore(),
-      modelsPath: null,
-      allowModelNetwork: false,
-      signal,
-    });
-    modelRuntime.registerProvider('platform', {
-      api: 'openai-completions',
-      baseUrl: `${c.gatewayURL}/v1`,
-      models: [
-        {
-          id: c.model,
-          name: c.model,
-          reasoning: false,
-          input: ['text'],
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          contextWindow: 128000,
-          maxTokens: 8192,
-          compat: { supportsStore: false, maxTokensField: 'max_completion_tokens' },
-        },
-      ],
-    });
-    await modelRuntime.setRuntimeApiKey('platform', c.token, { signal });
-    const model = modelRuntime.getModel('platform', c.model);
-    if (!model) throw new Error('Pi gateway model unavailable');
-    const settingsManager = SettingsManager.inMemory({ retry: { enabled: false } });
-    const resourceLoader = new DefaultResourceLoader({
-      cwd: c.workspace,
-      agentDir,
-      settingsManager,
-      noExtensions: true,
-      noPromptTemplates: true,
-      noThemes: true,
-      appendSystemPromptOverride: () => (c.instructions ? [c.instructions] : []),
-    });
-    await resourceLoader.reload();
-    const broker = await piBrokerTools(c, signal);
-    let output = '',
-      failed = false;
-    let pending = Promise.resolve();
-    try {
+    const reused = Boolean(this.resident);
+    if (!this.resident) {
+      const lifetime = new AbortController();
+      const guarded = permissionAdapters.pi.translate(c.permissions || []).mode === 'guarded';
+      const files = permissionFileTools(c.workspace, c.permissions || []);
+
+      const agentDir = path.join(c.stateHome, '.pi/agent');
+      const sessions = path.join(agentDir, 'sessions');
+      if (c.resumeId && path.basename(c.resumeId) !== c.resumeId) throw new Error('Invalid Pi session');
+      // Pi opens a new session for a missing file. A requested continuation must fail instead.
+      if (c.resumeId) await access(path.join(sessions, c.resumeId));
+      const sessionManager = c.resumeId
+        ? SessionManager.open(path.join(sessions, c.resumeId), sessions, c.workspace)
+        : SessionManager.create(c.workspace, sessions);
+      const modelRuntime = await ModelRuntime.create({
+        credentials: new InMemoryCredentialStore(),
+        modelsPath: null,
+        allowModelNetwork: false,
+        signal: lifetime.signal,
+      });
+      modelRuntime.registerProvider('platform', {
+        api: 'openai-completions',
+        baseUrl: `${c.gatewayURL}/v1`,
+        models: [
+          {
+            id: c.model,
+            name: c.model,
+            reasoning: false,
+            input: ['text'],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128000,
+            maxTokens: 8192,
+            compat: { supportsStore: false, maxTokensField: 'max_completion_tokens' },
+          },
+        ],
+      });
+      await modelRuntime.setRuntimeApiKey('platform', c.token, { signal: lifetime.signal });
+      const model = modelRuntime.getModel('platform', c.model);
+      if (!model) throw new Error('Pi gateway model unavailable');
+      const settingsManager = SettingsManager.inMemory({ retry: { enabled: false } });
+      const resourceLoader = new DefaultResourceLoader({
+        cwd: c.workspace,
+        agentDir,
+        settingsManager,
+        noExtensions: true,
+        noPromptTemplates: true,
+        noThemes: true,
+        appendSystemPromptOverride: () => (c.instructions ? [c.instructions] : []),
+      });
+      await resourceLoader.reload();
+      const broker = await piBrokerTools(c, lifetime.signal);
       const { session } = await createAgentSession({
         cwd: c.workspace,
         agentDir,
@@ -99,15 +114,31 @@ export class PiAdapter implements HarnessAdapter {
               ]
             : []),
         ],
+      }).catch(async (error) => {
+        lifetime.abort();
+        await broker.close();
+        throw error;
       });
+      this.resident = {
+        session,
+        resumeId: path.basename(sessionManager.getSessionFile()!),
+        broker,
+        lifetime,
+      };
+    }
+    const { session, resumeId } = this.resident;
+    let output = '',
+      failed = false,
+      successful = false;
+    let pending = Promise.resolve();
+    try {
       const abort = () => {
         void session.abort();
       };
       signal.addEventListener('abort', abort, { once: true });
       try {
         signal.throwIfAborted();
-        const resumeId = path.basename(sessionManager.getSessionFile()!);
-        await emit({ type: 'runtime.started', data: { harness: 'pi', native_session_id: resumeId } });
+        await emit({ type: 'runtime.started', data: { harness: 'pi', native_session_id: resumeId, reused } });
         const unsubscribe = session.subscribe((event) => {
           pending = pending.then(async () => {
             if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
@@ -143,6 +174,7 @@ export class PiAdapter implements HarnessAdapter {
         try {
           await session.prompt(c.prompt);
           await pending;
+          successful = !signal.aborted && !failed;
           return {
             output,
             resumeId,
@@ -154,10 +186,9 @@ export class PiAdapter implements HarnessAdapter {
         }
       } finally {
         signal.removeEventListener('abort', abort);
-        session.dispose();
       }
     } finally {
-      await broker.close();
+      if (!c.warm || !successful) await this.close();
     }
   }
 }

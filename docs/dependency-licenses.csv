@@ -2,6 +2,7 @@ package,versions,declared_license,source
 sha.js,2.4.12,(MIT AND BSD-3-Clause),https://github.com/crypto-browserify/sha.js
 pako,1.0.11,(MIT AND Zlib),https://github.com/nodeca/pako
 type-fest,0.21.3;4.41.0;5.9.0,(MIT OR CC0-1.0),https://github.com/sindresorhus/type-fest#readme
+jszip,3.10.2,(MIT OR GPL-3.0-or-later),https://github.com/Stuk/jszip#readme
 tslib,2.8.1,0BSD,https://www.typescriptlang.org/
 @agentclientprotocol/sdk,1.4.0,Apache-2.0,https://github.com/agentclientprotocol/typescript-sdk#readme
 @aws-crypto/sha256-browser,5.2.0,Apache-2.0,https://github.com/aws/aws-sdk-js-crypto-helpers/tree/master/packages/sha256-browser
@@ -36,16 +37,18 @@ tslib,2.8.1,0BSD,https://www.typescriptlang.org/
 @google/genai,1.52.0,Apache-2.0,https://github.com/googleapis/js-genai#readme
 @img/sharp-darwin-arm64,0.35.4,Apache-2.0,https://sharp.pixelplumbing.com
 @openai/codex,0.153.4-darwin-arm64;0.153.4,Apache-2.0,https://github.com/openai/codex#readme
-@opentelemetry/api,1.9.1,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/api
-@opentelemetry/api-logs,0.220.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/api-logs
+@opentelemetry/api,1.9.0;1.9.1,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/api
+@opentelemetry/api-logs,0.220.0;0.222.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/api-logs
 @opentelemetry/core,2.9.0;2.11.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-core
 @opentelemetry/exporter-logs-otlp-http,0.220.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/exporter-logs-otlp-http
-@opentelemetry/otlp-exporter-base,0.220.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-exporter-base
-@opentelemetry/otlp-transformer,0.220.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-transformer
+@opentelemetry/exporter-trace-otlp-http,0.222.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/exporter-trace-otlp-http
+@opentelemetry/otlp-exporter-base,0.220.0;0.222.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-exporter-base
+@opentelemetry/otlp-transformer,0.220.0;0.222.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-transformer
 @opentelemetry/resources,2.9.0;2.11.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-resources
-@opentelemetry/sdk-logs,0.220.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/sdk-logs
-@opentelemetry/sdk-metrics,2.9.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-metrics
-@opentelemetry/sdk-trace,2.9.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-trace
+@opentelemetry/sdk-logs,0.220.0;0.222.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/sdk-logs
+@opentelemetry/sdk-metrics,2.9.0;2.11.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-metrics
+@opentelemetry/sdk-trace,2.9.0;2.11.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-trace
+@opentelemetry/sdk-trace-base,2.11.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-base
 @opentelemetry/semantic-conventions,1.43.0,Apache-2.0,https://github.com/open-telemetry/opentelemetry-js/tree/main/semantic-conventions
 @playwright/test,1.63.0,Apache-2.0,https://playwright.dev
 @silvia-odwyer/photon-node,0.3.4,Apache-2.0,https://silvia-odwyer.github.io/photon/
@@ -109,6 +112,7 @@ human-signals,2.1.0;5.0.0;8.0.1,Apache-2.0,https://www.github.com/ehmicky/human-
 jake,10.9.4,Apache-2.0,https://github.com/jakejs/jake#readme
 long,5.3.2,Apache-2.0,https://github.com/dcodeIO/long.js#readme
 openai,6.40.0;7.10.0,Apache-2.0,https://github.com/openai/openai-node#readme
+pdfjs-dist,6.3.289,Apache-2.0,https://mozilla.github.io/pdf.js/
 playwright,1.63.0,Apache-2.0,https://playwright.dev
 playwright-core,1.63.0,Apache-2.0,https://playwright.dev
 reflect-metadata,0.2.2,Apache-2.0,http://rbuckton.github.io/reflect-metadata
@@ -119,11 +123,16 @@ typescript,5.9.3,Apache-2.0,https://www.typescriptlang.org/
 web-worker,1.5.0,Apache-2.0,https://github.com/developit/web-worker
 workflow,4.8.5,Apache-2.0,https://github.com/vercel/workflow#readme
 @swc/core-darwin-arm64,1.15.3,Apache-2.0 AND MIT,https://swc.rs
+duck,0.1.12,BSD,https://github.com/mwilliamson/duck.js#readme
 @mixmark-io/domino,2.2.0,BSD-2-Clause,https://github.com/mixmark-io/domino#readme
+dingbat-to-unicode,1.0.1,BSD-2-Clause,https://github.com/mwilliamson/dingbat-to-unicode#readme
 dotenv,17.4.2,BSD-2-Clause,https://github.com/motdotla/dotenv#readme
 glob-to-regexp,0.4.1,BSD-2-Clause,https://github.com/fitzgen/glob-to-regexp#readme
 http-cache-semantics,4.2.0,BSD-2-Clause,https://github.com/kornelski/http-cache-semantics#readme
 json-schema-typed,8.0.2,BSD-2-Clause,https://github.com/RemyRylan/json-schema-typed/tree/main/dist/node
+lop,0.4.2,BSD-2-Clause,https://github.com/mwilliamson/lop#readme
+mammoth,1.12.3,BSD-2-Clause,https://github.com/mwilliamson/mammoth.js#readme
+option,0.2.4,BSD-2-Clause,https://github.com/mwilliamson/node-options#readme
 @deepseek-ai/node-addon-system,0.1.2,BSD-3-Clause,https://github.com/deepseek-harness/deepseek-harness#readme
 @deepseek-ai/node-addon-system-darwin-arm64,0.1.2,BSD-3-Clause,https://github.com/deepseek-harness/deepseek-harness#readme
 @protobufjs/aspromise,1.1.2,BSD-3-Clause,https://github.com/dcodeIO/protobuf.js#readme
@@ -148,6 +157,7 @@ protobufjs,7.6.6,BSD-3-Clause,https://protobufjs.github.io/protobuf.js/
 qs,6.16.0,BSD-3-Clause,https://github.com/ljharb/qs
 source-map,0.7.6,BSD-3-Clause,https://github.com/mozilla/source-map
 source-map-js,1.2.1,BSD-3-Clause,https://github.com/7rulnik/source-map-js
+sprintf-js,1.0.3,BSD-3-Clause,https://github.com/alexei/sprintf.js#readme
 chownr,3.0.0,BlueOak-1.0.0,https://github.com/isaacs/chownr#readme
 glob,13.0.6,BlueOak-1.0.0,https://github.com/isaacs/node-glob#readme
 isexe,4.0.0,BlueOak-1.0.0,https://github.com/isaacs/isexe#readme
@@ -219,6 +229,7 @@ zod-to-json-schema,3.25.2,ISC,https://github.com/StefanTerdell/zod-to-json-schem
 @babel/traverse,8.0.4,MIT,https://babel.dev/docs/en/next/babel-traverse
 @babel/types,7.29.8;8.0.4,MIT,https://babel.dev/docs/en/next/babel-types
 @bcoe/v8-coverage,1.0.2,MIT,https://github.com/bcoe/v8-coverage#readme
+@better-auth/cimd,1.7.2,MIT,https://www.better-auth.com/docs/plugins/cimd
 @better-auth/core,1.7.2,MIT,https://www.better-auth.com
 @better-auth/drizzle-adapter,1.7.2,MIT,https://www.better-auth.com/docs/adapters/drizzle
 @better-auth/kysely-adapter,1.7.2,MIT,https://www.better-auth.com/docs/adapters/kysely
@@ -502,6 +513,9 @@ zod-to-json-schema,3.25.2,ISC,https://github.com/StefanTerdell/zod-to-json-schem
 @jridgewell/trace-mapping,0.3.31,MIT,https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping
 @keyv/serialize,1.1.1,MIT,https://github.com/jaredwray/keyv
 @koromix/koffi-darwin-arm64,3.2.1,MIT,https://koffi.dev/
+@langfuse/core,5.11.1,MIT,https://github.com/langfuse/langfuse-js#readme
+@langfuse/otel,5.11.1,MIT,https://github.com/langfuse/langfuse-js#readme
+@langfuse/tracing,5.11.1,MIT,https://github.com/langfuse/langfuse-js#readme
 @lexical/clipboard,0.49.0,MIT,https://github.com/facebook/lexical#readme
 @lexical/dragon,0.49.0,MIT,https://github.com/facebook/lexical#readme
 @lexical/extension,0.49.0,MIT,https://github.com/facebook/lexical#readme
@@ -526,6 +540,8 @@ zod-to-json-schema,3.25.2,ISC,https://github.com/StefanTerdell/zod-to-json-schem
 @mariozechner/clipboard-darwin-arm64,0.3.9,MIT,https://github.com/badlogic/clipboard#readme
 @mariozechner/clipboard-darwin-universal,0.3.9,MIT,https://github.com/badlogic/clipboard#readme
 @modelcontextprotocol/sdk,1.30.0,MIT,https://modelcontextprotocol.io
+@napi-rs/canvas,1.0.9,MIT,https://github.com/Brooooooklyn/canvas#readme
+@napi-rs/canvas-darwin-arm64,1.0.9,MIT,https://github.com/Brooooooklyn/canvas#readme
 @napi-rs/nice,1.1.1,MIT,https://github.com/Brooooooklyn/nice#readme
 @napi-rs/nice-darwin-arm64,1.1.1,MIT,https://github.com/Brooooooklyn/nice#readme
 @nestjs/common,12.0.1,MIT,https://nestjs.com
@@ -704,6 +720,7 @@ zod-to-json-schema,3.25.2,ISC,https://github.com/StefanTerdell/zod-to-json-schem
 @xhmikosr/decompress-unzip,8.2.1,MIT,https://github.com/XhmikosR/decompress-unzip#readme
 @xhmikosr/downloader,16.3.1,MIT,https://github.com/XhmikosR/download#readme
 @xhmikosr/os-filter-obj,4.1.0,MIT,https://github.com/XhmikosR/os-filter-obj#readme
+@xmldom/xmldom,0.8.15,MIT,https://github.com/xmldom/xmldom
 @xterm/headless,6.0.0,MIT,https://github.com/xtermjs/xterm.js#readme
 abort-controller,3.0.0,MIT,https://github.com/mysticatea/abort-controller#readme
 accepts,2.0.0,MIT,https://github.com/jshttp/accepts#readme
@@ -714,6 +731,7 @@ ajv-formats,3.0.1,MIT,https://github.com/ajv-validator/ajv-formats#readme
 ansi-escapes,4.3.2;7.3.0,MIT,https://github.com/sindresorhus/ansi-escapes#readme
 ansi-regex,5.0.1;6.3.0,MIT,https://github.com/chalk/ansi-regex#readme
 ansi-styles,4.3.0;6.2.3,MIT,https://github.com/chalk/ansi-styles#readme
+argparse,1.0.10,MIT,https://github.com/nodeca/argparse#readme
 aria-hidden,1.2.6,MIT,https://github.com/theKashey/aria-hidden#readme
 assertion-error,2.0.1,MIT,https://github.com/chaijs/assertion-error#readme
 ast-v8-to-istanbul,1.0.5,MIT,https://github.com/AriPerkkio/ast-v8-to-istanbul
@@ -732,6 +750,7 @@ better-call,1.4.0,MIT,https://github.com/better-auth/better-call#readme
 bignumber.js,9.3.1,MIT,https://github.com/MikeMcl/bignumber.js#readme
 binary-version,7.1.0,MIT,https://github.com/sindresorhus/binary-version#readme
 binary-version-check,6.1.0,MIT,https://github.com/sindresorhus/binary-version-check#readme
+bluebird,3.4.7,MIT,https://github.com/petkaantonov/bluebird
 body-parser,2.3.0,MIT,https://github.com/expressjs/body-parser#readme
 bowser,2.14.1,MIT,https://github.com/bowser-js/bowser
 boxen,8.0.1,MIT,https://github.com/sindresorhus/boxen#readme
@@ -785,6 +804,7 @@ convert-source-map,2.0.0,MIT,https://github.com/thlorenz/convert-source-map
 convert-to-spaces,2.0.1,MIT,https://github.com/vadimdemedes/convert-to-spaces#readme
 cookie,0.7.2,MIT,https://github.com/jshttp/cookie#readme
 cookie-signature,1.2.2,MIT,https://github.com/visionmedia/node-cookie-signature#readme
+core-util-is,1.0.3,MIT,https://github.com/isaacs/core-util-is#readme
 cors,2.8.6,MIT,https://github.com/expressjs/cors#readme
 crelt,1.0.7,MIT,https://code.haverbeke.berlin/marijn/crelt
 cron-parser,5.10.0,MIT,https://github.com/harrisiirak/cron-parser#readme
@@ -806,7 +826,7 @@ depd,2.0.0,MIT,https://github.com/dougwilson/nodejs-depd#readme
 dequal,2.0.3,MIT,https://github.com/lukeed/dequal#readme
 destr,2.0.5,MIT,https://github.com/unjs/destr#readme
 detect-node-es,1.1.0,MIT,https://github.com/thekashey/detect-node
-devalue,5.8.1,MIT,https://github.com/sveltejs/devalue#readme
+devalue,5.9.2,MIT,https://github.com/sveltejs/devalue#readme
 devlop,1.1.0,MIT,https://github.com/wooorm/devlop#readme
 diff3,0.0.3,MIT,https://github.com/axosoft/diff3#readme
 dunder-proto,1.0.1,MIT,https://github.com/es-shims/dunder-proto#readme
@@ -891,6 +911,8 @@ http2-wrapper,2.2.1,MIT,https://github.com/szmarczak/http2-wrapper#readme
 https-proxy-agent,7.0.6,MIT,https://github.com/TooTallNate/proxy-agents#readme
 iconv-lite,0.7.3,MIT,https://github.com/pillarjs/iconv-lite
 ignore,5.3.2;7.0.5;7.0.8,MIT,https://github.com/kaelzhang/node-ignore#readme
+image-size,2.0.4,MIT,
+immediate,3.0.6,MIT,https://github.com/calvinmetcalf/immediate#readme
 immer,11.1.18,MIT,https://github.com/immerjs/immer#readme
 import-meta-resolve,4.2.0,MIT,https://github.com/wooorm/import-meta-resolve#readme
 indent-string,4.0.0;5.0.0,MIT,https://github.com/sindresorhus/indent-string#readme
@@ -916,12 +938,12 @@ is-stream,2.0.1;3.0.0;4.0.1,MIT,https://github.com/sindresorhus/is-stream#readme
 is-typed-array,1.1.15,MIT,https://github.com/inspect-js/is-typed-array#readme
 is-unicode-supported,1.3.0;2.1.0,MIT,https://github.com/sindresorhus/is-unicode-supported#readme
 is-wsl,2.2.0;3.1.1,MIT,https://github.com/sindresorhus/is-wsl#readme
-isarray,2.0.5,MIT,https://github.com/juliangruber/isarray
+isarray,1.0.0;2.0.5,MIT,https://github.com/juliangruber/isarray
 isomorphic-git,1.41.9,MIT,https://isomorphic-git.org/
 jiti,2.7.0,MIT,https://github.com/unjs/jiti#readme
 jose,5.10.0;6.2.3;6.2.12,MIT,https://github.com/panva/jose
 js-tokens,4.0.0;10.0.0,MIT,https://github.com/lydell/js-tokens#readme
-js-yaml,4.3.1,MIT,https://github.com/nodeca/js-yaml#readme
+js-yaml,4.3.2,MIT,https://github.com/nodeca/js-yaml#readme
 jsesc,3.1.0,MIT,https://mths.be/jsesc
 json-bigint,1.0.0,MIT,https://github.com/sidorares/json-bigint#readme
 json-schema-to-ts,3.1.1,MIT,https://github.com/ThomasAribart/json-schema-to-ts#readme
@@ -939,6 +961,7 @@ knitwork,1.3.0,MIT,https://github.com/unjs/knitwork#readme
 koffi,3.2.1,MIT,https://koffi.dev/
 kysely,0.29.5,MIT,https://kysely.dev
 lexical,0.49.0,MIT,https://github.com/facebook/lexical#readme
+lie,3.3.0,MIT,https://github.com/calvinmetcalf/lie#readme
 lilconfig,3.1.3,MIT,https://github.com/antonk52/lilconfig#readme
 linkifyjs,4.3.3,MIT,https://linkify.js.org
 load-esm,1.0.3,MIT,https://github.com/Borewit/load-esm#readme
@@ -1051,6 +1074,7 @@ parseurl,1.3.3,MIT,https://github.com/pillarjs/parseurl#readme
 partial-json,0.1.7,MIT,https://promplate.dev/partial-json-parser
 patch-console,2.0.0,MIT,https://github.com/vadimdemedes/patch-console#readme
 path-exists,5.0.0,MIT,https://github.com/sindresorhus/path-exists#readme
+path-is-absolute,1.0.1,MIT,https://github.com/sindresorhus/path-is-absolute#readme
 path-key,3.1.1;4.0.0,MIT,https://github.com/sindresorhus/path-key#readme
 path-to-regexp,8.4.2,MIT,https://github.com/pillarjs/path-to-regexp#readme
 pathe,2.0.3,MIT,https://github.com/unjs/pathe#readme
@@ -1077,6 +1101,7 @@ postgres-interval,1.2.0,MIT,https://github.com/bendrucker/postgres-interval#read
 powershell-utils,0.1.0;0.2.1,MIT,https://github.com/sindresorhus/powershell-utils#readme
 pretty-ms,9.3.1,MIT,https://github.com/sindresorhus/pretty-ms#readme
 process,0.11.10,MIT,https://github.com/shtylman/node-process#readme
+process-nextick-args,2.0.1,MIT,https://github.com/calvinmetcalf/process-nextick-args
 proper-lockfile,4.1.2,MIT,https://github.com/moxystudio/node-proper-lockfile
 property-information,7.2.0,MIT,https://github.com/wooorm/property-information#readme
 prosemirror-changeset,2.4.2,MIT,
@@ -1107,7 +1132,7 @@ react-redux,9.3.0,MIT,https://github.com/reduxjs/react-redux
 react-remove-scroll,2.7.2,MIT,https://github.com/theKashey/react-remove-scroll#readme
 react-remove-scroll-bar,2.3.8,MIT,https://github.com/theKashey/react-remove-scroll-bar#readme
 react-style-singleton,2.2.3,MIT,https://github.com/theKashey/react-style-singleton#readme
-readable-stream,4.7.0,MIT,https://github.com/nodejs/readable-stream
+readable-stream,2.3.8;4.7.0,MIT,https://github.com/nodejs/readable-stream
 readdirp,4.1.2;5.1.1,MIT,https://github.com/paulmillr/readdirp
 recharts,3.10.1,MIT,https://github.com/recharts/recharts
 redux,5.0.1,MIT,http://redux.js.org
@@ -1129,7 +1154,7 @@ rope-sequence,1.3.4,MIT,https://github.com/marijnh/rope-sequence#readme
 rou3,0.9.2,MIT,https://github.com/h3js/rou3#readme
 router,2.2.0,MIT,https://github.com/pillarjs/router#readme
 run-applescript,7.1.0,MIT,https://github.com/sindresorhus/run-applescript#readme
-safe-buffer,5.2.1,MIT,https://github.com/feross/safe-buffer
+safe-buffer,5.1.2;5.2.1,MIT,https://github.com/feross/safe-buffer
 safer-buffer,2.1.2,MIT,https://github.com/ChALkeR/safer-buffer#readme
 scheduler,0.23.2;0.27.0,MIT,https://react.dev/
 scule,1.3.0,MIT,https://github.com/unjs/scule#readme
@@ -1141,6 +1166,7 @@ send,1.2.1,MIT,https://github.com/pillarjs/send#readme
 serve-static,2.2.1,MIT,https://github.com/expressjs/serve-static#readme
 set-cookie-parser,3.1.2,MIT,https://github.com/nfriedly/set-cookie-parser
 set-function-length,1.2.2,MIT,https://github.com/ljharb/set-function-length#readme
+setimmediate,1.0.5,MIT,https://github.com/YuzuJS/setImmediate#readme
 shebang-command,2.0.0,MIT,https://github.com/kevva/shebang-command#readme
 shebang-regex,3.0.0,MIT,https://github.com/sindresorhus/shebang-regex#readme
 side-channel,1.1.1,MIT,https://github.com/ljharb/side-channel#readme
@@ -1163,7 +1189,7 @@ std-env,4.2.0,MIT,https://github.com/unjs/std-env#readme
 stdin-discarder,0.2.2,MIT,https://github.com/sindresorhus/stdin-discarder#readme
 streamx,2.28.1,MIT,https://github.com/mafintosh/streamx
 string-width,4.2.3;7.2.0;8.2.2,MIT,https://github.com/sindresorhus/string-width#readme
-string_decoder,1.3.0,MIT,https://github.com/nodejs/string_decoder
+string_decoder,1.1.1;1.3.0,MIT,https://github.com/nodejs/string_decoder
 stringify-entities,4.0.4,MIT,https://github.com/wooorm/stringify-entities#readme
 strip-ansi,6.0.1;7.2.0,MIT,https://github.com/chalk/strip-ansi#readme
 strip-final-newline,2.0.0;3.0.0;4.0.0,MIT,https://github.com/sindresorhus/strip-final-newline#readme
@@ -1208,6 +1234,7 @@ uint8array-extras,1.5.0,MIT,https://github.com/sindresorhus/uint8array-extras#re
 ulid,3.0.2,MIT,https://github.com/ulid/javascript#readme
 unbzip2-stream,1.4.3,MIT,https://github.com/regular/unbzip2-stream#readme
 unctx,2.5.0,MIT,https://github.com/unjs/unctx#readme
+underscore,1.13.8,MIT,https://underscorejs.org
 undici,7.29.0;7.29.1;8.9.0;8.10.2,MIT,https://undici.nodejs.org
 undici-types,7.18.2,MIT,https://undici.nodejs.org
 unicorn-magic,0.1.0;0.3.0,MIT,https://github.com/sindresorhus/unicorn-magic#readme
@@ -1226,6 +1253,7 @@ update-browserslist-db,1.3.2,MIT,https://github.com/browserslist/update-db#readm
 use-callback-ref,1.3.3,MIT,https://github.com/theKashey/use-callback-ref#readme
 use-sidecar,1.1.3,MIT,https://github.com/theKashey/use-sidecar
 use-sync-external-store,1.2.0;1.6.0,MIT,https://github.com/facebook/react#readme
+util-deprecate,1.0.2,MIT,https://github.com/TooTallNate/util-deprecate
 uuid,13.0.2,MIT,https://github.com/uuidjs/uuid#readme
 vary,1.1.2,MIT,https://github.com/jshttp/vary#readme
 vfile,6.0.3,MIT,https://github.com/vfile/vfile#readme
@@ -1246,6 +1274,7 @@ ws,8.21.3,MIT,https://github.com/websockets/ws
 wsl-utils,0.1.0;0.4.0;1.0.0,MIT,https://github.com/sindresorhus/wsl-utils#readme
 xdg-app-paths,5.1.0;5.5.1,MIT,https://github.com/rivy/js.xdg-app-paths#readme
 xdg-portable,7.3.0,MIT,https://github.com/rivy/js.xdg-portable#readme
+xmlbuilder,10.1.1,MIT,http://github.com/oozcitak/xmlbuilder-js
 xtend,4.0.2,MIT,https://github.com/Raynos/xtend
 yauzl,3.4.0,MIT,https://github.com/thejoshwolfe/yauzl
 yocto-queue,1.2.2,MIT,https://github.com/sindresorhus/yocto-queue#readme

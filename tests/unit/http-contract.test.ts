@@ -1,32 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import cliContract from '../../docs/api/cli.json';
-import { apiSpec, routes, matchRoute, projectResponse } from '../../packages/core/src/http-contract';
+import { apiSpec, routes, matchRoute, workspaceResponse } from '../../packages/core/src/http-contract';
 
 describe('API path decoding', () => {
   it.each(['%', '%ZZ', '%E0%A4'])('rejects malformed escape %s as a client error', (value) => {
-    expect(() => matchRoute(new Request(`https://example.test/v1/projects/${value}`))).toThrow(
+    expect(() => matchRoute(new Request(`https://example.test/v1/workspaces/${value}`))).toThrow(
       expect.objectContaining({ status: 400, code: 'invalid_request' }),
     );
   });
 
   it('decodes a valid path parameter once', () => {
-    expect(matchRoute(new Request('https://example.test/v1/projects/project%2520name')).params).toEqual({
-      project_id: 'project%20name',
+    expect(matchRoute(new Request('https://example.test/v1/workspaces/workspace%2520name')).params).toEqual({
+      workspace_id: 'workspace%20name',
     });
   });
 });
 
-it('preserves open operation metadata while projecting typed file entries and closed resource fields', () => {
-  const result = projectResponse(
+it('preserves open operation metadata while workspaceing typed file entries and closed resource fields', () => {
+  const result = workspaceResponse(
     {
       id: crypto.randomUUID(),
       status: 'succeeded',
       kind: 'file_rename',
       created_at: new Date().toISOString(),
       required_scopes: ['files:read'],
-      project_id: 'private-binding',
+      workspace_id: 'private-binding',
       result: {
-        project_id: 'public-result-id',
+        workspace_id: 'public-result-id',
         download_url: 'https://objects.example.test/download',
         path: 'renamed.txt',
         previous_path: 'original.txt',
@@ -43,8 +43,8 @@ it('preserves open operation metadata while projecting typed file entries and cl
     { $ref: '#/components/schemas/Operation' },
   );
   expect(result).not.toHaveProperty('required_scopes');
-  expect(result).not.toHaveProperty('project_id');
-  expect(result).toHaveProperty('result.project_id', 'public-result-id');
+  expect(result).not.toHaveProperty('workspace_id');
+  expect(result).toHaveProperty('result.workspace_id', 'public-result-id');
   expect(result).toHaveProperty('result.download_url', 'https://objects.example.test/download');
   expect(result).toHaveProperty('result.entry', {
     path: 'renamed.txt',

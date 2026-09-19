@@ -19,7 +19,7 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
     return response.json();
   }
   const stamp = Date.now();
-  const project = await create('/v1/projects', { name: `Access project ${stamp}` });
+  const workspace = await create('/v1/workspaces', { name: `Access workspace ${stamp}` });
   const preset = await create('/v1/agents', {
     name: `Access preset ${stamp}`,
     harness: 'codex',
@@ -54,18 +54,18 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
   await second.close();
   await card.getByRole('button', { name: 'Access', exact: true }).click();
   await expect(page.getByRole('switch')).toBeChecked();
-  for (const scope of ['Project', 'Agent preset', 'Project + agent preset']) {
+  for (const scope of ['Workspace', 'Agent preset', 'Workspace + agent preset']) {
     await page.getByRole('button', { name: 'Add permission', exact: true }).click();
     await page.getByRole('combobox', { name: 'Permission scope', exact: true }).click();
     await page.getByRole('option', { name: scope, exact: true }).click();
     if (scope !== 'Agent preset') {
       await page
-        .getByRole('searchbox', { name: 'Search permission project', exact: true })
-        .fill(project.name);
-      await page.getByRole('combobox', { name: 'Permission project', exact: true }).click();
-      await page.getByRole('option', { name: project.name, exact: true }).click();
+        .getByRole('searchbox', { name: 'Search permission workspace', exact: true })
+        .fill(workspace.name);
+      await page.getByRole('combobox', { name: 'Permission workspace', exact: true }).click();
+      await page.getByRole('option', { name: workspace.name, exact: true }).click();
     }
-    if (scope !== 'Project') {
+    if (scope !== 'Workspace') {
       await page.getByRole('searchbox', { name: 'Search permission preset', exact: true }).fill(preset.name);
       await page.getByRole('combobox', { name: 'Permission preset', exact: true }).click();
       await page.getByRole('option', { name: preset.name, exact: true }).click();
@@ -75,9 +75,9 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
   }
   await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(3);
   await page.getByRole('button', { name: 'Add permission', exact: true }).click();
-  await page.getByRole('searchbox', { name: 'Search permission project', exact: true }).fill(project.name);
-  await page.getByRole('combobox', { name: 'Permission project', exact: true }).click();
-  await page.getByRole('option', { name: project.name, exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Search permission workspace', exact: true }).fill(workspace.name);
+  await page.getByRole('combobox', { name: 'Permission workspace', exact: true }).click();
+  await page.getByRole('option', { name: workspace.name, exact: true }).click();
   await page.getByRole('button', { name: 'Save permission', exact: true }).click();
   // The parent reports the conflict; no second permission row is created.
   await expect(
@@ -103,7 +103,7 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
     });
     const saved = await create(
       `/v1/connections/${connection.id}/access/rules`,
-      { scope: 'project_agent', project_id: project.id, agent_id: target.id },
+      { scope: 'workspace_agent', workspace_id: workspace.id, agent_id: target.id },
       { 'If-Match': `"${version}"` },
     );
     version = saved.version;
@@ -123,11 +123,11 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
   await page.screenshot({ path: 'test-results/connection-access-mobile.png', fullPage: true });
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.goto(`/connections?project_id=${project.id}&agent_id=${preset.id}`);
+  await page.goto(`/connections?workspace_id=${workspace.id}&agent_id=${preset.id}`);
   await expect(card).toBeVisible();
-  await page.getByRole('combobox', { name: 'Project filter', exact: true }).click();
-  await page.getByRole('option', { name: 'All projects', exact: true }).click();
-  await expect(page).not.toHaveURL(/project_id=/);
+  await page.getByRole('combobox', { name: 'Workspace filter', exact: true }).click();
+  await page.getByRole('option', { name: 'All workspaces', exact: true }).click();
+  await expect(page).not.toHaveURL(/workspace_id=/);
   await expect(page).toHaveURL(new RegExp(`agent_id=${preset.id}`));
 
   const exception = await create('/v1/connections', {
@@ -154,7 +154,7 @@ test('manages exact access rules, preserves a stale tools draft, filters by URL,
     ).ok(),
   ).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(`/projects/${project.id}`);
+  await page.goto(`/workspaces/${workspace.id}`);
   await page.getByRole('button', { name: 'New run', exact: true }).click();
   await page.getByRole('searchbox', { name: 'Search agent preset', exact: true }).fill(preset.name);
   await page.getByRole('combobox', { name: 'Agent preset', exact: true }).click();

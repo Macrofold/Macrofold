@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -17,12 +17,12 @@ pub struct Run {
     pub id: uuid::Uuid,
     #[serde(rename = "organization_id")]
     pub organization_id: uuid::Uuid,
-    #[serde(rename = "session_id")]
-    pub session_id: uuid::Uuid,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
-    #[serde(rename = "harness")]
-    pub harness: String,
+    #[serde(rename = "session_id", deserialize_with = "Option::deserialize")]
+    pub session_id: Option<uuid::Uuid>,
+    #[serde(rename = "worktree_id", deserialize_with = "Option::deserialize")]
+    pub worktree_id: Option<uuid::Uuid>,
+    #[serde(rename = "harness", deserialize_with = "Option::deserialize")]
+    pub harness: Option<String>,
     #[serde(rename = "model")]
     pub model: String,
     #[serde(rename = "status")]
@@ -72,15 +72,24 @@ pub struct Run {
     pub agent_id: Option<Option<uuid::Uuid>>,
     #[serde(rename = "agent_version", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub agent_version: Option<Option<i32>>,
+    #[serde(rename = "kind")]
+    pub kind: Kind,
+    #[serde(rename = "workspace_id")]
+    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "task_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<Option<uuid::Uuid>>,
+    /// Reusable compute ID, when selected or created by keep_warm_seconds.
+    #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub sandbox_id: Option<Option<uuid::Uuid>>,
 }
 
 impl Run {
-    pub fn new(id: uuid::Uuid, organization_id: uuid::Uuid, session_id: uuid::Uuid, workspace_id: uuid::Uuid, harness: String, model: String, status: Status, created_at: chrono::DateTime<chrono::FixedOffset>) -> Run {
+    pub fn new(id: uuid::Uuid, organization_id: uuid::Uuid, session_id: Option<uuid::Uuid>, worktree_id: Option<uuid::Uuid>, harness: Option<String>, model: String, status: Status, created_at: chrono::DateTime<chrono::FixedOffset>, kind: Kind, workspace_id: uuid::Uuid) -> Run {
         Run {
             id,
             organization_id,
             session_id,
-            workspace_id,
+            worktree_id,
             harness,
             model,
             status,
@@ -104,10 +113,14 @@ impl Run {
             permission_layers: None,
             agent_id: None,
             agent_version: None,
+            kind,
+            workspace_id,
+            task_id: None,
+            sandbox_id: None,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Status {
     #[serde(rename = "queued")]
@@ -135,7 +148,7 @@ impl Default for Status {
         Self::Queued
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum ExecutionOutcome {
     #[serde(rename = "pending")]
@@ -157,7 +170,7 @@ impl Default for ExecutionOutcome {
         Self::Pending
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum PersistenceStatus {
     #[serde(rename = "pending")]
@@ -175,7 +188,7 @@ impl Default for PersistenceStatus {
         Self::Pending
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum SyncStatus {
     #[serde(rename = "disabled")]
@@ -197,7 +210,7 @@ impl Default for SyncStatus {
         Self::Disabled
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum ClientType {
     #[serde(rename = "dashboard")]
@@ -230,16 +243,20 @@ pub enum WaitingReason {
     GlobalCapacity,
     #[serde(rename = "account_concurrency")]
     AccountConcurrency,
-    #[serde(rename = "earlier_workspace_work")]
-    EarlierWorkspaceWork,
+    #[serde(rename = "earlier_worktree_work")]
+    EarlierWorktreeWork,
     #[serde(rename = "scheduler_turn")]
     SchedulerTurn,
     #[serde(rename = "cancellation_requested")]
     CancellationRequested,
     #[serde(rename = "deadline_expired")]
     DeadlineExpired,
-    #[serde(rename = "workspace_unavailable")]
-    WorkspaceUnavailable,
+    #[serde(rename = "worktree_unavailable")]
+    WorktreeUnavailable,
+    #[serde(rename = "lightweight_capacity")]
+    LightweightCapacity,
+    #[serde(rename = "reserved_lightweight_capacity")]
+    ReservedLightweightCapacity,
 }
 
 impl Default for WaitingReason {
@@ -247,7 +264,7 @@ impl Default for WaitingReason {
         Self::GlobalCapacity
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum SchedulingClass {
     #[serde(rename = "background")]
@@ -259,6 +276,22 @@ pub enum SchedulingClass {
 impl Default for SchedulingClass {
     fn default() -> SchedulingClass {
         Self::Background
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Kind {
+    #[serde(rename = "native_agent")]
+    NativeAgent,
+    #[serde(rename = "inference")]
+    Inference,
+    #[serde(rename = "bounded_agent")]
+    BoundedAgent,
+}
+
+impl Default for Kind {
+    fn default() -> Kind {
+        Self::NativeAgent
     }
 }
 

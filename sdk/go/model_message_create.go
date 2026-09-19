@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -19,7 +19,7 @@ import (
 // checks if the MessageCreate type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &MessageCreate{}
 
-// MessageCreate Follow-up to pinned session configuration. queue_if_busy accepts ordered workspace work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+// MessageCreate Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
 type MessageCreate struct {
 	Prompt string `json:"prompt"`
 	Limits *Limits `json:"limits,omitempty"`
@@ -36,6 +36,13 @@ type MessageCreate struct {
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
 	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
+	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+	Attachments []string `json:"attachments,omitempty"`
+	SandboxId *string `json:"sandbox_id,omitempty"`
+	// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
+	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
+	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
+	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
 }
 
 type _MessageCreate MessageCreate
@@ -374,6 +381,144 @@ func (o *MessageCreate) SetConnectionAccessOverrides(v []Grant) {
 	o.ConnectionAccessOverrides = v
 }
 
+// GetAttachments returns the Attachments field value if set, zero value otherwise.
+func (o *MessageCreate) GetAttachments() []string {
+	if o == nil || IsNil(o.Attachments) {
+		var ret []string
+		return ret
+	}
+	return o.Attachments
+}
+
+// GetAttachmentsOk returns a tuple with the Attachments field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetAttachmentsOk() ([]string, bool) {
+	if o == nil || IsNil(o.Attachments) {
+		return nil, false
+	}
+	return o.Attachments, true
+}
+
+// HasAttachments returns a boolean if a field has been set.
+func (o *MessageCreate) HasAttachments() bool {
+	if o != nil && !IsNil(o.Attachments) {
+		return true
+	}
+
+	return false
+}
+
+// SetAttachments gets a reference to the given []string and assigns it to the Attachments field.
+func (o *MessageCreate) SetAttachments(v []string) {
+	o.Attachments = v
+}
+
+// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
+func (o *MessageCreate) GetSandboxId() string {
+	if o == nil || IsNil(o.SandboxId) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxId
+}
+
+// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetSandboxIdOk() (*string, bool) {
+	if o == nil || IsNil(o.SandboxId) {
+		return nil, false
+	}
+	return o.SandboxId, true
+}
+
+// HasSandboxId returns a boolean if a field has been set.
+func (o *MessageCreate) HasSandboxId() bool {
+	if o != nil && !IsNil(o.SandboxId) {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
+func (o *MessageCreate) SetSandboxId(v string) {
+	o.SandboxId = &v
+}
+
+// GetKeepWarmSeconds returns the KeepWarmSeconds field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *MessageCreate) GetKeepWarmSeconds() int32 {
+	if o == nil || IsNil(o.KeepWarmSeconds.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.KeepWarmSeconds.Get()
+}
+
+// GetKeepWarmSecondsOk returns a tuple with the KeepWarmSeconds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *MessageCreate) GetKeepWarmSecondsOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.KeepWarmSeconds.Get(), o.KeepWarmSeconds.IsSet()
+}
+
+// HasKeepWarmSeconds returns a boolean if a field has been set.
+func (o *MessageCreate) HasKeepWarmSeconds() bool {
+	if o != nil && o.KeepWarmSeconds.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetKeepWarmSeconds gets a reference to the given NullableInt32 and assigns it to the KeepWarmSeconds field.
+func (o *MessageCreate) SetKeepWarmSeconds(v int32) {
+	o.KeepWarmSeconds.Set(&v)
+}
+// SetKeepWarmSecondsNil sets the value for KeepWarmSeconds to be an explicit nil
+func (o *MessageCreate) SetKeepWarmSecondsNil() {
+	o.KeepWarmSeconds.Set(nil)
+}
+
+// UnsetKeepWarmSeconds ensures that no value is present for KeepWarmSeconds, not even an explicit nil
+func (o *MessageCreate) UnsetKeepWarmSeconds() {
+	o.KeepWarmSeconds.Unset()
+}
+
+// GetSandboxMaxCostMicroUsd returns the SandboxMaxCostMicroUsd field value if set, zero value otherwise.
+func (o *MessageCreate) GetSandboxMaxCostMicroUsd() string {
+	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxMaxCostMicroUsd
+}
+
+// GetSandboxMaxCostMicroUsdOk returns a tuple with the SandboxMaxCostMicroUsd field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetSandboxMaxCostMicroUsdOk() (*string, bool) {
+	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
+		return nil, false
+	}
+	return o.SandboxMaxCostMicroUsd, true
+}
+
+// HasSandboxMaxCostMicroUsd returns a boolean if a field has been set.
+func (o *MessageCreate) HasSandboxMaxCostMicroUsd() bool {
+	if o != nil && !IsNil(o.SandboxMaxCostMicroUsd) {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxMaxCostMicroUsd gets a reference to the given string and assigns it to the SandboxMaxCostMicroUsd field.
+func (o *MessageCreate) SetSandboxMaxCostMicroUsd(v string) {
+	o.SandboxMaxCostMicroUsd = &v
+}
+
 func (o MessageCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -411,6 +556,18 @@ func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ConnectionAccessOverrides) {
 		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
+	}
+	if !IsNil(o.Attachments) {
+		toSerialize["attachments"] = o.Attachments
+	}
+	if !IsNil(o.SandboxId) {
+		toSerialize["sandbox_id"] = o.SandboxId
+	}
+	if o.KeepWarmSeconds.IsSet() {
+		toSerialize["keep_warm_seconds"] = o.KeepWarmSeconds.Get()
+	}
+	if !IsNil(o.SandboxMaxCostMicroUsd) {
+		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
 	}
 	return toSerialize, nil
 }

@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct Session {
     #[serde(rename = "id")]
     pub id: uuid::Uuid,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "harness")]
     pub harness: Harness,
     #[serde(rename = "model")]
@@ -40,10 +40,10 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(id: uuid::Uuid, workspace_id: uuid::Uuid, harness: Harness, model: String, created_at: chrono::DateTime<chrono::FixedOffset>) -> Session {
+    pub fn new(id: uuid::Uuid, worktree_id: uuid::Uuid, harness: Harness, model: String, created_at: chrono::DateTime<chrono::FixedOffset>) -> Session {
         Session {
             id,
-            workspace_id,
+            worktree_id,
             harness,
             model,
             created_at,
@@ -56,7 +56,7 @@ impl Session {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Harness {
     #[serde(rename = "codex")]
@@ -78,7 +78,7 @@ impl Default for Harness {
         Self::Codex
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum BillingMode {
     #[serde(rename = "byok")]

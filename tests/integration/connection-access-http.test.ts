@@ -9,12 +9,12 @@ import * as r from '../../packages/core/src/resources';
 import * as access from '../../packages/core/src/connection-access';
 import { admitConnections, previewAccess } from '../../packages/core/src/connection-access-resolution';
 let a: Awaited<ReturnType<typeof fixtureAccount>>, b: typeof a;
-let project: string, agent: string;
+let workspace: string, agent: string;
 beforeAll(async () => {
   a = await fixtureAccount('Access HTTP owner');
   b = await fixtureAccount('Foreign owner');
   await transaction(a.p.organizationId, async (tx) => {
-    project = (await r.create(tx, 'projects', a.p.organizationId, { name: 'Access project' })).id;
+    workspace = (await r.create(tx, 'workspaces', a.p.organizationId, { name: 'Access workspace' })).id;
     agent = (
       await r.create(tx, 'agents', a.p.organizationId, {
         name: 'Access preset',
@@ -82,16 +82,16 @@ it('requires strict shapes and quoted revisions, and replays ETags without a sec
   expect(await replay.json()).toEqual(await saved.json());
   expect((await http('PATCH', path, { tools: [] }, { 'If-Match': '"1"' })).status).toBe(412);
   for (const body of [
-    { scope: 'project', project_id: project, agent_id: agent },
-    { scope: 'agent', agent_id: agent, project_id: project },
-    { scope: 'project_agent', project_id: project },
+    { scope: 'workspace', workspace_id: workspace, agent_id: agent },
+    { scope: 'agent', agent_id: agent, workspace_id: workspace },
+    { scope: 'workspace_agent', workspace_id: workspace },
     { scope: 'run', run_id: id() },
   ])
     expect((await http('POST', path + '/rules', body, { 'If-Match': '"2"' })).status).toBe(400);
   const rule = await http(
     'POST',
     path + '/rules',
-    { scope: 'project_agent', project_id: project, agent_id: agent },
+    { scope: 'workspace_agent', workspace_id: workspace, agent_id: agent },
     { 'If-Match': '"2"' },
   );
   expect(rule.status).toBe(201);
@@ -102,7 +102,7 @@ it('requires strict shapes and quoted revisions, and replays ETags without a sec
       await http(
         'POST',
         path + '/rules',
-        { scope: 'project_agent', project_id: project, agent_id: agent },
+        { scope: 'workspace_agent', workspace_id: workspace, agent_id: agent },
         { 'If-Match': '"3"' },
       )
     ).status,
@@ -119,7 +119,7 @@ it('separates owner management from scoped browsing and never widens a restricte
     createKey(t, a.p, {
       name: 'Restricted access',
       scopes: ['connections:read', 'connections:write'],
-      project_id: project,
+      workspace_id: workspace,
     }),
   );
   expect(
@@ -141,7 +141,7 @@ it('separates owner management from scoped browsing and never widens a restricte
       await http(
         'POST',
         path + '/rules',
-        { scope: 'project', project_id: project },
+        { scope: 'workspace', workspace_id: workspace },
         { 'If-Match': '"1"' },
         scoped.secret,
       )
@@ -149,14 +149,14 @@ it('separates owner management from scoped browsing and never widens a restricte
   ).toBe(201);
   expect((await http('GET', path, undefined, {}, b.key)).status).toBe(404);
   const viewer = await tx((t) =>
-    createKey(t, a.p, { name: 'Read only', scopes: ['connections:read', 'projects:read', 'runs:read'] }),
+    createKey(t, a.p, { name: 'Read only', scopes: ['connections:read', 'workspaces:read', 'runs:read'] }),
   );
   expect((await http('GET', path, undefined, {}, viewer.secret)).status).toBe(200);
   expect((await http('PATCH', path, { tools: [] }, { 'If-Match': '"2"' }, viewer.secret)).status).toBe(403);
   const preview = await http(
     'POST',
     '/v1/connection-access/resolve',
-    { project_id: project, connection_access_overrides: [{ connection_id: c, tools: [] }] },
+    { workspace_id: workspace, connection_access_overrides: [{ connection_id: c, tools: [] }] },
     {},
     viewer.secret,
   );
@@ -166,19 +166,19 @@ it('separates owner management from scoped browsing and never widens a restricte
   ).toMatchObject({ can_override: false, rejection_codes: expect.arrayContaining(['override_forbidden']) });
 });
 it('expands only on request, preserves parent revision, rejects ambiguous query scalars, and checks expansion scopes', async () => {
-  const parent = await (await http('GET', `/v1/projects/${project}`)).json();
+  const parent = await (await http('GET', `/v1/workspaces/${workspace}`)).json();
   expect(parent.connections).toBeUndefined();
   const expanded = await (
-    await http('GET', `/v1/projects/${project}?include_connections=true&agent_id=${agent}`)
+    await http('GET', `/v1/workspaces/${workspace}?include_connections=true&agent_id=${agent}`)
   ).json();
   expect(expanded.connections.data).toBeInstanceOf(Array);
   expect(expanded.revision).toBe(parent.revision);
-  expect((await http('GET', `/v1/projects/${project}?agent_id=${agent}`)).status).toBe(400);
-  expect((await http('GET', `/v1/connections?project_id=${project}&project_id=${project}`)).status).toBe(400);
-  const key = await tx((t) => createKey(t, a.p, { name: 'Project only', scopes: ['projects:read'] }));
-  expect((await http('GET', `/v1/projects/${project}`, undefined, {}, key.secret)).status).toBe(200);
+  expect((await http('GET', `/v1/workspaces/${workspace}?agent_id=${agent}`)).status).toBe(400);
+  expect((await http('GET', `/v1/connections?workspace_id=${workspace}&workspace_id=${workspace}`)).status).toBe(400);
+  const key = await tx((t) => createKey(t, a.p, { name: 'Workspace only', scopes: ['workspaces:read'] }));
+  expect((await http('GET', `/v1/workspaces/${workspace}`, undefined, {}, key.secret)).status).toBe(200);
   expect(
-    (await http('GET', `/v1/projects/${project}?include_connections=true`, undefined, {}, key.secret)).status,
+    (await http('GET', `/v1/workspaces/${workspace}?include_connections=true`, undefined, {}, key.secret)).status,
   ).toBe(403);
 });
 it.each([
@@ -189,7 +189,7 @@ it.each([
   expect(created.status).toBe(201);
   const connectionId = (await created.json()).id;
   const preview = await http('POST', '/v1/connection-access/resolve', {
-    project_id: project,
+    workspace_id: workspace,
     connection_grants: [{ connection_id: connectionId, tools: [] }],
     connection_access_overrides: [{ connection_id: connectionId, tools: [] }],
   });
@@ -208,33 +208,33 @@ it.each([
 it('paginates rules with bound filters, retains unavailable targets, and enforces tenant foreign keys', async () => {
   const c = await connection();
   await tx(async (t) => {
-    await access.saveRule(t, a.p, c, { scope: 'project', project_id: project }, '"1"');
+    await access.saveRule(t, a.p, c, { scope: 'workspace', workspace_id: workspace }, '"1"');
     await access.saveRule(t, a.p, c, { scope: 'agent', agent_id: agent }, '"2"');
-    await access.saveRule(t, a.p, c, { scope: 'project_agent', project_id: project, agent_id: agent }, '"3"');
+    await access.saveRule(t, a.p, c, { scope: 'workspace_agent', workspace_id: workspace, agent_id: agent }, '"3"');
   });
   const expanded = await (
-    await http('GET', `/v1/projects/${project}?include_connections=true&agent_id=${agent}`)
+    await http('GET', `/v1/workspaces/${workspace}?include_connections=true&agent_id=${agent}`)
   ).json();
   const summary = expanded.connections.data.find((item: { id: string }) => item.id === c).access_match;
   expect(summary.conditional).toBe(false);
   expect(summary.matching_rules).toHaveLength(3);
-  expect(summary.matching_rules.find((rule: { scope: string }) => rule.scope === 'project_agent')).toEqual({
+  expect(summary.matching_rules.find((rule: { scope: string }) => rule.scope === 'workspace_agent')).toEqual({
     rule_id: expect.any(String),
-    scope: 'project_agent',
-    project_id: project,
+    scope: 'workspace_agent',
+    workspace_id: workspace,
     agent_id: agent,
-    project_name: 'Access project',
+    workspace_name: 'Access workspace',
     agent_name: 'Access preset',
   });
   const first = await tx((t) =>
-    access.listRules(t, a.p, c, new URLSearchParams({ limit: '1', sort: 'project' })),
+    access.listRules(t, a.p, c, new URLSearchParams({ limit: '1', sort: 'workspace' })),
   );
   const second = await tx((t) =>
     access.listRules(
       t,
       a.p,
       c,
-      new URLSearchParams({ limit: '1', sort: 'project', cursor: first.next_cursor! }),
+      new URLSearchParams({ limit: '1', sort: 'workspace', cursor: first.next_cursor! }),
     ),
   );
   expect(first.data[0].id).not.toBe(second.data[0].id);
@@ -248,31 +248,31 @@ it('paginates rules with bound filters, retains unavailable targets, and enforce
       ),
     ),
   ).rejects.toMatchObject({ code: 'invalid_cursor' });
-  const temporary = await tx((t) => r.create(t, 'projects', a.p.organizationId, { name: 'Gone' }));
+  const temporary = await tx((t) => r.create(t, 'workspaces', a.p.organizationId, { name: 'Gone' }));
   const rule = await tx((t) =>
-    access.saveRule(t, a.p, c, { scope: 'project', project_id: temporary.id }, '"4"'),
+    access.saveRule(t, a.p, c, { scope: 'workspace', workspace_id: temporary.id }, '"4"'),
   );
-  await tx((t) => r.update(t, 'projects', temporary.id, { deleted: true }));
+  await tx((t) => r.update(t, 'workspaces', temporary.id, { deleted: true }));
   const rules = await tx((t) => access.listRules(t, a.p, c, new URLSearchParams()));
   expect(rules.data.find((v) => v.id === rule.rule.id)).toMatchObject({
-    project_id: temporary.id,
-    project_name: null,
+    workspace_id: temporary.id,
+    workspace_name: null,
     unavailable: true,
   });
-  await tx((t) => r.remove(t, 'projects', temporary.id));
+  await tx((t) => r.remove(t, 'workspaces', temporary.id));
   expect(
     (await tx((t) => access.listRules(t, a.p, c, new URLSearchParams()))).data.some(
       (v) => v.id === rule.rule.id,
     ),
   ).toBe(false);
   const foreign = await transaction(b.p.organizationId, (t) =>
-    r.create(t, 'projects', b.p.organizationId, { name: 'Private' }),
+    r.create(t, 'workspaces', b.p.organizationId, { name: 'Private' }),
   );
   await expect(
     tx((t) =>
       t.query(
-        'INSERT INTO connection_access_rules(id,organization_id,connection_id,scope,project_id,created_by) VALUES($1,$2,$3,$4,$5,$6)',
-        [id(), a.p.organizationId, c, 'project', foreign.id, a.p.userId],
+        'INSERT INTO connection_access_rules(id,organization_id,connection_id,scope,workspace_id,created_by) VALUES($1,$2,$3,$4,$5,$6)',
+        [id(), a.p.organizationId, c, 'workspace', foreign.id, a.p.userId],
       ),
     ),
   ).rejects.toMatchObject({ code: '23503' });
@@ -287,7 +287,7 @@ it('paginates rules with bound filters, retains unavailable targets, and enforce
 it('uses default inheritance, explicit empty selection, auto exceptions, and per-item missing results', async () => {
   const c = await connection();
   await tx((t) => access.patchAccess(t, a.p, c, { tools: ['web_search'] }, '"1"'));
-  const context = { project_id: project, agent_id: null, permissions: [] };
+  const context = { workspace_id: workspace, agent_id: null, permissions: [] };
   const exception = [{ connection_id: c, tools: ['web_search'] }];
   expect((await tx((t) => admitConnections(t, a.p, context, undefined, exception))).grants).toEqual(
     exception,
@@ -311,7 +311,7 @@ it('uses default inheritance, explicit empty selection, auto exceptions, and per
       t,
       a.p,
       {
-        project_id: project,
+        workspace_id: workspace,
         connection_grants: [...exception, { connection_id: missing, tools: ['missing'] }],
       },
       new URLSearchParams({ limit: '1' }),
@@ -324,7 +324,7 @@ it('uses default inheritance, explicit empty selection, auto exceptions, and per
       t,
       a.p,
       {
-        project_id: project,
+        workspace_id: workspace,
         connection_grants: [...exception, { connection_id: missing, tools: ['missing'] }],
       },
       new URLSearchParams({ limit: '1', cursor: page.next_cursor! }),
@@ -336,7 +336,7 @@ it('uses default inheritance, explicit empty selection, auto exceptions, and per
     previewAccess(
       t,
       a.p,
-      { project_id: project, connection_access_overrides: exception },
+      { workspace_id: workspace, connection_access_overrides: exception },
       new URLSearchParams(),
     ),
   );
@@ -350,7 +350,7 @@ it('uses default inheritance, explicit empty selection, auto exceptions, and per
       t,
       a.p,
       {
-        project_id: project,
+        workspace_id: workspace,
         connection_access_overrides: [{ connection_id: missing, tools: ['web_search'] }],
       },
       new URLSearchParams(),
@@ -371,7 +371,7 @@ it('keeps preset omission, explicit none, and null reset distinct', async () => 
     (await (await http('PATCH', path, { connection_grants: null })).json()).connection_grants,
   ).toBeUndefined();
   expect(
-    (await http('POST', '/v1/runs', { project_id: project, prompt: 'Fixture', connection_grants: null }))
+    (await http('POST', '/v1/runs', { workspace_id: workspace, prompt: 'Fixture', connection_grants: null }))
       .status,
   ).toBe(400);
 });

@@ -44,7 +44,7 @@ export function visibleFileTreeRows(
     });
     if (action && parentPath !== null)
       rows.push({
-        // NUL cannot occur in a workspace path; auxiliary rows retain stable focus keys.
+        // NUL cannot occur in a worktree path; auxiliary rows retain stable focus keys.
         node: {
           path: `\0action:${parentPath}`,
           name: action === 'retry' ? 'Retry loading folder' : 'Load more',

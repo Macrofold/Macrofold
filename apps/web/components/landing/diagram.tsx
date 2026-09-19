@@ -40,10 +40,10 @@ export function Diagram({
       data-animated={animated}
       data-case={scenario.id}
       role="img"
-      aria-label={`${scenario.label}: ${stage === 0 ? 'a prompt enters a Codex workspace with five context files' : stage === 1 ? 'three agents work in parallel worktrees' : stage === 2 ? 'saved agent worktrees connect to the same project and Git main branch' : stage === 3 ? 'API, CLI, and UI requests reach separate agent worktrees' : 'one agent surrounded by ten available tool integrations'}`}
+      aria-label={`${scenario.label}: ${stage === 0 ? 'a prompt enters a Codex worktree with five context files' : stage === 1 ? 'three agents work in parallel worktrees' : stage === 2 ? 'saved agent worktrees connect to the same workspace and Git main branch' : stage === 3 ? 'API, CLI, and UI requests reach separate agent worktrees' : 'one agent surrounded by ten available tool integrations'}`}
     >
-      <div className="mf-project-canvas" aria-hidden="true">
-        <span>Project context</span>
+      <div className="mf-workspace-canvas" aria-hidden="true">
+        <span>Workspace context</span>
         <i />
         <i />
         <i />

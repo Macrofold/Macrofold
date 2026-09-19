@@ -42,7 +42,7 @@ body * {
   [role='treeitem'],
   .input-surface,
   .data-table tbody tr,
-  .project-list-row
+  .workspace-list-row
 ),
 :where(button, a, summary) :where(svg, strong, span) {
   transition: var(--app-transition-colors);

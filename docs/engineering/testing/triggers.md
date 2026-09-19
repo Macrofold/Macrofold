@@ -13,7 +13,7 @@ pnpm check
 pnpm test:sdks
 ```
 
-The focused unit/integration suite covers exact-byte Slack signatures and replay windows, human-message filtering, cron/timezones, vendor response mapping, authenticated webhook idempotency, actual PostgreSQL tenant isolation, concurrent admission, workspace waiting, simulator execution, persisted checkpoints, history, cron outage coalescing, overlap, pause/resume, secret rotation, expiry, delegated revocation and uncertain replies. A subprocess fixture is killed after its reply lease commits to verify recovery without repeating execution or a Slack request. Financial cases verify one reservation under concurrent admission, no reservation after rejection, and exact release on queue expiry. Reply cases preserve the original destination after edits and fence a late acknowledgment from an earlier attempt.
+The focused unit/integration suite covers exact-byte Slack signatures and replay windows, human-message filtering, cron/timezones, vendor response mapping, authenticated webhook idempotency, actual PostgreSQL tenant isolation, concurrent admission, worktree waiting, simulator execution, persisted checkpoints, history, cron outage coalescing, overlap, pause/resume, secret rotation, expiry, delegated revocation and uncertain replies. A subprocess fixture is killed after its reply lease commits to verify recovery without repeating execution or a Slack request. Financial cases verify one reservation under concurrent admission, no reservation after rejection, and exact release on queue expiry. Reply cases preserve the original destination after edits and fence a late acknowledgment from an earlier attempt.
 
 Browser acceptance exercises webhook creation and one-time credentials, external HTTP intake through the actual Next route, worker admission, simulator output/tool history, refresh replay, scheduled prompt creation/editing/pause/run-now, and accessibility. Slack channel selection and discovery errors are browser protocol fixtures; the signed Slack-to-run-to-threaded-reply path uses the actual API/domain/SQL stack with a deterministic Slack provider fixture.
 
@@ -33,9 +33,9 @@ No live Slack or paid model calls are part of these commands. Fixtures use dispo
 
 ## Remaining live acceptance
 
-- Install a synthetic Slack app in a test workspace. Verify the exact public HTTPS request URL, signing secret, challenge, bot scopes, private-channel invitation and paginated channel listing.
+- Install a synthetic Slack app in a test worktree. Verify the exact public HTTPS request URL, signing secret, challenge, bot scopes, private-channel invitation and paginated channel listing.
 - Send one human message, confirm one run and one threaded reply, and inspect persisted files. Test duplicate delivery and bot-loop exclusion. Confirm Slack acknowledges events within three seconds under expected cold-start/database conditions.
 - Revoke the app or `chat:write` access and confirm visible failures. Exercise rate-limit rejection in a controlled fixture; do not intentionally flood Slack.
-- In isolated cloud staging, verify the existing Vercel maintenance cron is authenticated and firing every minute. Observe a scheduled occurrence, workspace waiting, outage coalescing, pause and worker recovery.
+- In isolated cloud staging, verify the existing Vercel maintenance cron is authenticated and firing every minute. Observe a scheduled occurrence, worktree waiting, outage coalescing, pause and worker recovery.
 - Use an explicitly approved budget for a real native-agent run and verify end-to-end model/compute billing. Local simulation does not prove native/cloud providers.
 - Measure trigger throughput and receipt-table growth before raising the intake/job-batch limits. No capacity or latency SLA is established by local functional tests.

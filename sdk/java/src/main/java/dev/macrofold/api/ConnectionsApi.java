@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -1157,15 +1157,15 @@ public class ConnectionsApi {
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param sort  (optional)
    * @param direction  (optional)
    * @return ConnectionAccessRulePage
    * @throws ApiException if fails to make API call
    */
-  public ConnectionAccessRulePage listConnectionAccessRules(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction) throws ApiException {
-    return listConnectionAccessRules(connectionId, xOrganizationId, cursor, limit, projectId, agentId, sort, direction, null);
+  public ConnectionAccessRulePage listConnectionAccessRules(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction) throws ApiException {
+    return listConnectionAccessRules(connectionId, xOrganizationId, cursor, limit, workspaceId, agentId, sort, direction, null);
   }
 
   /**
@@ -1175,7 +1175,7 @@ public class ConnectionsApi {
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param sort  (optional)
    * @param direction  (optional)
@@ -1183,8 +1183,8 @@ public class ConnectionsApi {
    * @return ConnectionAccessRulePage
    * @throws ApiException if fails to make API call
    */
-  public ConnectionAccessRulePage listConnectionAccessRules(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
-    ApiResponse<ConnectionAccessRulePage> localVarResponse = listConnectionAccessRulesWithHttpInfo(connectionId, xOrganizationId, cursor, limit, projectId, agentId, sort, direction, headers);
+  public ConnectionAccessRulePage listConnectionAccessRules(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
+    ApiResponse<ConnectionAccessRulePage> localVarResponse = listConnectionAccessRulesWithHttpInfo(connectionId, xOrganizationId, cursor, limit, workspaceId, agentId, sort, direction, headers);
     return localVarResponse.getData();
   }
 
@@ -1195,15 +1195,15 @@ public class ConnectionsApi {
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param sort  (optional)
    * @param direction  (optional)
    * @return ApiResponse&lt;ConnectionAccessRulePage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ConnectionAccessRulePage> listConnectionAccessRulesWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction) throws ApiException {
-    return listConnectionAccessRulesWithHttpInfo(connectionId, xOrganizationId, cursor, limit, projectId, agentId, sort, direction, null);
+  public ApiResponse<ConnectionAccessRulePage> listConnectionAccessRulesWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction) throws ApiException {
+    return listConnectionAccessRulesWithHttpInfo(connectionId, xOrganizationId, cursor, limit, workspaceId, agentId, sort, direction, null);
   }
 
   /**
@@ -1213,7 +1213,7 @@ public class ConnectionsApi {
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param sort  (optional)
    * @param direction  (optional)
@@ -1221,8 +1221,8 @@ public class ConnectionsApi {
    * @return ApiResponse&lt;ConnectionAccessRulePage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ConnectionAccessRulePage> listConnectionAccessRulesWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listConnectionAccessRulesRequestBuilder(connectionId, xOrganizationId, cursor, limit, projectId, agentId, sort, direction, headers);
+  public ApiResponse<ConnectionAccessRulePage> listConnectionAccessRulesWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listConnectionAccessRulesRequestBuilder(connectionId, xOrganizationId, cursor, limit, workspaceId, agentId, sort, direction, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1269,7 +1269,7 @@ public class ConnectionsApi {
     }
   }
 
-  private HttpRequest.Builder listConnectionAccessRulesRequestBuilder(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder listConnectionAccessRulesRequestBuilder(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String direction, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'connectionId' is set
     if (connectionId == null) {
       throw new ApiException(400, "Missing the required parameter 'connectionId' when calling listConnectionAccessRules");
@@ -1287,8 +1287,8 @@ public class ConnectionsApi {
     localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
     localVarQueryParameterBaseName = "limit";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
-    localVarQueryParameterBaseName = "project_id";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("project_id", projectId));
+    localVarQueryParameterBaseName = "workspace_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("workspace_id", workspaceId));
     localVarQueryParameterBaseName = "agent_id";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("agent_id", agentId));
     localVarQueryParameterBaseName = "sort";
@@ -1480,13 +1480,13 @@ public class ConnectionsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @return ContextualConnectionPage
    * @throws ApiException if fails to make API call
    */
-  public ContextualConnectionPage listConnections(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId) throws ApiException {
-    return listConnections(cursor, limit, xOrganizationId, projectId, agentId, null);
+  public ContextualConnectionPage listConnections(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId) throws ApiException {
+    return listConnections(cursor, limit, xOrganizationId, workspaceId, agentId, null);
   }
 
   /**
@@ -1495,14 +1495,14 @@ public class ConnectionsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param headers Optional headers to include in the request
    * @return ContextualConnectionPage
    * @throws ApiException if fails to make API call
    */
-  public ContextualConnectionPage listConnections(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
-    ApiResponse<ContextualConnectionPage> localVarResponse = listConnectionsWithHttpInfo(cursor, limit, xOrganizationId, projectId, agentId, headers);
+  public ContextualConnectionPage listConnections(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
+    ApiResponse<ContextualConnectionPage> localVarResponse = listConnectionsWithHttpInfo(cursor, limit, xOrganizationId, workspaceId, agentId, headers);
     return localVarResponse.getData();
   }
 
@@ -1512,13 +1512,13 @@ public class ConnectionsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @return ApiResponse&lt;ContextualConnectionPage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ContextualConnectionPage> listConnectionsWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId) throws ApiException {
-    return listConnectionsWithHttpInfo(cursor, limit, xOrganizationId, projectId, agentId, null);
+  public ApiResponse<ContextualConnectionPage> listConnectionsWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId) throws ApiException {
+    return listConnectionsWithHttpInfo(cursor, limit, xOrganizationId, workspaceId, agentId, null);
   }
 
   /**
@@ -1527,14 +1527,14 @@ public class ConnectionsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param projectId  (optional)
+   * @param workspaceId  (optional)
    * @param agentId  (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;ContextualConnectionPage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ContextualConnectionPage> listConnectionsWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listConnectionsRequestBuilder(cursor, limit, xOrganizationId, projectId, agentId, headers);
+  public ApiResponse<ContextualConnectionPage> listConnectionsWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listConnectionsRequestBuilder(cursor, limit, xOrganizationId, workspaceId, agentId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1581,7 +1581,7 @@ public class ConnectionsApi {
     }
   }
 
-  private HttpRequest.Builder listConnectionsRequestBuilder(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID projectId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder listConnectionsRequestBuilder(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID agentId, Map<String, String> headers) throws ApiException {
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
@@ -1594,8 +1594,8 @@ public class ConnectionsApi {
     localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
     localVarQueryParameterBaseName = "limit";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
-    localVarQueryParameterBaseName = "project_id";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("project_id", projectId));
+    localVarQueryParameterBaseName = "workspace_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("workspace_id", workspaceId));
     localVarQueryParameterBaseName = "agent_id";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("agent_id", agentId));
 

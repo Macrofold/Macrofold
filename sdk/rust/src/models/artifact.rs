@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct Artifact {
     #[serde(rename = "id")]
     pub id: uuid::Uuid,
-    #[serde(rename = "run_id")]
-    pub run_id: uuid::Uuid,
+    #[serde(rename = "run_id", deserialize_with = "Option::deserialize")]
+    pub run_id: Option<uuid::Uuid>,
     #[serde(rename = "name")]
     pub name: String,
     #[serde(rename = "media_type")]
@@ -31,7 +31,7 @@ pub struct Artifact {
 }
 
 impl Artifact {
-    pub fn new(id: uuid::Uuid, run_id: uuid::Uuid, name: String, media_type: String, size_bytes: String, sha256: String) -> Artifact {
+    pub fn new(id: uuid::Uuid, run_id: Option<uuid::Uuid>, name: String, media_type: String, size_bytes: String, sha256: String) -> Artifact {
         Artifact {
             id,
             run_id,

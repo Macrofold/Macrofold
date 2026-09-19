@@ -17,7 +17,7 @@ const access: DashboardAccess = {
 };
 const snapshot = (runs = '0'): DashboardSnapshot => ({
   authorizedSessions: new Set(['session:owner']),
-  revisions: { runs, workspace: '0', git: '0' },
+  revisions: { runs, worktree: '0', git: '0' },
 });
 const decode = (part: ReadableStreamReadResult<Uint8Array>) => new TextDecoder().decode(part.value);
 
@@ -137,9 +137,9 @@ describe('shared dashboard stream', () => {
 describe('dashboard query refresh', () => {
   it('matches category/query families without invalidating unrelated settings or detailed event data', () => {
     expect(affectedDashboardQuery(['/v1/runs?status=queued', 'pages'], new Set(['runs']))).toBe(true);
-    expect(affectedDashboardQuery(['file', 'workspace', 'README.md'], new Set(['workspace']))).toBe(true);
-    expect(affectedDashboardQuery(['/v1/workspaces/a/checkpoints'], new Set(['workspace']))).toBe(true);
-    expect(affectedDashboardQuery(['/v1/projects/a/workspaces'], new Set(['git']))).toBe(true);
+    expect(affectedDashboardQuery(['file', 'worktree', 'README.md'], new Set(['worktree']))).toBe(true);
+    expect(affectedDashboardQuery(['/v1/worktrees/a/checkpoints'], new Set(['worktree']))).toBe(true);
+    expect(affectedDashboardQuery(['/v1/workspaces/a/worktrees'], new Set(['git']))).toBe(true);
     expect(affectedDashboardQuery(['/v1/runs/a/result'], new Set(['git']))).toBe(true);
     expect(affectedDashboardQuery(['/v1/api-keys'], new Set(['runs']))).toBe(false);
     expect(affectedDashboardQuery(['detailed-events', 'run'], new Set(['all']))).toBe(false);
@@ -151,7 +151,7 @@ describe('dashboard query refresh', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     const key = ['/v1/runs?limit=100'];
     client.setQueryData(key, ['old']);
-    client.setQueryData(['/v1/workspaces/a/checkpoints'], ['checkpoint']);
+    client.setQueryData(['/v1/worktrees/a/checkpoints'], ['checkpoint']);
     client.setQueryData(['/v1/api-keys'], ['key']);
     let release: (value: string[]) => void = () => {};
     const fetcher = vi.fn(
@@ -165,14 +165,14 @@ describe('dashboard query refresh', () => {
     const batch = dashboardRefreshBatch(client);
     for (let i = 0; i < 1000; i++) {
       batch.add('runs');
-      batch.add('workspace');
+      batch.add('worktree');
     }
     await vi.advanceTimersByTimeAsync(999);
     expect(fetcher).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(fetcher).toHaveBeenCalledOnce();
     expect(client.getQueryData(key)).toEqual(['old']);
-    expect(client.getQueryState(['/v1/workspaces/a/checkpoints'])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['/v1/worktrees/a/checkpoints'])?.isInvalidated).toBe(true);
     expect(client.getQueryState(['/v1/api-keys'])?.isInvalidated).toBe(false);
     batch.add('runs');
     release(['new']);

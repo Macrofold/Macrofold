@@ -180,7 +180,9 @@ export async function oauthRequest(
     redirect: 'error',
     signal: AbortSignal.any([AbortSignal.timeout(30000), ...(signal ? [signal] : [])]),
   });
-  const result = z.record(z.string(), z.unknown()).parse(await response.json());
+  // Revocation may succeed with no body or JSON null; token callers validate their required fields.
+  const text = await response.text();
+  const result = z.record(z.string(), z.unknown()).parse(text.trim() ? (JSON.parse(text) ?? {}) : {});
   if (!response.ok)
     throw new ApiError(
       response.status,

@@ -10,7 +10,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
   const deviceResponse = await request.post('/auth/device/code', {
     form: {
       client_id: 'hosted-agent-cli',
-      scope: 'identity:read projects:read offline_access',
+      scope: 'identity:read workspaces:read offline_access',
       resource: fixtureOrigin + '/v1',
     },
   });
@@ -36,7 +36,7 @@ test('device approval issues a scoped API token and refresh/revocation remain en
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   expect(identity.ok(), await identity.text()).toBeTruthy();
-  const denied = await request.post('/v1/projects', {
+  const denied = await request.post('/v1/workspaces', {
     headers: { Authorization: `Bearer ${tokens.access_token}`, 'Idempotency-Key': crypto.randomUUID() },
     data: { name: 'Forbidden scope' },
   });

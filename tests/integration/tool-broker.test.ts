@@ -11,7 +11,7 @@ import { patchAccess, saveRule } from '../../packages/core/src/connection-access
 import { executeGrantedTool, handleRuntimeMcp, exposedToolName } from '../../packages/core/src/tool-broker';
 import { runtimeToken, type RuntimeCapability } from '../../packages/core/src/runtime-auth';
 import { admitRun } from '../../packages/core/src/runs';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
 import * as connections from '../../packages/core/src/connections';
@@ -151,13 +151,13 @@ async function prepared(
       access_organization_wide: false,
       access_tools: [tool.name],
     });
-    const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Tool broker' });
-    await saveRule(tx, p, connection.id, { scope: 'project', project_id: project.id }, '"1"');
-    const workspace = (await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' })).result as {
-      workspace_id: string;
+    const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Tool broker' });
+    await saveRule(tx, p, connection.id, { scope: 'workspace', workspace_id: workspace.id }, '"1"');
+    const worktree = (await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' })).result as {
+      worktree_id: string;
     };
     const run = await admitRun(tx, p, {
-      workspace_id: workspace.workspace_id,
+      worktree_id: worktree.worktree_id,
       harness: policy?.harness || 'codex',
       permissions: policy?.permissions,
       model: 'fixture-model',
@@ -377,7 +377,7 @@ it('official MCP client discovers only granted tools, preserves BYOK and rejects
 it('stdio calls use the existing sandbox, reviewed argv and the same durable invocation journal', async () => {
   const a = await prepared('mcp_stdio'),
     invoke = vi.fn(async () => ({ content: [{ type: 'text', text: 'Saved' }] }));
-  const args = { path: '/workspace/note.txt', content: 'Persist this' };
+  const args = { path: '/worktree/note.txt', content: 'Persist this' };
   await executeGrantedTool(a.cap, a.connection.id, a.tool, args, 'stdio-1', { invokeStdio: invoke });
   await executeGrantedTool(a.cap, a.connection.id, a.tool, args, 'stdio-1', { invokeStdio: invoke });
   expect(invoke).toHaveBeenCalledTimes(1);
@@ -385,7 +385,7 @@ it('stdio calls use the existing sandbox, reviewed argv and the same durable inv
     { name: 'fixture-vm', sessionId: 'fixed-session', createdAt: expect.any(String) },
     expect.objectContaining({
       command: '/opt/platform/node_modules/.bin/mcp-server-filesystem',
-      args: ['/workspace'],
+      args: ['/worktree'],
       environment: {},
       tool: 'write_file',
       arguments: args,

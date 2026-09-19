@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -36,6 +36,8 @@ pub struct RunResult {
     pub content_expired: Option<bool>,
     #[serde(rename = "content_expired_at", skip_serializing_if = "Option::is_none")]
     pub content_expired_at: Option<chrono::DateTime<chrono::FixedOffset>>,
+    #[serde(rename = "inference", skip_serializing_if = "Option::is_none")]
+    pub inference: Option<Box<models::InferenceReceipt>>,
 }
 
 impl RunResult {
@@ -52,6 +54,7 @@ impl RunResult {
             error: None,
             content_expired: None,
             content_expired_at: None,
+            inference: None,
         }
     }
 }

@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -88,7 +88,7 @@ pub enum UpdateTriggerError {
 }
 
 
-/// 
+///
 pub async fn create_trigger(configuration: &configuration::Configuration, idempotency_key: &str, trigger_create: models::TriggerCreate, x_organization_id: Option<&str>) -> Result<models::NewTrigger, Error<CreateTriggerError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -138,7 +138,7 @@ pub async fn create_trigger(configuration: &configuration::Configuration, idempo
     }
 }
 
-/// 
+///
 pub async fn delete_trigger(configuration: &configuration::Configuration, trigger_id: &str, x_organization_id: Option<&str>) -> Result<models::DeleteTrigger200Response, Error<DeleteTriggerError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_trigger_id = trigger_id;
@@ -185,7 +185,7 @@ pub async fn delete_trigger(configuration: &configuration::Configuration, trigge
     }
 }
 
-/// 
+///
 pub async fn get_trigger(configuration: &configuration::Configuration, trigger_id: &str, x_organization_id: Option<&str>) -> Result<models::Trigger, Error<GetTriggerError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_trigger_id = trigger_id;
@@ -232,7 +232,7 @@ pub async fn get_trigger(configuration: &configuration::Configuration, trigger_i
     }
 }
 
-/// 
+///
 pub async fn list_trigger_deliveries(configuration: &configuration::Configuration, trigger_id: &str, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListTriggerDeliveries200Response, Error<ListTriggerDeliveriesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_trigger_id = trigger_id;
@@ -287,7 +287,7 @@ pub async fn list_trigger_deliveries(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn list_triggers(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, kind: Option<&str>, x_organization_id: Option<&str>) -> Result<models::ListTriggers200Response, Error<ListTriggersError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
@@ -397,7 +397,7 @@ pub async fn retry_trigger_reply(configuration: &configuration::Configuration, t
     }
 }
 
-/// 
+///
 pub async fn rotate_trigger_secret(configuration: &configuration::Configuration, trigger_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::TriggerSecret, Error<RotateTriggerSecretError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_trigger_id = trigger_id;
@@ -448,7 +448,7 @@ pub async fn rotate_trigger_secret(configuration: &configuration::Configuration,
     }
 }
 
-/// 
+///
 pub async fn run_trigger(configuration: &configuration::Configuration, trigger_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::TriggerDelivery, Error<RunTriggerError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_trigger_id = trigger_id;

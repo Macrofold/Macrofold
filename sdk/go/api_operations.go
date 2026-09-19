@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -43,7 +43,7 @@ func (r ApiGetOperationRequest) Execute() (*Operation, *http.Response, error) {
 /*
 GetOperation Inspect asynchronous action
 
-Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param operationId

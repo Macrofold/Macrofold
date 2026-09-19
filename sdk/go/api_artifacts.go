@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -22,6 +22,126 @@ import (
 
 // ArtifactsAPIService ArtifactsAPI service
 type ArtifactsAPIService service
+
+type ApiDeleteArtifactRequest struct {
+	ctx context.Context
+	ApiService *ArtifactsAPIService
+	artifactId string
+	idempotencyKey *string
+	xOrganizationId *string
+}
+
+func (r ApiDeleteArtifactRequest) IdempotencyKey(idempotencyKey string) ApiDeleteArtifactRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiDeleteArtifactRequest) XOrganizationId(xOrganizationId string) ApiDeleteArtifactRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiDeleteArtifactRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DeleteArtifactExecute(r)
+}
+
+/*
+DeleteArtifact Release a published artifact
+
+Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param artifactId
+ @return ApiDeleteArtifactRequest
+*/
+func (a *ArtifactsAPIService) DeleteArtifact(ctx context.Context, artifactId string) ApiDeleteArtifactRequest {
+	return ApiDeleteArtifactRequest{
+		ApiService: a,
+		ctx: ctx,
+		artifactId: artifactId,
+	}
+}
+
+// Execute executes the request
+func (a *ArtifactsAPIService) DeleteArtifactExecute(r ApiDeleteArtifactRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ArtifactsAPIService.DeleteArtifact")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/artifacts/{artifact_id}"
+	localVarPath = strings.Replace(localVarPath, "{"+"artifact_id"+"}", url.PathEscape(parameterValueToString(r.artifactId, "artifactId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.idempotencyKey == nil {
+		return nil, reportError("idempotencyKey is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
 
 type ApiDownloadArtifactRequest struct {
 	ctx context.Context

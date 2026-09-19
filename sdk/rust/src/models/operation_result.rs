@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 /// OperationResult : Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OperationResult {
-    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
-    pub workspace_id: Option<uuid::Uuid>,
+    #[serde(rename = "worktree_id", skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<uuid::Uuid>,
     #[serde(rename = "revision", skip_serializing_if = "Option::is_none")]
     pub revision: Option<String>,
     #[serde(rename = "checkpoint_id", skip_serializing_if = "Option::is_none")]
@@ -29,8 +29,8 @@ pub struct OperationResult {
     /// Authoritative resulting file or directory entry, absent for deletion.
     #[serde(rename = "entry", skip_serializing_if = "Option::is_none")]
     pub entry: Option<Box<models::FileEntry>>,
-    #[serde(rename = "project_id", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<uuid::Uuid>,
+    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "transfer_id", skip_serializing_if = "Option::is_none")]
     pub transfer_id: Option<uuid::Uuid>,
     #[serde(rename = "delivery_id", skip_serializing_if = "Option::is_none")]
@@ -63,13 +63,13 @@ impl OperationResult {
     /// Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
     pub fn new() -> OperationResult {
         OperationResult {
-            workspace_id: None,
+            worktree_id: None,
             revision: None,
             checkpoint_id: None,
             path: None,
             previous_path: None,
             entry: None,
-            project_id: None,
+            workspace_id: None,
             transfer_id: None,
             delivery_id: None,
             local_receipt_complete: None,
@@ -86,7 +86,7 @@ impl OperationResult {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Format {
     #[serde(rename = "git_bundle")]

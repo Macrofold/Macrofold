@@ -4,7 +4,7 @@ import { storage, type ObjectStore } from '../../providers/src/storage';
 import { unseal, id } from './crypto';
 import { assert } from './errors';
 import { debit, expireCredits } from './ledger';
-import { purgeProjects, expireDetailedHistory } from './deletion';
+import { purgeWorkspaces, expireDetailedHistory } from './deletion';
 
 const DAY = 86400000,
   GRACE = 14 * DAY;
@@ -41,15 +41,15 @@ async function pruneHistory(tx: Tx, plan: string, at: Date) {
   const historyDays = planFor(plan).history_days;
   await tx.query(
     `WITH ranked AS (
-    SELECT id,created_at,data,row_number() OVER(PARTITION BY data->>'workspace_id',date_trunc('day',created_at AT TIME ZONE 'UTC') ORDER BY created_at DESC,id DESC) AS daily,
-    row_number() OVER(PARTITION BY data->>'workspace_id',date_trunc('week',created_at AT TIME ZONE 'UTC') ORDER BY created_at DESC,id DESC) AS weekly
+    SELECT id,created_at,data,row_number() OVER(PARTITION BY data->>'worktree_id',date_trunc('day',created_at AT TIME ZONE 'UTC') ORDER BY created_at DESC,id DESC) AS daily,
+    row_number() OVER(PARTITION BY data->>'worktree_id',date_trunc('week',created_at AT TIME ZONE 'UTC') ORDER BY created_at DESC,id DESC) AS weekly
     FROM checkpoints WHERE coalesce(data->>'deleted','false')<>'true'
   ) UPDATE checkpoints c SET data=c.data||jsonb_build_object('deleted',true,'retention_expired_at',$1::timestamptz,'files','[]'::jsonb,'git_files','[]'::jsonb),revision=c.revision+1,updated_at=$1
     FROM ranked r WHERE c.id=r.id AND r.created_at<$1::timestamptz-interval '24 hours'
     AND coalesce(r.data->>'pinned','false')<>'true'
     AND NOT (r.created_at>=$1::timestamptz-interval '30 days' AND r.daily=1)
     AND NOT (r.created_at>=$1::timestamptz-interval '84 days' AND r.weekly=1)
-    AND NOT EXISTS(SELECT 1 FROM workspaces w WHERE w.data->>'latest_checkpoint_id'=c.id::text OR w.data->>'base_checkpoint_id'=c.id::text)
+    AND NOT EXISTS(SELECT 1 FROM worktrees w WHERE w.data->>'latest_checkpoint_id'=c.id::text OR w.data->>'base_checkpoint_id'=c.id::text)
     AND NOT EXISTS(SELECT 1 FROM runs x WHERE x.completed_at>=$2 AND (x.result->>'checkpoint_id'=c.id::text OR x.result->>'last_verified_checkpoint_id'=c.id::text))`,
     [at, new Date(at.getTime() - historyDays * DAY)],
   );
@@ -62,9 +62,9 @@ async function roots(tx: Tx, org: string) {
   const values = (
     await tx.query(
       `WITH documents AS (
-    SELECT data FROM workspaces WHERE coalesce(data->>'deleted','false')<>'true'
+    SELECT data FROM worktrees WHERE coalesce(data->>'deleted','false')<>'true'
     UNION ALL SELECT data FROM checkpoints WHERE coalesce(data->>'deleted','false')<>'true'
-    UNION ALL SELECT s.data FROM sessions s JOIN workspaces w ON w.id=s.workspace_id WHERE coalesce(w.data->>'deleted','false')<>'true' AND coalesce(s.data->>'deleted','false')<>'true'
+    UNION ALL SELECT s.data FROM sessions s JOIN worktrees w ON w.id=s.worktree_id WHERE coalesce(w.data->>'deleted','false')<>'true' AND coalesce(s.data->>'deleted','false')<>'true'
     UNION ALL SELECT data FROM artifacts WHERE coalesce(data->>'deleted','false')<>'true'
     UNION ALL SELECT data FROM transfers WHERE (data->>'expires_at')::timestamptz>now()
     UNION ALL SELECT data FROM execution_objects
@@ -189,7 +189,7 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
       let deleted = 0,
         graphPending = false;
       if (!active) {
-        await purgeProjects(tx, at);
+        await purgeWorkspaces(tx, at);
         await expireDetailedHistory(tx, account.plan, at);
         await pruneHistory(tx, account.plan, at);
         const reachable = await roots(tx, org);

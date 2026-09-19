@@ -4,16 +4,16 @@ import { pool, authPool, transaction } from '../../packages/db';
 import * as r from '../../packages/core/src/resources';
 import * as access from '../../packages/core/src/connection-access';
 import { saveConnection } from '../../packages/core/src/connections';
-import { createWorkspace } from '../../packages/core/src/files';
-import { admitRun, cancelRun, getRun } from '../../packages/core/src/runs';
+import { createWorktree } from '../../packages/core/src/files';
+import { admitRun, cancelRun, getNativeRun as getRun } from '../../packages/core/src/runs';
 import { previewAccess, runtimeConnectionTools } from '../../packages/core/src/connection-access-resolution';
 let a: Awaited<ReturnType<typeof fixtureAccount>>;
 let sales: string, support: string, writer: string, researcher: string;
 beforeAll(async () => {
   a = await fixtureAccount('Access policy');
   await transaction(a.p.organizationId, async (tx) => {
-    sales = (await r.create(tx, 'projects', a.p.organizationId, { name: 'Sales' })).id;
-    support = (await r.create(tx, 'projects', a.p.organizationId, { name: 'Support' })).id;
+    sales = (await r.create(tx, 'workspaces', a.p.organizationId, { name: 'Sales' })).id;
+    support = (await r.create(tx, 'workspaces', a.p.organizationId, { name: 'Support' })).id;
     writer = (
       await r.create(tx, 'agents', a.p.organizationId, {
         name: 'Writer',
@@ -55,7 +55,7 @@ it('starts denied and preserves credentials/name and the rule set across organiz
   expect(c.access_organization_wide).toBe(false);
   await allow(c.id);
   const rule = await tx((t) =>
-    access.saveRule(t, a.p, c.id, { scope: 'project_agent', project_id: sales, agent_id: writer }, '"2"'),
+    access.saveRule(t, a.p, c.id, { scope: 'workspace_agent', workspace_id: sales, agent_id: writer }, '"2"'),
   );
   expect(rule.version).toBe('3');
   const on = await tx((t) => access.patchAccess(t, a.p, c.id, { organization_wide: true }, '"3"'));
@@ -66,36 +66,36 @@ it('starts denied and preserves credentials/name and the rule set across organiz
   expect(off.rule_count).toBe(1);
   expect(off.tools).toEqual(['web_search']);
 });
-it('SQL filtering uses exact pairs, wildcard browsing, and current authorized projects', async () => {
+it('SQL filtering uses exact pairs, wildcard browsing, and current authorized workspaces', async () => {
   const c = await connection('Paired');
   await allow(c.id);
   await tx((t) =>
-    access.saveRule(t, a.p, c.id, { scope: 'project_agent', project_id: sales, agent_id: writer }, '"2"'),
+    access.saveRule(t, a.p, c.id, { scope: 'workspace_agent', workspace_id: sales, agent_id: writer }, '"2"'),
   );
   await tx((t) =>
     access.saveRule(
       t,
       a.p,
       c.id,
-      { scope: 'project_agent', project_id: support, agent_id: researcher },
+      { scope: 'workspace_agent', workspace_id: support, agent_id: researcher },
       '"3"',
     ),
   );
   const list = async (context: accessContext) =>
     tx((t) => access.listContextConnections(t, a.p, new URLSearchParams(), context));
-  expect((await list({ project_id: sales })).data.find((v) => v.id === c.id)?.access_match?.conditional).toBe(
+  expect((await list({ workspace_id: sales })).data.find((v) => v.id === c.id)?.access_match?.conditional).toBe(
     true,
   );
   expect((await list({ agent_id: researcher })).data.some((v) => v.id === c.id)).toBe(true);
-  expect((await list({ project_id: sales, agent_id: researcher })).data.some((v) => v.id === c.id)).toBe(
+  expect((await list({ workspace_id: sales, agent_id: researcher })).data.some((v) => v.id === c.id)).toBe(
     false,
   );
   expect(
-    (await list({ project_id: sales, agent_id: writer })).data.find((v) => v.id === c.id)?.access_match
+    (await list({ workspace_id: sales, agent_id: writer })).data.find((v) => v.id === c.id)?.access_match
       ?.conditional,
   ).toBe(false);
-  expect((await list({ project_id: sales, agent_id: null })).data.some((v) => v.id === c.id)).toBe(false);
-  const restricted = { ...a.p, projectIds: [sales] };
+  expect((await list({ workspace_id: sales, agent_id: null })).data.some((v) => v.id === c.id)).toBe(false);
+  const restricted = { ...a.p, workspaceIds: [sales] };
   expect(
     (
       await tx((t) =>
@@ -113,9 +113,9 @@ it('serializes revisions, rejects duplicate rules, and permits owner reductions 
   ]);
   expect(results.filter((v) => v.status === 'fulfilled')).toHaveLength(1);
   expect(results.find((v) => v.status === 'rejected')).toMatchObject({ reason: { code: 'stale_revision' } });
-  const rule = await tx((t) => access.saveRule(t, a.p, c.id, { scope: 'project', project_id: sales }, '"2"'));
+  const rule = await tx((t) => access.saveRule(t, a.p, c.id, { scope: 'workspace', workspace_id: sales }, '"2"'));
   await expect(
-    tx((t) => access.saveRule(t, a.p, c.id, { scope: 'project', project_id: sales }, '"3"')),
+    tx((t) => access.saveRule(t, a.p, c.id, { scope: 'workspace', workspace_id: sales }, '"3"')),
   ).rejects.toMatchObject({ status: 409, code: 'duplicate_permission' });
   const member = { ...a.p, role: 'member' };
   await expect(
@@ -131,7 +131,7 @@ it('requires write authority for every mutation without requiring the separate r
     (await tx((t) => access.patchAccess(t, writer, c.id, { tools: ['web_search'] }, '"1"'))).version,
   ).toBe('2');
   const saved = await tx((t) =>
-    access.saveRule(t, writer, c.id, { scope: 'project', project_id: sales }, '"2"'),
+    access.saveRule(t, writer, c.id, { scope: 'workspace', workspace_id: sales }, '"2"'),
   );
   const reader = { ...a.p, scopes: ['connections:read'] };
   const state = () =>
@@ -141,7 +141,7 @@ it('requires write authority for every mutation without requiring the separate r
       audit: (await t.query('SELECT * FROM organization_audit WHERE subject_id=$1 ORDER BY id', [c.id])).rows,
     }));
   const before = await state();
-  const replacement = { scope: 'project' as const, project_id: support };
+  const replacement = { scope: 'workspace' as const, workspace_id: support };
   for (const mutate of [
     () => tx((t) => access.patchAccess(t, reader, c.id, { tools: [] }, '"3"')),
     () => tx((t) => access.saveRule(t, reader, c.id, replacement, '"3"')),
@@ -158,10 +158,10 @@ it('requires write authority for every mutation without requiring the separate r
 it('keeps one-run exceptions out of session defaults and rechecks frozen authority', async () => {
   const c = await connection('One run');
   await allow(c.id);
-  const ws = await tx((t) => createWorkspace(t, a.p, sales, { name: 'exception-test' }));
+  const ws = await tx((t) => createWorktree(t, a.p, sales, { name: 'exception-test' }));
   const admitted = await tx((t) =>
     admitRun(t, a.p, {
-      workspace_id: ws.result.workspace_id!,
+      worktree_id: ws.result.worktree_id!,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',

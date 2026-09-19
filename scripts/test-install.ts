@@ -3,6 +3,8 @@ import { mkdtemp, rm, cp } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { LocalStore } from '../packages/providers/src/storage';
+import { backupRecoverySet, restoreRecoverySet, verifyRecoverySet } from './recovery/archive';
 import { config, isLocal } from '../packages/core/src/config';
 if (!isLocal()) throw new Error('Installation validation is local only.');
 const database = `platform_install_${Date.now()}`,
@@ -52,6 +54,16 @@ try {
       );
     });
   }
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn('pnpm', ['exec', 'tsx', 'tests/fixtures/decision-recovery.ts', 'seed'], {
+      env,
+      stdio: 'inherit',
+    });
+    child.on('error', reject);
+    child.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error('Decision recovery seed failed')),
+    );
+  });
   const rotated = {
     ...env,
     VAULT_ACTIVE_KEY_ID: 'fixture-rotation',
@@ -82,57 +94,32 @@ try {
     if (!result.encrypted_values_inspected || (!flags.length && result.values_requiring_rewrap !== 0))
       throw new Error('Key rotation verification was incomplete');
   }
-  // Recovery rehearsal uses a separate database and independent object copy. No mutation
-  // of the source instance is needed, and all credentials remain in the private temp folder.
-  const restoredDirectory = directory + '-restored';
+  // The same operator backup/restore implementation runs in CI with separate objects and retained keys.
+  const restoredDirectory = directory + '-restored',
+    archive = directory + '-archive';
   await cp(directory, restoredDirectory, { recursive: true });
+  await rm(path.join(restoredDirectory, 'objects'), { recursive: true, force: true });
+  // Restore needs all retained keys, including the current rotation key.
+  process.env.VAULT_KEYRING_JSON = rotated.VAULT_KEYRING_JSON;
+  process.env.VAULT_ACTIVE_KEY_ID = rotated.VAULT_ACTIVE_KEY_ID;
   try {
-    const container = process.env.TEST_POSTGRES_CONTAINER || 'hosted-agent-platform-postgres-1';
-    const dump = await new Promise<Buffer>((resolve, reject) => {
-      const child = spawn(
-        'docker',
-        [
-          'exec',
-          container,
-          'pg_dump',
-          '-U',
-          decodeURIComponent(ownerURL.username),
-          '--format=custom',
-          database,
-        ],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
-      );
-      const chunks: Buffer[] = [];
-      child.stdout.on('data', (d) => chunks.push(d));
-      child.stderr.resume();
-      child.on('error', reject);
-      child.on('close', (code) =>
-        code === 0 ? resolve(Buffer.concat(chunks)) : reject(new Error('Database backup failed')),
-      );
-    });
+    const tools = {
+      container:
+        process.env.TEST_POSTGRES_CONTAINER === 'none'
+          ? undefined
+          : process.env.TEST_POSTGRES_CONTAINER || 'hosted-agent-platform-postgres-1',
+    };
+    await backupRecoverySet(ownerURL.href, new LocalStore(directory), archive, tools);
+    await verifyRecoverySet(archive);
     await owner.query(`CREATE DATABASE ${restoredDatabase}`);
     restoredCreated = true;
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        'docker',
-        [
-          'exec',
-          '-i',
-          container,
-          'pg_restore',
-          '-U',
-          decodeURIComponent(ownerURL.username),
-          '--exit-on-error',
-          '--dbname',
-          restoredDatabase,
-        ],
-        { stdio: ['pipe', 'ignore', 'pipe'] },
-      );
-      child.stderr.resume();
-      child.stdin.end(dump);
-      child.on('error', reject);
-      child.on('close', (code) => (code === 0 ? resolve() : reject(new Error('Database restore failed'))));
-    });
+    const restoreOwner = new URL(ownerURL);
+    restoreOwner.pathname = '/' + restoredDatabase;
+    console.log(
+      JSON.stringify(
+        await restoreRecoverySet(archive, restoreOwner.href, new LocalStore(restoredDirectory), tools),
+      ),
+    );
     const restoredURL = new URL(runtimeURL);
     restoredURL.pathname = '/' + restoredDatabase;
     await new Promise<void>((resolve, reject) => {
@@ -150,8 +137,24 @@ try {
         code === 0 ? resolve() : reject(new Error('Restored application verification failed')),
       );
     });
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn('pnpm', ['exec', 'tsx', 'tests/fixtures/decision-recovery.ts', 'verify'], {
+        env: {
+          ...rotated,
+          DATABASE_URL: restoredURL.href,
+          AUTH_DATABASE_URL: restoredURL.href,
+          DATA_DIR: restoredDirectory,
+        },
+        stdio: 'inherit',
+      });
+      child.on('error', reject);
+      child.on('close', (code) =>
+        code === 0 ? resolve() : reject(new Error('Decision recovery verification failed')),
+      );
+    });
   } finally {
     await rm(restoredDirectory, { recursive: true, force: true });
+    await rm(archive, { recursive: true, force: true });
   }
   console.log(
     'Fresh-database installation, auth migration, OAuth provisioning, local seeding, readiness and persistent key rotation passed.',

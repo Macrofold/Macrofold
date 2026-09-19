@@ -73,8 +73,8 @@ class ClientTest {
               RequestException.class,
               () ->
                   client
-                      .projects()
-                      .create(new dev.macrofold.model.ProjectCreate().name("Research")));
+                      .workspaces()
+                      .create(new dev.macrofold.model.WorkspaceCreate().name("Research")));
       assertEquals(503, error.getCode());
       assertEquals(List.of(error.getIdempotencyKey()), keys);
       assertNotNull(UUID.fromString(error.getIdempotencyKey()));
@@ -110,7 +110,7 @@ class ClientTest {
           authorization.add(exchange.getRequestHeaders().getFirst("Authorization"));
           organizations.add(exchange.getRequestHeaders().getFirst("X-Organization-Id"));
           String body;
-          if (exchange.getRequestURI().getPath().endsWith("/projects")) {
+          if (exchange.getRequestURI().getPath().endsWith("/workspaces")) {
             assertTrue(exchange.getRequestURI().getQuery().contains("limit=3"));
             body = "{\"data\":[],\"next_cursor\":null}";
           } else if (exchange.getRequestURI().getPath().endsWith("/events")) {
@@ -133,9 +133,9 @@ class ClientTest {
                     + ID
                     + "\",\"session_id\":\""
                     + ID
-                    + "\",\"workspace_id\":\""
+                    + "\",\"worktree_id\":\""
                     + ID
-                    + "\",\"harness\":\"codex\",\"model\":\"simulator\",\"status\":\"succeeded\",\"created_at\":\"2026-09-07T00:00:00Z\"}";
+                    + "\",\"kind\":\"native_agent\",\"workspace_id\":\"" + ID + "\",\"harness\":\"codex\",\"model\":\"simulator\",\"status\":\"succeeded\",\"created_at\":\"2026-09-07T00:00:00Z\"}";
           exchange
               .getResponseHeaders()
               .set(
@@ -151,7 +151,7 @@ class ClientTest {
     try {
       Client client = new Client("http://127.0.0.1:" + server.getAddress().getPort(), "fixture");
       assertTrue(
-          client.projects().list(new Resources.ListProjectsParams().limit(3)).getData().isEmpty());
+          client.workspaces().list(new Resources.ListWorkspacesParams().limit(3)).getData().isEmpty());
       List<String> sequences = new ArrayList<>();
       client.runs().withOptions(new RequestOptions(null, UUID.fromString(ID))).stream(
           UUID.fromString(ID),
@@ -167,7 +167,7 @@ class ClientTest {
       assertNull(organizations.get(0));
       assertEquals(List.of(ID, ID, ID, ID), organizations.subList(1, organizations.size()));
       assertEquals(1, historyChecks.get());
-      client.projects().list(new Resources.ListProjectsParams().limit(3));
+      client.workspaces().list(new Resources.ListWorkspacesParams().limit(3));
       assertNull(organizations.get(organizations.size() - 1));
     } finally {
       server.stop(0);
@@ -252,15 +252,15 @@ class ClientTest {
       assertEquals(
           "Research",
           client
-              .projects()
+              .workspaces()
               .withOptions(new RequestOptions("request-1", null))
-              .create(new dev.macrofold.model.ProjectCreate().name("Research"))
+              .create(new dev.macrofold.model.WorkspaceCreate().name("Research"))
               .getName());
       java.nio.file.Files.write(
           file, new byte[] {104, 101, 108, 108, 111, 0, 119, 111, 114, 108, 100});
       var result =
           client
-              .workspaces()
+              .worktrees()
               .withOptions(new RequestOptions("request-2", null))
               .writeFile(
                   UUID.fromString(ID),
@@ -285,7 +285,7 @@ class ClientTest {
     org.junit.jupiter.api.Assumptions.assumeTrue(
         origin != null, "Run pnpm test:sdks for isolated application acceptance");
     Client client = new Client(origin, System.getenv("MACROFOLD_FIXTURE_KEY"));
-    var filesWorkspace = UUID.fromString(System.getenv("MACROFOLD_FIXTURE_FILES_WORKSPACE"));
+    var filesWorktree = UUID.fromString(System.getenv("MACROFOLD_FIXTURE_FILES_WORKTREE"));
     for (var entry :
         Map.of(
                 "notes/日本語 + #?.bin",
@@ -295,8 +295,8 @@ class ClientTest {
             .entrySet()) {
       var file =
           client
-              .workspaces()
-              .readFile(filesWorkspace, new Resources.ReadFileParams(entry.getKey()));
+              .worktrees()
+              .readFile(filesWorktree, new Resources.ReadFileParams(entry.getKey()));
       assertNotNull(file);
       try {
         assertArrayEquals(entry.getValue(), java.nio.file.Files.readAllBytes(file.toPath()));
@@ -309,36 +309,36 @@ class ClientTest {
             dev.macrofold.ApiException.class,
             () ->
                 client
-                    .workspaces()
-                    .readFile(filesWorkspace, new Resources.ReadFileParams("missing.txt")));
+                    .worktrees()
+                    .readFile(filesWorktree, new Resources.ReadFileParams("missing.txt")));
     assertEquals(404, missing.getCode());
-    var project =
-        client
-            .projects()
-            .create(new dev.macrofold.model.ProjectCreate().name("Java application fixture"));
-    var workspace = client.workspaces().get(project.getDefaultWorkspaceId());
-    var folder =
+    var workspace =
         client
             .workspaces()
+            .create(new dev.macrofold.model.WorkspaceCreate().name("Java application fixture"));
+    var worktree = client.worktrees().get(workspace.getDefaultWorktreeId());
+    var folder =
+        client
+            .worktrees()
             .createFolder(
-                workspace.getId(),
+                worktree.getId(),
                 new dev.macrofold.model.FolderCreate().path("examples"),
-                new Resources.CreateFolderParams(workspace.getRevision()));
+                new Resources.CreateFolderParams(worktree.getRevision()));
     assertEquals(
         dev.macrofold.model.FileEntry.TypeEnum.DIRECTORY, folder.getResult().getEntry().getType());
     var renamed =
         client
-            .workspaces()
+            .worktrees()
             .renameFile(
-                workspace.getId(),
+                worktree.getId(),
                 new dev.macrofold.model.FileRename().newPath("examples/renamed.txt"),
                 new Resources.RenameFileParams(
                     "examples/.gitkeep", folder.getResult().getRevision()));
     assertEquals("examples/.gitkeep", renamed.getResult().getPreviousPath());
     var listing =
         client
-            .workspaces()
-            .listFiles(workspace.getId(), new Resources.ListFilesParams().recursive(false));
+            .worktrees()
+            .listFiles(worktree.getId(), new Resources.ListFilesParams().recursive(false));
     assertEquals(1, listing.getEntries().size());
     assertEquals(
         dev.macrofold.model.FileEntry.TypeEnum.DIRECTORY,
@@ -356,7 +356,7 @@ class ClientTest {
     var body =
         new dev.macrofold.model.RunCreate()
             .prompt("Verify Java persisted execution.")
-            .projectId(project.getId())
+            .workspaceId(workspace.getId())
             .agentId(agent.getId());
     var run = runs.create(body);
     StringBuilder text = new StringBuilder();
@@ -374,12 +374,12 @@ class ClientTest {
     assertEquals("verified", result.getPersistenceStatus());
     assertEquals(
         dev.macrofold.model.Run.StatusEnum.SUCCEEDED, runs.get(run.getRunId()).getStatus());
-    assertFalse(client.workspaces().listCheckpoints(run.getWorkspaceId()).getData().isEmpty());
+    assertFalse(client.worktrees().listCheckpoints(run.getWorktreeId()).getData().isEmpty());
     var note =
         client
-            .workspaces()
+            .worktrees()
             .readFile(
-                run.getWorkspaceId(),
+                run.getWorktreeId(),
                 new Resources.ReadFileParams("notes/run-" + run.getRunId() + ".md"));
     try {
       assertTrue(

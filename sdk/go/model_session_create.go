@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -21,7 +21,7 @@ var _ MappedNullable = &SessionCreate{}
 
 // SessionCreate Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants.
 type SessionCreate struct {
-	WorkspaceId string `json:"workspace_id"`
+	WorktreeId string `json:"worktree_id"`
 	Harness string `json:"harness"`
 	Model string `json:"model"`
 	BillingMode string `json:"billing_mode"`
@@ -38,9 +38,9 @@ type _SessionCreate SessionCreate
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSessionCreate(workspaceId string, harness string, model string, billingMode string) *SessionCreate {
+func NewSessionCreate(worktreeId string, harness string, model string, billingMode string) *SessionCreate {
 	this := SessionCreate{}
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	this.Harness = harness
 	this.Model = model
 	this.BillingMode = billingMode
@@ -55,28 +55,28 @@ func NewSessionCreateWithDefaults() *SessionCreate {
 	return &this
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *SessionCreate) GetWorkspaceId() string {
+// GetWorktreeId returns the WorktreeId field value
+func (o *SessionCreate) GetWorktreeId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *SessionCreate) GetWorkspaceIdOk() (*string, bool) {
+func (o *SessionCreate) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return &o.WorktreeId, true
 }
 
-// SetWorkspaceId sets field value
-func (o *SessionCreate) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *SessionCreate) SetWorktreeId(v string) {
+	o.WorktreeId = v
 }
 
 // GetHarness returns the Harness field value
@@ -257,7 +257,7 @@ func (o SessionCreate) MarshalJSON() ([]byte, error) {
 
 func (o SessionCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["worktree_id"] = o.WorktreeId
 	toSerialize["harness"] = o.Harness
 	toSerialize["model"] = o.Model
 	toSerialize["billing_mode"] = o.BillingMode
@@ -278,7 +278,7 @@ func (o *SessionCreate) UnmarshalJSON(data []byte) (err error) {
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
-		"workspace_id",
+		"worktree_id",
 		"harness",
 		"model",
 		"billing_mode",

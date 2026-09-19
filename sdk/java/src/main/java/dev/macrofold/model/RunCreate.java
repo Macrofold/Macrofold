@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,24 +24,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dev.macrofold.model.AgentPermissions;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import org.openapitools.jackson.nullable.JsonNullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.openapitools.jackson.nullable.JsonNullable;
+import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 import dev.macrofold.ApiClient;
 /**
- * Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
+ * Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
  */
 @JsonPropertyOrder({
   RunCreate.JSON_PROPERTY_PROMPT,
-  RunCreate.JSON_PROPERTY_PROJECT_ID,
   RunCreate.JSON_PROPERTY_WORKSPACE_ID,
+  RunCreate.JSON_PROPERTY_WORKTREE_ID,
   RunCreate.JSON_PROPERTY_SESSION_ID,
   RunCreate.JSON_PROPERTY_AGENT_ID,
   RunCreate.JSON_PROPERTY_HARNESS,
@@ -55,7 +62,11 @@ import dev.macrofold.ApiClient;
   RunCreate.JSON_PROPERTY_SCHEDULING_CLASS,
   RunCreate.JSON_PROPERTY_QUEUE_IF_BUSY,
   RunCreate.JSON_PROPERTY_PERMISSIONS,
-  RunCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES
+  RunCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
+  RunCreate.JSON_PROPERTY_ATTACHMENTS,
+  RunCreate.JSON_PROPERTY_SANDBOX_ID,
+  RunCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
+  RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunCreate {
@@ -63,13 +74,13 @@ public class RunCreate {
   @javax.annotation.Nonnull
   private String prompt;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
-  @javax.annotation.Nullable
-  private UUID projectId;
-
   public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
   private UUID workspaceId;
+
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  @javax.annotation.Nullable
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_SESSION_ID = "session_id";
   @javax.annotation.Nullable
@@ -242,6 +253,21 @@ public class RunCreate {
   @javax.annotation.Nullable
   private List<Grant> connectionAccessOverrides = new ArrayList<>();
 
+  public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
+  @javax.annotation.Nullable
+  private Set<String> attachments = new LinkedHashSet<>();
+
+  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
+  @javax.annotation.Nullable
+  private UUID sandboxId;
+
+  public static final String JSON_PROPERTY_KEEP_WARM_SECONDS = "keep_warm_seconds";
+  private JsonNullable<Integer> keepWarmSeconds = JsonNullable.<Integer>undefined();
+
+  public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
+  @javax.annotation.Nullable
+  private String sandboxMaxCostMicroUsd;
+
   public RunCreate() { 
   }
 
@@ -269,30 +295,6 @@ public class RunCreate {
   }
 
 
-  public RunCreate projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
-    return this;
-  }
-
-  /**
-   * Get projectId
-   * @return projectId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getProjectId() {
-    return projectId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
-  }
-
-
   public RunCreate workspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
     return this;
@@ -314,6 +316,30 @@ public class RunCreate {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
+  }
+
+
+  public RunCreate worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
+    return this;
+  }
+
+  /**
+   * Get worktreeId
+   * @return worktreeId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorktreeId() {
+    return worktreeId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -605,7 +631,7 @@ public class RunCreate {
   }
 
   /**
-   * Only session follow-ups can queue behind workspace work.
+   * Only session follow-ups can queue behind worktree work.
    * @return queueIfBusy
    */
   @javax.annotation.Nullable
@@ -679,6 +705,121 @@ public class RunCreate {
   }
 
 
+  public RunCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+    return this;
+  }
+
+  public RunCreate addAttachmentsItem(String attachmentsItem) {
+    if (this.attachments == null) {
+      this.attachments = new LinkedHashSet<>();
+    }
+    this.attachments.add(attachmentsItem);
+    return this;
+  }
+
+  /**
+   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+   * @return attachments
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<String> getAttachments() {
+    return attachments;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+  }
+
+
+  public RunCreate sandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = sandboxId;
+    return this;
+  }
+
+  /**
+   * Get sandboxId
+   * @return sandboxId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getSandboxId() {
+    return sandboxId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = sandboxId;
+  }
+
+
+  public RunCreate keepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
+    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
+    return this;
+  }
+
+  /**
+   * Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
+   * minimum: 0
+   * maximum: 86400
+   * @return keepWarmSeconds
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public Integer getKeepWarmSeconds() {
+        return keepWarmSeconds.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_KEEP_WARM_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<Integer> getKeepWarmSeconds_JsonNullable() {
+    return keepWarmSeconds;
+  }
+
+  @JsonProperty(JSON_PROPERTY_KEEP_WARM_SECONDS)
+  public void setKeepWarmSeconds_JsonNullable(JsonNullable<Integer> keepWarmSeconds) {
+    this.keepWarmSeconds = keepWarmSeconds;
+  }
+
+  public void setKeepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
+    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
+  }
+
+
+  public RunCreate sandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
+    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
+    return this;
+  }
+
+  /**
+   * Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
+   * @return sandboxMaxCostMicroUsd
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getSandboxMaxCostMicroUsd() {
+    return sandboxMaxCostMicroUsd;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
+    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
+  }
+
+
   /**
    * Return true if this RunCreate object is equal to o.
    */
@@ -692,8 +833,8 @@ public class RunCreate {
     }
     RunCreate runCreate = (RunCreate) o;
     return Objects.equals(this.prompt, runCreate.prompt) &&
-        Objects.equals(this.projectId, runCreate.projectId) &&
         Objects.equals(this.workspaceId, runCreate.workspaceId) &&
+        Objects.equals(this.worktreeId, runCreate.worktreeId) &&
         Objects.equals(this.sessionId, runCreate.sessionId) &&
         Objects.equals(this.agentId, runCreate.agentId) &&
         Objects.equals(this.harness, runCreate.harness) &&
@@ -707,12 +848,27 @@ public class RunCreate {
         Objects.equals(this.schedulingClass, runCreate.schedulingClass) &&
         Objects.equals(this.queueIfBusy, runCreate.queueIfBusy) &&
         Objects.equals(this.permissions, runCreate.permissions) &&
-        Objects.equals(this.connectionAccessOverrides, runCreate.connectionAccessOverrides);
+        Objects.equals(this.connectionAccessOverrides, runCreate.connectionAccessOverrides) &&
+        Objects.equals(this.attachments, runCreate.attachments) &&
+        Objects.equals(this.sandboxId, runCreate.sandboxId) &&
+        equalsNullable(this.keepWarmSeconds, runCreate.keepWarmSeconds) &&
+        Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, projectId, workspaceId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides);
+    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -720,8 +876,8 @@ public class RunCreate {
     StringBuilder sb = new StringBuilder();
     sb.append("class RunCreate {\n");
     sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    harness: ").append(toIndentedString(harness)).append("\n");
@@ -736,6 +892,10 @@ public class RunCreate {
     sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
+    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
+    sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
+    sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("}");
     return sb.toString();
   }

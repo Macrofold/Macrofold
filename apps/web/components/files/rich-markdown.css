@@ -152,7 +152,7 @@
   border-color: var(--app-danger, #cf4141);
   background: color-mix(in srgb, #cf4141 9%, transparent);
 }
-.markdown-change .workspace-markdown-preview {
+.markdown-change .worktree-markdown-preview {
   padding-block: 8px;
 }
 .markdown-change pre {

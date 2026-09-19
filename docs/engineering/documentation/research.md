@@ -20,7 +20,7 @@ The documentation combines a short first-run path, task-oriented navigation, con
 | [OpenRouter](https://openrouter.ai/docs/quickstart)           | Quickstart before routing and advanced features; SDK choices                             | [typescript-sdk](https://github.com/OpenRouterTeam/typescript-sdk): installation, migration, pagination, and development                                                                         | Mintlify assets in the served docs                                                                             |
 | [OpenCode](https://opencode.ai/docs)                          | Install, configure, initialize, use, and customize in a clear sequence                   | [anomalyco/opencode](https://github.com/anomalyco/opencode): concise setup and documentation/contribution paths                                                                                  | [Astro config](https://github.com/anomalyco/opencode/blob/dev/packages/web/astro.config.mjs) imports Starlight |
 
-Framework identification is limited to observable assets or source configuration. A site's appearance is not proof of its implementation. Where a company is not fully open source, the repository reviewed is its SDK or related public project, not a claim that its hosted platform source is public.
+Framework identification is limited to observable assets or source configuration. A site's appearance is not proof of its implementation. Where a company is not fully open source, the repository reviewed is its SDK or related public workspace, not a claim that its hosted platform source is public.
 
 ## Additional documentation and repository references
 
@@ -46,7 +46,7 @@ Keep a short first-success path for Cloud and self-hosted users, a separate loca
 
 ## Cloud and AI onboarding
 
-The [Cloud and AI-assisted onboarding study](cloud-and-agent-onboarding.md) covers Merge, LiveKit, Composio, Resend, Firecrawl, Daytona, Inngest, E2B, HarnessRouter, and additional open-source projects. It owns current hosting and AI onboarding observations, including newer source-verified technology findings that supersede unknown framework entries above.
+The [Cloud and AI-assisted onboarding study](cloud-and-agent-onboarding.md) covers Merge, LiveKit, Composio, Resend, Firecrawl, Daytona, Inngest, E2B, HarnessRouter, and additional open-source workspaces. It owns current hosting and AI onboarding observations, including newer source-verified technology findings that supersede unknown framework entries above.
 
 ## Decisions for this repository
 

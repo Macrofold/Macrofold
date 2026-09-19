@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -43,7 +43,7 @@ import dev.macrofold.ApiClient;
   Identity.JSON_PROPERTY_USER_ID,
   Identity.JSON_PROPERTY_ORGANIZATIONS,
   Identity.JSON_PROPERTY_EFFECTIVE_SCOPES,
-  Identity.JSON_PROPERTY_PROJECT_RESTRICTIONS,
+  Identity.JSON_PROPERTY_WORKSPACE_RESTRICTIONS,
   Identity.JSON_PROPERTY_CAPABILITIES,
   Identity.JSON_PROPERTY_ORGANIZATION_ID
 })
@@ -104,9 +104,9 @@ public class Identity {
   @javax.annotation.Nonnull
   private List<String> effectiveScopes = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_PROJECT_RESTRICTIONS = "project_restrictions";
+  public static final String JSON_PROPERTY_WORKSPACE_RESTRICTIONS = "workspace_restrictions";
   @javax.annotation.Nonnull
-  private List<UUID> projectRestrictions = new ArrayList<>();
+  private List<UUID> workspaceRestrictions = new ArrayList<>();
 
   public static final String JSON_PROPERTY_CAPABILITIES = "capabilities";
   @javax.annotation.Nonnull
@@ -255,35 +255,35 @@ public class Identity {
   }
 
 
-  public Identity projectRestrictions(@javax.annotation.Nonnull List<UUID> projectRestrictions) {
-    this.projectRestrictions = projectRestrictions;
+  public Identity workspaceRestrictions(@javax.annotation.Nonnull List<UUID> workspaceRestrictions) {
+    this.workspaceRestrictions = workspaceRestrictions;
     return this;
   }
 
-  public Identity addProjectRestrictionsItem(UUID projectRestrictionsItem) {
-    if (this.projectRestrictions == null) {
-      this.projectRestrictions = new ArrayList<>();
+  public Identity addWorkspaceRestrictionsItem(UUID workspaceRestrictionsItem) {
+    if (this.workspaceRestrictions == null) {
+      this.workspaceRestrictions = new ArrayList<>();
     }
-    this.projectRestrictions.add(projectRestrictionsItem);
+    this.workspaceRestrictions.add(workspaceRestrictionsItem);
     return this;
   }
 
   /**
-   * Get projectRestrictions
-   * @return projectRestrictions
+   * Get workspaceRestrictions
+   * @return workspaceRestrictions
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_RESTRICTIONS, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_RESTRICTIONS, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public List<UUID> getProjectRestrictions() {
-    return projectRestrictions;
+  public List<UUID> getWorkspaceRestrictions() {
+    return workspaceRestrictions;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_RESTRICTIONS, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_RESTRICTIONS, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectRestrictions(@javax.annotation.Nonnull List<UUID> projectRestrictions) {
-    this.projectRestrictions = projectRestrictions;
+  public void setWorkspaceRestrictions(@javax.annotation.Nonnull List<UUID> workspaceRestrictions) {
+    this.workspaceRestrictions = workspaceRestrictions;
   }
 
 
@@ -352,14 +352,14 @@ public class Identity {
         Objects.equals(this.userId, identity.userId) &&
         Objects.equals(this.organizations, identity.organizations) &&
         Objects.equals(this.effectiveScopes, identity.effectiveScopes) &&
-        Objects.equals(this.projectRestrictions, identity.projectRestrictions) &&
+        Objects.equals(this.workspaceRestrictions, identity.workspaceRestrictions) &&
         Objects.equals(this.capabilities, identity.capabilities) &&
         Objects.equals(this.organizationId, identity.organizationId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(principalId, principalType, userId, organizations, effectiveScopes, projectRestrictions, capabilities, organizationId);
+    return Objects.hash(principalId, principalType, userId, organizations, effectiveScopes, workspaceRestrictions, capabilities, organizationId);
   }
 
   @Override
@@ -371,7 +371,7 @@ public class Identity {
     sb.append("    userId: ").append(toIndentedString(userId)).append("\n");
     sb.append("    organizations: ").append(toIndentedString(organizations)).append("\n");
     sb.append("    effectiveScopes: ").append(toIndentedString(effectiveScopes)).append("\n");
-    sb.append("    projectRestrictions: ").append(toIndentedString(projectRestrictions)).append("\n");
+    sb.append("    workspaceRestrictions: ").append(toIndentedString(workspaceRestrictions)).append("\n");
     sb.append("    capabilities: ").append(toIndentedString(capabilities)).append("\n");
     sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("}");
@@ -452,13 +452,13 @@ public class Identity {
       }
     }
 
-    // add `project_restrictions` to the URL query string
-    if (getProjectRestrictions() != null) {
-      for (int i = 0; i < getProjectRestrictions().size(); i++) {
-        if (getProjectRestrictions().get(i) != null) {
-          joiner.add(String.format(java.util.Locale.ROOT, "%sproject_restrictions%s%s=%s", prefix, suffix,
+    // add `workspace_restrictions` to the URL query string
+    if (getWorkspaceRestrictions() != null) {
+      for (int i = 0; i < getWorkspaceRestrictions().size(); i++) {
+        if (getWorkspaceRestrictions().get(i) != null) {
+          joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_restrictions%s%s=%s", prefix, suffix,
               "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
-              ApiClient.urlEncode(ApiClient.valueToString(getProjectRestrictions().get(i)))));
+              ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceRestrictions().get(i)))));
         }
       }
     }

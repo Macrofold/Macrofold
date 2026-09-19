@@ -4,8 +4,8 @@ import { sleep } from 'workflow';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { fixtureAccount } from '../fixtures/account';
-import { admitRun, getRun, cancelRun } from '../../packages/core/src/runs';
-import { createWorkspace } from '../../packages/core/src/files';
+import { admitRun, getNativeRun as getRun, cancelRun } from '../../packages/core/src/runs';
+import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import * as cloud from '../../packages/core/src/cloud-engine';
 import { settle, credit, reserve } from '../../packages/core/src/ledger';
@@ -61,17 +61,24 @@ async function fixture() {
   accounts.push(a.p.organizationId);
   const submit = () =>
     transaction(a.p.organizationId, async (tx) => {
-      const project = await resources.create(tx, 'projects', a.p.organizationId, {
+      const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, {
         name: 'Workflow fixture',
       });
-      const ws = await createWorkspace(tx, a.p, project.id, { name: 'main', branch: 'main' });
-      return admitRun(tx, a.p, {
-        workspace_id: String((ws.result as { workspace_id: string }).workspace_id),
+      const ws = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
+      const run = await admitRun(tx, a.p, {
+        worktree_id: String((ws.result as { worktree_id: string }).worktree_id),
         prompt: 'Never calls a provider',
         harness: 'codex',
         model: 'fixture-model',
         billing_mode: 'managed',
       });
+      // Admission stays unpaid; the fixture runs through a fake Vercel machine.
+      // Keep the persisted provider identity consistent with the dispatch profile.
+      await tx.query(
+        "UPDATE runs SET config=jsonb_set(config,'{execution_provider}','\"vercel\"') WHERE id=$1",
+        [run.run_id],
+      );
+      return run;
     });
   return { a, submit };
 }
@@ -179,8 +186,8 @@ it('the forward expiry migration changes only defaults for new rows and preserve
       await readFile(new URL('../../packages/db/027_queue_deadline_default.sql', import.meta.url), 'utf8'),
     );
     const inserted = await owner.query(
-      `INSERT INTO runs(id,organization_id,workspace_id,session_id,project_id,status,config)
-      SELECT $2,organization_id,workspace_id,session_id,project_id,'queued',config FROM runs WHERE id=$1
+      `INSERT INTO runs(id,organization_id,worktree_id,session_id,workspace_id,status,config)
+      SELECT $2,organization_id,worktree_id,session_id,workspace_id,'queued',config FROM runs WHERE id=$1
       RETURNING extract(epoch FROM queue_expires_at-created_at)::integer AS seconds`,
       [run.run_id, id()],
     );
@@ -227,12 +234,12 @@ it.each(['succeeded', 'cancelled'] as const)(
     // A backlog larger than a dispatch batch must not starve the active run's
     // continuation: all slots can stay occupied until that continuation finishes.
     await transaction(org, async (tx) => {
-      const project = await resources.create(tx, 'projects', org, { name: 'Waiting backlog' });
+      const workspace = await resources.create(tx, 'workspaces', org, { name: 'Waiting backlog' });
       for (let i = 0; i < 12; i++) {
-        // These jobs never execute: empty workspace records avoid irrelevant Git
+        // These jobs never execute: empty worktree records avoid irrelevant Git
         // repository creation while preserving actual admission and SQL eligibility.
-        const ws = await resources.create(tx, 'workspaces', org, {
-          project_id: project.id,
+        const ws = await resources.create(tx, 'worktrees', org, {
+          workspace_id: workspace.id,
           name: `wait-${i}`,
           branch: `wait-${i}`,
           status: 'idle',
@@ -240,7 +247,7 @@ it.each(['succeeded', 'cancelled'] as const)(
           git_files: [],
         });
         await admitRun(tx, a.p, {
-          workspace_id: ws.id,
+          worktree_id: ws.id,
           prompt: 'Waiting only',
           harness: 'codex',
           model: 'fixture-model',
@@ -251,7 +258,9 @@ it.each(['succeeded', 'cancelled'] as const)(
     process.env.GLOBAL_CONCURRENT_RUN_LIMIT = '1';
     await funded(org, run.run_id);
     const provider = new FaultMachine();
-    provider.pendingPolls = 4;
+    // Batched hydration reaches polling sooner; keep execution pending across
+    // the first handoff so recovery still exercises an active native process.
+    provider.pendingPolls = 6;
     provider.snapshotPages = 14;
     provider.lostLaunch = true;
     runtime.provider = provider;
@@ -292,8 +301,8 @@ it.each(['succeeded', 'cancelled'] as const)(
     const final = await transaction(org, (tx) => getRun(tx, run.run_id));
     expect(final).toMatchObject({ status: outcome, lease_generation: '1' });
     expect(final.result.persistence_status).toBe('verified');
-    const workspace = await transaction(org, (tx) => resources.get(tx, 'workspaces', final.workspace_id));
-    expect(workspace.files).toHaveLength(14);
+    const worktree = await transaction(org, (tx) => resources.get(tx, 'worktrees', final.worktree_id));
+    expect(worktree.files).toHaveLength(14);
     expect(
       (
         await transaction(org, (tx) =>

@@ -27,7 +27,7 @@ const p = {
   role: 'owner',
   kind: 'user' as const,
   scopes: customerScopes,
-  projectIds: [],
+  workspaceIds: [],
   operator: false,
 };
 const key = await transaction(org, async (tx) => {
@@ -51,30 +51,30 @@ async function call(method: string, route: string, body?: unknown, extra: Record
   if (!response.ok) throw new Error(JSON.stringify(value));
   return value;
 }
-const existing = await call('GET', '/v1/projects');
+const existing = await call('GET', '/v1/workspaces');
 if (!existing.data.length) {
   for (const [name, description] of [
-    ['Product workspace', 'A persistent home for product research, planning, and implementation.'],
-    ['Research lab', 'A workspace for reading, gathering evidence, and turning questions into answers.'],
+    ['Product worktree', 'A persistent home for product research, planning, and implementation.'],
+    ['Research lab', 'A worktree for reading, gathering evidence, and turning questions into answers.'],
   ]) {
-    const project = await call('POST', '/v1/projects', { name, persistence: 'persistent' });
-    const workspaces = await call('GET', `/v1/projects/${project.id}/workspaces`);
-    let ws = workspaces.data[0];
+    const workspace = await call('POST', '/v1/workspaces', { name, persistence: 'persistent' });
+    const worktrees = await call('GET', `/v1/workspaces/${workspace.id}/worktrees`);
+    let ws = worktrees.data[0];
     await call(
       'PUT',
-      `/v1/workspaces/${ws.id}/file?path=README.md`,
-      `# ${name}\n\n${description}\n\n## Getting started\n\nFiles in this workspace persist between runs. Create a new workspace to explore an independent branch.\n`,
+      `/v1/worktrees/${ws.id}/file?path=README.md`,
+      `# ${name}\n\n${description}\n\n## Getting started\n\nFiles in this worktree persist between runs. Create a new worktree to explore an independent branch.\n`,
       { 'Content-Type': 'application/octet-stream', 'If-Match': ws.revision },
     );
-    ws = await call('GET', `/v1/workspaces/${ws.id}`);
+    ws = await call('GET', `/v1/worktrees/${ws.id}`);
     await call(
       'PUT',
-      `/v1/workspaces/${ws.id}/file?path=notes%2Fbrief.md`,
-      '# Project brief\n\n- Keep changes small and reviewable.\n- Save useful findings in this workspace.\n- Explain assumptions and link to evidence.\n',
+      `/v1/worktrees/${ws.id}/file?path=notes%2Fbrief.md`,
+      '# Workspace brief\n\n- Keep changes small and reviewable.\n- Save useful findings in this worktree.\n- Explain assumptions and link to evidence.\n',
       { 'Content-Type': 'application/octet-stream', 'If-Match': ws.revision },
     );
     const accepted = await call('POST', '/v1/runs', {
-      workspace_id: ws.id,
+      worktree_id: ws.id,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',

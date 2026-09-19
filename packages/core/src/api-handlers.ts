@@ -1,13 +1,19 @@
+import * as sandboxes from './sandboxes';
+import * as decisionTasks from './decision-tasks';
+import { prepareInference } from './inferences';
+import * as decisionDefinitions from './decision-definitions';
+import * as contextArtifacts from './context-artifacts';
+import { releasePublishedArtifact } from './artifacts';
 import { customerAgentHandlers, customerAgentPreparations } from './customer-agent-handlers';
 import { composioCustomerConsent } from '../../providers/src/composio-consent';
-import { createProject } from './projects';
+import { createWorkspace } from './workspaces';
 import { editPermissions } from './agent-permissions';
 import { getExecutionPolicy, planFor } from './plans';
 import { authorizeRepository, githubInstallations, githubRepositories, githubManager } from './github-auth';
 import { queueGitSync } from './git-jobs';
 import * as r from './resources';
 import * as files from './files';
-import { workspaceOptions, renameWorkspace } from './workspace-names';
+import { worktreeOptions, renameWorktree } from './worktree-names';
 import * as runs from './runs';
 import * as connections from './connections';
 import * as access from './connection-access';
@@ -15,6 +21,7 @@ import { previewAccess } from './connection-access-resolution';
 import * as transfers from './transfers';
 import * as reports from './reports';
 import * as payments from './billing';
+import { billingUsage } from './billing-usage';
 import { disconnectConnection } from './connection-cleanup';
 import { createKey, presentKey, type KeyRow } from './keys';
 import { isSimulated } from './config';
@@ -41,7 +48,7 @@ import { exportCheckpoint } from './exports';
 import { stdioCatalog } from './stdio-catalog';
 import * as organizations from './organizations';
 import { storageReport } from './storage-maintenance';
-import { requestProjectDeletion, cancelProjectDeletion } from './deletion';
+import { requestWorkspaceDeletion, cancelWorkspaceDeletion } from './deletion';
 import * as triggers from './triggers';
 import * as triggerDeliveries from './trigger-deliveries';
 
@@ -58,13 +65,17 @@ export const capabilities = {
   api_version: 'v1',
   minimum_cli_version: '0.1.0',
   recommended_cli_version: '0.1.0',
-  features: ['streaming', 'sessions', 'workspaces', 'transfers', 'checkpoint_exports'],
+  features: ['streaming', 'sessions', 'worktrees', 'transfers', 'checkpoint_exports'],
   stream_rotation_seconds: 55 as const,
   max_transfer_files: 1000 as const,
   max_transfer_bytes: 262144000 as const,
   max_file_bytes: 26214400 as const,
 };
 const primitiveHandlers = {
+  createDecisionTask: c=>decisionTasks.createTask(c.tx,c.p,input<'DecisionTaskCreate'>(c)),
+  getDecisionTask: c=>decisionTasks.getTask(c.tx,c.p,c.params.task_id),
+  recordTaskOutcome: c=>decisionTasks.recordOutcome(c.tx,c.p,c.params.task_id,input<'ApplicationOutcome'>(c)),
+  closeDecisionTask: c=>decisionTasks.closeTask(c.tx,c.p,c.params.task_id),
   listTriggers: (c) => triggers.listTriggers(c.tx, c.p, c.query),
   createTrigger: (c) => triggers.saveTrigger(c.tx, c.p, input<'TriggerCreate'>(c)),
   getTrigger: async (c) => triggers.presentTrigger(await triggers.getTrigger(c.tx, c.p, c.params.trigger_id)),
@@ -88,9 +99,9 @@ const primitiveHandlers = {
         process.env.COMPOSIO_CALLBACK_VERIFICATION_ENABLED === 'true',
       apps: await connectorSetups(c.tx),
     }),
-  scheduleProjectDeletion: (c) =>
-    requestProjectDeletion(c.tx, c.p, c.params.project_id, input<'ProjectDeletion'>(c), c.request),
-  cancelProjectDeletion: (c) => cancelProjectDeletion(c.tx, c.p, c.params.project_id),
+  scheduleWorkspaceDeletion: (c) =>
+    requestWorkspaceDeletion(c.tx, c.p, c.params.workspace_id, input<'WorkspaceDeletion'>(c), c.request),
+  cancelWorkspaceDeletion: (c) => cancelWorkspaceDeletion(c.tx, c.p, c.params.workspace_id),
   getStorage: (c) => storageReport(c.tx, c.p.organizationId),
   updateStoragePolicy: async (c) => {
     organizations.organizationManager(c.p);
@@ -134,7 +145,7 @@ const primitiveHandlers = {
     return storageReport(c.tx, c.p.organizationId);
   },
   getExecutionPolicy: async (c) => {
-    assert(!c.p.projectIds.length, 403, 'forbidden', 'Use an unrestricted organization credential.');
+    assert(!c.p.workspaceIds.length, 403, 'forbidden', 'Use an unrestricted organization credential.');
     return getExecutionPolicy(c.tx, c.p.organizationId);
   },
   updateExecutionPolicy: (c) =>
@@ -196,19 +207,19 @@ const primitiveHandlers = {
     ),
   exportCheckpoint: async (c) =>
     exportCheckpoint(c.tx, c.p, c.params.checkpoint_id, input<'CheckpointExportRequest'>(c).format),
-  listProjects: list('projects'),
-  getProject: (c) => access.expandConnections(c.tx, c.p, 'projects', c.params.project_id, c.query),
+  listWorkspaces: list('workspaces'),
+  getWorkspace: (c) => access.expandConnections(c.tx, c.p, 'workspaces', c.params.workspace_id, c.query),
   listGithubInstallations: (c) => githubInstallations(c.tx, c.p),
   listGithubRepositories: (c) => githubRepositories(c.tx, c.p, c.query.get('installation_id')!),
-  updateProject: async (c) => {
-    const existing = await r.get(c.tx, 'projects', c.params.project_id, c.p);
-    const body = input<'ProjectPatch'>(c);
+  updateWorkspace: async (c) => {
+    const existing = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    const body = input<'WorkspacePatch'>(c);
     await editPermissions(c.tx, existing.id, body.permissions);
     assert(
       !existing.deletion_due_at || body.archived !== false,
       409,
       'deletion_pending',
-      'Cancel the pending deletion before restoring this project.',
+      'Cancel the pending deletion before restoring this workspace.',
     );
     if (body.github) {
       githubManager(c.p);
@@ -227,93 +238,93 @@ const primitiveHandlers = {
     }
     const result = await r.update(
       c.tx,
-      'projects',
+      'workspaces',
       existing.id,
       body,
       c.request.headers.get('if-match')?.replaceAll('"', ''),
     );
-    if (body.github && !existing.github && existing.default_workspace_id)
-      await queueGitSync(c.tx, c.p, String(existing.default_workspace_id), 'pull');
+    if (body.github && !existing.github && existing.default_worktree_id)
+      await queueGitSync(c.tx, c.p, String(existing.default_worktree_id), 'pull');
     return result;
   },
   disconnectGithub: async (c) => {
     const { githubManager } = await import('./github-auth');
     githubManager(c.p);
-    await r.get(c.tx, 'projects', c.params.project_id, c.p);
-    return r.update(c.tx, 'projects', c.params.project_id, { github: null });
+    await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    return r.update(c.tx, 'workspaces', c.params.workspace_id, { github: null });
   },
-  createProject: (c) => createProject(c.tx, c.p, input<'ProjectCreate'>(c)),
-  deleteProject: async (c) => {
-    const project = await r.get(c.tx, 'projects', c.params.project_id, c.p);
-    const active = await c.tx.query(
-      "SELECT id FROM runs WHERE project_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
-      [project.id],
-    );
-    assert(!active.rowCount, 409, 'project_busy', 'Cancel pending runs before archiving the project.');
-    await r.update(c.tx, 'projects', project.id, { archived: true });
-    return r.operation(c.tx, c.p, 'project_archive', { project_id: project.id });
-  },
-  listWorkspaces: async (c) => {
-    await r.get(c.tx, 'projects', c.params.project_id, c.p);
-    return r.list(c.tx, 'workspaces', c.p, c.query, { project_id: c.params.project_id, deleted: false });
-  },
-  createWorkspace: async (c) =>
-    files.createWorkspace(c.tx, c.p, c.params.project_id, input<'WorkspaceCreate'>(c)),
-  getWorkspace: get('workspaces', 'workspace_id'),
-  updateWorkspace: async (c) => {
-    const body = input<'WorkspacePatch'>(c);
-    const workspace = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
-    await editPermissions(c.tx, workspace.project_id, body.permissions);
-    if (body.name !== undefined) await renameWorkspace(c.tx, c.p, workspace.id, body.name);
-    if (body.permissions !== undefined)
-      await r.update(c.tx, 'workspaces', workspace.id, { permissions: body.permissions });
-    return r.get(c.tx, 'workspaces', workspace.id, c.p);
-  },
-  getWorktreeOptions: (c) => workspaceOptions(c.tx, c.p, c.params.project_id, c.query),
+  createWorkspace: (c) => createWorkspace(c.tx, c.p, input<'WorkspaceCreate'>(c)),
   deleteWorkspace: async (c) => {
-    const ws = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    const workspace = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    const active = await c.tx.query(
+      "SELECT id FROM runs WHERE workspace_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
+      [workspace.id],
+    );
+    assert(!active.rowCount, 409, 'workspace_busy', 'Cancel pending runs before archiving the workspace.');
+    await r.update(c.tx, 'workspaces', workspace.id, { archived: true });
+    return r.operation(c.tx, c.p, 'workspace_archive', { workspace_id: workspace.id });
+  },
+  listWorktrees: async (c) => {
+    await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+    return r.list(c.tx, 'worktrees', c.p, c.query, { workspace_id: c.params.workspace_id, deleted: false });
+  },
+  createWorktree: async (c) =>
+    files.createWorktree(c.tx, c.p, c.params.workspace_id, input<'WorktreeCreate'>(c)),
+  getWorktree: get('worktrees', 'worktree_id'),
+  updateWorktree: async (c) => {
+    const body = input<'WorktreePatch'>(c);
+    const worktree = await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
+    await editPermissions(c.tx, worktree.workspace_id, body.permissions);
+    if (body.name !== undefined) await renameWorktree(c.tx, c.p, worktree.id, body.name);
+    if (body.permissions !== undefined)
+      await r.update(c.tx, 'worktrees', worktree.id, { permissions: body.permissions });
+    return r.get(c.tx, 'worktrees', worktree.id, c.p);
+  },
+  getWorktreeOptions: (c) => worktreeOptions(c.tx, c.p, c.params.workspace_id, c.query),
+  deleteWorktree: async (c) => {
+    const ws = await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
     await files.ensureWritable(c.tx, ws.id);
-    const queued = await c.tx.query("SELECT id FROM runs WHERE workspace_id=$1 AND status='queued' LIMIT 1", [
+    const queued = await c.tx.query("SELECT id FROM runs WHERE worktree_id=$1 AND status='queued' LIMIT 1", [
       ws.id,
     ]);
-    assert(!queued.rowCount, 409, 'workspace_busy', 'Cancel queued runs before deleting this workspace.');
-    const project = await r.get(c.tx, 'projects', String(ws.project_id), c.p);
+    assert(!queued.rowCount, 409, 'worktree_busy', 'Cancel queued runs before deleting this worktree.');
+    const workspace = await r.get(c.tx, 'workspaces', String(ws.workspace_id), c.p);
     assert(
-      project.default_workspace_id !== ws.id,
+      workspace.default_worktree_id !== ws.id,
       409,
-      'default_workspace',
-      'Keep the default workspace or archive the project.',
+      'default_worktree',
+      'Keep the default worktree or archive the workspace.',
     );
-    await r.update(c.tx, 'workspaces', ws.id, { deleted: true, status: 'deleting' });
-    // Bind authorization before hiding the workspace. Resolving the deleted resource
+    await r.update(c.tx, 'worktrees', ws.id, { deleted: true, status: 'deleting' });
+    // Bind authorization before hiding the worktree. Resolving the deleted resource
     // again would turn a successful deletion into a 404 and roll back the transaction.
-    return r.operation(c.tx, c.p, 'workspace_delete', { workspace_id: ws.id, project_id: ws.project_id });
+    return r.operation(c.tx, c.p, 'worktree_delete', { worktree_id: ws.id, workspace_id: ws.workspace_id });
   },
   listFiles: async (c) => {
-    const { workspace, files: entries } = await files.workspaceFiles(c.tx, c.params.workspace_id, c.p);
+    const { worktree, files: entries } = await files.worktreeFiles(c.tx, c.params.worktree_id, c.p);
     const prefix = c.query.get('path') || '';
     if (prefix) files.normalizePath(prefix);
     const cursor = c.query.get('cursor');
     const limit = Math.min(100, Number(c.query.get('limit')) || 100);
     const selected = files
-      .listFileEntries(entries, workspace.revision, prefix, c.query.get('recursive') !== 'false')
+      .listFileEntries(entries, worktree.revision, prefix, c.query.get('recursive') !== 'false')
       .filter(
         (f) =>
           (!cursor || f.path > cursor) &&
           (!c.query.get('query') || f.path.toLowerCase().includes(c.query.get('query')!.toLowerCase())),
       )
       .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    c.headers.set('ETag', `"${workspace.revision}"`);
+    c.headers.set('ETag', `"${worktree.revision}"`);
     return {
       entries: selected.slice(0, limit),
-      revision: workspace.revision,
-      source: workspace.status === 'busy' ? 'checkpoint' : 'active_workspace',
-      observed_at: workspace.last_verified_at || workspace.created_at,
+      revision: worktree.revision,
+      source: worktree.status === 'busy' ? 'checkpoint' : 'active_worktree',
+      observed_at: worktree.last_verified_at || worktree.created_at,
       next_cursor: selected.length > limit ? selected[limit - 1].path : null,
     };
   },
   readFile: async (c) => {
-    const { workspace, files: entries } = await files.workspaceFiles(c.tx, c.params.workspace_id, c.p);
+    const { worktree, files: entries } = await files.worktreeFiles(c.tx, c.params.worktree_id, c.p);
     const path = files.normalizePath(c.query.get('path') || '');
     const file = entries.find((f) => f.path === path);
     assert(file, 404, 'not_found', 'File not found.');
@@ -337,35 +348,35 @@ const primitiveHandlers = {
       'file_too_large',
       'Use download=true or a staged file transfer to download files larger than 4 MiB.',
     );
-    c.headers.set('ETag', `"${workspace.revision}"`);
+    c.headers.set('ETag', `"${worktree.revision}"`);
     c.headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path)}`);
     return new Response(new Uint8Array(await readContent(file.key, file.sha256)), {
       headers: { ...Object.fromEntries(c.headers), 'content-type': 'application/octet-stream' },
     });
   },
   listCheckpoints: async (c) => {
-    await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
-    return r.list(c.tx, 'checkpoints', c.p, c.query, { workspace_id: c.params.workspace_id });
+    await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
+    return r.list(c.tx, 'checkpoints', c.p, c.query, { worktree_id: c.params.worktree_id });
   },
   createCheckpoint: async (c) => {
-    await files.ensureWritable(c.tx, c.params.workspace_id);
-    const cp = await files.checkpoint(c.tx, c.p, c.params.workspace_id);
-    await r.update(c.tx, 'workspaces', c.params.workspace_id, files.checkpointState(cp));
+    await files.ensureWritable(c.tx, c.params.worktree_id);
+    const cp = await files.checkpoint(c.tx, c.p, c.params.worktree_id);
+    await r.update(c.tx, 'worktrees', c.params.worktree_id, files.checkpointState(cp));
     if (input<'CheckpointCreate'>(c).pinned) await r.update(c.tx, 'checkpoints', cp.id, { pinned: true });
     return r.operation(c.tx, c.p, 'checkpoint_create', {
-      workspace_id: c.params.workspace_id,
+      worktree_id: c.params.worktree_id,
       checkpoint_id: cp.id,
     });
   },
-  restoreWorkspace: async (c) => {
-    await files.ensureWritable(c.tx, c.params.workspace_id);
-    const ws = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
+  restoreWorktree: async (c) => {
+    await files.ensureWritable(c.tx, c.params.worktree_id);
+    const ws = await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
     const cp = await r.get(c.tx, 'checkpoints', input<'RestoreRequest'>(c).checkpoint_id, c.p);
     assert(
-      cp.project_id === ws.project_id,
+      cp.workspace_id === ws.workspace_id,
       400,
       'checkpoint_mismatch',
-      'Restore from a checkpoint in this project.',
+      'Restore from a checkpoint in this workspace.',
     );
     await files.checkpoint(c.tx, c.p, ws.id, 'Before restore');
     const verified = await files.checkpoint(
@@ -376,12 +387,12 @@ const primitiveHandlers = {
       cp.files as files.FileRecord[],
       (cp.git_files || []) as files.FileRecord[],
     );
-    const changed = await r.update(c.tx, 'workspaces', ws.id, {
+    const changed = await r.update(c.tx, 'worktrees', ws.id, {
       ...files.checkpointState(verified),
       status: 'idle',
     });
-    return r.operation(c.tx, c.p, 'workspace_restore', {
-      workspace_id: ws.id,
+    return r.operation(c.tx, c.p, 'worktree_restore', {
+      worktree_id: ws.id,
       checkpoint_id: verified.id,
       revision: changed.revision,
     });
@@ -391,14 +402,14 @@ const primitiveHandlers = {
     return r.update(c.tx, 'checkpoints', c.params.checkpoint_id, input<'CheckpointPatch'>(c));
   },
   getSync: async (c) => {
-    const ws = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
-    return ws.sync || { workspace_id: ws.id, status: 'disabled', updated_at: ws.created_at };
+    const ws = await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
+    return ws.sync || { worktree_id: ws.id, status: 'disabled', updated_at: ws.created_at };
   },
-  syncWorkspace: async (c) =>
+  syncWorktree: async (c) =>
     queueGitSync(
       c.tx,
       c.p,
-      c.params.workspace_id,
+      c.params.worktree_id,
       (c.body as { mode?: 'push' | 'pull' | 'pull_request' }).mode || 'push',
     ),
   listAgents: list('agents'),
@@ -431,7 +442,7 @@ const primitiveHandlers = {
     await r.update(c.tx, 'agents', c.params.agent_id, { deleted: true });
   },
   listSessions: list('sessions', (c) =>
-    c.query.has('workspace_id') ? { workspace_id: c.query.get('workspace_id') } : {},
+    c.query.has('worktree_id') ? { worktree_id: c.query.get('worktree_id') } : {},
   ),
   getSession: get('sessions', 'session_id'),
   createSession: async (c) => runs.createSession(c.tx, c.p, input<'SessionCreate'>(c)),
@@ -442,12 +453,29 @@ const primitiveHandlers = {
       { ...input<'MessageCreate'>(c), session_id: c.params.session_id },
       runs.requestClientType(c.request),
     ),
+  createDecisionDefinition: c=>decisionDefinitions.createDefinition(c.tx,c.p,input<'DecisionDefinitionCreate'>(c)),
+  getDecisionDefinition: c=>decisionDefinitions.getDefinition(c.tx,c.p,c.params.definition_id),
+  deleteDecisionDefinition: c=>decisionDefinitions.withdrawDefinition(c.tx,c.p,c.params.definition_id),
+  getContextArtifact: async c=>contextArtifacts.presentContext(await contextArtifacts.contextArtifact(c.tx,c.p,c.params.artifact_id)),
+  deleteContextArtifact: c=>contextArtifacts.releaseContext(c.tx,c.p,c.params.artifact_id),
+  createSandbox: c => sandboxes.createSandbox(c.tx, c.p, input<'SandboxCreate'>(c)),
+  getSandbox: async c => sandboxes.presentSandbox(await sandboxes.getSandbox(c.tx, c.params.sandbox_id, c.p)),
+  pauseSandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'pause'),
+  resumeSandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'resume'),
+  destroySandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'destroy'),
+  listSandboxes: async c => {
+    const limit = Number(c.query.get('limit') || 25);
+    const rows = (await c.tx.query<sandboxes.SandboxRow>(`SELECT * FROM sandboxes WHERE ($1::uuid IS NULL OR worktree_id=$1)
+      AND ($2::uuid IS NULL OR id<$2) AND (cardinality($3::uuid[])=0 OR workspace_id=ANY($3::uuid[])) ORDER BY id DESC LIMIT $4`,
+      [c.query.get('worktree_id'), c.query.get('cursor'), c.p.workspaceIds, limit+1])).rows;
+    return { data: rows.slice(0,limit).map(sandboxes.presentSandbox), next_cursor: rows.length>limit ? rows[limit-1].id : null };
+  },
   createRun: async (c) => runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), runs.requestClientType(c.request)),
   getRun: async (c) => (await runs.presentRuns(c.tx, [await runs.getRun(c.tx, c.params.run_id, c.p)]))[0],
   listRuns: async (c) => {
     const args: unknown[] = [];
     const where = ['true'];
-    for (const field of ['project_id', 'workspace_id', 'session_id', 'status'])
+    for (const field of ['workspace_id', 'worktree_id', 'session_id', 'status'])
       if (c.query.has(field)) {
         args.push(c.query.get(field));
         where.push(`${field}=$${args.length}`);
@@ -456,9 +484,9 @@ const primitiveHandlers = {
       args.push(c.query.get('cursor'));
       where.push(`id<$${args.length}::uuid`);
     }
-    if (c.p.projectIds.length) {
-      args.push(c.p.projectIds);
-      where.push(`project_id=ANY($${args.length}::uuid[])`);
+    if (c.p.workspaceIds.length) {
+      args.push(c.p.workspaceIds);
+      where.push(`workspace_id=ANY($${args.length}::uuid[])`);
     }
     const limit = Math.min(100, Number(c.query.get('limit')) || 25);
     args.push(limit + 1);
@@ -514,6 +542,7 @@ const primitiveHandlers = {
       String(artifact.name),
     );
   },
+  deleteArtifact: async (c) => { await releasePublishedArtifact(c.tx,c.p,c.params.artifact_id); },
   listConnections: (c) => access.listContextConnections(c.tx, c.p, c.query),
   getConnection: async (c) =>
     access.safeConnection(await r.get(c.tx, 'connections', c.params.connection_id, c.p), c.p),
@@ -653,7 +682,7 @@ const primitiveHandlers = {
       event_id: original.event_id,
       endpoint_id: original.endpoint_id,
       payload: original.payload,
-      project_id: original.project_id,
+      workspace_id: original.workspace_id,
       replay_of: original.id,
       status: 'pending',
       attempts: 0,
@@ -674,6 +703,7 @@ const primitiveHandlers = {
   getUsage: async (c) => reports.usageReport(c.tx, c.query, false, c.p.organizationId),
   listRequests: async (c) => reports.requests(c.tx, c.query, c.p.organizationId),
   getBilling: async (c) => reports.billing(c.tx, c.p.organizationId),
+  listBillingUsage: async (c) => billingUsage(c.tx, c.p.organizationId, c.query),
   createCheckout: async (c) => payments.checkout(c.tx, c.p, input<'CheckoutCreate'>(c), c.idempotencyKey),
   createBillingPortal: async (c) => payments.portal(c.tx, c.p),
   listHarnesses: async () =>
@@ -710,27 +740,27 @@ const primitiveHandlers = {
       )
     ).rows,
     effective_scopes: c.p.scopes,
-    project_restrictions: c.p.projectIds,
+    workspace_restrictions: c.p.workspaceIds,
     capabilities,
   }),
   createTransfer: async (c) =>
-    transfers.createTransfer(c.tx, c.p, c.params.workspace_id, input<'TransferCreate'>(c)),
+    transfers.createTransfer(c.tx, c.p, c.params.worktree_id, input<'TransferCreate'>(c)),
   listTransfers: async (c) => {
-    await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
-    return r.list(c.tx, 'transfers', c.p, c.query, { workspace_id: c.params.workspace_id });
+    await r.get(c.tx, 'worktrees', c.params.worktree_id, c.p);
+    return r.list(c.tx, 'transfers', c.p, c.query, { worktree_id: c.params.worktree_id });
   },
   getTransfer: get('transfers', 'transfer_id'),
   applyTransfer: async (c) =>
     transfers.applyTransfer(c.tx, c.p, c.params.transfer_id, input<'TransferApply'>(c)),
-  getWorkspaceDiff: async (c) => {
-    const { workspace, files: current } = await files.workspaceFiles(c.tx, c.params.workspace_id, c.p);
-    const baseId = c.query.get('base_checkpoint_id') || (workspace.base_checkpoint_id as string | undefined);
+  getWorktreeDiff: async (c) => {
+    const { worktree, files: current } = await files.worktreeFiles(c.tx, c.params.worktree_id, c.p);
+    const baseId = c.query.get('base_checkpoint_id') || (worktree.base_checkpoint_id as string | undefined);
     const base = baseId ? await r.get(c.tx, 'checkpoints', baseId, c.p) : undefined;
     assert(
-      !base || base.project_id === workspace.project_id,
+      !base || base.workspace_id === worktree.workspace_id,
       400,
       'checkpoint_mismatch',
-      'Diff checkpoint must belong to this project.',
+      'Diff checkpoint must belong to this workspace.',
     );
     const before = (base?.files || []) as files.FileRecord[];
     const previousFiles = new Map(before.map((file) => [file.path, file]));
@@ -744,7 +774,7 @@ const primitiveHandlers = {
       )
       .sort();
     const limit = Math.min(100, Number(c.query.get('limit')) || 100);
-    const diff: ApiResult<'getWorkspaceDiff'>['data'] = [];
+    const diff: ApiResult<'getWorktreeDiff'>['data'] = [];
     // Decide which paths are returned before fetching their content.
     for (const path of paths.slice(0, limit)) {
       const a = previousFiles.get(path),
@@ -766,9 +796,9 @@ const primitiveHandlers = {
       });
     }
     return {
-      workspace_id: workspace.id,
+      worktree_id: worktree.id,
       base_checkpoint_id: baseId,
-      revision: workspace.revision,
+      revision: worktree.revision,
       data: diff,
       next_cursor: null,
       truncated: paths.length > limit,
@@ -780,12 +810,16 @@ export const handlers: HandlerMap = { ...primitiveHandlers, ...customerAgentHand
 const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   files.prepareFileMutation(
     c.p,
-    c.params.workspace_id,
+    c.params.worktree_id,
     (c.request.headers.get('if-match') || '').replace(/^"|"$/g, ''),
     mutation,
   );
 /** Expensive immutable preparation is separate from the final idempotent SQL commit. */
 export const preparations: PreparationMap = {
+  wakeDecisionTask: c=>decisionTasks.prepareTaskWake(c.p,c.params.task_id,input<'DecisionTaskWake'>(c)),
+  createBoundedAgentRun: c=>prepareInference(c.p,input<'BoundedAgentCreate'>(c),'bounded_agent'),
+  createInference: c=>prepareInference(c.p,input<'InferenceCreate'>(c)),
+  createContextArtifact: c=>contextArtifacts.prepareContextArtifact(c.p,input<'ContextArtifactCreate'>(c)),
   ...customerAgentPreparations(composioCustomerConsent),
   writeFile: (c) =>
     prepareFile(c, {

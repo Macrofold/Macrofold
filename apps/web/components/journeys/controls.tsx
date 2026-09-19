@@ -100,16 +100,16 @@ export function CodePanel() {
         </summary>
         <div>
           <p>
-            Create a project in the dashboard and set <code>project_id</code> and{' '}
+            Create a workspace in the dashboard and set <code>workspace_id</code> and{' '}
             <code>MACROFOLD_API_KEY</code>. Choose a compatible model from the catalog: this example uses
             OpenAI’s GPT-5.4 mini with Codex. The catalog determines the provider. Managed execution uses your
             credits; no saved session or agent preset is required.
           </p>
           <p>
             Follow the <Link href="/docs/sdk">SDK installation guide</Link>. <Mark name="Go" /> is a function
-            body with <code>ctx</code>, <code>projectID</code>, <code>fmt</code>, and the SDK import;{' '}
-            <Mark name="Rust" /> runs in an async function with a parsed project UUID. The <Mark name="CLI" />{' '}
-            command runs after <Link href="/docs/cli">installation</Link>, login, and project linking.
+            body with <code>ctx</code>, <code>workspaceID</code>, <code>fmt</code>, and the SDK import;{' '}
+            <Mark name="Rust" /> runs in an async function with a parsed workspace UUID. The <Mark name="CLI" />{' '}
+            command runs after <Link href="/docs/cli">installation</Link>, login, and workspace linking.
           </p>
           <p>
             <Mark name="cURL" /> uses <code>jq</code> to extract the ID. Keep the request key and body if a
@@ -222,7 +222,7 @@ function Story({ study, useCase }: { study: Journey; useCase: UseCase }) {
           </article>
         ))}
       </div>
-      <aside className="jl-sticky" aria-label="Evolving workspace diagram">
+      <aside className="jl-sticky" aria-label="Evolving worktree diagram">
         <div className="jl-step-nav" role="group" aria-label="Jump to a pillar">
           {pillars.map((pillar, i) => (
             <button

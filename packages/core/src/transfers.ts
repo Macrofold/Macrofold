@@ -9,7 +9,7 @@ import { config } from './config';
 import * as resources from './resources';
 import {
   normalizePath,
-  workspaceFiles,
+  worktreeFiles,
   ensureWritable,
   checkpoint,
   checkpointState,
@@ -129,7 +129,7 @@ function selected(path: string, paths: string[]) {
 export async function createTransfer(
   tx: Tx,
   p: Principal,
-  workspaceId: string,
+  worktreeId: string,
   input: Schema['TransferCreate'],
 ) {
   if (input.direction === 'push') requireScopes(p, ['files:write']);
@@ -147,12 +147,12 @@ export async function createTransfer(
       'Complete existing transfers or wait for them to expire before planning more uploads.',
     );
   }
-  const { workspace, files } = await workspaceFiles(tx, workspaceId, p);
+  const { worktree, files } = await worktreeFiles(tx, worktreeId, p);
   assert(
-    workspace.revision === input.base_revision,
+    worktree.revision === input.base_revision,
     412,
     'stale_revision',
-    'Refresh the remote workspace before planning the transfer.',
+    'Refresh the remote worktree before planning the transfer.',
   );
   const paths = input.paths.map(normalizePath);
   const seen = new Set<string>();
@@ -273,8 +273,8 @@ export async function createTransfer(
     'transfers',
     p.organizationId,
     {
-      workspace_id: workspaceId,
-      project_id: workspace.project_id,
+      worktree_id: worktreeId,
+      workspace_id: worktree.workspace_id,
       direction: input.direction,
       base_revision: input.base_revision,
       status: actions.some((a) => a.action === 'conflict') ? 'conflicted' : 'planned',
@@ -316,7 +316,7 @@ export async function applyTransfer(
     'transfer_conflicted',
     'Resolve conflicts and create a new transfer.',
   );
-  const workspaceId = String(transfer.workspace_id);
+  const worktreeId = String(transfer.worktree_id);
   const actions = transfer.actions as Schema['TransferAction'][];
   if (transfer.direction === 'pull') {
     const completed = new Set(input.completed_paths || []);
@@ -332,7 +332,7 @@ export async function applyTransfer(
       .filter((a) => ['download', 'delete'].includes(a.action))
       .every((a) => completed.has(a.path));
     const op = await resources.operation(tx, p, 'transfer_pull', {
-      workspace_id: workspaceId,
+      worktree_id: worktreeId,
       transfer_id: transferId,
       local_receipt_complete: done,
     });
@@ -344,13 +344,13 @@ export async function applyTransfer(
     return op;
   }
   requireScopes(p, ['files:write']);
-  await ensureWritable(tx, workspaceId);
-  const { workspace, files } = await workspaceFiles(tx, workspaceId, p);
+  await ensureWritable(tx, worktreeId);
+  const { worktree, files } = await worktreeFiles(tx, worktreeId, p);
   assert(
-    workspace.revision === input.expected_revision && workspace.revision === transfer.base_revision,
+    worktree.revision === input.expected_revision && worktree.revision === transfer.base_revision,
     412,
     'stale_revision',
-    'The workspace changed after planning. Create a fresh transfer.',
+    'The worktree changed after planning. Create a fresh transfer.',
   );
   const staged = (transfer.staged || {}) as Record<
     string,
@@ -392,16 +392,16 @@ export async function applyTransfer(
       });
     }
   }
-  const cp = await checkpoint(tx, p, workspaceId, 'Files uploaded', next);
+  const cp = await checkpoint(tx, p, worktreeId, 'Files uploaded', next);
   const updated = await resources.update(
     tx,
-    'workspaces',
-    workspaceId,
+    'worktrees',
+    worktreeId,
     checkpointState(cp),
-    workspace.revision,
+    worktree.revision,
   );
   const op = await resources.operation(tx, p, 'transfer_push', {
-    workspace_id: workspaceId,
+    worktree_id: worktreeId,
     transfer_id: transferId,
     revision: updated.revision,
     checkpoint_id: cp.id,

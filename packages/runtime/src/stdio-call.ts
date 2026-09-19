@@ -1,9 +1,10 @@
+import { controlDirectory } from './control-directory';
 import { readFile, mkdir, unlink } from 'node:fs/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { z } from 'zod';
 const invocationId = z.uuid().parse(process.argv[2]);
-const root = '/platform-control',
+const root = controlDirectory(),
   file = `${root}/stdio-${invocationId}.json`;
 if (process.platform !== 'linux' || process.getuid?.() !== 0)
   throw new Error('This command requires an isolated root supervisor.');

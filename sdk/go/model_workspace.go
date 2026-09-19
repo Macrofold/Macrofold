@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -22,22 +22,20 @@ var _ MappedNullable = &Workspace{}
 // Workspace struct for Workspace
 type Workspace struct {
 	Id string `json:"id"`
-	ProjectId string `json:"project_id"`
 	OrganizationId string `json:"organization_id"`
-	Name NullableString `json:"name"`
-	Branch NullableString `json:"branch,omitempty"`
-	Revision string `json:"revision"`
-	Status string `json:"status"`
-	LatestCheckpointId *string `json:"latest_checkpoint_id,omitempty"`
-	LastVerifiedAt *time.Time `json:"last_verified_at,omitempty"`
+	Name string `json:"name"`
+	Persistence string `json:"persistence"`
+	Github NullableWorkspaceGithub `json:"github,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
-	SourceCommit *string `json:"source_commit,omitempty"`
-	SourceCheckpointId *string `json:"source_checkpoint_id,omitempty"`
-	GitCommit *string `json:"git_commit,omitempty"`
-	GitStatus *string `json:"git_status,omitempty"`
-	GitError NullableString `json:"git_error,omitempty"`
-	RemoteChange NullableWorkspaceRemoteChange `json:"remote_change,omitempty"`
+	// Non-negative integer count as a decimal string.
+	StorageBytes *string `json:"storage_bytes,omitempty" validate:"regexp=^[0-9]+$"`
+	Archived *bool `json:"archived,omitempty"`
+	DefaultWorktreeId *string `json:"default_worktree_id,omitempty"`
+	Revision *string `json:"revision,omitempty"`
+	DeletionDueAt NullableTime `json:"deletion_due_at,omitempty"`
+	DeletionRequestedAt NullableTime `json:"deletion_requested_at,omitempty"`
 	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	Connections *ContextualConnectionPage `json:"connections,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -47,14 +45,12 @@ type _Workspace Workspace
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewWorkspace(id string, projectId string, organizationId string, name NullableString, revision string, status string, createdAt time.Time) *Workspace {
+func NewWorkspace(id string, organizationId string, name string, persistence string, createdAt time.Time) *Workspace {
 	this := Workspace{}
 	this.Id = id
-	this.ProjectId = projectId
 	this.OrganizationId = organizationId
 	this.Name = name
-	this.Revision = revision
-	this.Status = status
+	this.Persistence = persistence
 	this.CreatedAt = createdAt
 	return &this
 }
@@ -91,30 +87,6 @@ func (o *Workspace) SetId(v string) {
 	o.Id = v
 }
 
-// GetProjectId returns the ProjectId field value
-func (o *Workspace) GetProjectId() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.ProjectId
-}
-
-// GetProjectIdOk returns a tuple with the ProjectId field value
-// and a boolean to check if the value has been set.
-func (o *Workspace) GetProjectIdOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.ProjectId, true
-}
-
-// SetProjectId sets field value
-func (o *Workspace) SetProjectId(v string) {
-	o.ProjectId = v
-}
-
 // GetOrganizationId returns the OrganizationId field value
 func (o *Workspace) GetOrganizationId() string {
 	if o == nil {
@@ -140,183 +112,93 @@ func (o *Workspace) SetOrganizationId(v string) {
 }
 
 // GetName returns the Name field value
-// If the value is explicit nil, the zero value for string will be returned
 func (o *Workspace) GetName() string {
-	if o == nil || o.Name.Get() == nil {
+	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return *o.Name.Get()
+	return o.Name
 }
 
 // GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Workspace) GetNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.Name.Get(), o.Name.IsSet()
+	return &o.Name, true
 }
 
 // SetName sets field value
 func (o *Workspace) SetName(v string) {
-	o.Name.Set(&v)
+	o.Name = v
 }
 
-// GetBranch returns the Branch field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *Workspace) GetBranch() string {
-	if o == nil || IsNil(o.Branch.Get()) {
+// GetPersistence returns the Persistence field value
+func (o *Workspace) GetPersistence() string {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Branch.Get()
+
+	return o.Persistence
 }
 
-// GetBranchOk returns a tuple with the Branch field value if set, nil otherwise
+// GetPersistenceOk returns a tuple with the Persistence field value
+// and a boolean to check if the value has been set.
+func (o *Workspace) GetPersistenceOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Persistence, true
+}
+
+// SetPersistence sets field value
+func (o *Workspace) SetPersistence(v string) {
+	o.Persistence = v
+}
+
+// GetGithub returns the Github field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Workspace) GetGithub() WorkspaceGithub {
+	if o == nil || IsNil(o.Github.Get()) {
+		var ret WorkspaceGithub
+		return ret
+	}
+	return *o.Github.Get()
+}
+
+// GetGithubOk returns a tuple with the Github field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *Workspace) GetBranchOk() (*string, bool) {
+func (o *Workspace) GetGithubOk() (*WorkspaceGithub, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.Branch.Get(), o.Branch.IsSet()
+	return o.Github.Get(), o.Github.IsSet()
 }
 
-// HasBranch returns a boolean if a field has been set.
-func (o *Workspace) HasBranch() bool {
-	if o != nil && o.Branch.IsSet() {
+// HasGithub returns a boolean if a field has been set.
+func (o *Workspace) HasGithub() bool {
+	if o != nil && o.Github.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetBranch gets a reference to the given NullableString and assigns it to the Branch field.
-func (o *Workspace) SetBranch(v string) {
-	o.Branch.Set(&v)
+// SetGithub gets a reference to the given NullableWorkspaceGithub and assigns it to the Github field.
+func (o *Workspace) SetGithub(v WorkspaceGithub) {
+	o.Github.Set(&v)
 }
-// SetBranchNil sets the value for Branch to be an explicit nil
-func (o *Workspace) SetBranchNil() {
-	o.Branch.Set(nil)
-}
-
-// UnsetBranch ensures that no value is present for Branch, not even an explicit nil
-func (o *Workspace) UnsetBranch() {
-	o.Branch.Unset()
+// SetGithubNil sets the value for Github to be an explicit nil
+func (o *Workspace) SetGithubNil() {
+	o.Github.Set(nil)
 }
 
-// GetRevision returns the Revision field value
-func (o *Workspace) GetRevision() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.Revision
-}
-
-// GetRevisionOk returns a tuple with the Revision field value
-// and a boolean to check if the value has been set.
-func (o *Workspace) GetRevisionOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.Revision, true
-}
-
-// SetRevision sets field value
-func (o *Workspace) SetRevision(v string) {
-	o.Revision = v
-}
-
-// GetStatus returns the Status field value
-func (o *Workspace) GetStatus() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.Status
-}
-
-// GetStatusOk returns a tuple with the Status field value
-// and a boolean to check if the value has been set.
-func (o *Workspace) GetStatusOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.Status, true
-}
-
-// SetStatus sets field value
-func (o *Workspace) SetStatus(v string) {
-	o.Status = v
-}
-
-// GetLatestCheckpointId returns the LatestCheckpointId field value if set, zero value otherwise.
-func (o *Workspace) GetLatestCheckpointId() string {
-	if o == nil || IsNil(o.LatestCheckpointId) {
-		var ret string
-		return ret
-	}
-	return *o.LatestCheckpointId
-}
-
-// GetLatestCheckpointIdOk returns a tuple with the LatestCheckpointId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *Workspace) GetLatestCheckpointIdOk() (*string, bool) {
-	if o == nil || IsNil(o.LatestCheckpointId) {
-		return nil, false
-	}
-	return o.LatestCheckpointId, true
-}
-
-// HasLatestCheckpointId returns a boolean if a field has been set.
-func (o *Workspace) HasLatestCheckpointId() bool {
-	if o != nil && !IsNil(o.LatestCheckpointId) {
-		return true
-	}
-
-	return false
-}
-
-// SetLatestCheckpointId gets a reference to the given string and assigns it to the LatestCheckpointId field.
-func (o *Workspace) SetLatestCheckpointId(v string) {
-	o.LatestCheckpointId = &v
-}
-
-// GetLastVerifiedAt returns the LastVerifiedAt field value if set, zero value otherwise.
-func (o *Workspace) GetLastVerifiedAt() time.Time {
-	if o == nil || IsNil(o.LastVerifiedAt) {
-		var ret time.Time
-		return ret
-	}
-	return *o.LastVerifiedAt
-}
-
-// GetLastVerifiedAtOk returns a tuple with the LastVerifiedAt field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *Workspace) GetLastVerifiedAtOk() (*time.Time, bool) {
-	if o == nil || IsNil(o.LastVerifiedAt) {
-		return nil, false
-	}
-	return o.LastVerifiedAt, true
-}
-
-// HasLastVerifiedAt returns a boolean if a field has been set.
-func (o *Workspace) HasLastVerifiedAt() bool {
-	if o != nil && !IsNil(o.LastVerifiedAt) {
-		return true
-	}
-
-	return false
-}
-
-// SetLastVerifiedAt gets a reference to the given time.Time and assigns it to the LastVerifiedAt field.
-func (o *Workspace) SetLastVerifiedAt(v time.Time) {
-	o.LastVerifiedAt = &v
+// UnsetGithub ensures that no value is present for Github, not even an explicit nil
+func (o *Workspace) UnsetGithub() {
+	o.Github.Unset()
 }
 
 // GetCreatedAt returns the CreatedAt field value
@@ -343,216 +225,216 @@ func (o *Workspace) SetCreatedAt(v time.Time) {
 	o.CreatedAt = v
 }
 
-// GetSourceCommit returns the SourceCommit field value if set, zero value otherwise.
-func (o *Workspace) GetSourceCommit() string {
-	if o == nil || IsNil(o.SourceCommit) {
+// GetStorageBytes returns the StorageBytes field value if set, zero value otherwise.
+func (o *Workspace) GetStorageBytes() string {
+	if o == nil || IsNil(o.StorageBytes) {
 		var ret string
 		return ret
 	}
-	return *o.SourceCommit
+	return *o.StorageBytes
 }
 
-// GetSourceCommitOk returns a tuple with the SourceCommit field value if set, nil otherwise
+// GetStorageBytesOk returns a tuple with the StorageBytes field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Workspace) GetSourceCommitOk() (*string, bool) {
-	if o == nil || IsNil(o.SourceCommit) {
+func (o *Workspace) GetStorageBytesOk() (*string, bool) {
+	if o == nil || IsNil(o.StorageBytes) {
 		return nil, false
 	}
-	return o.SourceCommit, true
+	return o.StorageBytes, true
 }
 
-// HasSourceCommit returns a boolean if a field has been set.
-func (o *Workspace) HasSourceCommit() bool {
-	if o != nil && !IsNil(o.SourceCommit) {
+// HasStorageBytes returns a boolean if a field has been set.
+func (o *Workspace) HasStorageBytes() bool {
+	if o != nil && !IsNil(o.StorageBytes) {
 		return true
 	}
 
 	return false
 }
 
-// SetSourceCommit gets a reference to the given string and assigns it to the SourceCommit field.
-func (o *Workspace) SetSourceCommit(v string) {
-	o.SourceCommit = &v
+// SetStorageBytes gets a reference to the given string and assigns it to the StorageBytes field.
+func (o *Workspace) SetStorageBytes(v string) {
+	o.StorageBytes = &v
 }
 
-// GetSourceCheckpointId returns the SourceCheckpointId field value if set, zero value otherwise.
-func (o *Workspace) GetSourceCheckpointId() string {
-	if o == nil || IsNil(o.SourceCheckpointId) {
-		var ret string
+// GetArchived returns the Archived field value if set, zero value otherwise.
+func (o *Workspace) GetArchived() bool {
+	if o == nil || IsNil(o.Archived) {
+		var ret bool
 		return ret
 	}
-	return *o.SourceCheckpointId
+	return *o.Archived
 }
 
-// GetSourceCheckpointIdOk returns a tuple with the SourceCheckpointId field value if set, nil otherwise
+// GetArchivedOk returns a tuple with the Archived field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Workspace) GetSourceCheckpointIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SourceCheckpointId) {
+func (o *Workspace) GetArchivedOk() (*bool, bool) {
+	if o == nil || IsNil(o.Archived) {
 		return nil, false
 	}
-	return o.SourceCheckpointId, true
+	return o.Archived, true
 }
 
-// HasSourceCheckpointId returns a boolean if a field has been set.
-func (o *Workspace) HasSourceCheckpointId() bool {
-	if o != nil && !IsNil(o.SourceCheckpointId) {
+// HasArchived returns a boolean if a field has been set.
+func (o *Workspace) HasArchived() bool {
+	if o != nil && !IsNil(o.Archived) {
 		return true
 	}
 
 	return false
 }
 
-// SetSourceCheckpointId gets a reference to the given string and assigns it to the SourceCheckpointId field.
-func (o *Workspace) SetSourceCheckpointId(v string) {
-	o.SourceCheckpointId = &v
+// SetArchived gets a reference to the given bool and assigns it to the Archived field.
+func (o *Workspace) SetArchived(v bool) {
+	o.Archived = &v
 }
 
-// GetGitCommit returns the GitCommit field value if set, zero value otherwise.
-func (o *Workspace) GetGitCommit() string {
-	if o == nil || IsNil(o.GitCommit) {
+// GetDefaultWorktreeId returns the DefaultWorktreeId field value if set, zero value otherwise.
+func (o *Workspace) GetDefaultWorktreeId() string {
+	if o == nil || IsNil(o.DefaultWorktreeId) {
 		var ret string
 		return ret
 	}
-	return *o.GitCommit
+	return *o.DefaultWorktreeId
 }
 
-// GetGitCommitOk returns a tuple with the GitCommit field value if set, nil otherwise
+// GetDefaultWorktreeIdOk returns a tuple with the DefaultWorktreeId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Workspace) GetGitCommitOk() (*string, bool) {
-	if o == nil || IsNil(o.GitCommit) {
+func (o *Workspace) GetDefaultWorktreeIdOk() (*string, bool) {
+	if o == nil || IsNil(o.DefaultWorktreeId) {
 		return nil, false
 	}
-	return o.GitCommit, true
+	return o.DefaultWorktreeId, true
 }
 
-// HasGitCommit returns a boolean if a field has been set.
-func (o *Workspace) HasGitCommit() bool {
-	if o != nil && !IsNil(o.GitCommit) {
+// HasDefaultWorktreeId returns a boolean if a field has been set.
+func (o *Workspace) HasDefaultWorktreeId() bool {
+	if o != nil && !IsNil(o.DefaultWorktreeId) {
 		return true
 	}
 
 	return false
 }
 
-// SetGitCommit gets a reference to the given string and assigns it to the GitCommit field.
-func (o *Workspace) SetGitCommit(v string) {
-	o.GitCommit = &v
+// SetDefaultWorktreeId gets a reference to the given string and assigns it to the DefaultWorktreeId field.
+func (o *Workspace) SetDefaultWorktreeId(v string) {
+	o.DefaultWorktreeId = &v
 }
 
-// GetGitStatus returns the GitStatus field value if set, zero value otherwise.
-func (o *Workspace) GetGitStatus() string {
-	if o == nil || IsNil(o.GitStatus) {
+// GetRevision returns the Revision field value if set, zero value otherwise.
+func (o *Workspace) GetRevision() string {
+	if o == nil || IsNil(o.Revision) {
 		var ret string
 		return ret
 	}
-	return *o.GitStatus
+	return *o.Revision
 }
 
-// GetGitStatusOk returns a tuple with the GitStatus field value if set, nil otherwise
+// GetRevisionOk returns a tuple with the Revision field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Workspace) GetGitStatusOk() (*string, bool) {
-	if o == nil || IsNil(o.GitStatus) {
+func (o *Workspace) GetRevisionOk() (*string, bool) {
+	if o == nil || IsNil(o.Revision) {
 		return nil, false
 	}
-	return o.GitStatus, true
+	return o.Revision, true
 }
 
-// HasGitStatus returns a boolean if a field has been set.
-func (o *Workspace) HasGitStatus() bool {
-	if o != nil && !IsNil(o.GitStatus) {
+// HasRevision returns a boolean if a field has been set.
+func (o *Workspace) HasRevision() bool {
+	if o != nil && !IsNil(o.Revision) {
 		return true
 	}
 
 	return false
 }
 
-// SetGitStatus gets a reference to the given string and assigns it to the GitStatus field.
-func (o *Workspace) SetGitStatus(v string) {
-	o.GitStatus = &v
+// SetRevision gets a reference to the given string and assigns it to the Revision field.
+func (o *Workspace) SetRevision(v string) {
+	o.Revision = &v
 }
 
-// GetGitError returns the GitError field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *Workspace) GetGitError() string {
-	if o == nil || IsNil(o.GitError.Get()) {
-		var ret string
+// GetDeletionDueAt returns the DeletionDueAt field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Workspace) GetDeletionDueAt() time.Time {
+	if o == nil || IsNil(o.DeletionDueAt.Get()) {
+		var ret time.Time
 		return ret
 	}
-	return *o.GitError.Get()
+	return *o.DeletionDueAt.Get()
 }
 
-// GetGitErrorOk returns a tuple with the GitError field value if set, nil otherwise
+// GetDeletionDueAtOk returns a tuple with the DeletionDueAt field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *Workspace) GetGitErrorOk() (*string, bool) {
+func (o *Workspace) GetDeletionDueAtOk() (*time.Time, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.GitError.Get(), o.GitError.IsSet()
+	return o.DeletionDueAt.Get(), o.DeletionDueAt.IsSet()
 }
 
-// HasGitError returns a boolean if a field has been set.
-func (o *Workspace) HasGitError() bool {
-	if o != nil && o.GitError.IsSet() {
+// HasDeletionDueAt returns a boolean if a field has been set.
+func (o *Workspace) HasDeletionDueAt() bool {
+	if o != nil && o.DeletionDueAt.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetGitError gets a reference to the given NullableString and assigns it to the GitError field.
-func (o *Workspace) SetGitError(v string) {
-	o.GitError.Set(&v)
+// SetDeletionDueAt gets a reference to the given NullableTime and assigns it to the DeletionDueAt field.
+func (o *Workspace) SetDeletionDueAt(v time.Time) {
+	o.DeletionDueAt.Set(&v)
 }
-// SetGitErrorNil sets the value for GitError to be an explicit nil
-func (o *Workspace) SetGitErrorNil() {
-	o.GitError.Set(nil)
-}
-
-// UnsetGitError ensures that no value is present for GitError, not even an explicit nil
-func (o *Workspace) UnsetGitError() {
-	o.GitError.Unset()
+// SetDeletionDueAtNil sets the value for DeletionDueAt to be an explicit nil
+func (o *Workspace) SetDeletionDueAtNil() {
+	o.DeletionDueAt.Set(nil)
 }
 
-// GetRemoteChange returns the RemoteChange field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *Workspace) GetRemoteChange() WorkspaceRemoteChange {
-	if o == nil || IsNil(o.RemoteChange.Get()) {
-		var ret WorkspaceRemoteChange
+// UnsetDeletionDueAt ensures that no value is present for DeletionDueAt, not even an explicit nil
+func (o *Workspace) UnsetDeletionDueAt() {
+	o.DeletionDueAt.Unset()
+}
+
+// GetDeletionRequestedAt returns the DeletionRequestedAt field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Workspace) GetDeletionRequestedAt() time.Time {
+	if o == nil || IsNil(o.DeletionRequestedAt.Get()) {
+		var ret time.Time
 		return ret
 	}
-	return *o.RemoteChange.Get()
+	return *o.DeletionRequestedAt.Get()
 }
 
-// GetRemoteChangeOk returns a tuple with the RemoteChange field value if set, nil otherwise
+// GetDeletionRequestedAtOk returns a tuple with the DeletionRequestedAt field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *Workspace) GetRemoteChangeOk() (*WorkspaceRemoteChange, bool) {
+func (o *Workspace) GetDeletionRequestedAtOk() (*time.Time, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.RemoteChange.Get(), o.RemoteChange.IsSet()
+	return o.DeletionRequestedAt.Get(), o.DeletionRequestedAt.IsSet()
 }
 
-// HasRemoteChange returns a boolean if a field has been set.
-func (o *Workspace) HasRemoteChange() bool {
-	if o != nil && o.RemoteChange.IsSet() {
+// HasDeletionRequestedAt returns a boolean if a field has been set.
+func (o *Workspace) HasDeletionRequestedAt() bool {
+	if o != nil && o.DeletionRequestedAt.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetRemoteChange gets a reference to the given NullableWorkspaceRemoteChange and assigns it to the RemoteChange field.
-func (o *Workspace) SetRemoteChange(v WorkspaceRemoteChange) {
-	o.RemoteChange.Set(&v)
+// SetDeletionRequestedAt gets a reference to the given NullableTime and assigns it to the DeletionRequestedAt field.
+func (o *Workspace) SetDeletionRequestedAt(v time.Time) {
+	o.DeletionRequestedAt.Set(&v)
 }
-// SetRemoteChangeNil sets the value for RemoteChange to be an explicit nil
-func (o *Workspace) SetRemoteChangeNil() {
-	o.RemoteChange.Set(nil)
+// SetDeletionRequestedAtNil sets the value for DeletionRequestedAt to be an explicit nil
+func (o *Workspace) SetDeletionRequestedAtNil() {
+	o.DeletionRequestedAt.Set(nil)
 }
 
-// UnsetRemoteChange ensures that no value is present for RemoteChange, not even an explicit nil
-func (o *Workspace) UnsetRemoteChange() {
-	o.RemoteChange.Unset()
+// UnsetDeletionRequestedAt ensures that no value is present for DeletionRequestedAt, not even an explicit nil
+func (o *Workspace) UnsetDeletionRequestedAt() {
+	o.DeletionRequestedAt.Unset()
 }
 
 // GetPermissions returns the Permissions field value if set, zero value otherwise.
@@ -587,6 +469,38 @@ func (o *Workspace) SetPermissions(v AgentPermissions) {
 	o.Permissions = &v
 }
 
+// GetConnections returns the Connections field value if set, zero value otherwise.
+func (o *Workspace) GetConnections() ContextualConnectionPage {
+	if o == nil || IsNil(o.Connections) {
+		var ret ContextualConnectionPage
+		return ret
+	}
+	return *o.Connections
+}
+
+// GetConnectionsOk returns a tuple with the Connections field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Workspace) GetConnectionsOk() (*ContextualConnectionPage, bool) {
+	if o == nil || IsNil(o.Connections) {
+		return nil, false
+	}
+	return o.Connections, true
+}
+
+// HasConnections returns a boolean if a field has been set.
+func (o *Workspace) HasConnections() bool {
+	if o != nil && !IsNil(o.Connections) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnections gets a reference to the given ContextualConnectionPage and assigns it to the Connections field.
+func (o *Workspace) SetConnections(v ContextualConnectionPage) {
+	o.Connections = &v
+}
+
 func (o Workspace) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -598,41 +512,36 @@ func (o Workspace) MarshalJSON() ([]byte, error) {
 func (o Workspace) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["id"] = o.Id
-	toSerialize["project_id"] = o.ProjectId
 	toSerialize["organization_id"] = o.OrganizationId
-	toSerialize["name"] = o.Name.Get()
-	if o.Branch.IsSet() {
-		toSerialize["branch"] = o.Branch.Get()
-	}
-	toSerialize["revision"] = o.Revision
-	toSerialize["status"] = o.Status
-	if !IsNil(o.LatestCheckpointId) {
-		toSerialize["latest_checkpoint_id"] = o.LatestCheckpointId
-	}
-	if !IsNil(o.LastVerifiedAt) {
-		toSerialize["last_verified_at"] = o.LastVerifiedAt
+	toSerialize["name"] = o.Name
+	toSerialize["persistence"] = o.Persistence
+	if o.Github.IsSet() {
+		toSerialize["github"] = o.Github.Get()
 	}
 	toSerialize["created_at"] = o.CreatedAt
-	if !IsNil(o.SourceCommit) {
-		toSerialize["source_commit"] = o.SourceCommit
+	if !IsNil(o.StorageBytes) {
+		toSerialize["storage_bytes"] = o.StorageBytes
 	}
-	if !IsNil(o.SourceCheckpointId) {
-		toSerialize["source_checkpoint_id"] = o.SourceCheckpointId
+	if !IsNil(o.Archived) {
+		toSerialize["archived"] = o.Archived
 	}
-	if !IsNil(o.GitCommit) {
-		toSerialize["git_commit"] = o.GitCommit
+	if !IsNil(o.DefaultWorktreeId) {
+		toSerialize["default_worktree_id"] = o.DefaultWorktreeId
 	}
-	if !IsNil(o.GitStatus) {
-		toSerialize["git_status"] = o.GitStatus
+	if !IsNil(o.Revision) {
+		toSerialize["revision"] = o.Revision
 	}
-	if o.GitError.IsSet() {
-		toSerialize["git_error"] = o.GitError.Get()
+	if o.DeletionDueAt.IsSet() {
+		toSerialize["deletion_due_at"] = o.DeletionDueAt.Get()
 	}
-	if o.RemoteChange.IsSet() {
-		toSerialize["remote_change"] = o.RemoteChange.Get()
+	if o.DeletionRequestedAt.IsSet() {
+		toSerialize["deletion_requested_at"] = o.DeletionRequestedAt.Get()
 	}
 	if !IsNil(o.Permissions) {
 		toSerialize["permissions"] = o.Permissions
+	}
+	if !IsNil(o.Connections) {
+		toSerialize["connections"] = o.Connections
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -648,11 +557,9 @@ func (o *Workspace) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"id",
-		"project_id",
 		"organization_id",
 		"name",
-		"revision",
-		"status",
+		"persistence",
 		"created_at",
 	}
 
@@ -684,22 +591,19 @@ func (o *Workspace) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "id")
-		delete(additionalProperties, "project_id")
 		delete(additionalProperties, "organization_id")
 		delete(additionalProperties, "name")
-		delete(additionalProperties, "branch")
-		delete(additionalProperties, "revision")
-		delete(additionalProperties, "status")
-		delete(additionalProperties, "latest_checkpoint_id")
-		delete(additionalProperties, "last_verified_at")
+		delete(additionalProperties, "persistence")
+		delete(additionalProperties, "github")
 		delete(additionalProperties, "created_at")
-		delete(additionalProperties, "source_commit")
-		delete(additionalProperties, "source_checkpoint_id")
-		delete(additionalProperties, "git_commit")
-		delete(additionalProperties, "git_status")
-		delete(additionalProperties, "git_error")
-		delete(additionalProperties, "remote_change")
+		delete(additionalProperties, "storage_bytes")
+		delete(additionalProperties, "archived")
+		delete(additionalProperties, "default_worktree_id")
+		delete(additionalProperties, "revision")
+		delete(additionalProperties, "deletion_due_at")
+		delete(additionalProperties, "deletion_requested_at")
 		delete(additionalProperties, "permissions")
+		delete(additionalProperties, "connections")
 		o.AdditionalProperties = additionalProperties
 	}
 

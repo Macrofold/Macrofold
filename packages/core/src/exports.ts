@@ -23,8 +23,8 @@ export async function exportCheckpoint(
     'checkpoint_unverified',
     'Only verified checkpoints can be exported.',
   );
-  const dir = await mkdtemp(path.join(tmpdir(), 'workspace-export-'));
-  const root = path.join(dir, 'workspace');
+  const dir = await mkdtemp(path.join(tmpdir(), 'worktree-export-'));
+  const root = path.join(dir, 'worktree');
   await mkdir(root, { mode: 0o700 });
   try {
     let records = (cp.git_files || []) as FileRecord[];
@@ -78,7 +78,7 @@ export async function exportCheckpoint(
               (resolved === root || resolved.startsWith(root + path.sep)),
             409,
             'unsafe_symlink',
-            'Portable archives require relative symlinks confined to the workspace.',
+            'Portable archives require relative symlinks confined to the worktree.',
           );
           links.push({ path: target, target: link });
         } else await writeFile(target, bytes, { mode: (file.mode || 0) & 0o111 ? 0o755 : 0o644 });
@@ -103,9 +103,9 @@ export async function exportCheckpoint(
     if (format === 'portable_archive') {
       for (const link of links) await symlink(link.target, link.path);
       await writeFile(path.join(dir, 'manifest.json'), manifest, { mode: 0o600 });
-      const archive = path.join(dir, 'workspace.tar.gz');
+      const archive = path.join(dir, 'worktree.tar.gz');
       await createTar({ cwd: dir, file: archive, gzip: true, portable: true, noMtime: true, follow: false }, [
-        'workspace',
+        'worktree',
         'manifest.json',
       ]);
       bytes = await readFile(archive);
@@ -120,7 +120,7 @@ export async function exportCheckpoint(
       p.organizationId,
       object.key,
       object.sha256,
-      format === 'git_bundle' ? 'workspace.bundle' : 'workspace.tar.gz',
+      format === 'git_bundle' ? 'worktree.bundle' : 'worktree.tar.gz',
     );
     const manifestLink = downloadURL(
       p.organizationId,

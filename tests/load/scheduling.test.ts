@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { afterAll, expect, it } from 'vitest';
 import { pool, authPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../fixtures/account';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import { admitRun, cancelRun, getRun } from '../../packages/core/src/runs';
 import { maintainRuns } from '../../packages/core/src/engine';
@@ -69,10 +69,10 @@ async function account(plan = 'scale', cap = 4) {
 }
 async function submit(a: Account, duration: number, interactive = false) {
   return transaction(a.p.organizationId, async (tx) => {
-    const project = await resources.create(tx, 'projects', a.p.organizationId, { name: 'Load fixture' });
-    const ws = await createWorkspace(tx, a.p, project.id, { name: 'main', branch: 'main' });
+    const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, { name: 'Load fixture' });
+    const ws = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
     return admitRun(tx, a.p, {
-      workspace_id: String((ws.result as { workspace_id: string }).workspace_id),
+      worktree_id: String((ws.result as { worktree_id: string }).worktree_id),
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
@@ -134,8 +134,8 @@ it('sustains bursts with three workers, respects caps, gives new accounts turns,
   const samples = (async () => {
     while (sampling) {
       const rows = (
-        await pool.query(`SELECT organization_id,workspace_id,count(*)::integer AS n FROM reporting.runs
-        WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id,workspace_id`)
+        await pool.query(`SELECT organization_id,worktree_id,count(*)::integer AS n FROM reporting.runs
+        WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id,worktree_id`)
       ).rows;
       const total = rows.reduce((s, r) => s + r.n, 0);
       peak = Math.max(peak, total);

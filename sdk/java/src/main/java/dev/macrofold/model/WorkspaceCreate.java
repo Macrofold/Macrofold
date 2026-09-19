@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -25,55 +25,38 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.AgentPermissions;
-import dev.macrofold.model.WorkspaceSource;
+import dev.macrofold.model.WorkspaceCreateGithub;
 import java.util.Arrays;
-import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 import dev.macrofold.ApiClient;
 /**
- * Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder.
+ * WorkspaceCreate
  */
 @JsonPropertyOrder({
   WorkspaceCreate.JSON_PROPERTY_NAME,
-  WorkspaceCreate.JSON_PROPERTY_CHECKPOINT_ID,
-  WorkspaceCreate.JSON_PROPERTY_BRANCH,
-  WorkspaceCreate.JSON_PROPERTY_SOURCE,
-  WorkspaceCreate.JSON_PROPERTY_BRANCH_MODE,
+  WorkspaceCreate.JSON_PROPERTY_PERSISTENCE,
+  WorkspaceCreate.JSON_PROPERTY_GITHUB,
   WorkspaceCreate.JSON_PROPERTY_PERMISSIONS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class WorkspaceCreate {
   public static final String JSON_PROPERTY_NAME = "name";
-  @javax.annotation.Nullable
+  @javax.annotation.Nonnull
   private String name;
 
-  public static final String JSON_PROPERTY_CHECKPOINT_ID = "checkpoint_id";
-  @javax.annotation.Nullable
-  private UUID checkpointId;
-
-  public static final String JSON_PROPERTY_BRANCH = "branch";
-  @javax.annotation.Nullable
-  private String branch;
-
-  public static final String JSON_PROPERTY_SOURCE = "source";
-  @javax.annotation.Nullable
-  private WorkspaceSource source;
-
   /**
-   * Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
+   * Gets or Sets persistence
    */
-  public enum BranchModeEnum {
-    AUTO(String.valueOf("auto")),
+  public enum PersistenceEnum {
+    PERSISTENT(String.valueOf("persistent")),
 
-    NEW(String.valueOf("new")),
-
-    EXISTING(String.valueOf("existing"));
+    EPHEMERAL(String.valueOf("ephemeral"));
 
     private String value;
 
-    BranchModeEnum(String value) {
+    PersistenceEnum(String value) {
       this.value = value;
     }
 
@@ -88,8 +71,8 @@ public class WorkspaceCreate {
     }
 
     @JsonCreator
-    public static BranchModeEnum fromValue(String value) {
-      for (BranchModeEnum b : BranchModeEnum.values()) {
+    public static PersistenceEnum fromValue(String value) {
+      for (PersistenceEnum b : PersistenceEnum.values()) {
         if (b.value.equals(value)) {
           return b;
         }
@@ -98,9 +81,13 @@ public class WorkspaceCreate {
     }
   }
 
-  public static final String JSON_PROPERTY_BRANCH_MODE = "branch_mode";
+  public static final String JSON_PROPERTY_PERSISTENCE = "persistence";
   @javax.annotation.Nullable
-  private BranchModeEnum branchMode;
+  private PersistenceEnum persistence;
+
+  public static final String JSON_PROPERTY_GITHUB = "github";
+  @javax.annotation.Nullable
+  private WorkspaceCreateGithub github;
 
   public static final String JSON_PROPERTY_PERMISSIONS = "permissions";
   @javax.annotation.Nullable
@@ -109,123 +96,75 @@ public class WorkspaceCreate {
   public WorkspaceCreate() { 
   }
 
-  public WorkspaceCreate name(@javax.annotation.Nullable String name) {
+  public WorkspaceCreate name(@javax.annotation.Nonnull String name) {
     this.name = name;
     return this;
   }
 
   /**
-   * Optional. Leave empty for smart naming.
+   * Get name
    * @return name
    */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_NAME, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_NAME, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public String getName() {
     return name;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_NAME, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setName(@javax.annotation.Nullable String name) {
+  @JsonProperty(value = JSON_PROPERTY_NAME, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setName(@javax.annotation.Nonnull String name) {
     this.name = name;
   }
 
 
-  public WorkspaceCreate checkpointId(@javax.annotation.Nullable UUID checkpointId) {
-    this.checkpointId = checkpointId;
+  public WorkspaceCreate persistence(@javax.annotation.Nullable PersistenceEnum persistence) {
+    this.persistence = persistence;
     return this;
   }
 
   /**
-   * Get checkpointId
-   * @return checkpointId
+   * Get persistence
+   * @return persistence
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_CHECKPOINT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_PERSISTENCE, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getCheckpointId() {
-    return checkpointId;
+  public PersistenceEnum getPersistence() {
+    return persistence;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_CHECKPOINT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_PERSISTENCE, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setCheckpointId(@javax.annotation.Nullable UUID checkpointId) {
-    this.checkpointId = checkpointId;
+  public void setPersistence(@javax.annotation.Nullable PersistenceEnum persistence) {
+    this.persistence = persistence;
   }
 
 
-  public WorkspaceCreate branch(@javax.annotation.Nullable String branch) {
-    this.branch = branch;
+  public WorkspaceCreate github(@javax.annotation.Nullable WorkspaceCreateGithub github) {
+    this.github = github;
     return this;
   }
 
   /**
-   * Optional. Leave empty for smart naming.
-   * @return branch
+   * Get github
+   * @return github
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_BRANCH, required = false)
+  @JsonProperty(value = JSON_PROPERTY_GITHUB, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getBranch() {
-    return branch;
+  public WorkspaceCreateGithub getGithub() {
+    return github;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_BRANCH, required = false)
+  @JsonProperty(value = JSON_PROPERTY_GITHUB, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setBranch(@javax.annotation.Nullable String branch) {
-    this.branch = branch;
-  }
-
-
-  public WorkspaceCreate source(@javax.annotation.Nullable WorkspaceSource source) {
-    this.source = source;
-    return this;
-  }
-
-  /**
-   * Get source
-   * @return source
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SOURCE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public WorkspaceSource getSource() {
-    return source;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SOURCE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSource(@javax.annotation.Nullable WorkspaceSource source) {
-    this.source = source;
-  }
-
-
-  public WorkspaceCreate branchMode(@javax.annotation.Nullable BranchModeEnum branchMode) {
-    this.branchMode = branchMode;
-    return this;
-  }
-
-  /**
-   * Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
-   * @return branchMode
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_BRANCH_MODE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public BranchModeEnum getBranchMode() {
-    return branchMode;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_BRANCH_MODE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setBranchMode(@javax.annotation.Nullable BranchModeEnum branchMode) {
-    this.branchMode = branchMode;
+  public void setGithub(@javax.annotation.Nullable WorkspaceCreateGithub github) {
+    this.github = github;
   }
 
 
@@ -266,16 +205,14 @@ public class WorkspaceCreate {
     }
     WorkspaceCreate workspaceCreate = (WorkspaceCreate) o;
     return Objects.equals(this.name, workspaceCreate.name) &&
-        Objects.equals(this.checkpointId, workspaceCreate.checkpointId) &&
-        Objects.equals(this.branch, workspaceCreate.branch) &&
-        Objects.equals(this.source, workspaceCreate.source) &&
-        Objects.equals(this.branchMode, workspaceCreate.branchMode) &&
+        Objects.equals(this.persistence, workspaceCreate.persistence) &&
+        Objects.equals(this.github, workspaceCreate.github) &&
         Objects.equals(this.permissions, workspaceCreate.permissions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, checkpointId, branch, source, branchMode, permissions);
+    return Objects.hash(name, persistence, github, permissions);
   }
 
   @Override
@@ -283,10 +220,8 @@ public class WorkspaceCreate {
     StringBuilder sb = new StringBuilder();
     sb.append("class WorkspaceCreate {\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    checkpointId: ").append(toIndentedString(checkpointId)).append("\n");
-    sb.append("    branch: ").append(toIndentedString(branch)).append("\n");
-    sb.append("    source: ").append(toIndentedString(source)).append("\n");
-    sb.append("    branchMode: ").append(toIndentedString(branchMode)).append("\n");
+    sb.append("    persistence: ").append(toIndentedString(persistence)).append("\n");
+    sb.append("    github: ").append(toIndentedString(github)).append("\n");
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -337,24 +272,14 @@ public class WorkspaceCreate {
       joiner.add(String.format(java.util.Locale.ROOT, "%sname%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getName()))));
     }
 
-    // add `checkpoint_id` to the URL query string
-    if (getCheckpointId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%scheckpoint_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getCheckpointId()))));
+    // add `persistence` to the URL query string
+    if (getPersistence() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%spersistence%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getPersistence()))));
     }
 
-    // add `branch` to the URL query string
-    if (getBranch() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sbranch%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getBranch()))));
-    }
-
-    // add `source` to the URL query string
-    if (getSource() != null) {
-      joiner.add(getSource().toUrlQueryString(prefix + "source" + suffix));
-    }
-
-    // add `branch_mode` to the URL query string
-    if (getBranchMode() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sbranch_mode%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getBranchMode()))));
+    // add `github` to the URL query string
+    if (getGithub() != null) {
+      joiner.add(getGithub().toUrlQueryString(prefix + "github" + suffix));
     }
 
     // add `permissions` to the URL query string

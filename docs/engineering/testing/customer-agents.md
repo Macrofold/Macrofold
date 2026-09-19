@@ -11,7 +11,7 @@ This record covers ranks 1–10 in the [improvements tracker](../../product/impr
 | Connector deployment policy | [Core setup](../../../packages/core/src/connector-setup.ts), [provider adapter](../../../packages/providers/src/connector-setup.ts), [operator command](../../../scripts/connector-setup.ts): persisted exact version/auth-config choice, provider port, serialized setup, no SQL transaction spanning provider I/O, and no blind retry of ambiguous creation. |
 | Saved-trigger capacity | [Quota policy](../../../packages/core/src/trigger-quota.ts), [operator command](../../../scripts/trigger-quota.ts), migration 033: default plus optional organization override, serialized creation, organization-wide counts and unchanged delivery/spending/concurrency limits. |
 | Model admission | [Model policy](../../../packages/core/src/model-policy.ts): compatible text/tool routes and known billing dimensions. Native protocols, discovery, prices and account entitlements remain separate. |
-| Schedule experience | [Dashboard guide](../../features/triggers/scheduled-tasks.md): saved preset/budget handoff, explicit project, cadence/timezone, current tool-access review and advanced delivery controls. Shared form layouts avoid special-purpose styling. |
+| Schedule experience | [Dashboard guide](../../features/triggers/scheduled-tasks.md): saved preset/budget handoff, explicit workspace, cadence/timezone, current tool-access review and advanced delivery controls. Shared form layouts avoid special-purpose styling. |
 | External data | [Recipes](../../../examples/integrations/README.md): a small customer-scoped data port, Supabase RLS, actual generated Prisma client, Pinecone namespaces and the official MCP transport. Credentials and customer authority stay server-side. |
 | Documentation distribution | Explicit entries in [the publication manifest](../../navigation.json) publish the guides and selected example READMEs as HTML, search results and Markdown. Example source directories are not crawled indiscriminately. |
 
@@ -26,7 +26,7 @@ All application acceptance used separate builds, disposable PostgreSQL/object fi
 | Five SDKs | `pnpm test:sdks` passed actual local API/simulator journeys and language-specific checks for TypeScript, Python, Go, Rust and Java. Python: 161 tests and zero Pyright errors. All five generated clients include the typed trigger quota response. |
 | Browser journeys | Initial 28-case scope: 27 passed and one documentation-search failure. The corrected follow-up passed all 11 documentation, personal-agent and trigger cases. The final form-layout follow-up passed all four trigger cases. This covers 28 distinct journeys across source-specific runs, not one clean initial invocation or the entire browser inventory. |
 | Terminal and Python HTTP | Both final application follow-ups also passed all six built CLI tests, real PTY input/queue/status/detach, and Python scoped identity/files/SSE/continued-session execution. |
-| Prisma | The separate package's generated Prisma 7.10.0 client passed an actual disposable SQLite two-customer query test. Its complete isolated dependency audit found no known vulnerabilities. This audit does not cover or clear the root workspace's existing advisory. |
+| Prisma | The separate package's generated Prisma 7.10.0 client passed an actual disposable SQLite two-customer query test. Its complete isolated dependency audit found no known vulnerabilities. This audit does not cover or clear the root worktree's existing advisory. |
 | Types and build | Strict TypeScript passed. Isolated optimized Next.js builds passed for browser acceptance. SDK generation completed for all five languages. |
 | Public documentation | All six documentation browser/API journeys passed, including every published HTML/Markdown page, sitemap, mobile accessibility, copy/error recovery and execution of the published cURL/Python examples. Generation/checks pass for 52 public pages, 179 Markdown files and 54 requirement mappings. |
 | Visual review | Inspected the schedule review, scheduled-task list, reference app, and customer-story section at desktop/mobile widths. Reused the stacked form after detecting an overly narrow prompt/review layout. The reference app's axe audit passed. |
@@ -66,14 +66,14 @@ COVERAGE_DIR=coverage/customer-agents-review pnpm test:dashboard:isolated \
   tests/browser/dashboard.spec.ts tests/browser/landing.spec.ts \
   tests/browser/docs.spec.ts tests/browser/triggers.spec.ts \
   tests/browser/personal-agent-example.spec.ts
-pnpm --dir examples/integrations/prisma --ignore-workspace install --frozen-lockfile
-pnpm --dir examples/integrations/prisma --ignore-workspace test
-pnpm --dir examples/integrations/prisma --ignore-workspace audit --audit-level high
+pnpm --dir examples/integrations/prisma --ignore-worktree install --frozen-lockfile
+pnpm --dir examples/integrations/prisma --ignore-worktree test
+pnpm --dir examples/integrations/prisma --ignore-worktree audit --audit-level high
 pnpm docs:generate
 pnpm docs:check
 ```
 
-The Prisma recipe has its own package and lockfile so adopting the platform does not install an unused ORM. Preserve `--ignore-workspace` for its audit; otherwise pnpm audits the parent workspace. Full domain tests include local Supabase-style RLS and the actual MCP HTTP transport. Scripted upstream responses verify request/response shapes, not vendor availability.
+The Prisma recipe has its own package and lockfile so adopting the platform does not install an unused ORM. Preserve `--ignore-worktree` for its audit; otherwise pnpm audits the parent worktree. Full domain tests include local Supabase-style RLS and the actual MCP HTTP transport. Scripted upstream responses verify request/response shapes, not vendor availability.
 
 ## Migration and local preview
 

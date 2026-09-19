@@ -6,14 +6,14 @@ import {
   selectedGrants,
   type AccessRule,
 } from '../../packages/core/src/connection-access-policy';
-const pair: AccessRule = { scope: 'project_agent', project_id: 'sales', agent_id: 'writer' };
+const pair: AccessRule = { scope: 'workspace_agent', workspace_id: 'sales', agent_id: 'writer' };
 describe('connection access policy', () => {
   it.each([
-    [{ project_id: 'sales', agent_id: 'writer' }, true],
-    [{ project_id: 'sales', agent_id: 'researcher' }, false],
-    [{ project_id: 'support', agent_id: 'writer' }, false],
-    [{ project_id: 'sales', agent_id: null }, false],
-    [{ project_id: 'sales' }, true],
+    [{ workspace_id: 'sales', agent_id: 'writer' }, true],
+    [{ workspace_id: 'sales', agent_id: 'researcher' }, false],
+    [{ workspace_id: 'support', agent_id: 'writer' }, false],
+    [{ workspace_id: 'sales', agent_id: null }, false],
+    [{ workspace_id: 'sales' }, true],
     [{ agent_id: 'writer' }, true],
     [{}, true],
   ] as const)('matches a whole pair in %j', (context, expected) =>
@@ -22,23 +22,23 @@ describe('connection access policy', () => {
   it('does not join crossed pairs and does not confuse a custom execution with a browse wildcard', () => {
     const rules: AccessRule[] = [
       pair,
-      { scope: 'project_agent', project_id: 'support', agent_id: 'researcher' },
+      { scope: 'workspace_agent', workspace_id: 'support', agent_id: 'researcher' },
     ];
-    expect(accessMatches(false, rules, { project_id: 'sales', agent_id: 'researcher' })).toBe(false);
-    expect(accessMatches(false, rules, { project_id: 'sales', agent_id: null })).toBe(false);
-    expect(accessMatches(false, rules, { project_id: 'sales' })).toBe(true);
-    expect(ruleConditional(pair, { project_id: 'sales' })).toBe(true);
-    expect(ruleConditional(pair, { project_id: 'sales', agent_id: 'writer' })).toBe(false);
+    expect(accessMatches(false, rules, { workspace_id: 'sales', agent_id: 'researcher' })).toBe(false);
+    expect(accessMatches(false, rules, { workspace_id: 'sales', agent_id: null })).toBe(false);
+    expect(accessMatches(false, rules, { workspace_id: 'sales' })).toBe(true);
+    expect(ruleConditional(pair, { workspace_id: 'sales' })).toBe(true);
+    expect(ruleConditional(pair, { workspace_id: 'sales', agent_id: 'writer' })).toBe(false);
   });
   it('adds matching scopes without precedence or a master toggle', () => {
     expect(
-      accessMatches(false, [pair, { scope: 'project', project_id: 'sales' }], {
-        project_id: 'sales',
+      accessMatches(false, [pair, { scope: 'workspace', workspace_id: 'sales' }], {
+        workspace_id: 'sales',
         agent_id: null,
       }),
     ).toBe(true);
-    expect(accessMatches(true, [], { project_id: 'support', agent_id: null })).toBe(true);
-    expect(accessMatches(false, [], { project_id: 'sales', agent_id: 'writer' })).toBe(false);
+    expect(accessMatches(true, [], { workspace_id: 'support', agent_id: null })).toBe(true);
+    expect(accessMatches(false, [], { workspace_id: 'sales', agent_id: 'writer' })).toBe(false);
   });
   it('retains the difference between inherit, saved selection, and explicit none', () => {
     const saved = [{ connection_id: 'mail', tools: ['read'] }];

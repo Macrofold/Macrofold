@@ -8,7 +8,7 @@ import { Client } from '../../sdk/typescript/src/client';
 import { terminalText } from '../../packages/cli/src/output';
 import { config } from '../../packages/core/src/config';
 import contract from '../../docs/api/cli.json';
-import { git } from '../../packages/cli/src/local-project';
+import { git } from '../../packages/cli/src/local-workspace';
 
 const root = process.cwd(),
   executable = path.join(root, 'packages/cli/dist/index.mjs');
@@ -59,7 +59,7 @@ afterAll(async () => {
 });
 describe('packaged CLI against the local API and worker', () => {
   it('inherits tools by omission and narrows preset and continued runs without saving the selection', async () => {
-    const project = await client.projects.create({ name: 'CLI access selection' });
+    const workspace = await client.workspaces.create({ name: 'CLI access selection' });
     const connection = await client.connections.create({
       name: 'CLI search fixture',
       kind: 'search',
@@ -72,7 +72,7 @@ describe('packaged CLI against the local API and worker', () => {
     });
     await client.request('createConnectionAccessRule', {
       params: { path: { connection_id: connection.id }, header: { 'If-Match': '"2"' } },
-      body: { scope: 'project', project_id: project.id },
+      body: { scope: 'workspace', workspace_id: workspace.id },
     });
     const organization = (await client.request('getIdentity')).organization_id;
     // Observe accepted server state; all CLI mutations still use the real API.
@@ -92,8 +92,8 @@ describe('packaged CLI against the local API and worker', () => {
       const inherited = await json([
         'run',
         'Inherit tools',
-        '--project',
-        project.id,
+        '--workspace',
+        workspace.id,
         '--harness',
         'codex',
         '--model',
@@ -116,8 +116,8 @@ describe('packaged CLI against the local API and worker', () => {
       const narrowed = await json([
         'run',
         'Explicit preset selection',
-        '--project',
-        project.id,
+        '--workspace',
+        workspace.id,
         '--agent',
         preset.id,
         '--connection',
@@ -167,7 +167,7 @@ describe('packaged CLI against the local API and worker', () => {
   }, 90000);
 
   it('runs a saved preset without overriding its selected credentials or limits', async () => {
-    const project = await client.projects.create({ name: 'CLI named account fixture' });
+    const workspace = await client.workspaces.create({ name: 'CLI named account fixture' });
     const connection = await client.connections.create({
       name: 'Selected fixture key',
       kind: 'model',
@@ -186,8 +186,8 @@ describe('packaged CLI against the local API and worker', () => {
     const run = await json([
       'run',
       'Use the selected configuration',
-      '--project',
-      project.id,
+      '--workspace',
+      workspace.id,
       '--agent',
       preset.id,
       '--detach',
@@ -203,8 +203,8 @@ describe('packaged CLI against the local API and worker', () => {
     const shorter = await json([
       'run',
       'Use a shorter execution timeout',
-      '--project',
-      project.id,
+      '--workspace',
+      workspace.id,
       '--agent',
       preset.id,
       '--timeout',
@@ -249,11 +249,11 @@ describe('packaged CLI against the local API and worker', () => {
     expect(terminalText('\x1b]52;c;c2VjcmV0\x07Hello\x1b[31m world')).toBe('Hello world');
   }, 60000);
   it('links without upload, isolates remote worktrees, transfers explicit files, streams and restores', async () => {
-    const project = await json(['project', 'create', `CLI integration ${Date.now()}`]);
+    const workspace = await json(['workspace', 'create', `CLI integration ${Date.now()}`]);
     const repo = path.join(directory, 'repo');
     await mkdir(repo);
     await writeFile(path.join(repo, 'local.txt'), 'Local work stays here until an explicit push.\n');
-    await json(['link', project.id], { cwd: repo });
+    await json(['link', workspace.id], { cwd: repo });
     const link = JSON.parse(await readFile(path.join(repo, '.agent/link.json'), 'utf8'));
     expect(link).not.toHaveProperty('apiKey');
     expect((await json(['files', 'list'], { cwd: repo })).entries).toHaveLength(0);
@@ -271,7 +271,7 @@ describe('packaged CLI against the local API and worker', () => {
     });
     expect(created.status).toBe('succeeded');
     const linked = JSON.parse(await readFile(path.join(repo, '.agent/link.json'), 'utf8'));
-    expect(linked.workspaceId).not.toBe(link.workspaceId);
+    expect(linked.worktreeId).not.toBe(link.worktreeId);
     const run = await json(
       [
         'run',
@@ -315,12 +315,12 @@ describe('packaged CLI against the local API and worker', () => {
     await json(['files', 'pull', '--yes'], { cwd: repo });
     const diff = await json(['files', 'diff', '--local', 'local.txt'], { cwd: repo });
     expect(diff.actions.every((a: { action: string }) => a.action === 'unchanged')).toBe(true);
-    const beforePull = await client.request('getWorkspace', {
-      params: { path: { workspace_id: linked.workspaceId } },
+    const beforePull = await client.request('getWorktree', {
+      params: { path: { worktree_id: linked.worktreeId } },
     });
     await client.request('writeFile', {
       params: {
-        path: { workspace_id: beforePull.id },
+        path: { worktree_id: beforePull.id },
         query: { path: 'local.txt' },
         header: { 'If-Match': beforePull.revision },
       },
@@ -331,14 +331,14 @@ describe('packaged CLI against the local API and worker', () => {
     expect((await lstat(path.join(repo, 'local.txt'))).mode & 0o777).toBe(0o755);
     expect(await readFile(path.join(repo, 'local.txt'), 'utf8')).toBe('Remote update before pulling\n');
     await writeFile(path.join(repo, 'local.txt'), 'Local edit\n');
-    const workspace = await client.request('getWorkspace', {
-      params: { path: { workspace_id: linked.workspaceId } },
+    const worktree = await client.request('getWorktree', {
+      params: { path: { worktree_id: linked.worktreeId } },
     });
     await client.request('writeFile', {
       params: {
-        path: { workspace_id: workspace.id },
+        path: { worktree_id: worktree.id },
         query: { path: 'local.txt' },
-        header: { 'If-Match': workspace.revision },
+        header: { 'If-Match': worktree.revision },
       },
       body: new TextEncoder().encode('Remote edit\n'),
     });
@@ -368,7 +368,7 @@ describe('packaged CLI against the local API and worker', () => {
     const unsafe = path.join(directory, 'unsafe');
     await mkdir(unsafe);
     await symlink(directory, path.join(unsafe, '.agent'));
-    const denied = await command(['project', 'list', '--json'], { cwd: unsafe });
+    const denied = await command(['workspace', 'list', '--json'], { cwd: unsafe });
     expect(denied.code).not.toBe(0);
     await chmod(path.join(configDirectory, 'profiles.json'), 0o644);
     const permissions = await command(['whoami', '--profile', 'ci', '--json'], { apiKey: null });
@@ -383,8 +383,8 @@ describe('packaged CLI against the local API and worker', () => {
       destination = path.join(directory, 'review-checkout');
     await mkdir(repo);
     await git(['init', '--initial-branch=main'], repo);
-    const project = await json(['project', 'create', 'Git review test']);
-    await json(['link', project.id], { cwd: repo });
+    const workspace = await json(['workspace', 'create', 'Git review test']);
+    await json(['link', workspace.id], { cwd: repo });
     await writeFile(path.join(repo, 'review.txt'), 'Verified remote content\n');
     await json(['files', 'push', 'review.txt', '--yes'], { cwd: repo });
     const checked = await json(['worktree', 'checkout', 'main', '--local', destination], { cwd: repo });

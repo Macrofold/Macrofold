@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import { mkdtemp, mkdir, symlink, rm, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { relativeFile, safeLocalPath, saveBaseline } from '../../packages/cli/src/local-project';
+import { relativeFile, safeLocalPath, saveBaseline } from '../../packages/cli/src/local-workspace';
 it('refuses metadata aliases and filesystem-specific escape paths before local writes', () => {
   for (const p of [
     '../a',

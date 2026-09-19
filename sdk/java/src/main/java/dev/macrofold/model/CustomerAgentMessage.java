@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,8 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dev.macrofold.model.Limits;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -38,7 +41,8 @@ import dev.macrofold.ApiClient;
   CustomerAgentMessage.JSON_PROPERTY_PROMPT,
   CustomerAgentMessage.JSON_PROPERTY_CONVERSATION_ID,
   CustomerAgentMessage.JSON_PROPERTY_LIMITS,
-  CustomerAgentMessage.JSON_PROPERTY_QUEUE_IF_BUSY
+  CustomerAgentMessage.JSON_PROPERTY_QUEUE_IF_BUSY,
+  CustomerAgentMessage.JSON_PROPERTY_ATTACHMENTS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class CustomerAgentMessage {
@@ -57,6 +61,10 @@ public class CustomerAgentMessage {
   public static final String JSON_PROPERTY_QUEUE_IF_BUSY = "queue_if_busy";
   @javax.annotation.Nullable
   private Boolean queueIfBusy;
+
+  public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
+  @javax.annotation.Nullable
+  private Set<String> attachments = new LinkedHashSet<>();
 
   public CustomerAgentMessage() { 
   }
@@ -157,6 +165,39 @@ public class CustomerAgentMessage {
   }
 
 
+  public CustomerAgentMessage attachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+    return this;
+  }
+
+  public CustomerAgentMessage addAttachmentsItem(String attachmentsItem) {
+    if (this.attachments == null) {
+      this.attachments = new LinkedHashSet<>();
+    }
+    this.attachments.add(attachmentsItem);
+    return this;
+  }
+
+  /**
+   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+   * @return attachments
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<String> getAttachments() {
+    return attachments;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+  }
+
+
   /**
    * Return true if this CustomerAgentMessage object is equal to o.
    */
@@ -172,12 +213,13 @@ public class CustomerAgentMessage {
     return Objects.equals(this.prompt, customerAgentMessage.prompt) &&
         Objects.equals(this.conversationId, customerAgentMessage.conversationId) &&
         Objects.equals(this.limits, customerAgentMessage.limits) &&
-        Objects.equals(this.queueIfBusy, customerAgentMessage.queueIfBusy);
+        Objects.equals(this.queueIfBusy, customerAgentMessage.queueIfBusy) &&
+        Objects.equals(this.attachments, customerAgentMessage.attachments);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, conversationId, limits, queueIfBusy);
+    return Objects.hash(prompt, conversationId, limits, queueIfBusy, attachments);
   }
 
   @Override
@@ -188,6 +230,7 @@ public class CustomerAgentMessage {
     sb.append("    conversationId: ").append(toIndentedString(conversationId)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
+    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -250,6 +293,17 @@ public class CustomerAgentMessage {
     // add `queue_if_busy` to the URL query string
     if (getQueueIfBusy() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%squeue_if_busy%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueIfBusy()))));
+    }
+
+    // add `attachments` to the URL query string
+    if (getAttachments() != null) {
+      int i = 0;
+      for (String _item : getAttachments()) {
+        joiner.add(String.format(java.util.Locale.ROOT, "%sattachments%s%s=%s", prefix, suffix,
+            "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
+            ApiClient.urlEncode(ApiClient.valueToString(_item))));
+      }
+      i++;
     }
 
     return joiner.toString();

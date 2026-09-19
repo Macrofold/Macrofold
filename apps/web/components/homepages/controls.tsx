@@ -151,7 +151,7 @@ export function SnippetPanel() {
         <div>
           <p>
             Install from source with the <Link href="/docs/sdk">SDK guide</Link>. Set{' '}
-            <code>MACROFOLD_API_KEY</code>, <code>project_id</code>. This example selects Codex and OpenAI’s
+            <code>MACROFOLD_API_KEY</code>, <code>workspace_id</code>. This example selects Codex and OpenAI’s
             GPT-5.4 mini; the model catalog determines its provider. No saved session or agent preset is
             required. SDKs default to the hosted API; pass <code>baseURL</code> or <code>base_url</code> for
             local development or self-hosting.
@@ -167,7 +167,7 @@ export function SnippetPanel() {
             the SDK for automatic reconnection.
           </p>
           <p>
-            Install the <Link href="/docs/cli">Macrofold CLI</Link>, log in, and link your project. Use
+            Install the <Link href="/docs/cli">Macrofold CLI</Link>, log in, and link your workspace. Use
             returned IDs for reattachment and continuation.{' '}
             <Link href="/docs/api/quickstart">Complete quickstart →</Link>
           </p>
@@ -194,7 +194,7 @@ function StageCopy({ index }: { index: number }) {
       </div>
       <p className="hp-stage-detail">{stage.detail}</p>
       <Link className="hp-text-link" href={stage.link}>
-        Explore {index === 4 ? 'the API' : index === 3 ? 'the CLI' : 'workspaces'} <ArrowRight size={14} />
+        Explore {index === 4 ? 'the API' : index === 3 ? 'the CLI' : 'worktrees'} <ArrowRight size={14} />
       </Link>
     </>
   );
@@ -239,7 +239,7 @@ export function FeatureStory({ study }: { study: Homepage }) {
 
   if (study.story === 'chapters')
     return (
-      <div className="hp-story-chapters" aria-label="How hosted projects work">
+      <div className="hp-story-chapters" aria-label="How hosted workspaces work">
         {stages.map((stage, index) => (
           <article key={stage.id} className="hp-chapter" aria-label={stage.label}>
             <div className="hp-stage-copy">
@@ -253,7 +253,7 @@ export function FeatureStory({ study }: { study: Homepage }) {
 
   if (study.story === 'scroll' && !compact)
     return (
-      <div ref={ref} className="hp-story-scroll" aria-label="How hosted projects work">
+      <div ref={ref} className="hp-story-scroll" aria-label="How hosted workspaces work">
         <div className="hp-scroll-copy">
           {stages.map((stage, index) => (
             <article
@@ -268,7 +268,7 @@ export function FeatureStory({ study }: { study: Homepage }) {
             </article>
           ))}
         </div>
-        <aside className="hp-story-sticky" aria-label="Project walkthrough diagram">
+        <aside className="hp-story-sticky" aria-label="Workspace walkthrough diagram">
           <div className="hp-stage-dots" role="group" aria-label="Jump to a feature">
             {stages.map((stage, index) => (
               <button

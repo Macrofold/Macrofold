@@ -5,7 +5,7 @@ import { config, isLocal } from '../packages/core/src/config';
 import { handleApi } from '../packages/core/src/http';
 import { executeRun } from '../packages/core/src/engine';
 import { pool, authPool, transaction } from '../packages/db';
-import { workspaceFiles } from '../packages/core/src/files';
+import { worktreeFiles } from '../packages/core/src/files';
 import { readContent } from '../packages/providers/src/storage';
 if (
   !isLocal() ||
@@ -30,15 +30,15 @@ const call = async (method: string, url: string, body?: unknown) => {
   return response.json();
 };
 try {
-  const projects = await call('GET', '/v1/projects');
-  assert(projects.data.length >= 2);
+  const workspaces = await call('GET', '/v1/workspaces');
+  assert(workspaces.data.length >= 2);
   const runs = await call('GET', '/v1/runs');
   assert(runs.data.length >= 2);
   const run = runs.data.find((r: any) => r.status === 'succeeded');
   assert(run);
   const original = await call('GET', `/v1/runs/${run.id}/result`);
   assert(original.output_text.includes('Simulation completed'));
-  const files = await transaction(demo.organization_id, (tx) => workspaceFiles(tx, run.workspace_id));
+  const files = await transaction(demo.organization_id, (tx) => worktreeFiles(tx, run.worktree_id));
   for (const file of files.files) await readContent(file.key, file.sha256);
   const accepted = await call('POST', '/v1/runs', {
     session_id: run.session_id,

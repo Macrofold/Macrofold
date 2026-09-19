@@ -16,7 +16,7 @@ export type DashboardSnapshot = {
 };
 
 /** Browser sessions currently have organization-wide read access. Reject bearer
- * and project-restricted principals instead of widening their resource authority. */
+ * and workspace-restricted principals instead of widening their resource authority. */
 export async function dashboardAccess(request: Request): Promise<DashboardAccess> {
   assert(!request.headers.has('authorization'), 401, 'unauthenticated', 'Sign in to the dashboard.');
   const origin = request.headers.get('origin');
@@ -27,9 +27,9 @@ export async function dashboardAccess(request: Request): Promise<DashboardAccess
     'Use the same-origin dashboard.',
   );
   const principal = await identify(request);
-  requireScopes(principal, ['runs:read', 'files:read', 'projects:read']);
+  requireScopes(principal, ['runs:read', 'files:read', 'workspaces:read']);
   assert(
-    principal.kind === 'user' && !principal.projectIds.length,
+    principal.kind === 'user' && !principal.workspaceIds.length,
     403,
     'forbidden',
     'Dashboard session required.',
@@ -76,17 +76,17 @@ export async function readDashboardSnapshot(
       ) AS sessions,
       coalesce((SELECT dashboard_revision FROM runs WHERE organization_id=$1 ORDER BY dashboard_revision DESC LIMIT 1),0)::text AS runs,
       greatest(
-        coalesce((SELECT dashboard_revision FROM workspaces WHERE organization_id=$1 ORDER BY dashboard_revision DESC LIMIT 1),0),
+        coalesce((SELECT dashboard_revision FROM worktrees WHERE organization_id=$1 ORDER BY dashboard_revision DESC LIMIT 1),0),
         coalesce((SELECT dashboard_revision FROM checkpoints WHERE organization_id=$1 ORDER BY dashboard_revision DESC LIMIT 1),0)
-      )::text AS workspace,
-      coalesce((SELECT dashboard_git_revision FROM workspaces WHERE organization_id=$1 ORDER BY dashboard_git_revision DESC LIMIT 1),0)::text AS git
+      )::text AS worktree,
+      coalesce((SELECT dashboard_git_revision FROM worktrees WHERE organization_id=$1 ORDER BY dashboard_git_revision DESC LIMIT 1),0)::text AS git
     `,
         [organization, JSON.stringify(accesses)],
       );
       const row = result.rows[0];
       return {
         authorizedSessions: new Set<string>(row.sessions),
-        revisions: { runs: row.runs, workspace: row.workspace, git: row.git },
+        revisions: { runs: row.runs, worktree: row.worktree, git: row.git },
       };
     },
     { statementTimeoutMs: 2000 },

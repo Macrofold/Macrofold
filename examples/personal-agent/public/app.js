@@ -75,7 +75,7 @@ async function load() {
   if (selected.conversations.includes(conversation)) $('conversations').value = conversation;
   $('connect').hidden = !!selected.connectionId;
   $('connection-status').textContent = selected.connectionId
-    ? 'Search account saved. Only this project and agent have access.'
+    ? 'Search account saved. Only this workspace and agent have access.'
     : '';
   $('schedule').hidden = !!selected.triggerId;
   await activity();

@@ -2,10 +2,10 @@
  * This module composes core resources; it does not introduce another run engine. */
 import { lock, type Tx } from '../../db';
 import type { components } from '../../contracts/api';
-import { requireProject, type Principal } from './auth';
+import { requireWorkspace, type Principal } from './auth';
 import { id } from './crypto';
 import { assert } from './errors';
-import { createProject } from './projects';
+import { createWorkspace } from './workspaces';
 import * as resources from './resources';
 import { validateConfiguration, getRun } from './runs';
 
@@ -17,9 +17,9 @@ export type CustomerBinding = {
   customer_id: string;
   agent_key: string;
   name: string;
-  project_id: string;
-  agent_id: string;
   workspace_id: string;
+  agent_id: string;
+  worktree_id: string;
   created_at: Date;
 };
 export const presentBinding = (b: CustomerBinding): Schema['CustomerAgentBinding'] => ({
@@ -28,9 +28,9 @@ export const presentBinding = (b: CustomerBinding): Schema['CustomerAgentBinding
   customer_id: b.customer_id,
   key: b.agent_key,
   name: b.name,
-  project_id: b.project_id,
-  agent_id: b.agent_id,
   workspace_id: b.workspace_id,
+  agent_id: b.agent_id,
+  worktree_id: b.worktree_id,
   created_at: b.created_at.toISOString(),
 });
 
@@ -43,8 +43,8 @@ export async function getCustomerBinding(tx: Tx, p: Principal, customerId: strin
     )
   ).rows[0];
   assert(b, 404, 'not_found', 'Customer agent not found.');
-  await resources.get(tx, 'projects', b.project_id, p);
   await resources.get(tx, 'workspaces', b.workspace_id, p);
+  await resources.get(tx, 'worktrees', b.worktree_id, p);
   await resources.get(tx, 'agents', b.agent_id, p);
   return b;
 }
@@ -65,7 +65,7 @@ export async function ensureCustomerAgent(
   ).rows[0];
   if (existing) return presentBinding(await getCustomerBinding(tx, p, customerId, existing.id));
   await validateConfiguration(tx, p, input.configuration, 'preset');
-  const project = await createProject(tx, p, { name: input.name });
+  const workspace = await createWorkspace(tx, p, { name: input.name });
   const agent = await resources.create(tx, 'agents', p.organizationId, {
     ...input.configuration,
     name: input.name,
@@ -73,7 +73,7 @@ export async function ensureCustomerAgent(
   });
   const b = (
     await tx.query<CustomerBinding>(
-      `INSERT INTO customer_agent_bindings(id,organization_id,owner_user_id,customer_id,agent_key,name,project_id,agent_id,workspace_id)
+      `INSERT INTO customer_agent_bindings(id,organization_id,owner_user_id,customer_id,agent_key,name,workspace_id,agent_id,worktree_id)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         id(),
@@ -82,9 +82,9 @@ export async function ensureCustomerAgent(
         customerId,
         input.key,
         input.name,
-        project.id,
+        workspace.id,
         agent.id,
-        project.default_workspace_id,
+        workspace.default_worktree_id,
       ],
     )
   ).rows[0];
@@ -96,12 +96,12 @@ export async function listCustomerAgents(tx: Tx, p: Principal, customerId: strin
   const rows = (
     await tx.query<CustomerBinding>(
       `SELECT b.* FROM customer_agent_bindings b
-     JOIN projects p ON p.id=b.project_id JOIN workspaces w ON w.id=b.workspace_id JOIN agents a ON a.id=b.agent_id
+     JOIN workspaces p ON p.id=b.workspace_id JOIN worktrees w ON w.id=b.worktree_id JOIN agents a ON a.id=b.agent_id
      WHERE b.owner_user_id=$1 AND b.customer_id=$2 AND ($3::uuid IS NULL OR b.id<$3)
-     AND (cardinality($4::uuid[])=0 OR b.project_id=ANY($4::uuid[]))
+     AND (cardinality($4::uuid[])=0 OR b.workspace_id=ANY($4::uuid[]))
      AND coalesce(p.data->>'deleted','false')<>'true' AND coalesce(w.data->>'deleted','false')<>'true'
      AND coalesce(a.data->>'deleted','false')<>'true' ORDER BY b.id DESC LIMIT $5`,
-      [p.userId, customerId, query.get('cursor'), p.projectIds, limit + 1],
+      [p.userId, customerId, query.get('cursor'), p.workspaceIds, limit + 1],
     )
   ).rows;
   return {
@@ -111,10 +111,10 @@ export async function listCustomerAgents(tx: Tx, p: Principal, customerId: strin
 }
 
 export async function customerConversation(tx: Tx, p: Principal, b: CustomerBinding, sessionId: string) {
-  requireProject(p, b.project_id);
+  requireWorkspace(p, b.workspace_id);
   const session = await resources.get(tx, 'sessions', sessionId, p);
   assert(
-    session.workspace_id === b.workspace_id && session.agent_id === b.agent_id,
+    session.worktree_id === b.worktree_id && session.agent_id === b.agent_id,
     404,
     'not_found',
     'Conversation not found.',
@@ -124,7 +124,7 @@ export async function customerConversation(tx: Tx, p: Principal, b: CustomerBind
 export async function customerRun(tx: Tx, p: Principal, b: CustomerBinding, runId: string) {
   const run = await getRun(tx, runId, p);
   assert(
-    run.workspace_id === b.workspace_id && run.config.agent_id === b.agent_id,
+    run.worktree_id === b.worktree_id && run.config.agent_id === b.agent_id,
     404,
     'not_found',
     'Run not found.',

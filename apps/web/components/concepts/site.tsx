@@ -19,8 +19,8 @@ import { concepts, productDescription, type Concept } from './catalog';
 const capabilities = [
   {
     icon: Folder,
-    title: 'A project that persists.',
-    text: 'Source, notes, and artifacts stay in your workspace between runs. Checkpoints let you inspect and restore saved work.',
+    title: 'A workspace that persists.',
+    text: 'Source, notes, and artifacts stay in your worktree between runs. Checkpoints let you inspect and restore saved work.',
     detail: 'Files + checkpoints',
   },
   {
@@ -45,7 +45,7 @@ const capabilities = [
 const integrations = [
   { title: 'Native harnesses', items: ['Claude Code', 'Codex', 'OpenCode'] },
   { title: 'Model providers', items: ['Anthropic', 'OpenAI', 'OpenRouter'] },
-  { title: 'Tools & projects', items: ['MCP', 'Composio', 'GitHub'] },
+  { title: 'Tools & workspaces', items: ['MCP', 'Composio', 'GitHub'] },
   { title: 'Web search', items: ['Brave Search', 'Exa', 'Tavily', 'Parallel AI', 'Firecrawl'] },
 ];
 
@@ -140,7 +140,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
             </p>
             <ol className="concept-start-steps">
               <li>
-                <span>1</span>Create a project and scoped API key.
+                <span>1</span>Create a workspace and scoped API key.
               </li>
               <li>
                 <span>2</span>Choose your harness and model.
@@ -156,7 +156,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
               <summary>Set up these examples</summary>
               <p>
                 Install the SDK from source using the <Link href="/docs/sdk">SDK guide</Link>. Set{' '}
-                <code>MACROFOLD_API_KEY</code> and your <code>project_id</code>. The example runs Codex with
+                <code>MACROFOLD_API_KEY</code> and your <code>workspace_id</code>. The example runs Codex with
                 OpenAI’s GPT-5.4 mini; the catalog determines its provider. Install and link the{' '}
                 <Link href="/docs/cli">Macrofold CLI</Link> before using its example. For a local simulation,
                 use <code>fixture-model</code>. Cloud execution uses credits.
@@ -177,7 +177,7 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
               </h2>
             </div>
             <p>
-              The harness runs in a cloud sandbox. The project outlives the run. Choose a step to see how it
+              The harness runs in a cloud sandbox. The workspace outlives the run. Choose a step to see how it
               connects.
             </p>
           </div>
@@ -190,20 +190,20 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
             <h2>
               Your code. Your terminal.
               <br />
-              The same workspace.
+              The same worktree.
             </h2>
             <p>
               Start through the API. Check in from the CLI. Review files and agent history in the dashboard.
-              Every interface connects to the same projects and runs.
+              Every interface connects to the same workspaces and runs.
             </p>
             <Link href="/docs/workspaces" className="concept-text-link">
-              Explore projects <ArrowRight size={16} />
+              Explore workspaces <ArrowRight size={16} />
             </Link>
           </div>
           <div
             className="concept-control-diagram"
             role="img"
-            aria-label="Your application, CLI and dashboard connect to the same project with persistent files, run history and optional GitHub sync."
+            aria-label="Your application, CLI and dashboard connect to the same workspace with persistent files, run history and optional GitHub sync."
           >
             <div className="concept-interface-row">
               <span>
@@ -224,11 +224,11 @@ export function ConceptSite({ concept, name }: { concept: Concept; name: string 
               <i />
               <i />
             </div>
-            <div className="concept-project-node">
+            <div className="concept-workspace-node">
               <Folder size={22} />
               <div>
-                <strong>Your project</strong>
-                <span>Persistent workspace</span>
+                <strong>Your workspace</strong>
+                <span>Persistent worktree</span>
               </div>
               <span className="concept-node-badge">Shared state</span>
             </div>

@@ -8,7 +8,7 @@ This optional path composes the existing resource model. The server owns a minim
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | [customer-agents.ts](../../../packages/core/src/customer-agents.ts)                         | Atomic ensure, member/customer scoping, conversation and run checks                   |
 | [customer-agent-handlers.ts](../../../packages/core/src/customer-agent-handlers.ts)         | API composition; delegates execution, reads and cancellation to existing services     |
-| [customer-agent-connections.ts](../../../packages/core/src/customer-agent-connections.ts)   | Reviewed capabilities mapped to existing tool ceilings and project/preset rules       |
+| [customer-agent-connections.ts](../../../packages/core/src/customer-agent-connections.ts)   | Reviewed capabilities mapped to existing tool ceilings and workspace/preset rules       |
 | [customer-connect.ts](../../../packages/core/src/customer-connect.ts)                       | Short-lived consent, app-confirmed identity, recovery receipts and permission fencing |
 | [customer-connector-provider.ts](../../../packages/core/src/customer-connector-provider.ts) | Small catalog/start/complete provider port                                            |
 | [composio-consent.ts](../../../packages/providers/src/composio-consent.ts)                  | Pinned SDK and fixed provider verification protocol, shared with dashboard consent    |
@@ -20,7 +20,7 @@ OpenAPI tags these operations `customerAgents` and `x-platform-layer: integratio
 
 ## Transactions and external effects
 
-Ensure serializes the organization/owner/customer/key and creates the project, default worktree, preset and binding in one database transaction. Unique constraints enforce that mapping. IDs remain the core authorities for downstream persistence and execution; the binding only adds ownership resolution.
+Ensure serializes the organization/owner/customer/key and creates the workspace, default worktree, preset and binding in one database transaction. Unique constraints enforce that mapping. IDs remain the core authorities for downstream persistence and execution; the binding only adds ownership resolution.
 
 Tool catalogs and provider calls happen outside the API commit transaction. Consent stores dispatch state before account creation or single-use verification. The browser callback stores an encrypted opaque provider URI and returns a separate one-time code. Completion requires an authenticated app assertion of the same customer and rechecks the original delegating credential, current membership, binding, connection and attempt. A verified receipt survives a failed local commit; a completed attempt cannot activate twice. Permission-version snapshots prevent revocation during consent from being overwritten.
 

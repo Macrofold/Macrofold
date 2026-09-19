@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -18,12 +18,12 @@ pub struct ConnectionAccessRuleMatch {
     pub rule_id: uuid::Uuid,
     #[serde(rename = "scope")]
     pub scope: Scope,
-    #[serde(rename = "project_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<Option<uuid::Uuid>>,
+    #[serde(rename = "workspace_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<Option<uuid::Uuid>>,
     #[serde(rename = "agent_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<Option<uuid::Uuid>>,
-    #[serde(rename = "project_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub project_name: Option<Option<String>>,
+    #[serde(rename = "workspace_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<Option<String>>,
     #[serde(rename = "agent_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub agent_name: Option<Option<String>>,
 }
@@ -34,27 +34,27 @@ impl ConnectionAccessRuleMatch {
         ConnectionAccessRuleMatch {
             rule_id,
             scope,
-            project_id: None,
+            workspace_id: None,
             agent_id: None,
-            project_name: None,
+            workspace_name: None,
             agent_name: None,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Scope {
-    #[serde(rename = "project")]
-    Project,
+    #[serde(rename = "workspace")]
+    Workspace,
     #[serde(rename = "agent")]
     Agent,
-    #[serde(rename = "project_agent")]
-    ProjectAgent,
+    #[serde(rename = "workspace_agent")]
+    WorkspaceAgent,
 }
 
 impl Default for Scope {
     fn default() -> Scope {
-        Self::Project
+        Self::Workspace
     }
 }
 

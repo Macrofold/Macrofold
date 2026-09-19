@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,33 +24,33 @@ pub struct CustomerAgentBinding {
     pub key: String,
     #[serde(rename = "name")]
     pub name: String,
-    #[serde(rename = "project_id")]
-    pub project_id: uuid::Uuid,
-    #[serde(rename = "agent_id")]
-    pub agent_id: uuid::Uuid,
     #[serde(rename = "workspace_id")]
     pub workspace_id: uuid::Uuid,
+    #[serde(rename = "agent_id")]
+    pub agent_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::FixedOffset>,
 }
 
 impl CustomerAgentBinding {
     /// Optional use-case binding over core resources, not another execution primitive. The authenticated application server asserts its verified customer subject.
-    pub fn new(id: uuid::Uuid, integration_path: IntegrationPath, customer_id: String, key: String, name: String, project_id: uuid::Uuid, agent_id: uuid::Uuid, workspace_id: uuid::Uuid, created_at: chrono::DateTime<chrono::FixedOffset>) -> CustomerAgentBinding {
+    pub fn new(id: uuid::Uuid, integration_path: IntegrationPath, customer_id: String, key: String, name: String, workspace_id: uuid::Uuid, agent_id: uuid::Uuid, worktree_id: uuid::Uuid, created_at: chrono::DateTime<chrono::FixedOffset>) -> CustomerAgentBinding {
         CustomerAgentBinding {
             id,
             integration_path,
             customer_id,
             key,
             name,
-            project_id,
-            agent_id,
             workspace_id,
+            agent_id,
+            worktree_id,
             created_at,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum IntegrationPath {
     #[serde(rename = "customer-agents")]

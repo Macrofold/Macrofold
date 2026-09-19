@@ -30,7 +30,7 @@ const features = [
     'Your choice of harness',
     'Claude Code, Codex, and OpenCode through API, CLI, or the dashboard.',
   ],
-  [FolderGit2, 'Persistent project files', 'Keep context and return to the same files across runs.'],
+  [FolderGit2, 'Persistent workspace files', 'Keep context and return to the same files across runs.'],
   [GitBranch, 'Worktrees and version control', 'Work in parallel, checkpoint changes, and sync with GitHub.'],
   [Radio, 'Live progress and history', 'Stream tool activity and outputs, then inspect recorded runs.'],
   [Workflow, 'Tools and triggers', 'Connect apps and MCP tools. Start work from webhooks or schedules.'],
@@ -168,7 +168,7 @@ export function Pricing({
           </div>
           <p className="mp-fineprint">
             Self-serve limits are shared across your organization. Concurrency is the maximum number of active
-            jobs, not reserved or guaranteed immediate capacity. One writer runs per workspace; use worktrees
+            jobs, not reserved or guaranteed immediate capacity. One writer runs per worktree; use worktrees
             for parallel changes. Business and Enterprise capacity is confirmed before activation.
           </p>
         </section>
@@ -293,7 +293,7 @@ export function Pricing({
                 'Eligible jobs wait for capacity, with a default queue deadline of 24 hours that you can shorten. You can cancel queued jobs. Their reserved budget is released on cancellation or expiry. The execution timeout starts separately when execution begins.',
               ],
               [
-                'Do credits or project files expire?',
+                'Do credits or workspace files expire?',
                 'Purchased credits do not expire. Included subscription credits expire at the end of their paid period. Detailed run history follows your plan’s retention window; persistent files and native conversation state have separate storage and deletion rules.',
               ],
               [

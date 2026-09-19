@@ -38,7 +38,7 @@ beforeAll(async () => {
     kind: 'user',
     role: 'owner',
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
     operator: false,
   };
   secret = await transaction(org, async (tx) => {
@@ -66,10 +66,10 @@ function docker() {
   vi.stubEnv('OPENAI_API_KEY', 'managed-fixture');
 }
 async function submit(connectionId?: string, harness: Schema['Harness']['id'] = 'codex') {
-  const project = await client.request('createProject', { body: { name: 'Native API fixture' } });
+  const workspace = await client.request('createWorkspace', { body: { name: 'Native API fixture' } });
   return client.request('createRun', {
     body: {
-      project_id: project.id,
+      workspace_id: workspace.id,
       harness,
       model: 'gpt-5.4-mini',
       prompt: 'Fixture',
@@ -84,11 +84,11 @@ it('requires opt-in before real local admission and rejects incompatible models 
   config.allowPaid = false;
   await expect(submit()).rejects.toMatchObject({ code: 'execution_disabled' });
   config.allowPaid = true;
-  const project = await client.request('createProject', { body: { name: 'Rejected model' } });
+  const workspace = await client.request('createWorkspace', { body: { name: 'Rejected model' } });
   await expect(
     client.request('createRun', {
       body: {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'claude-code',
         model: 'gpt-5.4-mini',
         billing_mode: 'managed',

@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -47,7 +47,7 @@ import dev.macrofold.ApiClient;
   Run.JSON_PROPERTY_ID,
   Run.JSON_PROPERTY_ORGANIZATION_ID,
   Run.JSON_PROPERTY_SESSION_ID,
-  Run.JSON_PROPERTY_WORKSPACE_ID,
+  Run.JSON_PROPERTY_WORKTREE_ID,
   Run.JSON_PROPERTY_HARNESS,
   Run.JSON_PROPERTY_MODEL,
   Run.JSON_PROPERTY_STATUS,
@@ -70,7 +70,11 @@ import dev.macrofold.ApiClient;
   Run.JSON_PROPERTY_EXECUTION_DEADLINE,
   Run.JSON_PROPERTY_PERMISSION_LAYERS,
   Run.JSON_PROPERTY_AGENT_ID,
-  Run.JSON_PROPERTY_AGENT_VERSION
+  Run.JSON_PROPERTY_AGENT_VERSION,
+  Run.JSON_PROPERTY_KIND,
+  Run.JSON_PROPERTY_WORKSPACE_ID,
+  Run.JSON_PROPERTY_TASK_ID,
+  Run.JSON_PROPERTY_SANDBOX_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Run {
@@ -83,15 +87,15 @@ public class Run {
   private UUID organizationId;
 
   public static final String JSON_PROPERTY_SESSION_ID = "session_id";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private UUID sessionId;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
-  @javax.annotation.Nonnull
-  private UUID workspaceId;
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  @javax.annotation.Nullable
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_HARNESS = "harness";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private String harness;
 
   public static final String JSON_PROPERTY_MODEL = "model";
@@ -383,7 +387,7 @@ public class Run {
 
     ACCOUNT_CONCURRENCY(String.valueOf("account_concurrency")),
 
-    EARLIER_WORKSPACE_WORK(String.valueOf("earlier_workspace_work")),
+    EARLIER_WORKTREE_WORK(String.valueOf("earlier_worktree_work")),
 
     SCHEDULER_TURN(String.valueOf("scheduler_turn")),
 
@@ -391,7 +395,11 @@ public class Run {
 
     DEADLINE_EXPIRED(String.valueOf("deadline_expired")),
 
-    WORKSPACE_UNAVAILABLE(String.valueOf("workspace_unavailable"));
+    WORKTREE_UNAVAILABLE(String.valueOf("worktree_unavailable")),
+
+    LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
+
+    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity"));
 
     private String value;
 
@@ -479,6 +487,57 @@ public class Run {
   public static final String JSON_PROPERTY_AGENT_VERSION = "agent_version";
   private JsonNullable<Integer> agentVersion = JsonNullable.<Integer>undefined();
 
+  /**
+   * Gets or Sets kind
+   */
+  public enum KindEnum {
+    NATIVE_AGENT(String.valueOf("native_agent")),
+
+    INFERENCE(String.valueOf("inference")),
+
+    BOUNDED_AGENT(String.valueOf("bounded_agent"));
+
+    private String value;
+
+    KindEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static KindEnum fromValue(String value) {
+      for (KindEnum b : KindEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_KIND = "kind";
+  @javax.annotation.Nonnull
+  private KindEnum kind;
+
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  @javax.annotation.Nonnull
+  private UUID workspaceId;
+
+  public static final String JSON_PROPERTY_TASK_ID = "task_id";
+  private JsonNullable<UUID> taskId = JsonNullable.<UUID>undefined();
+
+  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
+  private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
+
   public Run() { 
   }
 
@@ -530,7 +589,7 @@ public class Run {
   }
 
 
-  public Run sessionId(@javax.annotation.Nonnull UUID sessionId) {
+  public Run sessionId(@javax.annotation.Nullable UUID sessionId) {
     this.sessionId = sessionId;
     return this;
   }
@@ -539,46 +598,46 @@ public class Run {
    * Get sessionId
    * @return sessionId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public UUID getSessionId() {
     return sessionId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setSessionId(@javax.annotation.Nonnull UUID sessionId) {
+  public void setSessionId(@javax.annotation.Nullable UUID sessionId) {
     this.sessionId = sessionId;
   }
 
 
-  public Run workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public Run worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
-  public Run harness(@javax.annotation.Nonnull String harness) {
+  public Run harness(@javax.annotation.Nullable String harness) {
     this.harness = harness;
     return this;
   }
@@ -587,17 +646,17 @@ public class Run {
    * Get harness
    * @return harness
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public String getHarness() {
     return harness;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = true)
+  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setHarness(@javax.annotation.Nonnull String harness) {
+  public void setHarness(@javax.annotation.Nullable String harness) {
     this.harness = harness;
   }
 
@@ -1172,6 +1231,118 @@ public class Run {
   }
 
 
+  public Run kind(@javax.annotation.Nonnull KindEnum kind) {
+    this.kind = kind;
+    return this;
+  }
+
+  /**
+   * Get kind
+   * @return kind
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public KindEnum getKind() {
+    return kind;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setKind(@javax.annotation.Nonnull KindEnum kind) {
+    this.kind = kind;
+  }
+
+
+  public Run workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
+    return this;
+  }
+
+  /**
+   * Get workspaceId
+   * @return workspaceId
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public UUID getWorkspaceId() {
+    return workspaceId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
+  }
+
+
+  public Run taskId(@javax.annotation.Nullable UUID taskId) {
+    this.taskId = JsonNullable.<UUID>of(taskId);
+    return this;
+  }
+
+  /**
+   * Get taskId
+   * @return taskId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getTaskId() {
+        return taskId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_TASK_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getTaskId_JsonNullable() {
+    return taskId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_TASK_ID)
+  public void setTaskId_JsonNullable(JsonNullable<UUID> taskId) {
+    this.taskId = taskId;
+  }
+
+  public void setTaskId(@javax.annotation.Nullable UUID taskId) {
+    this.taskId = JsonNullable.<UUID>of(taskId);
+  }
+
+
+  public Run sandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+    return this;
+  }
+
+  /**
+   * Reusable compute ID, when selected or created by keep_warm_seconds.
+   * @return sandboxId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getSandboxId() {
+        return sandboxId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getSandboxId_JsonNullable() {
+    return sandboxId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_SANDBOX_ID)
+  public void setSandboxId_JsonNullable(JsonNullable<UUID> sandboxId) {
+    this.sandboxId = sandboxId;
+  }
+
+  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+  }
+
+
   /**
    * Return true if this Run object is equal to o.
    */
@@ -1187,7 +1358,7 @@ public class Run {
     return Objects.equals(this.id, run.id) &&
         Objects.equals(this.organizationId, run.organizationId) &&
         Objects.equals(this.sessionId, run.sessionId) &&
-        Objects.equals(this.workspaceId, run.workspaceId) &&
+        Objects.equals(this.worktreeId, run.worktreeId) &&
         Objects.equals(this.harness, run.harness) &&
         Objects.equals(this.model, run.model) &&
         Objects.equals(this.status, run.status) &&
@@ -1210,7 +1381,11 @@ public class Run {
         equalsNullable(this.executionDeadline, run.executionDeadline) &&
         Objects.equals(this.permissionLayers, run.permissionLayers) &&
         equalsNullable(this.agentId, run.agentId) &&
-        equalsNullable(this.agentVersion, run.agentVersion);
+        equalsNullable(this.agentVersion, run.agentVersion) &&
+        Objects.equals(this.kind, run.kind) &&
+        Objects.equals(this.workspaceId, run.workspaceId) &&
+        equalsNullable(this.taskId, run.taskId) &&
+        equalsNullable(this.sandboxId, run.sandboxId);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -1219,7 +1394,7 @@ public class Run {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, sessionId, workspaceId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion));
+    return Objects.hash(id, organizationId, sessionId, worktreeId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion), kind, workspaceId, hashCodeNullable(taskId), hashCodeNullable(sandboxId));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -1236,7 +1411,7 @@ public class Run {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    harness: ").append(toIndentedString(harness)).append("\n");
     sb.append("    model: ").append(toIndentedString(model)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
@@ -1260,6 +1435,10 @@ public class Run {
     sb.append("    permissionLayers: ").append(toIndentedString(permissionLayers)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    agentVersion: ").append(toIndentedString(agentVersion)).append("\n");
+    sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    taskId: ").append(toIndentedString(taskId)).append("\n");
+    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -1319,9 +1498,9 @@ public class Run {
       joiner.add(String.format(java.util.Locale.ROOT, "%ssession_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSessionId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `harness` to the URL query string
@@ -1442,6 +1621,26 @@ public class Run {
     // add `agent_version` to the URL query string
     if (getAgentVersion() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sagent_version%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getAgentVersion()))));
+    }
+
+    // add `kind` to the URL query string
+    if (getKind() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%skind%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKind()))));
+    }
+
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    }
+
+    // add `task_id` to the URL query string
+    if (getTaskId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%stask_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getTaskId()))));
+    }
+
+    // add `sandbox_id` to the URL query string
+    if (getSandboxId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
     }
 
     return joiner.toString();

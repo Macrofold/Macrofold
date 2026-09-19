@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -152,7 +152,7 @@ pub enum UpdateConnectionAccessRuleError {
 }
 
 
-/// 
+///
 pub async fn authorize_connection(configuration: &configuration::Configuration, connection_id: &str, idempotency_key: &str, authorize_request: models::AuthorizeRequest, x_organization_id: Option<&str>) -> Result<models::AuthorizationLink, Error<AuthorizeConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -203,7 +203,7 @@ pub async fn authorize_connection(configuration: &configuration::Configuration, 
     }
 }
 
-/// 
+///
 pub async fn create_connection(configuration: &configuration::Configuration, idempotency_key: &str, connection_create: models::ConnectionCreate, x_organization_id: Option<&str>) -> Result<models::Connection, Error<CreateConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -305,7 +305,7 @@ pub async fn create_connection_access_rule(configuration: &configuration::Config
     }
 }
 
-/// 
+///
 pub async fn delete_connection(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>) -> Result<(), Error<DeleteConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -392,7 +392,7 @@ pub async fn delete_connection_access_rule(configuration: &configuration::Config
     }
 }
 
-/// 
+///
 pub async fn get_connection(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>) -> Result<models::Connection, Error<GetConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -485,13 +485,13 @@ pub async fn get_connection_access(configuration: &configuration::Configuration,
     }
 }
 
-pub async fn list_connection_access_rules(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>, cursor: Option<&str>, limit: Option<i32>, project_id: Option<&str>, agent_id: Option<&str>, sort: Option<&str>, direction: Option<&str>) -> Result<models::ConnectionAccessRulePage, Error<ListConnectionAccessRulesError>> {
+pub async fn list_connection_access_rules(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>, cursor: Option<&str>, limit: Option<i32>, workspace_id: Option<&str>, agent_id: Option<&str>, sort: Option<&str>, direction: Option<&str>) -> Result<models::ConnectionAccessRulePage, Error<ListConnectionAccessRulesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
     let p_header_x_organization_id = x_organization_id;
     let p_query_cursor = cursor;
     let p_query_limit = limit;
-    let p_query_project_id = project_id;
+    let p_query_workspace_id = workspace_id;
     let p_query_agent_id = agent_id;
     let p_query_sort = sort;
     let p_query_direction = direction;
@@ -505,8 +505,8 @@ pub async fn list_connection_access_rules(configuration: &configuration::Configu
     if let Some(ref param_value) = p_query_limit {
         req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_project_id {
-        req_builder = req_builder.query(&[("project_id", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_workspace_id {
+        req_builder = req_builder.query(&[("workspace_id", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_agent_id {
         req_builder = req_builder.query(&[("agent_id", &param_value.to_string())]);
@@ -555,7 +555,7 @@ pub async fn list_connection_access_rules(configuration: &configuration::Configu
     }
 }
 
-/// 
+///
 pub async fn list_connection_tools(configuration: &configuration::Configuration, connection_id: &str, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListConnectionTools200Response, Error<ListConnectionToolsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -610,13 +610,13 @@ pub async fn list_connection_tools(configuration: &configuration::Configuration,
     }
 }
 
-/// 
-pub async fn list_connections(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, project_id: Option<&str>, agent_id: Option<&str>) -> Result<models::ContextualConnectionPage, Error<ListConnectionsError>> {
+///
+pub async fn list_connections(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, workspace_id: Option<&str>, agent_id: Option<&str>) -> Result<models::ContextualConnectionPage, Error<ListConnectionsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
     let p_query_limit = limit;
     let p_header_x_organization_id = x_organization_id;
-    let p_query_project_id = project_id;
+    let p_query_workspace_id = workspace_id;
     let p_query_agent_id = agent_id;
 
     let uri_str = format!("{}/v1/connections", configuration.base_path);
@@ -628,8 +628,8 @@ pub async fn list_connections(configuration: &configuration::Configuration, curs
     if let Some(ref param_value) = p_query_limit {
         req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_project_id {
-        req_builder = req_builder.query(&[("project_id", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_workspace_id {
+        req_builder = req_builder.query(&[("workspace_id", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_agent_id {
         req_builder = req_builder.query(&[("agent_id", &param_value.to_string())]);
@@ -718,7 +718,7 @@ pub async fn list_connector_catalog(configuration: &configuration::Configuration
     }
 }
 
-/// 
+///
 pub async fn list_stdio_packages(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::StdioPackagePage, Error<ListStdioPackagesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
@@ -827,7 +827,7 @@ pub async fn resolve_connection_access(configuration: &configuration::Configurat
     }
 }
 
-/// 
+///
 pub async fn test_connection(configuration: &configuration::Configuration, connection_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::ConnectionTest, Error<TestConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -878,7 +878,7 @@ pub async fn test_connection(configuration: &configuration::Configuration, conne
     }
 }
 
-/// 
+///
 pub async fn update_connection(configuration: &configuration::Configuration, connection_id: &str, connection_patch: models::ConnectionPatch, x_organization_id: Option<&str>) -> Result<models::Connection, Error<UpdateConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;

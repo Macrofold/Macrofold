@@ -1,3 +1,4 @@
+import { controlDirectory } from './control-directory';
 import { createHash } from 'node:crypto';
 import { chown, lstat, mkdir, open, readFile, readdir, rename, symlink, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -83,7 +84,7 @@ export async function restoreSnapshot(
 if (process.argv[1]?.endsWith('/restore.mjs')) {
   let claimed = true;
   try {
-    await mkdir('/platform-control/restore.lock');
+    await mkdir(`${controlDirectory()}/restore.lock`);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') claimed = false;
     else throw error;
@@ -91,13 +92,13 @@ if (process.argv[1]?.endsWith('/restore.mjs')) {
   if (claimed)
     try {
       await restoreSnapshot(
-        '/platform-control/restore',
+        `${controlDirectory()}/restore`,
         { workspace: '/workspace', home: '/agent-home' },
         10001,
       );
-      await atomicJSON('/platform-control/restore-result.json', { ok: true });
+      await atomicJSON(`${controlDirectory()}/restore-result.json`, { ok: true });
     } catch {
-      await atomicJSON('/platform-control/restore-result.json', {
+      await atomicJSON(`${controlDirectory()}/restore-result.json`, {
         ok: false,
         code: 'restore_integrity_failure',
       });

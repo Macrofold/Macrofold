@@ -1,3 +1,4 @@
+import type { RunAttachment } from '../../contracts/media';
 /** Provider port: never exposes platform credentials or provider objects to the domain. */
 export type ExecutionEvent = { type: string; data: Record<string, unknown> };
 export type ExecutionFile = { path: string; bytes: Buffer; mode?: number };
@@ -9,6 +10,7 @@ export type ExecutionRequest = {
   model: string;
   prompt: string;
   instructions?: string;
+  attachments?: RunAttachment[];
   files: ExecutionFile[];
   timeoutSeconds: number;
   resumeState?: string;
@@ -44,7 +46,7 @@ export class Simulator implements ExecutionProvider {
       type: 'tool.started',
       data: {
         tool_call_id: `${request.runId}:list`,
-        name: 'workspace.list',
+        name: 'worktree.list',
         arguments: { path: '.' },
         simulated: true,
       },
@@ -61,7 +63,7 @@ export class Simulator implements ExecutionProvider {
     const previous = request.resumeState
       ? (JSON.parse(request.resumeState) as { turn: number })
       : { turn: 0 };
-    const output = `Simulation completed · turn ${previous.turn + 1}\n\nYour persistent workspace contains ${request.files.length} file${request.files.length === 1 ? '' : 's'}. The request was saved, streamed, and checkpointed without calling a model.\n\nRequest: ${request.prompt}`;
+    const output = `Simulation completed · turn ${previous.turn + 1}\n\nYour persistent worktree contains ${request.files.length} file${request.files.length === 1 ? '' : 's'}. The request was saved, streamed, and checkpointed without calling a model.\n\nRequest: ${request.prompt}`;
     for (const part of output.match(/.{1,32}(?:\n|$)?/gs) || []) {
       await pause();
       await onEvent({ type: 'output.delta', data: { text: part, simulated: true } });
@@ -72,7 +74,7 @@ export class Simulator implements ExecutionProvider {
       type: 'tool.started',
       data: {
         tool_call_id: `${request.runId}:write`,
-        name: 'workspace.write',
+        name: 'worktree.write',
         arguments: { path },
         simulated: true,
       },
@@ -88,7 +90,11 @@ export class Simulator implements ExecutionProvider {
     });
     return {
       output,
-      files: [...request.files, { path, bytes: content }],
+      files: [
+        ...request.files,
+        { path, bytes: content },
+        ...(request.attachments?.length ? [{ path: `outputs/run-${request.runId}.md`, bytes: content }] : []),
+      ],
       resumeState: JSON.stringify({ turn: previous.turn + 1 }),
       inputTokens: 0,
       outputTokens: 0,

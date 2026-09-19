@@ -12,7 +12,7 @@ test('plan controls and queued run status work through the dashboard and public 
     password = 'queue-fixture-password-2026';
   const created = await page.request.post('/auth/sign-up/email', {
     headers: { Origin: config.origin },
-    data: { name: 'Queue workspace', email, password },
+    data: { name: 'Queue worktree', email, password },
   });
   expect(created.ok()).toBeTruthy();
   const { user } = await created.json();
@@ -73,7 +73,7 @@ test('plan controls and queued run status work through the dashboard and public 
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
   };
-  const project = await post('/v1/projects', { name: 'Scheduling UI fixture', persistence: 'persistent' });
+  const workspace = await post('/v1/workspaces', { name: 'Scheduling UI fixture', persistence: 'persistent' });
   let first: { run_id: string; session_id: string };
   // Pin a queue blocker before a preview worker can claim and finish it.
   const client = await pool.connect();
@@ -82,8 +82,8 @@ test('plan controls and queued run status work through the dashboard and public 
     await client.query("SELECT set_config('app.organization_id',$1,true)", [identity.organization_id]);
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended('capacity:global',0))");
     first = await post('/v1/runs', {
-      project_id: project.id,
-      prompt: 'Workspace writer fixture',
+      workspace_id: workspace.id,
+      prompt: 'Worktree writer fixture',
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
@@ -107,7 +107,7 @@ test('plan controls and queued run status work through the dashboard and public 
       scheduling_class: 'interactive',
     });
     expect(next).not.toHaveProperty('queue_position');
-    expect(next.waiting_reason).toBe('earlier_workspace_work');
+    expect(next.waiting_reason).toBe('earlier_worktree_work');
     await page.goto('/runs/' + next.run_id);
     const waiting = page.getByRole('status').filter({ hasText: 'Earlier work is using this worktree' });
     await expect(waiting).toBeVisible();

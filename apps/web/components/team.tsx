@@ -48,7 +48,7 @@ export function TeamView() {
       <PageHeading
         eyebrow="BUILD TOGETHER"
         title="Team & organization"
-        description="Share persistent projects, manage access, and keep an accountable history."
+        description="Share persistent workspaces, manage access, and keep an accountable history."
         action={
           <Button
             variant="secondary"
@@ -65,7 +65,7 @@ export function TeamView() {
       <section className="panel">
         <SectionHeading
           title="Organization"
-          description="Members share projects and billing. Personal connector credentials stay bound to their owners."
+          description="Members share workspaces and billing. Personal connector credentials stay bound to their owners."
         />
         <form
           className="form-stack"
@@ -226,7 +226,7 @@ export function TeamView() {
         description={
           modal === 'invite'
             ? 'Choose the access this person needs. You can change it later.'
-            : 'A separate home for projects, members, credentials, and billing.'
+            : 'A separate home for workspaces, members, credentials, and billing.'
         }
       >
         {invite ? (

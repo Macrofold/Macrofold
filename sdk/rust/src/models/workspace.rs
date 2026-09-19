@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,95 +15,67 @@ use serde::{Deserialize, Serialize};
 pub struct Workspace {
     #[serde(rename = "id")]
     pub id: uuid::Uuid,
-    #[serde(rename = "project_id")]
-    pub project_id: uuid::Uuid,
     #[serde(rename = "organization_id")]
     pub organization_id: uuid::Uuid,
-    #[serde(rename = "name", deserialize_with = "Option::deserialize")]
-    pub name: Option<String>,
-    #[serde(rename = "branch", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub branch: Option<Option<String>>,
-    #[serde(rename = "revision")]
-    pub revision: String,
-    #[serde(rename = "status")]
-    pub status: Status,
-    #[serde(rename = "latest_checkpoint_id", skip_serializing_if = "Option::is_none")]
-    pub latest_checkpoint_id: Option<uuid::Uuid>,
-    #[serde(rename = "last_verified_at", skip_serializing_if = "Option::is_none")]
-    pub last_verified_at: Option<chrono::DateTime<chrono::FixedOffset>>,
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(rename = "persistence")]
+    pub persistence: Persistence,
+    #[serde(rename = "github", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub github: Option<Option<Box<models::WorkspaceGithub>>>,
     #[serde(rename = "created_at")]
     pub created_at: chrono::DateTime<chrono::FixedOffset>,
-    #[serde(rename = "source_commit", skip_serializing_if = "Option::is_none")]
-    pub source_commit: Option<String>,
-    #[serde(rename = "source_checkpoint_id", skip_serializing_if = "Option::is_none")]
-    pub source_checkpoint_id: Option<uuid::Uuid>,
-    #[serde(rename = "git_commit", skip_serializing_if = "Option::is_none")]
-    pub git_commit: Option<String>,
-    #[serde(rename = "git_status", skip_serializing_if = "Option::is_none")]
-    pub git_status: Option<GitStatus>,
-    #[serde(rename = "git_error", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub git_error: Option<Option<String>>,
-    #[serde(rename = "remote_change", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub remote_change: Option<Option<Box<models::WorkspaceRemoteChange>>>,
+    /// Non-negative integer count as a decimal string.
+    #[serde(rename = "storage_bytes", skip_serializing_if = "Option::is_none")]
+    pub storage_bytes: Option<String>,
+    #[serde(rename = "archived", skip_serializing_if = "Option::is_none")]
+    pub archived: Option<bool>,
+    #[serde(rename = "default_worktree_id", skip_serializing_if = "Option::is_none")]
+    pub default_worktree_id: Option<uuid::Uuid>,
+    #[serde(rename = "revision", skip_serializing_if = "Option::is_none")]
+    pub revision: Option<String>,
+    #[serde(rename = "deletion_due_at", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub deletion_due_at: Option<Option<chrono::DateTime<chrono::FixedOffset>>>,
+    #[serde(rename = "deletion_requested_at", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub deletion_requested_at: Option<Option<chrono::DateTime<chrono::FixedOffset>>>,
     #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Box<models::AgentPermissions>>,
+    #[serde(rename = "connections", skip_serializing_if = "Option::is_none")]
+    pub connections: Option<Box<models::ContextualConnectionPage>>,
 }
 
 impl Workspace {
-    pub fn new(id: uuid::Uuid, project_id: uuid::Uuid, organization_id: uuid::Uuid, name: Option<String>, revision: String, status: Status, created_at: chrono::DateTime<chrono::FixedOffset>) -> Workspace {
+    pub fn new(id: uuid::Uuid, organization_id: uuid::Uuid, name: String, persistence: Persistence, created_at: chrono::DateTime<chrono::FixedOffset>) -> Workspace {
         Workspace {
             id,
-            project_id,
             organization_id,
             name,
-            branch: None,
-            revision,
-            status,
-            latest_checkpoint_id: None,
-            last_verified_at: None,
+            persistence,
+            github: None,
             created_at,
-            source_commit: None,
-            source_checkpoint_id: None,
-            git_commit: None,
-            git_status: None,
-            git_error: None,
-            remote_change: None,
+            storage_bytes: None,
+            archived: None,
+            default_worktree_id: None,
+            revision: None,
+            deletion_due_at: None,
+            deletion_requested_at: None,
             permissions: None,
+            connections: None,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum Status {
-    #[serde(rename = "idle")]
-    Idle,
-    #[serde(rename = "busy")]
-    Busy,
-    #[serde(rename = "restoring")]
-    Restoring,
-    #[serde(rename = "degraded")]
-    Degraded,
-    #[serde(rename = "deleting")]
-    Deleting,
+pub enum Persistence {
+    #[serde(rename = "persistent")]
+    Persistent,
+    #[serde(rename = "ephemeral")]
+    Ephemeral,
 }
 
-impl Default for Status {
-    fn default() -> Status {
-        Self::Idle
-    }
-}
-/// 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum GitStatus {
-    #[serde(rename = "ready")]
-    Ready,
-    #[serde(rename = "attention")]
-    Attention,
-}
-
-impl Default for GitStatus {
-    fn default() -> GitStatus {
-        Self::Ready
+impl Default for Persistence {
+    fn default() -> Persistence {
+        Self::Persistent
     }
 }
 

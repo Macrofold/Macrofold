@@ -1,6 +1,6 @@
 import { validatePermissions } from './agent-permissions';
 import { assert } from './errors';
-import { workspaceIdentity, assertWorkspaceName, projectBranches } from './workspace-names';
+import { worktreeIdentity, assertWorktreeName, workspaceBranches } from './worktree-names';
 import * as resources from './resources';
 import { lock, type Tx } from '../../db';
 import { storagePreparation } from './storage-preparation';
@@ -58,9 +58,9 @@ export function normalizePath(value: string) {
   );
   return value;
 }
-export async function workspaceFiles(tx: Tx, workspaceId: string, p?: Principal) {
-  const ws = await resources.get(tx, 'workspaces', workspaceId, p);
-  return { workspace: ws, files: (ws.files || []) as FileRecord[] };
+export async function worktreeFiles(tx: Tx, worktreeId: string, p?: Principal) {
+  const ws = await resources.get(tx, 'worktrees', worktreeId, p);
+  return { worktree: ws, files: (ws.files || []) as FileRecord[] };
 }
 export function fileEntry(file: FileRecord, revision: string): components['schemas']['FileEntry'] {
   const { path, type, size_bytes, modified_at, git_ignored, sha256 } = file;
@@ -96,31 +96,31 @@ function assertPathAvailable(files: FileRecord[], path: string) {
   );
   assertFileTree([...files, { path }]);
 }
-export async function ensureWritable(tx: Tx, workspaceId: string) {
-  await lock(tx, `workspace:${workspaceId}`);
+export async function ensureWritable(tx: Tx, worktreeId: string) {
+  await lock(tx, `worktree:${worktreeId}`);
   const active = await tx.query(
-    "SELECT id FROM runs WHERE workspace_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
-    [workspaceId],
+    "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
+    [worktreeId],
   );
   assert(
     !active.rowCount,
     409,
-    'workspace_busy',
-    'An agent is writing to this workspace. Wait or cancel it first.',
+    'worktree_busy',
+    'An agent is writing to this worktree. Wait or cancel it first.',
   );
 }
 export async function checkpoint(
   tx: Tx,
   p: Principal,
-  workspaceId: string,
+  worktreeId: string,
   label = 'Checkpoint',
   filesOverride?: FileRecord[],
   gitOverride?: FileRecord[],
 ) {
-  const { workspace, files } = await workspaceFiles(tx, workspaceId, p);
+  const { worktree, files } = await worktreeFiles(tx, worktreeId, p);
   const data = await prepareCheckpoint(
     p.organizationId,
-    workspace,
+    worktree,
     filesOverride || files,
     label,
     gitOverride,
@@ -132,7 +132,7 @@ export async function checkpoint(
  * transaction must hold a storagePreparation until publication finishes. */
 export async function prepareCheckpoint(
   org: string,
-  workspace: resources.Document<'workspaces'>,
+  worktree: resources.Document<'worktrees'>,
   files: FileRecord[],
   label: string,
   gitOverride?: FileRecord[],
@@ -147,26 +147,26 @@ export async function prepareCheckpoint(
   try {
     gitState = await gitRevision(
       org,
-      String(workspace.branch || 'main'),
+      String(worktree.branch || 'main'),
       next,
-      gitOverride || ((workspace.git_files || []) as FileRecord[]),
+      gitOverride || ((worktree.git_files || []) as FileRecord[]),
       label,
-      workspace.git_status === 'ready' ? baseline : [],
+      worktree.git_status === 'ready' ? baseline : [],
     );
   } catch (error) {
     // Git failure never discards a recoverable filesystem revision. A user can repair it in a native session.
     gitState = {
       files: next,
-      git_files: gitOverride || workspace.git_files || [],
-      git_commit: workspace.git_commit,
+      git_files: gitOverride || worktree.git_files || [],
+      git_commit: worktree.git_commit,
       git_status: 'attention',
       git_error:
         typeof error === 'object' && error && 'code' in error ? String(error.code) : 'git_checkpoint_failed',
     };
   }
   return {
-    workspace_id: workspace.id,
-    project_id: workspace.project_id,
+    worktree_id: worktree.id,
+    workspace_id: worktree.workspace_id,
     label,
     ...gitState,
     consistency: 'quiescent' as const,
@@ -202,7 +202,7 @@ const mutationLabels = {
  * commit rechecks writer exclusion, authority, capacity and the exact source revision. */
 export async function prepareFileMutation(
   p: Principal,
-  workspaceId: string,
+  worktreeId: string,
   revision: string,
   mutation: FileMutation,
 ) {
@@ -217,10 +217,10 @@ export async function prepareFileMutation(
     );
   const addsBytes = ['file_write', 'folder_create', 'file_duplicate'].includes(mutation.kind);
   const preparation = await storagePreparation(p.organizationId, async (tx) => {
-    await ensureWritable(tx, workspaceId);
-    const source = await workspaceFiles(tx, workspaceId, p);
+    await ensureWritable(tx, worktreeId);
+    const source = await worktreeFiles(tx, worktreeId, p);
     assert(
-      source.workspace.revision === revision,
+      source.worktree.revision === revision,
       412,
       'stale_revision',
       'The worktree has changed. Reload before saving.',
@@ -229,7 +229,7 @@ export async function prepareFileMutation(
     return source;
   });
   try {
-    const { workspace, files } = preparation.value;
+    const { worktree, files } = preparation.value;
     const original = files.find((file) => file.path === mutation.path);
     const now = new Date().toISOString();
     let path = mutation.path;
@@ -286,10 +286,10 @@ export async function prepareFileMutation(
     }
     // Existing verified content is already durable. New/replaced objects are verified;
     // unchanged blobs keep their verified checkpoint provenance rather than being re-read.
-    const baseline = workspace.latest_checkpoint_id ? files : [];
+    const baseline = worktree.latest_checkpoint_id ? files : [];
     const data = await prepareCheckpoint(
       p.organizationId,
-      workspace,
+      worktree,
       next,
       mutationLabels[mutation.kind],
       undefined,
@@ -299,24 +299,24 @@ export async function prepareFileMutation(
       dispose: preparation.dispose,
       async commit(tx: Tx, current: Principal) {
         await preparation.assertActive(tx);
-        await ensureWritable(tx, workspaceId);
-        const source = await workspaceFiles(tx, workspaceId, current);
+        await ensureWritable(tx, worktreeId);
+        const source = await worktreeFiles(tx, worktreeId, current);
         assert(
-          source.workspace.revision === revision,
+          source.worktree.revision === revision,
           412,
           'stale_revision',
           'The worktree changed while preparing this edit. Reload and retry.',
         );
         if (addsBytes) await requireStorageCapacity(tx, current.organizationId);
         const cp = await saveCheckpoint(tx, current, data);
-        const updated = await resources.update(tx, 'workspaces', workspaceId, checkpointState(cp), revision);
+        const updated = await resources.update(tx, 'worktrees', worktreeId, checkpointState(cp), revision);
         const record = (cp.files as FileRecord[]).find((file) => file.path === path);
         const entry =
           mutation.kind === 'folder_create'
             ? { path, type: 'directory' as const, revision: updated.revision }
             : record && fileEntry(record, updated.revision);
         return resources.operation(tx, current, mutation.kind, {
-          workspace_id: workspaceId,
+          worktree_id: worktreeId,
           checkpoint_id: cp.id,
           revision: updated.revision,
           path,
@@ -331,35 +331,35 @@ export async function prepareFileMutation(
   }
 }
 
-export async function createWorkspace(
+export async function createWorktree(
   tx: Tx,
   p: Principal,
-  projectId: string,
-  input: components['schemas']['WorkspaceCreate'],
+  workspaceId: string,
+  input: components['schemas']['WorktreeCreate'],
 ) {
   validatePermissions(input.permissions);
   // Serialize name checks and first-worktree selection; the unique index is a backstop.
-  await lock(tx, `project-workspaces:${projectId}`);
-  const project = await resources.get(tx, 'projects', projectId, p);
+  await lock(tx, `workspace-worktrees:${workspaceId}`);
+  const workspace = await resources.get(tx, 'workspaces', workspaceId, p);
   const source = input.source as { kind?: string; checkpoint_id?: string; ref?: string } | undefined;
   let files: FileRecord[] = [],
     gitFiles: FileRecord[] = [];
   const checkpointId = source?.checkpoint_id;
   if (checkpointId) {
     const cp = await resources.get(tx, 'checkpoints', String(checkpointId), p);
-    assert(cp.project_id === projectId, 400, 'invalid_request', 'Checkpoint belongs to another project.');
+    assert(cp.workspace_id === workspaceId, 400, 'invalid_request', 'Checkpoint belongs to another workspace.');
     files = cp.files as FileRecord[];
     gitFiles = (cp.git_files || []) as FileRecord[];
-  } else if (project.default_workspace_id) {
-    const base = await workspaceFiles(tx, String(project.default_workspace_id), p);
+  } else if (workspace.default_worktree_id) {
+    const base = await worktreeFiles(tx, String(workspace.default_worktree_id), p);
     files = base.files;
-    gitFiles = (base.workspace.git_files || []) as FileRecord[];
+    gitFiles = (base.worktree.git_files || []) as FileRecord[];
   }
-  const identity = workspaceIdentity(input.name as string | undefined, input.branch as string | undefined);
+  const identity = worktreeIdentity(input.name as string | undefined, input.branch as string | undefined);
   const { name, branch } = identity;
-  await assertWorkspaceName(tx, projectId, name);
+  await assertWorktreeName(tx, workspaceId, name);
   const existing = branch
-    ? (await projectBranches(tx, p, projectId)).find((item) => item.name === branch)
+    ? (await workspaceBranches(tx, p, workspaceId)).find((item) => item.name === branch)
     : undefined;
   const explicitBranch = typeof input.branch === 'string' && Boolean(input.branch.trim());
   const createsBranch = input.branch_mode === 'new' || (!explicitBranch && Boolean(name));
@@ -379,8 +379,8 @@ export async function createWorkspace(
   const ref = source?.ref || (existing && input.branch ? existing.ref : undefined);
   if (ref && branch) {
     if (existing && !source?.ref) {
-      const origin = await workspaceFiles(tx, existing.workspace_id, p);
-      gitFiles = (origin.workspace.git_files || []) as FileRecord[];
+      const origin = await worktreeFiles(tx, existing.worktree_id, p);
+      gitFiles = (origin.worktree.git_files || []) as FileRecord[];
     }
     const selected = await withRepository(gitFiles, async (repo) => {
       await repo.select(branch, ref);
@@ -389,35 +389,35 @@ export async function createWorkspace(
     files = selected.files;
     gitFiles = selected.git;
   }
-  const ws = await resources.create(tx, 'workspaces', p.organizationId, {
-    project_id: projectId,
+  const ws = await resources.create(tx, 'worktrees', p.organizationId, {
+    workspace_id: workspaceId,
     name,
     branch,
     status: 'idle',
     deleted: false,
     files,
     git_files: gitFiles,
-    source_ref: source?.ref || project.target_branch || 'main',
+    source_ref: source?.ref || workspace.target_branch || 'main',
     permissions: input.permissions,
   });
-  const cp = await checkpoint(tx, p, ws.id, 'Workspace created');
+  const cp = await checkpoint(tx, p, ws.id, 'Worktree created');
   assert(cp.git_status !== 'attention', 409, 'git_branch_failed', 'Unable to prepare the worktree branch.');
-  await resources.update(tx, 'workspaces', ws.id, {
+  await resources.update(tx, 'worktrees', ws.id, {
     ...checkpointState(cp),
     base_checkpoint_id: cp.id,
   });
-  if (!project.default_workspace_id)
-    await resources.update(tx, 'projects', projectId, { default_workspace_id: ws.id });
-  return resources.operation(tx, p, 'workspace_create', { workspace_id: ws.id, project_id: projectId });
+  if (!workspace.default_worktree_id)
+    await resources.update(tx, 'workspaces', workspaceId, { default_worktree_id: ws.id });
+  return resources.operation(tx, p, 'worktree_create', { worktree_id: ws.id, workspace_id: workspaceId });
 }
 
-/** Assign deferred metadata once, inside admission's transaction and project lock.
+/** Assign deferred metadata once, inside admission's transaction and workspace lock.
  * A readable prompt-derived slug requires no additional model call or spending. */
-export async function nameWorkspaceForRun(tx: Tx, p: Principal, workspaceId: string, prompt: string) {
-  const original = await resources.get(tx, 'workspaces', workspaceId, p);
-  await lock(tx, `project-workspaces:${original.project_id}`);
-  const workspace = await resources.get(tx, 'workspaces', workspaceId, p);
-  if (workspace.name && workspace.branch) return workspace;
+export async function nameWorktreeForRun(tx: Tx, p: Principal, worktreeId: string, prompt: string) {
+  const original = await resources.get(tx, 'worktrees', worktreeId, p);
+  await lock(tx, `workspace-worktrees:${original.workspace_id}`);
+  const worktree = await resources.get(tx, 'worktrees', worktreeId, p);
+  if (worktree.name && worktree.branch) return worktree;
   const stem =
     prompt
       .normalize('NFKD')
@@ -428,8 +428,8 @@ export async function nameWorkspaceForRun(tx: Tx, p: Principal, workspaceId: str
       .slice(0, 52)
       .replace(/-$/g, '') || 'agent-task';
   const rows = await tx.query(
-    "SELECT data->>'name' AS name,data->>'branch' AS branch FROM workspaces WHERE project_id=$1 AND COALESCE(data->>'deleted','false')='false'",
-    [workspace.project_id],
+    "SELECT data->>'name' AS name,data->>'branch' AS branch FROM worktrees WHERE workspace_id=$1 AND COALESCE(data->>'deleted','false')='false'",
+    [worktree.workspace_id],
   );
   const occupied = new Set(
     rows.rows.flatMap((row) => [
@@ -437,27 +437,27 @@ export async function nameWorkspaceForRun(tx: Tx, p: Principal, workspaceId: str
       String(row.branch ?? '').toLowerCase(),
     ]),
   );
-  for (const ref of await projectBranches(tx, p, String(workspace.project_id)))
+  for (const ref of await workspaceBranches(tx, p, String(worktree.workspace_id)))
     occupied.add(ref.name.toLowerCase());
   let generated = stem;
   for (let suffix = 2; occupied.has(generated); suffix++) generated = `${stem}-${suffix}`;
-  const identity = workspaceIdentity(
-    typeof workspace.name === 'string' ? workspace.name : generated,
-    typeof workspace.branch === 'string' ? workspace.branch : undefined,
+  const identity = worktreeIdentity(
+    typeof worktree.name === 'string' ? worktree.name : generated,
+    typeof worktree.branch === 'string' ? worktree.branch : undefined,
   );
-  await assertWorkspaceName(tx, String(workspace.project_id), identity.name, workspaceId);
-  await resources.update(tx, 'workspaces', workspaceId, identity);
-  const cp = await checkpoint(tx, p, workspaceId, 'Worktree named');
+  await assertWorktreeName(tx, String(worktree.workspace_id), identity.name, worktreeId);
+  await resources.update(tx, 'worktrees', worktreeId, identity);
+  const cp = await checkpoint(tx, p, worktreeId, 'Worktree named');
   assert(
     cp.git_status !== 'attention',
     409,
     'git_branch_failed',
     'Unable to prepare the worktree branch. Files remain unchanged.',
   );
-  return resources.update(tx, 'workspaces', workspaceId, checkpointState(cp));
+  return resources.update(tx, 'worktrees', worktreeId, checkpointState(cp));
 }
 
-/** Publish the file and Git namespaces together; callers keep their existing workspace CAS/lease checks. */
+/** Publish the file and Git namespaces together; callers keep their existing worktree CAS/lease checks. */
 export function checkpointState(cp: resources.Document<'checkpoints'>) {
   return {
     files: cp.files,

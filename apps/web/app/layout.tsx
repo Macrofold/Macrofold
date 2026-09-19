@@ -8,7 +8,7 @@ import '../components/connectors.css';
 import './interaction.css';
 export const metadata: Metadata = {
   icons: { icon: { url: '/brands/macrofold/mark.svg', type: 'image/svg+xml', sizes: 'any' } },
-  title: { default: 'Agent workspace', template: '%s · Agent workspace' },
+  title: { default: 'Agent worktree', template: '%s · Agent worktree' },
   description: 'A persistent home for your cloud agents. Work through the dashboard, API, or terminal.',
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

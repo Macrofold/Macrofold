@@ -1,5 +1,7 @@
 # Implemented architecture and data ownership
 
+See [workspace/worktree terminology and migration](resource-terminology.md) for the resource naming contract and future project grouping.
+
 This is the current design; [decision log](decisions.md) explains changes from the initial proposal. [Verification](../status/README.md) distinguishes local acceptance from live-provider checks.
 
 [Ranked improvements](../product/improvements.md) owns proposed work and status. The [Workflow and Temporal evaluation](orchestration-evaluation.md) provides supporting research and criteria for revisiting the current scheduler.
@@ -22,7 +24,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Clients               | oclif + Ink CLI, TypeScript SDK, Python/httpx SDK                      | Same public API and stream contract; no client database access                                                       |
 | Operations            | Indexed SQL facts, stored reports, optional PostHog                    | Native reports need no analytics subscription or inference                                                           |
 
-Exact versions are in the lockfile and runtime package. pnpm workspaces are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. The local Docker adapter shares the SQL poller and phase engine; hosted alternatives still require adapter and acceptance work. See [development modes](../engineering/development-modes.md).
+Exact versions are in the lockfile and runtime package. pnpm worktrees are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. The local Docker adapter shares the SQL poller and phase engine; hosted alternatives still require adapter and acceptance work. See [development modes](../engineering/development-modes.md).
 
 ## Component graph
 
@@ -56,7 +58,7 @@ The [customer-agent starter](../../examples/personal-agent/README.md) composes t
 
 ## Durable transaction sequence
 
-Admission resolves and freezes model/harness/rate/grants/limits, authorizes the tenant and credential, takes workspace/account locks, reserves maximum liability, creates the run/session, writes its first event and inserts its dispatch record in one transaction. A transport response does not own the run. Immediate Workflow dispatch is repaired by authenticated minutely cron. Duplicate scheduler instances compete for a phase lease. Stable VM identity and a native launch marker prevent a lost acknowledgement from replaying the prompt.
+Admission resolves and freezes model/harness/rate/grants/limits, authorizes the tenant and credential, takes worktree/account locks, reserves maximum liability, creates the run/session, writes its first event and inserts its dispatch record in one transaction. A transport response does not own the run. Immediate Workflow dispatch is repaired by authenticated minutely cron. Duplicate scheduler instances compete for a phase lease. Stable VM identity and a native launch marker prevent a lost acknowledgement from replaying the prompt.
 
 A cloud step restores, launches, probes or uploads a bounded part of a checkpoint and commits its next phase. It returns a delay; Workflow sleeps durably, while the standalone worker reschedules a SQL job. Native processes outlive an individual HTTP request. SSE reads durable event batches, releases database connections between reads and rotates after 55 seconds. POST input/cancel and session continuation are ordinary authenticated mutations. WebSockets are not required for this product's interaction model.
 
@@ -66,11 +68,11 @@ Completion has separate execution, persistence and Git-sync outcomes. The superv
 
 [Dashboard freshness](../features/dashboard/live-refresh.md) uses a separate private SSE path. Indexed current resource revisions are checked through short tenant transactions shared by tabs on each instance. A category signal invalidates queries without copying output into an organization event log. Periodic reconciliation repairs missed hints; persisted per-run replay remains authoritative for history.
 
-The actual numbered migrations, beginning with `packages/db/001_initial.sql`, are the field-level schema. Better Auth tables live in `auth`; tenant application resources live in `public`. Core families are organizations/memberships/API keys; projects/workspaces/agents/sessions; runs/events/executions/jobs; checkpoints/artifacts/transfers/operations; connections/grants/cleanup; Git installations/grants/jobs; webhooks/deliveries; ledger/credit lots/financial and billing events/model usage; request/product/human-activity facts; maintenance/storage observations/report snapshots/admin audits.
+The actual numbered migrations, beginning with `packages/db/001_initial.sql`, are the field-level schema. Better Auth tables live in `auth`; tenant application resources live in `public`. Core families are organizations/memberships/API keys; workspaces/worktrees/agents/sessions; runs/events/executions/jobs; checkpoints/artifacts/transfers/operations; connections/grants/cleanup; Git installations/grants/jobs; webhooks/deliveries; ledger/credit lots/financial and billing events/model usage; request/product/human-activity facts; maintenance/storage observations/report snapshots/admin audits.
 
-Resources use opaque UUIDv7 IDs, timestamptz, bigint micro-USD and byte/token counts. Public bigints are decimal strings. Heterogeneous resource configuration uses JSONB; indexed lifecycle, financial and ownership fields remain relational. Uniqueness fences workspace branches, active writers, event producer sequences and payment/business-event deduplication. Queued follow-ups are not active writers.
+Resources use opaque UUIDv7 IDs, timestamptz, bigint micro-USD and byte/token counts. Public bigints are decimal strings. Heterogeneous resource configuration uses JSONB; indexed lifecycle, financial and ownership fields remain relational. Uniqueness fences worktree branches, active writers, event producer sequences and payment/business-event deduplication. Queued follow-ups are not active writers.
 
-The runtime login is a non-owner `NOBYPASSRLS` role. Each domain transaction sets `app.organization_id` using `SET LOCAL`, so pooled connections cannot retain another tenant's context. Tenant tables use FORCE RLS. Services still check nested resource ownership, scope, project restrictions and current membership. A supplied UUID is a selector, never authority. Connection grants additionally bind the upstream owner; accepted runs recheck revocation before model/tool calls.
+The runtime login is a non-owner `NOBYPASSRLS` role. Each domain transaction sets `app.organization_id` using `SET LOCAL`, so pooled connections cannot retain another tenant's context. Tenant tables use FORCE RLS. Services still check nested resource ownership, scope, workspace restrictions and current membership. A supplied UUID is a selector, never authority. Connection grants additionally bind the upstream owner; accepted runs recheck revocation before model/tool calls.
 
 Reporting views expose approved non-content columns through a dedicated NOLOGIN reporting role. The app cannot assume that role or issue arbitrary operator SQL through an endpoint. Public reporting methods are fixed queries with separate operator audiences/scopes and immutable access audits. PII requires `accounts:pii:read`. The overall application database login is not a read-only login; read-only behavior is enforced by the reporting surface and restricted views, not a misleading claim that the entire server has read-only database credentials.
 
@@ -82,8 +84,8 @@ SQL is the source of truth, R2 holds independent encrypted bytes, the VM is repl
 
 Launch uses one region. Git/export operations have explicit 250 MiB and entry limits so they fit bounded Functions; large ignored runtime data uses chunked persistence. The runtime capture envelope is 10 GiB/100,000 entries. Exceeding it preserves a recovery state rather than inventing a successful backup. Larger repositories require an explicit maintenance-compute extension and fresh capacity evidence.
 
-See [runtime](../features/execution/runtime.md), [workspace design](../features/workspaces/README.md), [security/tools](../features/identity-integrations/tools-security.md), [deployment](../operations/deployment.md) and [launch instructions](../operations/launch-guide.md) for the corresponding implementation and operator procedures.
+See [runtime](../features/execution/runtime.md), [worktree design](../features/workspaces/README.md), [security/tools](../features/identity-integrations/tools-security.md), [deployment](../operations/deployment.md) and [launch instructions](../operations/launch-guide.md) for the corresponding implementation and operator procedures.
 
 ## Connector access
 
-[Connector access rules](../features/identity-integrations/connection-access.md) separate tool selection from authority. Persisted project/preset context drives eligibility; admission freezes a bounded tool/account snapshot and dispatch intersects it with current rules or an authorized one-run exception. Explicit access columns and tenant-scoped rules replace connection JSON grants. Tools and Access share one compare-and-swap revision. [Ownership and coordinated migration](../engineering/testing/connection-access.md).
+[Connector access rules](../features/identity-integrations/connection-access.md) separate tool selection from authority. Persisted workspace/preset context drives eligibility; admission freezes a bounded tool/account snapshot and dispatch intersects it with current rules or an authorized one-run exception. Explicit access columns and tenant-scoped rules replace connection JSON grants. Tools and Access share one compare-and-swap revision. [Ownership and coordinated migration](../engineering/testing/connection-access.md).

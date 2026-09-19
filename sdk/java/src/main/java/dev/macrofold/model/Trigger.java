@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -37,7 +37,7 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Trigger.JSON_PROPERTY_NAME,
-  Trigger.JSON_PROPERTY_PROJECT_ID,
+  Trigger.JSON_PROPERTY_WORKSPACE_ID,
   Trigger.JSON_PROPERTY_AGENT_ID,
   Trigger.JSON_PROPERTY_KIND,
   Trigger.JSON_PROPERTY_PROMPT,
@@ -61,9 +61,9 @@ public class Trigger {
   @javax.annotation.Nonnull
   private String name;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nonnull
-  private UUID projectId;
+  private UUID workspaceId;
 
   public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
   @javax.annotation.Nonnull
@@ -193,27 +193,27 @@ public class Trigger {
   }
 
 
-  public Trigger projectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
+  public Trigger workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getProjectId() {
-    return projectId;
+  public UUID getWorkspaceId() {
+    return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
+  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
 
@@ -616,7 +616,7 @@ public class Trigger {
     }
     Trigger trigger = (Trigger) o;
     return Objects.equals(this.name, trigger.name) &&
-        Objects.equals(this.projectId, trigger.projectId) &&
+        Objects.equals(this.workspaceId, trigger.workspaceId) &&
         Objects.equals(this.agentId, trigger.agentId) &&
         Objects.equals(this.kind, trigger.kind) &&
         Objects.equals(this.prompt, trigger.prompt) &&
@@ -637,7 +637,7 @@ public class Trigger {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, projectId, agentId, kind, prompt, enabled, maxRunsPerDay, cron, timezone, slackConnectionId, channelId, id, nextFireAt, lastErrorCode, lastFiredAt, webhookUrl, createdAt, updatedAt);
+    return Objects.hash(name, workspaceId, agentId, kind, prompt, enabled, maxRunsPerDay, cron, timezone, slackConnectionId, channelId, id, nextFireAt, lastErrorCode, lastFiredAt, webhookUrl, createdAt, updatedAt);
   }
 
   @Override
@@ -645,7 +645,7 @@ public class Trigger {
     StringBuilder sb = new StringBuilder();
     sb.append("class Trigger {\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
     sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
@@ -711,9 +711,9 @@ public class Trigger {
       joiner.add(String.format(java.util.Locale.ROOT, "%sname%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getName()))));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `agent_id` to the URL query string

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -24,9 +24,9 @@ var _ MappedNullable = &Run{}
 type Run struct {
 	Id string `json:"id"`
 	OrganizationId string `json:"organization_id"`
-	SessionId string `json:"session_id"`
-	WorkspaceId string `json:"workspace_id"`
-	Harness string `json:"harness"`
+	SessionId NullableString `json:"session_id"`
+	WorktreeId NullableString `json:"worktree_id"`
+	Harness NullableString `json:"harness"`
 	Model string `json:"model"`
 	Status string `json:"status"`
 	ExecutionOutcome *string `json:"execution_outcome,omitempty"`
@@ -54,6 +54,11 @@ type Run struct {
 	PermissionLayers []AgentPermissions `json:"permission_layers,omitempty"`
 	AgentId NullableString `json:"agent_id,omitempty"`
 	AgentVersion NullableInt32 `json:"agent_version,omitempty"`
+	Kind string `json:"kind"`
+	WorkspaceId string `json:"workspace_id"`
+	TaskId NullableString `json:"task_id,omitempty"`
+	// Reusable compute ID, when selected or created by keep_warm_seconds.
+	SandboxId NullableString `json:"sandbox_id,omitempty"`
 }
 
 type _Run Run
@@ -62,16 +67,18 @@ type _Run Run
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRun(id string, organizationId string, sessionId string, workspaceId string, harness string, model string, status string, createdAt time.Time) *Run {
+func NewRun(id string, organizationId string, sessionId NullableString, worktreeId NullableString, harness NullableString, model string, status string, createdAt time.Time, kind string, workspaceId string) *Run {
 	this := Run{}
 	this.Id = id
 	this.OrganizationId = organizationId
 	this.SessionId = sessionId
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	this.Harness = harness
 	this.Model = model
 	this.Status = status
 	this.CreatedAt = createdAt
+	this.Kind = kind
+	this.WorkspaceId = workspaceId
 	return &this
 }
 
@@ -132,75 +139,81 @@ func (o *Run) SetOrganizationId(v string) {
 }
 
 // GetSessionId returns the SessionId field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *Run) GetSessionId() string {
-	if o == nil {
+	if o == nil || o.SessionId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.SessionId
+	return *o.SessionId.Get()
 }
 
 // GetSessionIdOk returns a tuple with the SessionId field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Run) GetSessionIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.SessionId, true
+	return o.SessionId.Get(), o.SessionId.IsSet()
 }
 
 // SetSessionId sets field value
 func (o *Run) SetSessionId(v string) {
-	o.SessionId = v
+	o.SessionId.Set(&v)
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *Run) GetWorkspaceId() string {
-	if o == nil {
+// GetWorktreeId returns the WorktreeId field value
+// If the value is explicit nil, the zero value for string will be returned
+func (o *Run) GetWorktreeId() string {
+	if o == nil || o.WorktreeId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return *o.WorktreeId.Get()
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *Run) GetWorkspaceIdOk() (*string, bool) {
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Run) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return o.WorktreeId.Get(), o.WorktreeId.IsSet()
 }
 
-// SetWorkspaceId sets field value
-func (o *Run) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *Run) SetWorktreeId(v string) {
+	o.WorktreeId.Set(&v)
 }
 
 // GetHarness returns the Harness field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *Run) GetHarness() string {
-	if o == nil {
+	if o == nil || o.Harness.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.Harness
+	return *o.Harness.Get()
 }
 
 // GetHarnessOk returns a tuple with the Harness field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Run) GetHarnessOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.Harness, true
+	return o.Harness.Get(), o.Harness.IsSet()
 }
 
 // SetHarness sets field value
 func (o *Run) SetHarness(v string) {
-	o.Harness = v
+	o.Harness.Set(&v)
 }
 
 // GetModel returns the Model field value
@@ -923,6 +936,138 @@ func (o *Run) UnsetAgentVersion() {
 	o.AgentVersion.Unset()
 }
 
+// GetKind returns the Kind field value
+func (o *Run) GetKind() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.Kind
+}
+
+// GetKindOk returns a tuple with the Kind field value
+// and a boolean to check if the value has been set.
+func (o *Run) GetKindOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Kind, true
+}
+
+// SetKind sets field value
+func (o *Run) SetKind(v string) {
+	o.Kind = v
+}
+
+// GetWorkspaceId returns the WorkspaceId field value
+func (o *Run) GetWorkspaceId() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.WorkspaceId
+}
+
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// and a boolean to check if the value has been set.
+func (o *Run) GetWorkspaceIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.WorkspaceId, true
+}
+
+// SetWorkspaceId sets field value
+func (o *Run) SetWorkspaceId(v string) {
+	o.WorkspaceId = v
+}
+
+// GetTaskId returns the TaskId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Run) GetTaskId() string {
+	if o == nil || IsNil(o.TaskId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.TaskId.Get()
+}
+
+// GetTaskIdOk returns a tuple with the TaskId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Run) GetTaskIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.TaskId.Get(), o.TaskId.IsSet()
+}
+
+// HasTaskId returns a boolean if a field has been set.
+func (o *Run) HasTaskId() bool {
+	if o != nil && o.TaskId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskId gets a reference to the given NullableString and assigns it to the TaskId field.
+func (o *Run) SetTaskId(v string) {
+	o.TaskId.Set(&v)
+}
+// SetTaskIdNil sets the value for TaskId to be an explicit nil
+func (o *Run) SetTaskIdNil() {
+	o.TaskId.Set(nil)
+}
+
+// UnsetTaskId ensures that no value is present for TaskId, not even an explicit nil
+func (o *Run) UnsetTaskId() {
+	o.TaskId.Unset()
+}
+
+// GetSandboxId returns the SandboxId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Run) GetSandboxId() string {
+	if o == nil || IsNil(o.SandboxId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxId.Get()
+}
+
+// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Run) GetSandboxIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SandboxId.Get(), o.SandboxId.IsSet()
+}
+
+// HasSandboxId returns a boolean if a field has been set.
+func (o *Run) HasSandboxId() bool {
+	if o != nil && o.SandboxId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxId gets a reference to the given NullableString and assigns it to the SandboxId field.
+func (o *Run) SetSandboxId(v string) {
+	o.SandboxId.Set(&v)
+}
+// SetSandboxIdNil sets the value for SandboxId to be an explicit nil
+func (o *Run) SetSandboxIdNil() {
+	o.SandboxId.Set(nil)
+}
+
+// UnsetSandboxId ensures that no value is present for SandboxId, not even an explicit nil
+func (o *Run) UnsetSandboxId() {
+	o.SandboxId.Unset()
+}
+
 func (o Run) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -935,9 +1080,9 @@ func (o Run) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["id"] = o.Id
 	toSerialize["organization_id"] = o.OrganizationId
-	toSerialize["session_id"] = o.SessionId
-	toSerialize["workspace_id"] = o.WorkspaceId
-	toSerialize["harness"] = o.Harness
+	toSerialize["session_id"] = o.SessionId.Get()
+	toSerialize["worktree_id"] = o.WorktreeId.Get()
+	toSerialize["harness"] = o.Harness.Get()
 	toSerialize["model"] = o.Model
 	toSerialize["status"] = o.Status
 	if !IsNil(o.ExecutionOutcome) {
@@ -998,6 +1143,14 @@ func (o Run) ToMap() (map[string]interface{}, error) {
 	if o.AgentVersion.IsSet() {
 		toSerialize["agent_version"] = o.AgentVersion.Get()
 	}
+	toSerialize["kind"] = o.Kind
+	toSerialize["workspace_id"] = o.WorkspaceId
+	if o.TaskId.IsSet() {
+		toSerialize["task_id"] = o.TaskId.Get()
+	}
+	if o.SandboxId.IsSet() {
+		toSerialize["sandbox_id"] = o.SandboxId.Get()
+	}
 	return toSerialize, nil
 }
 
@@ -1009,11 +1162,13 @@ func (o *Run) UnmarshalJSON(data []byte) (err error) {
 		"id",
 		"organization_id",
 		"session_id",
-		"workspace_id",
+		"worktree_id",
 		"harness",
 		"model",
 		"status",
 		"created_at",
+		"kind",
+		"workspace_id",
 	}
 
 	allProperties := make(map[string]interface{})

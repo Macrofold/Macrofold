@@ -133,7 +133,7 @@ test('signed OAuth consent, PKCE and account-wide application revocation', async
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Connect Fixture application?' })).toBeVisible();
   const signedUrl = page.url();
-  await page.goto(signedUrl.replace('identity%3Aread', 'projects%3Awrite'));
+  await page.goto(signedUrl.replace('identity%3Aread', 'workspaces%3Awrite'));
   await expect(page.getByRole('heading', { name: 'Connection unavailable.' })).toBeVisible();
   await page.goto(signedUrl);
   await page.route('**/oauth-test-callback?**', (route) =>

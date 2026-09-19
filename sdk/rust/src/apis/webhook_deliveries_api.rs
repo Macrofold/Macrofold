@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -32,7 +32,7 @@ pub enum ReplayWebhookDeliveryError {
 }
 
 
-/// 
+///
 pub async fn list_webhook_deliveries(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListWebhookDeliveries200Response, Error<ListWebhookDeliveriesError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
@@ -86,7 +86,7 @@ pub async fn list_webhook_deliveries(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn replay_webhook_delivery(configuration: &configuration::Configuration, delivery_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::Operation, Error<ReplayWebhookDeliveryError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_delivery_id = delivery_id;

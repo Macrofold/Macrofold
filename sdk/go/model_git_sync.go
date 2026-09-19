@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -22,7 +22,7 @@ var _ MappedNullable = &GitSync{}
 
 // GitSync struct for GitSync
 type GitSync struct {
-	WorkspaceId string `json:"workspace_id"`
+	WorktreeId string `json:"worktree_id"`
 	Status string `json:"status"`
 	SourceCommit *string `json:"source_commit,omitempty"`
 	TargetCommit *string `json:"target_commit,omitempty"`
@@ -38,9 +38,9 @@ type _GitSync GitSync
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewGitSync(workspaceId string, status string, updatedAt time.Time) *GitSync {
+func NewGitSync(worktreeId string, status string, updatedAt time.Time) *GitSync {
 	this := GitSync{}
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	this.Status = status
 	this.UpdatedAt = updatedAt
 	return &this
@@ -54,28 +54,28 @@ func NewGitSyncWithDefaults() *GitSync {
 	return &this
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *GitSync) GetWorkspaceId() string {
+// GetWorktreeId returns the WorktreeId field value
+func (o *GitSync) GetWorktreeId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return o.WorktreeId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *GitSync) GetWorkspaceIdOk() (*string, bool) {
+func (o *GitSync) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return &o.WorktreeId, true
 }
 
-// SetWorkspaceId sets field value
-func (o *GitSync) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *GitSync) SetWorktreeId(v string) {
+	o.WorktreeId = v
 }
 
 // GetStatus returns the Status field value
@@ -296,7 +296,7 @@ func (o GitSync) MarshalJSON() ([]byte, error) {
 
 func (o GitSync) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["worktree_id"] = o.WorktreeId
 	toSerialize["status"] = o.Status
 	if !IsNil(o.SourceCommit) {
 		toSerialize["source_commit"] = o.SourceCommit
@@ -322,7 +322,7 @@ func (o *GitSync) UnmarshalJSON(data []byte) (err error) {
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
-		"workspace_id",
+		"worktree_id",
 		"status",
 		"updated_at",
 	}

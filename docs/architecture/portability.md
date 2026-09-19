@@ -1,6 +1,6 @@
 # Vercel-first architecture and portability
 
-Vercel is the initial production topology. The API, persistent workspaces, six harnesses, billing, analytics, read-only management MCP, dashboard and terminal CLI share application-owned domain state. Major historical changes are recorded in the [decision changelog](decisions.md#changelog).
+Vercel is the initial production topology. The API, persistent worktrees, six harnesses, billing, analytics, read-only management MCP, dashboard and terminal CLI share application-owned domain state. Major historical changes are recorded in the [decision changelog](decisions.md#changelog).
 
 ## Initial implementation and replacement boundaries
 
@@ -12,17 +12,17 @@ Vercel is the initial production topology. The API, persistent workspaces, six h
 | ExecutionScheduler             | Workflow SDK on Vercel World                                                                 | Same SQL run state machine driven by the standalone poller              |
 | CredentialBroker               | Optional Composio; direct MCP OAuth; versioned encrypted vault                               | Another broker/vault; users may need reauthorization                    |
 | ModelAccess                    | Application-owned native-protocol model gateway; direct provider routes for managed and BYOK | LiteLLM or other model adapter without changing public contracts        |
-| ObjectStore / WorkspaceArchive | R2, encrypted versioned archives and manifests                                               | Another S3-compatible object store                                      |
+| ObjectStore / WorktreeArchive | R2, encrypted versioned archives and manifests                                               | Another S3-compatible object store                                      |
 | Database                       | PostgreSQL on Neon                                                                           | Another PostgreSQL host using normal export/restore                     |
 | OperationsReader               | Application-owned queue/run/finance/storage facts; live provider telemetry is missing        | Another provider reader; same admin API/MCP                             |
 
-The interfaces expose product behavior, not every vendor SDK method. Provider-specific machine name/session ID and runtime state remain in internal execution records; the API exposes product IDs. A generic provider-binding registry is a future multi-provider extension, not a current table. Bind a workspace/session and execution to a provider revision; switching a default never moves active executions implicitly. Public UUIDs do not change when a backend changes.
+The interfaces expose product behavior, not every vendor SDK method. Provider-specific machine name/session ID and runtime state remain in internal execution records; the API exposes product IDs. A generic provider-binding registry is a future multi-provider extension, not a current table. Bind a worktree/session and execution to a provider revision; switching a default never moves active executions implicitly. Public UUIDs do not change when a backend changes.
 
 Keep domain functions, validation, ledger, Git integration, metrics, and authorization independent of Vercel imports. Framework routes resolve identity, validate input, invoke domain services, and serialize responses. Workflow entrypoints and use-step directives are a thin orchestration layer around those services. The portable SQL poller reuses the domain state machine; it adds no second workflow-history database. The [accepted decisions](decisions.md) explain this boundary. [Workflow portability](https://vercel.com/blog/a-new-programming-model-for-durable-execution)
 
 ## Product truth and durability
 
-PostgreSQL owns accepted runs, events, sessions, pending messages, credits, usage, connections/grants, projects, requests, and audit trails. Workflow history is execution infrastructure; its retention is not customer run-history retention. R2 holds portable file archives, manifests, artifacts, and exported compatible harness state; provider-native snapshots are an acceleration layer.
+PostgreSQL owns accepted runs, events, sessions, pending messages, credits, usage, connections/grants, workspaces, requests, and audit trails. Workflow history is execution infrastructure; its retention is not customer run-history retention. R2 holds portable file archives, manifests, artifacts, and exported compatible harness state; provider-native snapshots are an acceleration layer.
 
 Vercel persistence saves filesystem state when stopping and starts another VM session when resumed. Explicitly set native snapshot expiration/retention, keeping the latest usable snapshot until independent recovery is verified. Do not confuse preserving files with transferring live RAM or a running process to another provider. [Sandbox persistence](https://vercel.com/docs/sandbox/concepts/persistent-sandboxes)
 
@@ -36,10 +36,10 @@ Both managed and BYOK inference use a metered native-protocol gateway. Managed c
 
 The standalone scheduler switch is implemented. The following is the required engineering/operator procedure when adding a second compute adapter; it is not a delivered one-click migration endpoint.
 
-1. Select an organization/project migration and stop admission of new writers to its workspaces. Existing queued prompts remain durable.
+1. Select an organization/workspace migration and stop admission of new writers to its worktrees. Existing queued prompts remain durable.
 2. Drain active work or explicitly cancel it; do not replay an ambiguous external action.
 3. Stop writes, export and verify files including ignored files, Git objects, permissions, and sanitized compatible harness session state.
-4. Restore to the destination and validate manifest checksums, workspace revision, Git refs, session compatibility, and broker access.
+4. Restore to the destination and validate manifest checksums, worktree revision, Git refs, session compatibility, and broker access.
 5. Resolve credentials: reuse application-owned data where supported, otherwise mark reauthorization_required and let the user reconnect.
 6. Atomically update provider bindings using a migration generation. Route subsequent runs to the destination; public IDs/history stay unchanged.
 7. Keep the source recovery copy during a defined seven-day rollback window, then retire it only after destination verification. A rollback after new destination edits first preserves those edits; never point back to stale files.

@@ -6,17 +6,17 @@ These controls apply to application, remote MCP, approved sandbox MCP, and searc
 
 ## Choose where access applies
 
-**Available across the organization** allows the approved tools in any authorized project. Turning it off preserves the rules below it. Rules are additive: any matching rule allows access.
+**Available across the organization** allows the approved tools in any authorized workspace. Turning it off preserves the rules below it. Rules are additive: any matching rule allows access.
 
 | Permission | Matches |
 | --- | --- |
-| Project | That project, with any preset or custom configuration |
-| Agent preset | That exact preset, in any authorized project |
-| Project + agent preset | Both targets together |
+| Workspace | That workspace, with any preset or custom configuration |
+| Agent preset | That exact preset, in any authorized workspace |
+| Workspace + agent preset | Both targets together |
 
 For example, **Sales + Writer** and **Support + Researcher** do not allow **Sales + Researcher**. A custom run has no preset identity. Copying a preset creates a new identity and does not copy rules targeting the original. Deleted targets stop matching; the owner can still remove their unavailable rule rows.
 
-Only the connection's owner with `connections:write` and an owner/admin membership can broaden access or approve new tools. Other administrators cannot take over a connection's credentials or permissions. The owner can remove access after demotion if they still have write authority. Project-restricted credentials can grant only within their authorized projects; organization and preset-only grants require unrestricted project authority. Reading full access settings and rules requires `connections:read`; mutations require `connections:write`. Other users see a safe effective-access summary, not credential metadata or the owner's complete rules.
+Only the connection's owner with `connections:write` and an owner/admin membership can broaden access or approve new tools. Other administrators cannot take over a connection's credentials or permissions. The owner can remove access after demotion if they still have write authority. Workspace-restricted credentials can grant only within their authorized workspaces; organization and preset-only grants require unrestricted workspace authority. Reading full access settings and rules requires `connections:read`; mutations require `connections:write`. Other users see a safe effective-access summary, not credential metadata or the owner's complete rules.
 
 ## Choose tools for a run
 
@@ -24,7 +24,7 @@ Tool selection narrows permission; it does not grant permission. The dashboard o
 
 1. An explicit run or message selection, including an empty list.
 2. An explicit session or preset default, including an empty list.
-3. All connections eligible for the actual project and preset.
+3. All connections eligible for the actual workspace and preset.
 
 New presets inherit unless you choose otherwise. An omitted `connection_grants` field preserves an existing preset default during PATCH. `[]` means no tools. `null` on **preset PATCH only** removes the default and restores inheritance. Run/message requests reject `null`. A run's explicit selection is not saved as a new session default.
 
@@ -32,15 +32,15 @@ The access preview shows unavailable connections, unapproved tools, and other re
 
 ## Allow an exception for one run
 
-The connection owner can explicitly supply `connection_access_overrides` on a run or session message when they have connection-write, run-write, and project authority. Each item identifies a connection and approved tools. The exception does not change saved rules, session defaults, or preset defaults. It cannot add tools above the approved ceiling, override native tool restrictions, or change funding/account checks.
+The connection owner can explicitly supply `connection_access_overrides` on a run or session message when they have connection-write, run-write, and workspace authority. Each item identifies a connection and approved tools. The exception does not change saved rules, session defaults, or preset defaults. It cannot add tools above the approved ceiling, override native tool restrictions, or change funding/account checks.
 
-The server records who authorized the exception. Revoking that actor's delegated write permission, removing their membership, disconnecting the connection, or removing a tool blocks subsequent calls. An accepted OAuth run is not invalidated merely by ordinary access-token expiry or rotation. Triggers never accept inbound exceptions and always resolve their saved preset in the configured project.
+The server records who authorized the exception. Revoking that actor's delegated write permission, removing their membership, disconnecting the connection, or removing a tool blocks subsequent calls. An accepted OAuth run is not invalidated merely by ordinary access-token expiry or rotation. Triggers never accept inbound exceptions and always resolve their saved preset in the configured workspace.
 
 ## Browse and inspect
 
-Connections can be filtered by project, preset, or both. With one filter, **Requires preset** or **Requires project** names the remaining target condition. Both filters test the exact combination. Unfiltered browsing includes listable connections with no access. A matching connection may still need authorization or tool approval.
+Connections can be filtered by workspace, preset, or both. With one filter, **Requires preset** or **Requires workspace** names the remaining target condition. Both filters test the exact combination. Unfiltered browsing includes listable connections with no access. A matching connection may still need authorization or tool approval.
 
-Effective summaries contain authorized matching counts, scope kinds, and at most three representative rules. Each representative carries `rule_id`, scope, and authorized targets; pair representatives include both IDs. They do not expose rules in inaccessible projects. Project and preset detail responses add connections only with `include_connections=true`; the expansion has its own cursor and does not change the parent's revision.
+Effective summaries contain authorized matching counts, scope kinds, and at most three representative rules. Each representative carries `rule_id`, scope, and authorized targets; pair representatives include both IDs. They do not expose rules in inaccessible workspaces. Workspace and preset detail responses add connections only with `include_connections=true`; the expansion has its own cursor and does not change the parent's revision.
 
 ## API and concurrency
 
@@ -53,9 +53,9 @@ Effective summaries contain authorized matching counts, scope kinds, and at most
 
 Every access mutation requires an `If-Match` header containing the quoted access version, for example `"3"`. Tools, the organization toggle, and rule edits share this version. A stale edit returns **412**; refresh, review the retained draft against current state, and explicitly retry. Duplicate rules return **409**; invalid shapes return **400**. Mutations return the new version and ETag, including deletion and idempotent replay. Renaming or refreshing credentials does not change the access version.
 
-Rule listing supports `project_id`, `agent_id`, `sort=project|agent|created_at`, `direction=asc|desc`, and `limit` (25 by default, 100 maximum). Cursors are bound to identity, context, and filters. Reset pagination when changing filters. Repeating a scalar query parameter is an error.
+Rule listing supports `workspace_id`, `agent_id`, `sort=workspace|agent|created_at`, `direction=asc|desc`, and `limit` (25 by default, 100 maximum). Cursors are bound to identity, context, and filters. Reset pagination when changing filters. Repeating a scalar query parameter is an error.
 
-Resolve accepts exactly one of `project_id`, `workspace_id`, or `session_id`. `workspace_id` is the API name for a worktree. An optional `agent_id` applies to new-session contexts; an existing session retains its verified preset identity. Preview requires connection-read plus the relevant project/run read scope and never creates a missing default worktree.
+Resolve accepts exactly one of `workspace_id`, `worktree_id`, or `session_id`. `worktree_id` is the API name for a worktree. An optional `agent_id` applies to new-session contexts; an existing session retains its verified preset identity. Preview requires connection-read plus the relevant workspace/run read scope and never creates a missing default worktree.
 
 Using the TypeScript SDK with existing IDs:
 
@@ -65,11 +65,11 @@ const approved = await client.connections.updateAccess(connectionId, {
   tools: [toolName], ifMatch: `"${current.version}"`,
 });
 await client.connections.createAccessRule(connectionId, {
-  scope: 'project_agent', project_id: projectId, agent_id: agentId,
+  scope: 'workspace_agent', workspace_id: workspaceId, agent_id: agentId,
   ifMatch: `"${approved.version}"`,
 });
 const preview = await client.connections.resolveAccess({
-  project_id: projectId, agent_id: agentId,
+  workspace_id: workspaceId, agent_id: agentId,
 });
 ```
 

@@ -13,6 +13,7 @@ import uuid
 wire = sys.stdout
 lock = threading.Lock()
 answers = queue.Queue()
+turns = queue.Queue(maxsize=1)
 
 
 def send(message):
@@ -38,7 +39,9 @@ def clarify(question, choices=None):
 
 def read_answers():
     for line in sys.stdin:
-        answers.put(json.loads(line))
+        message = json.loads(line)
+        (turns if 'runId' in message else answers).put(message)
+    turns.put(None)
 
 
 def register_file_tools(url, token):
@@ -133,14 +136,21 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: agent.interrupt(hard_cancel=True))
     threading.Thread(target=read_answers, daemon=True).start()
     try:
-        emit("runtime.started", harness="hermes", native_session_id=session_id)
-        result = agent.run_conversation(user_message=c["prompt"], conversation_history=history)
-        outcome = "cancelled" if result.get("interrupted") else (
-            "success" if result.get("completed") and not result.get("error") else "failure")
-        send({"type": "result", "result": {
-            "output": result.get("final_response") or "", "resumeId": agent.session_id,
-            "outcome": outcome, **({"failureCode": "harness_error"} if outcome == "failure" else {}),
-        }})
+        reused = False
+        while c is not None:
+            emit("runtime.started", harness="hermes", native_session_id=session_id, reused=reused)
+            result = agent.run_conversation(user_message=c["prompt"], conversation_history=history)
+            outcome = "cancelled" if result.get("interrupted") else (
+                "success" if result.get("completed") and not result.get("error") else "failure")
+            send({"type": "result", "result": {
+                "output": result.get("final_response") or "", "resumeId": agent.session_id,
+                "outcome": outcome, **({"failureCode": "harness_error"} if outcome == "failure" else {}),
+            }})
+            if not c.get("warm") or outcome != "success":
+                break
+            history = result["messages"]
+            c = turns.get()
+            reused = True
     finally:
         agent.close()
         shutdown_mcp_servers()

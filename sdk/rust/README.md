@@ -18,7 +18,7 @@ Tested with Rust 1.94.1. Native TLS is the default; select `default-features = f
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a workspace ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```rust
 use macrofold::{Macrofold, ClientError, models::RunCreate};
@@ -28,7 +28,7 @@ use std::io::Write;
 async fn main() -> Result<(), ClientError> {
     let client = Macrofold::new()?;
     let mut input = RunCreate::new("Create hello.txt containing Hello world.".into());
-    input.project_id = Some("YOUR_PROJECT_ID".parse()?);
+    input.workspace_id = Some("YOUR_WORKSPACE_ID".parse()?);
     input.harness = Some(macrofold::models::run_create::Harness::Codex);
     input.model = Some("gpt-5.4-mini".into());
     input.billing_mode = Some(macrofold::models::run_create::BillingMode::Managed);
@@ -54,7 +54,7 @@ let client = Macrofold::builder()
 
 ## Resource methods
 
-`client.runs().get(id).await?` fetches status; `client.runs().cancel(id).await?` cancels a job. Query and header parameters use named structs in `macrofold::resources`; for default pagination use `client.projects().list(Default::default()).await?`.
+`client.runs().get(id).await?` fetches status; `client.runs().cancel(id).await?` cancels a job. Query and header parameters use named structs in `macrofold::resources`; for default pagination use `client.workspaces().list(Default::default()).await?`.
 
 [Every public operation](../../docs/features/api/sdks/reference.md) has a resource method. Request/response models live in `macrofold::models`. The API validates conditional selectors, ownership, and model/BYOK configuration. Money remains strings.
 
@@ -66,7 +66,7 @@ Mutations generate idempotency keys automatically. REST calls make one attempt. 
 
 The resource's `organization` option applies to stream connections, reconnects, and history checks without changing other resources.
 
-`workspaces().write_file()` uploads a `PathBuf` with `WriteFileParams` containing its remote path and observed revision. `read_file()` returns a Reqwest response; consume its bytes or stream and inspect headers for revision metadata.
+`worktrees().write_file()` uploads a `PathBuf` with `WriteFileParams` containing its remote path and observed revision. `read_file()` returns a Reqwest response; consume its bytes or stream and inspect headers for revision metadata.
 
 ## Wait for the complete response
 
@@ -83,8 +83,8 @@ Both text streaming and waiting return a `ClientError` that can be downcast to `
 
 ```rust
 client.runs().wait(&run.run_id.to_string()).await?;
-let response = client.workspaces().read_file(
-    &run.workspace_id.to_string(),
+let response = client.worktrees().read_file(
+    &run.worktree_id.to_string(),
     macrofold::resources::ReadFileParams {
         path: "hello.txt".into(),
         download: None,

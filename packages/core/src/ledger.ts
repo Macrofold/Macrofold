@@ -63,6 +63,10 @@ export async function reserve(tx: Tx, org: string, amount: bigint) {
   ]);
 }
 export async function settle(tx: Tx, org: string, runId: string, reserved: bigint, consumed: bigint) {
+  return settleReservation(tx, org, `run:${runId}`, reserved, consumed);
+}
+/** Settle a separately authorized compute allocation without inventing an agent run. */
+export async function settleReservation(tx: Tx, org: string, reference: string, reserved: bigint, consumed: bigint) {
   await tx.query('SELECT id FROM organizations WHERE id=$1 FOR NO KEY UPDATE', [org]);
   assert(
     consumed >= 0n && consumed <= reserved,
@@ -70,7 +74,6 @@ export async function settle(tx: Tx, org: string, runId: string, reserved: bigin
     'budget_exceeded',
     'Usage exceeds the authorized reservation.',
   );
-  const reference = `run:${runId}`;
   const seen = await tx.query(
     'INSERT INTO financial_events(organization_id,reference) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING reference',
     [org, reference],

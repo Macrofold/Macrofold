@@ -43,7 +43,7 @@ describe('agent starter selection', () => {
     },
   );
 
-  it('prefills instructions without choosing funding, model, account, project, or grants', () => {
+  it('prefills instructions without choosing funding, model, account, workspace, or grants', () => {
     expect(templatePreset('code-review')).toEqual({
       name: 'Code review',
       instructions: expect.stringContaining('Do not modify implementation files'),
@@ -51,7 +51,7 @@ describe('agent starter selection', () => {
     expect(templatePreset('support-triage')?.instructions).toContain(
       'Do not send replies, change tickets, or contact anyone',
     );
-    expect(templatePreset('weekly-project-digest')?.instructions).toContain(
+    expect(templatePreset('weekly-workspace-digest')?.instructions).toContain(
       'configured separately with an explicit prompt, timezone, and budget',
     );
   });
@@ -62,7 +62,7 @@ describe('agent starter selection', () => {
     ]);
     expect(searchTemplates(agentTemplates, 'OPERATIONS').map((item) => item.slug)).toEqual([
       'support-triage',
-      'weekly-project-digest',
+      'weekly-workspace-digest',
     ]);
     expect(searchTemplates(agentTemplates, 'dataset').map((item) => item.slug)).toEqual(['data-analyst']);
     expect(searchTemplates(agentTemplates, '   ')).toHaveLength(6);
@@ -70,7 +70,7 @@ describe('agent starter selection', () => {
       'personal-assistant',
     ]);
     expect(searchTemplates(agentTemplates, 'weekly').map((item) => item.slug)).toEqual([
-      'weekly-project-digest',
+      'weekly-workspace-digest',
     ]);
     expect(searchTemplates(agentTemplates, 'nonexistent')).toEqual([]);
     expect(searchTemplates(plannedTemplates, 'release').map((item) => item.slug)).toEqual(['release-notes']);

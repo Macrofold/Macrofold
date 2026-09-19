@@ -15,12 +15,12 @@ it.each([undefined, '', '   ', 'ak_******', 'ak_...1234', 'ak_…1234'])(
 );
 
 it('accepts an unmasked configured value without assuming that construction verifies authentication', () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-workspace-key');
   expect(composio).not.toThrow();
 });
 
 it('maps pinned execution, caller identity and the observed log_id response through the real SDK', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-not-a-real-workspace-key');
   const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     if (init?.method === 'GET') {
       expect(String(url)).toBe(
@@ -41,7 +41,7 @@ it('maps pinned execution, caller identity and the observed log_id response thro
     }
     expect(String(url)).toBe('https://backend.composio.dev/api/v3.1/tools/execute/HACKERNEWS_GET_ITEM');
     expect(init?.method).toBe('POST');
-    expect(new Headers(init?.headers).get('x-api-key')).toBe('fixture-not-a-real-project-key');
+    expect(new Headers(init?.headers).get('x-api-key')).toBe('fixture-not-a-real-workspace-key');
     expect(JSON.parse(String(init?.body))).toMatchObject({
       user_id: 'fixture-org:fixture-user',
       version: '20260708_00',
@@ -68,7 +68,7 @@ it('maps pinned execution, caller identity and the observed log_id response thro
 });
 
 it('uses the installed SDK to create distinct aliases despite an existing active account', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-workspace-key');
   const account = {
     id: 'existing-account',
     alias: 'existing-alias',
@@ -113,7 +113,7 @@ it('uses the installed SDK to create distinct aliases despite an existing active
 });
 
 it('discovers enabled auth configs through the installed SDK without exposing credentials', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-workspace-key');
   const { connectorSetupProvider } = await import('../../packages/providers/src/connector-setup');
   const cursors: (string | null)[] = [];
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
@@ -168,7 +168,7 @@ it('discovers enabled auth configs through the installed SDK without exposing cr
 });
 
 it('creates managed auth with the installed SDK and never retries an ambiguous POST', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-workspace-key');
   const { connectorSetupProvider } = await import('../../packages/providers/src/connector-setup');
   const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     expect(String(url)).toContain('/auth_configs');
@@ -189,7 +189,7 @@ it('creates managed auth with the installed SDK and never retries an ambiguous P
 });
 
 it('customer consent uses the exact subject, alias and pinned account without retrying account creation', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-workspace-key');
   const { composioCustomerConsent } = await import('../../packages/providers/src/composio-consent');
   let posts = 0;
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
@@ -220,7 +220,7 @@ it('customer consent uses the exact subject, alias and pinned account without re
 });
 
 it('verifies opaque customer consent through a fixed endpoint and checks the active account with the installed SDK', async () => {
-  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-project-key');
+  vi.stubEnv('COMPOSIO_API_KEY', 'fixture-workspace-key');
   const { completeComposioConsent } = await import('../../packages/providers/src/composio-consent');
   const http = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     if (init?.method === 'POST') {

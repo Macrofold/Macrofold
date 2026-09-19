@@ -1,84 +1,84 @@
 // Generated from docs/api/openapi.json. Run pnpm sdk:generate after contract changes.
 export const routes = {
-  "listProjects": {
-    "method": "GET",
-    "path": "/v1/projects"
-  },
-  "createProject": {
-    "method": "POST",
-    "path": "/v1/projects"
-  },
-  "getProject": {
-    "method": "GET",
-    "path": "/v1/projects/{project_id}"
-  },
-  "updateProject": {
-    "method": "PATCH",
-    "path": "/v1/projects/{project_id}"
-  },
-  "deleteProject": {
-    "method": "DELETE",
-    "path": "/v1/projects/{project_id}"
-  },
   "listWorkspaces": {
     "method": "GET",
-    "path": "/v1/projects/{project_id}/workspaces"
+    "path": "/v1/workspaces"
   },
   "createWorkspace": {
     "method": "POST",
-    "path": "/v1/projects/{project_id}/workspaces"
+    "path": "/v1/workspaces"
   },
   "getWorkspace": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}"
-  },
-  "deleteWorkspace": {
-    "method": "DELETE",
     "path": "/v1/workspaces/{workspace_id}"
   },
   "updateWorkspace": {
     "method": "PATCH",
     "path": "/v1/workspaces/{workspace_id}"
   },
+  "deleteWorkspace": {
+    "method": "DELETE",
+    "path": "/v1/workspaces/{workspace_id}"
+  },
+  "listWorktrees": {
+    "method": "GET",
+    "path": "/v1/workspaces/{workspace_id}/worktrees"
+  },
+  "createWorktree": {
+    "method": "POST",
+    "path": "/v1/workspaces/{workspace_id}/worktrees"
+  },
+  "getWorktree": {
+    "method": "GET",
+    "path": "/v1/worktrees/{worktree_id}"
+  },
+  "deleteWorktree": {
+    "method": "DELETE",
+    "path": "/v1/worktrees/{worktree_id}"
+  },
+  "updateWorktree": {
+    "method": "PATCH",
+    "path": "/v1/worktrees/{worktree_id}"
+  },
   "listFiles": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/files"
+    "path": "/v1/worktrees/{worktree_id}/files"
   },
   "readFile": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/file"
+    "path": "/v1/worktrees/{worktree_id}/file"
   },
   "writeFile": {
     "method": "PUT",
-    "path": "/v1/workspaces/{workspace_id}/file"
+    "path": "/v1/worktrees/{worktree_id}/file"
   },
   "deleteFile": {
     "method": "DELETE",
-    "path": "/v1/workspaces/{workspace_id}/file"
+    "path": "/v1/worktrees/{worktree_id}/file"
   },
   "renameFile": {
     "method": "PATCH",
-    "path": "/v1/workspaces/{workspace_id}/file"
+    "path": "/v1/worktrees/{worktree_id}/file"
   },
   "listCheckpoints": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/checkpoints"
+    "path": "/v1/worktrees/{worktree_id}/checkpoints"
   },
   "createCheckpoint": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/checkpoints"
+    "path": "/v1/worktrees/{worktree_id}/checkpoints"
   },
-  "restoreWorkspace": {
+  "restoreWorktree": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/restore"
+    "path": "/v1/worktrees/{worktree_id}/restore"
   },
   "getSync": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/sync"
+    "path": "/v1/worktrees/{worktree_id}/sync"
   },
-  "syncWorkspace": {
+  "syncWorktree": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/sync"
+    "path": "/v1/worktrees/{worktree_id}/sync"
   },
   "listAgents": {
     "method": "GET",
@@ -304,17 +304,17 @@ export const routes = {
     "method": "GET",
     "path": "/v1/me"
   },
-  "getWorkspaceDiff": {
+  "getWorktreeDiff": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/diff"
+    "path": "/v1/worktrees/{worktree_id}/diff"
   },
   "createTransfer": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/transfers"
+    "path": "/v1/worktrees/{worktree_id}/transfers"
   },
   "listTransfers": {
     "method": "GET",
-    "path": "/v1/workspaces/{workspace_id}/transfers"
+    "path": "/v1/worktrees/{worktree_id}/transfers"
   },
   "getTransfer": {
     "method": "GET",
@@ -338,7 +338,7 @@ export const routes = {
   },
   "disconnectGithub": {
     "method": "DELETE",
-    "path": "/v1/projects/{project_id}/github"
+    "path": "/v1/workspaces/{workspace_id}/github"
   },
   "listStdioPackages": {
     "method": "GET",
@@ -388,13 +388,13 @@ export const routes = {
     "method": "PATCH",
     "path": "/v1/storage"
   },
-  "scheduleProjectDeletion": {
+  "scheduleWorkspaceDeletion": {
     "method": "POST",
-    "path": "/v1/projects/{project_id}/deletion"
+    "path": "/v1/workspaces/{workspace_id}/deletion"
   },
-  "cancelProjectDeletion": {
+  "cancelWorkspaceDeletion": {
     "method": "DELETE",
-    "path": "/v1/projects/{project_id}/deletion"
+    "path": "/v1/workspaces/{workspace_id}/deletion"
   },
   "listReportSnapshots": {
     "method": "GET",
@@ -466,15 +466,15 @@ export const routes = {
   },
   "createFolder": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/folders"
+    "path": "/v1/worktrees/{worktree_id}/folders"
   },
   "getWorktreeOptions": {
     "method": "GET",
-    "path": "/v1/projects/{project_id}/worktree-options"
+    "path": "/v1/workspaces/{workspace_id}/worktree-options"
   },
   "duplicateFile": {
     "method": "POST",
-    "path": "/v1/workspaces/{workspace_id}/files/duplicate"
+    "path": "/v1/worktrees/{worktree_id}/files/duplicate"
   },
   "getConnectionAccess": {
     "method": "GET",
@@ -575,5 +575,89 @@ export const routes = {
   "completeCustomerAgentConnection": {
     "method": "POST",
     "path": "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/complete"
+  },
+  "createInference": {
+    "method": "POST",
+    "path": "/v1/inferences"
+  },
+  "createDecisionDefinition": {
+    "method": "POST",
+    "path": "/v1/decision-definitions"
+  },
+  "getDecisionDefinition": {
+    "method": "GET",
+    "path": "/v1/decision-definitions/{definition_id}"
+  },
+  "deleteDecisionDefinition": {
+    "method": "DELETE",
+    "path": "/v1/decision-definitions/{definition_id}"
+  },
+  "createContextArtifact": {
+    "method": "POST",
+    "path": "/v1/context-artifacts"
+  },
+  "getContextArtifact": {
+    "method": "GET",
+    "path": "/v1/context-artifacts/{artifact_id}"
+  },
+  "deleteContextArtifact": {
+    "method": "DELETE",
+    "path": "/v1/context-artifacts/{artifact_id}"
+  },
+  "createBoundedAgentRun": {
+    "method": "POST",
+    "path": "/v1/bounded-agent-runs"
+  },
+  "createDecisionTask": {
+    "method": "POST",
+    "path": "/v1/tasks"
+  },
+  "getDecisionTask": {
+    "method": "GET",
+    "path": "/v1/tasks/{task_id}"
+  },
+  "wakeDecisionTask": {
+    "method": "POST",
+    "path": "/v1/tasks/{task_id}/wake"
+  },
+  "recordTaskOutcome": {
+    "method": "POST",
+    "path": "/v1/tasks/{task_id}/outcomes"
+  },
+  "closeDecisionTask": {
+    "method": "POST",
+    "path": "/v1/tasks/{task_id}/close"
+  },
+  "deleteArtifact": {
+    "method": "DELETE",
+    "path": "/v1/artifacts/{artifact_id}"
+  },
+  "listBillingUsage": {
+    "method": "GET",
+    "path": "/v1/billing/usage"
+  },
+  "createSandbox": {
+    "method": "POST",
+    "path": "/v1/sandboxes"
+  },
+  "listSandboxes": {
+    "method": "GET",
+    "path": "/v1/sandboxes"
+  },
+  "getSandbox": {
+    "method": "GET",
+    "path": "/v1/sandboxes/{sandbox_id}"
+  },
+  "pauseSandbox": {
+    "method": "POST",
+    "path": "/v1/sandboxes/{sandbox_id}/pause"
+  },
+  "resumeSandbox": {
+    "method": "POST",
+    "path": "/v1/sandboxes/{sandbox_id}/resume"
+  },
+  "destroySandbox": {
+    "method": "POST",
+    "path": "/v1/sandboxes/{sandbox_id}/destroy"
   }
 } as const;

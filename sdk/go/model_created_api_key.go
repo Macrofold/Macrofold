@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -26,7 +26,7 @@ type CreatedApiKey struct {
 	Name string `json:"name"`
 	Prefix string `json:"prefix"`
 	Scopes []string `json:"scopes"`
-	ProjectId *string `json:"project_id,omitempty"`
+	WorkspaceId *string `json:"workspace_id,omitempty"`
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
@@ -154,36 +154,36 @@ func (o *CreatedApiKey) SetScopes(v []string) {
 	o.Scopes = v
 }
 
-// GetProjectId returns the ProjectId field value if set, zero value otherwise.
-func (o *CreatedApiKey) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId) {
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
+func (o *CreatedApiKey) GetWorkspaceId() string {
+	if o == nil || IsNil(o.WorkspaceId) {
 		var ret string
 		return ret
 	}
-	return *o.ProjectId
+	return *o.WorkspaceId
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *CreatedApiKey) GetProjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProjectId) {
+func (o *CreatedApiKey) GetWorkspaceIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkspaceId) {
 		return nil, false
 	}
-	return o.ProjectId, true
+	return o.WorkspaceId, true
 }
 
-// HasProjectId returns a boolean if a field has been set.
-func (o *CreatedApiKey) HasProjectId() bool {
-	if o != nil && !IsNil(o.ProjectId) {
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *CreatedApiKey) HasWorkspaceId() bool {
+	if o != nil && !IsNil(o.WorkspaceId) {
 		return true
 	}
 
 	return false
 }
 
-// SetProjectId gets a reference to the given string and assigns it to the ProjectId field.
-func (o *CreatedApiKey) SetProjectId(v string) {
-	o.ProjectId = &v
+// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
+func (o *CreatedApiKey) SetWorkspaceId(v string) {
+	o.WorkspaceId = &v
 }
 
 // GetLastUsedAt returns the LastUsedAt field value if set, zero value otherwise.
@@ -320,8 +320,8 @@ func (o CreatedApiKey) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	toSerialize["prefix"] = o.Prefix
 	toSerialize["scopes"] = o.Scopes
-	if !IsNil(o.ProjectId) {
-		toSerialize["project_id"] = o.ProjectId
+	if !IsNil(o.WorkspaceId) {
+		toSerialize["workspace_id"] = o.WorkspaceId
 	}
 	if !IsNil(o.LastUsedAt) {
 		toSerialize["last_used_at"] = o.LastUsedAt

@@ -4,15 +4,15 @@ import { auth, customerScopes, type Principal } from '../../packages/core/src/au
 import { authPool, pool, transaction } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace, type FileRecord } from '../../packages/core/src/files';
-import { admitRun, getRun } from '../../packages/core/src/runs';
+import { createWorktree, type FileRecord } from '../../packages/core/src/files';
+import { admitRun, getNativeRun as getRun } from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
 import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import { FaultMachine } from '../fixtures/cloud-machine';
-import { readContent } from '../../packages/providers/src/storage';
+import { readContent, saveContent } from '../../packages/providers/src/storage';
 
-async function scenario() {
+async function scenario(attachments?: string[]) {
   const user = (
     await auth.api.signUpEmail({
       body: {
@@ -32,32 +32,33 @@ async function scenario() {
     kind: 'user',
     role: 'owner',
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
     operator: false,
   };
   const ws = await transaction(org, async (tx) => {
     await credit(tx, org, 10_000_000n, `fixture:${id()}`);
-    const project = await resources.create(tx, 'projects', org, { name: 'Cloud fixture' });
-    const created = await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' });
-    const workspaceId = (created.result as { workspace_id: string }).workspace_id;
-    const ws = await resources.get(tx, 'workspaces', workspaceId);
+    const workspace = await resources.create(tx, 'workspaces', org, { name: 'Cloud fixture' });
+    const created = await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' });
+    const worktreeId = (created.result as { worktree_id: string }).worktree_id;
+    const ws = await resources.get(tx, 'worktrees', worktreeId);
     return ws;
   });
-  const workspaceId = ws.id;
-  await writeFixtureFile(p, workspaceId, 'initial.txt', Buffer.from('Original checkpoint'), ws.revision);
+  const worktreeId = ws.id;
+  await writeFixtureFile(p, worktreeId, 'initial.txt', Buffer.from('Original checkpoint'), ws.revision);
   return transaction(org, async (tx) => {
     const run = await admitRun(tx, p, {
-      workspace_id: workspaceId,
+      worktree_id: worktreeId,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
       prompt: 'Fixture',
+      attachments,
       limits: { timeout_seconds: 900, max_cost_micro_usd: '2000000' },
     });
     // Local admission intentionally holds no real money. This test funds a ledger reservation explicitly.
     await reserve(tx, org, 2_000_000n);
     await tx.query('UPDATE runs SET reservation_micro_usd=2000000 WHERE id=$1', [run.run_id]);
-    return { org, p, runId: run.run_id, workspaceId };
+    return { org, p, runId: run.run_id, worktreeId };
   });
 }
 afterAll(async () => {
@@ -69,6 +70,138 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('durable cloud lifecycle with fault injection', () => {
+  it('advances ready phases immediately, batches restoration, and preserves progress after a lost upload acknowledgement', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    const extra: FileRecord[] = [];
+    for (let i = 0; i < 40; i++) {
+      const saved = await saveContent(s.org, Buffer.from(`small file ${i}`));
+      extra.push({
+        ...saved,
+        path: `file-${i}.txt`,
+        type: 'file',
+        mode: 0o644,
+        git_ignored: false,
+        modified_at: new Date().toISOString(),
+      });
+    }
+    await transaction(s.org, async (tx) => {
+      const ws = await resources.get(tx, 'worktrees', s.worktreeId);
+      await tx.query("UPDATE worktrees SET data=jsonb_set(data,'{files}',$2::jsonb) WHERE id=$1", [
+        s.worktreeId,
+        JSON.stringify([...(ws.files || []), ...extra]),
+      ]);
+    });
+    for (let i = 0; i < 10; i++) {
+      expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
+      if ((await transaction(s.org, (tx) => getRun(tx, s.runId))).execution_binding?.phase === 'hydrate')
+        break;
+    }
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).execution_binding?.phase).toBe('hydrate');
+    const write = provider.stage.bind(provider);
+    const stage = vi.spyOn(provider, 'stage').mockImplementationOnce(async (binding, files) => {
+      await write(binding, files.slice(0, 1));
+      throw new Error('Lost batch acknowledgement');
+    });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 2 });
+    const processed = await transaction(s.org, (tx) =>
+      tx.query("SELECT id FROM execution_objects WHERE run_id=$1 AND kind LIKE 'input_%' AND processed", [
+        s.runId,
+      ]),
+    );
+    expect(processed.rowCount).toBe(0);
+    expect(provider.starts).toBe(0);
+    expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
+    expect(stage.mock.calls[0][1]).toHaveLength(32);
+    expect(stage.mock.calls[1][1]).toEqual(stage.mock.calls[0][1]);
+    for (let i = 0; i < 40; i++) {
+      const result = await advanceCloudRun(s.org, s.runId, provider);
+      expect(result.delaySeconds).toBe(0);
+      if (result.done) break;
+    }
+    const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(run.status).toBe('succeeded');
+    expect(run.result.persistence_status).toBe('verified');
+    expect(provider.starts).toBe(1);
+    expect(stage).toHaveBeenCalledTimes(3); // one uncertain upload, then two successful batches
+    for (const file of extra)
+      expect(provider.stageFiles.get(`/platform-control/restore/chunks/${file.sha256}`)).toEqual(
+        await readContent(file.key, file.sha256),
+      );
+    expect(run.execution_binding?.phaseTimings?.hydrate).toMatchObject({
+      attempts: 4,
+      startedAt: expect.any(Number),
+      completedAt: expect.any(Number),
+      activeMs: expect.any(Number),
+    });
+    expect(run.execution_binding?.phaseTimings?.hydrate?.activeMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('keeps actual restore and execution waits without delaying ready work in the SQL poller', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    vi.spyOn(provider, 'restored').mockResolvedValueOnce('pending');
+    const first = await dispatchCloudPoller(provider, 1, s.org);
+    expect(first).toMatchObject({ advanced: 1, failed: 0, ready: true });
+    // No forced available_at update: the next phase must already be due.
+    expect(await dispatchCloudPoller(provider, 1, s.org)).toMatchObject({
+      advanced: 1,
+      failed: 0,
+      ready: true,
+    });
+    for (let i = 0; i < 10; i++) {
+      const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+      if (run.execution_binding?.phase === 'restore_wait') break;
+      expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
+    }
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 3 });
+    expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
+    expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
+    provider.pendingPolls = 1;
+    const waiting = await dispatchCloudPoller(provider, 1, s.org);
+    expect(waiting).toMatchObject({ advanced: 1, ready: false });
+    const next = await pool.query(
+      'SELECT available_at>now() AS delayed FROM dispatch_jobs WHERE resource_id=$1',
+      [s.runId],
+    );
+    expect(next.rows[0].delayed).toBe(true);
+    for (let i = 0; i < 30; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    expect((await transaction(s.org, (tx) => getRun(tx, s.runId))).status).toBe('succeeded');
+  });
+  it('carries attachment hashes into the native configuration and publishes verified deliverables once', async () => {
+    const s = await scenario(['initial.txt']),
+      provider = new FaultMachine();
+    const prepare = vi.spyOn(provider, 'prepare');
+    const snapshot = provider.snapshotPage.bind(provider);
+    vi.spyOn(provider, 'snapshotPage').mockImplementation(async (binding, offset) => {
+      const page = await snapshot(binding, offset);
+      return {
+        ...page,
+        entries: page.entries.map((entry) =>
+          entry.path === 'durable.txt' ? { ...entry, path: 'outputs/report.txt' } : entry,
+        ),
+      };
+    });
+    for (let i = 0; i < 80; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    expect(prepare).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        attachments: [
+          expect.objectContaining({ path: 'initial.txt', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) }),
+        ],
+      }),
+    );
+    const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(run.status).toBe('succeeded');
+    expect(run.result.artifact_ids).toHaveLength(1);
+    const artifact = await transaction(s.org, (tx) =>
+      resources.get(tx, 'artifacts', run.result.artifact_ids![0], s.p),
+    );
+    expect(artifact.name).toBe('outputs/report.txt');
+    expect(await readContent(artifact.key, artifact.sha256)).toEqual(provider.bytes);
+    await advanceCloudRun(s.org, s.runId, provider);
+    expect((await transaction(s.org, (tx) => tx.query('SELECT id FROM artifacts'))).rowCount).toBe(1);
+  });
   it('waits for an owned execution phase lease and resumes after expiry without double launching', async () => {
     const s = await scenario(),
       provider = new FaultMachine();
@@ -175,7 +308,7 @@ describe('durable cloud lifecycle with fault injection', () => {
     expect(saved.charges).toEqual([{ amount_micro_usd: '8000' }]);
     expect(provider.starts).toBe(1);
   });
-  it('recovers a lost launch acknowledgement without repeating the native prompt; persists workspace, Git, and session state', async () => {
+  it('recovers a lost launch acknowledgement without repeating the native prompt; persists worktree, Git, and session state', async () => {
     const s = await scenario(),
       provider = new FaultMachine();
     provider.lostLaunch = true;
@@ -188,7 +321,7 @@ describe('durable cloud lifecycle with fault injection', () => {
     expect(provider.stageFiles.has('/platform-control/restore/page-0.json')).toBe(true);
     const saved = await transaction(s.org, async (tx) => ({
       run: await getRun(tx, s.runId),
-      ws: await resources.get(tx, 'workspaces', s.workspaceId),
+      ws: await resources.get(tx, 'worktrees', s.worktreeId),
     }));
     expect(saved.run.status).toBe('succeeded');
     expect(saved.run.result.persistence_status).toBe('verified');
@@ -243,7 +376,7 @@ describe('durable cloud lifecycle with fault injection', () => {
     for (let i = 0; i < 60; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
     const { run, ws } = await transaction(s.org, async (tx) => ({
       run: await getRun(tx, s.runId),
-      ws: await resources.get(tx, 'workspaces', s.workspaceId),
+      ws: await resources.get(tx, 'worktrees', s.worktreeId),
     }));
     expect(run.status).toBe('failed');
     expect(run.result.persistence_status).toBe('failed');

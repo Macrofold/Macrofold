@@ -1,3 +1,6 @@
+import { runtimeConfiguration } from '../../runtime/src/supervisor';
+import { randomUUID } from 'node:crypto';
+import type { SandboxBinding, SandboxControlRequest } from '../../contracts/sandbox-control';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -76,7 +79,7 @@ export class DockerMachines implements MachineProvider, SandboxTools {
   }
   private async lookup(name: string): Promise<Container | undefined> {
     this.check();
-    assert(/^run-[a-f0-9-]{36}$/.test(name), 400, 'invalid_execution', 'Invalid execution name.');
+    assert(/^(run-[a-f0-9-]{36}|env-[a-f0-9-]{36}-[1-9][0-9]*)$/.test(name), 400, 'invalid_execution', 'Invalid execution name.');
     // A successful list distinguishes absence from daemon/transport failure.
     const found = (await this.command(['ps', '-aq', '--no-trunc', '--filter', `name=^/${name}$`]))
       .toString()
@@ -104,11 +107,13 @@ export class DockerMachines implements MachineProvider, SandboxTools {
     );
     return current.Id;
   }
-  async provision(name: string, timeoutSeconds: number): Promise<MachineBinding> {
+  async provision(name: string, timeoutSeconds: number | null): Promise<MachineBinding> {
     let current = await this.lookup(name);
     if (!current) {
       assert(
-        Number.isInteger(timeoutSeconds) && timeoutSeconds > 0 && timeoutSeconds <= 7200,
+        timeoutSeconds === null
+          ? name.startsWith('env-')
+          : Number.isInteger(timeoutSeconds) && timeoutSeconds > 0 && timeoutSeconds <= (name.startsWith('env-') ? 86400 : 7200),
         400,
         'invalid_timeout',
         'Invalid container timeout.',
@@ -154,7 +159,7 @@ export class DockerMachines implements MachineProvider, SandboxTools {
         `--add-host=host.docker.internal:${gateway}`,
         image,
         'sleep',
-        String(timeoutSeconds + 1800),
+        timeoutSeconds === null ? 'infinity' : String(timeoutSeconds + 1800),
       ];
       try {
         await this.command(args);
@@ -185,12 +190,12 @@ export class DockerMachines implements MachineProvider, SandboxTools {
       input,
     );
   }
-  private async write(binding: MachineBinding, files: { path: string; content: Buffer }[]) {
+  private async write(binding: MachineBinding, files: { path: string; content: Buffer }[], maxBytes = 5 * 1024 * 1024) {
     assert(
-      files.reduce((total, file) => total + file.content.length, 0) <= 5 * 1024 * 1024,
+      files.reduce((total, file) => total + file.content.length, 0) <= maxBytes,
       413,
       'stage_too_large',
-      'Stage at most five MiB per operation.',
+      'Control transfer exceeds its byte limit.',
     );
     const script = `const fs=require('node:fs/promises');
       let text=''; for await(const chunk of process.stdin) text+=chunk;
@@ -207,6 +212,33 @@ export class DockerMachines implements MachineProvider, SandboxTools {
         JSON.stringify(files.map((f) => ({ path: f.path, content: f.content.toString('base64') }))),
       ),
     );
+  }
+  async startControl(binding: MachineBinding, secret: string) {
+    await this.write(binding, [{ path: '/platform-control/control-secret', content: Buffer.from(secret) }]);
+    await this.exec(binding, ['node', '-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/sandbox-control.mjs'],{detached:true,stdio:'ignore'}).unref()"]);
+  }
+  async control(binding: SandboxBinding, _secret: string, request: SandboxControlRequest) {
+    if (request.action === 'prepare') {
+      const configuration = runtimeConfiguration.parse(request.configuration);
+      for (const key of ['gatewayURL', 'toolURL'] as const) {
+        const url = new URL(configuration[key]);
+        assert(url.origin === config.origin, 400, 'invalid_runtime_origin', 'Unexpected runtime origin.');
+        url.hostname = 'host.docker.internal'; configuration[key] = url.toString();
+      }
+      request = { ...request, configuration };
+    }
+    const path = `/platform-control/request-${randomUUID()}.json`;
+    await this.write(binding, [{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })) }], 8 * 1024 * 1024);
+    const result = await this.exec(binding, ['node', '/opt/platform/sandbox-control-cli.mjs', path]);
+    return z.object({ value: z.unknown() }).parse(JSON.parse(result.toString())).value;
+  }
+  async environmentRunning(binding: MachineBinding) {
+    const current = await this.lookup(binding.name);
+    return !!current && current.State.Running && current.Id === binding.sessionId && current.State.StartedAt === binding.createdAt;
+  }
+  async destroyEnvironment(name: string) {
+    const current = await this.lookup(name);
+    if (current) await this.command(['rm', '--force', current.Id]);
   }
   async prepare(binding: MachineBinding, configuration: NativeConfiguration) {
     assert(

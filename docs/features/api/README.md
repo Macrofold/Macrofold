@@ -14,15 +14,15 @@ SDKs default to `https://app.macrofold.ai`. For a self-hosted, local, or staging
 
 | Step                        | SDK operation                           | Result                                 |
 | --------------------------- | --------------------------------------- | -------------------------------------- |
-| Choose a home for the files | `projects.create`                       | A project you can reuse                |
+| Choose a home for the files | `workspaces.create`                       | A workspace you can reuse                |
 | Give the agent a task       | `runs.create`                           | An accepted run ID                     |
-| Get the finished work       | `runs.wait`, then `workspaces.readFile` | Response text and persisted file bytes |
+| Get the finished work       | `runs.wait`, then `worktrees.readFile` | Response text and persisted file bytes |
 
 Method spelling follows each language's conventions. Use `streamText` / `stream_text` when you want text as it arrives, or `events` for tool activity and structured progress. [Choose a language](sdks/README.md).
 
 ## Optional integration paths
 
-The core API exposes reusable projects, worktrees, presets, sessions, runs and connections. **Integration paths** package those capabilities for a particular use case without replacing them. [Customer agents](../customer-agents/README.md) adds customer ownership resolution, atomic setup and embedded connection consent under `/v1/integration-paths/customer-agents`. Choose it when each app customer needs an assistant; use the core API directly for a different resource layout. OpenAPI marks these operations with `x-platform-layer: integration-path` and the `customerAgents` tag.
+The core API exposes reusable workspaces, worktrees, presets, sessions, runs and connections. **Integration paths** package those capabilities for a particular use case without replacing them. [Customer agents](../customer-agents/README.md) adds customer ownership resolution, atomic setup and embedded connection consent under `/v1/integration-paths/customer-agents`. Choose it when each app customer needs an assistant; use the core API directly for a different resource layout. OpenAPI marks these operations with `x-platform-layer: integration-path` and the `customerAgents` tag.
 
 ## Build on it
 
@@ -37,3 +37,5 @@ The core API exposes reusable projects, worktrees, presets, sessions, runs and c
 [Authentication, errors, retries, and pagination](conventions.md) · [Streaming and webhooks](events.md) · [HTTP quickstart](http-quickstart.md) · [All SDK methods](sdks/reference.md) · [OpenAPI](../../api/openapi.json)
 
 The interactive API reference is available at `/reference` on your deployment. Keep API keys on your server; authorize your application's users before submitting work on their behalf.
+
+Use [the customer MCP](../mcp/README.md) to access the same operations from Codex or Claude Code.

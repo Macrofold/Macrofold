@@ -3,23 +3,23 @@ import type { components } from '../../contracts/api';
 type Schema = components['schemas'];
 export type Grant = Schema['Grant'];
 export type AccessRule = Schema['ConnectionAccessRuleInput'];
-export type ExecutionContext = { project_id: string; agent_id: string | null };
+export type ExecutionContext = { workspace_id: string; agent_id: string | null };
 /** Missing dimensions are wildcards only in browsing. A custom execution uses agent_id:null. */
-export type AccessContext = { project_id?: string; agent_id?: string | null };
+export type AccessContext = { workspace_id?: string; agent_id?: string | null };
 export type AccessSource = Schema['ConnectionAccessResolution']['source'];
 export const toolConnectionKinds = ['composio', 'mcp_remote', 'mcp_stdio', 'search'] as const;
 export const isToolConnection = (kind: string) => toolConnectionKinds.some((value) => value === kind);
 
-/** Match one whole rule. Never combine project/agent halves of different paired rules. */
+/** Match one whole rule. Never combine workspace/agent halves of different paired rules. */
 export function ruleMatches(rule: AccessRule, context: AccessContext): boolean {
   return (
-    (!('project_id' in rule) || context.project_id === undefined || rule.project_id === context.project_id) &&
+    (!('workspace_id' in rule) || context.workspace_id === undefined || rule.workspace_id === context.workspace_id) &&
     (!('agent_id' in rule) || context.agent_id === undefined || rule.agent_id === context.agent_id)
   );
 }
 export function ruleConditional(rule: AccessRule, context: AccessContext): boolean {
   return (
-    ('project_id' in rule && context.project_id === undefined) ||
+    ('workspace_id' in rule && context.workspace_id === undefined) ||
     ('agent_id' in rule && context.agent_id === undefined)
   );
 }
@@ -27,8 +27,8 @@ export function accessMatches(organizationWide: boolean, rules: AccessRule[], co
   return organizationWide || rules.some((rule) => ruleMatches(rule, context));
 }
 export const sourcePriority: Record<AccessSource, number> = {
-  project_agent: 0,
-  project: 1,
+  workspace_agent: 0,
+  workspace: 1,
   agent: 2,
   organization: 3,
   run_override: 4,
@@ -39,15 +39,15 @@ export function selectedGrants(explicit: Grant[] | undefined, saved: Grant[] | u
 }
 export function ruleInput(rule: {
   scope: AccessRule['scope'];
-  project_id: string | null;
+  workspace_id: string | null;
   agent_id: string | null;
 }): AccessRule {
   switch (rule.scope) {
-    case 'project':
-      return { scope: 'project', project_id: rule.project_id! };
+    case 'workspace':
+      return { scope: 'workspace', workspace_id: rule.workspace_id! };
     case 'agent':
       return { scope: 'agent', agent_id: rule.agent_id! };
-    case 'project_agent':
-      return { scope: 'project_agent', project_id: rule.project_id!, agent_id: rule.agent_id! };
+    case 'workspace_agent':
+      return { scope: 'workspace_agent', workspace_id: rule.workspace_id!, agent_id: rule.agent_id! };
   }
 }

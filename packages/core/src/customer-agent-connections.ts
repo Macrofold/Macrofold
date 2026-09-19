@@ -134,8 +134,8 @@ export async function updateCustomerConnectionPermissions(
   );
   const rule = (
     await tx.query(
-      "SELECT id FROM connection_access_rules WHERE connection_id=$1 AND scope='project_agent' AND project_id=$2 AND agent_id=$3",
-      [connectionId, b.project_id, b.agent_id],
+      "SELECT id FROM connection_access_rules WHERE connection_id=$1 AND scope='workspace_agent' AND workspace_id=$2 AND agent_id=$3",
+      [connectionId, b.workspace_id, b.agent_id],
     )
   ).rows[0];
   if (tools.length && !rule)
@@ -143,7 +143,7 @@ export async function updateCustomerConnectionPermissions(
       tx,
       p,
       connectionId,
-      { scope: 'project_agent', project_id: b.project_id, agent_id: b.agent_id },
+      { scope: 'workspace_agent', workspace_id: b.workspace_id, agent_id: b.agent_id },
       `"${access.version}"`,
     );
   await tx.query('UPDATE customer_agent_connections SET selected_capabilities=$2 WHERE connection_id=$1', [

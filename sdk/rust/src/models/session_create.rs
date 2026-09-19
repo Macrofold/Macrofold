@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 /// SessionCreate : Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SessionCreate {
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "harness")]
     pub harness: Harness,
     #[serde(rename = "model")]
@@ -34,9 +34,9 @@ pub struct SessionCreate {
 
 impl SessionCreate {
     /// Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants.
-    pub fn new(workspace_id: uuid::Uuid, harness: Harness, model: String, billing_mode: BillingMode) -> SessionCreate {
+    pub fn new(worktree_id: uuid::Uuid, harness: Harness, model: String, billing_mode: BillingMode) -> SessionCreate {
         SessionCreate {
-            workspace_id,
+            worktree_id,
             harness,
             model,
             billing_mode,
@@ -46,7 +46,7 @@ impl SessionCreate {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Harness {
     #[serde(rename = "codex")]
@@ -68,7 +68,7 @@ impl Default for Harness {
         Self::Codex
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum BillingMode {
     #[serde(rename = "byok")]

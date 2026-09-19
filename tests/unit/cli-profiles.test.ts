@@ -61,6 +61,29 @@ async function profileFixture(expiresAt = 0) {
   await saveProfile('fixture', profile);
   return profile;
 }
+it.each([
+  { status: 200, body: '{}' },
+  { status: 200, body: 'null' },
+  { status: 200, body: '' },
+  { status: 204, body: null },
+  { status: 400, body: 'null' },
+  { status: 503, body: '{"error":"temporarily_unavailable"}' },
+  { status: 200, body: '{' },
+])('reports revocation accurately for HTTP $status with body $body', async ({ status, body }) => {
+  await profileFixture();
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { status })));
+  expect(await logout('fixture')).toEqual({
+    removed: true,
+    revoked: status < 300 && body !== '{',
+  });
+  await expect(selectedProfile('fixture')).rejects.toMatchObject({ code: 'login_required' });
+});
+it('does not replace credentials with an empty successful token response', async () => {
+  const original = await profileFixture();
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 200 })));
+  await expect(tokenFor('fixture')).rejects.toThrow();
+  expect((await selectedProfile('fixture')).profile).toEqual(original);
+});
 it.each([60001, 60000, 59999])(
   'refreshes only within the 60-second expiry window (%i ms)',
   async (remaining) => {

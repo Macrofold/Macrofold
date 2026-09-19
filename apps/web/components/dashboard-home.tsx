@@ -18,7 +18,7 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { money, useApi, type Page, type Schema } from '../lib/client';
-import { ProjectCard, RunTable, Stat } from './dashboard-shared';
+import { WorkspaceCard, RunTable, Stat } from './dashboard-shared';
 import { SetupPrompt } from './setup-prompt';
 import { FeaturedTemplates } from './templates';
 import { Button, ErrorState, Loading, Modal, PageHeading, SectionHeading } from './ui';
@@ -27,25 +27,25 @@ import './dashboard-home.css';
 export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
   const [prompt, setPrompt] = useState('');
   const [guide, setGuide] = useState(false);
-  const projects = useApi<Page<Schema['Project']>>('/v1/projects?archived=false&limit=4');
+  const workspaces = useApi<Page<Schema['Workspace']>>('/v1/workspaces?archived=false&limit=4');
   const runs = useApi<Page<Schema['Run']>>('/v1/runs?limit=100');
   const successfulRuns = useApi<Page<Schema['Run']>>('/v1/runs?status=succeeded&limit=1');
   const billing = useApi<Schema['Billing']>('/v1/billing');
   const usage = useApi<Schema['Report']>('/v1/usage');
   const identity = useApi<Schema['Identity']>('/v1/me');
-  if (projects.isPending || runs.isPending) return <Loading />;
-  const loadError = projects.error || runs.error;
+  if (workspaces.isPending || runs.isPending) return <Loading />;
+  const loadError = workspaces.error || runs.error;
   if (loadError)
     return (
       <ErrorState
         error={loadError}
         retry={() => {
-          void projects.refetch();
+          void workspaces.refetch();
           void runs.refetch();
         }}
       />
     );
-  const projectList = projects.data?.data || [];
+  const workspaceList = workspaces.data?.data || [];
   const allRuns = runs.data?.data || [];
   const metrics = usage.data?.metrics || [];
   const metric = (name: string) => metrics.find((m) => m.name === name)?.value;
@@ -56,10 +56,10 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
   const completed = Boolean(successfulRuns.data?.data.length);
   const steps = [
     {
-      title: 'Create a project',
+      title: 'Create a workspace',
       description: 'A persistent home for your agent’s files.',
-      done: projectList.length > 0,
-      href: '/projects',
+      done: workspaceList.length > 0,
+      href: '/workspaces',
       icon: FolderOpen,
     },
     {
@@ -99,7 +99,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
         <div className="welcome-intro">
           <span className="welcome-kicker">
             <Sparkles size={14} />
-            Your workspace for what’s next
+            Your worktree for what’s next
           </span>
           <h2 id="welcome-title">What will you build today?</h2>
           <p>Give an agent a task. Come back to work that lasts.</p>
@@ -125,7 +125,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
           <div className="welcome-composer-footer">
             <span>
               <span className="welcome-status-dot" />
-              Files and history stay with your project
+              Files and history stay with your workspace
             </span>
             <Button type="submit" disabled={!canRun || !prompt.trim()} aria-label="Review run">
               <ArrowUp size={17} />
@@ -140,10 +140,10 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
               onClick={() =>
                 setPrompt(
                   idea === 'Review my code'
-                    ? 'Review this project for correctness and maintainability. Write a prioritized report to review.md. Do not modify source files.'
+                    ? 'Review this workspace for correctness and maintainability. Write a prioritized report to review.md. Do not modify source files.'
                     : idea === 'Research a topic'
                       ? 'Research [topic] using the sources I provide. Write a concise brief to research.md with citations and open questions.'
-                      : 'Analyze the dataset in this project. Document data quality, summarize the key trends, and save your findings to analysis.md.',
+                      : 'Analyze the dataset in this workspace. Document data quality, summarize the key trends, and save your findings to analysis.md.',
                 )
               }
             >
@@ -154,7 +154,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
         </div>
         {!canRun && identity.data && (
           <p className="welcome-permission">
-            Your role can explore this workspace. Ask an administrator for access to start runs.
+            Your role can explore this worktree. Ask an administrator for access to start runs.
           </p>
         )}
       </section>
@@ -211,7 +211,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
       <FeaturedTemplates />
       <div className="home-activity-heading">
         <SectionHeading
-          title="Your workspace at a glance"
+          title="Your worktree at a glance"
           description="Current activity and the work you can return to."
           action={
             <Button variant="secondary" onClick={() => onRun()} disabled={!canRun}>
@@ -241,24 +241,24 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
           icon={<CreditCard />}
         />
       </div>
-      <SectionHeading title="Your projects" href="/projects" />
-      {projectList.length ? (
-        <div className="project-grid home-projects">
-          {projectList.map((project, index) => (
-            <ProjectCard key={project.id} project={project} index={index} />
+      <SectionHeading title="Your workspaces" href="/workspaces" />
+      {workspaceList.length ? (
+        <div className="workspace-grid home-workspaces">
+          {workspaceList.map((workspace, index) => (
+            <WorkspaceCard key={workspace.id} workspace={workspace} index={index} />
           ))}
         </div>
       ) : (
-        <div className="home-project-empty">
+        <div className="home-workspace-empty">
           <span className="home-feature-icon">
             <FolderOpen size={22} />
           </span>
           <div>
             <h3>Give your ideas a home</h3>
-            <p>Create a project to keep files and return to your agent’s work.</p>
+            <p>Create a workspace to keep files and return to your agent’s work.</p>
           </div>
-          <Link href="/projects" className="button secondary">
-            Create a project <ArrowRight size={14} />
+          <Link href="/workspaces" className="button secondary">
+            Create a workspace <ArrowRight size={14} />
           </Link>
         </div>
       )}
@@ -282,7 +282,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
             href: '/developers',
             icon: Terminal,
             title: 'Work from your terminal',
-            text: 'Bring the same workspace to your CLI.',
+            text: 'Bring the same worktree to your CLI.',
           },
         ].map((item) => (
           <Link key={item.href} href={item.href}>
@@ -299,7 +299,7 @@ export function DashboardHome({ onRun }: { onRun: (prompt?: string) => void }) {
         open={guide}
         onOpenChange={setGuide}
         title="From an idea to your first run"
-        description="A few steps connect your account, your project, and your tools."
+        description="A few steps connect your account, your workspace, and your tools."
       >
         <div className="setup-guide-steps">
           {steps.map((step, index) => (

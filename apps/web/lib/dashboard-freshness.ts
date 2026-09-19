@@ -10,13 +10,13 @@ export function affectedDashboardQuery(key: QueryKey, categories: ReadonlySet<Re
   if (typeof path !== 'string') return false;
   if (categories.has('all'))
     return path === 'file' || path.startsWith('/v1/') || path.startsWith('/admin/v1/');
-  if (path === 'file') return categories.has('workspace');
+  if (path === 'file') return categories.has('worktree');
   const resource = path.split('?')[0].split('/')[2];
   if (categories.has('runs') && ['runs', 'sessions', 'usage', 'billing', 'requests'].includes(resource))
     return true;
   if (
-    (categories.has('workspace') || categories.has('git')) &&
-    ['projects', 'workspaces', 'operations'].includes(resource)
+    (categories.has('worktree') || categories.has('git')) &&
+    ['workspaces', 'worktrees', 'operations'].includes(resource)
   )
     return true;
   if (categories.has('git') && resource === 'runs') return true;

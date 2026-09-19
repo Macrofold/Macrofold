@@ -6,9 +6,11 @@ import {
   realExecutionEnabled,
 } from '../../packages/core/src/config';
 import { DockerMachines, type DockerCommand } from '../../packages/providers/src/docker';
+import { sandboxProvider } from '../../packages/providers/src/sandboxes';
 import type { NativeConfiguration } from '../../packages/runtime/src/types';
 const original = { ...config };
 afterEach(() => {
+  vi.restoreAllMocks();
   Object.assign(config, original);
   vi.unstubAllEnvs();
 });
@@ -54,6 +56,7 @@ function fixture() {
       container!.State.Status = 'exited';
     }
     if (args[0] === 'rm') container = undefined;
+    if (args.includes('/opt/platform/sandbox-control-cli.mjs')) return Buffer.from('{"value":{}}');
     return Buffer.from('{}');
   });
   const provider = new DockerMachines(command);
@@ -70,6 +73,40 @@ function fixture() {
   };
 }
 describe('local Docker execution boundary', () => {
+  it.each([
+    { lifetime: null, command: 'infinity' },
+    { lifetime: 3600, command: '5400' },
+  ])('uses $command as the reusable container lifetime for $lifetime', async ({ lifetime, command }) => {
+    const f = fixture();
+    const name = `env-${f.name.slice(4)}-1`;
+    const binding = await f.provider.provision(name, lifetime);
+    const creation = f.command.mock.calls.find(([args]) => args[0] === 'create');
+    expect(creation?.[0].slice(-2)).toEqual(['sleep', command]);
+    expect(await f.provider.environmentRunning(binding)).toBe(true);
+    await f.provider.destroyEnvironment(name);
+    expect(await f.provider.environmentRunning(binding)).toBe(false);
+  });
+  it('rejects an unbounded lifetime for a disposable per-run container', async () => {
+    const f = fixture();
+    await expect(f.provider.provision(f.name, null)).rejects.toMatchObject({ code: 'invalid_timeout' });
+    expect(f.command.mock.calls.some(([args]) => args[0] === 'create')).toBe(false);
+  });
+  it('passes an unbounded lifetime only through the Docker sandbox adapter', async () => {
+    const f = fixture();
+    const name = `env-${f.name.slice(4)}-1`;
+    const binding = { name, sessionId: 'container', createdAt: new Date().toISOString() };
+    const provision = vi.spyOn(DockerMachines.prototype, 'provision').mockResolvedValue(binding);
+    vi.spyOn(DockerMachines.prototype, 'startControl').mockResolvedValue();
+    vi.spyOn(DockerMachines.prototype, 'control').mockResolvedValue({ boot_id: f.name.slice(4) });
+    expect(await sandboxProvider('docker').create(name, 'fixture-secret', null)).toEqual({
+      ...binding,
+      controlBootId: f.name.slice(4),
+    });
+    expect(provision).toHaveBeenCalledWith(name, null);
+    await expect(sandboxProvider('vercel').create(name, 'fixture-secret', null)).rejects.toMatchObject({
+      code: 'unsupported_lifetime',
+    });
+  });
   it('keeps simulator keys unable to enable real inference and validates the explicit poller profile', () => {
     fixture();
     expect(realExecutionEnabled()).toBe(true);
@@ -148,6 +185,23 @@ describe('local Docker execution boundary', () => {
     expect(await f.provider.close(binding, true)).toEqual({ snapshotId: binding.sessionId });
     await f.provider.close(binding, false);
     await expect(f.provider.close(binding, false)).resolves.toEqual({});
+  });
+  it('transfers a full checkpoint chunk through reusable control without exceeding the encoded envelope limit', async () => {
+    const f = fixture();
+    const binding = await f.provider.provision(`env-${f.name.slice(4)}-1`, 3600);
+    await f.provider.control(binding, 'unused-root-file-secret', {
+      action: 'stage',
+      run_id: f.name.slice(4),
+      files: [
+        { path: `chunks/${'a'.repeat(64)}`, content: Buffer.alloc(4 * 1024 * 1024).toString('base64') },
+      ],
+    });
+    const file = JSON.parse(f.inputs[0].toString())[0];
+    const envelope = JSON.parse(Buffer.from(file.content, 'base64').toString());
+    expect(Buffer.from(envelope.request.files[0].content, 'base64')).toHaveLength(4 * 1024 * 1024);
+    expect(await f.provider.environmentRunning(binding)).toBe(true);
+    f.current().State.Running = false;
+    expect(await f.provider.environmentRunning(binding)).toBe(false);
   });
   it('passes only run capabilities through stdin and confines host networking to its gateway', async () => {
     const f = fixture();

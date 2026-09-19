@@ -59,7 +59,7 @@ export async function safeFetch(input: string | URL | Request, init: RequestInit
       dispatcher,
     });
     assert(
-      response.status < 300 || response.status >= 400,
+      response.status < 300 || response.status >= 400 || response.status === 304,
       400,
       'redirect_not_allowed',
       'The endpoint redirected. Configure its final HTTPS URL.',

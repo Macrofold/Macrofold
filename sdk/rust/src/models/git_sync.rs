@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GitSync {
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "status")]
     pub status: Status,
     #[serde(rename = "source_commit", skip_serializing_if = "Option::is_none")]
@@ -32,9 +32,9 @@ pub struct GitSync {
 }
 
 impl GitSync {
-    pub fn new(workspace_id: uuid::Uuid, status: Status, updated_at: chrono::DateTime<chrono::FixedOffset>) -> GitSync {
+    pub fn new(worktree_id: uuid::Uuid, status: Status, updated_at: chrono::DateTime<chrono::FixedOffset>) -> GitSync {
         GitSync {
-            workspace_id,
+            worktree_id,
             status,
             source_commit: None,
             target_commit: None,
@@ -45,7 +45,7 @@ impl GitSync {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Status {
     #[serde(rename = "disabled")]

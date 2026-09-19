@@ -13,11 +13,11 @@ describe('public TypeScript client', () => {
   it('uses the hosted origin and environment key, with explicit overrides and clear missing-auth errors', async () => {
     vi.stubEnv('MACROFOLD_API_KEY', 'environment-fixture');
     const fetcher = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
-      expect(String(url)).toBe(`${DEFAULT_ORIGIN}/v1/projects`);
+      expect(String(url)).toBe(`${DEFAULT_ORIGIN}/v1/workspaces`);
       expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer environment-fixture');
       return Response.json({ data: [], next_cursor: null });
     });
-    expect((await new Client({ fetch: fetcher }).projects.list()).data).toEqual([]);
+    expect((await new Client({ fetch: fetcher }).workspaces.list()).data).toEqual([]);
     expect(new Client({ apiKey: 'explicit', baseURL: 'http://localhost:3210' }).baseURL).toBe(
       'http://localhost:3210',
     );
@@ -27,7 +27,7 @@ describe('public TypeScript client', () => {
     vi.stubEnv('MACROFOLD_API_KEY', '');
     expect(() => new Client()).toThrow('MACROFOLD_API_KEY');
     const supplier = new Client({ token: async () => '', fetch: fetcher });
-    await expect(supplier.projects.list()).rejects.toThrow('Missing Macrofold API key');
+    await expect(supplier.workspaces.list()).rejects.toThrow('Missing Macrofold API key');
     expect(fetcher).toHaveBeenCalledOnce();
   });
   it.each(['', 'must-not-be-used'])(
@@ -45,7 +45,7 @@ describe('public TypeScript client', () => {
         sessionAuth: true,
         fetch: fetcher,
       });
-      expect((await client.projects.list()).data).toEqual([]);
+      expect((await client.workspaces.list()).data).toEqual([]);
       expect(fetcher).toHaveBeenCalledOnce();
       for (const credentials of [{ apiKey: 'key' }, { token: 'token' }, { token: async () => 'token' }])
         expect(() => new Client({ sessionAuth: true, ...credentials })).toThrow('cannot be combined');
@@ -56,7 +56,7 @@ describe('public TypeScript client', () => {
       Response.json({ error: { code: 'unauthorized', message: 'Sign in again' } }, { status: 401 }),
     );
     const client = new Client({ sessionAuth: true, fetch: fetcher });
-    await expect(client.projects.list()).rejects.toBeInstanceOf(ApiError);
+    await expect(client.workspaces.list()).rejects.toBeInstanceOf(ApiError);
     expect(fetcher).toHaveBeenCalledOnce();
   });
   it('serializes resource options into the correct body, query, path, and precondition headers', async () => {
@@ -69,16 +69,16 @@ describe('public TypeScript client', () => {
         return Response.json({ id: 'fixture', data: [], next_cursor: null });
       },
     });
-    await client.projects.list({ archived: false, limit: 1, query: 'a + b' });
+    await client.workspaces.list({ archived: false, limit: 1, query: 'a + b' });
     expect(calls[0].url.searchParams.get('archived')).toBe('false');
     expect(calls[0].url.searchParams.get('query')).toBe('a + b');
     const content = new Uint8Array([0, 255, 4]);
-    await client.workspaces.writeFile(
-      'workspace / one',
+    await client.worktrees.writeFile(
+      'worktree / one',
       { path: 'notes/a + b', ifMatch: 'revision', content },
       { idempotencyKey: 'stable' },
     );
-    expect(calls[1].url.pathname).toContain('workspace%20%2F%20one');
+    expect(calls[1].url.pathname).toContain('worktree%20%2F%20one');
     expect(calls[1].url.searchParams.get('path')).toBe('notes/a + b');
     expect(calls[1].init?.body).toBe(content);
     const headers = new Headers(calls[1].init?.headers);
@@ -95,11 +95,11 @@ describe('public TypeScript client', () => {
       keys.push(new Headers(options?.headers).get('idempotency-key')!);
       expect(options?.redirect).toBe('error');
       if (attempt++ === 0) throw new Error('lost response');
-      return Response.json({ id: 'project', name: 'Fixture' });
+      return Response.json({ id: 'workspace', name: 'Fixture' });
     });
     const client = new Client({ baseURL: 'https://fixture.invalid', token: 'fixture-key', fetch: fetcher });
-    const result = await client.projects.create({ name: 'Fixture' });
-    expect(result.id).toBe('project');
+    const result = await client.workspaces.create({ name: 'Fixture' });
+    expect(result.id).toBe('workspace');
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
   });
@@ -110,7 +110,7 @@ describe('public TypeScript client', () => {
   ] as const)('reads %s file bytes without interpreting them as JSON', async (_name, content) => {
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
-      expect(url.pathname).toBe('/v1/workspaces/workspace/file');
+      expect(url.pathname).toBe('/v1/worktrees/worktree/file');
       expect(url.searchParams.get('path')).toBe('notes/日本語 + #?.bin');
       expect(init?.method).toBe('GET');
       expect(init?.redirect).toBe('error');
@@ -118,7 +118,7 @@ describe('public TypeScript client', () => {
       return new Response(content, { headers: { 'Content-Type': 'application/octet-stream' } });
     });
     const client = new Client({ apiKey: 'fixture', fetch: fetcher });
-    expect(await client.workspaces.readFile('workspace', { path: 'notes/日本語 + #?.bin' })).toEqual(content);
+    expect(await client.worktrees.readFile('worktree', { path: 'notes/日本語 + #?.bin' })).toEqual(content);
     expect(fetcher).toHaveBeenCalledOnce();
   });
   it('rejects an interrupted file body instead of returning partial content', async () => {
@@ -135,7 +135,7 @@ describe('public TypeScript client', () => {
         ),
     );
     const client = new Client({ apiKey: 'fixture', fetch: fetcher });
-    await expect(client.workspaces.readFile('workspace', { path: 'file.bin' })).rejects.toBeInstanceOf(
+    await expect(client.worktrees.readFile('worktree', { path: 'file.bin' })).rejects.toBeInstanceOf(
       TransportError,
     );
     expect(pulls).toBe(2);
@@ -193,7 +193,7 @@ describe('public TypeScript client', () => {
           { status: 402 },
         ),
     });
-    await expect(client.projects.list()).rejects.toMatchObject({
+    await expect(client.workspaces.list()).rejects.toMatchObject({
       status: 402,
       code: 'insufficient_credit',
       requestId: 'request',
@@ -210,7 +210,7 @@ describe('public TypeScript client', () => {
       return new Response('{"id":', { status: 201 });
     });
     const client = new Client({ baseURL: 'https://fixture.invalid', token: 'fixture', fetch: fetcher });
-    const error = await client.projects.create({ name: 'Fixture' }).catch((e) => e);
+    const error = await client.workspaces.create({ name: 'Fixture' }).catch((e) => e);
     expect(error).toBeInstanceOf(TransportError);
     expect(error.idempotencyKey).toBe(identity);
     expect(identity).toBeTruthy();

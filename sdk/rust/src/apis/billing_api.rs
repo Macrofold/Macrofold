@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -47,6 +47,14 @@ pub enum GetStorageError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`list_billing_usage`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ListBillingUsageError {
+    DefaultResponse(models::Error),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`update_storage_policy`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -56,7 +64,7 @@ pub enum UpdateStoragePolicyError {
 }
 
 
-/// 
+///
 pub async fn create_billing_portal(configuration: &configuration::Configuration, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::Redirect, Error<CreateBillingPortalError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -106,7 +114,7 @@ pub async fn create_billing_portal(configuration: &configuration::Configuration,
     }
 }
 
-/// 
+///
 pub async fn create_checkout(configuration: &configuration::Configuration, idempotency_key: &str, checkout_create: models::CheckoutCreate, x_organization_id: Option<&str>) -> Result<models::Redirect, Error<CreateCheckoutError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -156,7 +164,7 @@ pub async fn create_checkout(configuration: &configuration::Configuration, idemp
     }
 }
 
-/// 
+///
 pub async fn get_billing(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::Billing, Error<GetBillingError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;
@@ -202,7 +210,7 @@ pub async fn get_billing(configuration: &configuration::Configuration, x_organiz
     }
 }
 
-/// 
+///
 pub async fn get_storage(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::Storage, Error<GetStorageError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;
@@ -248,7 +256,105 @@ pub async fn get_storage(configuration: &configuration::Configuration, x_organiz
     }
 }
 
-/// 
+/// Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+pub async fn list_billing_usage(configuration: &configuration::Configuration, from: chrono::DateTime<chrono::FixedOffset>, to: chrono::DateTime<chrono::FixedOffset>, workspace_id: Option<&str>, worktree_id: Option<&str>, run_id: Option<&str>, session_id: Option<&str>, customer_id: Option<&str>, agent_key: Option<&str>, provider: Option<&str>, model: Option<&str>, kind: Option<&str>, billing_mode: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::BillingUsagePage, Error<ListBillingUsageError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_query_from = from;
+    let p_query_to = to;
+    let p_query_workspace_id = workspace_id;
+    let p_query_worktree_id = worktree_id;
+    let p_query_run_id = run_id;
+    let p_query_session_id = session_id;
+    let p_query_customer_id = customer_id;
+    let p_query_agent_key = agent_key;
+    let p_query_provider = provider;
+    let p_query_model = model;
+    let p_query_kind = kind;
+    let p_query_billing_mode = billing_mode;
+    let p_query_cursor = cursor;
+    let p_query_limit = limit;
+    let p_header_x_organization_id = x_organization_id;
+
+    let uri_str = format!("{}/v1/billing/usage", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    req_builder = req_builder.query(&[("from", &p_query_from.to_string())]);
+    req_builder = req_builder.query(&[("to", &p_query_to.to_string())]);
+    if let Some(ref param_value) = p_query_workspace_id {
+        req_builder = req_builder.query(&[("workspace_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_worktree_id {
+        req_builder = req_builder.query(&[("worktree_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_run_id {
+        req_builder = req_builder.query(&[("run_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_session_id {
+        req_builder = req_builder.query(&[("session_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_customer_id {
+        req_builder = req_builder.query(&[("customer_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_agent_key {
+        req_builder = req_builder.query(&[("agent_key", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_provider {
+        req_builder = req_builder.query(&[("provider", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_model {
+        req_builder = req_builder.query(&[("model", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_kind {
+        req_builder = req_builder.query(&[("kind", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_billing_mode {
+        req_builder = req_builder.query(&[("billing_mode", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_cursor {
+        req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_limit {
+        req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
+    }
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    if let Some(param_value) = p_header_x_organization_id {
+        req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
+    }
+    if let Some(ref token) = configuration.oauth_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+    if let Some(ref token) = configuration.bearer_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::BillingUsagePage`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::BillingUsagePage`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<ListBillingUsageError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+///
 pub async fn update_storage_policy(configuration: &configuration::Configuration, idempotency_key: &str, storage_policy: models::StoragePolicy, x_organization_id: Option<&str>) -> Result<models::Storage, Error<UpdateStoragePolicyError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;

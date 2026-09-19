@@ -1,6 +1,6 @@
 # API conventions
 
-Use the REST API to create projects, start runs, follow progress, and retrieve saved work. The dashboard, CLI, and SDKs use the same resource model and authorization rules.
+Use the REST API to create workspaces, start runs, follow progress, and retrieve saved work. The dashboard, CLI, and SDKs use the same resource model and authorization rules.
 
 Start with the [API quickstart](quickstart.md). The application serves an interactive reference at `/reference` and its complete [OpenAPI contract](../../api/openapi.json) at `/openapi.json`.
 
@@ -8,7 +8,7 @@ Start with the [API quickstart](quickstart.md). The application serves an intera
 
 Send a scoped API key or customer OAuth token in `Authorization: Bearer …`. Generate keys in **API keys** and save the secret when it is shown once. Keep credentials on your server or in a secret store, never in browser bundles or URLs.
 
-A key belongs to one organization and can restrict scopes and projects. `X-Organization-Id` selects an authorized membership for credentials that support it; it cannot move an organization-bound key into another tenant. Resource IDs do not grant access.
+A key belongs to one organization and can restrict scopes and workspaces. `X-Organization-Id` selects an authorized membership for credentials that support it; it cannot move an organization-bound key into another tenant. Resource IDs do not grant access.
 
 ## Resource conventions
 
@@ -17,13 +17,13 @@ All customer routes start with `/v1`. JSON fields use snake_case, timestamps use
 | Task                  | Routes                                                                              |
 | --------------------- | ----------------------------------------------------------------------------------- |
 | Identity and catalogs | `/me`, `/harnesses`, `/models`                                                      |
-| Project files         | `/projects`, `/workspaces/{id}/files`, `/workspaces/{id}/file`                      |
+| Workspace files         | `/workspaces`, `/worktrees/{id}/files`, `/worktrees/{id}/file`                      |
 | Execution             | `/runs`, `/sessions`, `/sessions/{id}/messages`                                     |
 | Status and output     | `/runs/{id}`, `/runs/{id}/result`, `/runs/{id}/stream`                              |
-| Recovery and Git      | `/workspaces/{id}/checkpoints`, `/workspaces/{id}/restore`, `/workspaces/{id}/sync` |
+| Recovery and Git      | `/worktrees/{id}/checkpoints`, `/worktrees/{id}/restore`, `/worktrees/{id}/sync` |
 | Triggers and schedules | `/triggers`, `/triggers/{id}/deliveries`, `/slack-connections` |
 | Tools and access      | `/connections`, `/api-keys`                                                         |
-| Usage and billing     | `/usage`, `/requests`, `/billing`                                                   |
+| Usage and billing     | `/usage`, `/requests`, `/billing`, `/billing/usage`                                                   |
 
 The table shows route families; use OpenAPI for exact parameter names, required fields, and operation IDs. [Incoming triggers](../triggers/README.md) use separate signed Slack or bearer webhook endpoints under `/events`; those provider callbacks do not accept a normal Macrofold API key.
 
@@ -35,7 +35,7 @@ Run creation, session messages, checkout, file mutations, restore, sync, transfe
 
 ## Asynchronous work
 
-A run request returns 202 with `run_id`, related resource IDs, and URLs for status, events, result, and cancellation. File and workspace maintenance may return an operation ID instead. Poll `/v1/operations/{id}` and inspect its final status before using its result.
+A run request returns 202 with `run_id`, related resource IDs, and URLs for status, events, result, and cancellation. File and worktree maintenance may return an operation ID instead. Poll `/v1/operations/{id}` and inspect its final status before using its result.
 
 Result retrieval reports `final=true` after terminalization. Available partial output can be returned earlier. A canceled stream is not a canceled run; use the run cancellation endpoint explicitly.
 
@@ -52,8 +52,8 @@ Errors include `error.code`, `message`, `request_id`, `details`, and `retryable`
 | Response                      | What to do                                                         |
 | ----------------------------- | ------------------------------------------------------------------ |
 | 401                           | Refresh authorization or sign in again                             |
-| 403                           | Check membership, scopes, project restrictions, and current grants |
-| 409 `workspace_busy`          | Wait for the writer or select an independent workspace             |
+| 403                           | Check membership, scopes, workspace restrictions, and current grants |
+| 409 `worktree_busy`          | Wait for the writer or select an independent worktree             |
 | 409 `idempotency_conflict`    | Restore the original body for that key                             |
 | 412 `stale_revision`          | Read the current file revision and reconcile your change           |
 | 429                           | Honor `Retry-After` and reduce request rate                        |

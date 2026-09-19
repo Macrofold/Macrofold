@@ -5,10 +5,18 @@ import { agentRun } from '../workflows/run';
 import { pendingRunCandidates } from '@platform/core/scheduling';
 import { claimRun } from '@platform/core/engine';
 import { renewWorkflow } from '@platform/core/workflow-ownership';
+import { flushTracesInBackground } from './trace-background';
 
 /** The committed outbox is authoritative. Losing a start() response may create a second
  * Workflow, but it cannot create a second native execution; the domain lease and VM marker fence it. */
 export async function dispatchRuns(capacityFreed = false) {
+  try {
+    return await dispatchPendingRuns(capacityFreed);
+  } finally {
+    flushTracesInBackground();
+  }
+}
+async function dispatchPendingRuns(capacityFreed: boolean) {
   if (isLocal() || config.execution !== 'vercel' || config.orchestration !== 'workflow')
     return { dispatched: 0 };
   const pending = await pendingRunCandidates(100);

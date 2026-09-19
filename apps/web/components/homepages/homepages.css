@@ -850,11 +850,11 @@
   font-size: 18px;
   fill: #c7d4e5;
 }
-.hp-diagram .hp-project-border {
+.hp-diagram .hp-workspace-border {
   stroke: #829faf;
   stroke-width: 1;
 }
-.hp-project-shape {
+.hp-workspace-shape {
   transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .hp-folder-glyph {
@@ -1004,7 +1004,7 @@
 .hp-diagram-terminal .hp-diagram-grid {
   opacity: 0.35;
 }
-.hp-diagram-terminal .hp-project-border {
+.hp-diagram-terminal .hp-workspace-border {
   stroke: #a8e6c688;
 }
 .hp-diagram-terminal .hp-diagram-bar {

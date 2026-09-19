@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -56,7 +56,7 @@ pub enum UpdateAgentError {
 }
 
 
-/// 
+///
 pub async fn create_agent(configuration: &configuration::Configuration, idempotency_key: &str, agent_create: models::AgentCreate, x_organization_id: Option<&str>) -> Result<models::Agent, Error<CreateAgentError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -106,7 +106,7 @@ pub async fn create_agent(configuration: &configuration::Configuration, idempote
     }
 }
 
-/// 
+///
 pub async fn delete_agent(configuration: &configuration::Configuration, agent_id: &str, x_organization_id: Option<&str>) -> Result<(), Error<DeleteAgentError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_agent_id = agent_id;
@@ -143,12 +143,12 @@ pub async fn delete_agent(configuration: &configuration::Configuration, agent_id
 }
 
 /// Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
-pub async fn get_agent(configuration: &configuration::Configuration, agent_id: &str, x_organization_id: Option<&str>, include_connections: Option<bool>, project_id: Option<&str>, connections_limit: Option<i32>, connections_cursor: Option<&str>) -> Result<models::Agent, Error<GetAgentError>> {
+pub async fn get_agent(configuration: &configuration::Configuration, agent_id: &str, x_organization_id: Option<&str>, include_connections: Option<bool>, workspace_id: Option<&str>, connections_limit: Option<i32>, connections_cursor: Option<&str>) -> Result<models::Agent, Error<GetAgentError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_agent_id = agent_id;
     let p_header_x_organization_id = x_organization_id;
     let p_query_include_connections = include_connections;
-    let p_query_project_id = project_id;
+    let p_query_workspace_id = workspace_id;
     let p_query_connections_limit = connections_limit;
     let p_query_connections_cursor = connections_cursor;
 
@@ -158,8 +158,8 @@ pub async fn get_agent(configuration: &configuration::Configuration, agent_id: &
     if let Some(ref param_value) = p_query_include_connections {
         req_builder = req_builder.query(&[("include_connections", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_project_id {
-        req_builder = req_builder.query(&[("project_id", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_workspace_id {
+        req_builder = req_builder.query(&[("workspace_id", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_connections_limit {
         req_builder = req_builder.query(&[("connections_limit", &param_value.to_string())]);
@@ -205,7 +205,7 @@ pub async fn get_agent(configuration: &configuration::Configuration, agent_id: &
     }
 }
 
-/// 
+///
 pub async fn list_agents(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, query: Option<&str>) -> Result<models::ListAgents200Response, Error<ListAgentsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
@@ -263,7 +263,7 @@ pub async fn list_agents(configuration: &configuration::Configuration, cursor: O
     }
 }
 
-/// 
+///
 pub async fn update_agent(configuration: &configuration::Configuration, agent_id: &str, agent_patch: models::AgentPatch, x_organization_id: Option<&str>) -> Result<models::Agent, Error<UpdateAgentError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_agent_id = agent_id;

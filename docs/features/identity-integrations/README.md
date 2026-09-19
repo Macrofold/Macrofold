@@ -28,7 +28,7 @@ Keys are not exposed to native agents as long-lived credentials. Revocation prev
 
 For an application, complete its account authorization and choose the permitted tools. For remote MCP, enter its endpoint and follow the authentication flow supported by that server. The deployment validates network destinations and can reject private or unsupported endpoints.
 
-In **Tools**, approve the tool ceiling. In **Access**, enable organization access or add project, preset, or project + preset rules. A run inherits eligible connections unless an explicit selection narrows them. Ownership and provider authorization alone grant no runtime access. See [connector access rules](connection-access.md), including explicit one-run exceptions. Tool descriptions and project instructions do not change permissions. External tools can modify third-party systems, so inspect uncertain outcomes before retrying a write.
+In **Tools**, approve the tool ceiling. In **Access**, enable organization access or add workspace, preset, or workspace + preset rules. A run inherits eligible connections unless an explicit selection narrows them. Ownership and provider authorization alone grant no runtime access. See [connector access rules](connection-access.md), including explicit one-run exceptions. Tool descriptions and workspace instructions do not change permissions. External tools can modify third-party systems, so inspect uncertain outcomes before retrying a write.
 
 See [connector discovery](connectors.md), [web search](web-search.md), [Composio configuration](composio.md), and [tool security](tools-security.md).
 
@@ -36,7 +36,7 @@ See [connector discovery](connectors.md), [web search](web-search.md), [Composio
 
 **Account & security** provides password, MFA, recovery codes, sessions, and OAuth application controls. **Team** manages owners, admins, members, viewers, and invitations. Invitations bind a verified email and expire after seven days; share the invitation link with its intended recipient.
 
-Permissions combine current membership, credential scopes, project restrictions, ownership, and connection grants. An API key is shown once and bound to one organization. Ownership changes preserve at least one owner. Removal or demotion affects delegated credentials and ongoing work.
+Permissions combine current membership, credential scopes, workspace restrictions, ownership, and connection grants. An API key is shown once and bound to one organization. Ownership changes preserve at least one owner. Removal or demotion affects delegated credentials and ongoing work.
 
 ## Data and security boundaries
 

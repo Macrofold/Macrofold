@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile, rename, unlink, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import type { Client, Schema } from '../../../sdk/typescript/src/client';
-import { git, relativeFile, safeLocalPath, loadBaseline, saveBaseline } from './local-project';
+import { git, relativeFile, safeLocalPath, loadBaseline, saveBaseline } from './local-workspace';
 import { CliError, confirm, output } from './output';
 const digest = (value: Uint8Array) => createHash('sha256').update(value).digest('hex');
 function permitted(file: string) {
@@ -61,12 +61,12 @@ async function inventory(root: string, paths: string[], includeIgnored: boolean)
     candidates = candidates.filter((p) => permitted(p) && (!tracked || tracked.includes(p)));
   return [...new Set(candidates)];
 }
-async function remoteFiles(client: Client, workspaceId: string) {
+async function remoteFiles(client: Client, worktreeId: string) {
   let cursor: string | undefined;
   const files: Schema['FileEntry'][] = [];
   do {
     const page = await client.request('listFiles', {
-      params: { path: { workspace_id: workspaceId }, query: { limit: 100, ...(cursor ? { cursor } : {}) } },
+      params: { path: { worktree_id: worktreeId }, query: { limit: 100, ...(cursor ? { cursor } : {}) } },
     });
     files.push(...page.entries);
     cursor = page.next_cursor || undefined;
@@ -85,17 +85,17 @@ function objectURL(value: string, origin: string) {
 export async function transferFiles(
   client: Client,
   root: string,
-  workspaceId: string,
+  worktreeId: string,
   direction: 'push' | 'pull',
   paths: string[],
   options: { includeIgnored?: boolean; delete?: boolean; dryRun?: boolean; yes?: boolean; json?: boolean },
 ) {
-  const workspace = await client.request('getWorkspace', { params: { path: { workspace_id: workspaceId } } });
-  const baseline = await loadBaseline(root, workspaceId);
+  const worktree = await client.request('getWorktree', { params: { path: { worktree_id: worktreeId } } });
+  const baseline = await loadBaseline(root, worktreeId);
   let candidates: string[];
   if (direction === 'push') candidates = await inventory(root, paths, Boolean(options.includeIgnored));
   else {
-    const files = await remoteFiles(client, workspaceId);
+    const files = await remoteFiles(client, worktreeId);
     candidates = files
       .filter(
         (f) =>
@@ -135,10 +135,10 @@ export async function transferFiles(
   }
   if (bytes > 250 * 1024 * 1024) throw new CliError('Select at most 250 MiB per transfer.', 6);
   const plan = await client.request('createTransfer', {
-    params: { path: { workspace_id: workspaceId } },
+    params: { path: { worktree_id: worktreeId } },
     body: {
       direction,
-      base_revision: workspace.revision,
+      base_revision: worktree.revision,
       manifest,
       paths,
       include_ignored: Boolean(options.includeIgnored),
@@ -206,13 +206,13 @@ export async function transferFiles(
     if (['download', 'delete'].includes(action.action)) completed.push(action.path);
     if (direction === 'pull') {
       baseline[action.path] = action.action === 'delete' ? null : action.remote_sha256;
-      await saveBaseline(root, workspaceId, baseline);
+      await saveBaseline(root, worktreeId, baseline);
     }
   }
   const operation = await client.request('applyTransfer', {
     params: { path: { transfer_id: plan.id } },
     body: {
-      expected_revision: workspace.revision,
+      expected_revision: worktree.revision,
       ...(direction === 'pull' ? { completed_paths: completed } : {}),
     },
   });
@@ -221,7 +221,7 @@ export async function transferFiles(
   if (direction === 'push') {
     for (const action of plan.actions)
       baseline[action.path] = action.action === 'delete' ? null : action.local_sha256;
-    await saveBaseline(root, workspaceId, baseline);
+    await saveBaseline(root, worktreeId, baseline);
   }
   const final = await client.request('getTransfer', { params: { path: { transfer_id: plan.id } } });
   return publicTransfer(final);

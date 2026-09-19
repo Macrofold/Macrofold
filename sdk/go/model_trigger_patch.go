@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -20,7 +20,7 @@ var _ MappedNullable = &TriggerPatch{}
 // TriggerPatch struct for TriggerPatch
 type TriggerPatch struct {
 	Name *string `json:"name,omitempty"`
-	ProjectId *string `json:"project_id,omitempty"`
+	WorkspaceId *string `json:"workspace_id,omitempty"`
 	AgentId *string `json:"agent_id,omitempty"`
 	Prompt *string `json:"prompt,omitempty"`
 	Enabled *bool `json:"enabled,omitempty"`
@@ -80,36 +80,36 @@ func (o *TriggerPatch) SetName(v string) {
 	o.Name = &v
 }
 
-// GetProjectId returns the ProjectId field value if set, zero value otherwise.
-func (o *TriggerPatch) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId) {
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
+func (o *TriggerPatch) GetWorkspaceId() string {
+	if o == nil || IsNil(o.WorkspaceId) {
 		var ret string
 		return ret
 	}
-	return *o.ProjectId
+	return *o.WorkspaceId
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TriggerPatch) GetProjectIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProjectId) {
+func (o *TriggerPatch) GetWorkspaceIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkspaceId) {
 		return nil, false
 	}
-	return o.ProjectId, true
+	return o.WorkspaceId, true
 }
 
-// HasProjectId returns a boolean if a field has been set.
-func (o *TriggerPatch) HasProjectId() bool {
-	if o != nil && !IsNil(o.ProjectId) {
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *TriggerPatch) HasWorkspaceId() bool {
+	if o != nil && !IsNil(o.WorkspaceId) {
 		return true
 	}
 
 	return false
 }
 
-// SetProjectId gets a reference to the given string and assigns it to the ProjectId field.
-func (o *TriggerPatch) SetProjectId(v string) {
-	o.ProjectId = &v
+// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
+func (o *TriggerPatch) SetWorkspaceId(v string) {
+	o.WorkspaceId = &v
 }
 
 // GetAgentId returns the AgentId field value if set, zero value otherwise.
@@ -381,8 +381,8 @@ func (o TriggerPatch) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Name) {
 		toSerialize["name"] = o.Name
 	}
-	if !IsNil(o.ProjectId) {
-		toSerialize["project_id"] = o.ProjectId
+	if !IsNil(o.WorkspaceId) {
+		toSerialize["workspace_id"] = o.WorkspaceId
 	}
 	if !IsNil(o.AgentId) {
 		toSerialize["agent_id"] = o.AgentId

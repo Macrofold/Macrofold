@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -22,8 +22,8 @@ var _ MappedNullable = &RunAccepted{}
 // RunAccepted struct for RunAccepted
 type RunAccepted struct {
 	RunId string `json:"run_id"`
-	SessionId string `json:"session_id"`
-	WorkspaceId string `json:"workspace_id"`
+	SessionId NullableString `json:"session_id"`
+	WorktreeId NullableString `json:"worktree_id"`
 	Status string `json:"status"`
 	Urls RunAcceptedUrls `json:"urls"`
 	QueueExpiresAt *time.Time `json:"queue_expires_at,omitempty"`
@@ -34,6 +34,9 @@ type RunAccepted struct {
 	// Funds still held and unavailable for other jobs; released on settlement.
 	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
+	Kind *string `json:"kind,omitempty"`
+	// Reusable compute ID, when selected or created by keep_warm_seconds.
+	SandboxId NullableString `json:"sandbox_id,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -43,11 +46,11 @@ type _RunAccepted RunAccepted
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRunAccepted(runId string, sessionId string, workspaceId string, status string, urls RunAcceptedUrls) *RunAccepted {
+func NewRunAccepted(runId string, sessionId NullableString, worktreeId NullableString, status string, urls RunAcceptedUrls) *RunAccepted {
 	this := RunAccepted{}
 	this.RunId = runId
 	this.SessionId = sessionId
-	this.WorkspaceId = workspaceId
+	this.WorktreeId = worktreeId
 	this.Status = status
 	this.Urls = urls
 	return &this
@@ -86,51 +89,55 @@ func (o *RunAccepted) SetRunId(v string) {
 }
 
 // GetSessionId returns the SessionId field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *RunAccepted) GetSessionId() string {
-	if o == nil {
+	if o == nil || o.SessionId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.SessionId
+	return *o.SessionId.Get()
 }
 
 // GetSessionIdOk returns a tuple with the SessionId field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *RunAccepted) GetSessionIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.SessionId, true
+	return o.SessionId.Get(), o.SessionId.IsSet()
 }
 
 // SetSessionId sets field value
 func (o *RunAccepted) SetSessionId(v string) {
-	o.SessionId = v
+	o.SessionId.Set(&v)
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
-func (o *RunAccepted) GetWorkspaceId() string {
-	if o == nil {
+// GetWorktreeId returns the WorktreeId field value
+// If the value is explicit nil, the zero value for string will be returned
+func (o *RunAccepted) GetWorktreeId() string {
+	if o == nil || o.WorktreeId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return *o.WorktreeId.Get()
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value
 // and a boolean to check if the value has been set.
-func (o *RunAccepted) GetWorkspaceIdOk() (*string, bool) {
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *RunAccepted) GetWorktreeIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return o.WorktreeId.Get(), o.WorktreeId.IsSet()
 }
 
-// SetWorkspaceId sets field value
-func (o *RunAccepted) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+// SetWorktreeId sets field value
+func (o *RunAccepted) SetWorktreeId(v string) {
+	o.WorktreeId.Set(&v)
 }
 
 // GetStatus returns the Status field value
@@ -351,6 +358,80 @@ func (o *RunAccepted) SetSchedulingClass(v string) {
 	o.SchedulingClass = &v
 }
 
+// GetKind returns the Kind field value if set, zero value otherwise.
+func (o *RunAccepted) GetKind() string {
+	if o == nil || IsNil(o.Kind) {
+		var ret string
+		return ret
+	}
+	return *o.Kind
+}
+
+// GetKindOk returns a tuple with the Kind field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunAccepted) GetKindOk() (*string, bool) {
+	if o == nil || IsNil(o.Kind) {
+		return nil, false
+	}
+	return o.Kind, true
+}
+
+// HasKind returns a boolean if a field has been set.
+func (o *RunAccepted) HasKind() bool {
+	if o != nil && !IsNil(o.Kind) {
+		return true
+	}
+
+	return false
+}
+
+// SetKind gets a reference to the given string and assigns it to the Kind field.
+func (o *RunAccepted) SetKind(v string) {
+	o.Kind = &v
+}
+
+// GetSandboxId returns the SandboxId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *RunAccepted) GetSandboxId() string {
+	if o == nil || IsNil(o.SandboxId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxId.Get()
+}
+
+// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *RunAccepted) GetSandboxIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SandboxId.Get(), o.SandboxId.IsSet()
+}
+
+// HasSandboxId returns a boolean if a field has been set.
+func (o *RunAccepted) HasSandboxId() bool {
+	if o != nil && o.SandboxId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxId gets a reference to the given NullableString and assigns it to the SandboxId field.
+func (o *RunAccepted) SetSandboxId(v string) {
+	o.SandboxId.Set(&v)
+}
+// SetSandboxIdNil sets the value for SandboxId to be an explicit nil
+func (o *RunAccepted) SetSandboxIdNil() {
+	o.SandboxId.Set(nil)
+}
+
+// UnsetSandboxId ensures that no value is present for SandboxId, not even an explicit nil
+func (o *RunAccepted) UnsetSandboxId() {
+	o.SandboxId.Unset()
+}
+
 func (o RunAccepted) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -362,8 +443,8 @@ func (o RunAccepted) MarshalJSON() ([]byte, error) {
 func (o RunAccepted) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["run_id"] = o.RunId
-	toSerialize["session_id"] = o.SessionId
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["session_id"] = o.SessionId.Get()
+	toSerialize["worktree_id"] = o.WorktreeId.Get()
 	toSerialize["status"] = o.Status
 	toSerialize["urls"] = o.Urls
 	if !IsNil(o.QueueExpiresAt) {
@@ -381,6 +462,12 @@ func (o RunAccepted) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.SchedulingClass) {
 		toSerialize["scheduling_class"] = o.SchedulingClass
 	}
+	if !IsNil(o.Kind) {
+		toSerialize["kind"] = o.Kind
+	}
+	if o.SandboxId.IsSet() {
+		toSerialize["sandbox_id"] = o.SandboxId.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -396,7 +483,7 @@ func (o *RunAccepted) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"run_id",
 		"session_id",
-		"workspace_id",
+		"worktree_id",
 		"status",
 		"urls",
 	}
@@ -430,7 +517,7 @@ func (o *RunAccepted) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "run_id")
 		delete(additionalProperties, "session_id")
-		delete(additionalProperties, "workspace_id")
+		delete(additionalProperties, "worktree_id")
 		delete(additionalProperties, "status")
 		delete(additionalProperties, "urls")
 		delete(additionalProperties, "queue_expires_at")
@@ -438,6 +525,8 @@ func (o *RunAccepted) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "waiting_reason")
 		delete(additionalProperties, "reserved_micro_usd")
 		delete(additionalProperties, "scheduling_class")
+		delete(additionalProperties, "kind")
+		delete(additionalProperties, "sandbox_id")
 		o.AdditionalProperties = additionalProperties
 	}
 

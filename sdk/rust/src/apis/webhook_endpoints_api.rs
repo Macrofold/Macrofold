@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -56,7 +56,7 @@ pub enum UpdateWebhookEndpointError {
 }
 
 
-/// 
+///
 pub async fn create_webhook_endpoint(configuration: &configuration::Configuration, idempotency_key: &str, webhook_create: models::WebhookCreate, x_organization_id: Option<&str>) -> Result<models::NewWebhook, Error<CreateWebhookEndpointError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -106,7 +106,7 @@ pub async fn create_webhook_endpoint(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn delete_webhook_endpoint(configuration: &configuration::Configuration, endpoint_id: &str, x_organization_id: Option<&str>) -> Result<(), Error<DeleteWebhookEndpointError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_endpoint_id = endpoint_id;
@@ -142,7 +142,7 @@ pub async fn delete_webhook_endpoint(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn list_webhook_endpoints(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListWebhookEndpoints200Response, Error<ListWebhookEndpointsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
@@ -246,7 +246,7 @@ pub async fn rotate_webhook_secret(configuration: &configuration::Configuration,
     }
 }
 
-/// 
+///
 pub async fn update_webhook_endpoint(configuration: &configuration::Configuration, endpoint_id: &str, webhook_patch: models::WebhookPatch, x_organization_id: Option<&str>) -> Result<models::Webhook, Error<UpdateWebhookEndpointError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_endpoint_id = endpoint_id;

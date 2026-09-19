@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -18,7 +18,7 @@ import (
 // checks if the AgentPermissions type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &AgentPermissions{}
 
-// AgentPermissions Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
+// AgentPermissions Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
 type AgentPermissions struct {
 	Version int32 `json:"version"`
 	Files *AgentPermissionsFiles `json:"files,omitempty"`

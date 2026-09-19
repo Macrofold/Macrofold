@@ -30,7 +30,7 @@ V8 can over-credit statements after a throwing call and cannot reliably distingu
 
 ## Isolation and report ownership
 
-`test:coverage:all` requires a new report directory. It refuses to reuse an earlier collection. The dashboard runner also refuses existing surface directories. Each invocation creates a random disposable database, temporary object store, independent loopback port, and separate Next build. Only processes created by that runner are stopped; the preview database, worker, port, and build remain untouched.
+`test:coverage:all` and `test:dashboard:isolated` collect in unique temporary report directories, then replace the previous saved result at `COVERAGE_DIR` (default `coverage/full`). Concurrent collectors remain isolated; only publication is serialized. Failed runs also replace the saved result with their diagnostics and a failed `run.json` status, while preserving the failing exit status. Interrupted processes may leave temporary artifacts for explicit cleanup; runners never sweep other active collections. Each invocation creates a random disposable database, temporary object store, independent loopback port, and temporary Next build outside the preview’s `.next`. Builds and the bundled test worker are removed after Node coverage has been packed with its source maps, including on failure. Browser reports and traces are saved with the coverage result. Only processes created by that runner are stopped; the preview database, worker, port, and build remain untouched.
 
 Source hashes, including hidden OAuth discovery routes, are saved before domain execution and checked again during merging. Acceptance builds capture the same inventory before and after compilation. Browser/native/worker/CLI source-map contents must agree with those hashes. Server intermediate mappings may be left uncredited only when the entire build provenance agrees with the canonical revision. Unknown dependency paths are never promoted into application source files. Missing required measurement surfaces fail the combined CI job.
 
@@ -38,7 +38,7 @@ Packed Node observations contain the executed script and maps so another CI runn
 
 The added development dependencies are the V8 range merger, trace-mapping library, AST converter and Istanbul report libraries already used by the Vitest ecosystem. They run only during testing/reporting and add no hosted service or production operating cost. Builds, acceptance runs and retained artifacts do consume the repository’s existing CI minutes/storage allowances; measure the hosted workflow before changing retention or schedules.
 
-The default domain report lives in `coverage/domain`; complete reports live in a fresh `COVERAGE_DIR` (default `coverage/full`). Choose a new directory for a subsequent complete run, or explicitly remove only your own completed generated report. Never mix reports from different revisions. CI uploads raw observations and final reports from the same workflow run and keeps evidence for seven days.
+The default domain report lives in `coverage/domain`; complete reports replace the saved `COVERAGE_DIR` (default `coverage/full`). Reuse that destination for subsequent runs to keep only the latest completed collection. Explicitly choosing different destinations retains separate reports. Never mix reports from different revisions. CI uploads raw observations and final reports from the same workflow run and keeps evidence for seven days.
 
 ## Commands
 
@@ -46,11 +46,11 @@ The local README setup provides PostgreSQL and SMTP. Browser/CLI acceptance addi
 
 ```sh
 pnpm test:coverage
-COVERAGE_DIR=coverage/my-current-run pnpm test:coverage:all
+COVERAGE_DIR=coverage/full pnpm test:coverage:all
 # Add native observations from an already built current runtime image:
-NATIVE_COVERAGE_DIR=coverage/my-current-run/native pnpm test:native --image-only
-NATIVE_COVERAGE_DIR=coverage/my-current-run/native pnpm test:native --stdio --image-only
-COVERAGE_DIR=coverage/my-current-run pnpm coverage:merge
+NATIVE_COVERAGE_DIR=coverage/full/native pnpm test:native --image-only
+NATIVE_COVERAGE_DIR=coverage/full/native pnpm test:native --stdio --image-only
+COVERAGE_DIR=coverage/full pnpm coverage:merge
 ```
 
 `pnpm test:dashboard:isolated` can run browser/CLI acceptance independently; it does not produce an aggregate percentage without a matching canonical domain report. Native acceptance keeps external networking disabled. Image builds may download public packages but never call a paid model or sandbox.

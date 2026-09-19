@@ -32,7 +32,7 @@ const templateIcons: Record<string, LucideIcon> = {
   'code-review': Code2,
   'data-analyst': BarChart3,
   'support-triage': Headphones,
-  'weekly-project-digest': FileText,
+  'weekly-workspace-digest': FileText,
 };
 
 function TemplateIcon({ template }: { template: AgentTemplate }) {

@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 pub struct TriggerCreate {
     #[serde(rename = "name")]
     pub name: String,
-    #[serde(rename = "project_id")]
-    pub project_id: uuid::Uuid,
+    #[serde(rename = "workspace_id")]
+    pub workspace_id: uuid::Uuid,
     #[serde(rename = "agent_id")]
     pub agent_id: uuid::Uuid,
     #[serde(rename = "kind")]
@@ -40,10 +40,10 @@ pub struct TriggerCreate {
 
 impl TriggerCreate {
     /// An incoming Slack/webhook trigger or durable scheduled task. A saved agent preset supplies harness, model, grants and billing. Cron requires five fields and an IANA timezone (UTC by default); Slack requires a connection and channel ID.
-    pub fn new(name: String, project_id: uuid::Uuid, agent_id: uuid::Uuid, kind: Kind, prompt: String) -> TriggerCreate {
+    pub fn new(name: String, workspace_id: uuid::Uuid, agent_id: uuid::Uuid, kind: Kind, prompt: String) -> TriggerCreate {
         TriggerCreate {
             name,
-            project_id,
+            workspace_id,
             agent_id,
             kind,
             prompt,
@@ -56,7 +56,7 @@ impl TriggerCreate {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Kind {
     #[serde(rename = "slack")]

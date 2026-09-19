@@ -29,3 +29,5 @@ Keep the database, application, and storage in compatible regions. Set provider 
 The [local Docker profile](../getting-started/local-development/docker.md) also runs real harnesses through the API without Vercel. It is a trusted development environment, not a production multi-tenant deployment recipe. Vercel is the production integration path described here; see [portability](../architecture/portability.md) for its boundaries.
 
 Use the [acceptance checklist](pre-deployment.md) to verify your deployment before opening access.
+
+[Paired backup and recovery](recovery.md) · [Automated staging releases](staging-releases.md)

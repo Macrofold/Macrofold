@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -25,9 +25,9 @@ type ConnectionAccessRule struct {
 	Id string `json:"id"`
 	ConnectionId string `json:"connection_id"`
 	Scope string `json:"scope"`
-	ProjectId NullableString `json:"project_id"`
+	WorkspaceId NullableString `json:"workspace_id"`
 	AgentId NullableString `json:"agent_id"`
-	ProjectName NullableString `json:"project_name"`
+	WorkspaceName NullableString `json:"workspace_name"`
 	AgentName NullableString `json:"agent_name"`
 	Unavailable bool `json:"unavailable"`
 	CreatedAt time.Time `json:"created_at"`
@@ -40,14 +40,14 @@ type _ConnectionAccessRule ConnectionAccessRule
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewConnectionAccessRule(id string, connectionId string, scope string, projectId NullableString, agentId NullableString, projectName NullableString, agentName NullableString, unavailable bool, createdAt time.Time, updatedAt time.Time) *ConnectionAccessRule {
+func NewConnectionAccessRule(id string, connectionId string, scope string, workspaceId NullableString, agentId NullableString, workspaceName NullableString, agentName NullableString, unavailable bool, createdAt time.Time, updatedAt time.Time) *ConnectionAccessRule {
 	this := ConnectionAccessRule{}
 	this.Id = id
 	this.ConnectionId = connectionId
 	this.Scope = scope
-	this.ProjectId = projectId
+	this.WorkspaceId = workspaceId
 	this.AgentId = agentId
-	this.ProjectName = projectName
+	this.WorkspaceName = workspaceName
 	this.AgentName = agentName
 	this.Unavailable = unavailable
 	this.CreatedAt = createdAt
@@ -135,30 +135,30 @@ func (o *ConnectionAccessRule) SetScope(v string) {
 	o.Scope = v
 }
 
-// GetProjectId returns the ProjectId field value
+// GetWorkspaceId returns the WorkspaceId field value
 // If the value is explicit nil, the zero value for string will be returned
-func (o *ConnectionAccessRule) GetProjectId() string {
-	if o == nil || o.ProjectId.Get() == nil {
+func (o *ConnectionAccessRule) GetWorkspaceId() string {
+	if o == nil || o.WorkspaceId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return *o.ProjectId.Get()
+	return *o.WorkspaceId.Get()
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *ConnectionAccessRule) GetProjectIdOk() (*string, bool) {
+func (o *ConnectionAccessRule) GetWorkspaceIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.ProjectId.Get(), o.ProjectId.IsSet()
+	return o.WorkspaceId.Get(), o.WorkspaceId.IsSet()
 }
 
-// SetProjectId sets field value
-func (o *ConnectionAccessRule) SetProjectId(v string) {
-	o.ProjectId.Set(&v)
+// SetWorkspaceId sets field value
+func (o *ConnectionAccessRule) SetWorkspaceId(v string) {
+	o.WorkspaceId.Set(&v)
 }
 
 // GetAgentId returns the AgentId field value
@@ -187,30 +187,30 @@ func (o *ConnectionAccessRule) SetAgentId(v string) {
 	o.AgentId.Set(&v)
 }
 
-// GetProjectName returns the ProjectName field value
+// GetWorkspaceName returns the WorkspaceName field value
 // If the value is explicit nil, the zero value for string will be returned
-func (o *ConnectionAccessRule) GetProjectName() string {
-	if o == nil || o.ProjectName.Get() == nil {
+func (o *ConnectionAccessRule) GetWorkspaceName() string {
+	if o == nil || o.WorkspaceName.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return *o.ProjectName.Get()
+	return *o.WorkspaceName.Get()
 }
 
-// GetProjectNameOk returns a tuple with the ProjectName field value
+// GetWorkspaceNameOk returns a tuple with the WorkspaceName field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *ConnectionAccessRule) GetProjectNameOk() (*string, bool) {
+func (o *ConnectionAccessRule) GetWorkspaceNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.ProjectName.Get(), o.ProjectName.IsSet()
+	return o.WorkspaceName.Get(), o.WorkspaceName.IsSet()
 }
 
-// SetProjectName sets field value
-func (o *ConnectionAccessRule) SetProjectName(v string) {
-	o.ProjectName.Set(&v)
+// SetWorkspaceName sets field value
+func (o *ConnectionAccessRule) SetWorkspaceName(v string) {
+	o.WorkspaceName.Set(&v)
 }
 
 // GetAgentName returns the AgentName field value
@@ -324,9 +324,9 @@ func (o ConnectionAccessRule) ToMap() (map[string]interface{}, error) {
 	toSerialize["id"] = o.Id
 	toSerialize["connection_id"] = o.ConnectionId
 	toSerialize["scope"] = o.Scope
-	toSerialize["project_id"] = o.ProjectId.Get()
+	toSerialize["workspace_id"] = o.WorkspaceId.Get()
 	toSerialize["agent_id"] = o.AgentId.Get()
-	toSerialize["project_name"] = o.ProjectName.Get()
+	toSerialize["workspace_name"] = o.WorkspaceName.Get()
 	toSerialize["agent_name"] = o.AgentName.Get()
 	toSerialize["unavailable"] = o.Unavailable
 	toSerialize["created_at"] = o.CreatedAt
@@ -342,9 +342,9 @@ func (o *ConnectionAccessRule) UnmarshalJSON(data []byte) (err error) {
 		"id",
 		"connection_id",
 		"scope",
-		"project_id",
+		"workspace_id",
 		"agent_id",
-		"project_name",
+		"workspace_name",
 		"agent_name",
 		"unavailable",
 		"created_at",

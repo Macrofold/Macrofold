@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: { absolute: `${headline} · Macrofold` },
   description: subtitle,
   alternates: { canonical: '/' },
-  robots: { index: false, follow: true },
+  robots: { index: process.env.MARKETING_HOMEPAGE === 'true', follow: true },
 };
 export default function Page() {
   return <LandingSite />;

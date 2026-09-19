@@ -1,6 +1,6 @@
 # SDKs
 
-Use Macrofold from your application to manage projects, start cloud agents, and stream their progress. Every SDK uses the same [API contract](../../../api/openapi.json), permissions, and resource model on **Macrofold Cloud and self-hosted deployments**. Start with the [API quickstart](../quickstart.md) or [coding-agent setup prompt](../../../getting-started/agents.md).
+Use Macrofold from your application to manage workspaces, start cloud agents, and stream their progress. Every SDK uses the same [API contract](../../../api/openapi.json), permissions, and resource model on **Macrofold Cloud and self-hosted deployments**. Start with the [API quickstart](../quickstart.md) or [coding-agent setup prompt](../../../getting-started/agents.md).
 
 ## Choose your language
 
@@ -16,9 +16,9 @@ Each guide starts with installation from source. Set `MACROFOLD_API_KEY` to a sc
 
 ## Requests and streaming
 
-Use resource methods such as `client.projects.create` and `client.runs.get`. TypeScript accepts typed options, Python accepts keyword arguments and returns Pydantic models, and Go/Rust/Java use typed models and idiomatic resource groups. The [method reference](reference.md) maps every public operation across languages. Low-level transports remain optional escape hatches.
+Use resource methods such as `client.workspaces.create` and `client.runs.get`. TypeScript accepts typed options, Python accepts keyword arguments and returns Pydantic models, and Go/Rust/Java use typed models and idiomatic resource groups. The [method reference](reference.md) maps every public operation across languages. Low-level transports remain optional escape hatches.
 
-Start with a project ID, [harness](../../execution/harnesses.md), model, billing mode, and prompt. All five SDKs accept Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness and Pi through generated types. The catalog maps each model ID to its provider; the run API does not accept a separate `provider` field. No existing session or saved preset is required. Use a saved agent preset when you want to reuse configuration, or the returned session ID to continue a conversation.
+Start with a workspace ID, [harness](../../execution/harnesses.md), model, billing mode, and prompt. All five SDKs accept Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness and Pi through generated types. The catalog maps each model ID to its provider; the run API does not accept a separate `provider` field. No existing session or saved preset is required. Use a saved agent preset when you want to reuse configuration, or the returned session ID to continue a conversation.
 
 Use `runs.stream_text` (with language-appropriate casing/accessors) for assistant text strings, or `runs.wait` for a complete typed result without streaming. Both report failed execution or persistence through a typed exception/error carrying the run ID. Waiting includes checkpoint persistence, but not optional Git synchronization. A wait timeout stops local waiting without cancelling the agent.
 
@@ -30,7 +30,7 @@ All five clients expose the `customerAgents` resource group (idiomatic casing in
 
 ## Read the files an agent saved
 
-Use the run's workspace ID and a relative path with `workspaces.read_file` (or the language-equivalent method). The [file-read guide](../../workspaces/read-files.md) explains complete byte responses, waiting for persistence, and downloads.
+Use the run's worktree ID and a relative path with `worktrees.read_file` (or the language-equivalent method). The [file-read guide](../../workspaces/read-files.md) explains complete byte responses, waiting for persistence, and downloads.
 
 ## Reliable mutations
 

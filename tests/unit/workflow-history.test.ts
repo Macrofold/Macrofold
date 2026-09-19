@@ -71,6 +71,23 @@ it.each([1, 2, 5, 60])(
     expect(dispatchRuns).toHaveBeenCalledExactlyOnceWith(true);
   },
 );
+it('advances ready phases without sleep events and still hands off at the history bound', async () => {
+  vi.mocked(advanceCloudRun).mockResolvedValue({ done: false, delaySeconds: 0 });
+  await agentRun('org', 'run', 7);
+  expect(advanceCloudRun).toHaveBeenCalledTimes(128);
+  expect(sleep).not.toHaveBeenCalled();
+  expect(releaseWorkflow).toHaveBeenCalledExactlyOnceWith('org', 'run', 7);
+});
+it('sleeps only for actual pending work between immediately ready phases', async () => {
+  vi.mocked(advanceCloudRun)
+    .mockResolvedValueOnce({ done: false, delaySeconds: 0 })
+    .mockResolvedValueOnce({ done: false, delaySeconds: 3 })
+    .mockResolvedValueOnce({ done: false, delaySeconds: 0 })
+    .mockResolvedValueOnce({ done: true, delaySeconds: 0 });
+  await agentRun('org', 'run', 7);
+  expect(advanceCloudRun).toHaveBeenCalledTimes(4);
+  expect(sleep).toHaveBeenCalledExactlyOnceWith('3s');
+});
 it.each([
   { done: true, delaySeconds: 0 },
   { done: false, queued: true, delaySeconds: 60 },
@@ -97,7 +114,8 @@ it('budgets maximum execution, trace draining and persistence plus retries acros
   const input = Math.ceil(entries / 16);
   const workload =
     input +
-    Math.ceil((chunks + input) / 4) +
+    chunks +
+    input + // byte cap can reduce hydration to one object per batch
     1 +
     4 +
     Math.ceil(7200 / 3) + // provision/restore/launch and conservative restore wait

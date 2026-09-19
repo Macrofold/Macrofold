@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -196,7 +196,7 @@ func (r ApiCreateRunRequest) XOrganizationId(xOrganizationId string) ApiCreateRu
 	return r
 }
 
-func (r ApiCreateRunRequest) Execute() (*RunAccepted, *http.Response, error) {
+func (r ApiCreateRunRequest) Execute() (*NativeRunAccepted, *http.Response, error) {
 	return r.ApiService.CreateRunExecute(r)
 }
 
@@ -216,13 +216,13 @@ func (a *RunsAPIService) CreateRun(ctx context.Context) ApiCreateRunRequest {
 }
 
 // Execute executes the request
-//  @return RunAccepted
-func (a *RunsAPIService) CreateRunExecute(r ApiCreateRunRequest) (*RunAccepted, *http.Response, error) {
+//  @return NativeRunAccepted
+func (a *RunsAPIService) CreateRunExecute(r ApiCreateRunRequest) (*NativeRunAccepted, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *RunAccepted
+		localVarReturnValue  *NativeRunAccepted
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "RunsAPIService.CreateRun")
@@ -857,12 +857,12 @@ type ApiListRunsRequest struct {
 	ctx context.Context
 	ApiService *RunsAPIService
 	status *string
-	projectId *string
+	workspaceId *string
 	from *time.Time
 	to *time.Time
 	cursor *string
 	limit *int32
-	workspaceId *string
+	worktreeId *string
 	sessionId *string
 	xOrganizationId *string
 }
@@ -872,8 +872,8 @@ func (r ApiListRunsRequest) Status(status string) ApiListRunsRequest {
 	return r
 }
 
-func (r ApiListRunsRequest) ProjectId(projectId string) ApiListRunsRequest {
-	r.projectId = &projectId
+func (r ApiListRunsRequest) WorkspaceId(workspaceId string) ApiListRunsRequest {
+	r.workspaceId = &workspaceId
 	return r
 }
 
@@ -899,8 +899,8 @@ func (r ApiListRunsRequest) Limit(limit int32) ApiListRunsRequest {
 	return r
 }
 
-func (r ApiListRunsRequest) WorkspaceId(workspaceId string) ApiListRunsRequest {
-	r.workspaceId = &workspaceId
+func (r ApiListRunsRequest) WorktreeId(worktreeId string) ApiListRunsRequest {
+	r.worktreeId = &worktreeId
 	return r
 }
 
@@ -958,8 +958,8 @@ func (a *RunsAPIService) ListRunsExecute(r ApiListRunsRequest) (*ListRuns200Resp
 	if r.status != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "status", r.status, "form", "")
 	}
-	if r.projectId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "project_id", r.projectId, "form", "")
+	if r.workspaceId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
 	}
 	if r.from != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "from", r.from, "form", "")
@@ -977,8 +977,8 @@ func (a *RunsAPIService) ListRunsExecute(r ApiListRunsRequest) (*ListRuns200Resp
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
-	if r.workspaceId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
+	if r.worktreeId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "worktree_id", r.worktreeId, "form", "")
 	}
 	if r.sessionId != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "session_id", r.sessionId, "form", "")

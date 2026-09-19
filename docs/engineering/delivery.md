@@ -6,12 +6,12 @@ The product is implemented locally; live hosting, model billing and external acc
 
 | Area | Implementation / acceptance family |
 |---|---|
-| Foundation | Strict TypeScript/pnpm workspace, PostgreSQL migrations/RLS, auth/OAuth, contract validation/projection, local setup/doctor |
+| Foundation | Strict TypeScript/pnpm worktree, PostgreSQL migrations/RLS, auth/OAuth, contract validation/projection, local setup/doctor |
 | Execution | Durable admission/outbox, phase leases, global/tenant capacity, simulation, real native adapters, runtime input/cancel/timeout, SSE/webhooks |
-| Persistence | Encrypted chunked files/Git/native home, hash verification, partial recovery, restore, independent workspaces and GitHub sync |
+| Persistence | Encrypted chunked files/Git/native home, hash verification, partial recovery, restore, independent worktrees and GitHub sync |
 | Tools | Direct MCP OAuth/bearer, Composio identity/grants, reviewed sandbox stdio, budgeted Brave search |
 | Commerce | Managed/BYOK separation, integer reservations/ledger, Stripe credit/subscription/refund/dispute facts, debt/expiration/reconciliation |
-| Dashboard | Public home/pricing/docs, account/MFA/team, projects/files/uploads/checkpoints, live/history, connections/keys/webhooks, usage/billing/operator |
+| Dashboard | Public home/pricing/docs, account/MFA/team, workspaces/files/uploads/checkpoints, live/history, connections/keys/webhooks, usage/billing/operator |
 | Terminal/SDKs | Forty-command oclif/Ink CLI, device login/profiles, worktrees/chat/stream, explicit transfers/local review; TypeScript/Fetch, Python/HTTPX, Go, Rust, and Java clients |
 | Operations | Request/activity facts, cohorts, usage dimensions, daily snapshots, metadata-only optional PostHog, read-only admin REST/MCP |
 | Deployment | Vercel build, standalone web/worker Docker targets, immutable native image recipe, CI, fresh installation/rotation/backup restoration |

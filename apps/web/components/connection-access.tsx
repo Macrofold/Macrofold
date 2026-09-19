@@ -14,15 +14,15 @@ export function ConnectionAccess({
   onClose: () => void;
 }) {
   const access = useConnectionAccess(connection.id);
-  const [project, setProject] = useState(''),
+  const [workspace, setWorkspace] = useState(''),
     [agent, setAgent] = useState('');
-  const [sort, setSort] = useState<'project' | 'agent' | 'created_at'>('created_at');
+  const [sort, setSort] = useState<'workspace' | 'agent' | 'created_at'>('created_at');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [cursors, setCursors] = useState<string[]>([]);
   const [draft, setDraft] = useState<{
     id?: string;
-    scope: 'project' | 'agent' | 'project_agent';
-    project: string;
+    scope: 'workspace' | 'agent' | 'workspace_agent';
+    workspace: string;
     agent: string;
   }>();
   const [toggle, setToggle] = useState<boolean>();
@@ -31,7 +31,7 @@ export function ConnectionAccess({
     params: {
       path: { connection_id: connection.id },
       query: {
-        ...(project ? { project_id: project } : {}),
+        ...(workspace ? { workspace_id: workspace } : {}),
         ...(agent ? { agent_id: agent } : {}),
         sort,
         direction,
@@ -99,11 +99,11 @@ export function ConnectionAccess({
           {!draft && accessError}
           <div className="form-grid">
             <AccessResourceSelect
-              kind="project"
-              label="Project filter"
-              value={project}
+              kind="workspace"
+              label="Workspace filter"
+              value={workspace}
               onChange={(value) => {
-                setProject(value);
+                setWorkspace(value);
                 setCursors([]);
               }}
             />
@@ -125,7 +125,7 @@ export function ConnectionAccess({
                 }}
                 options={[
                   { value: 'created_at', label: 'Created' },
-                  { value: 'project', label: 'Project' },
+                  { value: 'workspace', label: 'Workspace' },
                   { value: 'agent', label: 'Preset' },
                 ]}
               />
@@ -150,7 +150,7 @@ export function ConnectionAccess({
             <ErrorState error={rules.error} retry={() => void rules.refetch()} />
           ) : !rules.data?.data.length ? (
             <p>
-              No permissions added{project || agent ? ' for these filters' : ''}.{' '}
+              No permissions added{workspace || agent ? ' for these filters' : ''}.{' '}
               {access.data!.organization_wide
                 ? 'Organization access is on.'
                 : 'Add a permission to allow access.'}
@@ -163,10 +163,10 @@ export function ConnectionAccess({
                     <th>Permission</th>
                     <th
                       aria-sort={
-                        sort === 'project' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
+                        sort === 'workspace' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
                       }
                     >
-                      Project
+                      Workspace
                     </th>
                     <th
                       aria-sort={
@@ -182,14 +182,14 @@ export function ConnectionAccess({
                   {rules.data.data.map((rule) => (
                     <tr key={rule.id}>
                       <td>
-                        {rule.scope === 'project_agent'
-                          ? 'Project + preset'
+                        {rule.scope === 'workspace_agent'
+                          ? 'Workspace + preset'
                           : rule.scope === 'agent'
                             ? 'Preset'
-                            : 'Project'}
+                            : 'Workspace'}
                         {rule.unavailable && ' · unavailable'}
                       </td>
-                      <td>{rule.project_id ? rule.project_name || 'Unavailable project' : 'Any'}</td>
+                      <td>{rule.workspace_id ? rule.workspace_name || 'Unavailable workspace' : 'Any'}</td>
                       <td>{rule.agent_id ? rule.agent_name || 'Unavailable preset' : 'Any'}</td>
                       <td>
                         <Button
@@ -200,7 +200,7 @@ export function ConnectionAccess({
                             edit({
                               id: rule.id,
                               scope: rule.scope,
-                              project: rule.project_id || '',
+                              workspace: rule.workspace_id || '',
                               agent: rule.agent_id || '',
                             })
                           }
@@ -244,7 +244,7 @@ export function ConnectionAccess({
             <Button
               type="button"
               disabled={!access.data!.can_grant || access.busy}
-              onClick={() => edit({ scope: 'project', project: '', agent: '' })}
+              onClick={() => edit({ scope: 'workspace', workspace: '', agent: '' })}
             >
               Add permission
             </Button>
@@ -253,7 +253,7 @@ export function ConnectionAccess({
             <Modal
               open
               title={draft.id ? 'Edit permission' : 'New permission'}
-              description="Allow this project, preset, or exact combination to use the approved tools."
+              description="Allow this workspace, preset, or exact combination to use the approved tools."
               onOpenChange={(open) => {
                 if (!open) cancelEdit();
               }}
@@ -262,11 +262,11 @@ export function ConnectionAccess({
                 onSubmit={async (event) => {
                   event.preventDefault();
                   const body: Schema['ConnectionAccessRuleInput'] =
-                    draft.scope === 'project'
-                      ? { scope: 'project', project_id: draft.project }
+                    draft.scope === 'workspace'
+                      ? { scope: 'workspace', workspace_id: draft.workspace }
                       : draft.scope === 'agent'
                         ? { scope: 'agent', agent_id: draft.agent }
-                        : { scope: 'project_agent', project_id: draft.project, agent_id: draft.agent };
+                        : { scope: 'workspace_agent', workspace_id: draft.workspace, agent_id: draft.agent };
                   if (await access.saveRule(body, draft.id)) {
                     setDraft(undefined);
                     setCursors([]);
@@ -279,23 +279,23 @@ export function ConnectionAccess({
                     value={draft.scope}
                     onValueChange={(value) => setDraft({ ...draft, scope: value as typeof draft.scope })}
                     options={[
-                      { value: 'project', label: 'Project' },
+                      { value: 'workspace', label: 'Workspace' },
                       { value: 'agent', label: 'Agent preset' },
-                      { value: 'project_agent', label: 'Project + agent preset' },
+                      { value: 'workspace_agent', label: 'Workspace + agent preset' },
                     ]}
                   />
                 </Field>
                 <div className="form-grid">
                   {draft.scope !== 'agent' && (
                     <AccessResourceSelect
-                      kind="project"
-                      label="Permission project"
+                      kind="workspace"
+                      label="Permission workspace"
                       optional={false}
-                      value={draft.project}
-                      onChange={(value) => setDraft({ ...draft, project: value })}
+                      value={draft.workspace}
+                      onChange={(value) => setDraft({ ...draft, workspace: value })}
                     />
                   )}
-                  {draft.scope !== 'project' && (
+                  {draft.scope !== 'workspace' && (
                     <AccessResourceSelect
                       kind="agent"
                       label="Permission preset"
@@ -313,8 +313,8 @@ export function ConnectionAccess({
                     type="submit"
                     busy={access.busy}
                     disabled={
-                      (draft.scope !== 'agent' && !draft.project) ||
-                      (draft.scope !== 'project' && !draft.agent)
+                      (draft.scope !== 'agent' && !draft.workspace) ||
+                      (draft.scope !== 'workspace' && !draft.agent)
                     }
                   >
                     Save permission

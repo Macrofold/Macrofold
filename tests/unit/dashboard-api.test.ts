@@ -23,7 +23,7 @@ it('a successful concurrent action cannot erase another action’s uncertain rec
     }),
   );
 
-  const path = `/v1/projects?fixture=${crypto.randomUUID()}`;
+  const path = `/v1/workspaces?fixture=${crypto.randomUUID()}`;
   const body = { name: 'Concurrent fixture' };
   const first = api(path, 'POST', body);
   await vi.waitFor(() => expect(keys).toHaveLength(1));

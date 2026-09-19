@@ -235,6 +235,19 @@ export function createSwarmPlayer(
     sync();
   });
   observer.observe(host);
+  // Safari can refuse autoplay (for example in Low Power Mode). Retry directly
+  // inside a normal user gesture, where playback is permitted, without a new UI.
+  // Also allow recovery after a temporary delivery failure such as stale DNS.
+  function retryAfterInteraction() {
+    if (paused || (!blocked && !exhausted)) return;
+    blocked = false;
+    exhausted = false;
+    failed.clear();
+    sync();
+  }
+  listen(document, 'touchend', retryAfterInteraction);
+  listen(document, 'click', retryAfterInteraction);
+  listen(document, 'keydown', retryAfterInteraction);
   listen(document, 'visibilitychange', sync);
   if (connection) listen(connection, 'change', sync);
   listen(window, 'pagehide', () => {

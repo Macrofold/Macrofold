@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ConnectionAccessResolve {
-    #[serde(rename = "project_id", skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<uuid::Uuid>,
     #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<uuid::Uuid>,
+    #[serde(rename = "worktree_id", skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<uuid::Uuid>,
     #[serde(rename = "session_id", skip_serializing_if = "Option::is_none")]
     pub session_id: Option<uuid::Uuid>,
     #[serde(rename = "agent_id", skip_serializing_if = "Option::is_none")]
@@ -32,8 +32,8 @@ pub struct ConnectionAccessResolve {
 impl ConnectionAccessResolve {
     pub fn new() -> ConnectionAccessResolve {
         ConnectionAccessResolve {
-            project_id: None,
             workspace_id: None,
+            worktree_id: None,
             session_id: None,
             agent_id: None,
             connection_grants: None,

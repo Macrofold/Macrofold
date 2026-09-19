@@ -136,7 +136,7 @@ test('system motion settings do not pause playback and desktop diagrams pin at t
     )
     .toBe(0);
   await expect(page.locator('.mf-site')).toHaveAttribute('data-motion-override', 'playing');
-  await page.getByRole('button', { name: 'Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Workspace', exact: true }).click();
   expect(
     await page.locator('.mf-diagram').evaluate((el) => el.getAnimations({ subtree: true }).length),
   ).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ test('system motion settings do not pause playback and desktop diagrams pin at t
     { width: 1280, height: 720 },
   ]) {
     await page.setViewportSize(size);
-    await page.getByRole('button', { name: 'Project', exact: true }).click();
+    await page.getByRole('button', { name: 'Workspace', exact: true }).click();
     const center = () =>
       page.locator('.mf-diagram').evaluate((el) => {
         const box = el.getBoundingClientRect();
@@ -186,7 +186,7 @@ test('native scrolling preserves agent identity and centers the diagram; case ch
   page,
 }) => {
   await page.goto('/site');
-  await page.getByRole('button', { name: 'Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Workspace', exact: true }).click();
   const diagram = page.locator('.mf-diagram');
   await expect(diagram.locator('.mf-agent-shell').first()).toHaveCSS('opacity', '1');
   await expect(diagram.locator('.mf-agent-heading').first()).toContainText('Codex');
@@ -412,7 +412,7 @@ test('the prompt docks into a worker, files type together, and saved work conver
   // reveal instead of consuming its animation before the reader gets there.
   await expect(diagram).toHaveAttribute('data-animated', 'false');
   expect(await letterCount(0)).toBe(scenarios[0]!.prompts[0].length);
-  await page.getByRole('button', { name: 'Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Workspace', exact: true }).click();
   await expect(diagram).toHaveAttribute('data-animated', 'true');
   await seek(0);
   expect(await letterCount(0)).toBe(0);

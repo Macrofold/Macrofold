@@ -11,7 +11,7 @@ def result(persistence='verified', outcome='success', final=True):
     return dict(run_id=ID, final=final, execution_outcome=outcome, persistence_status=persistence, output_text='Hello 🌍', checkpoint_id=ID)
 
 def state(status):
-    return dict(id=ID, organization_id=ID, session_id=ID, workspace_id=ID, harness='codex', model='fixture', status=status, created_at='2026-09-07T00:00:00Z', failure_code='fixture_failure')
+    return dict(id=ID, organization_id=ID, workspace_id=ID, kind='native_agent', session_id=ID, worktree_id=ID, harness='codex', model='fixture', status=status, created_at='2026-09-07T00:00:00Z', failure_code='fixture_failure')
 
 def event(sequence, kind, text):
     return dict(id=ID, run_id=ID, schema_version=1, sequence=sequence, type=kind, occurred_at='2026-09-07T00:00:00Z', ingested_at='2026-09-07T00:00:00Z', data={'text':text})

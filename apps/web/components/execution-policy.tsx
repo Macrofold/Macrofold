@@ -122,7 +122,7 @@ export function PlanOptions({
         </article>
       ))}
       <p className="form-hint tier-footnote">
-        All plans include the API, CLI, persistent projects and a 24-hour queue deadline. Concurrency is a
+        All plans include the API, CLI, persistent workspaces and a 24-hour queue deadline. Concurrency is a
         maximum, not reserved capacity. Existing subscribers change plans in the billing portal.
       </p>
     </section>

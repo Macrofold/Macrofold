@@ -4,7 +4,7 @@ import { requireScopes, type Principal } from './auth';
 import { assert } from './errors';
 import * as resources from './resources';
 import { actorAuthorized } from './actor-authorization';
-import type { RunRow } from './runs';
+import type { NativeRunRow } from './runs';
 import {
   guardedToolsRequired,
   permissionLayers,
@@ -39,9 +39,9 @@ export type ConnectionAccessSnapshot = {
   override?: { tools: string[]; authorized_by: string };
 };
 export type ResolutionContext = {
-  project_id: string;
+  workspace_id: string;
   agent_id: string | null;
-  workspace_id?: string;
+  worktree_id?: string;
   defaults?: Grant[];
   permissions: PermissionLayers;
 };
@@ -212,10 +212,10 @@ export async function resolveRequestContext(
 ): Promise<ResolutionContext> {
   requireScopes(p, ['connections:read']);
   assert(
-    [input.project_id, input.workspace_id, input.session_id].filter(Boolean).length === 1,
+    [input.workspace_id, input.worktree_id, input.session_id].filter(Boolean).length === 1,
     400,
     'invalid_context',
-    'Choose exactly one project, worktree or session.',
+    'Choose exactly one workspace, worktree or session.',
   );
   assert(
     !input.session_id || !input.agent_id,
@@ -223,33 +223,33 @@ export async function resolveRequestContext(
     'session_configuration_immutable',
     'A session retains its verified agent origin.',
   );
-  let workspace: resources.Document<'workspaces'> | undefined;
+  let worktree: resources.Document<'worktrees'> | undefined;
   let session: resources.Document<'sessions'> | undefined;
   let preset: resources.Document<'agents'> | undefined;
   if (input.session_id) {
     requireScopes(p, ['runs:read']);
     session = await resources.get(tx, 'sessions', input.session_id, p);
   }
-  if (input.workspace_id) requireScopes(p, ['projects:read']);
-  const wsId = input.workspace_id || session?.workspace_id;
-  if (wsId) workspace = await resources.get(tx, 'workspaces', wsId, p);
-  if (input.project_id) requireScopes(p, ['projects:read']);
-  const project = await resources.get(tx, 'projects', input.project_id || workspace!.project_id, p);
-  if (!workspace && project.default_workspace_id)
-    workspace = await resources.get(tx, 'workspaces', project.default_workspace_id, p);
+  if (input.worktree_id) requireScopes(p, ['workspaces:read']);
+  const wsId = input.worktree_id || session?.worktree_id;
+  if (wsId) worktree = await resources.get(tx, 'worktrees', wsId, p);
+  if (input.workspace_id) requireScopes(p, ['workspaces:read']);
+  const workspace = await resources.get(tx, 'workspaces', input.workspace_id || worktree!.workspace_id, p);
+  if (!worktree && workspace.default_worktree_id)
+    worktree = await resources.get(tx, 'worktrees', workspace.default_worktree_id, p);
   if (input.agent_id) {
     requireScopes(p, ['runs:read']);
     preset = await resources.get(tx, 'agents', input.agent_id, p);
   }
   validatePermissions(input.permissions);
   return {
-    project_id: project.id,
+    workspace_id: workspace.id,
     agent_id: session?.agent_id || preset?.id || null,
-    workspace_id: workspace?.id,
+    worktree_id: worktree?.id,
     defaults: session?.connection_grants ?? preset?.connection_grants,
     permissions: permissionLayers(
-      project.permissions,
-      workspace?.permissions,
+      workspace.permissions,
+      worktree?.permissions,
       input.permissions ?? session?.run_permissions,
     ),
   };
@@ -316,11 +316,11 @@ export async function previewAccess(
   for (const connectionId of visible)
     if (!available.has(connectionId)) result.data.push(unavailable(connectionId));
   result.data.sort((a, b) => b.connection_id.localeCompare(a.connection_id));
-  if (!context.workspace_id)
+  if (!context.worktree_id)
     for (const item of result.data)
       if (available.get(item.connection_id)?.kind === 'mcp_stdio') {
         item.ready = false;
-        item.rejection_codes.push('workspace_permissions_pending');
+        item.rejection_codes.push('worktree_permissions_pending');
       }
   return {
     data: result.data,
@@ -412,7 +412,7 @@ export async function admitConnections(
 }
 /** Re-evaluate current policy against the accepted maximum, including account binding.
  * Callers own run/connection lock order at the final dispatch boundary. */
-export async function runtimeConnectionTools(tx: Tx, run: RunRow, c: Connection): Promise<string[]> {
+export async function runtimeConnectionTools(tx: Tx, run: NativeRunRow, c: Connection): Promise<string[]> {
   const frozen = run.config.connection_access?.find((snapshot) => snapshot.connection_id === c.id);
   const selection = run.config.connection_grants?.find((grant) => grant.connection_id === c.id);
   if (
@@ -431,12 +431,12 @@ export async function runtimeConnectionTools(tx: Tx, run: RunRow, c: Connection)
     organizationId: run.organization_id,
     role: 'member',
     scopes: [],
-    projectIds: run.config.project_ids,
+    workspaceIds: run.config.workspace_ids,
     operator: false,
   };
   const match = (
     await accessMatchesFor(tx, principal, [c], {
-      project_id: run.project_id,
+      workspace_id: run.workspace_id,
       agent_id: run.config.agent_id || null,
     })
   ).get(c.id)!;

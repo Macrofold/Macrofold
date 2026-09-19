@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -21,8 +21,8 @@ import dev.macrofold.Pair;
 import dev.macrofold.model.Error;
 import dev.macrofold.model.GithubInstallations;
 import dev.macrofold.model.GithubRepositories;
-import dev.macrofold.model.Project;
 import java.util.UUID;
+import dev.macrofold.model.Workspace;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -169,56 +169,56 @@ public class IntegrationsApi {
   /**
    * disconnectGithub
    *
-   * @param projectId  (required)
+   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Project
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Project disconnectGithub(@javax.annotation.Nonnull UUID projectId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return disconnectGithub(projectId, idempotencyKey, xOrganizationId, null);
+  public Workspace disconnectGithub(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return disconnectGithub(workspaceId, idempotencyKey, xOrganizationId, null);
   }
 
   /**
    * disconnectGithub
    *
-   * @param projectId  (required)
+   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return Project
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Project disconnectGithub(@javax.annotation.Nonnull UUID projectId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Project> localVarResponse = disconnectGithubWithHttpInfo(projectId, idempotencyKey, xOrganizationId, headers);
+  public Workspace disconnectGithub(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Workspace> localVarResponse = disconnectGithubWithHttpInfo(workspaceId, idempotencyKey, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
   /**
    * disconnectGithub
    *
-   * @param projectId  (required)
+   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Project&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Project> disconnectGithubWithHttpInfo(@javax.annotation.Nonnull UUID projectId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return disconnectGithubWithHttpInfo(projectId, idempotencyKey, xOrganizationId, null);
+  public ApiResponse<Workspace> disconnectGithubWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return disconnectGithubWithHttpInfo(workspaceId, idempotencyKey, xOrganizationId, null);
   }
 
   /**
    * disconnectGithub
    *
-   * @param projectId  (required)
+   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Project&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Project> disconnectGithubWithHttpInfo(@javax.annotation.Nonnull UUID projectId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = disconnectGithubRequestBuilder(projectId, idempotencyKey, xOrganizationId, headers);
+  public ApiResponse<Workspace> disconnectGithubWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = disconnectGithubRequestBuilder(workspaceId, idempotencyKey, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -233,7 +233,7 @@ public class IntegrationsApi {
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<Project>(
+          return new ApiResponse<Workspace>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -243,10 +243,10 @@ public class IntegrationsApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        Project responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Project>() {});
+        Workspace responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Workspace>() {});
 
 
-        return new ApiResponse<Project>(
+        return new ApiResponse<Workspace>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -265,10 +265,10 @@ public class IntegrationsApi {
     }
   }
 
-  private HttpRequest.Builder disconnectGithubRequestBuilder(@javax.annotation.Nonnull UUID projectId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'projectId' is set
-    if (projectId == null) {
-      throw new ApiException(400, "Missing the required parameter 'projectId' when calling disconnectGithub");
+  private HttpRequest.Builder disconnectGithubRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    // verify the required parameter 'workspaceId' is set
+    if (workspaceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling disconnectGithub");
     }
     // verify the required parameter 'idempotencyKey' is set
     if (idempotencyKey == null) {
@@ -277,8 +277,8 @@ public class IntegrationsApi {
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/projects/{project_id}/github"
-        .replace("{project_id}", ApiClient.urlEncode(projectId.toString()));
+    String localVarPath = "/v1/workspaces/{workspace_id}/github"
+        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
     localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
 

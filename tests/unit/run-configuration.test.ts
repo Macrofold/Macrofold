@@ -17,7 +17,7 @@ const p: Principal = {
   role: 'owner',
   kind: 'user',
   scopes: [],
-  projectIds: [],
+  workspaceIds: [],
   operator: false,
 };
 // Configuration validation reads the account policy, without any provider calls.
@@ -27,7 +27,7 @@ const tx = {
   })),
 } as unknown as Tx;
 const base = {
-  workspace_id: 'workspace',
+  worktree_id: 'worktree',
   harness: 'codex',
   model: 'test-model',
   billing_mode: 'managed',

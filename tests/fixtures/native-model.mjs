@@ -6,6 +6,7 @@ export function nativeModelFixture({
   failureMode = false,
   permissionMode = false,
   onBlocked,
+  validateRequest,
 } = {}) {
   let calls = 0;
   let chatTurns = 0;
@@ -24,7 +25,8 @@ export function nativeModelFixture({
     { action: 'delete', path: 'readonly.txt' },
   ];
   const bypassCommand = 'cat /workspace/private.env; printf escaped > /workspace/bypass.txt';
-  const brokerTurn = (turn) => permissionMode && turn === permissionActions.length + 2;
+  const brokerTurn = (turn) =>
+    (permissionMode && turn === permissionActions.length + 2) || (toolMode && [2, 4].includes(turn));
   const permissionTurn = (turn) =>
     permissionMode && (turn <= permissionActions.length + 2 || turn === permissionActions.length + 4);
   const permissionAction = (turn) =>
@@ -43,6 +45,7 @@ export function nativeModelFixture({
     try {
       body = JSON.parse(text);
     } catch {}
+    if (pathname.endsWith('/responses') || pathname.endsWith('/messages')) validateRequest?.(body);
     const last = (body.messages || body.input || []).at(-1);
     const system = JSON.stringify(body.system || '');
     const toolResult =
@@ -55,7 +58,10 @@ export function nativeModelFixture({
               ? last.content.filter((block) => block.type === 'tool_result')
               : '',
       ) || '';
+    const serialized = JSON.stringify(body);
     observed.push({
+      hasImage: /"type":"(?:input_image|image)"/.test(serialized),
+      hasDocument: serialized.includes('Media document fixture'),
       path: req.url,
       tools: body.tools?.map((t) => t.name || t.function?.name),
       model: body.model,
@@ -95,26 +101,30 @@ export function nativeModelFixture({
           usage: { input_tokens: 100, output_tokens: 0 },
         },
       });
-      if (calls === 1 || permissionTurn(calls) || (journey && [2, 4].includes(calls))) {
+      if (calls === 1 || brokerTurn(calls) || permissionTurn(calls) || (journey && [2, 4].includes(calls))) {
         const bypass = permissionMode && calls === permissionActions.length + 1;
-        const name = permissionMode
-          ? bypass
-            ? 'Bash'
-            : brokerTurn(calls)
-              ? 'mcp__platform__fixture_echo'
-              : 'mcp__worktree__worktree_files'
-          : journey && calls !== 1
-            ? 'Bash'
-            : 'Write';
-        const input = permissionMode
-          ? bypass
-            ? { command: bypassCommand, description: 'Attempt disabled shell' }
-            : brokerTurn(calls)
-              ? { text: 'broker verified' }
-              : permissionAction(calls)
-          : journey && calls !== 1
-            ? { command: action(calls), description: 'Read persisted fixture' }
-            : { file_path: '/workspace/' + filename, content };
+        const name = brokerTurn(calls)
+          ? 'mcp__platform__fixture_echo'
+          : permissionMode
+            ? bypass
+              ? 'Bash'
+              : brokerTurn(calls)
+                ? 'mcp__platform__fixture_echo'
+                : 'mcp__worktree__worktree_files'
+            : journey && calls !== 1
+              ? 'Bash'
+              : 'Write';
+        const input = brokerTurn(calls)
+          ? { text: 'broker verified' }
+          : permissionMode
+            ? bypass
+              ? { command: bypassCommand, description: 'Attempt disabled shell' }
+              : brokerTurn(calls)
+                ? { text: 'broker verified' }
+                : permissionAction(calls)
+            : journey && calls !== 1
+              ? { command: action(calls), description: 'Read persisted fixture' }
+              : { file_path: '/workspace/' + filename, content };
         send('content_block_start', {
           index: 0,
           content_block: { type: 'tool_use', id: `toolu_fixture_${calls}`, name, input: {} },
@@ -234,7 +244,7 @@ export function nativeModelFixture({
           ],
         });
         send({}, 'tool_calls');
-      } else if (toolMode && chatTurns === 2) {
+      } else if (toolMode && [2, 4].includes(chatTurns)) {
         // Hermes may expose its native discovery bridge instead of every MCP schema up front.
         const tool =
           body.tools?.find((t) => t.function?.name.includes('fixture_echo'))?.function?.name ||
@@ -361,23 +371,30 @@ export function nativeModelFixture({
           usage: { input_tokens: 100, output_tokens: 30, total_tokens: 130 },
         },
       });
-    } else if (calls === 1 || permissionTurn(turn) || (journey && [2, 4].includes(calls))) {
+    } else if (
+      calls === 1 ||
+      brokerTurn(turn) ||
+      permissionTurn(turn) ||
+      (journey && [2, 4].includes(calls))
+    ) {
       const tools = body.tools || [];
       const name =
-        (permissionMode ? (brokerTurn(turn) ? 'fixture_echo' : 'worktree_files') : undefined) ||
+        (brokerTurn(turn) ? 'fixture_echo' : permissionMode ? 'worktree_files' : undefined) ||
         tools.find((t) => t.name === 'exec_command')?.name ||
         tools.find((t) => t.name === 'shell')?.name ||
         'exec_command';
-      const args = permissionMode
-        ? brokerTurn(turn)
-          ? { text: 'broker verified' }
-          : permissionAction(turn)
-        : name === 'shell'
-          ? {
-              command: ['bash', '-lc', action(calls)],
-              workdir: '/workspace',
-            }
-          : { cmd: action(calls), workdir: '/workspace' };
+      const args = brokerTurn(turn)
+        ? { text: 'broker verified' }
+        : permissionMode
+          ? brokerTurn(turn)
+            ? { text: 'broker verified' }
+            : permissionAction(turn)
+          : name === 'shell'
+            ? {
+                command: ['bash', '-lc', action(calls)],
+                workdir: '/workspace',
+              }
+            : { cmd: action(calls), workdir: '/workspace' };
       const item = {
         type: 'function_call',
         id: `fc_fixture_${calls}`,

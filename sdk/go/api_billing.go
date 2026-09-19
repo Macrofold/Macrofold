@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 
@@ -479,6 +480,258 @@ func (a *BillingAPIService) GetStorageExecute(r ApiGetStorageRequest) (*Storage,
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiListBillingUsageRequest struct {
+	ctx context.Context
+	ApiService *BillingAPIService
+	from *time.Time
+	to *time.Time
+	workspaceId *string
+	worktreeId *string
+	runId *string
+	sessionId *string
+	customerId *string
+	agentKey *string
+	provider *string
+	model *string
+	kind *string
+	billingMode *string
+	cursor *string
+	limit *int32
+	xOrganizationId *string
+}
+
+// Inclusive RFC3339 interval start.
+func (r ApiListBillingUsageRequest) From(from time.Time) ApiListBillingUsageRequest {
+	r.from = &from
+	return r
+}
+
+// Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range.
+func (r ApiListBillingUsageRequest) To(to time.Time) ApiListBillingUsageRequest {
+	r.to = &to
+	return r
+}
+
+func (r ApiListBillingUsageRequest) WorkspaceId(workspaceId string) ApiListBillingUsageRequest {
+	r.workspaceId = &workspaceId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) WorktreeId(worktreeId string) ApiListBillingUsageRequest {
+	r.worktreeId = &worktreeId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) RunId(runId string) ApiListBillingUsageRequest {
+	r.runId = &runId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) SessionId(sessionId string) ApiListBillingUsageRequest {
+	r.sessionId = &sessionId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) CustomerId(customerId string) ApiListBillingUsageRequest {
+	r.customerId = &customerId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) AgentKey(agentKey string) ApiListBillingUsageRequest {
+	r.agentKey = &agentKey
+	return r
+}
+
+func (r ApiListBillingUsageRequest) Provider(provider string) ApiListBillingUsageRequest {
+	r.provider = &provider
+	return r
+}
+
+func (r ApiListBillingUsageRequest) Model(model string) ApiListBillingUsageRequest {
+	r.model = &model
+	return r
+}
+
+func (r ApiListBillingUsageRequest) Kind(kind string) ApiListBillingUsageRequest {
+	r.kind = &kind
+	return r
+}
+
+func (r ApiListBillingUsageRequest) BillingMode(billingMode string) ApiListBillingUsageRequest {
+	r.billingMode = &billingMode
+	return r
+}
+
+// Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID.
+func (r ApiListBillingUsageRequest) Cursor(cursor string) ApiListBillingUsageRequest {
+	r.cursor = &cursor
+	return r
+}
+
+func (r ApiListBillingUsageRequest) Limit(limit int32) ApiListBillingUsageRequest {
+	r.limit = &limit
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiListBillingUsageRequest) XOrganizationId(xOrganizationId string) ApiListBillingUsageRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiListBillingUsageRequest) Execute() (*BillingUsagePage, *http.Response, error) {
+	return r.ApiService.ListBillingUsageExecute(r)
+}
+
+/*
+ListBillingUsage List detailed billed usage and model tokens
+
+Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiListBillingUsageRequest
+*/
+func (a *BillingAPIService) ListBillingUsage(ctx context.Context) ApiListBillingUsageRequest {
+	return ApiListBillingUsageRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return BillingUsagePage
+func (a *BillingAPIService) ListBillingUsageExecute(r ApiListBillingUsageRequest) (*BillingUsagePage, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *BillingUsagePage
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "BillingAPIService.ListBillingUsage")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/billing/usage"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.from == nil {
+		return localVarReturnValue, nil, reportError("from is required and must be specified")
+	}
+	if r.to == nil {
+		return localVarReturnValue, nil, reportError("to is required and must be specified")
+	}
+
+	parameterAddToHeaderOrQuery(localVarQueryParams, "from", r.from, "form", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "to", r.to, "form", "")
+	if r.workspaceId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
+	}
+	if r.worktreeId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "worktree_id", r.worktreeId, "form", "")
+	}
+	if r.runId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "run_id", r.runId, "form", "")
+	}
+	if r.sessionId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "session_id", r.sessionId, "form", "")
+	}
+	if r.customerId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "customer_id", r.customerId, "form", "")
+	}
+	if r.agentKey != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_key", r.agentKey, "form", "")
+	}
+	if r.provider != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "provider", r.provider, "form", "")
+	}
+	if r.model != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "model", r.model, "form", "")
+	}
+	if r.kind != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "kind", r.kind, "form", "")
+	}
+	if r.billingMode != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "billing_mode", r.billingMode, "form", "")
+	}
+	if r.cursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
+		r.limit = &defaultValue
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -48,7 +48,7 @@ func (r ApiContinueSessionRequest) XOrganizationId(xOrganizationId string) ApiCo
 	return r
 }
 
-func (r ApiContinueSessionRequest) Execute() (*RunAccepted, *http.Response, error) {
+func (r ApiContinueSessionRequest) Execute() (*NativeRunAccepted, *http.Response, error) {
 	return r.ApiService.ContinueSessionExecute(r)
 }
 
@@ -70,13 +70,13 @@ func (a *SessionsAPIService) ContinueSession(ctx context.Context, sessionId stri
 }
 
 // Execute executes the request
-//  @return RunAccepted
-func (a *SessionsAPIService) ContinueSessionExecute(r ApiContinueSessionRequest) (*RunAccepted, *http.Response, error) {
+//  @return NativeRunAccepted
+func (a *SessionsAPIService) ContinueSessionExecute(r ApiContinueSessionRequest) (*NativeRunAccepted, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *RunAccepted
+		localVarReturnValue  *NativeRunAccepted
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SessionsAPIService.ContinueSession")
@@ -441,7 +441,7 @@ type ApiListSessionsRequest struct {
 	ApiService *SessionsAPIService
 	cursor *string
 	limit *int32
-	workspaceId *string
+	worktreeId *string
 	xOrganizationId *string
 }
 
@@ -455,8 +455,8 @@ func (r ApiListSessionsRequest) Limit(limit int32) ApiListSessionsRequest {
 	return r
 }
 
-func (r ApiListSessionsRequest) WorkspaceId(workspaceId string) ApiListSessionsRequest {
-	r.workspaceId = &workspaceId
+func (r ApiListSessionsRequest) WorktreeId(worktreeId string) ApiListSessionsRequest {
+	r.worktreeId = &worktreeId
 	return r
 }
 
@@ -516,8 +516,8 @@ func (a *SessionsAPIService) ListSessionsExecute(r ApiListSessionsRequest) (*Lis
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
-	if r.workspaceId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "workspace_id", r.workspaceId, "form", "")
+	if r.worktreeId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "worktree_id", r.worktreeId, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

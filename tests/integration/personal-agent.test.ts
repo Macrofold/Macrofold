@@ -24,7 +24,7 @@ const configuration = {
   billing_mode: 'managed' as const,
   budgetMicroUsd: '2000000',
 };
-let loseProjectResponse = false;
+let loseWorkspaceResponse = false;
 beforeAll(async () => {
   account = await fixtureAccount('Personal agent reference');
   client = new Macrofold({
@@ -34,12 +34,12 @@ beforeAll(async () => {
     fetch: async (input, init) => {
       const response = await handleApi(new Request(input, init));
       if (
-        loseProjectResponse &&
+        loseWorkspaceResponse &&
         init?.method === 'POST' &&
-        new URL(String(input)).pathname === '/v1/projects' &&
+        new URL(String(input)).pathname === '/v1/workspaces' &&
         response.ok
       ) {
-        loseProjectResponse = false;
+        loseWorkspaceResponse = false;
         throw new Error('Synthetic lost response after commit');
       }
       return response;
@@ -58,10 +58,10 @@ afterAll(async () => {
 const act = (customer: string, agent: AgentRecord, action: unknown) =>
   service.act(customer, agent.id, randomUUID(), action);
 
-it('recovers setup across a process restart without duplicating projects, and isolates Alice and Bob', async () => {
+it('recovers setup across a process restart without duplicating workspaces, and isolates Alice and Bob', async () => {
   const id = randomUUID(),
     request = randomUUID();
-  loseProjectResponse = true;
+  loseWorkspaceResponse = true;
   await expect(service.act('alice', id, request, { action: 'setup', name: 'Milo' })).rejects.toThrow(
     'could not confirm',
   );
@@ -71,13 +71,13 @@ it('recovers setup across a process restart without duplicating projects, and is
   service = new PersonalAgents(store, client, configuration);
   const alice = await service.act('alice', id, request, { action: 'setup', name: 'Milo' });
   expect(alice.status).toBe('active');
-  expect((await client.projects.list()).data).toHaveLength(1);
+  expect((await client.workspaces.list()).data).toHaveLength(1);
   expect(await service.act('alice', id, request, { action: 'setup', name: 'Milo' })).toEqual(alice);
   expect(await service.readMemory('alice', id, 'profile.md')).toMatchObject({
     content: expect.stringContaining('# Profile'),
   });
   const bob = await service.act('bob', randomUUID(), randomUUID(), { action: 'setup', name: 'Basil' });
-  expect(bob.workspaceId).not.toBe(alice.workspaceId);
+  expect(bob.worktreeId).not.toBe(alice.worktreeId);
   expect(service.list('bob').map((item) => item.id)).toEqual([bob.id]);
   await expect(service.readMemory('bob', id, 'profile.md')).rejects.toMatchObject({ status: 404 });
   await expect(
@@ -133,12 +133,12 @@ it('scopes connected accounts, creates one schedule on retry, pauses and deletes
   const bob = service.list('bob')[0];
   alice = await act('alice', alice, { action: 'connect', secret: 'fixture-only-never-live' });
   const allowed = await client.connections.resolveAccess({
-    project_id: alice.projectId!,
+    workspace_id: alice.workspaceId!,
     agent_id: alice.presetId!,
   });
   expect(allowed.data).toMatchObject([{ connection_id: alice.connectionId, tools: ['web_search'] }]);
   expect(
-    (await client.connections.resolveAccess({ project_id: bob.projectId!, agent_id: bob.presetId! })).data,
+    (await client.connections.resolveAccess({ workspace_id: bob.workspaceId!, agent_id: bob.presetId! })).data,
   ).toEqual([]);
   const request = randomUUID();
   alice = await service.act('alice', alice.id, request, { action: 'schedule', timezone: 'America/New_York' });
@@ -163,7 +163,7 @@ it('scopes connected accounts, creates one schedule on retry, pauses and deletes
   });
   alice = await act('alice', alice, { action: 'delete', confirmation: 'Milo' });
   expect(alice.status).toBe('deleted');
-  expect((await client.projects.get(bob.projectId!)).name).toContain('Basil');
+  expect((await client.workspaces.get(bob.workspaceId!)).name).toContain('Basil');
   await expect(client.connections.get(alice.connectionId!)).rejects.toMatchObject({ status: 404 });
 });
 

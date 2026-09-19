@@ -4,6 +4,9 @@ import { transaction } from '../../db';
 import { id } from './crypto';
 import { assert } from './errors';
 import { enqueueWebhook, type WebhookEvent } from './webhooks';
+import type { RunRow } from './runs';
+import { traceRunEvent, tracedRunEvent } from './run-tracing';
+import { tracingEnabled } from './tracing';
 export async function emit(
   tx: Tx,
   org: string,
@@ -20,7 +23,7 @@ export async function emit(
     );
     if (old.rowCount) return publicEvent(old.rows[0]);
   }
-  const row = await tx.query(
+  const row = await tx.query<Pick<RunRow, 'event_sequence'>>(
     'UPDATE runs SET event_sequence=event_sequence+1 WHERE id=$1 RETURNING event_sequence',
     [runId],
   );
@@ -38,6 +41,10 @@ export async function emit(
       producer?.sequence || null,
     ],
   );
+  if (tracingEnabled() && tracedRunEvent(type)) {
+    const run = (await tx.query<RunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
+    await traceRunEvent(tx, run, result.rows[0]);
+  }
   const eventType: WebhookEvent | undefined =
     type === 'run.succeeded'
       ? 'run.completed'
@@ -48,7 +55,7 @@ export async function emit(
           : undefined;
   if (eventType) {
     const run = (
-      await tx.query('SELECT project_id,workspace_id,status,config FROM runs WHERE id=$1', [runId])
+      await tx.query('SELECT workspace_id,worktree_id,status,config FROM runs WHERE id=$1', [runId])
     ).rows[0];
     await enqueueWebhook(
       tx,
@@ -56,12 +63,12 @@ export async function emit(
       eventType,
       {
         run_id: runId,
-        project_id: run.project_id,
         workspace_id: run.workspace_id,
+        worktree_id: run.worktree_id,
         status: run.status,
         ...(typeof data.code === 'string' ? { failure_code: data.code } : {}),
       },
-      { eventId: result.rows[0].id, endpointIds: run.config.webhook_endpoint_ids, projectId: run.project_id },
+      { eventId: result.rows[0].id, endpointIds: run.config.webhook_endpoint_ids, workspaceId: run.workspace_id ?? undefined },
     );
   }
   return publicEvent(result.rows[0]);

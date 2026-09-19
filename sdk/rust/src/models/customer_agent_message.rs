@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -23,6 +23,9 @@ pub struct CustomerAgentMessage {
     /// Queue when this worktree is busy. Omitted means false.
     #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
     pub queue_if_busy: Option<bool>,
+    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<String>>,
 }
 
 impl CustomerAgentMessage {
@@ -33,6 +36,7 @@ impl CustomerAgentMessage {
             conversation_id: None,
             limits: None,
             queue_if_busy: None,
+            attachments: None,
         }
     }
 }

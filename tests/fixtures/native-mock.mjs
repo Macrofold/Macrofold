@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { nativeModelFixture } from './native-model.mjs';
 import { nativeBroker } from './native-broker.mjs';
 // Run only inside `docker run --network none`; every model response is a local deterministic fixture.
@@ -6,11 +7,15 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile, cp, rm, symlink, chmod } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const harness = process.argv[2] || 'codex';
+const mediaMode = process.argv[3] === 'media';
+const mediaValidator = mediaMode
+  ? (await import('/opt/platform/media-validation.mjs')).modelInputBound
+  : undefined;
 const questionMode = process.argv[3] === 'questions';
 const toolMode = process.argv[3] === 'tools';
 const permissionMode = process.argv[3] === 'permissions';
-// The guarded matrix includes ten tool turns and a cold native startup.
-const duration = permissionMode ? 120_000 : 60_000;
+// Guarded/media matrices include cold native startup and extraction after restore.
+const duration = permissionMode || mediaMode ? 120_000 : 60_000;
 const cancellation = process.argv[3] === 'cancel';
 const failureMode = cancellation || process.argv[3] === 'failure';
 let answered = 0;
@@ -19,6 +24,7 @@ const fixture = nativeModelFixture({
   toolMode,
   failureMode,
   permissionMode,
+  validateRequest: mediaValidator ? (body) => mediaValidator(body, configuration) : undefined,
   onBlocked: cancellation
     ? async () => {
         await writeFile('/platform-control/cancel', '');
@@ -45,7 +51,7 @@ const configuration = {
   runId: crypto.randomUUID(),
   harness,
   provider: harness === 'claude-code' ? 'anthropic' : 'openai',
-  model: harness === 'claude-code' ? 'claude-sonnet-4-6' : 'gpt-5.4',
+  model: harness === 'claude-code' ? 'claude-sonnet-4-6' : mediaMode ? 'gpt-5.4-mini' : 'gpt-5.4',
   prompt: 'Create native.txt with a short note, then finish.',
   workspace: '/workspace',
   stateHome: '/agent-home',
@@ -66,6 +72,24 @@ const configuration = {
       }
     : {}),
 };
+if (mediaMode) {
+  await mkdir('/workspace', { recursive: true });
+  configuration.attachments = [];
+  for (const [filename, media_type] of [
+    ['pixel.png', 'image/png'],
+    ['document.pdf', 'application/pdf'],
+    ['document.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ]) {
+    const bytes = await readFile(`/tests/media/${filename}`);
+    await writeFile(`/workspace/${filename}`, bytes);
+    configuration.attachments.push({
+      path: filename,
+      media_type,
+      size_bytes: String(bytes.length),
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
+  }
+}
 if (permissionMode) {
   await mkdir('/workspace', { recursive: true });
   for (const name of ['private.env', 'readonly.txt']) {
@@ -115,6 +139,16 @@ console.log(JSON.stringify({ harness, calls: fixture.calls, observed, result }))
 assert.equal(result.outcome, cancellation ? 'cancelled' : failureMode ? 'failure' : 'success');
 assert.equal(result.persistence, 'captured');
 assertClaudeWorkspaceContext(observed);
+if (mediaMode) {
+  assert(
+    observed.some((request) => request.hasImage),
+    'Native harness must send image blocks',
+  );
+  assert(
+    observed.some((request) => request.hasDocument),
+    'Extracted document text must reach the model',
+  );
+}
 if (toolMode || permissionMode)
   assert.equal(broker.calls, 1, 'The native agent must invoke the authorized MCP broker exactly once');
 assert.equal(await readFile('/workspace/native.txt', 'utf8'), 'native tool persisted\n');

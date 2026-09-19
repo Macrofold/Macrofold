@@ -83,7 +83,7 @@ export async function triggerIngress(request: Request, kind: 'slack' | 'webhook'
           body.team_id === c.team_id,
           403,
           'slack_team_mismatch',
-          'This event belongs to another Slack workspace.',
+          'This event belongs to another Slack worktree.',
         );
         const message = body.type === 'event_callback' ? slackMessage(body.event, c.bot_user_id) : undefined;
         if (!message) return { value: { ignored: true }, status: 200 };

@@ -11,15 +11,15 @@ import { Button, Field, Modal } from './ui';
 import { Select } from './select';
 import { WaitingText } from './waiting-text';
 
-/** Validation is advisory; creation repeats it under the project's server-side lock. */
+/** Validation is advisory; creation repeats it under the workspace's server-side lock. */
 export function CreateWorktree({
-  projectId,
+  workspaceId,
   source,
   open,
   onOpenChange,
 }: {
-  projectId: string;
-  source?: Schema['Workspace'];
+  workspaceId: string;
+  source?: Schema['Worktree'];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -44,7 +44,7 @@ export function CreateWorktree({
       ? {
           operation: 'getWorktreeOptions',
           params: {
-            path: { project_id: projectId },
+            path: { workspace_id: workspaceId },
             query: { name: checked.get('name') ?? '', branch: checked.get('branch') ?? '' },
           },
         }
@@ -63,7 +63,7 @@ export function CreateWorktree({
       open={open}
       onOpenChange={onOpenChange}
       title="Create worktree"
-      description="Give another task an independent copy of your project files."
+      description="Give another task an independent copy of your workspace files."
     >
       <form
         onSubmit={async (event) => {
@@ -72,8 +72,8 @@ export function CreateWorktree({
           setBusy(true);
           setError('');
           try {
-            const op = await request('createWorkspace', {
-              params: { path: { project_id: projectId } },
+            const op = await request('createWorktree', {
+              params: { path: { workspace_id: workspaceId } },
               body: {
                 name: name.trim(),
                 branch: branch.trim(),
@@ -84,10 +84,10 @@ export function CreateWorktree({
                   : {}),
               },
             });
-            if (!op.result?.workspace_id) throw new Error('The worktree has not finished creating.');
-            void client.invalidateQueries({ queryKey: [`/v1/projects/${projectId}/workspaces`] });
+            if (!op.result?.worktree_id) throw new Error('The worktree has not finished creating.');
+            void client.invalidateQueries({ queryKey: [`/v1/workspaces/${workspaceId}/worktrees`] });
             onOpenChange(false);
-            router.push(`/projects/${projectId}/workspaces/${op.result.workspace_id}`);
+            router.push(`/workspaces/${workspaceId}/worktrees/${op.result.worktree_id}`);
           } catch (error) {
             setError(error instanceof Error ? error.message : 'Unable to create worktree.');
           } finally {

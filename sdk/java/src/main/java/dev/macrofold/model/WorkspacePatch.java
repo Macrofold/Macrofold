@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.AgentPermissions;
+import dev.macrofold.model.WorkspaceCreateGithub;
 import java.util.Arrays;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -35,6 +36,8 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   WorkspacePatch.JSON_PROPERTY_NAME,
+  WorkspacePatch.JSON_PROPERTY_GITHUB,
+  WorkspacePatch.JSON_PROPERTY_ARCHIVED,
   WorkspacePatch.JSON_PROPERTY_PERMISSIONS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
@@ -42,6 +45,14 @@ public class WorkspacePatch {
   public static final String JSON_PROPERTY_NAME = "name";
   @javax.annotation.Nullable
   private String name;
+
+  public static final String JSON_PROPERTY_GITHUB = "github";
+  @javax.annotation.Nullable
+  private WorkspaceCreateGithub github;
+
+  public static final String JSON_PROPERTY_ARCHIVED = "archived";
+  @javax.annotation.Nullable
+  private Boolean archived;
 
   public static final String JSON_PROPERTY_PERMISSIONS = "permissions";
   @javax.annotation.Nullable
@@ -71,6 +82,54 @@ public class WorkspacePatch {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setName(@javax.annotation.Nullable String name) {
     this.name = name;
+  }
+
+
+  public WorkspacePatch github(@javax.annotation.Nullable WorkspaceCreateGithub github) {
+    this.github = github;
+    return this;
+  }
+
+  /**
+   * Get github
+   * @return github
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_GITHUB, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public WorkspaceCreateGithub getGithub() {
+    return github;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_GITHUB, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setGithub(@javax.annotation.Nullable WorkspaceCreateGithub github) {
+    this.github = github;
+  }
+
+
+  public WorkspacePatch archived(@javax.annotation.Nullable Boolean archived) {
+    this.archived = archived;
+    return this;
+  }
+
+  /**
+   * Get archived
+   * @return archived
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ARCHIVED, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getArchived() {
+    return archived;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_ARCHIVED, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setArchived(@javax.annotation.Nullable Boolean archived) {
+    this.archived = archived;
   }
 
 
@@ -111,12 +170,14 @@ public class WorkspacePatch {
     }
     WorkspacePatch workspacePatch = (WorkspacePatch) o;
     return Objects.equals(this.name, workspacePatch.name) &&
+        Objects.equals(this.github, workspacePatch.github) &&
+        Objects.equals(this.archived, workspacePatch.archived) &&
         Objects.equals(this.permissions, workspacePatch.permissions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, permissions);
+    return Objects.hash(name, github, archived, permissions);
   }
 
   @Override
@@ -124,6 +185,8 @@ public class WorkspacePatch {
     StringBuilder sb = new StringBuilder();
     sb.append("class WorkspacePatch {\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
+    sb.append("    github: ").append(toIndentedString(github)).append("\n");
+    sb.append("    archived: ").append(toIndentedString(archived)).append("\n");
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -172,6 +235,16 @@ public class WorkspacePatch {
     // add `name` to the URL query string
     if (getName() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sname%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getName()))));
+    }
+
+    // add `github` to the URL query string
+    if (getGithub() != null) {
+      joiner.add(getGithub().toUrlQueryString(prefix + "github" + suffix));
+    }
+
+    // add `archived` to the URL query string
+    if (getArchived() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sarchived%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getArchived()))));
     }
 
     // add `permissions` to the URL query string

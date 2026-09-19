@@ -6,7 +6,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import Ajv from 'ajv';
 import { transaction } from '../../db';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
-import { getRun } from './runs';
+import { getNativeRun as getRun } from './runs';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id, seal, unseal, sha256, canonical } from './crypto';
@@ -196,7 +196,7 @@ export async function executeGrantedTool(
       const entry = approvedStdio(connection.package, connection.package_version);
       const binding = (run.execution_binding as { machine?: MachineBinding } | null)?.machine;
       assert(binding, 409, 'execution_unavailable', 'The running sandbox is unavailable.');
-      const executor = sandboxTools || (await import('../../providers/src/machines')).machines();
+      const executor = sandboxTools || (await import('../../providers/src/machines')).machines(run);
       result = await executor.invokeStdio(binding, {
         id: admission.id,
         runId: run.id,

@@ -16,7 +16,10 @@
     "@modelcontextprotocol/server-filesystem": "2026.8.31",
     "@openai/codex": "0.153.4",
     "@opencode-ai/sdk": "1.18.29",
+    "image-size": "2.0.4",
+    "mammoth": "1.12.3",
     "opencode-ai": "1.18.29",
+    "pdfjs-dist": "6.3.289",
     "zod": "4.5.0"
   },
   "devDependencies": {

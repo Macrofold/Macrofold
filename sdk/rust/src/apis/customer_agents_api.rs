@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -946,7 +946,7 @@ pub async fn read_customer_agent_file(configuration: &configuration::Configurati
 }
 
 /// Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-pub async fn send_customer_agent_message(configuration: &configuration::Configuration, customer_id: &str, customer_agent_id: &str, idempotency_key: &str, customer_agent_message: models::CustomerAgentMessage, x_organization_id: Option<&str>) -> Result<models::RunAccepted, Error<SendCustomerAgentMessageError>> {
+pub async fn send_customer_agent_message(configuration: &configuration::Configuration, customer_id: &str, customer_agent_id: &str, idempotency_key: &str, customer_agent_message: models::CustomerAgentMessage, x_organization_id: Option<&str>) -> Result<models::NativeRunAccepted, Error<SendCustomerAgentMessageError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_customer_id = customer_id;
     let p_path_customer_agent_id = customer_agent_id;
@@ -987,8 +987,8 @@ pub async fn send_customer_agent_message(configuration: &configuration::Configur
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::RunAccepted`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::RunAccepted`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::NativeRunAccepted`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::NativeRunAccepted`")))),
         }
     } else {
         let content = resp.text().await?;

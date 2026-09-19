@@ -51,11 +51,11 @@ import {
 export function KeysView() {
   const keys = usePages<Schema['ApiKey']>('/v1/api-keys'),
     identity = useApi<Schema['Identity']>('/v1/me'),
-    projects = usePages<Schema['Project']>('/v1/projects');
+    workspaces = usePages<Schema['Workspace']>('/v1/workspaces');
   const [open, setOpen] = useState(false),
     [name, setName] = useState(''),
     [permissions, setPermissions] = useState<KeyPermissionSelection>({ preset: 'read-write' }),
-    [project, setProject] = useState(''),
+    [workspace, setWorkspace] = useState(''),
     [days, setDays] = useState('90'),
     [secret, setSecret] = useState(''),
     [busy, setBusy] = useState(false),
@@ -66,7 +66,7 @@ export function KeysView() {
   function openCreate() {
     setName('');
     setPermissions({ preset: 'read-write' });
-    setProject('');
+    setWorkspace('');
     setDays('90');
     setSecret('');
     setError('');
@@ -211,7 +211,7 @@ export function KeysView() {
                   body: {
                     name,
                     scopes,
-                    ...(project ? { project_id: project } : {}),
+                    ...(workspace ? { workspace_id: workspace } : {}),
                     ...(days
                       ? { expires_at: new Date(Date.now() + Number(days) * 86400000).toISOString() }
                       : {}),
@@ -236,17 +236,17 @@ export function KeysView() {
               />
             </Field>
             <div className="form-grid">
-              <Field label="Project access">
+              <Field label="Workspace access">
                 <Select
-                  value={project}
-                  onValueChange={setProject}
+                  value={workspace}
+                  onValueChange={setWorkspace}
                   options={[
-                    { value: '', label: 'All authorized projects' },
-                    ...(projects.data?.data.map((p) => ({ value: p.id, label: p.name })) ?? []),
+                    { value: '', label: 'All authorized workspaces' },
+                    ...(workspaces.data?.data.map((p) => ({ value: p.id, label: p.name })) ?? []),
                   ]}
                 />
               </Field>
-              <More query={projects} label="More projects" />
+              <More query={workspaces} label="More workspaces" />
               <Field label="Expires after">
                 <Select
                   value={days}
@@ -615,7 +615,7 @@ function AgentPresets({
         description={
           starter
             ? `Starting from ${starter.name}. Review the setup and make it yours.`
-            : 'Reuse a consistent setup across projects and API calls.'
+            : 'Reuse a consistent setup across workspaces and API calls.'
         }
       >
         <form
@@ -765,7 +765,7 @@ function AgentPresets({
           </div>
           {starter && (
             <p className="form-hint">
-              Saving a preset does not run the agent or create tool grants. Choose the project, connections,
+              Saving a preset does not run the agent or create tool grants. Choose the workspace, connections,
               and run budget when you start a task.
             </p>
           )}
@@ -796,7 +796,7 @@ export function OperatorView() {
   return (
     <div className="page">
       <PageHeading
-        eyebrow="OPERATOR WORKSPACE"
+        eyebrow="OPERATOR WORKTREE"
         title="The bigger picture."
         description="Read-only operations, growth, and account reporting. Every query is audited."
       />

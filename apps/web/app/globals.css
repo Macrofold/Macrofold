@@ -620,13 +620,13 @@ pre,
 .text-link:hover {
   color: var(--app-accent);
 }
-.project-grid {
+.workspace-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 15px;
   margin-bottom: 31px;
 }
-.project-card {
+.workspace-card {
   display: block;
   text-align: left;
   border: 1px solid var(--line);
@@ -638,17 +638,17 @@ pre,
     border-color 0.15s,
     box-shadow 0.15s;
 }
-.project-card:hover {
+.workspace-card:hover {
   border-color: var(--app-line-2);
   box-shadow: none;
 }
-.project-card-top {
+.workspace-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
 }
-.project-icon {
+.workspace-icon {
   width: 37px;
   height: 37px;
   border-radius: 9px;
@@ -657,31 +657,31 @@ pre,
   background: var(--app-accent-wash);
   color: var(--app-accent);
 }
-.project-icon.color-1 {
+.workspace-icon.color-1 {
   background: var(--app-success-wash);
   color: var(--app-success);
 }
-.project-icon.color-2 {
+.workspace-icon.color-2 {
   background: var(--app-ember-wash);
   color: var(--app-ember);
 }
-.project-icon.color-3 {
+.workspace-icon.color-3 {
   background: var(--app-lilac-wash);
   color: var(--app-lilac);
 }
-.project-arrow {
+.workspace-arrow {
   color: var(--app-ink-2);
 }
-.project-card h3 {
+.workspace-card h3 {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 5px;
 }
-.project-card p {
+.workspace-card p {
   font-size: 12px;
   color: var(--app-ink-2);
 }
-.project-card-footer {
+.workspace-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -691,7 +691,7 @@ pre,
   color: var(--app-ink-3);
   font-size: 11px;
 }
-.project-card-footer > span {
+.workspace-card-footer > span {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -767,11 +767,11 @@ pre,
   width: 100%;
   font-size: 12px;
 }
-.workspace-principles {
+.worktree-principles {
   margin-top: 25px;
   padding: 0 3px;
 }
-.workspace-principles > div {
+.worktree-principles > div {
   display: flex;
   gap: 11px;
   margin-bottom: 20px;
@@ -786,20 +786,20 @@ pre,
   background: var(--app-surface);
   color: var(--app-ink-2);
 }
-.workspace-principles strong {
+.worktree-principles strong {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
   display: block;
   color: var(--app-ink);
 }
-.workspace-principles p {
+.worktree-principles p {
   font-size: 12px;
   line-height: 1.65;
   margin-top: 5px;
   color: var(--app-ink-2);
 }
-.workspace-principles > a {
+.worktree-principles > a {
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -980,7 +980,7 @@ pre,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
-.new-project {
+.new-workspace {
   padding: 25px;
   text-align: center;
   display: flex;
@@ -992,7 +992,7 @@ pre,
   min-height: 203px;
   color: var(--app-ink-2);
 }
-.new-project > span {
+.new-workspace > span {
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -1001,11 +1001,11 @@ pre,
   place-items: center;
   margin-bottom: 12px;
 }
-.new-project strong {
+.new-workspace strong {
   font-size: 14px;
   font-weight: 500;
 }
-.new-project p {
+.new-workspace p {
   margin-top: 5px;
 }
 .back-link {
@@ -1016,7 +1016,7 @@ pre,
   color: var(--app-ink-2);
   margin-bottom: 21px;
 }
-.workspace-bar {
+.worktree-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1024,13 +1024,13 @@ pre,
   margin-top: -9px;
   margin-bottom: 25px;
 }
-.workspace-selector {
+.worktree-selector {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--app-ink-2);
 }
-.workspace-selector .select-trigger {
+.worktree-selector .select-trigger {
   border: 1px solid var(--app-line);
   border-radius: 6px;
   padding: 7px 28px 7px 10px;
@@ -1038,7 +1038,7 @@ pre,
   font-size: 13px;
   color: var(--app-ink-2);
 }
-.workspace-meta {
+.worktree-meta {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2485,7 +2485,7 @@ pre,
   .stat-card {
     padding: 22px;
   }
-  .project-card {
+  .workspace-card {
     padding: 23px 23px 0;
   }
   .data-table td {
@@ -2516,7 +2516,7 @@ pre,
   .quickstart-card p {
     margin-top: 9px;
   }
-  .workspace-principles {
+  .worktree-principles {
     margin-top: 15px;
   }
   .full-grid,
@@ -2633,10 +2633,10 @@ pre,
   .checkpoint-label {
     min-width: 160px;
   }
-  .workspace-selector .select-trigger {
+  .worktree-selector .select-trigger {
     max-width: 220px;
   }
-  .workspace-meta > span:last-child {
+  .worktree-meta > span:last-child {
     display: none;
   }
 }
@@ -2706,7 +2706,7 @@ pre,
   .overview-aside {
     grid-template-columns: 1fr;
   }
-  .workspace-principles {
+  .worktree-principles {
     display: none;
   }
   .full-grid,
@@ -2714,16 +2714,16 @@ pre,
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 13px;
   }
-  .project-card {
+  .workspace-card {
     padding: 16px 16px 0;
   }
-  .project-card h3 {
+  .workspace-card h3 {
     font-size: 14px;
   }
-  .project-card p {
+  .workspace-card p {
     font-size: 12px;
   }
-  .project-card-footer {
+  .workspace-card-footer {
     gap: 5px;
     font-size: 10px;
   }
@@ -2750,20 +2750,20 @@ pre,
     padding-left: 13px;
     padding-right: 13px;
   }
-  .workspace-bar {
+  .worktree-bar {
     gap: 12px;
   }
-  .workspace-selector {
+  .worktree-selector {
     gap: 5px;
   }
-  .workspace-selector .select-trigger {
+  .worktree-selector .select-trigger {
     max-width: 170px;
   }
-  .workspace-selector .button {
+  .worktree-selector .button {
     font-size: 0;
     padding: 5px;
   }
-  .workspace-selector .button svg {
+  .worktree-selector .button svg {
     width: 16px;
   }
   .tabs {
@@ -2894,31 +2894,31 @@ pre,
     gap: 15px;
     font-size: 11px;
   }
-  .new-project {
+  .new-workspace {
     padding: 20px;
     min-height: 190px;
   }
 }
 @media (max-width: 440px) {
-  .project-grid,
+  .workspace-grid,
   .full-grid,
   .connections-grid {
     grid-template-columns: 1fr;
   }
-  .overview .project-grid {
+  .overview .workspace-grid {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
-  .overview .project-card {
+  .overview .workspace-card {
     padding: 13px 13px 0;
   }
-  .overview .project-card h3 {
+  .overview .workspace-card h3 {
     font-size: 13px;
   }
-  .overview .project-card p {
+  .overview .workspace-card p {
     font-size: 11px;
   }
-  .overview .project-card-footer {
+  .overview .workspace-card-footer {
     flex-wrap: wrap;
     gap: 7px;
   }
@@ -3287,7 +3287,7 @@ pre,
   justify-content: center;
   padding: 16px 0;
 }
-.workspace-selector .pagination {
+.worktree-selector .pagination {
   padding: 0;
 }
 
@@ -3454,7 +3454,7 @@ pre,
   color: var(--app-ink-3);
   font-size: 12px;
 }
-.hero-workspace {
+.hero-worktree {
   margin: 72px auto 0;
   max-width: 920px;
   border: 1px solid var(--app-line);
@@ -3747,7 +3747,7 @@ pre,
   .preview-body > div {
     padding: 20px;
   }
-  .hero-workspace {
+  .hero-worktree {
     margin-top: 44px;
   }
   .public-section {

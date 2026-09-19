@@ -189,9 +189,9 @@ it('freezes admitted prices through refresh, gateway settlement, cancellation, a
   vi.stubEnv('GLOBAL_CONCURRENT_RUN_LIMIT', String(active + 1));
   const before = (await client.models.list()).data.find((model) => model.id === 'openai/gpt-5.4-mini');
   expect(before?.enabled).toBe(true);
-  const project = await client.projects.create({ name: 'Rate snapshot' });
+  const workspace = await client.workspaces.create({ name: 'Rate snapshot' });
   const accepted = await client.runs.create({
-    project_id: project.id,
+    workspace_id: workspace.id,
     harness: 'opencode',
     model: 'openai/gpt-5.4-mini',
     billing_mode: 'managed',

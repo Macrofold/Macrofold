@@ -20,21 +20,21 @@ type RuleRow = Omit<Schema['ConnectionAccessRule'], 'created_at' | 'updated_at'>
   updated_at: Date;
   sort_key?: string;
 };
-const joins = `LEFT JOIN projects rp ON rp.organization_id=r.organization_id AND rp.id=r.project_id
+const joins = `LEFT JOIN workspaces rp ON rp.organization_id=r.organization_id AND rp.id=r.workspace_id
  LEFT JOIN agents ra ON ra.organization_id=r.organization_id AND ra.id=r.agent_id`;
-const active = `(r.project_id IS NULL OR (rp.id IS NOT NULL AND COALESCE(rp.data->>'deleted','false')<>'true'))
+const active = `(r.workspace_id IS NULL OR (rp.id IS NOT NULL AND COALESCE(rp.data->>'deleted','false')<>'true'))
  AND (r.agent_id IS NULL OR (ra.id IS NOT NULL AND COALESCE(ra.data->>'deleted','false')<>'true'))`;
-const ruleFields = `r.id,r.connection_id,r.scope,r.project_id,r.agent_id,r.created_at,r.updated_at,
- CASE WHEN COALESCE(rp.data->>'deleted','false')<>'true' THEN rp.data->>'name' END AS project_name,
+const ruleFields = `r.id,r.connection_id,r.scope,r.workspace_id,r.agent_id,r.created_at,r.updated_at,
+ CASE WHEN COALESCE(rp.data->>'deleted','false')<>'true' THEN rp.data->>'name' END AS workspace_name,
  CASE WHEN COALESCE(ra.data->>'deleted','false')<>'true' THEN ra.data->>'name' END AS agent_name,
  NOT (${active}) AS unavailable`;
 const presentRule = (r: RuleRow): Schema['ConnectionAccessRule'] => ({
   id: r.id,
   connection_id: r.connection_id,
   scope: r.scope,
-  project_id: r.project_id,
+  workspace_id: r.workspace_id,
   agent_id: r.agent_id,
-  project_name: r.project_name,
+  workspace_name: r.workspace_name,
   agent_name: r.agent_name,
   unavailable: r.unavailable,
   created_at: r.created_at.toISOString(),
@@ -55,10 +55,10 @@ function matchingRules(
   includeUnavailable = false,
 ) {
   const conditions = includeUnavailable ? [] : [active];
-  if (p.projectIds.length)
-    conditions.push(`(r.project_id IS NULL OR r.project_id=ANY(${args.add(p.projectIds)}::uuid[]))`);
-  if (context.project_id !== undefined)
-    conditions.push(`(r.project_id IS NULL OR r.project_id=${args.add(context.project_id)}::uuid)`);
+  if (p.workspaceIds.length)
+    conditions.push(`(r.workspace_id IS NULL OR r.workspace_id=ANY(${args.add(p.workspaceIds)}::uuid[]))`);
+  if (context.workspace_id !== undefined)
+    conditions.push(`(r.workspace_id IS NULL OR r.workspace_id=${args.add(context.workspace_id)}::uuid)`);
   if (context.agent_id !== undefined)
     conditions.push(
       context.agent_id === null
@@ -73,12 +73,12 @@ export function connectionAccessPredicate(p: Principal, context: AccessContext, 
   return `(c.access_organization_wide OR EXISTS(SELECT 1 FROM connection_access_rules r ${joins} WHERE r.connection_id=c.id AND ${match}))`;
 }
 export async function authorizeContext(tx: Tx, p: Principal, context: AccessContext) {
-  if (context.project_id) await resources.get(tx, 'projects', context.project_id, p);
+  if (context.workspace_id) await resources.get(tx, 'workspaces', context.workspace_id, p);
   if (context.agent_id) await resources.get(tx, 'agents', context.agent_id, p);
 }
 export function contextQuery(query: URLSearchParams): AccessContext {
   return {
-    ...(query.has('project_id') ? { project_id: query.get('project_id')! } : {}),
+    ...(query.has('workspace_id') ? { workspace_id: query.get('workspace_id')! } : {}),
     ...(query.has('agent_id') ? { agent_id: query.get('agent_id')! } : {}),
   };
 }
@@ -91,7 +91,7 @@ function pageState(p: Principal, query: URLSearchParams, binding: unknown) {
     'Use a page size between 1 and 100.',
   );
   const fingerprint = sha256(
-    canonical({ organization: p.organizationId, user: p.userId, projects: p.projectIds, binding }),
+    canonical({ organization: p.organizationId, user: p.userId, workspaces: p.workspaceIds, binding }),
   );
   let after: { id: string; key: string } | undefined;
   if (query.get('cursor')) {
@@ -198,10 +198,10 @@ function requireGrant(p: Principal, unrestricted = false) {
   );
   if (unrestricted)
     assert(
-      !p.projectIds.length,
+      !p.workspaceIds.length,
       403,
       'forbidden',
-      'Organization and agent permissions require unrestricted project authority.',
+      'Organization and agent permissions require unrestricted workspace authority.',
     );
 }
 async function lockAccess(tx: Tx, p: Principal, connectionId: string, expected: string) {
@@ -289,7 +289,7 @@ export async function listRules(
   const sort = query.get('sort') || 'created_at',
     direction = query.get('direction') || 'asc';
   assert(
-    ['project', 'agent', 'created_at'].includes(sort) && ['asc', 'desc'].includes(direction),
+    ['workspace', 'agent', 'created_at'].includes(sort) && ['asc', 'desc'].includes(direction),
     400,
     'invalid_sort',
     'Choose a supported permission sort.',
@@ -298,12 +298,12 @@ export async function listRules(
   const args = new AccessParameters(),
     conditions = [`r.connection_id=${args.add(c.id)}`, matchingRules(p, {}, args, true)];
   // Rule filters address the actual target columns, not effective OR policy.
-  if (context.project_id) conditions.push(`r.project_id=${args.add(context.project_id)}::uuid`);
+  if (context.workspace_id) conditions.push(`r.workspace_id=${args.add(context.workspace_id)}::uuid`);
   if (context.agent_id) conditions.push(`r.agent_id=${args.add(context.agent_id)}::uuid`);
   const key =
     sort === 'created_at'
       ? 'r.created_at::text'
-      : `COALESCE(lower(${sort === 'project' ? 'rp' : 'ra'}.data->>'name'),'')`;
+      : `COALESCE(lower(${sort === 'workspace' ? 'rp' : 'ra'}.data->>'name'),'')`;
   if (state.after)
     conditions.push(
       `(${key},r.id) ${direction === 'asc' ? '>' : '<'} (${args.add(state.after.key)},${args.add(state.after.id)}::uuid)`,
@@ -350,12 +350,12 @@ export async function saveRule(
   const c = await lockAccess(tx, p, connectionId, expected);
   if (ruleId) await getRule(tx, p, connectionId, ruleId);
   await validateRule(tx, p, input);
-  const project = 'project_id' in input ? input.project_id : null,
+  const workspace = 'workspace_id' in input ? input.workspace_id : null,
     agent = 'agent_id' in input ? input.agent_id : null;
   const duplicate = (
     await tx.query<{ id: string }>(
-      `SELECT id FROM connection_access_rules WHERE connection_id=$1 AND scope=$2 AND project_id IS NOT DISTINCT FROM $3::uuid AND agent_id IS NOT DISTINCT FROM $4::uuid AND ($5::uuid IS NULL OR id<>$5)`,
-      [c.id, input.scope, project, agent, ruleId || null],
+      `SELECT id FROM connection_access_rules WHERE connection_id=$1 AND scope=$2 AND workspace_id IS NOT DISTINCT FROM $3::uuid AND agent_id IS NOT DISTINCT FROM $4::uuid AND ($5::uuid IS NULL OR id<>$5)`,
+      [c.id, input.scope, workspace, agent, ruleId || null],
     )
   ).rows[0];
   assert(
@@ -368,13 +368,13 @@ export async function saveRule(
   const savedId = ruleId || id();
   if (ruleId)
     await tx.query(
-      'UPDATE connection_access_rules SET scope=$2,project_id=$3,agent_id=$4,updated_at=now() WHERE id=$1',
-      [ruleId, input.scope, project, agent],
+      'UPDATE connection_access_rules SET scope=$2,workspace_id=$3,agent_id=$4,updated_at=now() WHERE id=$1',
+      [ruleId, input.scope, workspace, agent],
     );
   else
     await tx.query(
-      'INSERT INTO connection_access_rules(id,organization_id,connection_id,scope,project_id,agent_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7)',
-      [savedId, p.organizationId, c.id, input.scope, project, agent, p.userId],
+      'INSERT INTO connection_access_rules(id,organization_id,connection_id,scope,workspace_id,agent_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7)',
+      [savedId, p.organizationId, c.id, input.scope, workspace, agent, p.userId],
     );
   const version = await changed(
     tx,
@@ -416,14 +416,14 @@ export async function accessMatchesFor(
   const args = new AccessParameters();
   const ids = args.add(connections.map((c) => c.id));
   const match = matchingRules(p, context, args);
-  const conditional = `(${context.project_id === undefined ? 'r.project_id IS NOT NULL' : 'false'} OR ${context.agent_id === undefined ? 'r.agent_id IS NOT NULL' : 'false'})`;
+  const conditional = `(${context.workspace_id === undefined ? 'r.workspace_id IS NOT NULL' : 'false'} OR ${context.agent_id === undefined ? 'r.agent_id IS NOT NULL' : 'false'})`;
   const rows = (
     await tx.query<RuleRow & { total: string; all_conditional: boolean; sample_rank: string }>(
       `WITH matched AS (
  SELECT ${ruleFields},count(*) OVER(PARTITION BY r.connection_id) AS total,
  bool_and(${conditional}) OVER(PARTITION BY r.connection_id) AS all_conditional,
  row_number() OVER(PARTITION BY r.connection_id,r.scope ORDER BY r.id) AS scope_rank,
- CASE r.scope WHEN 'project_agent' THEN 0 WHEN 'project' THEN 1 ELSE 2 END AS priority
+ CASE r.scope WHEN 'workspace_agent' THEN 0 WHEN 'workspace' THEN 1 ELSE 2 END AS priority
  FROM connection_access_rules r ${joins} WHERE r.connection_id=ANY(${ids}::uuid[]) AND ${match}
  ), ranked AS (SELECT *,row_number() OVER(PARTITION BY connection_id ORDER BY (scope_rank=1) DESC,priority,id) AS sample_rank FROM matched)
  SELECT * FROM ranked WHERE sample_rank<=3 ORDER BY connection_id,sample_rank`,
@@ -443,7 +443,7 @@ export async function accessMatchesFor(
       matching_rules: samples.map((r) => ({
         rule_id: r.id,
         ...ruleInput(r),
-        ...(r.project_name ? { project_name: r.project_name } : {}),
+        ...(r.workspace_name ? { workspace_name: r.workspace_name } : {}),
         ...(r.agent_name ? { agent_name: r.agent_name } : {}),
       })),
       matching_rules_truncated: Number(samples[0]?.total || 0) > samples.length,
@@ -463,7 +463,7 @@ export async function listContextConnections(
   const state = pageState(p, query, { kind: binding, context });
   const args = new AccessParameters(),
     conditions = ["COALESCE(c.data->>'deleted','false')<>'true'"];
-  const hasContext = context.project_id !== undefined || context.agent_id !== undefined;
+  const hasContext = context.workspace_id !== undefined || context.agent_id !== undefined;
   const kinds = args.add(toolConnectionKinds);
   conditions.push(
     hasContext
@@ -472,10 +472,10 @@ export async function listContextConnections(
   );
   if (hasContext) {
     conditions.push(connectionAccessPredicate(p, context, args));
-    // An omitted project means an authorized possible execution project must exist.
-    if (!context.project_id)
+    // An omitted workspace means an authorized possible execution workspace must exist.
+    if (!context.workspace_id)
       conditions.push(
-        `EXISTS(SELECT 1 FROM projects px WHERE COALESCE(px.data->>'deleted','false')<>'true' ${p.projectIds.length ? `AND px.id=ANY(${args.add(p.projectIds)}::uuid[])` : ''})`,
+        `EXISTS(SELECT 1 FROM workspaces px WHERE COALESCE(px.data->>'deleted','false')<>'true' ${p.workspaceIds.length ? `AND px.id=ANY(${args.add(p.workspaceIds)}::uuid[])` : ''})`,
       );
   }
   if (state.after) conditions.push(`c.id<${args.add(state.after.id)}::uuid`);
@@ -496,7 +496,7 @@ export async function listContextConnections(
     next_cursor: rows.length > state.limit ? state.cursor({ id: selected.at(-1)!.id }) : null,
   };
 }
-export async function expandConnections<K extends 'projects' | 'agents'>(
+export async function expandConnections<K extends 'workspaces' | 'agents'>(
   tx: Tx,
   p: Principal,
   table: K,
@@ -504,7 +504,7 @@ export async function expandConnections<K extends 'projects' | 'agents'>(
   query: URLSearchParams,
 ) {
   const resource = await resources.get(tx, table, resourceId, p);
-  const counterpart = table === 'projects' ? 'agent_id' : 'project_id';
+  const counterpart = table === 'workspaces' ? 'agent_id' : 'workspace_id';
   const include = query.get('include_connections') === 'true';
   assert(
     include || ![counterpart, 'connections_limit', 'connections_cursor'].some((name) => query.has(name)),
@@ -518,7 +518,7 @@ export async function expandConnections<K extends 'projects' | 'agents'>(
   if (query.has('connections_cursor')) page.set('cursor', query.get('connections_cursor')!);
   const context: AccessContext = {
     ...contextQuery(query),
-    [table === 'projects' ? 'project_id' : 'agent_id']: resourceId,
+    [table === 'workspaces' ? 'workspace_id' : 'agent_id']: resourceId,
   };
   return {
     ...resource,

@@ -16,8 +16,8 @@ export function ancestorDirectories(path: string) {
 }
 
 /** Each expanded folder owns bounded cursor pages; opening the explorer never
- * downloads the complete workspace. Existing dashboard signals refresh these URLs. */
-export function useDirectoryListings(workspaceId: string, directories: ReadonlySet<string>) {
+ * downloads the complete worktree. Existing dashboard signals refresh these URLs. */
+export function useDirectoryListings(worktreeId: string, directories: ReadonlySet<string>) {
   const [cursors, setCursors] = useState<Record<string, string[]>>({});
   const requests = [...directories].flatMap((path) =>
     ['', ...(cursors[path] ?? [])].map((cursor) => ({
@@ -25,7 +25,7 @@ export function useDirectoryListings(workspaceId: string, directories: ReadonlyS
       query: {
         operation: 'listFiles',
         params: {
-          path: { workspace_id: workspaceId },
+          path: { worktree_id: worktreeId },
           query: { path, recursive: false, limit: 100, ...(cursor ? { cursor } : {}) },
         },
       } satisfies DataQuery<'listFiles'>,
@@ -81,7 +81,7 @@ export function useDirectoryListings(workspaceId: string, directories: ReadonlyS
  * file action wait for unrelated billing, run, or account requests. */
 export async function publishFileMutation(
   client: QueryClient,
-  workspaceId: string,
+  worktreeId: string,
   operation: Schema['Operation'],
 ) {
   const result = operation.result;
@@ -89,11 +89,11 @@ export async function publishFileMutation(
     throw new Error('Unable to confirm the saved revision. Reload the file before retrying.');
   const revision = result.revision;
   const path = result.path;
-  const prefix = `/v1/workspaces/${workspaceId}`;
+  const prefix = `/v1/worktrees/${worktreeId}`;
   const listingQuery = (key: readonly unknown[]) =>
     typeof key[0] === 'string' && key[0].startsWith(`${prefix}/files?`);
   await client.cancelQueries({ predicate: (query) => listingQuery(query.queryKey) });
-  client.setQueryData<Schema['Workspace']>(
+  client.setQueryData<Schema['Worktree']>(
     [prefix],
     (previous) =>
       previous && {
@@ -105,7 +105,7 @@ export async function publishFileMutation(
   for (const query of client
     .getQueryCache()
     .findAll({ predicate: (value) => listingQuery(value.queryKey) })) {
-    const url = new URL(String(query.queryKey[0]), 'http://workspace.invalid');
+    const url = new URL(String(query.queryKey[0]), 'http://worktree.invalid');
     if (url.searchParams.get('recursive') !== 'false') continue;
     const directory = url.searchParams.get('path') ?? '';
     const entry = result.entry;

@@ -41,11 +41,11 @@ These capabilities are described in the [Vercel approval guide](https://vercel.c
 
 Neither engine makes arbitrary external side effects exactly-once or resumes a crashed native agent at its last machine instruction. Temporal activities can execute again after a lost acknowledgement or worker failure. Preserve stable native launch identity, ambiguous-outcome recovery, sandbox isolation, verified file checkpoints, tenant authorization, credential selection, and financial reservations regardless of scheduler. See [Temporal activity execution](https://docs.temporal.io/activity-execution) and [Macrofold runtime](../features/execution/runtime.md).
 
-Temporal could take ownership of more orchestration state, but replacing the current Workflow loop alone would retain most of the SQL coordinator and add another system. Any later design must identify exactly which state and recovery mechanisms move, while retaining one authoritative owner for each fact. Customer history, billing policy, and durable workspace contents must not become accidental dependencies on workflow-history retention.
+Temporal could take ownership of more orchestration state, but replacing the current Workflow loop alone would retain most of the SQL coordinator and add another system. Any later design must identify exactly which state and recovery mechanisms move, while retaining one authoritative owner for each fact. Customer history, billing policy, and durable worktree contents must not become accidental dependencies on workflow-history retention.
 
 ### Recommendation and evaluation triggers
 
-Retain Vercel Workflow for the current product: run a native agent, preserve its workspace, and schedule follow-up work. Evaluate Temporal before committing to a substantial coordinator for persistent agent teams, particularly when several of these become near-term requirements:
+Retain Vercel Workflow for the current product: run a native agent, preserve its worktree, and schedule follow-up work. Evaluate Temporal before committing to a substantial coordinator for persistent agent teams, particularly when several of these become near-term requirements:
 
 - Delegation trees need coordinated cancellation, partial-failure recovery, and durable result aggregation.
 - Agents remain addressable across days of approvals and incoming instructions, spanning many releases.

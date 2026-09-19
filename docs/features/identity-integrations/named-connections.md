@@ -10,7 +10,7 @@ Connect each account separately and give it a recognizable name, such as **Gmail
 
 **Edit** changes the display name without changing its ID. The account identifier shown on an authorized app connection is Composio's verified connected-account ID; it is not an inferred email address. Connecting another account never changes an existing agent's selection. Reconnect targets the same provider account. To switch to another account, create another connection and explicitly select it.
 
-Connections belong to their authorizing user. Tool access can target the organization, a project, a preset, or an exact project + preset pair; model keys and Claude subscription configurations remain owner-bound. Disconnect removes local authority immediately. Upstream revocation can require a separate provider action; see [connection security](implementation.md).
+Connections belong to their authorizing user. Tool access can target the organization, a workspace, a preset, or an exact workspace + preset pair; model keys and Claude subscription configurations remain owner-bound. Disconnect removes local authority immediately. Upstream revocation can require a separate provider action; see [connection security](implementation.md).
 
 ## Save authentication in a preset
 
@@ -30,16 +30,16 @@ preset = macrofold.agents.create(
     provider_connection_id="YOUR_ANTHROPIC_CONNECTION_ID",
 )
 run = macrofold.runs.create(
-    project_id="YOUR_PROJECT_ID",
+    workspace_id="YOUR_WORKSPACE_ID",
     agent_id=preset.id,
-    prompt="Update the project notes.",
+    prompt="Update the workspace notes.",
 )
 for text in macrofold.runs.stream_text(run.run_id):
     print(text, end="", flush=True)
 macrofold.close()
 ```
 
-From a linked terminal directory, use `macrofold run "Update the project notes." --agent AGENT_ID`. The preset supplies authentication and limits. Explicit timeout/budget flags override only the corresponding limit. Use a new session when changing authentication; continuing an existing session keeps its original configuration.
+From a linked terminal directory, use `macrofold run "Update the workspace notes." --agent AGENT_ID`. The preset supplies authentication and limits. Explicit timeout/budget flags override only the corresponding limit. Use a new session when changing authentication; continuing an existing session keeps its original configuration.
 
 TypeScript, Python, Go, Rust, and Java expose the same generated connection and preset fields. See [SDKs](../api/sdks/README.md) and the [API reference](../api/README.md).
 

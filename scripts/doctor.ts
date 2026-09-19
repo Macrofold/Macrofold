@@ -27,11 +27,11 @@ await check('Tenant isolation', async () => {
   const row = (
     await pool.query(
       'SELECT count(*)::int AS n FROM pg_class WHERE relname=ANY($1::text[]) AND relrowsecurity AND relforcerowsecurity',
-      [['projects', 'workspaces', 'runs', 'connections', 'checkpoints', 'github_user_links']],
+      [['workspaces', 'worktrees', 'runs', 'connections', 'checkpoints', 'github_user_links']],
     )
   ).rows[0];
   if (row.n !== 6) throw new Error('missing policies');
-  if ((await transaction(null, (tx) => tx.query('SELECT id FROM projects LIMIT 1'))).rowCount)
+  if ((await transaction(null, (tx) => tx.query('SELECT id FROM workspaces LIMIT 1'))).rowCount)
     throw new Error('unscoped read');
   return 'Required tenant tables enforce row-level security.';
 });

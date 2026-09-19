@@ -1,5 +1,6 @@
 import { assert } from '../../core/src/errors';
 import type { ModelProtocol, ModelUsage } from '../../core/src/model-protocol';
+import { openRouterPriceCeiling } from './openrouter-pricing';
 
 function usageFromEvent(provider: string, event: Record<string, unknown>, previous: ModelUsage): ModelUsage {
   const next = { ...previous };
@@ -122,11 +123,7 @@ function protocol(
         // dollars/million tokens; reservations and settlement stay in integer micro-USD.
         payload.provider = {
           ...(payload.provider as Record<string, unknown> | undefined),
-          max_price: {
-            prompt: Number(bounds.inputMicroUsdPerMillion) / 1_000_000,
-            completion: Number(bounds.outputMicroUsdPerMillion) / 1_000_000,
-            request: 0,
-          },
+          max_price: openRouterPriceCeiling(bounds),
         };
       }
       if (path.endsWith('count_tokens')) return;

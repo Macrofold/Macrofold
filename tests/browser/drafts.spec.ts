@@ -8,29 +8,29 @@ test('preserves an unsaved draft across focus, rejects stale save, and explicitl
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   const headers = () => ({ Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() });
-  const created = await page.request.post('/v1/projects', {
+  const created = await page.request.post('/v1/workspaces', {
     headers: headers(),
     data: { name: 'Draft preservation ' + Date.now() },
   });
   expect(created.ok()).toBeTruthy();
-  const project = await created.json();
-  const fileURL = `/v1/workspaces/${project.default_workspace_id}/file?path=draft.txt`;
-  const workspace = await (await page.request.get(`/v1/workspaces/${project.default_workspace_id}`)).json();
+  const workspace = await created.json();
+  const fileURL = `/v1/worktrees/${workspace.default_worktree_id}/file?path=draft.txt`;
+  const worktree = await (await page.request.get(`/v1/worktrees/${workspace.default_worktree_id}`)).json();
   expect(
     (
       await page.request.put(fileURL, {
-        headers: { ...headers(), 'Content-Type': 'application/octet-stream', 'If-Match': workspace.revision },
+        headers: { ...headers(), 'Content-Type': 'application/octet-stream', 'If-Match': worktree.revision },
         data: 'Original saved text',
       })
     ).ok(),
   ).toBeTruthy();
-  await page.goto(`/projects/${project.id}`);
+  await page.goto(`/workspaces/${workspace.id}`);
   const editor = page.locator('.cm-content');
   await expect(editor).toContainText('Original saved text');
   await editor.fill('My unsaved local draft');
   await expect(page.getByRole('button', { name: 'New run', exact: true })).toBeDisabled();
   await expect(page.getByRole('combobox', { name: 'Active worktree' })).toBeDisabled();
-  const current = await (await page.request.get(`/v1/workspaces/${project.default_workspace_id}`)).json();
+  const current = await (await page.request.get(`/v1/worktrees/${workspace.default_worktree_id}`)).json();
   expect(
     (
       await page.request.put(fileURL, {
@@ -46,7 +46,7 @@ test('preserves an unsaved draft across focus, rejects stale save, and explicitl
   await expect(page.locator('[data-sonner-toast]').filter({ hasText: /revision|changed/i })).toBeVisible();
   await expect(editor).toContainText('My unsaved local draft');
   page.once('dialog', (dialog) => dialog.dismiss());
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
   await expect(editor).toContainText('My unsaved local draft');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Discard', exact: true }).click();
@@ -60,13 +60,13 @@ test('debounces autosave, keeps newer typing during a pending save, and shows Sa
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
-  const created = await page.request.post('/v1/projects', {
+  const created = await page.request.post('/v1/workspaces', {
     headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     data: { name: 'Autosave ' + randomUUID() },
   });
   expect(created.ok()).toBeTruthy();
-  const project = await created.json();
-  await page.goto(`/projects/${project.id}`);
+  const workspace = await created.json();
+  await page.goto(`/workspaces/${workspace.id}`);
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'File path' }).fill('autosave.txt');
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
@@ -111,7 +111,7 @@ test('debounces autosave, keeps newer typing during a pending save, and shows Sa
     await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible();
     expect(writes).toEqual(['Second draft', 'Typed while saving']);
     const saved = await page.request.get(
-      `/v1/workspaces/${project.default_workspace_id}/file?path=autosave.txt`,
+      `/v1/worktrees/${workspace.default_worktree_id}/file?path=autosave.txt`,
     );
     expect(await saved.text()).toBe('Typed while saving');
     await editor.fill('Recovered after interruption');
@@ -125,7 +125,7 @@ test('debounces autosave, keeps newer typing during a pending save, and shows Sa
     expect(writes).toHaveLength(4);
     expect(recoveryKeys[3]).toBe(recoveryKeys[2]);
     const recovered = await page.request.get(
-      `/v1/workspaces/${project.default_workspace_id}/file?path=autosave.txt`,
+      `/v1/worktrees/${workspace.default_worktree_id}/file?path=autosave.txt`,
     );
     expect(await recovered.text()).toBe('Recovered after interruption');
     await page.screenshot({ path: 'test-results/file-autosave-saved.png', fullPage: true });
@@ -134,9 +134,9 @@ test('debounces autosave, keeps newer typing during a pending save, and shows Sa
     await page.unrouteAll({ behavior: 'wait' });
   }
   await page.clock.resume();
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await expect(page).toHaveURL(/\/projects$/);
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await expect(page).toHaveURL(/\/workspaces$/);
   await page.goBack();
-  await expect(page).toHaveURL(`/projects/${project.id}`);
+  await expect(page).toHaveURL(`/workspaces/${workspace.id}`);
   await expect(editor).toContainText('Recovered after interruption');
 });

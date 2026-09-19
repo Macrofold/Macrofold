@@ -19,9 +19,9 @@ it('migrates explicit sharing and tool ceilings without touching credential iden
   expect(new URL(config.ownerDatabaseUrl).pathname).toMatch(/^\/platform_test_[a-f0-9]+$/);
   const account = await fixtureAccount('Migration fixture');
   const accepted = await transaction(account.p.organizationId, async (tx) => {
-    const project = await resources.create(tx, 'projects', account.p.organizationId, { name: 'History' });
+    const workspace = await resources.create(tx, 'workspaces', account.p.organizationId, { name: 'History' });
     return admitRun(tx, account.p, {
-      project_id: project.id,
+      workspace_id: workspace.id,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
@@ -36,6 +36,7 @@ it('migrates explicit sharing and tool ceilings without touching credential iden
       .rows[0];
     const sessionBefore = (await owner.query('SELECT data FROM sessions WHERE id=$1', [accepted.session_id]))
       .rows[0];
+    await owner.query('ALTER TABLE workspaces RENAME TO projects');
     await owner.query('DROP TABLE connection_access_rules');
     await owner.query(
       'ALTER TABLE connections DROP COLUMN access_organization_wide, DROP COLUMN access_tools, DROP COLUMN access_version',

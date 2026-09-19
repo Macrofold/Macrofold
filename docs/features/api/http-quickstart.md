@@ -1,14 +1,14 @@
 # HTTP quickstart
 
-Create a project, start a run, and read its result with cURL. Use a local simulator for a free first request or an authorized deployment for real agent execution.
+Create a workspace, start a run, and read its result with cURL. Use a local simulator for a free first request or an authorized deployment for real agent execution.
 
 ## Prefer an SDK?
 
-The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a project, and explicit harness/model configuration. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; streams reconnect automatically.
+The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a workspace, and explicit harness/model configuration. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; streams reconnect automatically.
 
 ## Before you begin
 
-You need cURL, [jq](https://jqlang.org/), `uuidgen`, and an API key created in the dashboard's **API keys** page. Grant project and run read/write scopes for this example. Store the key as `AGENT_API_KEY` using your shell or secret manager.
+You need cURL, [jq](https://jqlang.org/), `uuidgen`, and an API key created in the dashboard's **API keys** page. Grant workspace and run read/write scopes for this example. Store the key as `AGENT_API_KEY` using your shell or secret manager.
 
 Set the service origin and check access. Use your deployment's HTTPS origin instead of localhost for hosted work.
 
@@ -18,18 +18,18 @@ curl --fail-with-body "$AGENT_HOST/v1/me" \
   -H "Authorization: Bearer $AGENT_API_KEY"
 ```
 
-## 1. Create a project
+## 1. Create a workspace
 
 ```sh
-export PROJECT_REQUEST_KEY="$(uuidgen)"
-PROJECT_ID=$(curl --fail-with-body "$AGENT_HOST/v1/projects" \
+export WORKSPACE_REQUEST_KEY="$(uuidgen)"
+WORKSPACE_ID=$(curl --fail-with-body "$AGENT_HOST/v1/workspaces" \
   -H "Authorization: Bearer $AGENT_API_KEY" \
-  -H "Idempotency-Key: $PROJECT_REQUEST_KEY" \
+  -H "Idempotency-Key: $WORKSPACE_REQUEST_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"name":"Research","persistence":"persistent"}' | jq -er '.id')
 ```
 
-The returned ID identifies the project. Reuse this request key and body if the response is lost; keep the same terminal environment for the steps below.
+The returned ID identifies the workspace. Reuse this request key and body if the response is lost; keep the same terminal environment for the steps below.
 
 ## 2. Choose a model
 
@@ -50,9 +50,9 @@ For a hosted run, replace that value with an enabled model ID and add prepaid cr
 
 ```sh
 export RUN_REQUEST_KEY="$(uuidgen)"
-RUN_ID=$(jq -n --arg project "$PROJECT_ID" --arg model "$AGENT_MODEL" \
-  '{project_id:$project,harness:"codex",model:$model,billing_mode:"managed",
-    prompt:"Read the project and save a short progress note.",
+RUN_ID=$(jq -n --arg workspace "$WORKSPACE_ID" --arg model "$AGENT_MODEL" \
+  '{workspace_id:$workspace,harness:"codex",model:$model,billing_mode:"managed",
+    prompt:"Read the workspace and save a short progress note.",
     limits:{timeout_seconds:300,max_cost_micro_usd:"1000000"}}' | \
   curl --fail-with-body "$AGENT_HOST/v1/runs" \
     -H "Authorization: Bearer $AGENT_API_KEY" \
@@ -76,4 +76,4 @@ A cURL stream can end at the server's connection rotation before the run finishe
 
 ## Continue building
 
-Use a workspace or session selector for work over existing files and conversations. Learn [authentication and retries](conventions.md), [event delivery](events.md), and [CLI workflows](../cli/README.md). The [OpenAPI contract](../../api/openapi.json) lists every operation and schema.
+Use a worktree or session selector for work over existing files and conversations. Learn [authentication and retries](conventions.md), [event delivery](events.md), and [CLI workflows](../cli/README.md). The [OpenAPI contract](../../api/openapi.json) lists every operation and schema.

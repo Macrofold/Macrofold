@@ -5,11 +5,11 @@ import { createHash } from 'node:crypto';
 test('dashboard stages a large upload and downloads byte-identical checkpoint content', async ({ page }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
   const name = 'Browser uploads ' + Date.now();
-  await page.getByLabel('Project name').fill(name);
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByLabel('Workspace name').fill(name);
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await page.getByRole('button', { name: 'Upload files', exact: true }).click();
   const bytes = Buffer.alloc(6 * 1024 * 1024, 23);

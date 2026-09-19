@@ -57,7 +57,7 @@ export function FeatureDiagram({ stage, style }: { stage: number; style: Diagram
     <figure ref={ref} className={`hp-diagram hp-diagram-${style}`} data-stage={stage} data-visible={visible}>
       <div className="hp-diagram-bar">
         <span>
-          <i /> project / acme
+          <i /> workspace / acme
         </span>
         <span>Illustration</span>
       </div>
@@ -87,14 +87,14 @@ export function FeatureDiagram({ stage, style }: { stage: number; style: Diagram
           })}
         </g>
 
-        <g className="hp-project-shape" style={{ transform: `translate(${root.x}px, ${root.y}px)` }}>
+        <g className="hp-workspace-shape" style={{ transform: `translate(${root.x}px, ${root.y}px)` }}>
           {style === 'layers' && (
             <>
               <rect x="10" y="-13" width="216" height="110" rx="9" className="hp-layer-back" />
               <rect x="5" y="-6" width="216" height="110" rx="9" className="hp-layer-back" />
             </>
           )}
-          <rect width="216" height="110" rx="8" fill={`url(#${id}-panel)`} className="hp-project-border" />
+          <rect width="216" height="110" rx="8" fill={`url(#${id}-panel)`} className="hp-workspace-border" />
           <path d="M18 20h18l7 8h20v21H18z" className="hp-folder-glyph" />
           <text x="77" y="40" className="hp-diagram-title">
             acme /
@@ -205,7 +205,7 @@ export function FeatureDiagram({ stage, style }: { stage: number; style: Diagram
         </g>
         {style === 'terminal' && (
           <text x="24" y="555" className="hp-terminal-caption">
-            acme / {step.id} · hosted workspace
+            acme / {step.id} · hosted worktree
           </text>
         )}
       </svg>
@@ -222,8 +222,8 @@ export function FeatureDiagram({ stage, style }: { stage: number; style: Diagram
             </div>
             <p aria-live="polite">
               {stage === 4
-                ? `${route.name} → ${route.target} workspaces`
-                : 'Choose an interface. The hosted project stays the same.'}
+                ? `${route.name} → ${route.target} worktrees`
+                : 'Choose an interface. The hosted workspace stays the same.'}
             </p>
           </>
         ) : (
@@ -231,8 +231,8 @@ export function FeatureDiagram({ stage, style }: { stage: number; style: Diagram
             {stage === 0
               ? 'Files and instructions, in a working directory.'
               : stage === 1
-                ? 'Independent workspaces · one writer in each'
-                : 'Checkpoint history belongs to each workspace.'}
+                ? 'Independent worktrees · one writer in each'
+                : 'Checkpoint history belongs to each worktree.'}
           </p>
         )}
       </figcaption>

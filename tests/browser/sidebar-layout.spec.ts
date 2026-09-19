@@ -10,12 +10,12 @@ async function signIn(page: Page) {
 }
 
 async function expectWidth(page: Page, width: number) {
-  await expect(page.locator('#workspace-sidebar')).toHaveCSS('width', `${width}px`);
+  await expect(page.locator('#worktree-sidebar')).toHaveCSS('width', `${width}px`);
   await expect(page.locator('.main-shell')).toHaveCSS('margin-left', `${width}px`);
 }
 
 async function expectClosedMobileNavigation(page: Page) {
-  const sidebar = page.locator('#workspace-sidebar');
+  const sidebar = page.locator('#worktree-sidebar');
   const opener = page.getByRole('button', { name: 'Open navigation', exact: true });
   await expect(sidebar).toHaveJSProperty('inert', true);
   await expect(opener).toHaveAttribute('aria-expanded', 'false');
@@ -26,7 +26,7 @@ async function expectClosedMobileNavigation(page: Page) {
     const { root } = await session.send('DOM.getDocument');
     const { nodeId } = await session.send('DOM.querySelector', {
       nodeId: root.nodeId,
-      selector: '#workspace-navigation',
+      selector: '#worktree-navigation',
     });
     expect(nodeId).toBeGreaterThan(0);
     await expect
@@ -43,7 +43,7 @@ async function expectClosedMobileNavigation(page: Page) {
   }
 
   await opener.focus();
-  await sidebar.getByRole('link', { name: 'Projects', exact: true, includeHidden: true }).focus();
+  await sidebar.getByRole('link', { name: 'Workspaces', exact: true, includeHidden: true }).focus();
   await expect(opener).toBeFocused();
   await opener.press('Shift+Tab');
   await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused();
@@ -89,14 +89,14 @@ test('navigation collapse keeps labeled links, keyboard tooltips and account con
   await expectWidth(page, 64);
   await expect(page.getByRole('separator', { name: 'Resize navigation', exact: true })).toHaveCount(0);
 
-  const projects = page
+  const workspaces = page
     .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('link', { name: 'Projects', exact: true });
-  await projects.focus();
-  await expect(page.getByRole('tooltip', { name: 'Projects', exact: true })).toBeVisible();
-  await projects.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
-  await expect(projects).toHaveAttribute('aria-current', 'page');
+    .getByRole('link', { name: 'Workspaces', exact: true });
+  await workspaces.focus();
+  await expect(page.getByRole('tooltip', { name: 'Workspaces', exact: true })).toBeVisible();
+  await workspaces.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Workspaces', exact: true })).toBeVisible();
+  await expect(workspaces).toHaveAttribute('aria-current', 'page');
   await expectWidth(page, 64);
   await page.reload();
   await expectWidth(page, 64);
@@ -189,15 +189,15 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.locator('.main-shell')).toHaveCSS('margin-left', '0px');
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
     await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-    await expect(page.locator('#workspace-sidebar')).toHaveJSProperty('inert', false);
-    await expect(page.locator('#workspace-sidebar')).toHaveCSS('width', '234px');
-    await expect(page.locator('#workspace-sidebar')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+    await expect(page.locator('#worktree-sidebar')).toHaveJSProperty('inert', false);
+    await expect(page.locator('#worktree-sidebar')).toHaveCSS('width', '234px');
+    await expect(page.locator('#worktree-sidebar')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
     await expect(page.locator('.sidebar-collapse')).toBeHidden();
     await expect(page.getByRole('separator', { name: 'Resize navigation', exact: true })).toHaveCount(0);
     await expect(
       page
         .getByRole('navigation', { name: 'Main navigation' })
-        .getByRole('link', { name: 'Projects', exact: true }),
+        .getByRole('link', { name: 'Workspaces', exact: true }),
     ).toBeVisible();
     const account = page.getByRole('button', { name: 'Account menu', exact: true });
     const box = await account.boundingBox();
@@ -215,7 +215,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expectClosedMobileNavigation(page);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expectWidth(page, 64);
-    await expect(page.locator('#workspace-sidebar')).toHaveJSProperty('inert', false);
+    await expect(page.locator('#worktree-sidebar')).toHaveJSProperty('inert', false);
     await expect(page.getByRole('button', { name: 'Expand navigation', exact: true })).toBeVisible();
   });
 }

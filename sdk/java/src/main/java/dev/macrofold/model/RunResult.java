@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.ErrorDetail;
+import dev.macrofold.model.InferenceReceipt;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,7 +51,8 @@ import dev.macrofold.ApiClient;
   RunResult.JSON_PROPERTY_PERSISTENCE_STATUS,
   RunResult.JSON_PROPERTY_ERROR,
   RunResult.JSON_PROPERTY_CONTENT_EXPIRED,
-  RunResult.JSON_PROPERTY_CONTENT_EXPIRED_AT
+  RunResult.JSON_PROPERTY_CONTENT_EXPIRED_AT,
+  RunResult.JSON_PROPERTY_INFERENCE
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunResult {
@@ -97,6 +99,10 @@ public class RunResult {
   public static final String JSON_PROPERTY_CONTENT_EXPIRED_AT = "content_expired_at";
   @javax.annotation.Nullable
   private OffsetDateTime contentExpiredAt;
+
+  public static final String JSON_PROPERTY_INFERENCE = "inference";
+  @javax.annotation.Nullable
+  private InferenceReceipt inference;
 
   public RunResult() { 
   }
@@ -381,6 +387,30 @@ public class RunResult {
   }
 
 
+  public RunResult inference(@javax.annotation.Nullable InferenceReceipt inference) {
+    this.inference = inference;
+    return this;
+  }
+
+  /**
+   * Get inference
+   * @return inference
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_INFERENCE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public InferenceReceipt getInference() {
+    return inference;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_INFERENCE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setInference(@javax.annotation.Nullable InferenceReceipt inference) {
+    this.inference = inference;
+  }
+
+
   /**
    * Return true if this RunResult object is equal to o.
    */
@@ -403,12 +433,13 @@ public class RunResult {
         Objects.equals(this.persistenceStatus, runResult.persistenceStatus) &&
         Objects.equals(this.error, runResult.error) &&
         Objects.equals(this.contentExpired, runResult.contentExpired) &&
-        Objects.equals(this.contentExpiredAt, runResult.contentExpiredAt);
+        Objects.equals(this.contentExpiredAt, runResult.contentExpiredAt) &&
+        Objects.equals(this.inference, runResult.inference);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, _final, outputText, structuredOutput, artifactIds, checkpointId, executionOutcome, persistenceStatus, error, contentExpired, contentExpiredAt);
+    return Objects.hash(runId, _final, outputText, structuredOutput, artifactIds, checkpointId, executionOutcome, persistenceStatus, error, contentExpired, contentExpiredAt, inference);
   }
 
   @Override
@@ -426,6 +457,7 @@ public class RunResult {
     sb.append("    error: ").append(toIndentedString(error)).append("\n");
     sb.append("    contentExpired: ").append(toIndentedString(contentExpired)).append("\n");
     sb.append("    contentExpiredAt: ").append(toIndentedString(contentExpiredAt)).append("\n");
+    sb.append("    inference: ").append(toIndentedString(inference)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -533,6 +565,11 @@ public class RunResult {
     // add `content_expired_at` to the URL query string
     if (getContentExpiredAt() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%scontent_expired_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getContentExpiredAt()))));
+    }
+
+    // add `inference` to the URL query string
+    if (getInference() != null) {
+      joiner.add(getInference().toUrlQueryString(prefix + "inference" + suffix));
     }
 
     return joiner.toString();

@@ -1,0 +1,76 @@
+name: Release verified source to staging
+on:
+  workflow_run:
+    workflows: [Verify without paid providers]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: staging-release
+  cancel-in-progress: false # Never interrupt a migration or partially completed deployment.
+jobs:
+  release:
+    if: >-
+      vars.STAGING_RELEASE_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    environment: staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      PRODUCTION_PROJECT_ID: ${{ vars.PRODUCTION_PROJECT_ID }}
+      VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+      VERCEL_PROJECT_NAME: ${{ vars.VERCEL_PROJECT_NAME }}
+      STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN }}
+      DOCKER_RUNTIME_IMAGE: platform-runtime:release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Build the exact runtime artifact and test without cloud credentials
+        run: |
+          docker build --platform linux/amd64 -f infra/runtime.Dockerfile -t platform-runtime:release .
+          pnpm test:native --image-only
+          pnpm test:native codex claude-code --media --image-only
+      - uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          version: v0.74.0
+          image-ref: platform-runtime:release
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Migrate, prepare, verify and promote isolated staging
+        run: pnpm exec tsx scripts/release-staging.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+          APP_ORIGIN: ${{ vars.STAGING_ORIGIN }}
+          PLATFORM_MODE: production
+          EXECUTION_PROVIDER: vercel
+          ALLOW_PAID_EXECUTION: 'false'
+      - name: Release receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-release-${{ github.event.workflow_run.head_sha }}
+          path: staging-release.json
+          retention-days: 30

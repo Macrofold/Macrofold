@@ -6,7 +6,7 @@ The **Unified Harness Interface (UHI)** connects native agent harnesses to Macro
 
 ## How it works
 
-The API authorizes and admits a run. The shared scheduler and phase engine prepare a sandbox and restore its workspace. The native worker selects the harness adapter, which starts the upstream runtime and translates its events and result. Macrofold then verifies and publishes the checkpoint.
+The API authorizes and admits a run. The shared scheduler and phase engine prepare a sandbox and restore its worktree. The native worker selects the harness adapter, which starts the upstream runtime and translates its events and result. Macrofold then verifies and publishes the checkpoint.
 
 The adapter owns native startup, model/tool configuration, event translation, conversation continuation, and native cancellation. Macrofold owns authorization, scheduling, financial reservations, execution identity, process supervision, checkpoint publication, and historical replay. A new adapter reuses those systems.
 
@@ -18,7 +18,7 @@ The authoritative types are in [runtime types](../../../packages/runtime/src/typ
 
 | Contract | Responsibility |
 | --- | --- |
-| `configuration` | Use the accepted prompt, instructions, model, workspace, native state directory, gateway URLs, run capability, deadline, and optional resume ID. |
+| `configuration` | Use the accepted prompt, instructions, model, worktree, native state directory, gateway URLs, run capability, deadline, and optional resume ID. |
 | `signal` | Honor cancellation during startup and execution; release listeners, SDK resources, and child processes. The supervisor also enforces process shutdown and deadlines. |
 | `emit(event)` | Publish normalized assistant text, tool activity, and native session identity. Await or drain pending events before returning; propagate delivery failures. |
 | `ask(id, question, details)` | Request user input through the existing control channel when the harness needs it. Handle cancellation while waiting. |
@@ -26,7 +26,7 @@ The authoritative types are in [runtime types](../../../packages/runtime/src/typ
 
 Emit `runtime.started` with `harness` and `native_session_id`, `output.delta` with new assistant text, and `tool.started` / `tool.completed` with stable tool-call identities. Keep tool failures distinct from successful results. Do not publish secrets or private reasoning. Follow the existing adapters and [event contract](../api/events.md); the supervisor and database assign replay sequences.
 
-A requested continuation must restore its native conversation. Missing or invalid state must fail clearly instead of running the prompt as a new session. Keep project files in the provided workspace and native conversation state in the provided state directory. Native execution success does not establish checkpoint success.
+A requested continuation must restore its native conversation. Missing or invalid state must fail clearly instead of running the prompt as a new session. Keep workspace files in the provided worktree and native conversation state in the provided state directory. Native execution success does not establish checkpoint success.
 
 ## Contribute a harness
 

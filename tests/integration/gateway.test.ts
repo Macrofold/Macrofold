@@ -1,15 +1,19 @@
+import { readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { auth, customerScopes, type Principal } from '../../packages/core/src/auth';
 import { config } from '../../packages/core/src/config';
 import { pool, authPool, transaction } from '../../packages/db';
-import { id } from '../../packages/core/src/crypto';
+import { id, sha256, unseal } from '../../packages/core/src/crypto';
+import { encryptModelBody, modelTransport } from '../../packages/contracts/model-transport';
+import { storage } from '../../packages/providers/src/storage';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import { admitRun, getRun } from '../../packages/core/src/runs';
 import { handleModelRequest } from '../../packages/core/src/model-gateway';
 import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { saveConnection } from '../../packages/core/src/connections';
+import * as tracing from '../../packages/core/src/tracing';
 
 let p: Principal;
 const original = { ...config };
@@ -51,7 +55,7 @@ beforeAll(async () => {
     role: 'owner',
     kind: 'user',
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
     operator: false,
   };
   await transaction(org, (tx) => credit(tx, org, 100_000_000n, `fixture:${id()}`));
@@ -74,12 +78,12 @@ afterAll(async () => {
 });
 async function prepared() {
   const runId = await transaction(p.organizationId, async (tx) => {
-    const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Gateway fixture' });
-    const workspace = (await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' })).result as {
-      workspace_id: string;
+    const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Gateway fixture' });
+    const worktree = (await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' })).result as {
+      worktree_id: string;
     };
     const run = await admitRun(tx, p, {
-      workspace_id: workspace.workspace_id,
+      worktree_id: worktree.worktree_id,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',
@@ -128,9 +132,43 @@ async function prepared() {
       runId,
       path,
     );
-  return { runId, fetch, call };
+  return { runId, token, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it('traces the actual streamed input/output and committed charges without forwarding credentials', async () => {
+    const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+    vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+    const s = await prepared();
+    s.fetch.mockResolvedValue(new Response([
+      'data: {"type":"response.output_text.delta","delta":"A traced answer"}',
+      'data: {"type":"response.completed","response":{"id":"response-fixture","output":[{"text":"A traced answer"}],"usage":{"input_tokens":11,"output_tokens":3}}}',
+      'data: [DONE]', '',
+    ].join('\n')));
+    const response = await s.call();
+    expect(response.status).toBe(200);
+    await response.text();
+    await vi.waitFor(() => expect(trace.mock.calls.some(([o]) => o.type === 'generation')).toBe(true));
+    const generation = trace.mock.calls.map(([o]) => o).find(o => o.type === 'generation')!;
+    expect(generation).toMatchObject({ input:{input:'A local fixture'}, output:{id:'response-fixture'},
+      chargedMicroUsd:'17', context:{run_id:s.runId,organization_id:p.organizationId,billing_mode:'managed'},
+      metadata:{budget_cost_micro_usd:'17',provisional:false},usage:{input:11,output:3,complete:true} });
+    expect(JSON.stringify(trace.mock.calls)).not.toContain('fixture-key-no-provider-account');
+    expect(generation.context.workspace_id).toBeTruthy();
+    expect(generation.context.worktree_id).toBeTruthy();
+  });
+  it('records rejected and interrupted requests without claiming complete usage', async () => {
+    const trace = vi.spyOn(tracing,'recordTrace').mockImplementation(() => {});
+    vi.spyOn(tracing,'tracingEnabled').mockReturnValue(true);
+    const s = await prepared();
+    s.fetch.mockResolvedValueOnce(new Response('provider secret',{status:429}));
+    expect((await s.call({stream:false})).status).toBe(429);
+    expect(trace.mock.calls.map(([o])=>o).find(o=>o.type==='generation')).toMatchObject({level:'ERROR',chargedMicroUsd:'0',output:{http_status:429}});
+    trace.mockClear();
+    s.fetch.mockRejectedValueOnce(new Error('Bearer hidden-provider-secret'));
+    expect((await s.call()).status).toBeGreaterThanOrEqual(400);
+    expect(trace.mock.calls.map(([o])=>o).find(o=>o.type==='generation')).toMatchObject({level:'ERROR',metadata:{provisional:true},usage:{complete:false}});
+    expect(JSON.stringify(trace.mock.calls)).not.toContain('hidden-provider-secret');
+  });
   it.each(['openai', 'anthropic', 'openrouter'])(
     'uses encrypted %s BYOK credentials and refuses local revocation without managed fallback',
     async (provider) => {
@@ -613,4 +651,161 @@ describe('model gateway metering without provider calls', () => {
     );
     expect(breaker.rowCount).toBe(1);
   });
+});
+
+it.each(['openai', 'anthropic'])(
+  'reserves native %s image requests and settles actual image usage without outbound network',
+  async (provider) => {
+    const s = await prepared();
+    const selected = provider === 'openai' ? 'gpt-5.4-mini' : 'claude-sonnet-4-6';
+    await transaction(p.organizationId, (tx) =>
+      tx.query('UPDATE runs SET config=config||$2::jsonb WHERE id=$1', [
+        s.runId,
+        JSON.stringify({
+          harness: provider === 'openai' ? 'codex' : 'claude-code',
+          model: selected,
+          rate_card: { ...model, id: selected, provider },
+        }),
+      ]),
+    );
+    process.env.ANTHROPIC_API_KEY = 'fixture-no-provider-account';
+    const data = (await readFile('tests/fixtures/media/pixel.png')).toString('base64');
+    const content =
+      provider === 'openai'
+        ? {
+            input: [
+              {
+                role: 'user',
+                content: [{ type: 'input_image', image_url: `data:image/png;base64,${data}` }],
+              },
+            ],
+          }
+        : {
+            messages: [
+              {
+                role: 'user',
+                content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data } }],
+              },
+            ],
+          };
+    s.fetch.mockImplementation(async () => {
+      const pending = await transaction(p.organizationId, (tx) =>
+        tx.query('SELECT model_reserved_micro_usd FROM runs WHERE id=$1', [s.runId]),
+      );
+      expect(BigInt(pending.rows[0].model_reserved_micro_usd)).toBeGreaterThan(32768n);
+      return Response.json(
+        provider === 'openai'
+          ? { usage: { input_tokens: 1200, output_tokens: 3 } }
+          : { type: 'message', usage: { input_tokens: 1200, output_tokens: 3 } },
+      );
+    });
+    const response = await s.call(
+      { model: selected, stream: false, ...content },
+      provider === 'openai' ? 'v1/responses' : 'v1/messages',
+    );
+    expect(response.status).toBe(200);
+    const saved = await transaction(p.organizationId, (tx) =>
+      tx.query('SELECT model_reserved_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [s.runId]),
+    );
+    expect(saved.rows[0]).toEqual({ model_reserved_micro_usd: '0', budget_used_micro_usd: '1206' });
+    s.fetch.mockClear();
+    await transaction(p.organizationId, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{limits,max_cost_micro_usd}','\"1\"') WHERE id=$1", [
+        s.runId,
+      ]),
+    );
+    expect(
+      (
+        await s.call(
+          { model: selected, stream: false, ...content },
+          provider === 'openai' ? 'v1/responses' : 'v1/messages',
+        )
+      ).status,
+    ).toBe(402);
+    expect(s.fetch).not.toHaveBeenCalled();
+  },
+);
+
+// Exercise the same gateway admission/metering with object staging, without any real provider.
+describe('encrypted model request staging', () => {
+  async function staged() {
+    const s = await prepared();
+    const bytes = Buffer.from(JSON.stringify({ model: model.id, input: 'fixture', max_output_tokens: 100 }));
+    const request = (path: string, body: string | undefined, token = s.token, upload?: string) =>
+      handleModelRequest(
+        new Request(`https://fixture.invalid/runtime/runs/${s.runId}/model/${path}`, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${token}`,
+            'content-type': 'application/json',
+            ...(upload ? { [modelTransport.uploadHeader]: upload } : {}),
+          },
+          body,
+        }),
+        s.runId,
+        path,
+      );
+    const planned = await request(
+      '_uploads',
+      JSON.stringify({ size: bytes.length, sha256: sha256(bytes), path: 'v1/responses' }),
+    );
+    expect(planned.status, await planned.clone().text()).toBe(200);
+    const grant = await planned.json();
+    const claim = unseal<{ key: string }>(grant.token);
+    const encrypted = Buffer.from(
+      await encryptModelBody(
+        new Uint8Array(bytes),
+        new Uint8Array(Buffer.from(grant.encryption_key, 'base64')),
+      ),
+    );
+    await storage.put(claim.key, encrypted);
+    s.fetch.mockImplementation(async () => Response.json({ usage: { input_tokens: 11, output_tokens: 3 } }));
+    return { ...s, bytes, request, grant, claim, encrypted };
+  }
+  it('consumes staged bytes through ordinary admission, meters once and removes the transient object', async () => {
+    const s = await staged();
+    const response = await s.request('v1/responses', undefined, s.token, s.grant.token);
+    expect(response.status, await response.clone().text()).toBe(200);
+    await response.text();
+    expect(s.fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(s.fetch.mock.calls[0][1]?.body)).input).toBe('fixture');
+    await expect(storage.get(s.claim.key)).rejects.toThrow();
+    expect((await s.request('v1/responses', undefined, s.token, s.grant.token)).status).toBe(400);
+    expect(s.fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each(['corrupt', 'missing', 'wrong-endpoint', 'wrong-lease', 'inline-body', 'revoked'] as const)(
+    'rejects %s before contacting or charging the model provider',
+    async (failure) => {
+      const s = await staged();
+      if (failure === 'corrupt') {
+        s.encrypted[20] ^= 1;
+        await storage.put(s.claim.key, s.encrypted);
+      }
+      if (failure === 'missing') await storage.delete(s.claim.key);
+      if (failure === 'revoked')
+        await pool.query("UPDATE memberships SET role='viewer' WHERE user_id=$1", [p.userId]);
+      const token =
+        failure === 'wrong-lease'
+          ? runtimeToken({
+              organization: p.organizationId,
+              run: s.runId,
+              lease: '2',
+              expires: Date.now() + 60000,
+            })
+          : s.token;
+      const response = await s.request(
+        failure === 'wrong-endpoint' ? 'v1/messages' : 'v1/responses',
+        failure === 'inline-body' ? '{}' : undefined,
+        token,
+        s.grant.token,
+      );
+      expect(response.ok).toBe(false);
+      expect(s.fetch).not.toHaveBeenCalled();
+      expect(
+        (await pool.query('SELECT count(*)::int AS n FROM gateway_requests WHERE run_id=$1', [s.runId]))
+          .rows[0].n,
+      ).toBe(0);
+      await storage.delete(s.claim.key);
+    },
+  );
 });

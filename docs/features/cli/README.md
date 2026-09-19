@@ -1,8 +1,8 @@
 # Terminal CLI
 
-Work in your local terminal while the agent and its files run remotely. Link a project, stream a task, continue a conversation, and transfer files when you choose.
+Work in your local terminal while the agent and its files run remotely. Link a workspace, stream a task, continue a conversation, and transfer files when you choose.
 
-Use the same commands with [Macrofold Cloud](../../cloud/README.md) or a [self-hosted deployment](../../operations/README.md). Login to the origin that owns your projects and credentials.
+Use the same commands with [Macrofold Cloud](../../cloud/README.md) or a [self-hosted deployment](../../operations/README.md). Login to the origin that owns your workspaces and credentials.
 
 ## Install and connect
 
@@ -11,8 +11,8 @@ The CLI requires Node 24 and supports macOS and Linux. Follow the [CLI installat
 ```sh
 macrofold --help
 macrofold login --host https://YOUR_MACROFOLD_ORIGIN
-macrofold project list
-macrofold link PROJECT_ID
+macrofold workspace list
+macrofold link WORKSPACE_ID
 macrofold doctor
 ```
 
@@ -24,7 +24,7 @@ Contributors can use `pnpm cli` from the repository root instead of installing t
 
 ```sh
 macrofold chat --harness codex --model YOUR_ENABLED_MODEL
-macrofold run "Review the project and save a progress note" --harness codex --model YOUR_ENABLED_MODEL
+macrofold run "Review the workspace and save a progress note" --harness codex --model YOUR_ENABLED_MODEL
 macrofold run attach RUN_ID
 ```
 
@@ -41,7 +41,7 @@ macrofold files list
 macrofold git status
 ```
 
-A remote worktree is an independent workspace and branch. It does not create a local checkout. Use `worktree checkout NAME --local PATH` explicitly when you want a verified local Git worktree for review.
+A remote worktree is an independent worktree and branch. It does not create a local checkout. Use `worktree checkout NAME --local PATH` explicitly when you want a verified local Git worktree for review.
 
 ## Transfer files deliberately
 
@@ -70,6 +70,6 @@ For the full command table, selectors, exit codes, security boundaries, and inpu
 
 ## Connector permissions
 
-The CLI uses the same [connector access rules](../identity-integrations/connection-access.md) as dashboard and SDK runs. Provider authorization alone grants no tool access. Inherited selection resolves the linked project and saved preset; an explicit connection selection only narrows approved access. Manage access rules in Connections or through the generated SDKs. Connection changes require connections:write consent.
+The CLI uses the same [connector access rules](../identity-integrations/connection-access.md) as dashboard and SDK runs. Provider authorization alone grants no tool access. Inherited selection resolves the linked workspace and saved preset; an explicit connection selection only narrows approved access. Manage access rules in Connections or through the generated SDKs. Connection changes require connections:write consent.
 
 Connector selection inherits by default. Use `--connection CONNECTION_ID:TOOL1,TOOL2` to narrow tools or `--no-connections` to select none; both work with `--agent` and `--session`. Selection never grants access.

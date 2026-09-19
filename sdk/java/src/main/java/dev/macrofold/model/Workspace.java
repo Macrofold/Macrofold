@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -25,7 +25,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.AgentPermissions;
-import dev.macrofold.model.WorkspaceRemoteChange;
+import dev.macrofold.model.ContextualConnectionPage;
+import dev.macrofold.model.WorkspaceGithub;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.UUID;
@@ -42,22 +43,19 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Workspace.JSON_PROPERTY_ID,
-  Workspace.JSON_PROPERTY_PROJECT_ID,
   Workspace.JSON_PROPERTY_ORGANIZATION_ID,
   Workspace.JSON_PROPERTY_NAME,
-  Workspace.JSON_PROPERTY_BRANCH,
-  Workspace.JSON_PROPERTY_REVISION,
-  Workspace.JSON_PROPERTY_STATUS,
-  Workspace.JSON_PROPERTY_LATEST_CHECKPOINT_ID,
-  Workspace.JSON_PROPERTY_LAST_VERIFIED_AT,
+  Workspace.JSON_PROPERTY_PERSISTENCE,
+  Workspace.JSON_PROPERTY_GITHUB,
   Workspace.JSON_PROPERTY_CREATED_AT,
-  Workspace.JSON_PROPERTY_SOURCE_COMMIT,
-  Workspace.JSON_PROPERTY_SOURCE_CHECKPOINT_ID,
-  Workspace.JSON_PROPERTY_GIT_COMMIT,
-  Workspace.JSON_PROPERTY_GIT_STATUS,
-  Workspace.JSON_PROPERTY_GIT_ERROR,
-  Workspace.JSON_PROPERTY_REMOTE_CHANGE,
-  Workspace.JSON_PROPERTY_PERMISSIONS
+  Workspace.JSON_PROPERTY_STORAGE_BYTES,
+  Workspace.JSON_PROPERTY_ARCHIVED,
+  Workspace.JSON_PROPERTY_DEFAULT_WORKTREE_ID,
+  Workspace.JSON_PROPERTY_REVISION,
+  Workspace.JSON_PROPERTY_DELETION_DUE_AT,
+  Workspace.JSON_PROPERTY_DELETION_REQUESTED_AT,
+  Workspace.JSON_PROPERTY_PERMISSIONS,
+  Workspace.JSON_PROPERTY_CONNECTIONS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Workspace {
@@ -65,42 +63,25 @@ public class Workspace {
   @javax.annotation.Nonnull
   private UUID id;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
-  @javax.annotation.Nonnull
-  private UUID projectId;
-
   public static final String JSON_PROPERTY_ORGANIZATION_ID = "organization_id";
   @javax.annotation.Nonnull
   private UUID organizationId;
 
   public static final String JSON_PROPERTY_NAME = "name";
-  @javax.annotation.Nullable
+  @javax.annotation.Nonnull
   private String name;
 
-  public static final String JSON_PROPERTY_BRANCH = "branch";
-  private JsonNullable<String> branch = JsonNullable.<String>undefined();
-
-  public static final String JSON_PROPERTY_REVISION = "revision";
-  @javax.annotation.Nonnull
-  private String revision;
-
   /**
-   * Gets or Sets status
+   * Gets or Sets persistence
    */
-  public enum StatusEnum {
-    IDLE(String.valueOf("idle")),
+  public enum PersistenceEnum {
+    PERSISTENT(String.valueOf("persistent")),
 
-    BUSY(String.valueOf("busy")),
-
-    RESTORING(String.valueOf("restoring")),
-
-    DEGRADED(String.valueOf("degraded")),
-
-    DELETING(String.valueOf("deleting"));
+    EPHEMERAL(String.valueOf("ephemeral"));
 
     private String value;
 
-    StatusEnum(String value) {
+    PersistenceEnum(String value) {
       this.value = value;
     }
 
@@ -115,8 +96,8 @@ public class Workspace {
     }
 
     @JsonCreator
-    public static StatusEnum fromValue(String value) {
-      for (StatusEnum b : StatusEnum.values()) {
+    public static PersistenceEnum fromValue(String value) {
+      for (PersistenceEnum b : PersistenceEnum.values()) {
         if (b.value.equals(value)) {
           return b;
         }
@@ -125,82 +106,46 @@ public class Workspace {
     }
   }
 
-  public static final String JSON_PROPERTY_STATUS = "status";
+  public static final String JSON_PROPERTY_PERSISTENCE = "persistence";
   @javax.annotation.Nonnull
-  private StatusEnum status;
+  private PersistenceEnum persistence;
 
-  public static final String JSON_PROPERTY_LATEST_CHECKPOINT_ID = "latest_checkpoint_id";
-  @javax.annotation.Nullable
-  private UUID latestCheckpointId;
-
-  public static final String JSON_PROPERTY_LAST_VERIFIED_AT = "last_verified_at";
-  @javax.annotation.Nullable
-  private OffsetDateTime lastVerifiedAt;
+  public static final String JSON_PROPERTY_GITHUB = "github";
+  private JsonNullable<WorkspaceGithub> github = JsonNullable.<WorkspaceGithub>undefined();
 
   public static final String JSON_PROPERTY_CREATED_AT = "created_at";
   @javax.annotation.Nonnull
   private OffsetDateTime createdAt;
 
-  public static final String JSON_PROPERTY_SOURCE_COMMIT = "source_commit";
+  public static final String JSON_PROPERTY_STORAGE_BYTES = "storage_bytes";
   @javax.annotation.Nullable
-  private String sourceCommit;
+  private String storageBytes;
 
-  public static final String JSON_PROPERTY_SOURCE_CHECKPOINT_ID = "source_checkpoint_id";
+  public static final String JSON_PROPERTY_ARCHIVED = "archived";
   @javax.annotation.Nullable
-  private UUID sourceCheckpointId;
+  private Boolean archived;
 
-  public static final String JSON_PROPERTY_GIT_COMMIT = "git_commit";
+  public static final String JSON_PROPERTY_DEFAULT_WORKTREE_ID = "default_worktree_id";
   @javax.annotation.Nullable
-  private String gitCommit;
+  private UUID defaultWorktreeId;
 
-  /**
-   * Gets or Sets gitStatus
-   */
-  public enum GitStatusEnum {
-    READY(String.valueOf("ready")),
-
-    ATTENTION(String.valueOf("attention"));
-
-    private String value;
-
-    GitStatusEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static GitStatusEnum fromValue(String value) {
-      for (GitStatusEnum b : GitStatusEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
-    }
-  }
-
-  public static final String JSON_PROPERTY_GIT_STATUS = "git_status";
+  public static final String JSON_PROPERTY_REVISION = "revision";
   @javax.annotation.Nullable
-  private GitStatusEnum gitStatus;
+  private String revision;
 
-  public static final String JSON_PROPERTY_GIT_ERROR = "git_error";
-  private JsonNullable<String> gitError = JsonNullable.<String>undefined();
+  public static final String JSON_PROPERTY_DELETION_DUE_AT = "deletion_due_at";
+  private JsonNullable<OffsetDateTime> deletionDueAt = JsonNullable.<OffsetDateTime>undefined();
 
-  public static final String JSON_PROPERTY_REMOTE_CHANGE = "remote_change";
-  private JsonNullable<WorkspaceRemoteChange> remoteChange = JsonNullable.<WorkspaceRemoteChange>undefined();
+  public static final String JSON_PROPERTY_DELETION_REQUESTED_AT = "deletion_requested_at";
+  private JsonNullable<OffsetDateTime> deletionRequestedAt = JsonNullable.<OffsetDateTime>undefined();
 
   public static final String JSON_PROPERTY_PERMISSIONS = "permissions";
   @javax.annotation.Nullable
   private AgentPermissions permissions;
+
+  public static final String JSON_PROPERTY_CONNECTIONS = "connections";
+  @javax.annotation.Nullable
+  private ContextualConnectionPage connections;
 
   public Workspace() { 
   }
@@ -229,30 +174,6 @@ public class Workspace {
   }
 
 
-  public Workspace projectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
-    return this;
-  }
-
-  /**
-   * Get projectId
-   * @return projectId
-   */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getProjectId() {
-    return projectId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectId(@javax.annotation.Nonnull UUID projectId) {
-    this.projectId = projectId;
-  }
-
-
   public Workspace organizationId(@javax.annotation.Nonnull UUID organizationId) {
     this.organizationId = organizationId;
     return this;
@@ -277,7 +198,7 @@ public class Workspace {
   }
 
 
-  public Workspace name(@javax.annotation.Nullable String name) {
+  public Workspace name(@javax.annotation.Nonnull String name) {
     this.name = name;
     return this;
   }
@@ -286,146 +207,74 @@ public class Workspace {
    * Get name
    * @return name
    */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_NAME, required = false)
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_NAME, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public String getName() {
     return name;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_NAME, required = false)
+  @JsonProperty(value = JSON_PROPERTY_NAME, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setName(@javax.annotation.Nullable String name) {
+  public void setName(@javax.annotation.Nonnull String name) {
     this.name = name;
   }
 
 
-  public Workspace branch(@javax.annotation.Nullable String branch) {
-    this.branch = JsonNullable.<String>of(branch);
+  public Workspace persistence(@javax.annotation.Nonnull PersistenceEnum persistence) {
+    this.persistence = persistence;
     return this;
   }
 
   /**
-   * Get branch
-   * @return branch
+   * Get persistence
+   * @return persistence
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_PERSISTENCE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public PersistenceEnum getPersistence() {
+    return persistence;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PERSISTENCE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setPersistence(@javax.annotation.Nonnull PersistenceEnum persistence) {
+    this.persistence = persistence;
+  }
+
+
+  public Workspace github(@javax.annotation.Nullable WorkspaceGithub github) {
+    this.github = JsonNullable.<WorkspaceGithub>of(github);
+    return this;
+  }
+
+  /**
+   * Get github
+   * @return github
    */
   @javax.annotation.Nullable
   @JsonIgnore
-  public String getBranch() {
-        return branch.orElse(null);
+  public WorkspaceGithub getGithub() {
+        return github.orElse(null);
   }
 
-  @JsonProperty(value = JSON_PROPERTY_BRANCH, required = false)
+  @JsonProperty(value = JSON_PROPERTY_GITHUB, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public JsonNullable<String> getBranch_JsonNullable() {
-    return branch;
+  public JsonNullable<WorkspaceGithub> getGithub_JsonNullable() {
+    return github;
   }
 
-  @JsonProperty(JSON_PROPERTY_BRANCH)
-  public void setBranch_JsonNullable(JsonNullable<String> branch) {
-    this.branch = branch;
+  @JsonProperty(JSON_PROPERTY_GITHUB)
+  public void setGithub_JsonNullable(JsonNullable<WorkspaceGithub> github) {
+    this.github = github;
   }
 
-  public void setBranch(@javax.annotation.Nullable String branch) {
-    this.branch = JsonNullable.<String>of(branch);
-  }
-
-
-  public Workspace revision(@javax.annotation.Nonnull String revision) {
-    this.revision = revision;
-    return this;
-  }
-
-  /**
-   * Get revision
-   * @return revision
-   */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_REVISION, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public String getRevision() {
-    return revision;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_REVISION, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setRevision(@javax.annotation.Nonnull String revision) {
-    this.revision = revision;
-  }
-
-
-  public Workspace status(@javax.annotation.Nonnull StatusEnum status) {
-    this.status = status;
-    return this;
-  }
-
-  /**
-   * Get status
-   * @return status
-   */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_STATUS, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public StatusEnum getStatus() {
-    return status;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_STATUS, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setStatus(@javax.annotation.Nonnull StatusEnum status) {
-    this.status = status;
-  }
-
-
-  public Workspace latestCheckpointId(@javax.annotation.Nullable UUID latestCheckpointId) {
-    this.latestCheckpointId = latestCheckpointId;
-    return this;
-  }
-
-  /**
-   * Get latestCheckpointId
-   * @return latestCheckpointId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_LATEST_CHECKPOINT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getLatestCheckpointId() {
-    return latestCheckpointId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_LATEST_CHECKPOINT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLatestCheckpointId(@javax.annotation.Nullable UUID latestCheckpointId) {
-    this.latestCheckpointId = latestCheckpointId;
-  }
-
-
-  public Workspace lastVerifiedAt(@javax.annotation.Nullable OffsetDateTime lastVerifiedAt) {
-    this.lastVerifiedAt = lastVerifiedAt;
-    return this;
-  }
-
-  /**
-   * Get lastVerifiedAt
-   * @return lastVerifiedAt
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_LAST_VERIFIED_AT, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public OffsetDateTime getLastVerifiedAt() {
-    return lastVerifiedAt;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_LAST_VERIFIED_AT, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLastVerifiedAt(@javax.annotation.Nullable OffsetDateTime lastVerifiedAt) {
-    this.lastVerifiedAt = lastVerifiedAt;
+  public void setGithub(@javax.annotation.Nullable WorkspaceGithub github) {
+    this.github = JsonNullable.<WorkspaceGithub>of(github);
   }
 
 
@@ -453,163 +302,163 @@ public class Workspace {
   }
 
 
-  public Workspace sourceCommit(@javax.annotation.Nullable String sourceCommit) {
-    this.sourceCommit = sourceCommit;
+  public Workspace storageBytes(@javax.annotation.Nullable String storageBytes) {
+    this.storageBytes = storageBytes;
     return this;
   }
 
   /**
-   * Get sourceCommit
-   * @return sourceCommit
+   * Non-negative integer count as a decimal string.
+   * @return storageBytes
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SOURCE_COMMIT, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STORAGE_BYTES, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getSourceCommit() {
-    return sourceCommit;
+  public String getStorageBytes() {
+    return storageBytes;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_SOURCE_COMMIT, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STORAGE_BYTES, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSourceCommit(@javax.annotation.Nullable String sourceCommit) {
-    this.sourceCommit = sourceCommit;
+  public void setStorageBytes(@javax.annotation.Nullable String storageBytes) {
+    this.storageBytes = storageBytes;
   }
 
 
-  public Workspace sourceCheckpointId(@javax.annotation.Nullable UUID sourceCheckpointId) {
-    this.sourceCheckpointId = sourceCheckpointId;
+  public Workspace archived(@javax.annotation.Nullable Boolean archived) {
+    this.archived = archived;
     return this;
   }
 
   /**
-   * Get sourceCheckpointId
-   * @return sourceCheckpointId
+   * Get archived
+   * @return archived
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SOURCE_CHECKPOINT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_ARCHIVED, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getSourceCheckpointId() {
-    return sourceCheckpointId;
+  public Boolean getArchived() {
+    return archived;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_SOURCE_CHECKPOINT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_ARCHIVED, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSourceCheckpointId(@javax.annotation.Nullable UUID sourceCheckpointId) {
-    this.sourceCheckpointId = sourceCheckpointId;
+  public void setArchived(@javax.annotation.Nullable Boolean archived) {
+    this.archived = archived;
   }
 
 
-  public Workspace gitCommit(@javax.annotation.Nullable String gitCommit) {
-    this.gitCommit = gitCommit;
+  public Workspace defaultWorktreeId(@javax.annotation.Nullable UUID defaultWorktreeId) {
+    this.defaultWorktreeId = defaultWorktreeId;
     return this;
   }
 
   /**
-   * Get gitCommit
-   * @return gitCommit
+   * Get defaultWorktreeId
+   * @return defaultWorktreeId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_GIT_COMMIT, required = false)
+  @JsonProperty(value = JSON_PROPERTY_DEFAULT_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getGitCommit() {
-    return gitCommit;
+  public UUID getDefaultWorktreeId() {
+    return defaultWorktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_GIT_COMMIT, required = false)
+  @JsonProperty(value = JSON_PROPERTY_DEFAULT_WORKTREE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setGitCommit(@javax.annotation.Nullable String gitCommit) {
-    this.gitCommit = gitCommit;
+  public void setDefaultWorktreeId(@javax.annotation.Nullable UUID defaultWorktreeId) {
+    this.defaultWorktreeId = defaultWorktreeId;
   }
 
 
-  public Workspace gitStatus(@javax.annotation.Nullable GitStatusEnum gitStatus) {
-    this.gitStatus = gitStatus;
+  public Workspace revision(@javax.annotation.Nullable String revision) {
+    this.revision = revision;
     return this;
   }
 
   /**
-   * Get gitStatus
-   * @return gitStatus
+   * Get revision
+   * @return revision
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_GIT_STATUS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_REVISION, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public GitStatusEnum getGitStatus() {
-    return gitStatus;
+  public String getRevision() {
+    return revision;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_GIT_STATUS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_REVISION, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setGitStatus(@javax.annotation.Nullable GitStatusEnum gitStatus) {
-    this.gitStatus = gitStatus;
+  public void setRevision(@javax.annotation.Nullable String revision) {
+    this.revision = revision;
   }
 
 
-  public Workspace gitError(@javax.annotation.Nullable String gitError) {
-    this.gitError = JsonNullable.<String>of(gitError);
+  public Workspace deletionDueAt(@javax.annotation.Nullable OffsetDateTime deletionDueAt) {
+    this.deletionDueAt = JsonNullable.<OffsetDateTime>of(deletionDueAt);
     return this;
   }
 
   /**
-   * Get gitError
-   * @return gitError
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public String getGitError() {
-        return gitError.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_GIT_ERROR, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<String> getGitError_JsonNullable() {
-    return gitError;
-  }
-
-  @JsonProperty(JSON_PROPERTY_GIT_ERROR)
-  public void setGitError_JsonNullable(JsonNullable<String> gitError) {
-    this.gitError = gitError;
-  }
-
-  public void setGitError(@javax.annotation.Nullable String gitError) {
-    this.gitError = JsonNullable.<String>of(gitError);
-  }
-
-
-  public Workspace remoteChange(@javax.annotation.Nullable WorkspaceRemoteChange remoteChange) {
-    this.remoteChange = JsonNullable.<WorkspaceRemoteChange>of(remoteChange);
-    return this;
-  }
-
-  /**
-   * Get remoteChange
-   * @return remoteChange
+   * Get deletionDueAt
+   * @return deletionDueAt
    */
   @javax.annotation.Nullable
   @JsonIgnore
-  public WorkspaceRemoteChange getRemoteChange() {
-        return remoteChange.orElse(null);
+  public OffsetDateTime getDeletionDueAt() {
+        return deletionDueAt.orElse(null);
   }
 
-  @JsonProperty(value = JSON_PROPERTY_REMOTE_CHANGE, required = false)
+  @JsonProperty(value = JSON_PROPERTY_DELETION_DUE_AT, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public JsonNullable<WorkspaceRemoteChange> getRemoteChange_JsonNullable() {
-    return remoteChange;
+  public JsonNullable<OffsetDateTime> getDeletionDueAt_JsonNullable() {
+    return deletionDueAt;
   }
 
-  @JsonProperty(JSON_PROPERTY_REMOTE_CHANGE)
-  public void setRemoteChange_JsonNullable(JsonNullable<WorkspaceRemoteChange> remoteChange) {
-    this.remoteChange = remoteChange;
+  @JsonProperty(JSON_PROPERTY_DELETION_DUE_AT)
+  public void setDeletionDueAt_JsonNullable(JsonNullable<OffsetDateTime> deletionDueAt) {
+    this.deletionDueAt = deletionDueAt;
   }
 
-  public void setRemoteChange(@javax.annotation.Nullable WorkspaceRemoteChange remoteChange) {
-    this.remoteChange = JsonNullable.<WorkspaceRemoteChange>of(remoteChange);
+  public void setDeletionDueAt(@javax.annotation.Nullable OffsetDateTime deletionDueAt) {
+    this.deletionDueAt = JsonNullable.<OffsetDateTime>of(deletionDueAt);
+  }
+
+
+  public Workspace deletionRequestedAt(@javax.annotation.Nullable OffsetDateTime deletionRequestedAt) {
+    this.deletionRequestedAt = JsonNullable.<OffsetDateTime>of(deletionRequestedAt);
+    return this;
+  }
+
+  /**
+   * Get deletionRequestedAt
+   * @return deletionRequestedAt
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public OffsetDateTime getDeletionRequestedAt() {
+        return deletionRequestedAt.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_DELETION_REQUESTED_AT, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<OffsetDateTime> getDeletionRequestedAt_JsonNullable() {
+    return deletionRequestedAt;
+  }
+
+  @JsonProperty(JSON_PROPERTY_DELETION_REQUESTED_AT)
+  public void setDeletionRequestedAt_JsonNullable(JsonNullable<OffsetDateTime> deletionRequestedAt) {
+    this.deletionRequestedAt = deletionRequestedAt;
+  }
+
+  public void setDeletionRequestedAt(@javax.annotation.Nullable OffsetDateTime deletionRequestedAt) {
+    this.deletionRequestedAt = JsonNullable.<OffsetDateTime>of(deletionRequestedAt);
   }
 
 
@@ -637,6 +486,30 @@ public class Workspace {
   }
 
 
+  public Workspace connections(@javax.annotation.Nullable ContextualConnectionPage connections) {
+    this.connections = connections;
+    return this;
+  }
+
+  /**
+   * Get connections
+   * @return connections
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CONNECTIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ContextualConnectionPage getConnections() {
+    return connections;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CONNECTIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setConnections(@javax.annotation.Nullable ContextualConnectionPage connections) {
+    this.connections = connections;
+  }
+
+
   /**
    * Return true if this Workspace object is equal to o.
    */
@@ -650,22 +523,19 @@ public class Workspace {
     }
     Workspace workspace = (Workspace) o;
     return Objects.equals(this.id, workspace.id) &&
-        Objects.equals(this.projectId, workspace.projectId) &&
         Objects.equals(this.organizationId, workspace.organizationId) &&
         Objects.equals(this.name, workspace.name) &&
-        equalsNullable(this.branch, workspace.branch) &&
-        Objects.equals(this.revision, workspace.revision) &&
-        Objects.equals(this.status, workspace.status) &&
-        Objects.equals(this.latestCheckpointId, workspace.latestCheckpointId) &&
-        Objects.equals(this.lastVerifiedAt, workspace.lastVerifiedAt) &&
+        Objects.equals(this.persistence, workspace.persistence) &&
+        equalsNullable(this.github, workspace.github) &&
         Objects.equals(this.createdAt, workspace.createdAt) &&
-        Objects.equals(this.sourceCommit, workspace.sourceCommit) &&
-        Objects.equals(this.sourceCheckpointId, workspace.sourceCheckpointId) &&
-        Objects.equals(this.gitCommit, workspace.gitCommit) &&
-        Objects.equals(this.gitStatus, workspace.gitStatus) &&
-        equalsNullable(this.gitError, workspace.gitError) &&
-        equalsNullable(this.remoteChange, workspace.remoteChange) &&
-        Objects.equals(this.permissions, workspace.permissions);
+        Objects.equals(this.storageBytes, workspace.storageBytes) &&
+        Objects.equals(this.archived, workspace.archived) &&
+        Objects.equals(this.defaultWorktreeId, workspace.defaultWorktreeId) &&
+        Objects.equals(this.revision, workspace.revision) &&
+        equalsNullable(this.deletionDueAt, workspace.deletionDueAt) &&
+        equalsNullable(this.deletionRequestedAt, workspace.deletionRequestedAt) &&
+        Objects.equals(this.permissions, workspace.permissions) &&
+        Objects.equals(this.connections, workspace.connections);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -674,7 +544,7 @@ public class Workspace {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, projectId, organizationId, name, hashCodeNullable(branch), revision, status, latestCheckpointId, lastVerifiedAt, createdAt, sourceCommit, sourceCheckpointId, gitCommit, gitStatus, hashCodeNullable(gitError), hashCodeNullable(remoteChange), permissions);
+    return Objects.hash(id, organizationId, name, persistence, hashCodeNullable(github), createdAt, storageBytes, archived, defaultWorktreeId, revision, hashCodeNullable(deletionDueAt), hashCodeNullable(deletionRequestedAt), permissions, connections);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -689,22 +559,19 @@ public class Workspace {
     StringBuilder sb = new StringBuilder();
     sb.append("class Workspace {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
     sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    branch: ").append(toIndentedString(branch)).append("\n");
-    sb.append("    revision: ").append(toIndentedString(revision)).append("\n");
-    sb.append("    status: ").append(toIndentedString(status)).append("\n");
-    sb.append("    latestCheckpointId: ").append(toIndentedString(latestCheckpointId)).append("\n");
-    sb.append("    lastVerifiedAt: ").append(toIndentedString(lastVerifiedAt)).append("\n");
+    sb.append("    persistence: ").append(toIndentedString(persistence)).append("\n");
+    sb.append("    github: ").append(toIndentedString(github)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
-    sb.append("    sourceCommit: ").append(toIndentedString(sourceCommit)).append("\n");
-    sb.append("    sourceCheckpointId: ").append(toIndentedString(sourceCheckpointId)).append("\n");
-    sb.append("    gitCommit: ").append(toIndentedString(gitCommit)).append("\n");
-    sb.append("    gitStatus: ").append(toIndentedString(gitStatus)).append("\n");
-    sb.append("    gitError: ").append(toIndentedString(gitError)).append("\n");
-    sb.append("    remoteChange: ").append(toIndentedString(remoteChange)).append("\n");
+    sb.append("    storageBytes: ").append(toIndentedString(storageBytes)).append("\n");
+    sb.append("    archived: ").append(toIndentedString(archived)).append("\n");
+    sb.append("    defaultWorktreeId: ").append(toIndentedString(defaultWorktreeId)).append("\n");
+    sb.append("    revision: ").append(toIndentedString(revision)).append("\n");
+    sb.append("    deletionDueAt: ").append(toIndentedString(deletionDueAt)).append("\n");
+    sb.append("    deletionRequestedAt: ").append(toIndentedString(deletionRequestedAt)).append("\n");
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
+    sb.append("    connections: ").append(toIndentedString(connections)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -754,11 +621,6 @@ public class Workspace {
       joiner.add(String.format(java.util.Locale.ROOT, "%sid%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getId()))));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
-    }
-
     // add `organization_id` to the URL query string
     if (getOrganizationId() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sorganization_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getOrganizationId()))));
@@ -769,29 +631,14 @@ public class Workspace {
       joiner.add(String.format(java.util.Locale.ROOT, "%sname%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getName()))));
     }
 
-    // add `branch` to the URL query string
-    if (getBranch() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sbranch%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getBranch()))));
+    // add `persistence` to the URL query string
+    if (getPersistence() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%spersistence%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getPersistence()))));
     }
 
-    // add `revision` to the URL query string
-    if (getRevision() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%srevision%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRevision()))));
-    }
-
-    // add `status` to the URL query string
-    if (getStatus() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sstatus%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStatus()))));
-    }
-
-    // add `latest_checkpoint_id` to the URL query string
-    if (getLatestCheckpointId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%slatest_checkpoint_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getLatestCheckpointId()))));
-    }
-
-    // add `last_verified_at` to the URL query string
-    if (getLastVerifiedAt() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%slast_verified_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getLastVerifiedAt()))));
+    // add `github` to the URL query string
+    if (getGithub() != null) {
+      joiner.add(getGithub().toUrlQueryString(prefix + "github" + suffix));
     }
 
     // add `created_at` to the URL query string
@@ -799,39 +646,44 @@ public class Workspace {
       joiner.add(String.format(java.util.Locale.ROOT, "%screated_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getCreatedAt()))));
     }
 
-    // add `source_commit` to the URL query string
-    if (getSourceCommit() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssource_commit%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSourceCommit()))));
+    // add `storage_bytes` to the URL query string
+    if (getStorageBytes() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstorage_bytes%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStorageBytes()))));
     }
 
-    // add `source_checkpoint_id` to the URL query string
-    if (getSourceCheckpointId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssource_checkpoint_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSourceCheckpointId()))));
+    // add `archived` to the URL query string
+    if (getArchived() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sarchived%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getArchived()))));
     }
 
-    // add `git_commit` to the URL query string
-    if (getGitCommit() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sgit_commit%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getGitCommit()))));
+    // add `default_worktree_id` to the URL query string
+    if (getDefaultWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sdefault_worktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getDefaultWorktreeId()))));
     }
 
-    // add `git_status` to the URL query string
-    if (getGitStatus() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sgit_status%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getGitStatus()))));
+    // add `revision` to the URL query string
+    if (getRevision() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%srevision%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRevision()))));
     }
 
-    // add `git_error` to the URL query string
-    if (getGitError() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sgit_error%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getGitError()))));
+    // add `deletion_due_at` to the URL query string
+    if (getDeletionDueAt() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sdeletion_due_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getDeletionDueAt()))));
     }
 
-    // add `remote_change` to the URL query string
-    if (getRemoteChange() != null) {
-      joiner.add(getRemoteChange().toUrlQueryString(prefix + "remote_change" + suffix));
+    // add `deletion_requested_at` to the URL query string
+    if (getDeletionRequestedAt() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sdeletion_requested_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getDeletionRequestedAt()))));
     }
 
     // add `permissions` to the URL query string
     if (getPermissions() != null) {
       joiner.add(getPermissions().toUrlQueryString(prefix + "permissions" + suffix));
+    }
+
+    // add `connections` to the URL query string
+    if (getConnections() != null) {
+      joiner.add(getConnections().toUrlQueryString(prefix + "connections" + suffix));
     }
 
     return joiner.toString();

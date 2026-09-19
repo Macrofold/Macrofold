@@ -27,13 +27,13 @@ See [extensibility and permission verification](testing/extensibility.md) for th
 pnpm check
 pnpm test:domain
 pnpm test:coverage
-COVERAGE_DIR=coverage/my-run pnpm test:coverage:all
+pnpm test:coverage:all
 pnpm test:mutation
 pnpm test:mutation:critical
 pnpm docs:check
 ```
 
-The domain wrapper creates and removes a disposable database and object directory. Complete coverage adds a separately built standalone server, simulator worker, browser contexts and CLI subprocesses on an independent loopback port. It does not attach to or stop the preview. Complete runs require a new report directory; reused artifacts or source-map contents from another source revision are rejected.
+The domain wrapper creates and removes a disposable database and object directory. Complete coverage adds a separately built standalone server, simulator worker, browser contexts and CLI subprocesses on an independent loopback port. It does not attach to or stop the preview. Complete runs collect privately and replace the previous saved result when finished; artifacts from different runs are never mixed. Temporary builds are deleted after source-map packing. Source-map contents from another source revision are rejected.
 
 `coverage/domain` is the fast in-process report. A complete run writes canonical coverage, raw observations and `merged` HTML/LCOV/JSON beneath its `COVERAGE_DIR`. Python XML/JSON stays in `coverage/python`. Reports preserve untouched application files. See the collection reference for conservative matching and Chromium/native-worker limitations.
 

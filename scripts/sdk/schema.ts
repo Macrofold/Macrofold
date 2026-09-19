@@ -52,7 +52,7 @@ for (const [path, pathItem] of Object.entries(specification.paths || {})) {
       throw new Error(`SDK operation requires an ID and resource: ${path}`);
     const group = camel(op.tags[0]);
     const plural = pascal(group),
-      singular = plural.replace(/ies$/, 'y').replace(/s$/, '');
+      singular = plural.replace(/ies$/, 'y').replace(/xes$/, 'x').replace(/s$/, '');
     const name =
       op.operationId === 'exportCheckpoint'
         ? 'exportArchive'

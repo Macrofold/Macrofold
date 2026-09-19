@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -40,7 +40,7 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Checkpoint.JSON_PROPERTY_ID,
-  Checkpoint.JSON_PROPERTY_WORKSPACE_ID,
+  Checkpoint.JSON_PROPERTY_WORKTREE_ID,
   Checkpoint.JSON_PROPERTY_RUN_ID,
   Checkpoint.JSON_PROPERTY_CREATED_AT,
   Checkpoint.JSON_PROPERTY_CONSISTENCY,
@@ -57,9 +57,9 @@ public class Checkpoint {
   @javax.annotation.Nonnull
   private UUID id;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_RUN_ID = "run_id";
   @javax.annotation.Nullable
@@ -230,27 +230,27 @@ public class Checkpoint {
   }
 
 
-  public Checkpoint workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public Checkpoint worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -491,7 +491,7 @@ public class Checkpoint {
     }
     Checkpoint checkpoint = (Checkpoint) o;
     return Objects.equals(this.id, checkpoint.id) &&
-        Objects.equals(this.workspaceId, checkpoint.workspaceId) &&
+        Objects.equals(this.worktreeId, checkpoint.worktreeId) &&
         Objects.equals(this.runId, checkpoint.runId) &&
         Objects.equals(this.createdAt, checkpoint.createdAt) &&
         Objects.equals(this.consistency, checkpoint.consistency) &&
@@ -509,7 +509,7 @@ public class Checkpoint {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, workspaceId, runId, createdAt, consistency, verification, sizeBytes, pinned, gitCommit, gitStatus, hashCodeNullable(gitError));
+    return Objects.hash(id, worktreeId, runId, createdAt, consistency, verification, sizeBytes, pinned, gitCommit, gitStatus, hashCodeNullable(gitError));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -524,7 +524,7 @@ public class Checkpoint {
     StringBuilder sb = new StringBuilder();
     sb.append("class Checkpoint {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    runId: ").append(toIndentedString(runId)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    consistency: ").append(toIndentedString(consistency)).append("\n");
@@ -583,9 +583,9 @@ public class Checkpoint {
       joiner.add(String.format(java.util.Locale.ROOT, "%sid%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getId()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     // add `run_id` to the URL query string

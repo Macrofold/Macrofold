@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -23,8 +23,8 @@ pub struct Identity {
     pub organizations: Vec<models::IdentityOrganizationsInner>,
     #[serde(rename = "effective_scopes")]
     pub effective_scopes: Vec<String>,
-    #[serde(rename = "project_restrictions")]
-    pub project_restrictions: Vec<uuid::Uuid>,
+    #[serde(rename = "workspace_restrictions")]
+    pub workspace_restrictions: Vec<uuid::Uuid>,
     #[serde(rename = "capabilities")]
     pub capabilities: Box<models::CliCapabilities>,
     #[serde(rename = "organization_id", skip_serializing_if = "Option::is_none")]
@@ -32,20 +32,20 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(principal_id: uuid::Uuid, principal_type: PrincipalType, organizations: Vec<models::IdentityOrganizationsInner>, effective_scopes: Vec<String>, project_restrictions: Vec<uuid::Uuid>, capabilities: models::CliCapabilities) -> Identity {
+    pub fn new(principal_id: uuid::Uuid, principal_type: PrincipalType, organizations: Vec<models::IdentityOrganizationsInner>, effective_scopes: Vec<String>, workspace_restrictions: Vec<uuid::Uuid>, capabilities: models::CliCapabilities) -> Identity {
         Identity {
             principal_id,
             principal_type,
             user_id: None,
             organizations,
             effective_scopes,
-            project_restrictions,
+            workspace_restrictions,
             capabilities: Box::new(capabilities),
             organization_id: None,
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum PrincipalType {
     #[serde(rename = "user")]

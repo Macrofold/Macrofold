@@ -10,7 +10,7 @@ export type JourneyOptions = {
   runBudget: string;
   connectionId?: string;
   beforeRun?: (key: string, body: Schema['RunCreate']) => Promise<void>;
-  accepted?: (run: Schema['RunAccepted']) => Promise<void>;
+  accepted?: (run: Schema['NativeRunAccepted']) => Promise<void>;
   observed?: (event: Schema['Event']) => Promise<void>;
 };
 
@@ -24,11 +24,11 @@ export async function agentJourney(client: Client, options: JourneyOptions) {
   );
   const billing = await client.request('getBilling', { signal });
   assert.equal(billing.reserved_micro_usd, '0', 'Use an idle synthetic customer for acceptance.');
-  const project = await client.request('createProject', {
+  const workspace = await client.request('createWorkspace', {
     signal,
     body: { name: `Agent acceptance ${randomUUID()}`, persistence: 'persistent' },
   });
-  const runs: Schema['RunAccepted'][] = [];
+  const runs: Schema['NativeRunAccepted'][] = [];
   const events: Schema['Event'][][] = [];
   try {
     for (let turn = 0; turn < 2; turn++) {
@@ -36,7 +36,7 @@ export async function agentJourney(client: Client, options: JourneyOptions) {
         ...(turn
           ? { session_id: runs[0].session_id }
           : {
-              project_id: project.id,
+              workspace_id: workspace.id,
               harness: options.harness,
               model: options.model,
               billing_mode: options.connectionId ? 'byok' : 'managed',
@@ -87,7 +87,7 @@ export async function agentJourney(client: Client, options: JourneyOptions) {
       assert(observed.some((e) => e.type === 'checkpoint.created'));
       const bytes = await client.request('readFile', {
         params: {
-          path: { workspace_id: run.workspace_id },
+          path: { worktree_id: run.worktree_id },
           query: { path: turn ? 'continued.txt' : 'hello.txt' },
         },
         signal,
@@ -110,7 +110,7 @@ export async function agentJourney(client: Client, options: JourneyOptions) {
     return {
       harness: options.harness,
       model: options.model,
-      projectId: project.id,
+      workspaceId: workspace.id,
       runs: runs.map((r) => r.run_id),
       passed: true,
     };
@@ -125,8 +125,8 @@ export async function agentJourney(client: Client, options: JourneyOptions) {
       if (!['succeeded', 'failed', 'cancelled', 'timed_out'].includes(status.status))
         await client.request('cancelRun', { params: { path: { run_id: run.run_id } }, signal: cleanup });
     }
-    await client.request('updateProject', {
-      params: { path: { project_id: project.id } },
+    await client.request('updateWorkspace', {
+      params: { path: { workspace_id: workspace.id } },
       body: { archived: true },
       signal: cleanup,
     });

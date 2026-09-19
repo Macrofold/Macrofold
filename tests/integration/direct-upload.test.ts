@@ -115,14 +115,14 @@ async function request(method: string, path: string, body?: unknown) {
   return { status: response.status, body: response.status === 204 ? null : await response.json() };
 }
 it('uploads above Vercel body limits directly, verifies before atomic publication and expires staging', async () => {
-  const project = (await request('POST', '/v1/projects', { name: 'Large direct upload' })).body;
-  const workspace = (await request('GET', '/v1/workspaces/' + project.default_workspace_id)).body;
+  const workspace = (await request('POST', '/v1/workspaces', { name: 'Large direct upload' })).body;
+  const worktree = (await request('GET', '/v1/worktrees/' + workspace.default_worktree_id)).body;
   const bytes = Buffer.alloc(6 * 1024 * 1024, 42),
     digest = sha256(bytes);
   const plan = (
-    await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+    await request('POST', `/v1/worktrees/${worktree.id}/transfers`, {
       direction: 'push',
-      base_revision: workspace.revision,
+      base_revision: worktree.revision,
       paths: ['large.bin'],
       manifest: [
         {
@@ -144,7 +144,7 @@ it('uploads above Vercel body limits directly, verifies before atomic publicatio
   const wrongSize = await fetch(action.url, { method: 'PUT', headers: wrongHeaders, body: 'bad' });
   expect(wrongSize.status).toBe(403);
   expect(
-    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: workspace.revision }))
+    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: worktree.revision }))
       .status,
   ).toBe(409);
   expect(
@@ -157,18 +157,18 @@ it('uploads above Vercel body limits directly, verifies before atomic publicatio
     ).ok,
   ).toBe(true);
   expect(
-    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: workspace.revision }))
+    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: worktree.revision }))
       .status,
   ).toBe(422);
   expect((await fetch(action.url, { method: 'PUT', headers: action.required_headers, body: bytes })).ok).toBe(
     true,
   );
   expect(
-    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: workspace.revision }))
+    (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: worktree.revision }))
       .status,
   ).toBe(202);
   const state = await transaction(account.p.organizationId, (tx) =>
-    resources.get(tx, 'workspaces', workspace.id),
+    resources.get(tx, 'worktrees', worktree.id),
   );
   const file = (state.files as { key: string; sha256: string }[])[0]!;
   expect((await readContent(file.key, file.sha256)).equals(bytes)).toBe(true);

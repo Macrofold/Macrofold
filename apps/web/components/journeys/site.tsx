@@ -113,7 +113,7 @@ export function JourneySite({ study }: { study: Journey }) {
               Start with a few lines of code.
             </h2>
             <p>
-              Choose a project, harness, and model.
+              Choose a workspace, harness, and model.
               <br />
               Give it a task. Let it work.
             </p>

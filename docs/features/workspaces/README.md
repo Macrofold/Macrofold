@@ -1,14 +1,14 @@
 # Worktrees, files, and Git
 
-Keep a project's files across runs. Each worktree has an independent working folder and a selected Git branch, with verified checkpoints for recovery.
+Keep a workspace's files across runs. Each worktree has an independent working folder and a selected Git branch, with verified checkpoints for recovery.
 
 ## Organize work
 
-A project groups related worktrees. Start with its main worktree, then create another from an authorized Git ref or checkpoint for independent work. Only one active writer can modify a workspace. A local CLI link selects remote context; it does not upload your directory.
+A workspace groups related worktrees. Start with its main worktree, then create another from an authorized Git ref or checkpoint for independent work. Only one active writer can modify a worktree. A local CLI link selects remote context; it does not upload your directory.
 
 ## Name a worktree
 
-The dashboard calls project workspaces **worktrees**. The API keeps `/workspaces` resource paths and always addresses a worktree by its ID. In **Create worktree**, Name and Branch are optional:
+The dashboard calls workspace worktrees **worktrees**. The API keeps `/worktrees` resource paths and always addresses a worktree by its ID. In **Create worktree**, Name and Branch are optional:
 
 | Name | Branch | Result |
 | --- | --- | --- |
@@ -17,17 +17,17 @@ The dashboard calls project workspaces **worktrees**. The API keeps `/workspaces
 | Provided | Provided | Use both values. |
 | Empty | Empty | Keep both unset until the first accepted agent run, then derive them from the task. |
 
-Names must be unique within a project, ignoring case and surrounding spaces. Two independently named worktrees can use the same branch. Advanced options can require a new or existing branch. The branch picker lists saved refs from authorized project worktrees; it does not fetch GitHub on every keystroke.
+Names must be unique within a workspace, ignoring case and surrounding spaces. Two independently named worktrees can use the same branch. Advanced options can require a new or existing branch. The branch picker lists saved refs from authorized workspace worktrees; it does not fetch GitHub on every keystroke.
 
 For customer-owned assistants, follow [customer-agent identity](../customer-agents/README.md) and the [optional memory starter](../customer-agents/memory.md).
 
 ## Share files between agents
 
-Point different agents at the same workspace and wait for each run to finish persistence before starting the next. They share saved files while keeping separate conversations. Follow the [shared-workspace guide](shared-agents.md) for a complete example and parallel-work alternatives.
+Point different agents at the same worktree and wait for each run to finish persistence before starting the next. They share saved files while keeping separate conversations. Follow the [shared-worktree guide](shared-agents.md) for a complete example and parallel-work alternatives.
 
 ## Browse and edit files
 
-Open a project in the dashboard to browse, search, preview, edit, upload, and download files. Existing files autosave after two seconds without typing; **Saved** confirms persistence and refresh. Creating a file or folder remains explicit. Hover a file for its menu: copy name, copy relative path, duplicate, rename, or delete. Rename edits inline; Enter commits and Escape cancels. Drag a file onto a folder (or the root) to move it. Duplicate and move preserve the original content and file mode, and reject occupied destinations. Folders can be expanded independently, and search finds files across the workspace. Saves create a new persisted revision. During active execution, file views use the last published revision rather than a live mutable filesystem.
+Open a workspace in the dashboard to browse, search, preview, edit, upload, and download files. Existing files autosave after two seconds without typing; **Saved** confirms persistence and refresh. Creating a file or folder remains explicit. Hover a file for its menu: copy name, copy relative path, duplicate, rename, or delete. Rename edits inline; Enter commits and Escape cancels. Drag a file onto a folder (or the root) to move it. Duplicate and move preserve the original content and file mode, and reject occupied destinations. Folders can be expanded independently, and search finds files across the worktree. Saves create a new persisted revision. During active execution, file views use the last published revision rather than a live mutable filesystem.
 
 Empty folders are kept by a conventional `.gitkeep` file, visible inside them when **Show hidden files** is enabled. Keep that marker if the folder needs to survive after its other files are removed. Markers persist through checkpoints and restores, and follow ordinary Git ignore rules. Renaming a file preserves its bytes and executable mode and refuses an existing destination.
 
@@ -50,11 +50,15 @@ Front matter is preserved. Documents containing raw HTML or footnotes use the sa
 
 ## Read files from your application
 
-Retrieve a complete persisted file by workspace ID and relative path through the [file-read API and SDK guide](read-files.md). Wait for run persistence before fetching an agent's edits.
+Retrieve a complete persisted file by worktree ID and relative path through the [file-read API and SDK guide](read-files.md). Wait for run persistence before fetching an agent's edits.
 
 ## Compare revisions
 
 The diff API lists changed paths between checkpoints. Inline text patches are available when both versions together are smaller than 512,000 bytes (500 KiB) and contain no binary marker. Larger files are identified from checkpoint metadata without loading their contents; binary classification is `null` when not inspected. File downloads remain available separately.
+
+## Files and media
+
+Upload any ordinary file through Files. Supported images, PDFs, video and audio have private original-file previews; other formats retain downloads. Runs can receive supported image/document attachments and publish deliverables under `outputs/`. See [files and media](../media/README.md) for compatibility, size limits and artifact retention.
 
 ## Checkpoints and recovery
 
@@ -66,12 +70,12 @@ A catastrophic sandbox loss can lose edits since the last published checkpoint. 
 
 Authorize the deployment's GitHub App for a repository you can access. Choose a target branch and synchronization behavior. Runs can queue a separate sync after their checkpoint is saved. Protected branches, conflicts, or revoked access can block a push while leaving your files available.
 
-Git synchronization never force-pushes. Incoming synchronization waits for the workspace writer. Git LFS hydration and recursive submodule fetching are explicit native tasks rather than automatic imports.
+Git synchronization never force-pushes. Incoming synchronization waits for the worktree writer. Git LFS hydration and recursive submodule fetching are explicit native tasks rather than automatic imports.
 
 ## Retention and deletion
 
 Checkpoints keep all revisions for 24 hours, then daily and weekly recovery points, with pins and required current references protected. Plan storage and detailed run-history allowances are described in [billing](../billing/README.md).
 
-Archive a project to keep it without active work. Permanent deletion requires owner/admin confirmation and provides seven days to undo. Content removal follows that window and idle execution; physical object collection is delayed. Accounting records and provider backups have separate retention.
+Archive a workspace to keep it without active work. Permanent deletion requires owner/admin confirmation and provides seven days to undo. Content removal follows that window and idle execution; physical object collection is delayed. Accounting records and provider backups have separate retention.
 
 For technical limits, export formats, encryption, and recovery ownership, read [persistence implementation](implementation.md).

@@ -12,8 +12,8 @@ import { release } from './settings';
 const globalFlags = {
   profile: Flags.string({ description: 'Saved credential profile' }),
   organization: Flags.string({ description: 'Authorized organization ID' }),
-  project: Flags.string({ description: 'Project ID or exact name' }),
-  workspace: Flags.string({ description: 'Hosted workspace ID or name' }),
+  workspace: Flags.string({ description: 'Workspace ID or exact name' }),
+  worktree: Flags.string({ description: 'Hosted worktree ID or name' }),
   session: Flags.string({ description: 'Continuing session ID' }),
   plain: Flags.boolean(),
   json: Flags.boolean({ exclusive: ['jsonl'] }),
@@ -67,7 +67,7 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
     'api-key-stdin': Flags.boolean(),
     'no-browser': Flags.boolean(),
   },
-  'project create': { ephemeral: Flags.boolean() },
+  'workspace create': { ephemeral: Flags.boolean() },
   'worktree create': { from: Flags.string(), branch: Flags.string(), use: Flags.boolean() },
   'worktree remove': { yes: Flags.boolean() },
   'worktree checkout': { local: Flags.string(), branch: Flags.string() },
@@ -94,7 +94,7 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
-  'project list',
+  'workspace list',
   'worktree list',
   'run list',
   'session list',
@@ -104,12 +104,12 @@ const listCommands = new Set([
   'connection list',
   'connection tools',
 ]);
-const unlimitedArgs = new Set(['run', 'project create', 'files push', 'files pull', 'files diff']);
+const unlimitedArgs = new Set(['run', 'workspace create', 'files push', 'files pull', 'files diff']);
 const noArgs = new Set([
   'login',
   'logout',
   'whoami',
-  'project list',
+  'workspace list',
   'worktree list',
   'chat',
   'run list',
@@ -130,7 +130,7 @@ const examples: Record<string, string> = {
   run: 'macrofold run "Update the report" --harness codex --model MODEL\nmacrofold run --prompt-file - --session SESSION_ID --json',
   login:
     'macrofold login --host https://agents.example.com\nmacrofold login --host http://localhost:3210 --api-key-stdin',
-  link: 'macrofold link PROJECT --workspace WORKSPACE_ID',
+  link: 'macrofold link WORKSPACE --worktree WORKTREE_ID',
   'worktree create': 'macrofold worktree create experiment --from main --use',
   'worktree checkout': 'macrofold worktree checkout experiment --local ../review',
   chat: 'macrofold chat --harness codex --model MODEL',
@@ -154,7 +154,7 @@ function help(command?: string) {
           .sort()
           .map((name) => '  ' + name)
           .join('\n')}\n  completion bash|zsh|fish|powershell`
-  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote project; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
+  }\n\nFlags: ${keys.map((k) => '--' + k).join(', ')}\n${command && examples[command] ? `\n${examples[command]}\n` : ''}\nLinking selects a remote workspace; file movement is always explicit.\nCredentials come from login profiles or AGENT_API_KEY + AGENT_HOST.\nUse macrofold doctor to inspect the model catalog without starting inference.\n`;
 }
 function completion(shell: string) {
   const words = [
@@ -198,7 +198,7 @@ export async function main(argv = process.argv.slice(2)) {
       if (!(name in globalFlags)) throw new CliError('Put command-specific flags after the command.');
       leading.push(flag);
       if (
-        ['profile', 'organization', 'project', 'workspace', 'session'].includes(name) &&
+        ['profile', 'organization', 'workspace', 'worktree', 'session'].includes(name) &&
         !flag.includes('=')
       ) {
         if (!rest.length) throw new CliError(`Missing value for --${name}.`);

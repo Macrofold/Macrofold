@@ -15,10 +15,10 @@ Cloud access is required to use the hosted endpoint. If you do not have access, 
 
 Choose an enabled harness and model. Managed model usage draws on your organization's credits. For BYOK, connect your model account and explicitly select that connection. Infrastructure and authorized tools may still use credits; see [billing and limits](../features/billing/README.md).
 
-Your project identifies persistent files. Reuse it across runs, or select a workspace for a particular working folder. Different agents can [take turns over the same workspace](../features/workspaces/shared-agents.md).
+A workspace owns a distinct file tree; its worktrees are checkouts. Reuse a worktree across runs. Different agents can [take turns over the same worktree](../features/workspaces/shared-agents.md).
 
 ## What you manage
 
-You control projects, members, API keys, agent presets, tool grants, budgets, and cancellation. Review runs and persisted files in the dashboard. Cloud operates the underlying service; you do not need your own Vercel, Neon, or R2 account to call it.
+You control workspaces, members, API keys, agent presets, tool grants, budgets, and cancellation. Review runs and persisted files in the dashboard. Cloud operates the underlying service; you do not need your own Vercel, Neon, or R2 account to call it.
 
 Available models, integrations, and effective limits come from your deployment and organization. The [shared feature guides](../features/README.md) describe product behavior for Cloud and self-hosting; [self-hosting](../operations/README.md) explains operating your own installation.

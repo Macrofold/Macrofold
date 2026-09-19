@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -48,7 +48,7 @@ pub enum ListSlackConnectionsError {
 }
 
 
-/// 
+///
 pub async fn create_slack_connection(configuration: &configuration::Configuration, idempotency_key: &str, slack_connection_create: models::SlackConnectionCreate, x_organization_id: Option<&str>) -> Result<models::SlackConnection, Error<CreateSlackConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -98,7 +98,7 @@ pub async fn create_slack_connection(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn delete_slack_connection(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>) -> Result<models::DeleteTrigger200Response, Error<DeleteSlackConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -145,7 +145,7 @@ pub async fn delete_slack_connection(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn list_slack_connection_channels(configuration: &configuration::Configuration, connection_id: &str, cursor: Option<&str>, x_organization_id: Option<&str>) -> Result<models::ListSlackConnectionChannels200Response, Error<ListSlackConnectionChannelsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
@@ -196,7 +196,7 @@ pub async fn list_slack_connection_channels(configuration: &configuration::Confi
     }
 }
 
-/// 
+///
 pub async fn list_slack_connections(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::ListSlackConnections200Response, Error<ListSlackConnectionsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;

@@ -7,7 +7,7 @@ Find the source module that owns a behavior, then read its feature guide before 
 | Location                                                             | Responsibility                                                                                     | Documentation                                                                                              |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [apps/web](../../apps/web)                                           | Dashboard shell, views, HTTP routes, Vercel Workflow entry points                                  | [Dashboard](../features/dashboard/README.md), [API](../features/api/README.md)                             |
-| [packages/core](../../packages/core/src)                             | Authorization, execution, workspaces, billing and reporting services                               | [Feature index](../features/README.md)                                                                     |
+| [packages/core](../../packages/core/src)                             | Authorization, execution, worktrees, billing and reporting services                               | [Feature index](../features/README.md)                                                                     |
 | [packages/db](../../packages/db)                                     | PostgreSQL migrations, tenant transactions and connection pools                                    | [Architecture](../architecture/README.md)                                                                  |
 | [packages/providers](../../packages/providers/src)                   | Sandbox, object storage, Git and other provider adapters                                           | [Portability](../architecture/portability.md), [integrations](../features/identity-integrations/README.md) |
 | [packages/runtime](../../packages/runtime)                           | Protected sandbox supervisor and native harness adapters                                           | [Runtime implementation](../features/execution/runtime.md)                                                 |
@@ -17,7 +17,7 @@ Find the source module that owns a behavior, then read its feature guide before 
 
 ## Product presentation
 
-The [dashboard](../features/dashboard/implementation.md) keeps navigation in `components/shell.tsx`, project list/grid views in `components/projects.tsx`, and the file tree, editor, and Markdown preview in `components/files/`. `lib/use-resizable-panel.ts` shares accessible resizing between navigation and the file explorer; worktree authorization and persistence remain in `packages/core/src/files.ts`. `packages/core/src/workspace-names.ts` owns display-name uniqueness and saved branch discovery; `components/create-worktree.tsx` consumes that validation API. Rich Markdown editing uses Tiptap in `components/files/rich-markdown-editor.tsx`, alongside the safe reading preview and draft diff.
+The [dashboard](../features/dashboard/implementation.md) keeps navigation in `components/shell.tsx`, workspace list/grid views in `components/workspaces.tsx`, and the file tree, editor, and Markdown preview in `components/files/`. `lib/use-resizable-panel.ts` shares accessible resizing between navigation and the file explorer; worktree authorization and persistence remain in `packages/core/src/files.ts`. `packages/core/src/worktree-names.ts` owns display-name uniqueness and saved branch discovery; `components/create-worktree.tsx` consumes that validation API. Rich Markdown editing uses Tiptap in `components/files/rich-markdown-editor.tsx`, alongside the safe reading preview and draft diff.
 
 The [documentation site](../engineering/documentation.md) publishes selected Markdown through `docs/navigation.json`, `scripts/docs/generate.ts`, and `apps/web/lib/docs`. Its AI setup prompt is owned by the public guide and resolved to the deployment origin; Cloud account setup and self-hosted operations remain separate from shared product guides.
 
@@ -45,6 +45,8 @@ The native adapter registry lives in `packages/contracts/harnesses.ts`; the sand
 
 ## Typed policy and preparation boundaries
 
+`packages/core/src/cloud-engine.ts` owns durable execution phases and their internal timings. `execution-hydration.ts` bounds and verifies restore batches through the existing machine-provider port; it leaves SQL progress and leases in the engine. Workflow and the standalone poller honor its explicit waits and immediately continue ready phases. See [startup latency](../features/execution/runtime.md#startup-latency-and-measurement).
+
 `packages/core/src/resource-models.ts` maps persisted resource data to concrete domain models; `api-types.ts` checks handler results against the public contract. `operations.ts` requires an explicit scope and resource binding for every operation result. The [agent permission guide](../features/execution/permissions.md) maps canonical policies, admission and native enforcement.
 
 Small file mutations use a bounded storage preparation lease, immutable object/Git preparation outside SQL, and a short revision-checked publication transaction. See [file implementation](../features/workspaces/implementation.md). Provider wire details live behind `ModelProtocol`; the shared gateway retains authority, credential selection, reservations and settlement. See [billing implementation](../features/billing/implementation.md).
@@ -64,3 +66,25 @@ The pure connection-access-policy module defines exact matching and selection pr
 [Examples](../../examples/README.md) stay outside core domain policy. `examples/personal-agent/store.ts` owns the application customer/agent mapping and durable step journal; `service.ts` composes the public SDK, and `server.ts` injects customer authentication. The file-memory helper is opt-in. Data adapters implement a bounded customer-scoped read port; the Prisma package has its own lockfile and acceptance, with no platform ORM dependency.
 
 `packages/core/src/connector-setup.ts` coordinates operator setup through `ConnectorSetupProvider`; the Composio adapter owns discovery and managed auth creation. `connector-enablement.ts` provides read-only serving configuration. `trigger-quota.ts` owns saved-trigger counts/limits. Migration 033 and the operator-only `connectors:setup` / `triggers:quota` commands configure these policies without adding management-MCP writes. See [connector setup](../features/identity-integrations/composio.md) and [trigger implementation](../features/triggers/implementation.md).
+
+## Files and media
+
+[Media implementation](../features/media/implementation.md) maps path/hash admission in `core/run-attachments.ts`, bounded extraction behind the runtime `DocumentExtractor` port, native image mapping, gateway media accounting and shared verified artifact publication. Browser previews are separate from text editor state; upload preparation is shared by Files and the run composer.
+
+## Customer MCP and operational tooling
+
+[Customer MCP](../features/mcp/implementation.md) derives its tool catalog from `http-contract.ts` in `customer-mcp-catalog.ts`; `customer-mcp.ts` adapts the protocol to the existing authorized API pipeline. OAuth resource/audience ownership remains in `auth.ts`. The operator MCP remains separately read-only.
+
+[Recovery](../operations/recovery.md) shares `scripts/recovery/archive.ts` between the operator CLI and independent install/restore acceptance. The object-store port supports archive verification without changing the active deployment. [Staging releases](../operations/staging-releases.md) separate workflow credentials/gates from the small release coordinator in `scripts/releases/staging.ts`; production promotion remains an operator procedure.
+
+## Explicit-context execution
+
+`decision.ts` owns the typed protocol contract; `inferences.ts` owns admission and `inference-engine.ts` durable provider steps. `bounded-decisions.ts` brokers immutable evidence reads. `decision-definitions.ts` and `context-artifacts.ts` own reusable inputs; `decision-tasks.ts` and `decision-task-engine.ts` own allocation, wake receipts and sequential coordination. Provider HTTP stays in `packages/providers/src/decision-protocols.ts`. [The ownership map](../features/decisions/implementation.md) covers migrations 035–038, scheduling, retention, presentation and rollout.
+
+## Execution observability
+
+[Tracing](../features/observability/implementation.md) uses the vendor-neutral `TraceSink` port in `packages/core/src/trace.ts` and composition in `tracing.ts`. `run-tracing.ts` owns tenant-scoped attribution and lifecycle observations; the gateway and decision executor supply committed usage/billing. `packages/providers/src/langfuse.ts` uses the official SDK and OTLP API. Next `after()` and durable-step `waitUntil` flush exports in the background; only worker shutdown awaits delivery. No SQL trace store is added. `billing-usage.ts` separately queries existing financial records for the itemized billing API.
+
+## Reusable execution environments
+
+`packages/core/src/sandboxes.ts` owns lifecycle, idle policy, worktree affinity and compute allocations; `sandbox-machines.ts` bridges it to the existing native execution port. `packages/contracts/sandbox-control.ts` owns the provider/control contracts. `packages/providers/src/sandboxes.ts` composes Vercel, Docker and Render adapters, while `packages/runtime/src/sandbox-control.ts` serializes authenticated operations on a reusable machine. See [runtime lifecycle](../features/execution/runtime.md#reusable-sandbox-lifecycle).

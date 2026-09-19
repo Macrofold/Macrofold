@@ -43,7 +43,7 @@ The repository's [neon.ts](../../neon.ts) has an empty policy. It does not provi
 
 ## Production recovery safeguards
 
-Before accepting customer data, select a recovery window that covers delayed discovery of accidental changes. **Seven days is the recommended starting target for this deployment.** In Neon Console, open **Settings → Instant restore → History window**, select seven days, save, and verify the effective value. The current Free plan caps history at six hours; Launch supports up to seven days and Scale up to thirty. An upgrade alone does not establish a seven-day setting. Longer retained history has a usage cost, and extending the setting cannot recover history already discarded. See [Neon's history-window reference](https://neon.com/docs/postgres/backup-restore/history-window).
+Before accepting customer data, select a recovery window that covers delayed discovery of accidental changes. **Seven days is the recommended starting target for this deployment.** In Neon Console, open **Settings → Instant restore → History window**, select seven days, save, and verify the effective value. The current Free plan caps history at six hours; Launch supports up to seven days and Scale up to thirty. An upgrade alone does not establish a seven-day setting. Recheck existing compute limits and project defaults after upgrading; the provider can raise their autoscaling ceilings. Longer retained history has a usage cost, and extending the setting cannot recover history already discarded. See [Neon's history-window reference](https://neon.com/docs/postgres/backup-restore/history-window).
 
 On a paid plan, open the production branch and select **Protect**. Verify the protected designation before launch. This blocks branch deletion/reset and protects associated project/compute deletion; it does not prevent SQL writes, dropped tables, or application mistakes. New branches created from a protected parent receive different role passwords, so retrieve each branch's own connection credentials. See [protected branches](https://neon.com/docs/guides/protected-branches).
 
@@ -56,5 +56,18 @@ PITR restores database state, not R2 objects or vault keys. Retain and test the 
 Budget the sum of domain, identity, and credential-refresh connections across application instances. Inspect query latency, active connections, queue age, and provider compute headroom before increasing execution concurrency.
 
 Monitor CPU, connection usage, database/history storage growth, query latency, and billed compute time. The application's minutely maintenance and dashboard/worker polling can prevent the idle interval needed for suspension. Budget for the observed active time rather than assuming scale-to-zero savings; see [Neon's suspension behavior](https://neon.com/docs/introduction/scale-to-zero).
+
+### Pause an unused staging environment
+
+Keep production maintenance running. To stop an isolated staging environment from consuming continuous database compute:
+
+1. Confirm staging has no active or queued runs, pending dispatch or workspace operations, unsettled billing orders, or reserved funds. Stop acceptance tests and review any incoming integrations or schedules before pausing.
+2. In the staging Vercel project, open **Settings → Cron Jobs** and disable cron execution. Then open **Settings → General → Pause Project**. Pausing preserves the deployment but returns `503 DEPLOYMENT_PAUSED` to visitors. See [Vercel project pause/resume](https://vercel.com/docs/projects/managing-projects#pausing-a-project).
+3. Allow the staging Neon compute to suspend, or suspend it through the Neon API. Verify its state is `idle` through the control plane; querying the database itself wakes it. Retain storage and credentials.
+4. Record the project identities, previous cron setting, compute limits and resume steps privately. Keep staging paused between test sessions; deployments and direct database clients can otherwise generate activity.
+
+To resume, unpause the same Vercel project and re-enable its cron jobs. Database connections resume an idle Neon compute automatically. Verify health and maintenance, then inspect overdue schedules, queued deliveries and billing reconciliation before starting tests. Do not repeatedly resend events whose outcomes are unknown.
+
+An organization plan upgrade also changes staging's compute billing. At Launch's published rate, one continuously active 0.25-CU compute costs about $19.35 in a 730-hour month; two cost about $38.69, before storage and recovery history. These are usage estimates, not spending caps. A fixed compute ceiling constrains compute charges but does not cap storage, network or other providers. See [Neon pricing](https://neon.com/pricing).
 
 Recover from a consistent database point together with all referenced encrypted objects and retained vault keys. Rehearse restoration in an independent environment. See [scaling](scaling.md), [hosting](hosting.md), and the maintainer [database verification record](neon/verification.md).

@@ -23,9 +23,9 @@ test('Alice creates Milo, corrects memory, chats, connects, schedules, pauses an
       name: `Personal reference ${randomUUID()}`,
       scopes: [
         'identity:read',
-        'projects:read',
-        'projects:write',
-        'projects:delete',
+        'workspaces:read',
+        'workspaces:write',
+        'workspaces:delete',
         'files:read',
         'files:write',
         'runs:read',
@@ -80,7 +80,7 @@ test('Alice creates Milo, corrects memory, chats, connects, schedules, pauses an
     await page.getByLabel('Exa API key', { exact: true }).fill('fixture-only-not-a-real-key');
     await page.getByRole('button', { name: 'Save account and allow search' }).click();
     await expect(
-      page.getByText('Search account saved. Only this project and agent have access.'),
+      page.getByText('Search account saved. Only this workspace and agent have access.'),
     ).toBeVisible();
     await page.getByText('Schedule a weekly review', { exact: true }).click();
     await page.getByRole('textbox', { name: 'Timezone', exact: true }).fill('Invalid/Zone');

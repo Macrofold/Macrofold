@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -38,9 +38,9 @@ import dev.macrofold.ApiClient;
   ConnectionAccessRule.JSON_PROPERTY_ID,
   ConnectionAccessRule.JSON_PROPERTY_CONNECTION_ID,
   ConnectionAccessRule.JSON_PROPERTY_SCOPE,
-  ConnectionAccessRule.JSON_PROPERTY_PROJECT_ID,
+  ConnectionAccessRule.JSON_PROPERTY_WORKSPACE_ID,
   ConnectionAccessRule.JSON_PROPERTY_AGENT_ID,
-  ConnectionAccessRule.JSON_PROPERTY_PROJECT_NAME,
+  ConnectionAccessRule.JSON_PROPERTY_WORKSPACE_NAME,
   ConnectionAccessRule.JSON_PROPERTY_AGENT_NAME,
   ConnectionAccessRule.JSON_PROPERTY_UNAVAILABLE,
   ConnectionAccessRule.JSON_PROPERTY_CREATED_AT,
@@ -60,11 +60,11 @@ public class ConnectionAccessRule {
    * Gets or Sets scope
    */
   public enum ScopeEnum {
-    PROJECT(String.valueOf("project")),
+    WORKSPACE(String.valueOf("workspace")),
 
     AGENT(String.valueOf("agent")),
 
-    PROJECT_AGENT(String.valueOf("project_agent"));
+    WORKSPACE_AGENT(String.valueOf("workspace_agent"));
 
     private String value;
 
@@ -97,17 +97,17 @@ public class ConnectionAccessRule {
   @javax.annotation.Nonnull
   private ScopeEnum scope;
 
-  public static final String JSON_PROPERTY_PROJECT_ID = "project_id";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
-  private UUID projectId;
+  private UUID workspaceId;
 
   public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
   @javax.annotation.Nullable
   private UUID agentId;
 
-  public static final String JSON_PROPERTY_PROJECT_NAME = "project_name";
+  public static final String JSON_PROPERTY_WORKSPACE_NAME = "workspace_name";
   @javax.annotation.Nullable
-  private String projectName;
+  private String workspaceName;
 
   public static final String JSON_PROPERTY_AGENT_NAME = "agent_name";
   @javax.annotation.Nullable
@@ -200,27 +200,27 @@ public class ConnectionAccessRule {
   }
 
 
-  public ConnectionAccessRule projectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public ConnectionAccessRule workspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
     return this;
   }
 
   /**
-   * Get projectId
-   * @return projectId
+   * Get workspaceId
+   * @return workspaceId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getProjectId() {
-    return projectId;
+  public UUID getWorkspaceId() {
+    return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectId(@javax.annotation.Nullable UUID projectId) {
-    this.projectId = projectId;
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
 
@@ -248,27 +248,27 @@ public class ConnectionAccessRule {
   }
 
 
-  public ConnectionAccessRule projectName(@javax.annotation.Nullable String projectName) {
-    this.projectName = projectName;
+  public ConnectionAccessRule workspaceName(@javax.annotation.Nullable String workspaceName) {
+    this.workspaceName = workspaceName;
     return this;
   }
 
   /**
-   * Get projectName
-   * @return projectName
+   * Get workspaceName
+   * @return workspaceName
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_NAME, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_NAME, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public String getProjectName() {
-    return projectName;
+  public String getWorkspaceName() {
+    return workspaceName;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_PROJECT_NAME, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_NAME, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setProjectName(@javax.annotation.Nullable String projectName) {
-    this.projectName = projectName;
+  public void setWorkspaceName(@javax.annotation.Nullable String workspaceName) {
+    this.workspaceName = workspaceName;
   }
 
 
@@ -383,9 +383,9 @@ public class ConnectionAccessRule {
     return Objects.equals(this.id, connectionAccessRule.id) &&
         Objects.equals(this.connectionId, connectionAccessRule.connectionId) &&
         Objects.equals(this.scope, connectionAccessRule.scope) &&
-        Objects.equals(this.projectId, connectionAccessRule.projectId) &&
+        Objects.equals(this.workspaceId, connectionAccessRule.workspaceId) &&
         Objects.equals(this.agentId, connectionAccessRule.agentId) &&
-        Objects.equals(this.projectName, connectionAccessRule.projectName) &&
+        Objects.equals(this.workspaceName, connectionAccessRule.workspaceName) &&
         Objects.equals(this.agentName, connectionAccessRule.agentName) &&
         Objects.equals(this.unavailable, connectionAccessRule.unavailable) &&
         Objects.equals(this.createdAt, connectionAccessRule.createdAt) &&
@@ -394,7 +394,7 @@ public class ConnectionAccessRule {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, connectionId, scope, projectId, agentId, projectName, agentName, unavailable, createdAt, updatedAt);
+    return Objects.hash(id, connectionId, scope, workspaceId, agentId, workspaceName, agentName, unavailable, createdAt, updatedAt);
   }
 
   @Override
@@ -404,9 +404,9 @@ public class ConnectionAccessRule {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    connectionId: ").append(toIndentedString(connectionId)).append("\n");
     sb.append("    scope: ").append(toIndentedString(scope)).append("\n");
-    sb.append("    projectId: ").append(toIndentedString(projectId)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
-    sb.append("    projectName: ").append(toIndentedString(projectName)).append("\n");
+    sb.append("    workspaceName: ").append(toIndentedString(workspaceName)).append("\n");
     sb.append("    agentName: ").append(toIndentedString(agentName)).append("\n");
     sb.append("    unavailable: ").append(toIndentedString(unavailable)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
@@ -470,9 +470,9 @@ public class ConnectionAccessRule {
       joiner.add(String.format(java.util.Locale.ROOT, "%sscope%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getScope()))));
     }
 
-    // add `project_id` to the URL query string
-    if (getProjectId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectId()))));
+    // add `workspace_id` to the URL query string
+    if (getWorkspaceId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
     }
 
     // add `agent_id` to the URL query string
@@ -480,9 +480,9 @@ public class ConnectionAccessRule {
       joiner.add(String.format(java.util.Locale.ROOT, "%sagent_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getAgentId()))));
     }
 
-    // add `project_name` to the URL query string
-    if (getProjectName() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sproject_name%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getProjectName()))));
+    // add `workspace_name` to the URL query string
+    if (getWorkspaceName() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_name%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceName()))));
     }
 
     // add `agent_name` to the URL query string

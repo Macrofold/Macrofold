@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -17,16 +17,16 @@ pub struct WorktreeOptionsBranchesInner {
     pub name: String,
     #[serde(rename = "ref")]
     pub r#ref: String,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
 }
 
 impl WorktreeOptionsBranchesInner {
-    pub fn new(name: String, r#ref: String, workspace_id: uuid::Uuid) -> WorktreeOptionsBranchesInner {
+    pub fn new(name: String, r#ref: String, worktree_id: uuid::Uuid) -> WorktreeOptionsBranchesInner {
         WorktreeOptionsBranchesInner {
             name,
             r#ref,
-            workspace_id,
+            worktree_id,
         }
     }
 }

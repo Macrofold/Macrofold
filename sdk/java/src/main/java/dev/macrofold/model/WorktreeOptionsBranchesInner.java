@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -36,7 +36,7 @@ import dev.macrofold.ApiClient;
 @JsonPropertyOrder({
   WorktreeOptionsBranchesInner.JSON_PROPERTY_NAME,
   WorktreeOptionsBranchesInner.JSON_PROPERTY_REF,
-  WorktreeOptionsBranchesInner.JSON_PROPERTY_WORKSPACE_ID
+  WorktreeOptionsBranchesInner.JSON_PROPERTY_WORKTREE_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class WorktreeOptionsBranchesInner {
@@ -48,9 +48,9 @@ public class WorktreeOptionsBranchesInner {
   @javax.annotation.Nonnull
   private String ref;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nonnull
-  private UUID workspaceId;
+  private UUID worktreeId;
 
   public WorktreeOptionsBranchesInner() { 
   }
@@ -103,27 +103,27 @@ public class WorktreeOptionsBranchesInner {
   }
 
 
-  public WorktreeOptionsBranchesInner workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public WorktreeOptionsBranchesInner worktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
     return this;
   }
 
   /**
-   * Get workspaceId
-   * @return workspaceId
+   * Get worktreeId
+   * @return worktreeId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
+  public UUID getWorktreeId() {
+    return worktreeId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
-    this.workspaceId = workspaceId;
+  public void setWorktreeId(@javax.annotation.Nonnull UUID worktreeId) {
+    this.worktreeId = worktreeId;
   }
 
 
@@ -141,12 +141,12 @@ public class WorktreeOptionsBranchesInner {
     WorktreeOptionsBranchesInner worktreeOptionsBranchesInner = (WorktreeOptionsBranchesInner) o;
     return Objects.equals(this.name, worktreeOptionsBranchesInner.name) &&
         Objects.equals(this.ref, worktreeOptionsBranchesInner.ref) &&
-        Objects.equals(this.workspaceId, worktreeOptionsBranchesInner.workspaceId);
+        Objects.equals(this.worktreeId, worktreeOptionsBranchesInner.worktreeId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, ref, workspaceId);
+    return Objects.hash(name, ref, worktreeId);
   }
 
   @Override
@@ -155,7 +155,7 @@ public class WorktreeOptionsBranchesInner {
     sb.append("class WorktreeOptionsBranchesInner {\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    ref: ").append(toIndentedString(ref)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -210,9 +210,9 @@ public class WorktreeOptionsBranchesInner {
       joiner.add(String.format(java.util.Locale.ROOT, "%sref%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRef()))));
     }
 
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
     }
 
     return joiner.toString();

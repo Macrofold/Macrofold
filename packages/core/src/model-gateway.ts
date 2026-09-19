@@ -1,11 +1,18 @@
-import { transaction } from '../../db';
+import { modelInputBound } from './model-content';
+import { modelTransport } from '../../contracts/model-transport';
+import { prepareModelUpload, readModelBody } from './model-request-upload';
+import { transaction, afterCommit } from '../../db';
+import { runTraceContext } from './run-tracing';
+import { recordTrace, tracingEnabled } from './tracing';
+import { ModelOutputCapture } from '../../providers/src/model-output-capture';
+import type { TraceObservation } from './trace';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
-import { id, unseal } from './crypto';
-import { getRun } from './runs';
+import { id } from './crypto';
+import { modelCredential } from './model-credentials';
+import { getRun, requireNativeRun } from './runs';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { computeMaximum, type Model } from './catalog';
-import * as resources from './resources';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
@@ -23,33 +30,11 @@ export function costForUsage(model: Model, usage: Usage) {
     roundedCost(usage.output, model.output_micro_usd_per_million)
   );
 }
-function rejectUnmeteredContent(value: unknown) {
-  if (!value || typeof value !== 'object') return;
-  if (Array.isArray(value)) {
-    for (const part of value) rejectUnmeteredContent(part);
-    return;
-  }
-  const object = value as Record<string, unknown>;
-  if (typeof object.type === 'string')
-    assert(
-      !/image|audio|video|file|web_search|computer_use/.test(object.type),
-      400,
-      'unsupported_model_content',
-      'This metered route accepts text and client-executed tools. Use the platform tool broker for external services.',
-    );
-  for (const field of ['image_url', 'input_audio', 'audio', 'file_id', 'file_data'])
-    assert(
-      !(field in object),
-      400,
-      'unsupported_model_content',
-      'Multimodal model content requires a configured rate-aware route.',
-    );
-  for (const child of Object.values(object)) rejectUnmeteredContent(child);
-}
 async function reserveRequest(cap: RuntimeCapability, payload: Record<string, unknown>, path: string) {
   return transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
     const run = await getRun(tx, cap.run);
+    requireNativeRun(run);
     await requireRunActor(tx, run);
     assert(
       run.lease_generation === cap.lease &&
@@ -72,6 +57,11 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'model_not_authorized',
       'This model is not authorized for the run.',
     );
+    const inputBound = modelInputBound(payload, {
+      harness: run.config.harness,
+      provider: model.provider,
+      model: model.id,
+    });
     const protocol = modelProtocol(model.provider);
     const blocked = await tx.query(
       'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
@@ -102,32 +92,17 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       inputMicroUsdPerMillion: model.input_micro_usd_per_million,
       outputMicroUsdPerMillion: model.output_micro_usd_per_million,
     });
-    let secret: string;
-    if (run.config.billing_mode === 'byok') {
-      const connection = await resources.get(tx, 'connections', run.config.provider_connection_id!);
-      assert(
-        connection.provider === model.provider &&
-          connection.status === 'healthy' &&
-          connection.owner_subject_id === run.config.user_id,
-        403,
-        'credentials_unavailable',
-        'The BYOK connection is no longer available.',
-      );
-      secret = unseal<string>(String(connection.secret_ciphertext));
-    } else {
-      assert(
-        run.config.billing_mode === 'managed',
-        403,
-        'funding_method_unavailable',
-        'This run is not authorized to use managed API credentials.',
-      );
-      secret = process.env[`${model.provider.toUpperCase()}_API_KEY`] || '';
-      assert(secret, 503, 'provider_not_configured', 'The managed model provider is not configured.');
-    }
+    const secret = await modelCredential(tx, run.config.user_id, {
+      provider: model.provider,
+      billing_mode: run.config.billing_mode,
+      provider_connection_id: run.config.provider_connection_id,
+    });
     const requestId = id();
+    const traceContext = await runTraceContext(tx, run);
     if (path.endsWith('count_tokens'))
       return {
         requestId,
+        traceContext,
         protocol,
         model,
         secret,
@@ -136,9 +111,7 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
         metered: false,
         deadline: run.deadline,
       };
-    // UTF-8 bytes are a conservative text token bound. Hosted tools, media, background
-    // responses, and premium service tiers are rejected/disabled before authorization.
-    const inputBound = Buffer.byteLength(JSON.stringify(payload)) + 1024;
+    // Text bytes plus bounded native-image tokens; hosted tools remain disabled.
     const reserved =
       roundedCost(inputBound * (protocol.cacheWrites ? 2 : 1), model.input_micro_usd_per_million) +
       roundedCost(maxOutput, model.output_micro_usd_per_million);
@@ -175,6 +148,7 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     );
     return {
       requestId,
+      traceContext,
       protocol,
       model,
       secret,
@@ -185,18 +159,36 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     };
   });
 }
-async function settleRequest(
+export async function settleModelRequest(
   cap: RuntimeCapability,
   requestId: string,
   model: Model,
   usage: Usage,
   upstreamRejected = false,
+  providerCostModel?: Model,
 ) {
-  await transaction(cap.organization, async (tx) => {
+  return transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
     const request = (await tx.query('SELECT * FROM gateway_requests WHERE id=$1 FOR UPDATE', [requestId]))
       .rows[0];
-    if (!request || request.status !== 'in_flight') return;
+    if (!request) return undefined;
+    if (request.status !== 'in_flight') {
+      const prior = (
+        await tx.query<{ usage_details: Record<string, unknown> }>(
+          'SELECT usage_details FROM model_usage WHERE request_id=$1',
+          [requestId],
+        )
+      ).rows[0];
+      return {
+        charged_micro_usd: request.billing_mode === 'managed' ? String(request.actual_micro_usd) : '0',
+        budget_cost_micro_usd: String(request.actual_micro_usd),
+        reserved_micro_usd: String(request.reserved_micro_usd),
+        billing_mode: String(request.billing_mode),
+        retail_rate_card: model,
+        provider_cost_rate_card: providerCostModel,
+        ...(prior?.usage_details || {}),
+      };
+    }
     if (
       ![usage.input, usage.output, usage.cached, usage.cacheWrite].every(
         (value) => Number.isSafeInteger(value) && value >= 0,
@@ -254,6 +246,17 @@ async function settleRequest(
           cached_tokens: usage.cached,
           cache_write_tokens: usage.cacheWrite,
           provisional: !usage.complete && !upstreamRejected,
+          ...(providerCostModel
+            ? {
+                provider_cost_micro_usd: upstreamRejected
+                  ? '0'
+                  : usage.complete
+                    ? costForUsage(providerCostModel, usage).toString()
+                    : null,
+                provider_cost_status:
+                  usage.complete || upstreamRejected ? 'estimated_from_usage' : 'unavailable',
+              }
+            : {}),
           reported_micro_usd: reported.toString(),
           bound_breached: breached,
         }),
@@ -265,6 +268,41 @@ async function settleRequest(
       billing_mode: request.billing_mode,
       complete: usage.complete || upstreamRejected,
     });
+    const billing = {
+      charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
+      budget_cost_micro_usd: actual.toString(),
+      reserved_micro_usd: String(request.reserved_micro_usd),
+      billing_mode: String(request.billing_mode),
+      reported_micro_usd: reported.toString(),
+      provisional: !usage.complete && !upstreamRejected,
+      bound_breached: breached,
+      provider_cost_micro_usd:
+        providerCostModel && usage.complete ? costForUsage(providerCostModel, usage).toString() : null,
+      provider_cost_status: providerCostModel && usage.complete ? 'estimated_from_usage' : 'unavailable',
+      upstream_rejected: upstreamRejected,
+      input_tokens: upstreamRejected ? 0 : usage.complete ? usage.input : null,
+      output_tokens: upstreamRejected ? 0 : usage.complete ? usage.output : null,
+      cached_tokens: usage.cached,
+      cache_write_tokens: usage.cacheWrite,
+      retail_rate_card: model,
+      provider_cost_rate_card: providerCostModel,
+      input_micro_usd_per_million: model.input_micro_usd_per_million,
+      output_micro_usd_per_million: model.output_micro_usd_per_million,
+    };
+    const context = tracingEnabled() ? await runTraceContext(tx, await getRun(tx, cap.run)) : undefined;
+    if (context)
+      afterCommit(tx, () =>
+        recordTrace({
+          context,
+          id: `billing:${requestId}`,
+          name: 'billing.model',
+          type: 'event',
+          startedAt: new Date(),
+          endedAt: new Date(),
+          metadata: { request_id: requestId, ...billing },
+        }),
+      );
+    return billing;
   });
 }
 export async function settleOrphanModelRequests(org: string, runId: string) {
@@ -277,7 +315,7 @@ export async function settleOrphanModelRequests(org: string, runId: string) {
     const run = await transaction(org, (tx) => getRun(tx, runId));
     const model = run.config.rate_card;
     assert(model, 503, 'rate_card_unavailable', 'The run rate card is unavailable for reconciliation.');
-    await settleRequest(
+    await settleModelRequest(
       {
         purpose: 'runtime',
         organization: org,
@@ -306,8 +344,9 @@ export async function handleModelRequest(
       'Paid model requests are disabled in this environment.',
     );
     const cap = verifyRuntime(request, runId);
+    if (path === modelTransport.uploadPath) return await prepareModelUpload(request, cap);
     assert(request.method === 'POST', 405, 'method_not_allowed', 'Only model POST endpoints are supported.');
-    const text = (await boundedBody(request.body, 4 * 1024 * 1024)).toString();
+    const text = (await readModelBody(request, cap, path)).toString();
     let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(text);
@@ -320,7 +359,6 @@ export async function handleModelRequest(
       'invalid_request',
       'The model request must be an object.',
     );
-    rejectUnmeteredContent(payload);
     assert(
       !payload.previous_response_id && !payload.conversation,
       400,
@@ -334,6 +372,48 @@ export async function handleModelRequest(
       'Only one completion per request is supported.',
     );
     const admission = await reserveRequest(cap, payload, path);
+    const startedAt = new Date();
+    const capture = admission.traceContext ? new ModelOutputCapture() : undefined;
+    let output: unknown;
+    let billing: Awaited<ReturnType<typeof settleModelRequest>>;
+    let level: TraceObservation['level'] = 'DEFAULT';
+    let providerRequestId: string | null = null;
+    const settleRequest = async (upstreamRejected = false) => {
+      if (admission.metered)
+        billing = await settleModelRequest(
+          cap,
+          admission.requestId,
+          admission.model,
+          usage,
+          upstreamRejected,
+        );
+    };
+    const finishTrace = () => {
+      if (!admission.traceContext) return;
+      recordTrace({
+        context: admission.traceContext,
+        id: admission.requestId,
+        name: admission.metered ? 'model.generate' : 'model.count_tokens',
+        type: admission.metered ? 'generation' : 'event',
+        startedAt,
+        endedAt: new Date(),
+        model: admission.model.id,
+        input: payload,
+        output: output ?? capture?.result(),
+        usage,
+        chargedMicroUsd: billing?.charged_micro_usd,
+        firstOutputAt: capture?.firstOutputAt,
+        level,
+        metadata: {
+          request_id: admission.requestId,
+          provider_request_id: providerRequestId,
+          endpoint: path,
+          streaming: Boolean(payload.stream),
+          usage_complete: usage.complete,
+          ...billing,
+        },
+      });
+    };
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
@@ -352,9 +432,12 @@ export async function handleModelRequest(
         redirect: 'error',
       });
       rejected = !upstream.ok;
+      providerRequestId = upstream.headers.get('x-request-id') || upstream.headers.get('request-id');
       if (!upstream.ok) {
+        level = 'ERROR';
+        output = { error: 'provider_rejected', http_status: upstream.status };
         await upstream.body?.cancel();
-        if (admission.metered) await settleRequest(cap, admission.requestId, admission.model, usage, true);
+        await settleRequest(true);
         return Response.json(
           {
             error: {
@@ -372,7 +455,9 @@ export async function handleModelRequest(
           unknown
         >;
         usage = admission.protocol.usage(data, usage);
-        if (admission.metered) await settleRequest(cap, admission.requestId, admission.model, usage);
+        output = data;
+        if (typeof data.id === 'string') providerRequestId ||= data.id;
+        await settleRequest();
         return Response.json(data);
       }
       const reader = upstream.body!.getReader();
@@ -401,7 +486,11 @@ export async function handleModelRequest(
                 buffer = buffer.slice(newline + 1);
                 if (line.startsWith('data:') && line.slice(5).trim() !== '[DONE]') {
                   try {
-                    usage = admission.protocol.usage(JSON.parse(line.slice(5)), usage);
+                    const frame = JSON.parse(line.slice(5));
+                    usage = admission.protocol.usage(frame, usage);
+                    capture?.add(frame);
+                    const responseId = frame?.response?.id ?? frame?.message?.id ?? frame?.id;
+                    if (typeof responseId === 'string') providerRequestId ||= responseId;
                   } catch {
                     /* SSE keepalives and non-JSON control frames are not usage. */
                   }
@@ -409,21 +498,22 @@ export async function handleModelRequest(
               }
               if (!closed) downstream.enqueue(part.value);
             }
-            if (admission.metered) await settleRequest(cap, admission.requestId, admission.model, usage);
+            await settleRequest();
             if (!closed) {
               closed = true;
               downstream.close();
             }
           } catch (error) {
+            level = 'ERROR';
             controller.abort();
-            if (admission.metered)
-              await settleRequest(cap, admission.requestId, admission.model, usage).catch(() => {});
+            await settleRequest().catch(() => {});
             if (!closed) {
               closed = true;
               downstream.error(new Error('Model stream interrupted'));
             }
           } finally {
             clearTimeout(timeout);
+            finishTrace();
           }
         },
         cancel() {
@@ -440,12 +530,15 @@ export async function handleModelRequest(
         },
       });
     } catch (error) {
+      level = 'ERROR';
       clearTimeout(timeout);
-      if (admission.metered)
-        await settleRequest(cap, admission.requestId, admission.model, usage, rejected).catch(() => {});
+      await settleRequest(rejected).catch(() => {});
       throw error;
     } finally {
-      if (!ownsStream) clearTimeout(timeout);
+      if (!ownsStream) {
+        clearTimeout(timeout);
+        finishTrace();
+      }
     }
   } catch (error) {
     const result = errorBody(error, requestId);

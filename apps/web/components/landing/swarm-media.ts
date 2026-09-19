@@ -1,16 +1,16 @@
 /** URLs are relative to a versioned public media directory, never the private file store. */
 export const swarmStudies = [
-  'druse',
-  'thalassa',
   'tetrarch',
-  'viscera',
-  'aperiodic',
-  'plexus',
-  'maelstrom',
   'hypercell',
-  'chitin',
-  'coronet',
+  'aperiodic',
   'alveoli',
+  'druse',
+  'plexus',
+  'coronet',
+  'viscera',
+  'thalassa',
+  'chitin',
+  'maelstrom',
 ] as const;
 
 export const swarmPlaybackRate = 1.3;
@@ -30,7 +30,7 @@ export function swarmMediaBase(value: string | undefined): string | undefined {
     const url = new URL(base);
     if (url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash) return base;
   } catch {
-    /* Invalid configuration leaves the original artwork visible. */
+    /* Invalid configuration leaves the hero background clear. */
   }
   return undefined;
 }

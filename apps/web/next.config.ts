@@ -28,6 +28,10 @@ const config: NextConfig = {
   },
   serverExternalPackages: ['pg', '@anthropic-ai/claude-agent-sdk', '@composio/core'],
   poweredByHeader: false,
+  async rewrites() {
+    // The dedicated marketing host serves the static page without session/database access.
+    return process.env.MARKETING_HOMEPAGE === 'true' ? [{ source: '/', destination: '/site' }] : [];
+  },
   logging: { incomingRequests: { ignore: [/\/objects\//, /\/integrations\/[^/]+\/callback/] } },
   async headers() {
     return [

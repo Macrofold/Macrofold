@@ -11,14 +11,14 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: 'Create API key', exact: true }).first().click();
 });
 
-test('presets create usable scoped keys and keep project and administrative boundaries', async ({ page }) => {
+test('presets create usable scoped keys and keep workspace and administrative boundaries', async ({ page }) => {
   test.setTimeout(120000);
-  const projectResponse = await page.request.post('/v1/projects', {
+  const workspaceResponse = await page.request.post('/v1/workspaces', {
     headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
-    data: { name: `Key project ${randomUUID()}` },
+    data: { name: `Key workspace ${randomUUID()}` },
   });
-  expect(projectResponse.status()).toBe(201);
-  const project = await projectResponse.json();
+  expect(workspaceResponse.status()).toBe(201);
+  const workspace = await workspaceResponse.json();
   await page.reload();
   await page.getByRole('button', { name: 'Create API key', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
@@ -29,8 +29,8 @@ test('presets create usable scoped keys and keep project and administrative boun
   await page.keyboard.press('ArrowDown');
   await page.getByRole('option', { name: 'Read-only', exact: true }).click();
   await dialog.getByLabel('Name', { exact: true }).fill(`Read-only fixture ${randomUUID()}`);
-  await dialog.getByRole('combobox', { name: 'Project access' }).click();
-  await page.getByRole('option', { name: project.name, exact: true }).click();
+  await dialog.getByRole('combobox', { name: 'Workspace access' }).click();
+  await page.getByRole('option', { name: workspace.name, exact: true }).click();
   const response = page.waitForResponse(
     (r) => r.url().endsWith('/v1/api-keys') && r.request().method() === 'POST',
   );
@@ -38,14 +38,14 @@ test('presets create usable scoped keys and keep project and administrative boun
   const created = await response;
   expect(created.status()).toBe(201);
   const key: components['schemas']['NewApiKey'] = await created.json();
-  expect(key.project_id).toBe(project.id);
+  expect(key.workspace_id).toBe(workspace.id);
   expect(Date.parse(key.expires_at ?? '') - Date.now()).toBeGreaterThan(89 * 86400000);
   expect(key.scopes).toContain('files:read');
   expect(key.scopes.every((scope) => scope.endsWith(':read'))).toBe(true);
   const headers = { Authorization: `Bearer ${key.secret}`, 'Idempotency-Key': randomUUID() };
-  expect((await page.request.get(`/v1/projects/${project.id}`, { headers })).status()).toBe(200);
+  expect((await page.request.get(`/v1/workspaces/${workspace.id}`, { headers })).status()).toBe(200);
   expect(
-    (await page.request.post('/v1/projects', { headers, data: { name: 'Denied creation' } })).status(),
+    (await page.request.post('/v1/workspaces', { headers, data: { name: 'Denied creation' } })).status(),
   ).toBe(403);
   await expect(dialog.getByRole('heading', { name: 'Your new API key' })).toBeVisible();
   await dialog.getByRole('button', { name: 'I’ve saved the key' }).click();
@@ -64,15 +64,15 @@ test('presets create usable scoped keys and keep project and administrative boun
     const result = await saved;
     expect(result.status()).toBe(201);
     const next: components['schemas']['NewApiKey'] = await result.json();
-    expect(next.project_id).toBeUndefined();
+    expect(next.workspace_id).toBeUndefined();
     expect(next.scopes).toContain('runs:write');
     expect(next.scopes).not.toContain('offline_access');
     const auth = { Authorization: `Bearer ${next.secret}`, 'Idempotency-Key': randomUUID() };
     expect(
       (
-        await page.request.post('/v1/projects', {
+        await page.request.post('/v1/workspaces', {
           headers: auth,
-          data: { name: `Preset project ${randomUUID()}` },
+          data: { name: `Preset workspace ${randomUUID()}` },
         })
       ).status(),
     ).toBe(201);

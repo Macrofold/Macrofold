@@ -37,7 +37,7 @@ export function CustomerStory() {
       <div className="mf-customer-flow">
         <div className="mf-customer-files">
           <Folder size={30} aria-hidden="true" />
-          <h3>Alice’s project files</h3>
+          <h3>Alice’s workspace files</h3>
           <span>One customer. One lasting source of context.</span>
           <code>profile.md</code>
           <code>memory/travel.md</code>
@@ -64,7 +64,7 @@ export function CustomerStory() {
         </ol>
       </div>
       <p className="mf-customer-note">
-        Customer agents is an optional integration path over Macrofold’s projects, worktrees, presets and
+        Customer agents is an optional integration path over Macrofold’s workspaces, worktrees, presets and
         runs. Your app owns customer identity. This illustrative workflow uses ordinary files and separate
         conversations; the optional memory starter guides what agents save.
       </p>

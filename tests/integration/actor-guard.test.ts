@@ -2,7 +2,7 @@ import { afterAll, it, expect } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import { admitRun, getRun } from '../../packages/core/src/runs';
 import { requireRunActor } from '../../packages/core/src/actor-authorization';
 
@@ -14,10 +14,10 @@ it('requires current delegated authority before a side effect and preserves the 
   const a = await fixtureAccount('Actor guard'),
     org = a.p.organizationId;
   const run = await transaction(org, async (tx) => {
-    const project = await resources.create(tx, 'projects', org, { name: 'Authority fixture' });
-    const created = await createWorkspace(tx, a.p, project.id, { name: 'main', branch: 'main' });
+    const workspace = await resources.create(tx, 'workspaces', org, { name: 'Authority fixture' });
+    const created = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
     const accepted = await admitRun(tx, a.p, {
-      workspace_id: (created.result as { workspace_id: string }).workspace_id,
+      worktree_id: (created.result as { worktree_id: string }).worktree_id,
       harness: 'codex',
       model: 'fixture-model',
       billing_mode: 'managed',

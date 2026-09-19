@@ -1,6 +1,5 @@
 import { afterAll, expect, it } from 'vitest';
-import { betterAuth } from 'better-auth';
-import { auth } from '../../packages/core/src/auth';
+import { createAuth } from '../../packages/core/src/auth';
 import { config } from '../../packages/core/src/config';
 import { authPool, pool } from '../../packages/db';
 
@@ -9,16 +8,13 @@ afterAll(async () => {
   await pool.end();
 });
 it('shares authentication throttling across independent server instances', async () => {
-  const options = {
-    ...auth.options,
-    rateLimit: {
-      enabled: true,
-      storage: 'database' as const,
-      customRules: { '/sign-in/email': { window: 60, max: 2 } },
-    },
+  const rateLimit = {
+    enabled: true,
+    storage: 'database' as const,
+    customRules: { '/sign-in/email': { window: 60, max: 2 } },
   };
-  const a = betterAuth(options),
-    b = betterAuth(options);
+  const a = createAuth(rateLimit),
+    b = createAuth(rateLimit);
   const address = `192.0.2.${Math.floor(Math.random() * 200) + 1}`;
   const request = () =>
     new Request(config.origin + '/auth/sign-in/email', {

@@ -65,6 +65,10 @@ try {
       ['idempotency', 'response_ciphertext'],
       ['github_user_links', 'token_ciphertext'],
       ['tool_invocations', 'result_ciphertext'],
+      ['decision_invocations', 'body_ciphertext'],
+      ['decision_invocations', 'response_ciphertext'],
+      ['decision_tool_steps', 'result_ciphertext'],
+      ['decision_task_wakes', 'input_ciphertext'],
       ['customer_connection_authorizations', 'provider_session_ciphertext'],
     ] as const) {
       // A ctid is used only while its row lock remains held, never as a durable identifier.

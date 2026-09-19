@@ -76,7 +76,7 @@ def test_resource_http_contract(path, verb, operation):
     group = operation['tags'][0]
     plural = ''.join(part[0].upper() + part[1:] for part in re.split(r'[-_ ]', group))
     singular = re.sub(r'ies$', 'y', plural)
-    singular = singular.removesuffix('s')
+    singular = re.sub(r'xes$', 'x', singular).removesuffix('s')
     name = operation['operationId'].replace(plural, '').replace(singular, '')
     name = {'getIdentity': 'get', 'continueSession': 'continue_run', 'exportCheckpoint': 'export_archive'}.get(operation['operationId'], snake(name))
     kwargs, query, headers = {}, {}, {}
@@ -162,7 +162,7 @@ def test_homepage_new_run_snippet(monkeypatch, capsys):
         if request.method == 'POST':
             assert request.headers['Idempotency-Key']
             assert json.loads(request.content) == {
-                'project_id': ID, 'harness': 'codex', 'model': 'gpt-5.4-mini',
+                'workspace_id': ID, 'harness': 'codex', 'model': 'gpt-5.4-mini',
                 'billing_mode': 'managed', 'prompt': 'Build a working prototype.',
             }
             return httpx.Response(202, json=example(SPEC['components']['schemas']['RunAccepted']))
@@ -185,7 +185,7 @@ def test_homepage_new_run_snippet(monkeypatch, capsys):
     client = macrofold.Macrofold(api_key='snippet-fixture', transport=httpx.MockTransport(handler))
     monkeypatch.setattr(macrofold, 'Macrofold', lambda: client)
     try:
-        exec(compile(snippet, 'homepage-python-example', 'exec'), {'project_id': ID})
+        exec(compile(snippet, 'homepage-python-example', 'exec'), {'workspace_id': ID})
         assert capsys.readouterr().out == 'Working prototype'
         assert len(requests) == 4
         assert client._http.is_closed

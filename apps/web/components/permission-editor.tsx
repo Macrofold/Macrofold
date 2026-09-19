@@ -61,7 +61,7 @@ export function PermissionEditor({ value, onChange }: { value?: Policy; onChange
     <fieldset className="permission-editor">
       <legend>Agent permissions</legend>
       <p className="form-hint">
-        Restrictions inherit from the project and worktree. Exclusions always win. Use one relative pattern
+        Restrictions inherit from the workspace and worktree. Exclusions always win. Use one relative pattern
         per line, such as src/** or **/*.env. Leave blank to inherit.
       </p>
       {(['read', 'write'] as const).map((action) => (
@@ -137,7 +137,7 @@ export function PermissionEditor({ value, onChange }: { value?: Policy; onChange
       </Field>
       <p className="form-hint">
         File restrictions apply to every supported harness and disable shell, subagents and local stdio
-        connectors. Stop pending runs before changing project or worktree permissions; changed policies
+        connectors. Stop pending runs before changing workspace or worktree permissions; changed policies
         require a new conversation.
       </p>
     </fieldset>
@@ -148,7 +148,7 @@ export function PermissionSettings({
   id,
   value,
 }: {
-  scope: 'project' | 'worktree';
+  scope: 'workspace' | 'worktree';
   id: string;
   value?: Policy;
 }) {
@@ -162,14 +162,14 @@ export function PermissionSettings({
         event.preventDefault();
         setBusy(true);
         try {
-          if (scope === 'project')
-            await request('updateProject', {
-              params: { path: { project_id: id } },
+          if (scope === 'workspace')
+            await request('updateWorkspace', {
+              params: { path: { workspace_id: id } },
               body: { permissions: policy },
             });
           else
-            await request('updateWorkspace', {
-              params: { path: { workspace_id: id } },
+            await request('updateWorktree', {
+              params: { path: { worktree_id: id } },
               body: { permissions: policy },
             });
           await client.invalidateQueries();
@@ -181,7 +181,7 @@ export function PermissionSettings({
         }
       }}
     >
-      <h2>{scope === 'project' ? 'Project' : 'Worktree'} permissions</h2>
+      <h2>{scope === 'workspace' ? 'Workspace' : 'Worktree'} permissions</h2>
       <PermissionEditor value={policy} onChange={setPolicy} />
       <Button type="submit" busy={busy}>
         Save {scope} permissions

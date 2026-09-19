@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,19 +24,26 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dev.macrofold.model.AgentPermissions;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import org.openapitools.jackson.nullable.JsonNullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.openapitools.jackson.nullable.JsonNullable;
+import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 import dev.macrofold.ApiClient;
 /**
- * Follow-up to pinned session configuration. queue_if_busy accepts ordered workspace work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+ * Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
  */
 @JsonPropertyOrder({
   MessageCreate.JSON_PROPERTY_PROMPT,
@@ -48,7 +55,11 @@ import dev.macrofold.ApiClient;
   MessageCreate.JSON_PROPERTY_SCHEDULING_CLASS,
   MessageCreate.JSON_PROPERTY_PERMISSIONS,
   MessageCreate.JSON_PROPERTY_CONNECTION_GRANTS,
-  MessageCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES
+  MessageCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
+  MessageCreate.JSON_PROPERTY_ATTACHMENTS,
+  MessageCreate.JSON_PROPERTY_SANDBOX_ID,
+  MessageCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
+  MessageCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class MessageCreate {
@@ -126,6 +137,21 @@ public class MessageCreate {
   public static final String JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES = "connection_access_overrides";
   @javax.annotation.Nullable
   private List<Grant> connectionAccessOverrides = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
+  @javax.annotation.Nullable
+  private Set<String> attachments = new LinkedHashSet<>();
+
+  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
+  @javax.annotation.Nullable
+  private UUID sandboxId;
+
+  public static final String JSON_PROPERTY_KEEP_WARM_SECONDS = "keep_warm_seconds";
+  private JsonNullable<Integer> keepWarmSeconds = JsonNullable.<Integer>undefined();
+
+  public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
+  @javax.annotation.Nullable
+  private String sandboxMaxCostMicroUsd;
 
   public MessageCreate() { 
   }
@@ -396,6 +422,121 @@ public class MessageCreate {
   }
 
 
+  public MessageCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+    return this;
+  }
+
+  public MessageCreate addAttachmentsItem(String attachmentsItem) {
+    if (this.attachments == null) {
+      this.attachments = new LinkedHashSet<>();
+    }
+    this.attachments.add(attachmentsItem);
+    return this;
+  }
+
+  /**
+   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+   * @return attachments
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<String> getAttachments() {
+    return attachments;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+  }
+
+
+  public MessageCreate sandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = sandboxId;
+    return this;
+  }
+
+  /**
+   * Get sandboxId
+   * @return sandboxId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getSandboxId() {
+    return sandboxId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
+    this.sandboxId = sandboxId;
+  }
+
+
+  public MessageCreate keepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
+    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
+    return this;
+  }
+
+  /**
+   * Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
+   * minimum: 0
+   * maximum: 86400
+   * @return keepWarmSeconds
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public Integer getKeepWarmSeconds() {
+        return keepWarmSeconds.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_KEEP_WARM_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<Integer> getKeepWarmSeconds_JsonNullable() {
+    return keepWarmSeconds;
+  }
+
+  @JsonProperty(JSON_PROPERTY_KEEP_WARM_SECONDS)
+  public void setKeepWarmSeconds_JsonNullable(JsonNullable<Integer> keepWarmSeconds) {
+    this.keepWarmSeconds = keepWarmSeconds;
+  }
+
+  public void setKeepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
+    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
+  }
+
+
+  public MessageCreate sandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
+    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
+    return this;
+  }
+
+  /**
+   * Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
+   * @return sandboxMaxCostMicroUsd
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getSandboxMaxCostMicroUsd() {
+    return sandboxMaxCostMicroUsd;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
+    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
+  }
+
+
   /**
    * Return true if this MessageCreate object is equal to o.
    */
@@ -417,12 +558,27 @@ public class MessageCreate {
         Objects.equals(this.schedulingClass, messageCreate.schedulingClass) &&
         Objects.equals(this.permissions, messageCreate.permissions) &&
         Objects.equals(this.connectionGrants, messageCreate.connectionGrants) &&
-        Objects.equals(this.connectionAccessOverrides, messageCreate.connectionAccessOverrides);
+        Objects.equals(this.connectionAccessOverrides, messageCreate.connectionAccessOverrides) &&
+        Objects.equals(this.attachments, messageCreate.attachments) &&
+        Objects.equals(this.sandboxId, messageCreate.sandboxId) &&
+        equalsNullable(this.keepWarmSeconds, messageCreate.keepWarmSeconds) &&
+        Objects.equals(this.sandboxMaxCostMicroUsd, messageCreate.sandboxMaxCostMicroUsd);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides);
+    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -439,6 +595,10 @@ public class MessageCreate {
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
+    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
+    sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
+    sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -547,6 +707,32 @@ public class MessageCreate {
           "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix))));
         }
       }
+    }
+
+    // add `attachments` to the URL query string
+    if (getAttachments() != null) {
+      int i = 0;
+      for (String _item : getAttachments()) {
+        joiner.add(String.format(java.util.Locale.ROOT, "%sattachments%s%s=%s", prefix, suffix,
+            "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
+            ApiClient.urlEncode(ApiClient.valueToString(_item))));
+      }
+      i++;
+    }
+
+    // add `sandbox_id` to the URL query string
+    if (getSandboxId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
+    }
+
+    // add `keep_warm_seconds` to the URL query string
+    if (getKeepWarmSeconds() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%skeep_warm_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKeepWarmSeconds()))));
+    }
+
+    // add `sandbox_max_cost_micro_usd` to the URL query string
+    if (getSandboxMaxCostMicroUsd() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_max_cost_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxMaxCostMicroUsd()))));
     }
 
     return joiner.toString();

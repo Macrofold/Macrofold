@@ -1,8 +1,8 @@
 // Generated from OpenAPI by pnpm sdk:generate:all. Do not edit.
 use crate::{Client, ClientError, models, RequestOptions};
 pub const DEFAULT_ORIGIN: &str = "https://app.macrofold.ai";
-impl Client { pub fn projects(&self) -> ProjectsResource<'_> {ProjectsResource {client:self, options:RequestOptions::default()}}
-pub fn workspaces(&self) -> WorkspacesResource<'_> {WorkspacesResource {client:self, options:RequestOptions::default()}}
+impl Client { pub fn workspaces(&self) -> WorkspacesResource<'_> {WorkspacesResource {client:self, options:RequestOptions::default()}}
+pub fn worktrees(&self) -> WorktreesResource<'_> {WorktreesResource {client:self, options:RequestOptions::default()}}
 pub fn agents(&self) -> AgentsResource<'_> {AgentsResource {client:self, options:RequestOptions::default()}}
 pub fn sessions(&self) -> SessionsResource<'_> {SessionsResource {client:self, options:RequestOptions::default()}}
 pub fn runs(&self) -> RunsResource<'_> {RunsResource {client:self, options:RequestOptions::default()}}
@@ -25,97 +25,31 @@ pub fn integrations(&self) -> IntegrationsResource<'_> {IntegrationsResource {cl
 pub fn organizations(&self) -> OrganizationsResource<'_> {OrganizationsResource {client:self, options:RequestOptions::default()}}
 pub fn triggers(&self) -> TriggersResource<'_> {TriggersResource {client:self, options:RequestOptions::default()}}
 pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnectionsResource {client:self, options:RequestOptions::default()}}
-pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}} }
+pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}}
+pub fn inferences(&self) -> InferencesResource<'_> {InferencesResource {client:self, options:RequestOptions::default()}}
+pub fn tasks(&self) -> TasksResource<'_> {TasksResource {client:self, options:RequestOptions::default()}}
+pub fn sandboxes(&self) -> SandboxesResource<'_> {SandboxesResource {client:self, options:RequestOptions::default()}} }
 
-#[derive(Debug,Clone,Default)] pub struct GetProjectParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct GetWorkspaceParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct GetWorktreeOptionsParams {pub name: Option<String>,pub branch: Option<String>}
-#[derive(Debug,Clone,Default)] pub struct ListProjectsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub archived: Option<bool>}
-#[derive(Debug,Clone,Default)] pub struct ListWorkspacesParams {pub cursor: Option<String>,pub limit: Option<i32>}
-pub struct ProjectsResource<'a> {client:&'a Client,options:RequestOptions}
-    impl<'a> ProjectsResource<'a> {
-      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn cancel_deletion(&self, project_id: &str) -> Result<models::Project,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::projects_api::cancel_project_deletion(self.client.configuration(), &key, project_id, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn create(&self, input: models::ProjectCreate) -> Result<models::Project,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::projects_api::create_project(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn create_workspace(&self, project_id: &str, input: models::WorkspaceCreate) -> Result<models::Operation,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::projects_api::create_workspace(self.client.configuration(), project_id, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn delete(&self, project_id: &str) -> Result<models::Operation,ClientError> {
-
-        crate::apis::projects_api::delete_project(self.client.configuration(), project_id, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn get(&self, project_id: &str, params: GetProjectParams) -> Result<models::Project,ClientError> {
-
-        crate::apis::projects_api::get_project(self.client.configuration(), project_id, self.options.organization.as_deref(), params.include_connections, params.agent_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn get_worktree_options(&self, project_id: &str, params: GetWorktreeOptionsParams) -> Result<models::WorktreeOptions,ClientError> {
-
-        crate::apis::projects_api::get_worktree_options(self.client.configuration(), project_id, self.options.organization.as_deref(), params.name.as_deref(), params.branch.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list(&self, params: ListProjectsParams) -> Result<models::ListProjects200Response,ClientError> {
-
-        crate::apis::projects_api::list_projects(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.archived).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list_workspaces(&self, project_id: &str, params: ListWorkspacesParams) -> Result<models::ListWorkspaces200Response,ClientError> {
-
-        crate::apis::projects_api::list_workspaces(self.client.configuration(), project_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn schedule_deletion(&self, project_id: &str, input: models::ProjectDeletion) -> Result<models::Project,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::projects_api::schedule_project_deletion(self.client.configuration(), &key, project_id, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn update(&self, project_id: &str, input: models::ProjectPatch) -> Result<models::Project,ClientError> {
-
-        crate::apis::projects_api::update_project(self.client.configuration(), project_id, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-    }
-#[derive(Debug,Clone)] pub struct CreateFolderParams {pub if_match: String}
-#[derive(Debug,Clone)] pub struct DeleteFileParams {pub path: String,pub if_match: String}
-#[derive(Debug,Clone)] pub struct DuplicateFileParams {pub if_match: String}
-#[derive(Debug,Clone,Default)] pub struct GetWorkspaceDiffParams {pub base_checkpoint_id: Option<String>,pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListCheckpointsParams {pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListFilesParams {pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub recursive: Option<bool>}
-#[derive(Debug,Clone,Default)] pub struct ListTransfersParams {pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone)] pub struct ReadFileParams {pub path: String,pub download: Option<bool>}
-#[derive(Debug,Clone)] pub struct RenameFileParams {pub path: String,pub if_match: String}
-#[derive(Debug,Clone)] pub struct WriteFileParams {pub path: String,pub if_match: String,pub create_only: Option<bool>}
+#[derive(Debug,Clone,Default)] pub struct ListWorkspacesParams {pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub archived: Option<bool>}
+#[derive(Debug,Clone,Default)] pub struct ListWorktreesParams {pub cursor: Option<String>,pub limit: Option<i32>}
 pub struct WorkspacesResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> WorkspacesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn create_checkpoint(&self, workspace_id: &str, input: models::CheckpointCreate) -> Result<models::Operation,ClientError> {
+      pub async fn cancel_deletion(&self, workspace_id: &str) -> Result<models::Workspace,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::create_checkpoint(self.client.configuration(), workspace_id, &key, input, self.options.organization.as_deref()).await
+        crate::apis::workspaces_api::cancel_workspace_deletion(self.client.configuration(), &key, workspace_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn create_folder(&self, workspace_id: &str, input: models::FolderCreate, params: CreateFolderParams) -> Result<models::Operation,ClientError> {
+pub async fn create(&self, input: models::WorkspaceCreate) -> Result<models::Workspace,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::create_folder(self.client.configuration(), workspace_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+        crate::apis::workspaces_api::create_workspace(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn create_transfer(&self, workspace_id: &str, input: models::TransferCreate) -> Result<models::Transfer,ClientError> {
+pub async fn create_worktree(&self, workspace_id: &str, input: models::WorktreeCreate) -> Result<models::Operation,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::create_transfer(self.client.configuration(), workspace_id, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn delete_file(&self, workspace_id: &str, params: DeleteFileParams) -> Result<models::Operation,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::delete_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, self.options.organization.as_deref()).await
+        crate::apis::workspaces_api::create_worktree(self.client.configuration(), workspace_id, &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete(&self, workspace_id: &str) -> Result<models::Operation,ClientError> {
@@ -123,59 +57,29 @@ pub async fn delete(&self, workspace_id: &str) -> Result<models::Operation,Clien
         crate::apis::workspaces_api::delete_workspace(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn duplicate_file(&self, workspace_id: &str, input: models::FileDuplicate, params: DuplicateFileParams) -> Result<models::Operation,ClientError> {
+pub async fn get(&self, workspace_id: &str, params: GetWorkspaceParams) -> Result<models::Workspace,ClientError> {
+
+        crate::apis::workspaces_api::get_workspace(self.client.configuration(), workspace_id, self.options.organization.as_deref(), params.include_connections, params.agent_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_worktree_options(&self, workspace_id: &str, params: GetWorktreeOptionsParams) -> Result<models::WorktreeOptions,ClientError> {
+
+        crate::apis::workspaces_api::get_worktree_options(self.client.configuration(), workspace_id, self.options.organization.as_deref(), params.name.as_deref(), params.branch.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListWorkspacesParams) -> Result<models::ListWorkspaces200Response,ClientError> {
+
+        crate::apis::workspaces_api::list_workspaces(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.archived).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_worktrees(&self, workspace_id: &str, params: ListWorktreesParams) -> Result<models::ListWorktrees200Response,ClientError> {
+
+        crate::apis::workspaces_api::list_worktrees(self.client.configuration(), workspace_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn schedule_deletion(&self, workspace_id: &str, input: models::WorkspaceDeletion) -> Result<models::Workspace,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::duplicate_file(self.client.configuration(), workspace_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn get_sync(&self, workspace_id: &str) -> Result<models::GitSync,ClientError> {
-
-        crate::apis::workspaces_api::get_sync(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn get(&self, workspace_id: &str) -> Result<models::Workspace,ClientError> {
-
-        crate::apis::workspaces_api::get_workspace(self.client.configuration(), workspace_id, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn get_diff(&self, workspace_id: &str, params: GetWorkspaceDiffParams) -> Result<models::WorkspaceDiff,ClientError> {
-
-        crate::apis::workspaces_api::get_workspace_diff(self.client.configuration(), workspace_id, params.base_checkpoint_id.as_deref(), params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list_checkpoints(&self, workspace_id: &str, params: ListCheckpointsParams) -> Result<models::ListCheckpoints200Response,ClientError> {
-
-        crate::apis::workspaces_api::list_checkpoints(self.client.configuration(), workspace_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list_files(&self, workspace_id: &str, params: ListFilesParams) -> Result<models::FileListing,ClientError> {
-
-        crate::apis::workspaces_api::list_files(self.client.configuration(), workspace_id, params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.recursive).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list_transfers(&self, workspace_id: &str, params: ListTransfersParams) -> Result<models::ListTransfers200Response,ClientError> {
-
-        crate::apis::workspaces_api::list_transfers(self.client.configuration(), workspace_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn read_file(&self, workspace_id: &str, params: ReadFileParams) -> Result<reqwest::Response,ClientError> {
-
-        crate::apis::workspaces_api::read_file(self.client.configuration(), workspace_id, &params.path, self.options.organization.as_deref(), params.download).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn rename_file(&self, workspace_id: &str, input: models::FileRename, params: RenameFileParams) -> Result<models::Operation,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::rename_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn restore(&self, workspace_id: &str, input: models::RestoreRequest) -> Result<models::Operation,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::restore_workspace(self.client.configuration(), workspace_id, &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn sync(&self, workspace_id: &str, input: Option<models::SyncWorkspaceRequest>) -> Result<models::Operation,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::sync_workspace(self.client.configuration(), workspace_id, &key, self.options.organization.as_deref(), input).await
+        crate::apis::workspaces_api::schedule_workspace_deletion(self.client.configuration(), &key, workspace_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn update(&self, workspace_id: &str, input: models::WorkspacePatch) -> Result<models::Workspace,ClientError> {
@@ -183,13 +87,112 @@ pub async fn update(&self, workspace_id: &str, input: models::WorkspacePatch) ->
         crate::apis::workspaces_api::update_workspace(self.client.configuration(), workspace_id, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn write_file(&self, workspace_id: &str, input: std::path::PathBuf, params: WriteFileParams) -> Result<models::Operation,ClientError> {
+    }
+#[derive(Debug,Clone)] pub struct CreateFolderParams {pub if_match: String}
+#[derive(Debug,Clone)] pub struct DeleteFileParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct DuplicateFileParams {pub if_match: String}
+#[derive(Debug,Clone,Default)] pub struct GetWorktreeDiffParams {pub base_checkpoint_id: Option<String>,pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListCheckpointsParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone,Default)] pub struct ListFilesParams {pub path: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>,pub recursive: Option<bool>}
+#[derive(Debug,Clone,Default)] pub struct ListTransfersParams {pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct ReadFileParams {pub path: String,pub download: Option<bool>}
+#[derive(Debug,Clone)] pub struct RenameFileParams {pub path: String,pub if_match: String}
+#[derive(Debug,Clone)] pub struct WriteFileParams {pub path: String,pub if_match: String,pub create_only: Option<bool>}
+pub struct WorktreesResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> WorktreesResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create_checkpoint(&self, worktree_id: &str, input: models::CheckpointCreate) -> Result<models::Operation,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::workspaces_api::write_file(self.client.configuration(), workspace_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref(), params.create_only).await
+        crate::apis::worktrees_api::create_checkpoint(self.client.configuration(), worktree_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_folder(&self, worktree_id: &str, input: models::FolderCreate, params: CreateFolderParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::create_folder(self.client.configuration(), worktree_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_transfer(&self, worktree_id: &str, input: models::TransferCreate) -> Result<models::Transfer,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::create_transfer(self.client.configuration(), worktree_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete_file(&self, worktree_id: &str, params: DeleteFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::delete_file(self.client.configuration(), worktree_id, &params.path, &params.if_match, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete(&self, worktree_id: &str) -> Result<models::Operation,ClientError> {
+
+        crate::apis::worktrees_api::delete_worktree(self.client.configuration(), worktree_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn duplicate_file(&self, worktree_id: &str, input: models::FileDuplicate, params: DuplicateFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::duplicate_file(self.client.configuration(), worktree_id, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get_sync(&self, worktree_id: &str) -> Result<models::GitSync,ClientError> {
+
+        crate::apis::worktrees_api::get_sync(self.client.configuration(), worktree_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get(&self, worktree_id: &str) -> Result<models::Worktree,ClientError> {
+
+        crate::apis::worktrees_api::get_worktree(self.client.configuration(), worktree_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_diff(&self, worktree_id: &str, params: GetWorktreeDiffParams) -> Result<models::WorktreeDiff,ClientError> {
+
+        crate::apis::worktrees_api::get_worktree_diff(self.client.configuration(), worktree_id, params.base_checkpoint_id.as_deref(), params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_checkpoints(&self, worktree_id: &str, params: ListCheckpointsParams) -> Result<models::ListCheckpoints200Response,ClientError> {
+
+        crate::apis::worktrees_api::list_checkpoints(self.client.configuration(), worktree_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_files(&self, worktree_id: &str, params: ListFilesParams) -> Result<models::FileListing,ClientError> {
+
+        crate::apis::worktrees_api::list_files(self.client.configuration(), worktree_id, params.path.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.query.as_deref(), params.recursive).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_transfers(&self, worktree_id: &str, params: ListTransfersParams) -> Result<models::ListTransfers200Response,ClientError> {
+
+        crate::apis::worktrees_api::list_transfers(self.client.configuration(), worktree_id, params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn read_file(&self, worktree_id: &str, params: ReadFileParams) -> Result<reqwest::Response,ClientError> {
+
+        crate::apis::worktrees_api::read_file(self.client.configuration(), worktree_id, &params.path, self.options.organization.as_deref(), params.download).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn rename_file(&self, worktree_id: &str, input: models::FileRename, params: RenameFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::rename_file(self.client.configuration(), worktree_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn restore(&self, worktree_id: &str, input: models::RestoreRequest) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::restore_worktree(self.client.configuration(), worktree_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn sync(&self, worktree_id: &str, input: Option<models::SyncWorktreeRequest>) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::sync_worktree(self.client.configuration(), worktree_id, &key, self.options.organization.as_deref(), input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn update(&self, worktree_id: &str, input: models::WorktreePatch) -> Result<models::Worktree,ClientError> {
+
+        crate::apis::worktrees_api::update_worktree(self.client.configuration(), worktree_id, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn write_file(&self, worktree_id: &str, input: std::path::PathBuf, params: WriteFileParams) -> Result<models::Operation,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::worktrees_api::write_file(self.client.configuration(), worktree_id, &params.path, &params.if_match, &key, input, self.options.organization.as_deref(), params.create_only).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct GetAgentParams {pub include_connections: Option<bool>,pub project_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct GetAgentParams {pub include_connections: Option<bool>,pub workspace_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct ListAgentsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub query: Option<String>}
 pub struct AgentsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> AgentsResource<'a> {
@@ -206,7 +209,7 @@ pub async fn delete(&self, agent_id: &str) -> Result<(),ClientError> {
       }
 pub async fn get(&self, agent_id: &str, params: GetAgentParams) -> Result<models::Agent,ClientError> {
 
-        crate::apis::agents_api::get_agent(self.client.configuration(), agent_id, self.options.organization.as_deref(), params.include_connections, params.project_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
+        crate::apis::agents_api::get_agent(self.client.configuration(), agent_id, self.options.organization.as_deref(), params.include_connections, params.workspace_id.as_deref(), params.connections_limit, params.connections_cursor.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListAgentsParams) -> Result<models::ListAgents200Response,ClientError> {
@@ -220,11 +223,11 @@ pub async fn update(&self, agent_id: &str, input: models::AgentPatch) -> Result<
           .map_err(|error|crate::request_error(error,None))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct ListSessionsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub workspace_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListSessionsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>}
 pub struct SessionsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> SessionsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn continue_run(&self, session_id: &str, input: models::MessageCreate) -> Result<models::RunAccepted,ClientError> {
+      pub async fn continue_run(&self, session_id: &str, input: models::MessageCreate) -> Result<models::NativeRunAccepted,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::sessions_api::continue_session(self.client.configuration(), session_id, &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
@@ -241,13 +244,13 @@ pub async fn get(&self, session_id: &str) -> Result<models::Session,ClientError>
       }
 pub async fn list(&self, params: ListSessionsParams) -> Result<models::ListSessions200Response,ClientError> {
 
-        crate::apis::sessions_api::list_sessions(self.client.configuration(), params.cursor.as_deref(), params.limit, params.workspace_id.as_deref(), self.options.organization.as_deref()).await
+        crate::apis::sessions_api::list_sessions(self.client.configuration(), params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
     }
 #[derive(Debug,Clone,Default)] pub struct ListArtifactsParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListRunEventsParams {pub after: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub project_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub workspace_id: Option<String>,pub session_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub workspace_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>,pub session_id: Option<String>}
 pub struct RunsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> RunsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -256,7 +259,7 @@ pub struct RunsResource<'a> {client:&'a Client,options:RequestOptions}
         crate::apis::runs_api::cancel_run(self.client.configuration(), run_id, &key, std::collections::HashMap::new(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn create(&self, input: models::RunCreate) -> Result<models::RunAccepted,ClientError> {
+pub async fn create(&self, input: models::RunCreate) -> Result<models::NativeRunAccepted,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::runs_api::create_run(self.client.configuration(), &key, Some(input), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
@@ -283,7 +286,7 @@ pub async fn list_events(&self, run_id: &str, params: ListRunEventsParams) -> Re
       }
 pub async fn list(&self, params: ListRunsParams) -> Result<models::ListRuns200Response,ClientError> {
 
-        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.project_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.workspace_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref()).await
+        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.workspace_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn stream(&self, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_in_organization(run_id,after,self.options.organization.as_deref(),receive).await}
@@ -296,7 +299,12 @@ pub async fn submit_input(&self, run_id: &str, input: models::RunInput) -> Resul
 pub struct ArtifactsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> ArtifactsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn download(&self, artifact_id: &str) -> Result<models::Download,ClientError> {
+      pub async fn delete(&self, artifact_id: &str) -> Result<(),ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::artifacts_api::delete_artifact(self.client.configuration(), artifact_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn download(&self, artifact_id: &str) -> Result<models::Download,ClientError> {
 
         crate::apis::artifacts_api::download_artifact(self.client.configuration(), artifact_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
@@ -304,8 +312,8 @@ pub struct ArtifactsResource<'a> {client:&'a Client,options:RequestOptions}
     }
 #[derive(Debug,Clone)] pub struct CreateConnectionAccessRuleParams {pub if_match: String}
 #[derive(Debug,Clone)] pub struct DeleteConnectionAccessRuleParams {pub if_match: String}
-#[derive(Debug,Clone,Default)] pub struct ListConnectionAccessRulesParams {pub cursor: Option<String>,pub limit: Option<i32>,pub project_id: Option<String>,pub agent_id: Option<String>,pub sort: Option<String>,pub direction: Option<String>}
-#[derive(Debug,Clone,Default)] pub struct ListConnectionsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub project_id: Option<String>,pub agent_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListConnectionAccessRulesParams {pub cursor: Option<String>,pub limit: Option<i32>,pub workspace_id: Option<String>,pub agent_id: Option<String>,pub sort: Option<String>,pub direction: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListConnectionsParams {pub cursor: Option<String>,pub limit: Option<i32>,pub workspace_id: Option<String>,pub agent_id: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct ListConnectionToolsParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListStdioPackagesParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ResolveConnectionAccessParams {pub cursor: Option<String>,pub limit: Option<i32>}
@@ -351,12 +359,12 @@ pub async fn get_access(&self, connection_id: &str) -> Result<models::Connection
       }
 pub async fn list_access_rules(&self, connection_id: &str, params: ListConnectionAccessRulesParams) -> Result<models::ConnectionAccessRulePage,ClientError> {
 
-        crate::apis::connections_api::list_connection_access_rules(self.client.configuration(), connection_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit, params.project_id.as_deref(), params.agent_id.as_deref(), params.sort.as_deref(), params.direction.as_deref()).await
+        crate::apis::connections_api::list_connection_access_rules(self.client.configuration(), connection_id, self.options.organization.as_deref(), params.cursor.as_deref(), params.limit, params.workspace_id.as_deref(), params.agent_id.as_deref(), params.sort.as_deref(), params.direction.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list(&self, params: ListConnectionsParams) -> Result<models::ContextualConnectionPage,ClientError> {
 
-        crate::apis::connections_api::list_connections(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.project_id.as_deref(), params.agent_id.as_deref()).await
+        crate::apis::connections_api::list_connections(self.client.configuration(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.workspace_id.as_deref(), params.agent_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn list_tools(&self, connection_id: &str, params: ListConnectionToolsParams) -> Result<models::ListConnectionTools200Response,ClientError> {
@@ -485,6 +493,7 @@ pub struct RequestsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,None))
       }
     }
+#[derive(Debug,Clone)] pub struct ListBillingUsageParams {pub from: chrono::DateTime<chrono::FixedOffset>,pub to: chrono::DateTime<chrono::FixedOffset>,pub workspace_id: Option<String>,pub worktree_id: Option<String>,pub run_id: Option<String>,pub session_id: Option<String>,pub customer_id: Option<String>,pub agent_key: Option<String>,pub provider: Option<String>,pub model: Option<String>,pub kind: Option<String>,pub billing_mode: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
 pub struct BillingResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> BillingResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -506,6 +515,11 @@ pub async fn get(&self) -> Result<models::Billing,ClientError> {
 pub async fn get_storage(&self) -> Result<models::Storage,ClientError> {
 
         crate::apis::billing_api::get_storage(self.client.configuration(), self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_usage(&self, params: ListBillingUsageParams) -> Result<models::BillingUsagePage,ClientError> {
+
+        crate::apis::billing_api::list_billing_usage(self.client.configuration(), params.from, params.to, params.workspace_id.as_deref(), params.worktree_id.as_deref(), params.run_id.as_deref(), params.session_id.as_deref(), params.customer_id.as_deref(), params.agent_key.as_deref(), params.provider.as_deref(), params.model.as_deref(), params.kind.as_deref(), params.billing_mode.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn update_storage_policy(&self, input: models::StoragePolicy) -> Result<models::Storage,ClientError> {
@@ -648,9 +662,9 @@ pub async fn get(&self, transfer_id: &str) -> Result<models::Transfer,ClientErro
 pub struct IntegrationsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> IntegrationsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn disconnect_github(&self, project_id: &str) -> Result<models::Project,ClientError> {
+      pub async fn disconnect_github(&self, workspace_id: &str) -> Result<models::Workspace,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::integrations_api::disconnect_github(self.client.configuration(), project_id, &key, self.options.organization.as_deref()).await
+        crate::apis::integrations_api::disconnect_github(self.client.configuration(), workspace_id, &key, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn list_github_installations(&self) -> Result<models::GithubInstallations,ClientError> {
@@ -884,7 +898,7 @@ pub async fn read_file(&self, customer_id: &str, customer_agent_id: &str, params
         crate::apis::customer_agents_api::read_customer_agent_file(self.client.configuration(), customer_id, customer_agent_id, &params.path, self.options.organization.as_deref(), params.download).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn send_message(&self, customer_id: &str, customer_agent_id: &str, input: models::CustomerAgentMessage) -> Result<models::RunAccepted,ClientError> {
+pub async fn send_message(&self, customer_id: &str, customer_agent_id: &str, input: models::CustomerAgentMessage) -> Result<models::NativeRunAccepted,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::customer_agents_api::send_customer_agent_message(self.client.configuration(), customer_id, customer_agent_id, &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
@@ -894,5 +908,113 @@ pub async fn update_connection_permissions(&self, customer_id: &str, customer_ag
 
         crate::apis::customer_agents_api::update_customer_agent_connection_permissions(self.client.configuration(), customer_id, customer_agent_id, connection_id, &params.if_match, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
+      }
+    }
+pub struct InferencesResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> InferencesResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create_bounded_agent_run(&self, input: models::BoundedAgentCreate) -> Result<models::RunAccepted,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::inferences_api::create_bounded_agent_run(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_context_artifact(&self, input: models::ContextArtifactCreate) -> Result<models::ContextArtifact,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::inferences_api::create_context_artifact(self.client.configuration(), &key, input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_decision_definition(&self, input: models::DecisionDefinitionCreate) -> Result<models::DecisionDefinition,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::inferences_api::create_decision_definition(self.client.configuration(), &key, input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create(&self, input: models::InferenceCreate) -> Result<models::RunAccepted,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::inferences_api::create_inference(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn delete_context_artifact(&self, artifact_id: &str) -> Result<models::ContextArtifact,ClientError> {
+
+        crate::apis::inferences_api::delete_context_artifact(self.client.configuration(), artifact_id).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn delete_decision_definition(&self, definition_id: &str) -> Result<models::DecisionDefinition,ClientError> {
+
+        crate::apis::inferences_api::delete_decision_definition(self.client.configuration(), definition_id).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_context_artifact(&self, artifact_id: &str) -> Result<models::ContextArtifact,ClientError> {
+
+        crate::apis::inferences_api::get_context_artifact(self.client.configuration(), artifact_id).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn get_decision_definition(&self, definition_id: &str) -> Result<models::DecisionDefinition,ClientError> {
+
+        crate::apis::inferences_api::get_decision_definition(self.client.configuration(), definition_id).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+    }
+pub struct TasksResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> TasksResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn close_decision(&self, task_id: &str) -> Result<models::DecisionTask,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::tasks_api::close_decision_task(self.client.configuration(), &key, task_id).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn create_decision(&self, input: models::DecisionTaskCreate) -> Result<models::DecisionTask,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::tasks_api::create_decision_task(self.client.configuration(), &key, input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get_decision(&self, task_id: &str) -> Result<models::DecisionTask,ClientError> {
+
+        crate::apis::tasks_api::get_decision_task(self.client.configuration(), task_id).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn record_outcome(&self, task_id: &str, input: models::ApplicationOutcome) -> Result<models::DecisionTask,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::tasks_api::record_task_outcome(self.client.configuration(), &key, task_id, input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn wake_decision(&self, task_id: &str, input: models::DecisionTaskWake) -> Result<models::DecisionTask,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::tasks_api::wake_decision_task(self.client.configuration(), &key, task_id, input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+    }
+#[derive(Debug,Clone,Default)] pub struct ListSandboxesParams {pub worktree_id: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+pub struct SandboxesResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> SandboxesResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create(&self, input: models::SandboxCreate) -> Result<models::Sandbox,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::sandboxes_api::create_sandbox(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn destroy(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::sandboxes_api::destroy_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+
+        crate::apis::sandboxes_api::get_sandbox(self.client.configuration(), sandbox_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListSandboxesParams) -> Result<models::SandboxPage,ClientError> {
+
+        crate::apis::sandboxes_api::list_sandboxes(self.client.configuration(), self.options.organization.as_deref(), params.worktree_id.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn pause(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::sandboxes_api::pause_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn resume(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::sandboxes_api::resume_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

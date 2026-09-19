@@ -215,12 +215,12 @@ it('keeps presets on their selected account and rejects execution before reservi
     auth_method: 'claude_code',
   });
   expect((await sdk.agents.get(preset.id)).provider_connection_id).toBe(first.id);
-  const project = await sdk.projects.create({ name: 'Gated subscription project' });
+  const workspace = await sdk.workspaces.create({ name: 'Gated subscription workspace' });
   const before = await transaction(owner.p.organizationId, (tx) =>
     tx.query('SELECT count(*)::int AS count FROM runs'),
   );
   await expect(
-    sdk.runs.create({ project_id: project.id, agent_id: preset.id, prompt: 'Do not execute' }),
+    sdk.runs.create({ workspace_id: workspace.id, agent_id: preset.id, prompt: 'Do not execute' }),
   ).rejects.toMatchObject({ code: 'claude_subscription_unavailable' });
   expect(
     (await transaction(owner.p.organizationId, (tx) => tx.query('SELECT count(*)::int AS count FROM runs')))
@@ -230,4 +230,36 @@ it('keeps presets on their selected account and rejects execution before reservi
     (await transaction(owner.p.organizationId, (tx) => resources.get(tx, 'agents', preset.id)))
       .provider_connection_id,
   ).toBe(first.id);
+});
+
+it('stores a TypeSafe decision key without adding Jev to native harness eligibility', async () => {
+  const sdk = client(owner.key);
+  const connection = await sdk.connections.create({
+    name: 'Typed decisions',
+    kind: 'model',
+    provider: 'typesafe',
+    auth_method: 'api_key',
+    secret: 'synthetic-jev-key',
+  });
+  expect(connection).toMatchObject({ provider: 'typesafe', status: 'healthy' });
+  expect(connection).not.toHaveProperty('secret_ciphertext');
+  const { modelCredential } = await import('../../packages/core/src/model-credentials');
+  expect(
+    await transaction(owner.p.organizationId, (tx) =>
+      modelCredential(tx, owner.p.userId!, {
+        provider: 'typesafe',
+        billing_mode: 'byok',
+        provider_connection_id: connection.id,
+      }),
+    ),
+  ).toBe('synthetic-jev-key');
+  await expect(
+    sdk.agents.create({
+      name: 'Not a native model',
+      harness: 'codex',
+      model: 'jev-1.13.0',
+      billing_mode: 'byok',
+      provider_connection_id: connection.id,
+    }),
+  ).rejects.toMatchObject({ status: 400 });
 });

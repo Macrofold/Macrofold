@@ -13,7 +13,7 @@ import { Client } from '../../sdk/typescript/src/client';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 let foreign: Awaited<ReturnType<typeof fixtureAccount>>;
-let client: Client, workspaceId: string, projectId: string;
+let client: Client, worktreeId: string, workspaceId: string;
 const filePath = 'notes/日本語 + #?.json';
 const content = Buffer.from('{"message":"Hello 🌍"}\n');
 const apiClient = (key: string) =>
@@ -25,7 +25,7 @@ const apiClient = (key: string) =>
   });
 const read = (path: string, key = account.key) =>
   handleApi(
-    new Request(`${config.origin}/v1/workspaces/${workspaceId}/file?${new URLSearchParams({ path })}`, {
+    new Request(`${config.origin}/v1/worktrees/${worktreeId}/file?${new URLSearchParams({ path })}`, {
       headers: key ? { Authorization: `Bearer ${key}` } : {},
     }),
   );
@@ -34,12 +34,12 @@ beforeAll(async () => {
   account = await fixtureAccount('File reader');
   foreign = await fixtureAccount('Foreign file reader');
   client = apiClient(account.key);
-  const project = await client.projects.create({ name: 'Persisted file reads' });
-  projectId = project.id;
-  assert(project.default_workspace_id);
-  workspaceId = project.default_workspace_id;
-  const workspace = await client.workspaces.get(workspaceId);
-  await client.workspaces.writeFile(workspaceId, { path: filePath, content, ifMatch: workspace.revision });
+  const workspace = await client.workspaces.create({ name: 'Persisted file reads' });
+  workspaceId = workspace.id;
+  assert(workspace.default_worktree_id);
+  worktreeId = workspace.default_worktree_id;
+  const worktree = await client.worktrees.get(worktreeId);
+  await client.worktrees.writeFile(worktreeId, { path: filePath, content, ifMatch: worktree.revision });
 });
 afterAll(async () => {
   await pool.end();
@@ -56,7 +56,7 @@ it('returns complete persisted bytes, safe headers and the current revision for 
   );
   expect(response.headers.get('cache-control')).toBe('private, no-store');
   expect(response.headers.get('x-content-type-options')).toBe('nosniff');
-  expect(response.headers.get('etag')).toBe(`"${(await client.workspaces.get(workspaceId)).revision}"`);
+  expect(response.headers.get('etag')).toBe(`"${(await client.worktrees.get(worktreeId)).revision}"`);
 });
 
 it.each([
@@ -73,57 +73,57 @@ it.each([
 
 it('distinguishes missing files and unsupported symlinks from empty files', async () => {
   expect((await read('missing.txt')).status).toBe(404);
-  const project = await client.projects.create({ name: 'Empty and linked files' });
-  const id = project.default_workspace_id;
+  const workspace = await client.workspaces.create({ name: 'Empty and linked files' });
+  const id = workspace.default_worktree_id;
   assert(id);
   await transaction(account.p.organizationId, async (tx) => {
     const file = await saveContent(account.p.organizationId, Buffer.alloc(0));
     const link = await saveContent(account.p.organizationId, Buffer.from('empty.txt'));
-    await resources.update(tx, 'workspaces', id, {
+    await resources.update(tx, 'worktrees', id, {
       files: [
         { ...file, path: 'empty.txt', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false },
         { ...link, path: 'link', type: 'symlink' as const, modified_at: new Date().toISOString(), git_ignored: false },
       ],
     });
   });
-  expect(await client.workspaces.readFile(id, { path: 'empty.txt' })).toEqual(new Uint8Array());
-  await expect(client.workspaces.readFile(id, { path: 'link' })).rejects.toMatchObject({
+  expect(await client.worktrees.readFile(id, { path: 'empty.txt' })).toEqual(new Uint8Array());
+  await expect(client.worktrees.readFile(id, { path: 'link' })).rejects.toMatchObject({
     status: 409,
     code: 'unsupported_file',
   });
 });
 
-it('enforces tenant, project, scope and revocation checks before disclosing content', async () => {
+it('enforces tenant, workspace, scope and revocation checks before disclosing content', async () => {
   expect((await read(filePath, '')).status).toBe(401);
   expect((await read(filePath, foreign.key)).status).toBe(404);
   const keys = await transaction(account.p.organizationId, async (tx) => ({
     allowed: await createKey(tx, account.p, {
       name: 'Allowed',
       scopes: ['files:read'],
-      project_id: projectId,
+      workspace_id: workspaceId,
     }),
-    noScope: await createKey(tx, account.p, { name: 'Metadata only', scopes: ['projects:read'] }),
-    wrongProject: await createKey(tx, account.p, {
-      name: 'Other project',
+    noScope: await createKey(tx, account.p, { name: 'Metadata only', scopes: ['workspaces:read'] }),
+    wrongWorkspace: await createKey(tx, account.p, {
+      name: 'Other workspace',
       scopes: ['files:read'],
-      project_id: (await resources.create(tx, 'projects', account.p.organizationId, { name: 'Other' })).id,
+      workspace_id: (await resources.create(tx, 'workspaces', account.p.organizationId, { name: 'Other' })).id,
     }),
   }));
   expect(Buffer.from(await (await read(filePath, keys.allowed.secret)).arrayBuffer())).toEqual(content);
   expect((await read(filePath, keys.noScope.secret)).status).toBe(403);
-  expect((await read(filePath, keys.wrongProject.secret)).status).toBe(404);
+  expect((await read(filePath, keys.wrongWorkspace.secret)).status).toBe(404);
   await client.apiKeys.revoke(String(keys.allowed.id));
   expect((await read(filePath, keys.allowed.secret)).status).toBe(401);
 });
 
 it('returns the full 4 MiB boundary and rejects larger metadata before loading objects', async () => {
-  const project = await client.projects.create({ name: 'Bounded reads' });
-  const id = project.default_workspace_id;
+  const workspace = await client.workspaces.create({ name: 'Bounded reads' });
+  const id = workspace.default_worktree_id;
   assert(id);
   const bytes = Buffer.alloc(4 * 1024 * 1024, 255);
   await transaction(account.p.organizationId, async (tx) => {
     const file = await saveContent(account.p.organizationId, bytes);
-    await resources.update(tx, 'workspaces', id, {
+    await resources.update(tx, 'worktrees', id, {
       files: [
         { ...file, path: 'boundary.bin', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false },
         // No object exists: a storage lookup would fail instead of the required size rejection.
@@ -137,28 +137,28 @@ it('returns the full 4 MiB boundary and rejects larger metadata before loading o
       ],
     });
   });
-  expect(Buffer.from(await client.workspaces.readFile(id, { path: 'boundary.bin' })).equals(bytes)).toBe(
+  expect(Buffer.from(await client.worktrees.readFile(id, { path: 'boundary.bin' })).equals(bytes)).toBe(
     true,
   );
-  await expect(client.workspaces.readFile(id, { path: 'large.bin' })).rejects.toMatchObject({
+  await expect(client.worktrees.readFile(id, { path: 'large.bin' })).rejects.toMatchObject({
     status: 413,
     code: 'file_too_large',
   });
 });
 
 it('downloads complete larger files through a separately authenticated capability', async () => {
-  const project = await client.projects.create({ name: 'Large download' });
-  const workspace = project.default_workspace_id;
-  assert(workspace);
+  const workspace = await client.workspaces.create({ name: 'Large download' });
+  const worktree = workspace.default_worktree_id;
+  assert(worktree);
   const bytes = Buffer.alloc(4 * 1024 * 1024 + 1, 128);
   await transaction(account.p.organizationId, async (tx) => {
     const stored = await saveContent(account.p.organizationId, bytes);
-    await resources.update(tx, 'workspaces', workspace, {
+    await resources.update(tx, 'worktrees', worktree, {
       files: [{ ...stored, path: 'large.bin', type: 'file' as const, modified_at: new Date().toISOString(), git_ignored: false }],
     });
   });
   const response = await handleApi(
-    new Request(`${config.origin}/v1/workspaces/${workspace}/file?path=large.bin&download=true`, {
+    new Request(`${config.origin}/v1/worktrees/${worktree}/file?path=large.bin&download=true`, {
       headers: { Authorization: `Bearer ${account.key}` },
     }),
   );
@@ -176,14 +176,14 @@ it('downloads complete larger files through a separately authenticated capabilit
 });
 
 it('keeps reads on the published revision during execution, then exposes the checkpointed edits', async () => {
-  const project = await client.projects.create({ name: 'Read while running' });
-  const id = project.default_workspace_id;
+  const workspace = await client.workspaces.create({ name: 'Read while running' });
+  const id = workspace.default_worktree_id;
   assert(id);
-  let workspace = await client.workspaces.get(id);
-  await client.workspaces.writeFile(id, { path: filePath, content, ifMatch: workspace.revision });
-  workspace = await client.workspaces.get(id);
+  let worktree = await client.worktrees.get(id);
+  await client.worktrees.writeFile(id, { path: filePath, content, ifMatch: worktree.revision });
+  worktree = await client.worktrees.get(id);
   const run = await client.runs.create({
-    workspace_id: id,
+    worktree_id: id,
     harness: 'codex',
     model: 'fixture-model',
     billing_mode: 'managed',
@@ -196,10 +196,10 @@ it('keeps reads on the published revision during execution, then exposes the che
       executions++;
       expect((await client.runs.get(run.run_id)).status).toBe('running');
       expect(request.files.find((file) => file.path === filePath)?.bytes).toEqual(content);
-      expect(Buffer.from(await client.workspaces.readFile(id, { path: filePath }))).toEqual(content);
+      expect(Buffer.from(await client.worktrees.readFile(id, { path: filePath }))).toEqual(content);
       await expect(
-        client.workspaces.writeFile(id, { path: filePath, content: updated, ifMatch: workspace.revision }),
-      ).rejects.toMatchObject({ status: 409, code: 'workspace_busy' });
+        client.worktrees.writeFile(id, { path: filePath, content: updated, ifMatch: worktree.revision }),
+      ).rejects.toMatchObject({ status: 409, code: 'worktree_busy' });
       return {
         output: 'File updated.',
         files: [{ path: filePath, bytes: updated }],
@@ -212,11 +212,11 @@ it('keeps reads on the published revision during execution, then exposes the che
   expect(executions).toBe(1);
   const result = await client.runs.wait(run.run_id);
   expect(result.persistence_status).toBe('verified');
-  expect(Buffer.from(await client.workspaces.readFile(id, { path: filePath }))).toEqual(updated);
-  const published = await client.workspaces.get(id);
-  expect(published.revision).not.toBe(workspace.revision);
-  await client.workspaces.deleteFile(id, { path: filePath, ifMatch: published.revision });
-  await expect(client.workspaces.readFile(id, { path: filePath })).rejects.toMatchObject({
+  expect(Buffer.from(await client.worktrees.readFile(id, { path: filePath }))).toEqual(updated);
+  const published = await client.worktrees.get(id);
+  expect(published.revision).not.toBe(worktree.revision);
+  await client.worktrees.deleteFile(id, { path: filePath, ifMatch: published.revision });
+  await expect(client.worktrees.readFile(id, { path: filePath })).rejects.toMatchObject({
     status: 404,
     code: 'not_found',
   });
@@ -225,8 +225,8 @@ it('keeps reads on the published revision during execution, then exposes the che
 it.each(['missing', 'corrupt'])(
   'rejects %s stored content without disclosing bytes or object keys',
   async (fault) => {
-    const project = await client.projects.create({ name: 'Unreadable content' });
-    const id = project.default_workspace_id;
+    const workspace = await client.workspaces.create({ name: 'Unreadable content' });
+    const id = workspace.default_worktree_id;
     assert(id);
     const stored = await saveContent(account.p.organizationId, content);
     const file = {
@@ -238,10 +238,10 @@ it.each(['missing', 'corrupt'])(
         : { sha256: '0'.repeat(64) }),
     };
     await transaction(account.p.organizationId, (tx) =>
-      resources.update(tx, 'workspaces', id, { files: [file] }),
+      resources.update(tx, 'worktrees', id, { files: [file] }),
     );
     const response = await handleApi(
-      new Request(`${config.origin}/v1/workspaces/${id}/file?${new URLSearchParams({ path: filePath })}`, {
+      new Request(`${config.origin}/v1/worktrees/${id}/file?${new URLSearchParams({ path: filePath })}`, {
         headers: { Authorization: `Bearer ${account.key}` },
       }),
     );

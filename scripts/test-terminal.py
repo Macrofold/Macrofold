@@ -16,13 +16,13 @@ seed = json.loads((pathlib.Path(os.environ.get("DATA_DIR", root / ".data")) / "d
 with tempfile.TemporaryDirectory(prefix="hosted-terminal-") as directory:
     env = {**os.environ, "AGENT_HOST": os.environ.get("APP_ORIGIN", "http://localhost:3210"), "NODE_V8_COVERAGE": os.environ.get("CLI_V8_COVERAGE", ""), "AGENT_API_KEY": seed["api_key"], "AGENT_CONFIG_DIR": str(pathlib.Path(directory) / "credentials"), "TERM": "xterm-256color"}
     cli = ["node", str(root / "packages/cli/dist/index.mjs")]
-    project = json.loads(subprocess.check_output(cli + ["project", "create", "PTY acceptance", "--json"], env=env, cwd=directory))["data"]
+    workspace = json.loads(subprocess.check_output(cli + ["workspace", "create", "PTY acceptance", "--json"], env=env, cwd=directory))["data"]
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 110, 0, 0))
     def own_terminal():
         os.setsid()
         fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-    child = subprocess.Popen(cli + ["chat", "--project", project["id"], "--harness", "codex", "--model", "fixture-model"], stdin=slave, stdout=slave, stderr=slave, env=env, cwd=directory)
+    child = subprocess.Popen(cli + ["chat", "--workspace", workspace["id"], "--harness", "codex", "--model", "fixture-model"], stdin=slave, stdout=slave, stderr=slave, env=env, cwd=directory)
     transcript = bytearray()
 
     def until(needle, timeout=30):

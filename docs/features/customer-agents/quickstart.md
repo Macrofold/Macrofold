@@ -1,6 +1,6 @@
 # Customer-agent integration quickstart
 
-Provision an assistant once, send messages, and retrieve its saved work. This is an **optional integration path**, not a requirement for using Macrofold. It composes the [core resources](../../getting-started/concepts.md) using one project, worktree and preset per customer/agent key.
+Provision an assistant once, send messages, and retrieve its saved work. This is an **optional integration path**, not a requirement for using Macrofold. It composes the [core resources](../../getting-started/concepts.md) using one workspace, worktree and preset per customer/agent key.
 
 ## 1. Prepare your backend
 
@@ -8,7 +8,7 @@ Choose [Cloud](../../cloud/README.md), [self-hosting](../../operations/README.md
 
 Set `MACROFOLD_API_KEY` on your server. For a custom deployment, pass its origin as `baseURL` without `/v1`. Select a supported model from `models.list`; the local simulator uses `fixture-model`. For real execution, configure funding and a deliberate budget first.
 
-Start from **API keys → Read & write → View permissions**. The complete journey needs `projects:read`, `projects:write`, `runs:read`, `runs:write` and `files:read`; account connection steps also need `connections:read` and `connections:write`. Keep `identity:read` if using catalog/account lookups. Creation needs an unrestricted-project credential because it creates a new project. Connection authorization requires the owning member to remain an organization owner or administrator. A project-restricted key can operate already-created bindings within its project scope.
+Start from **API keys → Read & write → View permissions**. The complete journey needs `workspaces:read`, `workspaces:write`, `runs:read`, `runs:write` and `files:read`; account connection steps also need `connections:read` and `connections:write`. Keep `identity:read` if using catalog/account lookups. Creation needs an unrestricted-workspace credential because it creates a new workspace. Connection authorization requires the owning member to remain an organization owner or administrator. A workspace-restricted key can operate already-created bindings within its workspace scope.
 
 The examples below run in an authenticated server handler. `customerId` means your verified session subject, and `actionKey` means a durable ID your app assigns to one intended action. They are application values, not SDK globals. Reject unauthenticated requests before invoking the SDK.
 
@@ -35,7 +35,7 @@ const assistant = await client.customerAgents.ensure(
 );
 ```
 
-The result contains `id`, `customer_id`, `key`, `name`, `project_id`, `workspace_id`, `agent_id` and `integration_path: 'customer-agents'`. Store the binding ID in your app. A repeated `ensure` with the same customer/key returns that binding without changing its configuration. Core IDs are deliberately exposed for advanced operations.
+The result contains `id`, `customer_id`, `key`, `name`, `workspace_id`, `worktree_id`, `agent_id` and `integration_path: 'customer-agents'`. Store the binding ID in your app. A repeated `ensure` with the same customer/key returns that binding without changing its configuration. Core IDs are deliberately exposed for advanced operations.
 
 `2000000` micro-USD is a $2 per-run ceiling, not a monthly allowance or a price quote. Normal plan, credit, storage and concurrency controls still apply. BYOK is supported by the configuration schema; select a provider connection explicitly and follow the [named account guide](../identity-integrations/named-connections.md).
 

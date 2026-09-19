@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use serde_repr::{Serialize_repr,Deserialize_repr};
 
-/// AgentPermissions : Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
+/// AgentPermissions : Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AgentPermissions {
     #[serde(rename = "version")]
@@ -27,7 +27,7 @@ pub struct AgentPermissions {
 }
 
 impl AgentPermissions {
-    /// Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
+    /// Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.
     pub fn new(version: Version) -> AgentPermissions {
         AgentPermissions {
             version,
@@ -37,7 +37,7 @@ impl AgentPermissions {
         }
     }
 }
-/// 
+///
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize_repr, Deserialize_repr)]
 pub enum Version {
@@ -57,7 +57,7 @@ impl Default for Version {
         Self::Variant1
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Shell {
     #[serde(rename = "allow")]

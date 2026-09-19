@@ -20,8 +20,8 @@
     "default_scopes": [
       "identity:read",
       "offline_access",
-      "projects:read",
-      "projects:write",
+      "workspaces:read",
+      "workspaces:write",
       "files:read",
       "files:write",
       "runs:read",
@@ -54,26 +54,26 @@
       "protocol_only": false
     },
     {
-      "command": "project list",
-      "operation_ids": ["listProjects"],
+      "command": "workspace list",
+      "operation_ids": ["listWorkspaces"],
       "local_only": false,
       "protocol_only": false
     },
     {
-      "command": "project create",
-      "operation_ids": ["createProject"],
+      "command": "workspace create",
+      "operation_ids": ["createWorkspace"],
       "local_only": false,
       "protocol_only": false
     },
     {
-      "command": "project show",
-      "operation_ids": ["getProject"],
+      "command": "workspace show",
+      "operation_ids": ["getWorkspace"],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "link",
-      "operation_ids": ["getProject", "getWorkspace"],
+      "operation_ids": ["getWorkspace", "getWorktree"],
       "local_only": false,
       "protocol_only": false
     },
@@ -85,25 +85,25 @@
     },
     {
       "command": "worktree list",
-      "operation_ids": ["listWorkspaces"],
+      "operation_ids": ["listWorktrees"],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree create",
-      "operation_ids": ["createWorkspace", "getOperation"],
+      "operation_ids": ["createWorktree", "getOperation"],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree use",
-      "operation_ids": ["getWorkspace"],
+      "operation_ids": ["getWorktree"],
       "local_only": false,
       "protocol_only": false
     },
     {
       "command": "worktree remove",
-      "operation_ids": ["deleteWorkspace", "getOperation"],
+      "operation_ids": ["deleteWorktree", "getOperation"],
       "local_only": false,
       "protocol_only": false
     },
@@ -182,7 +182,7 @@
     },
     {
       "command": "files diff",
-      "operation_ids": ["getWorkspaceDiff", "createTransfer"],
+      "operation_ids": ["getWorktreeDiff", "createTransfer"],
       "local_only": false,
       "protocol_only": false
     },
@@ -212,7 +212,7 @@
     },
     {
       "command": "checkpoint restore",
-      "operation_ids": ["restoreWorkspace", "getOperation"],
+      "operation_ids": ["restoreWorktree", "getOperation"],
       "local_only": false,
       "protocol_only": false
     },
@@ -224,7 +224,7 @@
     },
     {
       "command": "git sync",
-      "operation_ids": ["syncWorkspace", "getOperation"],
+      "operation_ids": ["syncWorktree", "getOperation"],
       "local_only": false,
       "protocol_only": false
     },
@@ -323,8 +323,8 @@
   "global_flags": [
     "profile",
     "organization",
-    "project",
     "workspace",
+    "worktree",
     "session",
     "plain",
     "json",
@@ -349,8 +349,8 @@
   "transfer_flags": ["dry-run", "yes", "include-ignored", "delete"],
   "scope_catalog": {
     "identity:read": "Inspect current principal and authorized organizations",
-    "projects:read": "Read authorized projects/workspaces",
-    "projects:write": "Manage authorized projects/workspaces",
+    "workspaces:read": "Read authorized workspaces/worktrees",
+    "workspaces:write": "Manage authorized workspaces/worktrees",
     "files:read": "Read files, checkpoints and exports",
     "files:write": "Edit, transfer and restore files or synchronize Git",
     "runs:read": "Read agents, sessions, runs and events",
@@ -365,7 +365,7 @@
     "offline_access": "Rotating refresh token",
     "organizations:read": "Read team membership",
     "organizations:write": "Manage organizations, roles and invitations",
-    "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)",
+    "workspaces:delete": "Schedule or cancel permanent workspace deletion (owner/admin only)",
     "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
     "triggers:write": "Manage incoming triggers and scheduled tasks"
   },

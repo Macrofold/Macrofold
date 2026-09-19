@@ -7,11 +7,11 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { markdownTaskLabels } from '../../lib/markdown-accessibility';
 import { CopyButton } from '../copy-button';
-import { extractMarkdownFrontMatter, resolveMarkdownLink, workspaceHeadingAnchors } from './markdown-model';
+import { extractMarkdownFrontMatter, resolveMarkdownLink, worktreeHeadingAnchors } from './markdown-model';
 import './files.css';
 
 const remarkPlugins = [remarkGfm];
-const rehypePlugins = [workspaceHeadingAnchors, markdownTaskLabels];
+const rehypePlugins = [worktreeHeadingAnchors, markdownTaskLabels];
 
 function plainText(children: ReactNode): string {
   return Children.toArray(children)
@@ -61,8 +61,8 @@ export function MarkdownPreview({
   const components = useMemo<Components>(() => {
     const openAnchor = (anchor: string) => {
       const heading = Array.from(
-        bodyRef.current?.querySelectorAll<HTMLElement>('[data-workspace-heading]') ?? [],
-      ).find((element) => element.dataset.workspaceHeading === anchor || element.id === anchor);
+        bodyRef.current?.querySelectorAll<HTMLElement>('[data-worktree-heading]') ?? [],
+      ).find((element) => element.dataset.worktreeHeading === anchor || element.id === anchor);
       heading?.scrollIntoView({ block: 'start' });
       heading?.focus({ preventScroll: true });
     };
@@ -85,7 +85,7 @@ export function MarkdownPreview({
         if (link.kind === 'anchor')
           return (
             <a
-              href={`#workspace-heading-${link.anchor}`}
+              href={`#worktree-heading-${link.anchor}`}
               title={title}
               onClick={(event) => {
                 event.preventDefault();
@@ -99,7 +99,7 @@ export function MarkdownPreview({
           return (
             <button
               type="button"
-              className="workspace-markdown-link"
+              className="worktree-markdown-link"
               title={link.path}
               onClick={() => onOpenFileRef.current?.(link.path, link.anchor)}
             >
@@ -119,20 +119,20 @@ export function MarkdownPreview({
           return (
             <button
               type="button"
-              className="workspace-markdown-image"
+              className="worktree-markdown-image"
               onClick={() => onOpenFileRef.current?.(link.path)}
             >
               <FileImage size={20} aria-hidden="true" />
               <span>
                 {caption}
-                <small>Open workspace image</small>
+                <small>Open worktree image</small>
               </span>
             </button>
           );
         if (link.kind === 'external' && /^https?:/i.test(link.href))
           return (
             <a
-              className="workspace-markdown-image"
+              className="worktree-markdown-image"
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
@@ -147,7 +147,7 @@ export function MarkdownPreview({
             </a>
           );
         return (
-          <span className="workspace-markdown-image">
+          <span className="worktree-markdown-image">
             <FileImage size={20} aria-hidden="true" />
             {caption}
           </span>
@@ -159,8 +159,8 @@ export function MarkdownPreview({
           ? code.props.className?.replace(/^language-/, '')
           : undefined;
         return (
-          <div className="workspace-markdown-code">
-            <div className="workspace-markdown-codebar">
+          <div className="worktree-markdown-code">
+            <div className="worktree-markdown-codebar">
               <span>{language || 'Code'}</span>
               <CopyButton text={plainText(children).replace(/\n$/, '')} label="Copy code" variant="plain" />
             </div>
@@ -169,7 +169,7 @@ export function MarkdownPreview({
         );
       },
       table: ({ children }) => (
-        <div className="workspace-markdown-table" tabIndex={0} role="region" aria-label="Markdown table">
+        <div className="worktree-markdown-table" tabIndex={0} role="region" aria-label="Markdown table">
           <table>{children}</table>
         </div>
       ),
@@ -177,7 +177,7 @@ export function MarkdownPreview({
         <h1
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h1>
@@ -186,7 +186,7 @@ export function MarkdownPreview({
         <h2
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h2>
@@ -195,7 +195,7 @@ export function MarkdownPreview({
         <h3
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h3>
@@ -204,7 +204,7 @@ export function MarkdownPreview({
         <h4
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h4>
@@ -213,7 +213,7 @@ export function MarkdownPreview({
         <h5
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h5>
@@ -222,7 +222,7 @@ export function MarkdownPreview({
         <h6
           id={props.id}
           tabIndex={-1}
-          data-workspace-heading={props.node?.properties['data-workspace-heading']}
+          data-worktree-heading={props.node?.properties['data-worktree-heading']}
         >
           {children}
         </h6>
@@ -232,7 +232,7 @@ export function MarkdownPreview({
 
   useEffect(() => {
     const headings = Array.from(
-      bodyRef.current?.querySelectorAll<HTMLElement>('[data-workspace-heading]') ?? [],
+      bodyRef.current?.querySelectorAll<HTMLElement>('[data-worktree-heading]') ?? [],
     );
     setOutline(
       headings.map((heading) => ({
@@ -243,14 +243,14 @@ export function MarkdownPreview({
     );
     if (initialAnchor)
       headings
-        .find((heading) => heading.dataset.workspaceHeading === initialAnchor)
+        .find((heading) => heading.dataset.worktreeHeading === initialAnchor)
         ?.scrollIntoView({ block: 'start' });
   }, [body, initialAnchor]);
 
   return (
-    <section className="workspace-markdown-preview" aria-label="Markdown preview">
+    <section className="worktree-markdown-preview" aria-label="Markdown preview">
       {outline.length > 2 && (
-        <details className="workspace-markdown-outline">
+        <details className="worktree-markdown-outline">
           <summary>
             <ListTree size={15} aria-hidden="true" />
             On this page
@@ -264,7 +264,7 @@ export function MarkdownPreview({
                 onClick={(event) => {
                   event.preventDefault();
                   const target = Array.from(
-                    bodyRef.current?.querySelectorAll<HTMLElement>('[data-workspace-heading]') ?? [],
+                    bodyRef.current?.querySelectorAll<HTMLElement>('[data-worktree-heading]') ?? [],
                   ).find((heading) => heading.id === item.id);
                   target?.scrollIntoView({ block: 'start' });
                   target?.focus({ preventScroll: true });
@@ -277,12 +277,12 @@ export function MarkdownPreview({
         </details>
       )}
       {frontMatter && (
-        <details className="workspace-markdown-frontmatter">
+        <details className="worktree-markdown-frontmatter">
           <summary>Document metadata</summary>
           <pre>{frontMatter.raw}</pre>
         </details>
       )}
-      <div ref={bodyRef} className="workspace-markdown-body">
+      <div ref={bodyRef} className="worktree-markdown-body">
         <MarkdownBody content={body} components={components} />
       </div>
     </section>

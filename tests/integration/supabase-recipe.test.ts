@@ -4,7 +4,7 @@ import { pool, authPool } from '../../packages/db';
 import { fixtureOperator } from '../fixtures/operator';
 
 // Real PostgreSQL RLS; only Supabase's auth.uid() helper and role names are fixture substitutes.
-// This does not claim to validate Supabase Auth's JWT issuer or a hosted project.
+// This does not claim to validate Supabase Auth's JWT issuer or a hosted workspace.
 it('the Supabase SQL recipe restricts reads to the authenticated subject and denies writes', async () => {
   const runtimeRole = String((await pool.query('SELECT current_user')).rows[0].current_user);
   if (!/^[a-zA-Z0-9_]+$/.test(runtimeRole)) throw new Error('Unexpected fixture role');

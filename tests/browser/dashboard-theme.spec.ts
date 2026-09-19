@@ -67,7 +67,7 @@ test('appearance persists across navigation and refresh while system follows dev
 
   const second = await context.newPage();
   try {
-    await second.goto('/projects');
+    await second.goto('/workspaces');
     await expect(second.locator('html')).toHaveAttribute('data-theme', 'dark');
     await selectTheme(page, 'light');
     await expect(root).toHaveAttribute('data-theme', 'light');
@@ -92,13 +92,13 @@ test('changing editor appearance preserves the unsaved draft and its later persi
   page,
 }) => {
   await signIn(page);
-  const created = await page.request.post('/v1/projects', {
+  const created = await page.request.post('/v1/workspaces', {
     headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
     data: { name: 'Editor appearance ' + randomUUID() },
   });
   expect(created.ok()).toBe(true);
-  const project = await created.json();
-  await page.goto(`/projects/${project.id}`);
+  const workspace = await created.json();
+  await page.goto(`/workspaces/${workspace.id}`);
   await page.getByRole('button', { name: 'New file', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'File path' }).fill('appearance.md');
   await page.getByRole('button', { name: 'Create file', exact: true }).click();
@@ -118,7 +118,7 @@ test('changing editor appearance preserves the unsaved draft and its later persi
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(editor).toContainText('# Keep this draft');
   await expect(dirty).toBeVisible();
-  const fileUrl = `/v1/workspaces/${project.default_workspace_id}/file?path=appearance.md`;
+  const fileUrl = `/v1/worktrees/${workspace.default_worktree_id}/file?path=appearance.md`;
   expect(await (await page.request.get(fileUrl)).text()).toBe('');
   await page.clock.runFor(2000);
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible();
@@ -151,7 +151,7 @@ for (const theme of ['light', 'dark'] as const) {
         await page.goto(route);
         const heading = page.getByRole('main').getByRole('heading', { name: title, exact: true, level: 1 });
         await expect(heading).toBeVisible();
-        await expect(page.getByText('Loading workspace…', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Loading worktree…', { exact: true })).toHaveCount(0);
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
         await audit(page);
         await page.setViewportSize({ width: 390, height: 844 });
@@ -172,20 +172,20 @@ for (const theme of ['light', 'dark'] as const) {
     await audit(page);
     await page.screenshot({ path: `test-results/dashboard-home-${theme}.png`, fullPage: true });
 
-    await page.getByRole('link', { name: 'Projects', exact: true }).click();
-    await page.getByRole('button', { name: 'New project', exact: true }).click();
-    const projectDialog = page.getByRole('dialog');
-    await expect(projectDialog).toBeVisible();
-    await expect(projectDialog).toHaveCSS('color-scheme', theme);
-    await expect(projectDialog).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(projectDialog.getByRole('textbox', { name: 'Project name' })).toBeVisible();
-    await projectDialog.evaluate(async (element) => {
+    await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    const workspaceDialog = page.getByRole('dialog');
+    await expect(workspaceDialog).toBeVisible();
+    await expect(workspaceDialog).toHaveCSS('color-scheme', theme);
+    await expect(workspaceDialog).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(workspaceDialog.getByRole('textbox', { name: 'Workspace name' })).toBeVisible();
+    await workspaceDialog.evaluate(async (element) => {
       await Promise.all(element.getAnimations().map((animation) => animation.finished));
     });
-    await expect(projectDialog).toHaveCSS('opacity', '1');
+    await expect(workspaceDialog).toHaveCSS('opacity', '1');
     await audit(page, '[role="dialog"]');
     await page.keyboard.press('Escape');
-    await expect(projectDialog).toHaveCount(0);
+    await expect(workspaceDialog).toHaveCount(0);
 
     await page.goto('/');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -272,7 +272,7 @@ test('mobile account menu supports keyboard appearance controls and organization
   expect(submenuBounds.y + submenuBounds.height).toBeLessThanOrEqual(844);
   await audit(page);
   await page.screenshot({
-    path: test.info().outputPath('mobile-account-workspaces.png'),
+    path: test.info().outputPath('mobile-account-worktrees.png'),
     animations: 'disabled',
   });
   await page.keyboard.press('Escape');

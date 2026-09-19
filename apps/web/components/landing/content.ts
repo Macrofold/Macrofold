@@ -3,7 +3,7 @@ export const subtitle =
   'Invoke Claude Code, Codex, and OpenCode via API, CLI, or UI. Run them in isolated sandboxes with persistent filesystems, parallel worktrees, and Git-native version control.';
 
 export const pillars = [
-  { label: 'Project', href: '/docs/workspaces' },
+  { label: 'Workspace', href: '/docs/workspaces' },
   { label: 'Worktrees', href: '/docs/workspaces' },
   { label: 'Checkpoints and Git Sync', href: '/docs/workspaces#connect-github' },
   { label: 'API, CLI, UI', href: '/docs/api/quickstart' },
@@ -24,7 +24,7 @@ export type Scenario = {
 export const scenarios: readonly Scenario[] = [
   {
     id: 'customers',
-    label: 'Per-Customer Agent Workspaces',
+    label: 'Per-Customer Agent Worktrees',
     prompts: [
       'Write a cold sales email to Alex at Northstar. Refer to enterprise pitch guidance.',
       'What did Sam say on our last feedback call?',
@@ -47,7 +47,7 @@ export const scenarios: readonly Scenario[] = [
     chapters: [
       [
         'Give every customer a working context.',
-        'Put an agent inside your product, with a project that holds each customer’s knowledge. It reads their context before it gets to work.',
+        'Put an agent inside your product, with a workspace that holds each customer’s knowledge. It reads their context before it gets to work.',
       ],
       [
         'More tasks. Room for each one.',
@@ -55,7 +55,7 @@ export const scenarios: readonly Scenario[] = [
       ],
       [
         'Keep the work. Build on it.',
-        'Persist files between runs with verified checkpoints. Review changes and merge them back into the project; sync your branches with GitHub when you’re ready.',
+        'Persist files between runs with verified checkpoints. Review changes and merge them back into the workspace; sync your branches with GitHub when you’re ready.',
       ],
       [
         'Part of your product. Within your reach.',
@@ -92,7 +92,7 @@ export const scenarios: readonly Scenario[] = [
     chapters: [
       [
         'An agent with something to learn from.',
-        'Keep the strategy, evaluation criteria, and previous results in a persistent project. Each simulation starts with the context of earlier work.',
+        'Keep the strategy, evaluation criteria, and previous results in a persistent workspace. Each simulation starts with the context of earlier work.',
       ],
       [
         'Explore the alternatives in parallel.',
@@ -182,7 +182,7 @@ export const scenarios: readonly Scenario[] = [
     chapters: [
       [
         'A little less explaining, every time.',
-        'Keep preferences, past plans, and useful notes in one project. Your personal agent can read what matters before finding somewhere new.',
+        'Keep preferences, past plans, and useful notes in one workspace. Your personal agent can read what matters before finding somewhere new.',
       ],
       [
         'Give every idea its own space.',
@@ -190,11 +190,11 @@ export const scenarios: readonly Scenario[] = [
       ],
       [
         'Remember the things worth keeping.',
-        'Save recommendations and updated preferences across runs. Checkpoints let you revisit earlier versions; optional Git sync gives your project a repository home.',
+        'Save recommendations and updated preferences across runs. Checkpoints let you revisit earlier versions; optional Git sync gives your workspace a repository home.',
       ],
       [
         'One agent environment. Your choice of interface.',
-        'Invoke it from an application, send a quick terminal request, or open the dashboard to review the plan. Your project stays in the cloud.',
+        'Invoke it from an application, send a quick terminal request, or open the dashboard to review the plan. Your workspace stays in the cloud.',
       ],
       [
         'Open up the possibilities.',

@@ -5,7 +5,7 @@ import { authReturnPath } from '../../apps/web/lib/auth-return';
 describe('dashboard client boundaries', () => {
   it('normalizes same-origin auth destinations and survives malformed or external links', () => {
     const origin = 'https://agents.example.test';
-    expect(authReturnPath('/projects?view=active#ignored', origin)).toBe('/projects?view=active');
+    expect(authReturnPath('/workspaces?view=active#ignored', origin)).toBe('/workspaces?view=active');
     expect(authReturnPath(origin + '/account', origin)).toBe('/account');
     for (const unsafe of [
       'http://[',

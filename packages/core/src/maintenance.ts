@@ -16,7 +16,7 @@ export async function reconcileFinance(tx: Tx, org: string) {
   ).rows[0].value;
   const reserved = (
     await tx.query(
-      "SELECT coalesce(sum(reservation_micro_usd),0)::text AS value FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting')",
+      "SELECT (coalesce((SELECT sum(reservation_micro_usd) FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting')),0)+coalesce((SELECT sum(reserved_micro_usd) FROM sandboxes),0))::text AS value",
     )
   ).rows[0].value;
   const invalidJournals = (

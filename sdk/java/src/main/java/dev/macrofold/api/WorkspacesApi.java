@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -18,26 +18,17 @@ import dev.macrofold.ApiResponse;
 import dev.macrofold.Configuration;
 import dev.macrofold.Pair;
 
-import dev.macrofold.model.CheckpointCreate;
 import dev.macrofold.model.Error;
-import java.io.File;
-import dev.macrofold.model.FileDuplicate;
-import dev.macrofold.model.FileListing;
-import dev.macrofold.model.FileRename;
-import dev.macrofold.model.FolderCreate;
-import dev.macrofold.model.GitSync;
-import dev.macrofold.model.ListCheckpoints200Response;
-import dev.macrofold.model.ListTransfers200Response;
+import dev.macrofold.model.ListWorkspaces200Response;
+import dev.macrofold.model.ListWorktrees200Response;
 import dev.macrofold.model.Operation;
-import dev.macrofold.model.RestoreRequest;
-import dev.macrofold.model.SyncWorkspaceRequest;
-import dev.macrofold.model.Transfer;
-import dev.macrofold.model.TransferCreate;
-import java.net.URI;
 import java.util.UUID;
 import dev.macrofold.model.Workspace;
-import dev.macrofold.model.WorkspaceDiff;
+import dev.macrofold.model.WorkspaceCreate;
+import dev.macrofold.model.WorkspaceDeletion;
 import dev.macrofold.model.WorkspacePatch;
+import dev.macrofold.model.WorktreeCreate;
+import dev.macrofold.model.WorktreeOptions;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -182,62 +173,58 @@ public class WorkspacesApi {
   }
 
   /**
-   * Create a verified checkpoint
+   * Cancel pending permanent deletion
    *
-   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
-   * @param checkpointCreate  (required)
+   * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Operation createCheckpoint(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CheckpointCreate checkpointCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createCheckpoint(workspaceId, idempotencyKey, checkpointCreate, xOrganizationId, null);
+  public Workspace cancelWorkspaceDeletion(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return cancelWorkspaceDeletion(idempotencyKey, workspaceId, xOrganizationId, null);
   }
 
   /**
-   * Create a verified checkpoint
+   * Cancel pending permanent deletion
    *
-   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
-   * @param checkpointCreate  (required)
+   * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return Operation
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Operation createCheckpoint(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CheckpointCreate checkpointCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = createCheckpointWithHttpInfo(workspaceId, idempotencyKey, checkpointCreate, xOrganizationId, headers);
+  public Workspace cancelWorkspaceDeletion(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Workspace> localVarResponse = cancelWorkspaceDeletionWithHttpInfo(idempotencyKey, workspaceId, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
   /**
-   * Create a verified checkpoint
+   * Cancel pending permanent deletion
    *
-   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
-   * @param checkpointCreate  (required)
+   * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Operation> createCheckpointWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CheckpointCreate checkpointCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createCheckpointWithHttpInfo(workspaceId, idempotencyKey, checkpointCreate, xOrganizationId, null);
+  public ApiResponse<Workspace> cancelWorkspaceDeletionWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return cancelWorkspaceDeletionWithHttpInfo(idempotencyKey, workspaceId, xOrganizationId, null);
   }
 
   /**
-   * Create a verified checkpoint
+   * Cancel pending permanent deletion
    *
-   * @param workspaceId  (required)
    * @param idempotencyKey  (required)
-   * @param checkpointCreate  (required)
+   * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Operation> createCheckpointWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CheckpointCreate checkpointCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = createCheckpointRequestBuilder(workspaceId, idempotencyKey, checkpointCreate, xOrganizationId, headers);
+  public ApiResponse<Workspace> cancelWorkspaceDeletionWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = cancelWorkspaceDeletionRequestBuilder(idempotencyKey, workspaceId, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -248,11 +235,11 @@ public class WorkspacesApi {
       InputStream localVarResponseBody = null;
       try {
         if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("createCheckpoint", localVarResponse);
+          throw getApiException("cancelWorkspaceDeletion", localVarResponse);
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
+          return new ApiResponse<Workspace>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -262,10 +249,10 @@ public class WorkspacesApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
+        Workspace responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Workspace>() {});
 
 
-        return new ApiResponse<Operation>(
+        return new ApiResponse<Workspace>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -284,514 +271,23 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder createCheckpointRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull CheckpointCreate checkpointCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling createCheckpoint");
-    }
+  private HttpRequest.Builder cancelWorkspaceDeletionRequestBuilder(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'idempotencyKey' is set
     if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createCheckpoint");
+      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling cancelWorkspaceDeletion");
     }
-    // verify the required parameter 'checkpointCreate' is set
-    if (checkpointCreate == null) {
-      throw new ApiException(400, "Missing the required parameter 'checkpointCreate' when calling createCheckpoint");
+    // verify the required parameter 'workspaceId' is set
+    if (workspaceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling cancelWorkspaceDeletion");
     }
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/workspaces/{workspace_id}/checkpoints"
+    String localVarPath = "/v1/workspaces/{workspace_id}/deletion"
         .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
     localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
 
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(checkpointCreate);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Create a workspace folder
-   * Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param folderCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation createFolder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FolderCreate folderCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createFolder(workspaceId, ifMatch, idempotencyKey, folderCreate, xOrganizationId, null);
-  }
-
-  /**
-   * Create a workspace folder
-   * Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param folderCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation createFolder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FolderCreate folderCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = createFolderWithHttpInfo(workspaceId, ifMatch, idempotencyKey, folderCreate, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Create a workspace folder
-   * Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param folderCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> createFolderWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FolderCreate folderCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createFolderWithHttpInfo(workspaceId, ifMatch, idempotencyKey, folderCreate, xOrganizationId, null);
-  }
-
-  /**
-   * Create a workspace folder
-   * Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param folderCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> createFolderWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FolderCreate folderCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = createFolderRequestBuilder(workspaceId, ifMatch, idempotencyKey, folderCreate, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("createFolder", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder createFolderRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FolderCreate folderCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling createFolder");
-    }
-    // verify the required parameter 'ifMatch' is set
-    if (ifMatch == null) {
-      throw new ApiException(400, "Missing the required parameter 'ifMatch' when calling createFolder");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createFolder");
-    }
-    // verify the required parameter 'folderCreate' is set
-    if (folderCreate == null) {
-      throw new ApiException(400, "Missing the required parameter 'folderCreate' when calling createFolder");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/folders"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (ifMatch != null) {
-      localVarRequestBuilder.header("If-Match", ifMatch.toString());
-    }
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(folderCreate);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Plan explicit local/remote file transfer
-   * Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param transferCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Transfer
-   * @throws ApiException if fails to make API call
-   */
-  public Transfer createTransfer(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull TransferCreate transferCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createTransfer(workspaceId, idempotencyKey, transferCreate, xOrganizationId, null);
-  }
-
-  /**
-   * Plan explicit local/remote file transfer
-   * Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param transferCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Transfer
-   * @throws ApiException if fails to make API call
-   */
-  public Transfer createTransfer(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull TransferCreate transferCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Transfer> localVarResponse = createTransferWithHttpInfo(workspaceId, idempotencyKey, transferCreate, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Plan explicit local/remote file transfer
-   * Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param transferCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Transfer&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Transfer> createTransferWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull TransferCreate transferCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return createTransferWithHttpInfo(workspaceId, idempotencyKey, transferCreate, xOrganizationId, null);
-  }
-
-  /**
-   * Plan explicit local/remote file transfer
-   * Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param transferCreate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Transfer&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Transfer> createTransferWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull TransferCreate transferCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = createTransferRequestBuilder(workspaceId, idempotencyKey, transferCreate, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("createTransfer", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Transfer>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Transfer responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Transfer>() {});
-
-
-        return new ApiResponse<Transfer>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder createTransferRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull TransferCreate transferCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling createTransfer");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createTransfer");
-    }
-    // verify the required parameter 'transferCreate' is set
-    if (transferCreate == null) {
-      throw new ApiException(400, "Missing the required parameter 'transferCreate' when calling createTransfer");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/transfers"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(transferCreate);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Persist file deletion
-   *
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation deleteFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return deleteFile(workspaceId, path, ifMatch, idempotencyKey, xOrganizationId, null);
-  }
-
-  /**
-   * Persist file deletion
-   *
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation deleteFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = deleteFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Persist file deletion
-   *
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> deleteFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return deleteFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, xOrganizationId, null);
-  }
-
-  /**
-   * Persist file deletion
-   *
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> deleteFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = deleteFileRequestBuilder(workspaceId, path, ifMatch, idempotencyKey, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("deleteFile", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder deleteFileRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling deleteFile");
-    }
-    // verify the required parameter 'path' is set
-    if (path == null) {
-      throw new ApiException(400, "Missing the required parameter 'path' when calling deleteFile");
-    }
-    // verify the required parameter 'ifMatch' is set
-    if (ifMatch == null) {
-      throw new ApiException(400, "Missing the required parameter 'ifMatch' when calling deleteFile");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling deleteFile");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/file"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    List<Pair> localVarQueryParams = new ArrayList<>();
-    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-    String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-
-    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-      StringJoiner queryJoiner = new StringJoiner("&");
-      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-      if (localVarQueryStringJoiner.length() != 0) {
-        queryJoiner.add(localVarQueryStringJoiner.toString());
-      }
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
-    } else {
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-    }
-
-    if (ifMatch != null) {
-      localVarRequestBuilder.header("If-Match", ifMatch.toString());
-    }
     if (idempotencyKey != null) {
       localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
     }
@@ -813,8 +309,299 @@ public class WorkspacesApi {
   }
 
   /**
-   * Schedule workspace deletion
+   * Create a workspace
    *
+   * @param idempotencyKey  (required)
+   * @param workspaceCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return Workspace
+   * @throws ApiException if fails to make API call
+   */
+  public Workspace createWorkspace(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorkspaceCreate workspaceCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createWorkspace(idempotencyKey, workspaceCreate, xOrganizationId, null);
+  }
+
+  /**
+   * Create a workspace
+   *
+   * @param idempotencyKey  (required)
+   * @param workspaceCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return Workspace
+   * @throws ApiException if fails to make API call
+   */
+  public Workspace createWorkspace(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorkspaceCreate workspaceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Workspace> localVarResponse = createWorkspaceWithHttpInfo(idempotencyKey, workspaceCreate, xOrganizationId, headers);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Create a workspace
+   *
+   * @param idempotencyKey  (required)
+   * @param workspaceCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return ApiResponse&lt;Workspace&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Workspace> createWorkspaceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorkspaceCreate workspaceCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createWorkspaceWithHttpInfo(idempotencyKey, workspaceCreate, xOrganizationId, null);
+  }
+
+  /**
+   * Create a workspace
+   *
+   * @param idempotencyKey  (required)
+   * @param workspaceCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return ApiResponse&lt;Workspace&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Workspace> createWorkspaceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorkspaceCreate workspaceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createWorkspaceRequestBuilder(idempotencyKey, workspaceCreate, xOrganizationId, headers);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      InputStream localVarResponseBody = null;
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("createWorkspace", localVarResponse);
+        }
+        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
+        if (localVarResponseBody == null) {
+          return new ApiResponse<Workspace>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+
+
+        String responseBody = new String(localVarResponseBody.readAllBytes());
+        Workspace responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Workspace>() {});
+
+
+        return new ApiResponse<Workspace>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseValue
+        );
+      } finally {
+        if (localVarResponseBody != null) {
+          localVarResponseBody.close();
+        }
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder createWorkspaceRequestBuilder(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorkspaceCreate workspaceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    // verify the required parameter 'idempotencyKey' is set
+    if (idempotencyKey == null) {
+      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createWorkspace");
+    }
+    // verify the required parameter 'workspaceCreate' is set
+    if (workspaceCreate == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceCreate' when calling createWorkspace");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/v1/workspaces";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    if (idempotencyKey != null) {
+      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
+    }
+    if (xOrganizationId != null) {
+      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
+    }
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(workspaceCreate);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    // Add custom headers if provided
+    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Create an isolated worktree
+   *
+   * @param workspaceId  (required)
+   * @param idempotencyKey  (required)
+   * @param worktreeCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return Operation
+   * @throws ApiException if fails to make API call
+   */
+  public Operation createWorktree(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorktreeCreate worktreeCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createWorktree(workspaceId, idempotencyKey, worktreeCreate, xOrganizationId, null);
+  }
+
+  /**
+   * Create an isolated worktree
+   *
+   * @param workspaceId  (required)
+   * @param idempotencyKey  (required)
+   * @param worktreeCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return Operation
+   * @throws ApiException if fails to make API call
+   */
+  public Operation createWorktree(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorktreeCreate worktreeCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Operation> localVarResponse = createWorktreeWithHttpInfo(workspaceId, idempotencyKey, worktreeCreate, xOrganizationId, headers);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Create an isolated worktree
+   *
+   * @param workspaceId  (required)
+   * @param idempotencyKey  (required)
+   * @param worktreeCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return ApiResponse&lt;Operation&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Operation> createWorktreeWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorktreeCreate worktreeCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createWorktreeWithHttpInfo(workspaceId, idempotencyKey, worktreeCreate, xOrganizationId, null);
+  }
+
+  /**
+   * Create an isolated worktree
+   *
+   * @param workspaceId  (required)
+   * @param idempotencyKey  (required)
+   * @param worktreeCreate  (required)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return ApiResponse&lt;Operation&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Operation> createWorktreeWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorktreeCreate worktreeCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createWorktreeRequestBuilder(workspaceId, idempotencyKey, worktreeCreate, xOrganizationId, headers);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      InputStream localVarResponseBody = null;
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("createWorktree", localVarResponse);
+        }
+        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
+        if (localVarResponseBody == null) {
+          return new ApiResponse<Operation>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+
+
+        String responseBody = new String(localVarResponseBody.readAllBytes());
+        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
+
+
+        return new ApiResponse<Operation>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseValue
+        );
+      } finally {
+        if (localVarResponseBody != null) {
+          localVarResponseBody.close();
+        }
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder createWorktreeRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull WorktreeCreate worktreeCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    // verify the required parameter 'workspaceId' is set
+    if (workspaceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling createWorktree");
+    }
+    // verify the required parameter 'idempotencyKey' is set
+    if (idempotencyKey == null) {
+      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createWorktree");
+    }
+    // verify the required parameter 'worktreeCreate' is set
+    if (worktreeCreate == null) {
+      throw new ApiException(400, "Missing the required parameter 'worktreeCreate' when calling createWorktree");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/v1/workspaces/{workspace_id}/worktrees"
+        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    if (idempotencyKey != null) {
+      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
+    }
+    if (xOrganizationId != null) {
+      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
+    }
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(worktreeCreate);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    // Add custom headers if provided
+    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Archive a workspace
+   * Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return Operation
@@ -825,8 +612,8 @@ public class WorkspacesApi {
   }
 
   /**
-   * Schedule workspace deletion
-   *
+   * Archive a workspace
+   * Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
@@ -839,8 +626,8 @@ public class WorkspacesApi {
   }
 
   /**
-   * Schedule workspace deletion
-   *
+   * Archive a workspace
+   * Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return ApiResponse&lt;Operation&gt;
@@ -851,8 +638,8 @@ public class WorkspacesApi {
   }
 
   /**
-   * Schedule workspace deletion
-   *
+   * Archive a workspace
+   * Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
@@ -938,340 +725,70 @@ public class WorkspacesApi {
   }
 
   /**
-   * Duplicate a file
-   * Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileDuplicate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation duplicateFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileDuplicate fileDuplicate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return duplicateFile(workspaceId, ifMatch, idempotencyKey, fileDuplicate, xOrganizationId, null);
-  }
-
-  /**
-   * Duplicate a file
-   * Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileDuplicate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation duplicateFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileDuplicate fileDuplicate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = duplicateFileWithHttpInfo(workspaceId, ifMatch, idempotencyKey, fileDuplicate, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Duplicate a file
-   * Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileDuplicate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> duplicateFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileDuplicate fileDuplicate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return duplicateFileWithHttpInfo(workspaceId, ifMatch, idempotencyKey, fileDuplicate, xOrganizationId, null);
-  }
-
-  /**
-   * Duplicate a file
-   * Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-   * @param workspaceId  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileDuplicate  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> duplicateFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileDuplicate fileDuplicate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = duplicateFileRequestBuilder(workspaceId, ifMatch, idempotencyKey, fileDuplicate, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("duplicateFile", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder duplicateFileRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileDuplicate fileDuplicate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling duplicateFile");
-    }
-    // verify the required parameter 'ifMatch' is set
-    if (ifMatch == null) {
-      throw new ApiException(400, "Missing the required parameter 'ifMatch' when calling duplicateFile");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling duplicateFile");
-    }
-    // verify the required parameter 'fileDuplicate' is set
-    if (fileDuplicate == null) {
-      throw new ApiException(400, "Missing the required parameter 'fileDuplicate' when calling duplicateFile");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/files/duplicate"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (ifMatch != null) {
-      localVarRequestBuilder.header("If-Match", ifMatch.toString());
-    }
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(fileDuplicate);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Inspect Git integration
-   *
-   * @param workspaceId  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return GitSync
-   * @throws ApiException if fails to make API call
-   */
-  public GitSync getSync(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getSync(workspaceId, xOrganizationId, null);
-  }
-
-  /**
-   * Inspect Git integration
-   *
-   * @param workspaceId  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return GitSync
-   * @throws ApiException if fails to make API call
-   */
-  public GitSync getSync(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<GitSync> localVarResponse = getSyncWithHttpInfo(workspaceId, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Inspect Git integration
-   *
-   * @param workspaceId  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;GitSync&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<GitSync> getSyncWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getSyncWithHttpInfo(workspaceId, xOrganizationId, null);
-  }
-
-  /**
-   * Inspect Git integration
-   *
-   * @param workspaceId  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;GitSync&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<GitSync> getSyncWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getSyncRequestBuilder(workspaceId, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("getSync", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<GitSync>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        GitSync responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<GitSync>() {});
-
-
-        return new ApiResponse<GitSync>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getSyncRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling getSync");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/sync"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
    * Inspect a workspace
-   *
+   * Optionally expand persistent connection eligibility. include_connections&#x3D;true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param includeConnections  (optional, default to false)
+   * @param agentId  (optional)
+   * @param connectionsLimit  (optional, default to 25)
+   * @param connectionsCursor  (optional)
    * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Workspace getWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getWorkspace(workspaceId, xOrganizationId, null);
+  public Workspace getWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
+    return getWorkspace(workspaceId, xOrganizationId, includeConnections, agentId, connectionsLimit, connectionsCursor, null);
   }
 
   /**
    * Inspect a workspace
-   *
+   * Optionally expand persistent connection eligibility. include_connections&#x3D;true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param includeConnections  (optional, default to false)
+   * @param agentId  (optional)
+   * @param connectionsLimit  (optional, default to 25)
+   * @param connectionsCursor  (optional)
    * @param headers Optional headers to include in the request
    * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public Workspace getWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Workspace> localVarResponse = getWorkspaceWithHttpInfo(workspaceId, xOrganizationId, headers);
+  public Workspace getWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
+    ApiResponse<Workspace> localVarResponse = getWorkspaceWithHttpInfo(workspaceId, xOrganizationId, includeConnections, agentId, connectionsLimit, connectionsCursor, headers);
     return localVarResponse.getData();
   }
 
   /**
    * Inspect a workspace
-   *
+   * Optionally expand persistent connection eligibility. include_connections&#x3D;true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param includeConnections  (optional, default to false)
+   * @param agentId  (optional)
+   * @param connectionsLimit  (optional, default to 25)
+   * @param connectionsCursor  (optional)
    * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Workspace> getWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getWorkspaceWithHttpInfo(workspaceId, xOrganizationId, null);
+  public ApiResponse<Workspace> getWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor) throws ApiException {
+    return getWorkspaceWithHttpInfo(workspaceId, xOrganizationId, includeConnections, agentId, connectionsLimit, connectionsCursor, null);
   }
 
   /**
    * Inspect a workspace
-   *
+   * Optionally expand persistent connection eligibility. include_connections&#x3D;true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
    * @param workspaceId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param includeConnections  (optional, default to false)
+   * @param agentId  (optional)
+   * @param connectionsLimit  (optional, default to 25)
+   * @param connectionsCursor  (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Workspace> getWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getWorkspaceRequestBuilder(workspaceId, xOrganizationId, headers);
+  public ApiResponse<Workspace> getWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getWorkspaceRequestBuilder(workspaceId, xOrganizationId, includeConnections, agentId, connectionsLimit, connectionsCursor, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1318,7 +835,7 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder getWorkspaceRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder getWorkspaceRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean includeConnections, @javax.annotation.Nullable UUID agentId, @javax.annotation.Nullable Integer connectionsLimit, @javax.annotation.Nullable String connectionsCursor, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'workspaceId' is set
     if (workspaceId == null) {
       throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling getWorkspace");
@@ -1329,158 +846,17 @@ public class WorkspacesApi {
     String localVarPath = "/v1/workspaces/{workspace_id}"
         .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Inspect checkpoint-based remote file changes
-   * Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-   * @param workspaceId  (required)
-   * @param baseCheckpointId  (optional)
-   * @param path  (optional)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return WorkspaceDiff
-   * @throws ApiException if fails to make API call
-   */
-  public WorkspaceDiff getWorkspaceDiff(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID baseCheckpointId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getWorkspaceDiff(workspaceId, baseCheckpointId, path, cursor, limit, xOrganizationId, null);
-  }
-
-  /**
-   * Inspect checkpoint-based remote file changes
-   * Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-   * @param workspaceId  (required)
-   * @param baseCheckpointId  (optional)
-   * @param path  (optional)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return WorkspaceDiff
-   * @throws ApiException if fails to make API call
-   */
-  public WorkspaceDiff getWorkspaceDiff(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID baseCheckpointId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<WorkspaceDiff> localVarResponse = getWorkspaceDiffWithHttpInfo(workspaceId, baseCheckpointId, path, cursor, limit, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Inspect checkpoint-based remote file changes
-   * Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-   * @param workspaceId  (required)
-   * @param baseCheckpointId  (optional)
-   * @param path  (optional)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;WorkspaceDiff&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<WorkspaceDiff> getWorkspaceDiffWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID baseCheckpointId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return getWorkspaceDiffWithHttpInfo(workspaceId, baseCheckpointId, path, cursor, limit, xOrganizationId, null);
-  }
-
-  /**
-   * Inspect checkpoint-based remote file changes
-   * Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-   * @param workspaceId  (required)
-   * @param baseCheckpointId  (optional)
-   * @param path  (optional)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;WorkspaceDiff&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<WorkspaceDiff> getWorkspaceDiffWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID baseCheckpointId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getWorkspaceDiffRequestBuilder(workspaceId, baseCheckpointId, path, cursor, limit, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("getWorkspaceDiff", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<WorkspaceDiff>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        WorkspaceDiff responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<WorkspaceDiff>() {});
-
-
-        return new ApiResponse<WorkspaceDiff>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getWorkspaceDiffRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID baseCheckpointId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling getWorkspaceDiff");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/diff"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
     List<Pair> localVarQueryParams = new ArrayList<>();
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "base_checkpoint_id";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("base_checkpoint_id", baseCheckpointId));
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-    localVarQueryParameterBaseName = "cursor";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
-    localVarQueryParameterBaseName = "limit";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
+    localVarQueryParameterBaseName = "include_connections";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("include_connections", includeConnections));
+    localVarQueryParameterBaseName = "agent_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("agent_id", agentId));
+    localVarQueryParameterBaseName = "connections_limit";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("connections_limit", connectionsLimit));
+    localVarQueryParameterBaseName = "connections_cursor";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("connections_cursor", connectionsCursor));
 
     if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
@@ -1511,62 +887,62 @@ public class WorkspacesApi {
   }
 
   /**
-   * List recoverable checkpoints
-   *
+   * List saved branches and validate worktree names
+   * Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
    * @param workspaceId  (required)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ListCheckpoints200Response
+   * @param name  (optional)
+   * @param branch  (optional)
+   * @return WorktreeOptions
    * @throws ApiException if fails to make API call
    */
-  public ListCheckpoints200Response listCheckpoints(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listCheckpoints(workspaceId, cursor, limit, xOrganizationId, null);
+  public WorktreeOptions getWorktreeOptions(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String name, @javax.annotation.Nullable String branch) throws ApiException {
+    return getWorktreeOptions(workspaceId, xOrganizationId, name, branch, null);
   }
 
   /**
-   * List recoverable checkpoints
-   *
+   * List saved branches and validate worktree names
+   * Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
    * @param workspaceId  (required)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param name  (optional)
+   * @param branch  (optional)
    * @param headers Optional headers to include in the request
-   * @return ListCheckpoints200Response
+   * @return WorktreeOptions
    * @throws ApiException if fails to make API call
    */
-  public ListCheckpoints200Response listCheckpoints(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<ListCheckpoints200Response> localVarResponse = listCheckpointsWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, headers);
+  public WorktreeOptions getWorktreeOptions(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String name, @javax.annotation.Nullable String branch, Map<String, String> headers) throws ApiException {
+    ApiResponse<WorktreeOptions> localVarResponse = getWorktreeOptionsWithHttpInfo(workspaceId, xOrganizationId, name, branch, headers);
     return localVarResponse.getData();
   }
 
   /**
-   * List recoverable checkpoints
-   *
+   * List saved branches and validate worktree names
+   * Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
    * @param workspaceId  (required)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;ListCheckpoints200Response&gt;
+   * @param name  (optional)
+   * @param branch  (optional)
+   * @return ApiResponse&lt;WorktreeOptions&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListCheckpoints200Response> listCheckpointsWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listCheckpointsWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, null);
+  public ApiResponse<WorktreeOptions> getWorktreeOptionsWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String name, @javax.annotation.Nullable String branch) throws ApiException {
+    return getWorktreeOptionsWithHttpInfo(workspaceId, xOrganizationId, name, branch, null);
   }
 
   /**
-   * List recoverable checkpoints
-   *
+   * List saved branches and validate worktree names
+   * Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
    * @param workspaceId  (required)
-   * @param cursor  (optional)
-   * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param name  (optional)
+   * @param branch  (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;ListCheckpoints200Response&gt;
+   * @return ApiResponse&lt;WorktreeOptions&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListCheckpoints200Response> listCheckpointsWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listCheckpointsRequestBuilder(workspaceId, cursor, limit, xOrganizationId, headers);
+  public ApiResponse<WorktreeOptions> getWorktreeOptionsWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String name, @javax.annotation.Nullable String branch, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getWorktreeOptionsRequestBuilder(workspaceId, xOrganizationId, name, branch, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1577,11 +953,11 @@ public class WorkspacesApi {
       InputStream localVarResponseBody = null;
       try {
         if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("listCheckpoints", localVarResponse);
+          throw getApiException("getWorktreeOptions", localVarResponse);
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<ListCheckpoints200Response>(
+          return new ApiResponse<WorktreeOptions>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -1591,10 +967,10 @@ public class WorkspacesApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        ListCheckpoints200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListCheckpoints200Response>() {});
+        WorktreeOptions responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<WorktreeOptions>() {});
 
 
-        return new ApiResponse<ListCheckpoints200Response>(
+        return new ApiResponse<WorktreeOptions>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -1613,24 +989,24 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder listCheckpointsRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder getWorktreeOptionsRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String name, @javax.annotation.Nullable String branch, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'workspaceId' is set
     if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling listCheckpoints");
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling getWorktreeOptions");
     }
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/workspaces/{workspace_id}/checkpoints"
+    String localVarPath = "/v1/workspaces/{workspace_id}/worktree-options"
         .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "cursor";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
-    localVarQueryParameterBaseName = "limit";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
+    localVarQueryParameterBaseName = "name";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("name", name));
+    localVarQueryParameterBaseName = "branch";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("branch", branch));
 
     if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
@@ -1661,74 +1037,66 @@ public class WorkspacesApi {
   }
 
   /**
-   * Browse a revision of the workspace
+   * List authorized workspaces
    *
-   * @param workspaceId  (required)
-   * @param path  (optional, default to )
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param query Case-insensitive literal substring of the relative file path. (optional)
-   * @param recursive List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. (optional, default to true)
-   * @return FileListing
+   * @param query Case-insensitive literal substring of the workspace name. (optional)
+   * @param archived Filter archived or active workspaces. (optional)
+   * @return ListWorkspaces200Response
    * @throws ApiException if fails to make API call
    */
-  public FileListing listFiles(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean recursive) throws ApiException {
-    return listFiles(workspaceId, path, cursor, limit, xOrganizationId, query, recursive, null);
+  public ListWorkspaces200Response listWorkspaces(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean archived) throws ApiException {
+    return listWorkspaces(cursor, limit, xOrganizationId, query, archived, null);
   }
 
   /**
-   * Browse a revision of the workspace
+   * List authorized workspaces
    *
-   * @param workspaceId  (required)
-   * @param path  (optional, default to )
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param query Case-insensitive literal substring of the relative file path. (optional)
-   * @param recursive List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. (optional, default to true)
+   * @param query Case-insensitive literal substring of the workspace name. (optional)
+   * @param archived Filter archived or active workspaces. (optional)
    * @param headers Optional headers to include in the request
-   * @return FileListing
+   * @return ListWorkspaces200Response
    * @throws ApiException if fails to make API call
    */
-  public FileListing listFiles(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean recursive, Map<String, String> headers) throws ApiException {
-    ApiResponse<FileListing> localVarResponse = listFilesWithHttpInfo(workspaceId, path, cursor, limit, xOrganizationId, query, recursive, headers);
+  public ListWorkspaces200Response listWorkspaces(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean archived, Map<String, String> headers) throws ApiException {
+    ApiResponse<ListWorkspaces200Response> localVarResponse = listWorkspacesWithHttpInfo(cursor, limit, xOrganizationId, query, archived, headers);
     return localVarResponse.getData();
   }
 
   /**
-   * Browse a revision of the workspace
+   * List authorized workspaces
    *
-   * @param workspaceId  (required)
-   * @param path  (optional, default to )
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param query Case-insensitive literal substring of the relative file path. (optional)
-   * @param recursive List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. (optional, default to true)
-   * @return ApiResponse&lt;FileListing&gt;
+   * @param query Case-insensitive literal substring of the workspace name. (optional)
+   * @param archived Filter archived or active workspaces. (optional)
+   * @return ApiResponse&lt;ListWorkspaces200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<FileListing> listFilesWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean recursive) throws ApiException {
-    return listFilesWithHttpInfo(workspaceId, path, cursor, limit, xOrganizationId, query, recursive, null);
+  public ApiResponse<ListWorkspaces200Response> listWorkspacesWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean archived) throws ApiException {
+    return listWorkspacesWithHttpInfo(cursor, limit, xOrganizationId, query, archived, null);
   }
 
   /**
-   * Browse a revision of the workspace
+   * List authorized workspaces
    *
-   * @param workspaceId  (required)
-   * @param path  (optional, default to )
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param query Case-insensitive literal substring of the relative file path. (optional)
-   * @param recursive List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. (optional, default to true)
+   * @param query Case-insensitive literal substring of the workspace name. (optional)
+   * @param archived Filter archived or active workspaces. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;FileListing&gt;
+   * @return ApiResponse&lt;ListWorkspaces200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<FileListing> listFilesWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean recursive, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listFilesRequestBuilder(workspaceId, path, cursor, limit, xOrganizationId, query, recursive, headers);
+  public ApiResponse<ListWorkspaces200Response> listWorkspacesWithHttpInfo(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean archived, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listWorkspacesRequestBuilder(cursor, limit, xOrganizationId, query, archived, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1739,11 +1107,11 @@ public class WorkspacesApi {
       InputStream localVarResponseBody = null;
       try {
         if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("listFiles", localVarResponse);
+          throw getApiException("listWorkspaces", localVarResponse);
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<FileListing>(
+          return new ApiResponse<ListWorkspaces200Response>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -1753,10 +1121,10 @@ public class WorkspacesApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        FileListing responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FileListing>() {});
+        ListWorkspaces200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListWorkspaces200Response>() {});
 
 
-        return new ApiResponse<FileListing>(
+        return new ApiResponse<ListWorkspaces200Response>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -1775,30 +1143,23 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder listFilesRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String path, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean recursive, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling listFiles");
-    }
+  private HttpRequest.Builder listWorkspacesRequestBuilder(@javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String query, @javax.annotation.Nullable Boolean archived, Map<String, String> headers) throws ApiException {
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/workspaces/{workspace_id}/files"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
+    String localVarPath = "/v1/workspaces";
 
     List<Pair> localVarQueryParams = new ArrayList<>();
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
     localVarQueryParameterBaseName = "cursor";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
     localVarQueryParameterBaseName = "limit";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
     localVarQueryParameterBaseName = "query";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("query", query));
-    localVarQueryParameterBaseName = "recursive";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("recursive", recursive));
+    localVarQueryParameterBaseName = "archived";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("archived", archived));
 
     if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
@@ -1829,62 +1190,62 @@ public class WorkspacesApi {
   }
 
   /**
-   * List file transfer plans
+   * List workspace worktrees
    *
    * @param workspaceId  (required)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ListTransfers200Response
+   * @return ListWorktrees200Response
    * @throws ApiException if fails to make API call
    */
-  public ListTransfers200Response listTransfers(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listTransfers(workspaceId, cursor, limit, xOrganizationId, null);
+  public ListWorktrees200Response listWorktrees(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return listWorktrees(workspaceId, cursor, limit, xOrganizationId, null);
   }
 
   /**
-   * List file transfer plans
+   * List workspace worktrees
    *
    * @param workspaceId  (required)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ListTransfers200Response
+   * @return ListWorktrees200Response
    * @throws ApiException if fails to make API call
    */
-  public ListTransfers200Response listTransfers(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<ListTransfers200Response> localVarResponse = listTransfersWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, headers);
+  public ListWorktrees200Response listWorktrees(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<ListWorktrees200Response> localVarResponse = listWorktreesWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
   /**
-   * List file transfer plans
+   * List workspace worktrees
    *
    * @param workspaceId  (required)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;ListTransfers200Response&gt;
+   * @return ApiResponse&lt;ListWorktrees200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListTransfers200Response> listTransfersWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listTransfersWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, null);
+  public ApiResponse<ListWorktrees200Response> listWorktreesWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return listWorktreesWithHttpInfo(workspaceId, cursor, limit, xOrganizationId, null);
   }
 
   /**
-   * List file transfer plans
+   * List workspace worktrees
    *
    * @param workspaceId  (required)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;ListTransfers200Response&gt;
+   * @return ApiResponse&lt;ListWorktrees200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListTransfers200Response> listTransfersWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listTransfersRequestBuilder(workspaceId, cursor, limit, xOrganizationId, headers);
+  public ApiResponse<ListWorktrees200Response> listWorktreesWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listWorktreesRequestBuilder(workspaceId, cursor, limit, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1895,11 +1256,11 @@ public class WorkspacesApi {
       InputStream localVarResponseBody = null;
       try {
         if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("listTransfers", localVarResponse);
+          throw getApiException("listWorktrees", localVarResponse);
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<ListTransfers200Response>(
+          return new ApiResponse<ListWorktrees200Response>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -1909,10 +1270,10 @@ public class WorkspacesApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        ListTransfers200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListTransfers200Response>() {});
+        ListWorktrees200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListWorktrees200Response>() {});
 
 
-        return new ApiResponse<ListTransfers200Response>(
+        return new ApiResponse<ListWorktrees200Response>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -1931,15 +1292,15 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder listTransfersRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder listWorktreesRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'workspaceId' is set
     if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling listTransfers");
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling listWorktrees");
     }
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/workspaces/{workspace_id}/transfers"
+    String localVarPath = "/v1/workspaces/{workspace_id}/worktrees"
         .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
@@ -1979,62 +1340,62 @@ public class WorkspacesApi {
   }
 
   /**
-   * Read file bytes
-   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+   * Schedule permanent deletion with seven days to undo
+   *
+   * @param idempotencyKey  (required)
    * @param workspaceId  (required)
-   * @param path  (required)
+   * @param workspaceDeletion  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param download Redirect to a short-lived streaming download, including files larger than 4 MiB. (optional)
-   * @return File
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public File readFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean download) throws ApiException {
-    return readFile(workspaceId, path, xOrganizationId, download, null);
+  public Workspace scheduleWorkspaceDeletion(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull WorkspaceDeletion workspaceDeletion, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return scheduleWorkspaceDeletion(idempotencyKey, workspaceId, workspaceDeletion, xOrganizationId, null);
   }
 
   /**
-   * Read file bytes
-   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+   * Schedule permanent deletion with seven days to undo
+   *
+   * @param idempotencyKey  (required)
    * @param workspaceId  (required)
-   * @param path  (required)
+   * @param workspaceDeletion  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param download Redirect to a short-lived streaming download, including files larger than 4 MiB. (optional)
    * @param headers Optional headers to include in the request
-   * @return File
+   * @return Workspace
    * @throws ApiException if fails to make API call
    */
-  public File readFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean download, Map<String, String> headers) throws ApiException {
-    ApiResponse<File> localVarResponse = readFileWithHttpInfo(workspaceId, path, xOrganizationId, download, headers);
+  public Workspace scheduleWorkspaceDeletion(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull WorkspaceDeletion workspaceDeletion, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Workspace> localVarResponse = scheduleWorkspaceDeletionWithHttpInfo(idempotencyKey, workspaceId, workspaceDeletion, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
   /**
-   * Read file bytes
-   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+   * Schedule permanent deletion with seven days to undo
+   *
+   * @param idempotencyKey  (required)
    * @param workspaceId  (required)
-   * @param path  (required)
+   * @param workspaceDeletion  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param download Redirect to a short-lived streaming download, including files larger than 4 MiB. (optional)
-   * @return ApiResponse&lt;File&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<File> readFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean download) throws ApiException {
-    return readFileWithHttpInfo(workspaceId, path, xOrganizationId, download, null);
+  public ApiResponse<Workspace> scheduleWorkspaceDeletionWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull WorkspaceDeletion workspaceDeletion, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return scheduleWorkspaceDeletionWithHttpInfo(idempotencyKey, workspaceId, workspaceDeletion, xOrganizationId, null);
   }
 
   /**
-   * Read file bytes
-   * Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download&#x3D;true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+   * Schedule permanent deletion with seven days to undo
+   *
+   * @param idempotencyKey  (required)
    * @param workspaceId  (required)
-   * @param path  (required)
+   * @param workspaceDeletion  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param download Redirect to a short-lived streaming download, including files larger than 4 MiB. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;File&gt;
+   * @return ApiResponse&lt;Workspace&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<File> readFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean download, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = readFileRequestBuilder(workspaceId, path, xOrganizationId, download, headers);
+  public ApiResponse<Workspace> scheduleWorkspaceDeletionWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull WorkspaceDeletion workspaceDeletion, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = scheduleWorkspaceDeletionRequestBuilder(idempotencyKey, workspaceId, workspaceDeletion, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -2045,172 +1406,11 @@ public class WorkspacesApi {
       InputStream localVarResponseBody = null;
       try {
         if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("readFile", localVarResponse);
+          throw getApiException("scheduleWorkspaceDeletion", localVarResponse);
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<File>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-        // Handle file downloading.
-        File responseValue = downloadFileFromResponse(localVarResponse, localVarResponseBody);
-
-
-        return new ApiResponse<File>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder readFileRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean download, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling readFile");
-    }
-    // verify the required parameter 'path' is set
-    if (path == null) {
-      throw new ApiException(400, "Missing the required parameter 'path' when calling readFile");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/file"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    List<Pair> localVarQueryParams = new ArrayList<>();
-    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-    String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-    localVarQueryParameterBaseName = "download";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("download", download));
-
-    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-      StringJoiner queryJoiner = new StringJoiner("&");
-      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-      if (localVarQueryStringJoiner.length() != 0) {
-        queryJoiner.add(localVarQueryStringJoiner.toString());
-      }
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
-    } else {
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-    }
-
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Accept", "application/octet-stream, application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Rename a workspace file
-   * Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileRename  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation renameFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileRename fileRename, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return renameFile(workspaceId, path, ifMatch, idempotencyKey, fileRename, xOrganizationId, null);
-  }
-
-  /**
-   * Rename a workspace file
-   * Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileRename  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation renameFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileRename fileRename, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = renameFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, fileRename, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Rename a workspace file
-   * Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileRename  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> renameFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileRename fileRename, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return renameFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, fileRename, xOrganizationId, null);
-  }
-
-  /**
-   * Rename a workspace file
-   * Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param fileRename  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> renameFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileRename fileRename, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = renameFileRequestBuilder(workspaceId, path, ifMatch, idempotencyKey, fileRename, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("renameFile", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
+          return new ApiResponse<Workspace>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -2220,10 +1420,10 @@ public class WorkspacesApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
+        Workspace responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Workspace>() {});
 
 
-        return new ApiResponse<Operation>(
+        return new ApiResponse<Workspace>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue
@@ -2242,199 +1442,23 @@ public class WorkspacesApi {
     }
   }
 
-  private HttpRequest.Builder renameFileRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull FileRename fileRename, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling renameFile");
-    }
-    // verify the required parameter 'path' is set
-    if (path == null) {
-      throw new ApiException(400, "Missing the required parameter 'path' when calling renameFile");
-    }
-    // verify the required parameter 'ifMatch' is set
-    if (ifMatch == null) {
-      throw new ApiException(400, "Missing the required parameter 'ifMatch' when calling renameFile");
-    }
+  private HttpRequest.Builder scheduleWorkspaceDeletionRequestBuilder(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull WorkspaceDeletion workspaceDeletion, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'idempotencyKey' is set
     if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling renameFile");
+      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling scheduleWorkspaceDeletion");
     }
-    // verify the required parameter 'fileRename' is set
-    if (fileRename == null) {
-      throw new ApiException(400, "Missing the required parameter 'fileRename' when calling renameFile");
+    // verify the required parameter 'workspaceId' is set
+    if (workspaceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling scheduleWorkspaceDeletion");
+    }
+    // verify the required parameter 'workspaceDeletion' is set
+    if (workspaceDeletion == null) {
+      throw new ApiException(400, "Missing the required parameter 'workspaceDeletion' when calling scheduleWorkspaceDeletion");
     }
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
-    String localVarPath = "/v1/workspaces/{workspace_id}/file"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    List<Pair> localVarQueryParams = new ArrayList<>();
-    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-    String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-
-    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-      StringJoiner queryJoiner = new StringJoiner("&");
-      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-      if (localVarQueryStringJoiner.length() != 0) {
-        queryJoiner.add(localVarQueryStringJoiner.toString());
-      }
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
-    } else {
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-    }
-
-    if (ifMatch != null) {
-      localVarRequestBuilder.header("If-Match", ifMatch.toString());
-    }
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(fileRename);
-      localVarRequestBuilder.method("PATCH", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Restore without rewriting remote history
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param restoreRequest  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation restoreWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull RestoreRequest restoreRequest, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return restoreWorkspace(workspaceId, idempotencyKey, restoreRequest, xOrganizationId, null);
-  }
-
-  /**
-   * Restore without rewriting remote history
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param restoreRequest  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation restoreWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull RestoreRequest restoreRequest, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = restoreWorkspaceWithHttpInfo(workspaceId, idempotencyKey, restoreRequest, xOrganizationId, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Restore without rewriting remote history
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param restoreRequest  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> restoreWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull RestoreRequest restoreRequest, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return restoreWorkspaceWithHttpInfo(workspaceId, idempotencyKey, restoreRequest, xOrganizationId, null);
-  }
-
-  /**
-   * Restore without rewriting remote history
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param restoreRequest  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> restoreWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull RestoreRequest restoreRequest, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = restoreWorkspaceRequestBuilder(workspaceId, idempotencyKey, restoreRequest, xOrganizationId, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("restoreWorkspace", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder restoreWorkspaceRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull RestoreRequest restoreRequest, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling restoreWorkspace");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling restoreWorkspace");
-    }
-    // verify the required parameter 'restoreRequest' is set
-    if (restoreRequest == null) {
-      throw new ApiException(400, "Missing the required parameter 'restoreRequest' when calling restoreWorkspace");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/restore"
+    String localVarPath = "/v1/workspaces/{workspace_id}/deletion"
         .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
 
     localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
@@ -2449,7 +1473,7 @@ public class WorkspacesApi {
     localVarRequestBuilder.header("Accept", "application/json");
 
     try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(restoreRequest);
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(workspaceDeletion);
       localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
     } catch (IOException e) {
       throw new ApiException(e);
@@ -2466,153 +1490,7 @@ public class WorkspacesApi {
   }
 
   /**
-   * Retry Git integration without rerunning the agent
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param syncWorkspaceRequest  (optional)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation syncWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable SyncWorkspaceRequest syncWorkspaceRequest) throws ApiException {
-    return syncWorkspace(workspaceId, idempotencyKey, xOrganizationId, syncWorkspaceRequest, null);
-  }
-
-  /**
-   * Retry Git integration without rerunning the agent
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param syncWorkspaceRequest  (optional)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation syncWorkspace(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable SyncWorkspaceRequest syncWorkspaceRequest, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = syncWorkspaceWithHttpInfo(workspaceId, idempotencyKey, xOrganizationId, syncWorkspaceRequest, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Retry Git integration without rerunning the agent
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param syncWorkspaceRequest  (optional)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> syncWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable SyncWorkspaceRequest syncWorkspaceRequest) throws ApiException {
-    return syncWorkspaceWithHttpInfo(workspaceId, idempotencyKey, xOrganizationId, syncWorkspaceRequest, null);
-  }
-
-  /**
-   * Retry Git integration without rerunning the agent
-   *
-   * @param workspaceId  (required)
-   * @param idempotencyKey  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param syncWorkspaceRequest  (optional)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> syncWorkspaceWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable SyncWorkspaceRequest syncWorkspaceRequest, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = syncWorkspaceRequestBuilder(workspaceId, idempotencyKey, xOrganizationId, syncWorkspaceRequest, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("syncWorkspace", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder syncWorkspaceRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable SyncWorkspaceRequest syncWorkspaceRequest, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling syncWorkspace");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling syncWorkspace");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/sync"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(syncWorkspaceRequest);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Rename a remote workspace
+   * Update workspace settings
    *
    * @param workspaceId  (required)
    * @param workspacePatch  (required)
@@ -2625,7 +1503,7 @@ public class WorkspacesApi {
   }
 
   /**
-   * Rename a remote workspace
+   * Update workspace settings
    *
    * @param workspaceId  (required)
    * @param workspacePatch  (required)
@@ -2640,7 +1518,7 @@ public class WorkspacesApi {
   }
 
   /**
-   * Rename a remote workspace
+   * Update workspace settings
    *
    * @param workspaceId  (required)
    * @param workspacePatch  (required)
@@ -2653,7 +1531,7 @@ public class WorkspacesApi {
   }
 
   /**
-   * Rename a remote workspace
+   * Update workspace settings
    *
    * @param workspaceId  (required)
    * @param workspacePatch  (required)
@@ -2736,195 +1614,6 @@ public class WorkspacesApi {
     try {
       byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(workspacePatch);
       localVarRequestBuilder.method("PATCH", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    // Add custom headers if provided
-    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-
-  /**
-   * Persist an atomic file replacement
-   * Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param body  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param createOnly Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update. (optional, default to false)
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation writeFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull File body, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean createOnly) throws ApiException {
-    return writeFile(workspaceId, path, ifMatch, idempotencyKey, body, xOrganizationId, createOnly, null);
-  }
-
-  /**
-   * Persist an atomic file replacement
-   * Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param body  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param createOnly Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update. (optional, default to false)
-   * @param headers Optional headers to include in the request
-   * @return Operation
-   * @throws ApiException if fails to make API call
-   */
-  public Operation writeFile(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull File body, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean createOnly, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = writeFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, body, xOrganizationId, createOnly, headers);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * Persist an atomic file replacement
-   * Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param body  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param createOnly Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update. (optional, default to false)
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> writeFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull File body, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean createOnly) throws ApiException {
-    return writeFileWithHttpInfo(workspaceId, path, ifMatch, idempotencyKey, body, xOrganizationId, createOnly, null);
-  }
-
-  /**
-   * Persist an atomic file replacement
-   * Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-   * @param workspaceId  (required)
-   * @param path  (required)
-   * @param ifMatch  (required)
-   * @param idempotencyKey  (required)
-   * @param body  (required)
-   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param createOnly Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update. (optional, default to false)
-   * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;Operation&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Operation> writeFileWithHttpInfo(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull File body, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean createOnly, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = writeFileRequestBuilder(workspaceId, path, ifMatch, idempotencyKey, body, xOrganizationId, createOnly, headers);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      InputStream localVarResponseBody = null;
-      try {
-        if (localVarResponse.statusCode()/ 100 != 2) {
-          throw getApiException("writeFile", localVarResponse);
-        }
-        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
-        if (localVarResponseBody == null) {
-          return new ApiResponse<Operation>(
-              localVarResponse.statusCode(),
-              localVarResponse.headers().map(),
-              null
-          );
-        }
-
-
-
-        String responseBody = new String(localVarResponseBody.readAllBytes());
-        Operation responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Operation>() {});
-
-
-        return new ApiResponse<Operation>(
-            localVarResponse.statusCode(),
-            localVarResponse.headers().map(),
-            responseValue
-        );
-      } finally {
-        if (localVarResponseBody != null) {
-          localVarResponseBody.close();
-        }
-      }
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder writeFileRequestBuilder(@javax.annotation.Nonnull UUID workspaceId, @javax.annotation.Nonnull String path, @javax.annotation.Nonnull String ifMatch, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull File body, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable Boolean createOnly, Map<String, String> headers) throws ApiException {
-    // verify the required parameter 'workspaceId' is set
-    if (workspaceId == null) {
-      throw new ApiException(400, "Missing the required parameter 'workspaceId' when calling writeFile");
-    }
-    // verify the required parameter 'path' is set
-    if (path == null) {
-      throw new ApiException(400, "Missing the required parameter 'path' when calling writeFile");
-    }
-    // verify the required parameter 'ifMatch' is set
-    if (ifMatch == null) {
-      throw new ApiException(400, "Missing the required parameter 'ifMatch' when calling writeFile");
-    }
-    // verify the required parameter 'idempotencyKey' is set
-    if (idempotencyKey == null) {
-      throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling writeFile");
-    }
-    // verify the required parameter 'body' is set
-    if (body == null) {
-      throw new ApiException(400, "Missing the required parameter 'body' when calling writeFile");
-    }
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/v1/workspaces/{workspace_id}/file"
-        .replace("{workspace_id}", ApiClient.urlEncode(workspaceId.toString()));
-
-    List<Pair> localVarQueryParams = new ArrayList<>();
-    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-    String localVarQueryParameterBaseName;
-    localVarQueryParameterBaseName = "path";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-    localVarQueryParameterBaseName = "create_only";
-    localVarQueryParams.addAll(ApiClient.parameterToPairs("create_only", createOnly));
-
-    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-      StringJoiner queryJoiner = new StringJoiner("&");
-      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-      if (localVarQueryStringJoiner.length() != 0) {
-        queryJoiner.add(localVarQueryStringJoiner.toString());
-      }
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
-    } else {
-      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-    }
-
-    if (ifMatch != null) {
-      localVarRequestBuilder.header("If-Match", ifMatch.toString());
-    }
-    if (idempotencyKey != null) {
-      localVarRequestBuilder.header("Idempotency-Key", idempotencyKey.toString());
-    }
-    if (xOrganizationId != null) {
-      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    localVarRequestBuilder.header("Content-Type", "application/octet-stream");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofFile(body.toPath()));
     } catch (IOException e) {
       throw new ApiException(e);
     }

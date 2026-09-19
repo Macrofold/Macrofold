@@ -1,6 +1,6 @@
 # Macrofold Python SDK
 
-Manage persistent projects and run cloud agents with keyword arguments and typed responses. Requires Python 3.11 or later.
+Manage persistent workspaces and run cloud agents with keyword arguments and typed responses. Requires Python 3.11 or later.
 
 Works with [Macrofold Cloud](../../docs/cloud/README.md) and [self-hosted deployments](../../docs/operations/README.md). Use the same resource methods with the origin and API key for your deployment. For help integrating an existing application, use the [coding-agent setup prompt](../../docs/getting-started/agents.md).
 
@@ -14,14 +14,14 @@ python -m pip install ./sdk/python
 
 ## Start a run
 
-Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a project ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
+Set `MACROFOLD_API_KEY` to a scoped dashboard key and copy a workspace ID. Select a harness and model directly; no saved agent or session is required. This example uses Codex and OpenAI’s GPT-5.4 mini. The model catalog determines the provider. Managed execution uses your credits; use `fixture-model` with the local simulator for free development.
 
 ```python
 from macrofold import Macrofold
 
 macrofold = Macrofold()
 run = macrofold.runs.create(
-    project_id="YOUR_PROJECT_ID",
+    workspace_id="YOUR_WORKSPACE_ID",
     harness="codex",
     model="gpt-5.4-mini",
     billing_mode="managed",
@@ -43,16 +43,16 @@ An explicit key takes precedence over `MACROFOLD_API_KEY`. Empty or missing keys
 ## Resource methods and types
 
 ```python
-projects = macrofold.projects.list(limit=20, archived=False)
+workspaces = macrofold.workspaces.list(limit=20, archived=False)
 state = macrofold.runs.get(run.run_id)
 macrofold.runs.cancel(run.run_id)
 ```
 
 All public operations have [resource methods](../../docs/features/api/sdks/reference.md). Keyword arguments and nested types in `macrofold.params` provide completion. Returned Pydantic models expose attributes, typed UUIDs/datetimes, and `model_dump(mode="json")`. Money and sequence numbers stay strings. Use `from_` for date-range query parameters because `from` is a Python keyword.
 
-Required keyword arguments are enforced by Python; editors/type checkers also validate fields, enums, and nested options. Exactly-one project/workspace/session selection and ownership-dependent model/BYOK rules are validated by the API. Omit optional fields to use server defaults; `None` sends JSON null only where the contract allows it.
+Required keyword arguments are enforced by Python; editors/type checkers also validate fields, enums, and nested options. Exactly-one workspace/worktree/session selection and ownership-dependent model/BYOK rules are validated by the API. Omit optional fields to use server defaults; `None` sends JSON null only where the contract allows it.
 
-Pages have `data` and `next_cursor`; pass the latter as `cursor` on the next request. File reads return `bytes`. File writes use `macrofold.workspaces.write_file(id, path="notes.md", if_match=revision, content=content)` with the observed revision.
+Pages have `data` and `next_cursor`; pass the latter as `cursor` on the next request. File reads return `bytes`. File writes use `macrofold.worktrees.write_file(id, path="notes.md", if_match=revision, content=content)` with the observed revision.
 
 ## Text, structured events, or a complete result
 
@@ -72,7 +72,7 @@ Both helpers raise `RunFailedError` for failed, cancelled, timed-out, or unsucce
 
 Use `macrofold.runs.events(id, after="SEQUENCE")` for typed structured events and durable sequence cursors. The existing `runs.stream()` remains available. Save a sequence when you need replay after a process restart; automatic reconnects handle it internally during one iterator's lifetime.
 
-Call `close()` on a text/event generator to detach. Only `macrofold.runs.cancel(id)` cancels execution. The synchronous client uses HTTPX; async applications should run blocking work in a worker thread. `wait_operation(id)` remains available for workspace maintenance.
+Call `close()` on a text/event generator to detach. Only `macrofold.runs.cancel(id)` cancels execution. The synchronous client uses HTTPX; async applications should run blocking work in a worker thread. `wait_operation(id)` remains available for worktree maintenance.
 
 ## Errors and recovery
 
@@ -81,7 +81,7 @@ Mutations keep one identity across bounded retries (two retries by default). To 
 ```python
 from macrofold import RequestOptions
 
-project = macrofold.projects.create(
+workspace = macrofold.workspaces.create(
     name="Research",
     request_options=RequestOptions(idempotency_key="YOUR_SAVED_REQUEST_KEY"),
 )
@@ -91,11 +91,11 @@ project = macrofold.projects.create(
 
 ## Read persisted files
 
-Before closing the client, read the exact file bytes using the run's workspace ID:
+Before closing the client, read the exact file bytes using the run's worktree ID:
 
 ```python
 macrofold.runs.wait(run.run_id)
-content = macrofold.workspaces.read_file(run.workspace_id, path="hello.txt")
+content = macrofold.worktrees.read_file(run.worktree_id, path="hello.txt")
 print(content.decode("utf-8"))
 ```
 

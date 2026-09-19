@@ -3,14 +3,15 @@ import { useState } from 'react';
 import { Upload, File, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, type Schema } from '../lib/client';
+import { uploadWorktreeFiles } from '../lib/upload-workspace-files';
+import { type Schema } from '../lib/client';
 import { Button, Field, Modal } from './ui';
 export function FileUpload({
-  workspace,
+  worktree,
   disabled,
   directory = '',
 }: {
-  workspace: Schema['Workspace'];
+  worktree: Schema['Worktree'];
   disabled?: boolean;
   directory?: string;
 }) {
@@ -38,68 +39,18 @@ export function FileUpload({
     setBusy(true);
     setError('');
     try {
-      setProgress('Preparing your files…');
-      const current = await api<Schema['Workspace']>(`/v1/workspaces/${workspace.id}`);
-      const entries: Schema['FileEntry'][] = [];
-      let cursor: string | null = null;
-      do {
-        const page: Schema['FileListing'] = await api<Schema['FileListing']>(
-          `/v1/workspaces/${workspace.id}/files?limit=100${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`,
-        );
-        entries.push(...page.entries);
-        cursor = page.next_cursor;
-      } while (cursor);
-      const manifest = [];
-      for (const file of files) {
-        const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-        manifest.push({
-          path: remotePath(file),
-          local_sha256: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join(''),
-          local_size_bytes: file.size,
-          baseline_known: true,
-          baseline_sha256: entries.find((e) => e.path === remotePath(file))?.sha256 || null,
-        });
-      }
-      const plan = await api<Schema['Transfer']>(`/v1/workspaces/${workspace.id}/transfers`, 'POST', {
-        direction: 'push',
-        base_revision: current.revision,
-        paths: files.map(remotePath),
-        manifest,
-      });
-      if (plan.status === 'conflicted')
-        throw new Error(
-          'Some paths conflict with remote files. Rename those files or use the CLI to resolve them.',
-        );
-      let count = 0;
-      for (const action of plan.actions.filter((a) => a.action === 'upload')) {
-        setProgress(
-          `Uploading ${++count} of ${plan.actions.filter((a) => a.action === 'upload').length}: ${action.path}`,
-        );
-        const headers = { ...action.required_headers };
-        // Browsers set Content-Length from the File body; JavaScript may not set it.
-        for (const key of Object.keys(headers))
-          if (key.toLowerCase() === 'content-length') delete headers[key];
-        const response = await fetch(action.url!, {
-          method: 'PUT',
-          headers,
-          body: files.find((f) => remotePath(f) === action.path)!,
-          credentials: 'omit',
-          redirect: 'error',
-        });
-        if (!response.ok)
-          throw new Error(
-            `Upload failed for ${action.path} (${response.status}). Your project is unchanged.`,
-          );
-      }
-      setProgress('Verifying and saving your checkpoint…');
-      await api(`/v1/transfers/${plan.id}/apply`, 'POST', { expected_revision: current.revision });
+      await uploadWorktreeFiles(
+        worktree.id,
+        files.map((file) => ({ file, path: remotePath(file) })),
+        setProgress,
+      );
       await client.invalidateQueries({
         predicate: (query) => {
           const key = query.queryKey;
           return (
             typeof key[0] === 'string' &&
-            (key[0].startsWith(`/v1/workspaces/${workspace.id}`) ||
-              (key[0] === 'file' && key[1] === workspace.id))
+            (key[0].startsWith(`/v1/worktrees/${worktree.id}`) ||
+              (key[0] === 'file' && key[1] === worktree.id))
           );
         },
       });
@@ -133,7 +84,7 @@ export function FileUpload({
           if (!busy) setOpen(value);
         }}
         title="Bring your files"
-        description={`Upload files to ${directory || 'the workspace root'}. Matching filenames replace their current version; earlier checkpoints preserve your history.`}
+        description={`Upload files to ${directory || 'the worktree root'}. Matching filenames replace their current version; earlier checkpoints preserve your history.`}
       >
         <div className="form-stack">
           <div

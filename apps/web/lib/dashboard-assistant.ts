@@ -10,9 +10,9 @@ const guidance = {
   setup: {
     title: 'Start with one useful task',
     answer:
-      'Create a project, choose a harness and an available model, then review funding and the run budget. Start with a small prompt. You can follow its output and inspect saved files when persistence finishes.',
-    href: '/projects',
-    action: 'Open projects',
+      'Create a workspace, choose a harness and an available model, then review funding and the run budget. Start with a small prompt. You can follow its output and inspect saved files when persistence finishes.',
+    href: '/workspaces',
+    action: 'Open workspaces',
     guide: '/docs/quickstart',
   },
   connection: {
@@ -34,7 +34,7 @@ const guidance = {
   access: {
     title: 'Check access in the right organization',
     answer:
-      'Check the active organization, membership, API-key scopes, and project restrictions. Manage profile, sessions, and security in Account & security. Never paste an API key or recovery code into this conversation.',
+      'Check the active organization, membership, API-key scopes, and workspace restrictions. Manage profile, sessions, and security in Account & security. Never paste an API key or recovery code into this conversation.',
     href: '/account',
     action: 'Open account settings',
     guide: '/docs/troubleshooting#access-is-denied',
@@ -42,7 +42,7 @@ const guidance = {
   schedule: {
     title: 'Give recurring work a saved prompt',
     answer:
-      'Open Scheduled tasks to choose a project, prompt, schedule, and budget. Review the configuration before enabling it. Each execution appears in Runs, where you can inspect its progress and files.',
+      'Open Scheduled tasks to choose a workspace, prompt, schedule, and budget. Review the configuration before enabling it. Each execution appears in Runs, where you can inspect its progress and files.',
     href: '/scheduled-tasks',
     action: 'Open scheduled tasks',
     guide: '/docs/triggers/scheduled-tasks',
@@ -50,7 +50,7 @@ const guidance = {
   trigger: {
     title: 'Connect an incoming event',
     answer:
-      'Use Triggers to connect a Slack channel or incoming webhook to a project. Follow the integration guide for authentication, choose a prompt and budget, then review the trigger before enabling it.',
+      'Use Triggers to connect a Slack channel or incoming webhook to a workspace. Follow the integration guide for authentication, choose a prompt and budget, then review the trigger before enabling it.',
     href: '/triggers',
     action: 'Open triggers',
     guide: '/docs/triggers',
@@ -58,9 +58,9 @@ const guidance = {
   files: {
     title: 'Continue from persisted work',
     answer:
-      'Open a project and choose its workspace to read saved files. Two agents can take turns in one workspace after persistence completes; parallel writers need independent workspaces and an explicit merge. Sharing files does not share conversations.',
-    href: '/projects',
-    action: 'Open projects',
+      'Open a workspace and choose its worktree to read saved files. Two agents can take turns in one worktree after persistence completes; parallel writers need independent worktrees and an explicit merge. Sharing files does not share conversations.',
+    href: '/workspaces',
+    action: 'Open workspaces',
     guide: '/docs/workspaces/shared-agents',
   },
   run: {
@@ -88,7 +88,7 @@ export function assistantGuidance(question: string): AssistantGuidance {
   if (/\b(schedule\w*|cron|recurring|daily|weekly)\b/i.test(question)) return guidance.schedule;
   if (/\b(trigger\w*|slack|webhook\w*)\b/i.test(question)) return guidance.trigger;
   if (/\b(connect\w*|gmail|mcp|integration\w*)\b/i.test(question)) return guidance.connection;
-  if (/\b(file\w*|workspace\w*|share\w*|persist\w*|checkpoint\w*)\b/i.test(question)) return guidance.files;
+  if (/\b(file\w*|worktree\w*|share\w*|persist\w*|checkpoint\w*)\b/i.test(question)) return guidance.files;
   if (/\b(api|sdk|cli|install\w*|code|coding)\b/i.test(question)) return guidance.api;
   if (/\b(auth\w*|account\w*|permission\w*|member\w*|team|login|password|security)\b/i.test(question))
     return guidance.access;

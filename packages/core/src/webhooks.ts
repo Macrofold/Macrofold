@@ -24,7 +24,7 @@ export async function enqueueWebhook(
   org: string,
   event: WebhookEvent,
   data: Record<string, unknown>,
-  options: { eventId?: string; endpointIds?: string[]; projectId?: string } = {},
+  options: { eventId?: string; endpointIds?: string[]; workspaceId?: string } = {},
 ) {
   const eventId = options.eventId || id();
   const endpoints = await tx.query(
@@ -52,7 +52,7 @@ export async function enqueueWebhook(
           status: 'pending',
           attempts: 0,
           payload,
-          ...(options.projectId ? { project_id: options.projectId } : {}),
+          ...(options.workspaceId ? { workspace_id: options.workspaceId } : {}),
         }),
       ],
     );

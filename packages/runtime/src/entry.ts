@@ -1,2 +1,3 @@
+import { controlDirectory } from './control-directory';
 import { supervise } from './supervisor';
-await supervise('/platform-control/config.json', '/opt/platform/native-worker.mjs');
+await supervise(`${controlDirectory()}/config.json`, '/opt/platform/native-worker.mjs');

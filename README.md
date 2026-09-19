@@ -2,7 +2,7 @@
 
 **A persistent workspace for cloud agents.**
 
-Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi in the cloud from an API, your terminal, or a shared dashboard. Keep project files, conversation history, and Git revisions between tasks. [Choose a harness](docs/features/execution/harnesses.md).
+Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi in the cloud from an API, your terminal, or a shared dashboard. Keep workspace files, conversation history, and Git revisions between tasks. [Choose a harness](docs/features/execution/harnesses.md).
 
 The [Unified Harness Interface (UHI)](docs/features/execution/unified-harness-interface.md) connects each native harness to the same execution system.
 
@@ -10,7 +10,7 @@ The [Unified Harness Interface (UHI)](docs/features/execution/unified-harness-in
 
 ## What you can do
 
-- **Keep work between runs.** [Let agents share saved files](docs/features/workspaces/shared-agents.md), restore checkpoints, and create independent workspaces for parallel tasks.
+- **Keep work between runs.** [Let agents share saved files](docs/features/workspaces/shared-agents.md), restore checkpoints, and create independent worktrees for parallel tasks.
 - **Work from anywhere.** Start a run through the API, stream it in the terminal, and review its output and tool activity in the dashboard.
 - **Start work automatically.** Connect Slack messages, incoming webhooks, or [scheduled prompts](docs/features/triggers/README.md) to a saved agent.
 - **Connect your tools.** Add MCP servers, authorized applications, search providers, and your own model API keys.
@@ -51,7 +51,7 @@ Continue with [your first run](docs/getting-started/quickstart.md), or compare [
 
 | I want to…                                          | Start here                                                                                                                        |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Understand projects, workspaces, sessions, and runs | [Core concepts](docs/getting-started/concepts.md)                                                                                 |
+| Understand workspaces, worktrees, sessions, and runs | [Core concepts](docs/getting-started/concepts.md)                                                                                 |
 | Integrate an application                            | [API quickstart](docs/features/api/quickstart.md), [SDKs in five languages](docs/features/api/sdks/README.md) |
 | Use a remote agent from my terminal                 | [CLI guide](docs/features/cli/README.md)                                                                                          |
 | Connect tools or bring my own API key               | [Connections](docs/features/identity-integrations/README.md)                                                                      |

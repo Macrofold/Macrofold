@@ -7,7 +7,7 @@ import { CliError, prompt, terminalText } from './output';
 
 export const outcomeExit = (result: Schema['RunResult']) =>
   result.execution_outcome === 'success'
-    ? result.persistence_status === 'verified'
+    ? result.persistence_status === 'verified' || result.persistence_status === 'not_required'
       ? 0
       : result.final
         ? 1
@@ -21,13 +21,15 @@ export const outcomeExit = (result: Schema['RunResult']) =>
           : 4;
 export function waitingLine(run: Schema['Run']) {
   const reason = {
+    lightweight_capacity: 'Waiting for lightweight execution capacity',
+    reserved_lightweight_capacity: 'Slots are reserved for lightweight work',
     global_capacity: 'global capacity occupied',
     account_concurrency: 'account concurrency limit',
-    earlier_workspace_work: 'earlier workspace work',
+    earlier_worktree_work: 'earlier worktree work',
     scheduler_turn: 'awaiting a fair scheduling turn',
     cancellation_requested: 'cancellation requested',
     deadline_expired: 'deadline expired; finalizing',
-    workspace_unavailable: 'workspace unavailable',
+    worktree_unavailable: 'worktree unavailable',
   }[run.waiting_reason || 'scheduler_turn'];
   return `Queued ${Math.floor(run.wait_seconds || 0)}s · ${reason} · expires ${run.queue_expires_at} · $${(Number(run.reserved_micro_usd || 0) / 1000000).toFixed(2)} held · cancel: macrofold run cancel ${run.id}`;
 }
@@ -177,7 +179,8 @@ export async function streamCommand(
       },
     });
     if (!options.json && !options.jsonl) {
-      if (!process.stdout.isTTY) process.stdout.write(terminalText(result.output_text || '') + '\n');
+      if (result.inference) process.stdout.write(JSON.stringify(result.inference, null, 2) + '\n');
+      else if (!process.stdout.isTTY) process.stdout.write(terminalText(result.output_text || '') + '\n');
       else process.stdout.write('\n');
     }
     return result;

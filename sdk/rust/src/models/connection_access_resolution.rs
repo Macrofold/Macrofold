@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -45,17 +45,17 @@ impl ConnectionAccessResolution {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Source {
     #[serde(rename = "organization")]
     Organization,
-    #[serde(rename = "project")]
-    Project,
+    #[serde(rename = "workspace")]
+    Workspace,
     #[serde(rename = "agent")]
     Agent,
-    #[serde(rename = "project_agent")]
-    ProjectAgent,
+    #[serde(rename = "workspace_agent")]
+    WorkspaceAgent,
     #[serde(rename = "run_override")]
     RunOverride,
     #[serde(rename = "none")]

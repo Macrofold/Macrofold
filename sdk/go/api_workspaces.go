@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -17,53 +17,46 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"os"
 )
 
 
 // WorkspacesAPIService WorkspacesAPI service
 type WorkspacesAPIService service
 
-type ApiCreateCheckpointRequest struct {
+type ApiCancelWorkspaceDeletionRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
-	workspaceId string
 	idempotencyKey *string
-	checkpointCreate *CheckpointCreate
+	workspaceId string
 	xOrganizationId *string
 }
 
-func (r ApiCreateCheckpointRequest) IdempotencyKey(idempotencyKey string) ApiCreateCheckpointRequest {
+func (r ApiCancelWorkspaceDeletionRequest) IdempotencyKey(idempotencyKey string) ApiCancelWorkspaceDeletionRequest {
 	r.idempotencyKey = &idempotencyKey
 	return r
 }
 
-func (r ApiCreateCheckpointRequest) CheckpointCreate(checkpointCreate CheckpointCreate) ApiCreateCheckpointRequest {
-	r.checkpointCreate = &checkpointCreate
-	return r
-}
-
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiCreateCheckpointRequest) XOrganizationId(xOrganizationId string) ApiCreateCheckpointRequest {
+func (r ApiCancelWorkspaceDeletionRequest) XOrganizationId(xOrganizationId string) ApiCancelWorkspaceDeletionRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiCreateCheckpointRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.CreateCheckpointExecute(r)
+func (r ApiCancelWorkspaceDeletionRequest) Execute() (*Workspace, *http.Response, error) {
+	return r.ApiService.CancelWorkspaceDeletionExecute(r)
 }
 
 /*
-CreateCheckpoint Create a verified checkpoint
+CancelWorkspaceDeletion Cancel pending permanent deletion
 
 
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
- @return ApiCreateCheckpointRequest
+ @return ApiCancelWorkspaceDeletionRequest
 */
-func (a *WorkspacesAPIService) CreateCheckpoint(ctx context.Context, workspaceId string) ApiCreateCheckpointRequest {
-	return ApiCreateCheckpointRequest{
+func (a *WorkspacesAPIService) CancelWorkspaceDeletion(ctx context.Context, workspaceId string) ApiCancelWorkspaceDeletionRequest {
+	return ApiCancelWorkspaceDeletionRequest{
 		ApiService: a,
 		ctx: ctx,
 		workspaceId: workspaceId,
@@ -71,492 +64,26 @@ func (a *WorkspacesAPIService) CreateCheckpoint(ctx context.Context, workspaceId
 }
 
 // Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) CreateCheckpointExecute(r ApiCreateCheckpointRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateCheckpoint")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/checkpoints"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.checkpointCreate == nil {
-		return localVarReturnValue, nil, reportError("checkpointCreate is required and must be specified")
-	}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.checkpointCreate
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiCreateFolderRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	ifMatch *string
-	idempotencyKey *string
-	folderCreate *FolderCreate
-	xOrganizationId *string
-}
-
-func (r ApiCreateFolderRequest) IfMatch(ifMatch string) ApiCreateFolderRequest {
-	r.ifMatch = &ifMatch
-	return r
-}
-
-func (r ApiCreateFolderRequest) IdempotencyKey(idempotencyKey string) ApiCreateFolderRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiCreateFolderRequest) FolderCreate(folderCreate FolderCreate) ApiCreateFolderRequest {
-	r.folderCreate = &folderCreate
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiCreateFolderRequest) XOrganizationId(xOrganizationId string) ApiCreateFolderRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiCreateFolderRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.CreateFolderExecute(r)
-}
-
-/*
-CreateFolder Create a workspace folder
-
-Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiCreateFolderRequest
-*/
-func (a *WorkspacesAPIService) CreateFolder(ctx context.Context, workspaceId string) ApiCreateFolderRequest {
-	return ApiCreateFolderRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) CreateFolderExecute(r ApiCreateFolderRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateFolder")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/folders"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.ifMatch == nil {
-		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
-	}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.folderCreate == nil {
-		return localVarReturnValue, nil, reportError("folderCreate is required and must be specified")
-	}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.folderCreate
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiCreateTransferRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	idempotencyKey *string
-	transferCreate *TransferCreate
-	xOrganizationId *string
-}
-
-func (r ApiCreateTransferRequest) IdempotencyKey(idempotencyKey string) ApiCreateTransferRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiCreateTransferRequest) TransferCreate(transferCreate TransferCreate) ApiCreateTransferRequest {
-	r.transferCreate = &transferCreate
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiCreateTransferRequest) XOrganizationId(xOrganizationId string) ApiCreateTransferRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiCreateTransferRequest) Execute() (*Transfer, *http.Response, error) {
-	return r.ApiService.CreateTransferExecute(r)
-}
-
-/*
-CreateTransfer Plan explicit local/remote file transfer
-
-Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiCreateTransferRequest
-*/
-func (a *WorkspacesAPIService) CreateTransfer(ctx context.Context, workspaceId string) ApiCreateTransferRequest {
-	return ApiCreateTransferRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Transfer
-func (a *WorkspacesAPIService) CreateTransferExecute(r ApiCreateTransferRequest) (*Transfer, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Transfer
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateTransfer")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/transfers"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.transferCreate == nil {
-		return localVarReturnValue, nil, reportError("transferCreate is required and must be specified")
-	}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.transferCreate
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiDeleteFileRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	path *string
-	ifMatch *string
-	idempotencyKey *string
-	xOrganizationId *string
-}
-
-func (r ApiDeleteFileRequest) Path(path string) ApiDeleteFileRequest {
-	r.path = &path
-	return r
-}
-
-func (r ApiDeleteFileRequest) IfMatch(ifMatch string) ApiDeleteFileRequest {
-	r.ifMatch = &ifMatch
-	return r
-}
-
-func (r ApiDeleteFileRequest) IdempotencyKey(idempotencyKey string) ApiDeleteFileRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiDeleteFileRequest) XOrganizationId(xOrganizationId string) ApiDeleteFileRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiDeleteFileRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.DeleteFileExecute(r)
-}
-
-/*
-DeleteFile Persist file deletion
-
-
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiDeleteFileRequest
-*/
-func (a *WorkspacesAPIService) DeleteFile(ctx context.Context, workspaceId string) ApiDeleteFileRequest {
-	return ApiDeleteFileRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) DeleteFileExecute(r ApiDeleteFileRequest) (*Operation, *http.Response, error) {
+//  @return Workspace
+func (a *WorkspacesAPIService) CancelWorkspaceDeletionExecute(r ApiCancelWorkspaceDeletionRequest) (*Workspace, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *Operation
+		localVarReturnValue  *Workspace
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.DeleteFile")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CancelWorkspaceDeletion")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/file"
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/deletion"
 	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.path == nil {
-		return localVarReturnValue, nil, reportError("path is required and must be specified")
-	}
-	if r.ifMatch == nil {
-		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
-	}
 	if r.idempotencyKey == nil {
 		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
 	}
@@ -567,7 +94,6 @@ func (a *WorkspacesAPIService) DeleteFileExecute(r ApiDeleteFileRequest) (*Opera
 		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -585,11 +111,302 @@ func (a *WorkspacesAPIService) DeleteFileExecute(r ApiDeleteFileRequest) (*Opera
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
 	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiCreateWorkspaceRequest struct {
+	ctx context.Context
+	ApiService *WorkspacesAPIService
+	idempotencyKey *string
+	workspaceCreate *WorkspaceCreate
+	xOrganizationId *string
+}
+
+func (r ApiCreateWorkspaceRequest) IdempotencyKey(idempotencyKey string) ApiCreateWorkspaceRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiCreateWorkspaceRequest) WorkspaceCreate(workspaceCreate WorkspaceCreate) ApiCreateWorkspaceRequest {
+	r.workspaceCreate = &workspaceCreate
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiCreateWorkspaceRequest) XOrganizationId(xOrganizationId string) ApiCreateWorkspaceRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiCreateWorkspaceRequest) Execute() (*Workspace, *http.Response, error) {
+	return r.ApiService.CreateWorkspaceExecute(r)
+}
+
+/*
+CreateWorkspace Create a workspace
+
+
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiCreateWorkspaceRequest
+*/
+func (a *WorkspacesAPIService) CreateWorkspace(ctx context.Context) ApiCreateWorkspaceRequest {
+	return ApiCreateWorkspaceRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return Workspace
+func (a *WorkspacesAPIService) CreateWorkspaceExecute(r ApiCreateWorkspaceRequest) (*Workspace, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Workspace
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateWorkspace")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/workspaces"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.workspaceCreate == nil {
+		return localVarReturnValue, nil, reportError("workspaceCreate is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.workspaceCreate
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiCreateWorktreeRequest struct {
+	ctx context.Context
+	ApiService *WorkspacesAPIService
+	workspaceId string
+	idempotencyKey *string
+	worktreeCreate *WorktreeCreate
+	xOrganizationId *string
+}
+
+func (r ApiCreateWorktreeRequest) IdempotencyKey(idempotencyKey string) ApiCreateWorktreeRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiCreateWorktreeRequest) WorktreeCreate(worktreeCreate WorktreeCreate) ApiCreateWorktreeRequest {
+	r.worktreeCreate = &worktreeCreate
+	return r
+}
+
+// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
+func (r ApiCreateWorktreeRequest) XOrganizationId(xOrganizationId string) ApiCreateWorktreeRequest {
+	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiCreateWorktreeRequest) Execute() (*Operation, *http.Response, error) {
+	return r.ApiService.CreateWorktreeExecute(r)
+}
+
+/*
+CreateWorktree Create an isolated worktree
+
+
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param workspaceId
+ @return ApiCreateWorktreeRequest
+*/
+func (a *WorkspacesAPIService) CreateWorktree(ctx context.Context, workspaceId string) ApiCreateWorktreeRequest {
+	return ApiCreateWorktreeRequest{
+		ApiService: a,
+		ctx: ctx,
+		workspaceId: workspaceId,
+	}
+}
+
+// Execute executes the request
+//  @return Operation
+func (a *WorkspacesAPIService) CreateWorktreeExecute(r ApiCreateWorktreeRequest) (*Operation, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Operation
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.CreateWorktree")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/worktrees"
+	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 200 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
+	}
+	if r.worktreeCreate == nil {
+		return localVarReturnValue, nil, reportError("worktreeCreate is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	if r.xOrganizationId != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.worktreeCreate
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -653,9 +470,9 @@ func (r ApiDeleteWorkspaceRequest) Execute() (*Operation, *http.Response, error)
 }
 
 /*
-DeleteWorkspace Schedule workspace deletion
+DeleteWorkspace Archive a workspace
 
-
+Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
@@ -756,295 +573,40 @@ func (a *WorkspacesAPIService) DeleteWorkspaceExecute(r ApiDeleteWorkspaceReques
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiDuplicateFileRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	ifMatch *string
-	idempotencyKey *string
-	fileDuplicate *FileDuplicate
-	xOrganizationId *string
-}
-
-func (r ApiDuplicateFileRequest) IfMatch(ifMatch string) ApiDuplicateFileRequest {
-	r.ifMatch = &ifMatch
-	return r
-}
-
-func (r ApiDuplicateFileRequest) IdempotencyKey(idempotencyKey string) ApiDuplicateFileRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiDuplicateFileRequest) FileDuplicate(fileDuplicate FileDuplicate) ApiDuplicateFileRequest {
-	r.fileDuplicate = &fileDuplicate
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiDuplicateFileRequest) XOrganizationId(xOrganizationId string) ApiDuplicateFileRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiDuplicateFileRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.DuplicateFileExecute(r)
-}
-
-/*
-DuplicateFile Duplicate a file
-
-Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiDuplicateFileRequest
-*/
-func (a *WorkspacesAPIService) DuplicateFile(ctx context.Context, workspaceId string) ApiDuplicateFileRequest {
-	return ApiDuplicateFileRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) DuplicateFileExecute(r ApiDuplicateFileRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.DuplicateFile")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/files/duplicate"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.ifMatch == nil {
-		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
-	}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.fileDuplicate == nil {
-		return localVarReturnValue, nil, reportError("fileDuplicate is required and must be specified")
-	}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.fileDuplicate
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiGetSyncRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	xOrganizationId *string
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiGetSyncRequest) XOrganizationId(xOrganizationId string) ApiGetSyncRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiGetSyncRequest) Execute() (*GitSync, *http.Response, error) {
-	return r.ApiService.GetSyncExecute(r)
-}
-
-/*
-GetSync Inspect Git integration
-
-
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiGetSyncRequest
-*/
-func (a *WorkspacesAPIService) GetSync(ctx context.Context, workspaceId string) ApiGetSyncRequest {
-	return ApiGetSyncRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return GitSync
-func (a *WorkspacesAPIService) GetSyncExecute(r ApiGetSyncRequest) (*GitSync, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *GitSync
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.GetSync")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/sync"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
 type ApiGetWorkspaceRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
 	workspaceId string
 	xOrganizationId *string
+	includeConnections *bool
+	agentId *string
+	connectionsLimit *int32
+	connectionsCursor *string
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiGetWorkspaceRequest) XOrganizationId(xOrganizationId string) ApiGetWorkspaceRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+func (r ApiGetWorkspaceRequest) IncludeConnections(includeConnections bool) ApiGetWorkspaceRequest {
+	r.includeConnections = &includeConnections
+	return r
+}
+
+func (r ApiGetWorkspaceRequest) AgentId(agentId string) ApiGetWorkspaceRequest {
+	r.agentId = &agentId
+	return r
+}
+
+func (r ApiGetWorkspaceRequest) ConnectionsLimit(connectionsLimit int32) ApiGetWorkspaceRequest {
+	r.connectionsLimit = &connectionsLimit
+	return r
+}
+
+func (r ApiGetWorkspaceRequest) ConnectionsCursor(connectionsCursor string) ApiGetWorkspaceRequest {
+	r.connectionsCursor = &connectionsCursor
 	return r
 }
 
@@ -1055,7 +617,7 @@ func (r ApiGetWorkspaceRequest) Execute() (*Workspace, *http.Response, error) {
 /*
 GetWorkspace Inspect a workspace
 
-
+Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
@@ -1091,6 +653,26 @@ func (a *WorkspacesAPIService) GetWorkspaceExecute(r ApiGetWorkspaceRequest) (*W
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.includeConnections != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", r.includeConnections, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "include_connections", defaultValue, "form", "")
+		r.includeConnections = &defaultValue
+	}
+	if r.agentId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "agent_id", r.agentId, "form", "")
+	}
+	if r.connectionsLimit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", r.connectionsLimit, "form", "")
+	} else {
+		var defaultValue int32 = 25
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_limit", defaultValue, "form", "")
+		r.connectionsLimit = &defaultValue
+	}
+	if r.connectionsCursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "connections_cursor", r.connectionsCursor, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -1156,58 +738,46 @@ func (a *WorkspacesAPIService) GetWorkspaceExecute(r ApiGetWorkspaceRequest) (*W
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiGetWorkspaceDiffRequest struct {
+type ApiGetWorktreeOptionsRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
 	workspaceId string
-	baseCheckpointId *string
-	path *string
-	cursor *string
-	limit *int32
 	xOrganizationId *string
-}
-
-func (r ApiGetWorkspaceDiffRequest) BaseCheckpointId(baseCheckpointId string) ApiGetWorkspaceDiffRequest {
-	r.baseCheckpointId = &baseCheckpointId
-	return r
-}
-
-func (r ApiGetWorkspaceDiffRequest) Path(path string) ApiGetWorkspaceDiffRequest {
-	r.path = &path
-	return r
-}
-
-func (r ApiGetWorkspaceDiffRequest) Cursor(cursor string) ApiGetWorkspaceDiffRequest {
-	r.cursor = &cursor
-	return r
-}
-
-func (r ApiGetWorkspaceDiffRequest) Limit(limit int32) ApiGetWorkspaceDiffRequest {
-	r.limit = &limit
-	return r
+	name *string
+	branch *string
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiGetWorkspaceDiffRequest) XOrganizationId(xOrganizationId string) ApiGetWorkspaceDiffRequest {
+func (r ApiGetWorktreeOptionsRequest) XOrganizationId(xOrganizationId string) ApiGetWorktreeOptionsRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiGetWorkspaceDiffRequest) Execute() (*WorkspaceDiff, *http.Response, error) {
-	return r.ApiService.GetWorkspaceDiffExecute(r)
+func (r ApiGetWorktreeOptionsRequest) Name(name string) ApiGetWorktreeOptionsRequest {
+	r.name = &name
+	return r
+}
+
+func (r ApiGetWorktreeOptionsRequest) Branch(branch string) ApiGetWorktreeOptionsRequest {
+	r.branch = &branch
+	return r
+}
+
+func (r ApiGetWorktreeOptionsRequest) Execute() (*WorktreeOptions, *http.Response, error) {
+	return r.ApiService.GetWorktreeOptionsExecute(r)
 }
 
 /*
-GetWorkspaceDiff Inspect checkpoint-based remote file changes
+GetWorktreeOptions List saved branches and validate worktree names
 
-Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
+Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
- @return ApiGetWorkspaceDiffRequest
+ @return ApiGetWorktreeOptionsRequest
 */
-func (a *WorkspacesAPIService) GetWorkspaceDiff(ctx context.Context, workspaceId string) ApiGetWorkspaceDiffRequest {
-	return ApiGetWorkspaceDiffRequest{
+func (a *WorkspacesAPIService) GetWorktreeOptions(ctx context.Context, workspaceId string) ApiGetWorktreeOptionsRequest {
+	return ApiGetWorktreeOptionsRequest{
 		ApiService: a,
 		ctx: ctx,
 		workspaceId: workspaceId,
@@ -1215,42 +785,32 @@ func (a *WorkspacesAPIService) GetWorkspaceDiff(ctx context.Context, workspaceId
 }
 
 // Execute executes the request
-//  @return WorkspaceDiff
-func (a *WorkspacesAPIService) GetWorkspaceDiffExecute(r ApiGetWorkspaceDiffRequest) (*WorkspaceDiff, *http.Response, error) {
+//  @return WorktreeOptions
+func (a *WorkspacesAPIService) GetWorktreeOptionsExecute(r ApiGetWorktreeOptionsRequest) (*WorktreeOptions, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *WorkspaceDiff
+		localVarReturnValue  *WorktreeOptions
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.GetWorkspaceDiff")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.GetWorktreeOptions")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/diff"
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/worktree-options"
 	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.baseCheckpointId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "base_checkpoint_id", r.baseCheckpointId, "form", "")
+	if r.name != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
 	}
-	if r.path != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
-	}
-	if r.cursor != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
-	}
-	if r.limit != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
-	} else {
-		var defaultValue int32 = 25
-		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
-		r.limit = &defaultValue
+	if r.branch != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "branch", r.branch, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1317,244 +877,84 @@ func (a *WorkspacesAPIService) GetWorkspaceDiffExecute(r ApiGetWorkspaceDiffRequ
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiListCheckpointsRequest struct {
+type ApiListWorkspacesRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
-	workspaceId string
-	cursor *string
-	limit *int32
-	xOrganizationId *string
-}
-
-func (r ApiListCheckpointsRequest) Cursor(cursor string) ApiListCheckpointsRequest {
-	r.cursor = &cursor
-	return r
-}
-
-func (r ApiListCheckpointsRequest) Limit(limit int32) ApiListCheckpointsRequest {
-	r.limit = &limit
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiListCheckpointsRequest) XOrganizationId(xOrganizationId string) ApiListCheckpointsRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiListCheckpointsRequest) Execute() (*ListCheckpoints200Response, *http.Response, error) {
-	return r.ApiService.ListCheckpointsExecute(r)
-}
-
-/*
-ListCheckpoints List recoverable checkpoints
-
-
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiListCheckpointsRequest
-*/
-func (a *WorkspacesAPIService) ListCheckpoints(ctx context.Context, workspaceId string) ApiListCheckpointsRequest {
-	return ApiListCheckpointsRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return ListCheckpoints200Response
-func (a *WorkspacesAPIService) ListCheckpointsExecute(r ApiListCheckpointsRequest) (*ListCheckpoints200Response, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *ListCheckpoints200Response
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ListCheckpoints")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/checkpoints"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-
-	if r.cursor != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
-	}
-	if r.limit != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
-	} else {
-		var defaultValue int32 = 25
-		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
-		r.limit = &defaultValue
-	}
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiListFilesRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	path *string
 	cursor *string
 	limit *int32
 	xOrganizationId *string
 	query *string
-	recursive *bool
+	archived *bool
 }
 
-func (r ApiListFilesRequest) Path(path string) ApiListFilesRequest {
-	r.path = &path
-	return r
-}
-
-func (r ApiListFilesRequest) Cursor(cursor string) ApiListFilesRequest {
+func (r ApiListWorkspacesRequest) Cursor(cursor string) ApiListWorkspacesRequest {
 	r.cursor = &cursor
 	return r
 }
 
-func (r ApiListFilesRequest) Limit(limit int32) ApiListFilesRequest {
+func (r ApiListWorkspacesRequest) Limit(limit int32) ApiListWorkspacesRequest {
 	r.limit = &limit
 	return r
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiListFilesRequest) XOrganizationId(xOrganizationId string) ApiListFilesRequest {
+func (r ApiListWorkspacesRequest) XOrganizationId(xOrganizationId string) ApiListWorkspacesRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-// Case-insensitive literal substring of the relative file path.
-func (r ApiListFilesRequest) Query(query string) ApiListFilesRequest {
+// Case-insensitive literal substring of the workspace name.
+func (r ApiListWorkspacesRequest) Query(query string) ApiListWorkspacesRequest {
 	r.query = &query
 	return r
 }
 
-// List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files.
-func (r ApiListFilesRequest) Recursive(recursive bool) ApiListFilesRequest {
-	r.recursive = &recursive
+// Filter archived or active workspaces.
+func (r ApiListWorkspacesRequest) Archived(archived bool) ApiListWorkspacesRequest {
+	r.archived = &archived
 	return r
 }
 
-func (r ApiListFilesRequest) Execute() (*FileListing, *http.Response, error) {
-	return r.ApiService.ListFilesExecute(r)
+func (r ApiListWorkspacesRequest) Execute() (*ListWorkspaces200Response, *http.Response, error) {
+	return r.ApiService.ListWorkspacesExecute(r)
 }
 
 /*
-ListFiles Browse a revision of the workspace
+ListWorkspaces List authorized workspaces
 
 
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiListFilesRequest
+ @return ApiListWorkspacesRequest
 */
-func (a *WorkspacesAPIService) ListFiles(ctx context.Context, workspaceId string) ApiListFilesRequest {
-	return ApiListFilesRequest{
+func (a *WorkspacesAPIService) ListWorkspaces(ctx context.Context) ApiListWorkspacesRequest {
+	return ApiListWorkspacesRequest{
 		ApiService: a,
 		ctx: ctx,
-		workspaceId: workspaceId,
 	}
 }
 
 // Execute executes the request
-//  @return FileListing
-func (a *WorkspacesAPIService) ListFilesExecute(r ApiListFilesRequest) (*FileListing, *http.Response, error) {
+//  @return ListWorkspaces200Response
+func (a *WorkspacesAPIService) ListWorkspacesExecute(r ApiListWorkspacesRequest) (*ListWorkspaces200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *FileListing
+		localVarReturnValue  *ListWorkspaces200Response
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ListFiles")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ListWorkspaces")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/files"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
+	localVarPath := localBasePath + "/v1/workspaces"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.path != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
-	} else {
-		var defaultValue string = ""
-		parameterAddToHeaderOrQuery(localVarQueryParams, "path", defaultValue, "form", "")
-		r.path = &defaultValue
-	}
 	if r.cursor != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
 	}
@@ -1568,12 +968,8 @@ func (a *WorkspacesAPIService) ListFilesExecute(r ApiListFilesRequest) (*FileLis
 	if r.query != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "query", r.query, "form", "")
 	}
-	if r.recursive != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", r.recursive, "form", "")
-	} else {
-		var defaultValue bool = true
-		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", defaultValue, "form", "")
-		r.recursive = &defaultValue
+	if r.archived != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "archived", r.archived, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1640,7 +1036,7 @@ func (a *WorkspacesAPIService) ListFilesExecute(r ApiListFilesRequest) (*FileLis
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiListTransfersRequest struct {
+type ApiListWorktreesRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
 	workspaceId string
@@ -1649,37 +1045,37 @@ type ApiListTransfersRequest struct {
 	xOrganizationId *string
 }
 
-func (r ApiListTransfersRequest) Cursor(cursor string) ApiListTransfersRequest {
+func (r ApiListWorktreesRequest) Cursor(cursor string) ApiListWorktreesRequest {
 	r.cursor = &cursor
 	return r
 }
 
-func (r ApiListTransfersRequest) Limit(limit int32) ApiListTransfersRequest {
+func (r ApiListWorktreesRequest) Limit(limit int32) ApiListWorktreesRequest {
 	r.limit = &limit
 	return r
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiListTransfersRequest) XOrganizationId(xOrganizationId string) ApiListTransfersRequest {
+func (r ApiListWorktreesRequest) XOrganizationId(xOrganizationId string) ApiListWorktreesRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiListTransfersRequest) Execute() (*ListTransfers200Response, *http.Response, error) {
-	return r.ApiService.ListTransfersExecute(r)
+func (r ApiListWorktreesRequest) Execute() (*ListWorktrees200Response, *http.Response, error) {
+	return r.ApiService.ListWorktreesExecute(r)
 }
 
 /*
-ListTransfers List file transfer plans
+ListWorktrees List workspace worktrees
 
 
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
- @return ApiListTransfersRequest
+ @return ApiListWorktreesRequest
 */
-func (a *WorkspacesAPIService) ListTransfers(ctx context.Context, workspaceId string) ApiListTransfersRequest {
-	return ApiListTransfersRequest{
+func (a *WorkspacesAPIService) ListWorktrees(ctx context.Context, workspaceId string) ApiListWorktreesRequest {
+	return ApiListWorktreesRequest{
 		ApiService: a,
 		ctx: ctx,
 		workspaceId: workspaceId,
@@ -1687,21 +1083,21 @@ func (a *WorkspacesAPIService) ListTransfers(ctx context.Context, workspaceId st
 }
 
 // Execute executes the request
-//  @return ListTransfers200Response
-func (a *WorkspacesAPIService) ListTransfersExecute(r ApiListTransfersRequest) (*ListTransfers200Response, *http.Response, error) {
+//  @return ListWorktrees200Response
+func (a *WorkspacesAPIService) ListWorktreesExecute(r ApiListWorktreesRequest) (*ListWorktrees200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ListTransfers200Response
+		localVarReturnValue  *ListWorktrees200Response
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ListTransfers")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ListWorktrees")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/transfers"
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/worktrees"
 	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1783,199 +1179,46 @@ func (a *WorkspacesAPIService) ListTransfersExecute(r ApiListTransfersRequest) (
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiReadFileRequest struct {
+type ApiScheduleWorkspaceDeletionRequest struct {
 	ctx context.Context
 	ApiService *WorkspacesAPIService
-	workspaceId string
-	path *string
-	xOrganizationId *string
-	download *bool
-}
-
-func (r ApiReadFileRequest) Path(path string) ApiReadFileRequest {
-	r.path = &path
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiReadFileRequest) XOrganizationId(xOrganizationId string) ApiReadFileRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-// Redirect to a short-lived streaming download, including files larger than 4 MiB.
-func (r ApiReadFileRequest) Download(download bool) ApiReadFileRequest {
-	r.download = &download
-	return r
-}
-
-func (r ApiReadFileRequest) Execute() (*os.File, *http.Response, error) {
-	return r.ApiService.ReadFileExecute(r)
-}
-
-/*
-ReadFile Read file bytes
-
-Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiReadFileRequest
-*/
-func (a *WorkspacesAPIService) ReadFile(ctx context.Context, workspaceId string) ApiReadFileRequest {
-	return ApiReadFileRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return *os.File
-func (a *WorkspacesAPIService) ReadFileExecute(r ApiReadFileRequest) (*os.File, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *os.File
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ReadFile")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/file"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.path == nil {
-		return localVarReturnValue, nil, reportError("path is required and must be specified")
-	}
-
-	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
-	if r.download != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "download", r.download, "form", "")
-	}
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/octet-stream", "application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiRenameFileRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	path *string
-	ifMatch *string
 	idempotencyKey *string
-	fileRename *FileRename
+	workspaceId string
+	workspaceDeletion *WorkspaceDeletion
 	xOrganizationId *string
 }
 
-func (r ApiRenameFileRequest) Path(path string) ApiRenameFileRequest {
-	r.path = &path
-	return r
-}
-
-func (r ApiRenameFileRequest) IfMatch(ifMatch string) ApiRenameFileRequest {
-	r.ifMatch = &ifMatch
-	return r
-}
-
-func (r ApiRenameFileRequest) IdempotencyKey(idempotencyKey string) ApiRenameFileRequest {
+func (r ApiScheduleWorkspaceDeletionRequest) IdempotencyKey(idempotencyKey string) ApiScheduleWorkspaceDeletionRequest {
 	r.idempotencyKey = &idempotencyKey
 	return r
 }
 
-func (r ApiRenameFileRequest) FileRename(fileRename FileRename) ApiRenameFileRequest {
-	r.fileRename = &fileRename
+func (r ApiScheduleWorkspaceDeletionRequest) WorkspaceDeletion(workspaceDeletion WorkspaceDeletion) ApiScheduleWorkspaceDeletionRequest {
+	r.workspaceDeletion = &workspaceDeletion
 	return r
 }
 
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiRenameFileRequest) XOrganizationId(xOrganizationId string) ApiRenameFileRequest {
+func (r ApiScheduleWorkspaceDeletionRequest) XOrganizationId(xOrganizationId string) ApiScheduleWorkspaceDeletionRequest {
 	r.xOrganizationId = &xOrganizationId
 	return r
 }
 
-func (r ApiRenameFileRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.RenameFileExecute(r)
+func (r ApiScheduleWorkspaceDeletionRequest) Execute() (*Workspace, *http.Response, error) {
+	return r.ApiService.ScheduleWorkspaceDeletionExecute(r)
 }
 
 /*
-RenameFile Rename a workspace file
+ScheduleWorkspaceDeletion Schedule permanent deletion with seven days to undo
 
-Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
+
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param workspaceId
- @return ApiRenameFileRequest
+ @return ApiScheduleWorkspaceDeletionRequest
 */
-func (a *WorkspacesAPIService) RenameFile(ctx context.Context, workspaceId string) ApiRenameFileRequest {
-	return ApiRenameFileRequest{
+func (a *WorkspacesAPIService) ScheduleWorkspaceDeletion(ctx context.Context, workspaceId string) ApiScheduleWorkspaceDeletionRequest {
+	return ApiScheduleWorkspaceDeletionRequest{
 		ApiService: a,
 		ctx: ctx,
 		workspaceId: workspaceId,
@@ -1983,177 +1226,21 @@ func (a *WorkspacesAPIService) RenameFile(ctx context.Context, workspaceId strin
 }
 
 // Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) RenameFileExecute(r ApiRenameFileRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPatch
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.RenameFile")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/file"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.path == nil {
-		return localVarReturnValue, nil, reportError("path is required and must be specified")
-	}
-	if r.ifMatch == nil {
-		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
-	}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.fileRename == nil {
-		return localVarReturnValue, nil, reportError("fileRename is required and must be specified")
-	}
-
-	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.fileRename
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiRestoreWorkspaceRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	idempotencyKey *string
-	restoreRequest *RestoreRequest
-	xOrganizationId *string
-}
-
-func (r ApiRestoreWorkspaceRequest) IdempotencyKey(idempotencyKey string) ApiRestoreWorkspaceRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiRestoreWorkspaceRequest) RestoreRequest(restoreRequest RestoreRequest) ApiRestoreWorkspaceRequest {
-	r.restoreRequest = &restoreRequest
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiRestoreWorkspaceRequest) XOrganizationId(xOrganizationId string) ApiRestoreWorkspaceRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiRestoreWorkspaceRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.RestoreWorkspaceExecute(r)
-}
-
-/*
-RestoreWorkspace Restore without rewriting remote history
-
-
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiRestoreWorkspaceRequest
-*/
-func (a *WorkspacesAPIService) RestoreWorkspace(ctx context.Context, workspaceId string) ApiRestoreWorkspaceRequest {
-	return ApiRestoreWorkspaceRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) RestoreWorkspaceExecute(r ApiRestoreWorkspaceRequest) (*Operation, *http.Response, error) {
+//  @return Workspace
+func (a *WorkspacesAPIService) ScheduleWorkspaceDeletionExecute(r ApiScheduleWorkspaceDeletionRequest) (*Workspace, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *Operation
+		localVarReturnValue  *Workspace
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.RestoreWorkspace")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.ScheduleWorkspaceDeletion")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/restore"
+	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/deletion"
 	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2168,8 +1255,8 @@ func (a *WorkspacesAPIService) RestoreWorkspaceExecute(r ApiRestoreWorkspaceRequ
 	if strlen(*r.idempotencyKey) > 200 {
 		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
 	}
-	if r.restoreRequest == nil {
-		return localVarReturnValue, nil, reportError("restoreRequest is required and must be specified")
+	if r.workspaceDeletion == nil {
+		return localVarReturnValue, nil, reportError("workspaceDeletion is required and must be specified")
 	}
 
 	// to determine the Content-Type header
@@ -2194,152 +1281,7 @@ func (a *WorkspacesAPIService) RestoreWorkspaceExecute(r ApiRestoreWorkspaceRequ
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
 	// body params
-	localVarPostBody = r.restoreRequest
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiSyncWorkspaceRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	idempotencyKey *string
-	xOrganizationId *string
-	syncWorkspaceRequest *SyncWorkspaceRequest
-}
-
-func (r ApiSyncWorkspaceRequest) IdempotencyKey(idempotencyKey string) ApiSyncWorkspaceRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiSyncWorkspaceRequest) XOrganizationId(xOrganizationId string) ApiSyncWorkspaceRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-func (r ApiSyncWorkspaceRequest) SyncWorkspaceRequest(syncWorkspaceRequest SyncWorkspaceRequest) ApiSyncWorkspaceRequest {
-	r.syncWorkspaceRequest = &syncWorkspaceRequest
-	return r
-}
-
-func (r ApiSyncWorkspaceRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.SyncWorkspaceExecute(r)
-}
-
-/*
-SyncWorkspace Retry Git integration without rerunning the agent
-
-
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiSyncWorkspaceRequest
-*/
-func (a *WorkspacesAPIService) SyncWorkspace(ctx context.Context, workspaceId string) ApiSyncWorkspaceRequest {
-	return ApiSyncWorkspaceRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) SyncWorkspaceExecute(r ApiSyncWorkspaceRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.SyncWorkspace")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/sync"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.syncWorkspaceRequest
+	localVarPostBody = r.workspaceDeletion
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -2409,7 +1351,7 @@ func (r ApiUpdateWorkspaceRequest) Execute() (*Workspace, *http.Response, error)
 }
 
 /*
-UpdateWorkspace Rename a remote workspace
+UpdateWorkspace Update workspace settings
 
 
 
@@ -2472,188 +1414,6 @@ func (a *WorkspacesAPIService) UpdateWorkspaceExecute(r ApiUpdateWorkspaceReques
 	}
 	// body params
 	localVarPostBody = r.workspacePatch
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-			var v Error
-			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-			if err != nil {
-				newErr.error = err.Error()
-				return localVarReturnValue, localVarHTTPResponse, newErr
-			}
-					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
-					newErr.model = v
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiWriteFileRequest struct {
-	ctx context.Context
-	ApiService *WorkspacesAPIService
-	workspaceId string
-	path *string
-	ifMatch *string
-	idempotencyKey *string
-	body *os.File
-	xOrganizationId *string
-	createOnly *bool
-}
-
-func (r ApiWriteFileRequest) Path(path string) ApiWriteFileRequest {
-	r.path = &path
-	return r
-}
-
-func (r ApiWriteFileRequest) IfMatch(ifMatch string) ApiWriteFileRequest {
-	r.ifMatch = &ifMatch
-	return r
-}
-
-func (r ApiWriteFileRequest) IdempotencyKey(idempotencyKey string) ApiWriteFileRequest {
-	r.idempotencyKey = &idempotencyKey
-	return r
-}
-
-func (r ApiWriteFileRequest) Body(body *os.File) ApiWriteFileRequest {
-	r.body = body
-	return r
-}
-
-// Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
-func (r ApiWriteFileRequest) XOrganizationId(xOrganizationId string) ApiWriteFileRequest {
-	r.xOrganizationId = &xOrganizationId
-	return r
-}
-
-// Reject an existing file or directory at path instead of replacing it. The collision check is atomic with the revision update.
-func (r ApiWriteFileRequest) CreateOnly(createOnly bool) ApiWriteFileRequest {
-	r.createOnly = &createOnly
-	return r
-}
-
-func (r ApiWriteFileRequest) Execute() (*Operation, *http.Response, error) {
-	return r.ApiService.WriteFileExecute(r)
-}
-
-/*
-WriteFile Persist an atomic file replacement
-
-Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param workspaceId
- @return ApiWriteFileRequest
-*/
-func (a *WorkspacesAPIService) WriteFile(ctx context.Context, workspaceId string) ApiWriteFileRequest {
-	return ApiWriteFileRequest{
-		ApiService: a,
-		ctx: ctx,
-		workspaceId: workspaceId,
-	}
-}
-
-// Execute executes the request
-//  @return Operation
-func (a *WorkspacesAPIService) WriteFileExecute(r ApiWriteFileRequest) (*Operation, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodPut
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *Operation
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WorkspacesAPIService.WriteFile")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/v1/workspaces/{workspace_id}/file"
-	localVarPath = strings.Replace(localVarPath, "{"+"workspace_id"+"}", url.PathEscape(parameterValueToString(r.workspaceId, "workspaceId")), -1)
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-	if r.path == nil {
-		return localVarReturnValue, nil, reportError("path is required and must be specified")
-	}
-	if r.ifMatch == nil {
-		return localVarReturnValue, nil, reportError("ifMatch is required and must be specified")
-	}
-	if r.idempotencyKey == nil {
-		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
-	}
-	if strlen(*r.idempotencyKey) < 8 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
-	}
-	if strlen(*r.idempotencyKey) > 200 {
-		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
-	}
-	if r.body == nil {
-		return localVarReturnValue, nil, reportError("body is required and must be specified")
-	}
-
-	parameterAddToHeaderOrQuery(localVarQueryParams, "path", r.path, "form", "")
-	if r.createOnly != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "create_only", r.createOnly, "form", "")
-	} else {
-		var defaultValue bool = false
-		parameterAddToHeaderOrQuery(localVarQueryParams, "create_only", defaultValue, "form", "")
-		r.createOnly = &defaultValue
-	}
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/octet-stream"}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "If-Match", r.ifMatch, "simple", "")
-	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
-	if r.xOrganizationId != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
-	}
-	// body params
-	localVarPostBody = r.body
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

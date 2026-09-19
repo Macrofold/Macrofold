@@ -33,10 +33,11 @@ function safeKey(key: string) {
     throw new Error('Invalid object key');
   return key;
 }
-class LocalStore implements ObjectStore {
+export class LocalStore implements ObjectStore {
+  constructor(private directory = config.dataDir) {}
   async list(prefix: string, cursor?: string, limit = 1000) {
     if (prefix) safeKey(prefix);
-    const base = path.join(config.dataDir, 'objects'),
+    const base = path.join(this.directory, 'objects'),
       names: string[] = [];
     async function walk(dir: string) {
       for (const file of await readdir(dir, { withFileTypes: true }).catch((error) => {
@@ -62,17 +63,17 @@ class LocalStore implements ObjectStore {
     return { objects, next_cursor: selected.length > limit ? selected[limit - 1] : undefined };
   }
   async put(key: string, bytes: Buffer) {
-    const dest = path.join(config.dataDir, 'objects', safeKey(key));
+    const dest = path.join(this.directory, 'objects', safeKey(key));
     await mkdir(path.dirname(dest), { recursive: true });
     const tmp = `${dest}.${crypto.randomUUID()}.tmp`;
     await writeFile(tmp, bytes, { mode: 0o600 });
     await rename(tmp, dest);
   }
   get(key: string) {
-    return readFile(path.join(config.dataDir, 'objects', safeKey(key)));
+    return readFile(path.join(this.directory, 'objects', safeKey(key)));
   }
   async delete(key: string) {
-    await unlink(path.join(config.dataDir, 'objects', safeKey(key))).catch((e) => {
+    await unlink(path.join(this.directory, 'objects', safeKey(key))).catch((e) => {
       if (e.code !== 'ENOENT') throw e;
     });
   }
@@ -182,8 +183,12 @@ export async function readContent(key: string, hash?: string) {
 }
 export type StoredChunk = { key: string; sha256: string; size: number };
 type StoredValue = { bytes: string } | { version: 2; sha256: string; size: number; chunks: StoredChunk[] };
-export async function* contentChunks(key: string, expectedHash?: string): AsyncGenerator<Buffer> {
-  const value = unseal<StoredValue>((await storage.get(key)).toString());
+export async function* contentChunks(
+  key: string,
+  expectedHash?: string,
+  store: Pick<ObjectStore, 'get'> = storage,
+): AsyncGenerator<Buffer> {
+  const value = unseal<StoredValue>((await store.get(key)).toString());
   const hasher = createHash('sha256');
   let size = 0;
   if ('bytes' in value) {
@@ -195,7 +200,7 @@ export async function* contentChunks(key: string, expectedHash?: string): AsyncG
     for (const chunk of value.chunks) {
       // One level only: a malicious/corrupt manifest cannot recurse forever or leave its tenant prefix.
       if (!chunk.key.startsWith(`${key.split('/')[0]}/content/`)) throw new Error('Invalid content manifest');
-      const item = unseal<{ bytes: string }>((await storage.get(chunk.key)).toString());
+      const item = unseal<{ bytes: string }>((await store.get(chunk.key)).toString());
       const bytes = Buffer.from(item.bytes, 'base64');
       if (sha256(bytes) !== chunk.sha256 || bytes.length !== chunk.size)
         throw new Error('Content chunk integrity failure');

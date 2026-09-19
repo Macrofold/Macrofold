@@ -86,21 +86,21 @@ describe('authenticated principals and session boundaries', () => {
 });
 
 describe('delegated execution and invitations', () => {
-  it('checks current key scope and project binding before a delegated side effect', async () => {
+  it('checks current key scope and workspace binding before a delegated side effect', async () => {
     const key = await transaction(a.p.organizationId, (tx) =>
-      createKey(tx, a.p, { name: 'Scoped run', scopes: ['runs:write'], project_id: id() }),
+      createKey(tx, a.p, { name: 'Scoped run', scopes: ['runs:write'], workspace_id: id() }),
     );
     const row = (
-      await pool.query('SELECT id,project_ids FROM api_keys WHERE key_hash=$1', [sha256(key.secret)])
+      await pool.query('SELECT id,workspace_ids FROM api_keys WHERE key_hash=$1', [sha256(key.secret)])
     ).rows[0];
     const run = {
       organization_id: a.p.organizationId,
-      project_id: row.project_ids[0],
+      workspace_id: row.workspace_ids[0],
       config: { user_id: a.p.userId!, principal_id: String(key.id), principal_kind: 'api_key' as const },
     };
     expect(await transaction(a.p.organizationId, (tx) => actorAuthorized(tx, run))).toBe(true);
     expect(
-      await transaction(a.p.organizationId, (tx) => actorAuthorized(tx, { ...run, project_id: id() })),
+      await transaction(a.p.organizationId, (tx) => actorAuthorized(tx, { ...run, workspace_id: id() })),
     ).toBe(false);
     expect(await transaction(a.p.organizationId, (tx) => actorAuthorized(tx, run, 'connections:write'))).toBe(
       false,
@@ -178,7 +178,7 @@ describe('persisted delegated OAuth authority', () => {
     );
     const run = {
       organization_id: a.p.organizationId,
-      project_id: id(),
+      workspace_id: id(),
       config: {
         user_id: a.p.userId!,
         principal_id: a.p.id,

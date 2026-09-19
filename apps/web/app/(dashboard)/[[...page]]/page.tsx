@@ -12,7 +12,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ page?: string[] }>;
 }): Promise<Metadata> {
-  if ((await params).page?.length) return {};
+  if ((await params).page?.length || process.env.LOGIN_HOMEPAGE === 'true') return {};
   return { title: { absolute: `${headline} · ${config.name}` }, description: subtitle };
 }
 
@@ -20,7 +20,7 @@ export default async function Page({ params }: { params: Promise<{ page?: string
   const segments = (await params).page || [];
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    if (segments.length) redirect('/login');
+    if (segments.length || process.env.LOGIN_HOMEPAGE === 'true') redirect('/login');
     return <Marketing name={config.name} />;
   }
   return <Dashboard segments={segments} />;

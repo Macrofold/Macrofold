@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         '/auth/',
         '/account',
         '/api-keys',
-        '/projects',
+        '/workspaces',
         '/runs',
         '/agents',
         '/connections',

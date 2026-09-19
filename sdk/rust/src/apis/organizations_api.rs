@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -104,7 +104,7 @@ pub enum UpdateOrganizationError {
 }
 
 
-/// 
+///
 pub async fn create_invitation(configuration: &configuration::Configuration, idempotency_key: &str, invitation_create: models::InvitationCreate, x_organization_id: Option<&str>) -> Result<models::Invitation, Error<CreateInvitationError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -154,7 +154,7 @@ pub async fn create_invitation(configuration: &configuration::Configuration, ide
     }
 }
 
-/// 
+///
 pub async fn create_organization(configuration: &configuration::Configuration, idempotency_key: &str, organization_create: models::OrganizationCreate, x_organization_id: Option<&str>) -> Result<models::Organization, Error<CreateOrganizationError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -250,7 +250,7 @@ pub async fn get_execution_policy(configuration: &configuration::Configuration, 
     }
 }
 
-/// 
+///
 pub async fn list_invitations(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::ListInvitations200Response, Error<ListInvitationsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;
@@ -296,7 +296,7 @@ pub async fn list_invitations(configuration: &configuration::Configuration, x_or
     }
 }
 
-/// 
+///
 pub async fn list_members(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::ListMembers200Response, Error<ListMembersError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;
@@ -342,7 +342,7 @@ pub async fn list_members(configuration: &configuration::Configuration, x_organi
     }
 }
 
-/// 
+///
 pub async fn list_organization_audit(configuration: &configuration::Configuration, x_organization_id: Option<&str>) -> Result<models::ListOrganizationAudit200Response, Error<ListOrganizationAuditError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_x_organization_id = x_organization_id;
@@ -388,7 +388,7 @@ pub async fn list_organization_audit(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn remove_member(configuration: &configuration::Configuration, idempotency_key: &str, user_id: &str, x_organization_id: Option<&str>) -> Result<(), Error<RemoveMemberError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -426,7 +426,7 @@ pub async fn remove_member(configuration: &configuration::Configuration, idempot
     }
 }
 
-/// 
+///
 pub async fn revoke_invitation(configuration: &configuration::Configuration, idempotency_key: &str, invitation_id: &str, x_organization_id: Option<&str>) -> Result<(), Error<RevokeInvitationError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -514,7 +514,7 @@ pub async fn update_execution_policy(configuration: &configuration::Configuratio
     }
 }
 
-/// 
+///
 pub async fn update_member(configuration: &configuration::Configuration, idempotency_key: &str, user_id: &str, member_patch: models::MemberPatch, x_organization_id: Option<&str>) -> Result<(), Error<UpdateMemberError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -554,7 +554,7 @@ pub async fn update_member(configuration: &configuration::Configuration, idempot
     }
 }
 
-/// 
+///
 pub async fn update_organization(configuration: &configuration::Configuration, idempotency_key: &str, organization_create: models::OrganizationCreate, x_organization_id: Option<&str>) -> Result<models::Organization, Error<UpdateOrganizationError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;

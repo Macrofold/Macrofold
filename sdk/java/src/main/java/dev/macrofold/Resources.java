@@ -12,8 +12,8 @@ public abstract class Resources extends ApiClient {
   public abstract void stream(UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   protected abstract void streamInOrganization(UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   protected abstract void streamCustomerInOrganization(String customerId,UUID customerAgentId,UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
-  public ProjectsResource projects(){return new ProjectsResource(this,RequestOptions.defaults());}
-public WorkspacesResource workspaces(){return new WorkspacesResource(this,RequestOptions.defaults());}
+  public WorkspacesResource workspaces(){return new WorkspacesResource(this,RequestOptions.defaults());}
+public WorktreesResource worktrees(){return new WorktreesResource(this,RequestOptions.defaults());}
 public AgentsResource agents(){return new AgentsResource(this,RequestOptions.defaults());}
 public SessionsResource sessions(){return new SessionsResource(this,RequestOptions.defaults());}
 public RunsResource runs(){return new RunsResource(this,RequestOptions.defaults());}
@@ -37,17 +37,20 @@ public OrganizationsResource organizations(){return new OrganizationsResource(th
 public TriggersResource triggers(){return new TriggersResource(this,RequestOptions.defaults());}
 public SlackConnectionsResource slackConnections(){return new SlackConnectionsResource(this,RequestOptions.defaults());}
 public CustomerAgentsResource customerAgents(){return new CustomerAgentsResource(this,RequestOptions.defaults());}
+public InferencesResource inferences(){return new InferencesResource(this,RequestOptions.defaults());}
+public TasksResource tasks(){return new TasksResource(this,RequestOptions.defaults());}
+public SandboxesResource sandboxes(){return new SandboxesResource(this,RequestOptions.defaults());}
 
-public static final class GetProjectParams {
+public static final class GetWorkspaceParams {
         private Boolean includeConnections;
 private UUID agentId;
 private Integer connectionsLimit;
 private String connectionsCursor;
-        public GetProjectParams(){}
-        public GetProjectParams includeConnections(Boolean value){this.includeConnections=value;return this;}
-public GetProjectParams agentId(UUID value){this.agentId=value;return this;}
-public GetProjectParams connectionsLimit(Integer value){this.connectionsLimit=value;return this;}
-public GetProjectParams connectionsCursor(String value){this.connectionsCursor=value;return this;}
+        public GetWorkspaceParams(){}
+        public GetWorkspaceParams includeConnections(Boolean value){this.includeConnections=value;return this;}
+public GetWorkspaceParams agentId(UUID value){this.agentId=value;return this;}
+public GetWorkspaceParams connectionsLimit(Integer value){this.connectionsLimit=value;return this;}
+public GetWorkspaceParams connectionsCursor(String value){this.connectionsCursor=value;return this;}
       }
 public static final class GetWorktreeOptionsParams {
         private String name;
@@ -56,98 +59,98 @@ private String branch;
         public GetWorktreeOptionsParams name(String value){this.name=value;return this;}
 public GetWorktreeOptionsParams branch(String value){this.branch=value;return this;}
       }
-public static final class ListProjectsParams {
+public static final class ListWorkspacesParams {
         private String cursor;
 private Integer limit;
 private String query;
 private Boolean archived;
-        public ListProjectsParams(){}
-        public ListProjectsParams cursor(String value){this.cursor=value;return this;}
-public ListProjectsParams limit(Integer value){this.limit=value;return this;}
-public ListProjectsParams query(String value){this.query=value;return this;}
-public ListProjectsParams archived(Boolean value){this.archived=value;return this;}
-      }
-public static final class ListWorkspacesParams {
-        private String cursor;
-private Integer limit;
         public ListWorkspacesParams(){}
         public ListWorkspacesParams cursor(String value){this.cursor=value;return this;}
 public ListWorkspacesParams limit(Integer value){this.limit=value;return this;}
+public ListWorkspacesParams query(String value){this.query=value;return this;}
+public ListWorkspacesParams archived(Boolean value){this.archived=value;return this;}
       }
-public static final class ProjectsResource {
+public static final class ListWorktreesParams {
+        private String cursor;
+private Integer limit;
+        public ListWorktreesParams(){}
+        public ListWorktreesParams cursor(String value){this.cursor=value;return this;}
+public ListWorktreesParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class WorkspacesResource {
       private final Resources client; private final RequestOptions options;
-      private ProjectsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
-      public ProjectsResource withOptions(RequestOptions options){return new ProjectsResource(client,Objects.requireNonNull(options));}
-      public Project cancelDeletion(UUID projectId) throws ApiException {
+      private WorkspacesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public WorkspacesResource withOptions(RequestOptions options){return new WorkspacesResource(client,Objects.requireNonNull(options));}
+      public Workspace cancelDeletion(UUID workspaceId) throws ApiException {
         String key=options.identity();
 
-        try {return new ProjectsApi(client).cancelProjectDeletion(key,projectId,options.organization());}
+        try {return new WorkspacesApi(client).cancelWorkspaceDeletion(key,workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Project create(ProjectCreate input) throws ApiException {
+public Workspace create(WorkspaceCreate input) throws ApiException {
         String key=options.identity();
 
-        try {return new ProjectsApi(client).createProject(key,input,options.organization());}
+        try {return new WorkspacesApi(client).createWorkspace(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation createWorkspace(UUID projectId,WorkspaceCreate input) throws ApiException {
+public Operation createWorktree(UUID workspaceId,WorktreeCreate input) throws ApiException {
         String key=options.identity();
 
-        try {return new ProjectsApi(client).createWorkspace(projectId,key,input,options.organization());}
+        try {return new WorkspacesApi(client).createWorktree(workspaceId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation delete(UUID projectId) throws ApiException {
+public Operation delete(UUID workspaceId) throws ApiException {
 
 
-        try {return new ProjectsApi(client).deleteProject(projectId,options.organization());}
+        try {return new WorkspacesApi(client).deleteWorkspace(workspaceId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Project get(UUID projectId) throws ApiException {
-        return get(projectId,new GetProjectParams());
+public Workspace get(UUID workspaceId) throws ApiException {
+        return get(workspaceId,new GetWorkspaceParams());
       }
-public Project get(UUID projectId,GetProjectParams params) throws ApiException {
+public Workspace get(UUID workspaceId,GetWorkspaceParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ProjectsApi(client).getProject(projectId,options.organization(),params.includeConnections,params.agentId,params.connectionsLimit,params.connectionsCursor);}
+        try {return new WorkspacesApi(client).getWorkspace(workspaceId,options.organization(),params.includeConnections,params.agentId,params.connectionsLimit,params.connectionsCursor);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public WorktreeOptions getWorktreeOptions(UUID projectId) throws ApiException {
-        return getWorktreeOptions(projectId,new GetWorktreeOptionsParams());
+public WorktreeOptions getWorktreeOptions(UUID workspaceId) throws ApiException {
+        return getWorktreeOptions(workspaceId,new GetWorktreeOptionsParams());
       }
-public WorktreeOptions getWorktreeOptions(UUID projectId,GetWorktreeOptionsParams params) throws ApiException {
+public WorktreeOptions getWorktreeOptions(UUID workspaceId,GetWorktreeOptionsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ProjectsApi(client).getWorktreeOptions(projectId,options.organization(),params.name,params.branch);}
+        try {return new WorkspacesApi(client).getWorktreeOptions(workspaceId,options.organization(),params.name,params.branch);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ListProjects200Response list() throws ApiException {
-        return list(new ListProjectsParams());
+public ListWorkspaces200Response list() throws ApiException {
+        return list(new ListWorkspacesParams());
       }
-public ListProjects200Response list(ListProjectsParams params) throws ApiException {
+public ListWorkspaces200Response list(ListWorkspacesParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ProjectsApi(client).listProjects(params.cursor,params.limit,options.organization(),params.query,params.archived);}
+        try {return new WorkspacesApi(client).listWorkspaces(params.cursor,params.limit,options.organization(),params.query,params.archived);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ListWorkspaces200Response listWorkspaces(UUID projectId) throws ApiException {
-        return listWorkspaces(projectId,new ListWorkspacesParams());
+public ListWorktrees200Response listWorktrees(UUID workspaceId) throws ApiException {
+        return listWorktrees(workspaceId,new ListWorktreesParams());
       }
-public ListWorkspaces200Response listWorkspaces(UUID projectId,ListWorkspacesParams params) throws ApiException {
+public ListWorktrees200Response listWorktrees(UUID workspaceId,ListWorktreesParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ProjectsApi(client).listWorkspaces(projectId,params.cursor,params.limit,options.organization());}
+        try {return new WorkspacesApi(client).listWorktrees(workspaceId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Project scheduleDeletion(UUID projectId,ProjectDeletion input) throws ApiException {
+public Workspace scheduleDeletion(UUID workspaceId,WorkspaceDeletion input) throws ApiException {
         String key=options.identity();
 
-        try {return new ProjectsApi(client).scheduleProjectDeletion(key,projectId,input,options.organization());}
+        try {return new WorkspacesApi(client).scheduleWorkspaceDeletion(key,workspaceId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Project update(UUID projectId,ProjectPatch input) throws ApiException {
+public Workspace update(UUID workspaceId,WorkspacePatch input) throws ApiException {
 
 
-        try {return new ProjectsApi(client).updateProject(projectId,input,options.organization());}
+        try {return new WorkspacesApi(client).updateWorkspace(workspaceId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
@@ -168,16 +171,16 @@ public static final class DuplicateFileParams {
         public DuplicateFileParams(String ifMatch){this.ifMatch=Objects.requireNonNull(ifMatch,"ifMatch");}
         public DuplicateFileParams ifMatch(String value){this.ifMatch=value;return this;}
       }
-public static final class GetWorkspaceDiffParams {
+public static final class GetWorktreeDiffParams {
         private UUID baseCheckpointId;
 private String path;
 private String cursor;
 private Integer limit;
-        public GetWorkspaceDiffParams(){}
-        public GetWorkspaceDiffParams baseCheckpointId(UUID value){this.baseCheckpointId=value;return this;}
-public GetWorkspaceDiffParams path(String value){this.path=value;return this;}
-public GetWorkspaceDiffParams cursor(String value){this.cursor=value;return this;}
-public GetWorkspaceDiffParams limit(Integer value){this.limit=value;return this;}
+        public GetWorktreeDiffParams(){}
+        public GetWorktreeDiffParams baseCheckpointId(UUID value){this.baseCheckpointId=value;return this;}
+public GetWorktreeDiffParams path(String value){this.path=value;return this;}
+public GetWorktreeDiffParams cursor(String value){this.cursor=value;return this;}
+public GetWorktreeDiffParams limit(Integer value){this.limit=value;return this;}
       }
 public static final class ListCheckpointsParams {
         private String cursor;
@@ -229,139 +232,139 @@ private Boolean createOnly;
 public WriteFileParams ifMatch(String value){this.ifMatch=value;return this;}
 public WriteFileParams createOnly(Boolean value){this.createOnly=value;return this;}
       }
-public static final class WorkspacesResource {
+public static final class WorktreesResource {
       private final Resources client; private final RequestOptions options;
-      private WorkspacesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
-      public WorkspacesResource withOptions(RequestOptions options){return new WorkspacesResource(client,Objects.requireNonNull(options));}
-      public Operation createCheckpoint(UUID workspaceId,CheckpointCreate input) throws ApiException {
+      private WorktreesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public WorktreesResource withOptions(RequestOptions options){return new WorktreesResource(client,Objects.requireNonNull(options));}
+      public Operation createCheckpoint(UUID worktreeId,CheckpointCreate input) throws ApiException {
         String key=options.identity();
 
-        try {return new WorkspacesApi(client).createCheckpoint(workspaceId,key,input,options.organization());}
+        try {return new WorktreesApi(client).createCheckpoint(worktreeId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation createFolder(UUID workspaceId,FolderCreate input,CreateFolderParams params) throws ApiException {
+public Operation createFolder(UUID worktreeId,FolderCreate input,CreateFolderParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).createFolder(workspaceId,params.ifMatch,key,input,options.organization());}
+        try {return new WorktreesApi(client).createFolder(worktreeId,params.ifMatch,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Transfer createTransfer(UUID workspaceId,TransferCreate input) throws ApiException {
+public Transfer createTransfer(UUID worktreeId,TransferCreate input) throws ApiException {
         String key=options.identity();
 
-        try {return new WorkspacesApi(client).createTransfer(workspaceId,key,input,options.organization());}
+        try {return new WorktreesApi(client).createTransfer(worktreeId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation deleteFile(UUID workspaceId,DeleteFileParams params) throws ApiException {
+public Operation deleteFile(UUID worktreeId,DeleteFileParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).deleteFile(workspaceId,params.path,params.ifMatch,key,options.organization());}
+        try {return new WorktreesApi(client).deleteFile(worktreeId,params.path,params.ifMatch,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation delete(UUID workspaceId) throws ApiException {
+public Operation delete(UUID worktreeId) throws ApiException {
 
 
-        try {return new WorkspacesApi(client).deleteWorkspace(workspaceId,options.organization());}
+        try {return new WorktreesApi(client).deleteWorktree(worktreeId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Operation duplicateFile(UUID workspaceId,FileDuplicate input,DuplicateFileParams params) throws ApiException {
+public Operation duplicateFile(UUID worktreeId,FileDuplicate input,DuplicateFileParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).duplicateFile(workspaceId,params.ifMatch,key,input,options.organization());}
+        try {return new WorktreesApi(client).duplicateFile(worktreeId,params.ifMatch,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public GitSync getSync(UUID workspaceId) throws ApiException {
+public GitSync getSync(UUID worktreeId) throws ApiException {
 
 
-        try {return new WorkspacesApi(client).getSync(workspaceId,options.organization());}
+        try {return new WorktreesApi(client).getSync(worktreeId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Workspace get(UUID workspaceId) throws ApiException {
+public Worktree get(UUID worktreeId) throws ApiException {
 
 
-        try {return new WorkspacesApi(client).getWorkspace(workspaceId,options.organization());}
+        try {return new WorktreesApi(client).getWorktree(worktreeId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public WorkspaceDiff getDiff(UUID workspaceId) throws ApiException {
-        return getDiff(workspaceId,new GetWorkspaceDiffParams());
+public WorktreeDiff getDiff(UUID worktreeId) throws ApiException {
+        return getDiff(worktreeId,new GetWorktreeDiffParams());
       }
-public WorkspaceDiff getDiff(UUID workspaceId,GetWorkspaceDiffParams params) throws ApiException {
+public WorktreeDiff getDiff(UUID worktreeId,GetWorktreeDiffParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).getWorkspaceDiff(workspaceId,params.baseCheckpointId,params.path,params.cursor,params.limit,options.organization());}
+        try {return new WorktreesApi(client).getWorktreeDiff(worktreeId,params.baseCheckpointId,params.path,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ListCheckpoints200Response listCheckpoints(UUID workspaceId) throws ApiException {
-        return listCheckpoints(workspaceId,new ListCheckpointsParams());
+public ListCheckpoints200Response listCheckpoints(UUID worktreeId) throws ApiException {
+        return listCheckpoints(worktreeId,new ListCheckpointsParams());
       }
-public ListCheckpoints200Response listCheckpoints(UUID workspaceId,ListCheckpointsParams params) throws ApiException {
+public ListCheckpoints200Response listCheckpoints(UUID worktreeId,ListCheckpointsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).listCheckpoints(workspaceId,params.cursor,params.limit,options.organization());}
+        try {return new WorktreesApi(client).listCheckpoints(worktreeId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public FileListing listFiles(UUID workspaceId) throws ApiException {
-        return listFiles(workspaceId,new ListFilesParams());
+public FileListing listFiles(UUID worktreeId) throws ApiException {
+        return listFiles(worktreeId,new ListFilesParams());
       }
-public FileListing listFiles(UUID workspaceId,ListFilesParams params) throws ApiException {
+public FileListing listFiles(UUID worktreeId,ListFilesParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).listFiles(workspaceId,params.path,params.cursor,params.limit,options.organization(),params.query,params.recursive);}
+        try {return new WorktreesApi(client).listFiles(worktreeId,params.path,params.cursor,params.limit,options.organization(),params.query,params.recursive);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public ListTransfers200Response listTransfers(UUID workspaceId) throws ApiException {
-        return listTransfers(workspaceId,new ListTransfersParams());
+public ListTransfers200Response listTransfers(UUID worktreeId) throws ApiException {
+        return listTransfers(worktreeId,new ListTransfersParams());
       }
-public ListTransfers200Response listTransfers(UUID workspaceId,ListTransfersParams params) throws ApiException {
+public ListTransfers200Response listTransfers(UUID worktreeId,ListTransfersParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).listTransfers(workspaceId,params.cursor,params.limit,options.organization());}
+        try {return new WorktreesApi(client).listTransfers(worktreeId,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public File readFile(UUID workspaceId,ReadFileParams params) throws ApiException {
+public File readFile(UUID worktreeId,ReadFileParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).readFile(workspaceId,params.path,options.organization(),params.download);}
+        try {return new WorktreesApi(client).readFile(worktreeId,params.path,options.organization(),params.download);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Operation renameFile(UUID workspaceId,FileRename input,RenameFileParams params) throws ApiException {
+public Operation renameFile(UUID worktreeId,FileRename input,RenameFileParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).renameFile(workspaceId,params.path,params.ifMatch,key,input,options.organization());}
+        try {return new WorktreesApi(client).renameFile(worktreeId,params.path,params.ifMatch,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation restore(UUID workspaceId,RestoreRequest input) throws ApiException {
+public Operation restore(UUID worktreeId,RestoreRequest input) throws ApiException {
         String key=options.identity();
 
-        try {return new WorkspacesApi(client).restoreWorkspace(workspaceId,key,input,options.organization());}
+        try {return new WorktreesApi(client).restoreWorktree(worktreeId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Operation sync(UUID workspaceId,SyncWorkspaceRequest input) throws ApiException {
+public Operation sync(UUID worktreeId,SyncWorktreeRequest input) throws ApiException {
         String key=options.identity();
 
-        try {return new WorkspacesApi(client).syncWorkspace(workspaceId,key,options.organization(),input);}
+        try {return new WorktreesApi(client).syncWorktree(worktreeId,key,options.organization(),input);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Workspace update(UUID workspaceId,WorkspacePatch input) throws ApiException {
+public Worktree update(UUID worktreeId,WorktreePatch input) throws ApiException {
 
 
-        try {return new WorkspacesApi(client).updateWorkspace(workspaceId,input,options.organization());}
+        try {return new WorktreesApi(client).updateWorktree(worktreeId,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Operation writeFile(UUID workspaceId,File content,WriteFileParams params) throws ApiException {
+public Operation writeFile(UUID worktreeId,File content,WriteFileParams params) throws ApiException {
         String key=options.identity();
         Objects.requireNonNull(params,"params");
-        try {return new WorkspacesApi(client).writeFile(workspaceId,params.path,params.ifMatch,key,content,options.organization(),params.createOnly);}
+        try {return new WorktreesApi(client).writeFile(worktreeId,params.path,params.ifMatch,key,content,options.organization(),params.createOnly);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
 public static final class GetAgentParams {
         private Boolean includeConnections;
-private UUID projectId;
+private UUID workspaceId;
 private Integer connectionsLimit;
 private String connectionsCursor;
         public GetAgentParams(){}
         public GetAgentParams includeConnections(Boolean value){this.includeConnections=value;return this;}
-public GetAgentParams projectId(UUID value){this.projectId=value;return this;}
+public GetAgentParams workspaceId(UUID value){this.workspaceId=value;return this;}
 public GetAgentParams connectionsLimit(Integer value){this.connectionsLimit=value;return this;}
 public GetAgentParams connectionsCursor(String value){this.connectionsCursor=value;return this;}
       }
@@ -396,7 +399,7 @@ public Agent get(UUID agentId) throws ApiException {
 public Agent get(UUID agentId,GetAgentParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new AgentsApi(client).getAgent(agentId,options.organization(),params.includeConnections,params.projectId,params.connectionsLimit,params.connectionsCursor);}
+        try {return new AgentsApi(client).getAgent(agentId,options.organization(),params.includeConnections,params.workspaceId,params.connectionsLimit,params.connectionsCursor);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListAgents200Response list() throws ApiException {
@@ -418,17 +421,17 @@ public Agent update(UUID agentId,AgentPatch input) throws ApiException {
 public static final class ListSessionsParams {
         private String cursor;
 private Integer limit;
-private UUID workspaceId;
+private UUID worktreeId;
         public ListSessionsParams(){}
         public ListSessionsParams cursor(String value){this.cursor=value;return this;}
 public ListSessionsParams limit(Integer value){this.limit=value;return this;}
-public ListSessionsParams workspaceId(UUID value){this.workspaceId=value;return this;}
+public ListSessionsParams worktreeId(UUID value){this.worktreeId=value;return this;}
       }
 public static final class SessionsResource {
       private final Resources client; private final RequestOptions options;
       private SessionsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public SessionsResource withOptions(RequestOptions options){return new SessionsResource(client,Objects.requireNonNull(options));}
-      public RunAccepted continueRun(UUID sessionId,MessageCreate input) throws ApiException {
+      public NativeRunAccepted continueRun(UUID sessionId,MessageCreate input) throws ApiException {
         String key=options.identity();
 
         try {return new SessionsApi(client).continueSession(sessionId,key,input,options.organization());}
@@ -452,7 +455,7 @@ public ListSessions200Response list() throws ApiException {
 public ListSessions200Response list(ListSessionsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new SessionsApi(client).listSessions(params.cursor,params.limit,params.workspaceId,options.organization());}
+        try {return new SessionsApi(client).listSessions(params.cursor,params.limit,params.worktreeId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
@@ -474,21 +477,21 @@ public ListRunEventsParams limit(Integer value){this.limit=value;return this;}
       }
 public static final class ListRunsParams {
         private String status;
-private UUID projectId;
+private UUID workspaceId;
 private OffsetDateTime from;
 private OffsetDateTime to;
 private String cursor;
 private Integer limit;
-private UUID workspaceId;
+private UUID worktreeId;
 private UUID sessionId;
         public ListRunsParams(){}
         public ListRunsParams status(String value){this.status=value;return this;}
-public ListRunsParams projectId(UUID value){this.projectId=value;return this;}
+public ListRunsParams workspaceId(UUID value){this.workspaceId=value;return this;}
 public ListRunsParams from(OffsetDateTime value){this.from=value;return this;}
 public ListRunsParams to(OffsetDateTime value){this.to=value;return this;}
 public ListRunsParams cursor(String value){this.cursor=value;return this;}
 public ListRunsParams limit(Integer value){this.limit=value;return this;}
-public ListRunsParams workspaceId(UUID value){this.workspaceId=value;return this;}
+public ListRunsParams worktreeId(UUID value){this.worktreeId=value;return this;}
 public ListRunsParams sessionId(UUID value){this.sessionId=value;return this;}
       }
 public static final class RunsResource {
@@ -501,7 +504,7 @@ public static final class RunsResource {
         try {return new RunsApi(client).cancelRun(runId,key,new HashMap<>(),options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public RunAccepted create(RunCreate input) throws ApiException {
+public NativeRunAccepted create(RunCreate input) throws ApiException {
         String key=options.identity();
 
         try {return new RunsApi(client).createRun(key,input,options.organization());}
@@ -543,7 +546,7 @@ public ListRuns200Response list() throws ApiException {
 public ListRuns200Response list(ListRunsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new RunsApi(client).listRuns(params.status,params.projectId,params.from,params.to,params.cursor,params.limit,params.workspaceId,params.sessionId,options.organization());}
+        try {return new RunsApi(client).listRuns(params.status,params.workspaceId,params.from,params.to,params.cursor,params.limit,params.worktreeId,params.sessionId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public void stream(UUID runId,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {stream(runId,"0",receive);}
@@ -565,7 +568,13 @@ public static final class ArtifactsResource {
       private final Resources client; private final RequestOptions options;
       private ArtifactsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public ArtifactsResource withOptions(RequestOptions options){return new ArtifactsResource(client,Objects.requireNonNull(options));}
-      public Download download(UUID artifactId) throws ApiException {
+      public void delete(UUID artifactId) throws ApiException {
+        String key=options.identity();
+
+        try {new ArtifactsApi(client).deleteArtifact(artifactId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Download download(UUID artifactId) throws ApiException {
 
 
         try {return new ArtifactsApi(client).downloadArtifact(artifactId,options.organization());}
@@ -585,14 +594,14 @@ public static final class DeleteConnectionAccessRuleParams {
 public static final class ListConnectionAccessRulesParams {
         private String cursor;
 private Integer limit;
-private UUID projectId;
+private UUID workspaceId;
 private UUID agentId;
 private String sort;
 private String direction;
         public ListConnectionAccessRulesParams(){}
         public ListConnectionAccessRulesParams cursor(String value){this.cursor=value;return this;}
 public ListConnectionAccessRulesParams limit(Integer value){this.limit=value;return this;}
-public ListConnectionAccessRulesParams projectId(UUID value){this.projectId=value;return this;}
+public ListConnectionAccessRulesParams workspaceId(UUID value){this.workspaceId=value;return this;}
 public ListConnectionAccessRulesParams agentId(UUID value){this.agentId=value;return this;}
 public ListConnectionAccessRulesParams sort(String value){this.sort=value;return this;}
 public ListConnectionAccessRulesParams direction(String value){this.direction=value;return this;}
@@ -600,12 +609,12 @@ public ListConnectionAccessRulesParams direction(String value){this.direction=va
 public static final class ListConnectionsParams {
         private String cursor;
 private Integer limit;
-private UUID projectId;
+private UUID workspaceId;
 private UUID agentId;
         public ListConnectionsParams(){}
         public ListConnectionsParams cursor(String value){this.cursor=value;return this;}
 public ListConnectionsParams limit(Integer value){this.limit=value;return this;}
-public ListConnectionsParams projectId(UUID value){this.projectId=value;return this;}
+public ListConnectionsParams workspaceId(UUID value){this.workspaceId=value;return this;}
 public ListConnectionsParams agentId(UUID value){this.agentId=value;return this;}
       }
 public static final class ListConnectionToolsParams {
@@ -691,7 +700,7 @@ public ConnectionAccessRulePage listAccessRules(UUID connectionId) throws ApiExc
 public ConnectionAccessRulePage listAccessRules(UUID connectionId,ListConnectionAccessRulesParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ConnectionsApi(client).listConnectionAccessRules(connectionId,options.organization(),params.cursor,params.limit,params.projectId,params.agentId,params.sort,params.direction);}
+        try {return new ConnectionsApi(client).listConnectionAccessRules(connectionId,options.organization(),params.cursor,params.limit,params.workspaceId,params.agentId,params.sort,params.direction);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ContextualConnectionPage list() throws ApiException {
@@ -700,7 +709,7 @@ public ContextualConnectionPage list() throws ApiException {
 public ContextualConnectionPage list(ListConnectionsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new ConnectionsApi(client).listConnections(params.cursor,params.limit,options.organization(),params.projectId,params.agentId);}
+        try {return new ConnectionsApi(client).listConnections(params.cursor,params.limit,options.organization(),params.workspaceId,params.agentId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public ListConnectionTools200Response listTools(UUID connectionId) throws ApiException {
@@ -914,6 +923,37 @@ public ListRequests200Response list(ListRequestsParams params) throws ApiExcepti
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
+public static final class ListBillingUsageParams {
+        private OffsetDateTime from;
+private OffsetDateTime to;
+private UUID workspaceId;
+private UUID worktreeId;
+private UUID runId;
+private UUID sessionId;
+private String customerId;
+private String agentKey;
+private String provider;
+private String model;
+private String kind;
+private String billingMode;
+private UUID cursor;
+private Integer limit;
+        public ListBillingUsageParams(OffsetDateTime from,OffsetDateTime to){this.from=Objects.requireNonNull(from,"from");this.to=Objects.requireNonNull(to,"to");}
+        public ListBillingUsageParams from(OffsetDateTime value){this.from=value;return this;}
+public ListBillingUsageParams to(OffsetDateTime value){this.to=value;return this;}
+public ListBillingUsageParams workspaceId(UUID value){this.workspaceId=value;return this;}
+public ListBillingUsageParams worktreeId(UUID value){this.worktreeId=value;return this;}
+public ListBillingUsageParams runId(UUID value){this.runId=value;return this;}
+public ListBillingUsageParams sessionId(UUID value){this.sessionId=value;return this;}
+public ListBillingUsageParams customerId(String value){this.customerId=value;return this;}
+public ListBillingUsageParams agentKey(String value){this.agentKey=value;return this;}
+public ListBillingUsageParams provider(String value){this.provider=value;return this;}
+public ListBillingUsageParams model(String value){this.model=value;return this;}
+public ListBillingUsageParams kind(String value){this.kind=value;return this;}
+public ListBillingUsageParams billingMode(String value){this.billingMode=value;return this;}
+public ListBillingUsageParams cursor(UUID value){this.cursor=value;return this;}
+public ListBillingUsageParams limit(Integer value){this.limit=value;return this;}
+      }
 public static final class BillingResource {
       private final Resources client; private final RequestOptions options;
       private BillingResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
@@ -940,6 +980,12 @@ public Storage getStorage() throws ApiException {
 
 
         try {return new BillingApi(client).getStorage(options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public BillingUsagePage listUsage(ListBillingUsageParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new BillingApi(client).listBillingUsage(params.from,params.to,params.workspaceId,params.worktreeId,params.runId,params.sessionId,params.customerId,params.agentKey,params.provider,params.model,params.kind,params.billingMode,params.cursor,params.limit,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Storage updateStoragePolicy(StoragePolicy input) throws ApiException {
@@ -1257,10 +1303,10 @@ public static final class IntegrationsResource {
       private final Resources client; private final RequestOptions options;
       private IntegrationsResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
       public IntegrationsResource withOptions(RequestOptions options){return new IntegrationsResource(client,Objects.requireNonNull(options));}
-      public Project disconnectGithub(UUID projectId) throws ApiException {
+      public Workspace disconnectGithub(UUID workspaceId) throws ApiException {
         String key=options.identity();
 
-        try {return new IntegrationsApi(client).disconnectGithub(projectId,key,options.organization());}
+        try {return new IntegrationsApi(client).disconnectGithub(workspaceId,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public GithubInstallations listGithubInstallations() throws ApiException {
@@ -1629,7 +1675,7 @@ public File readFile(String customerId,UUID customerAgentId,ReadCustomerAgentFil
         try {return new CustomerAgentsApi(client).readCustomerAgentFile(customerId,customerAgentId,params.path,options.organization(),params.download);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public RunAccepted sendMessage(String customerId,UUID customerAgentId,CustomerAgentMessage input) throws ApiException {
+public NativeRunAccepted sendMessage(String customerId,UUID customerAgentId,CustomerAgentMessage input) throws ApiException {
         String key=options.identity();
 
         try {return new CustomerAgentsApi(client).sendCustomerAgentMessage(customerId,customerAgentId,key,input,options.organization());}
@@ -1641,6 +1687,147 @@ public CustomerAgentConnection updateConnectionPermissions(String customerId,UUI
         Objects.requireNonNull(params,"params");
         try {return new CustomerAgentsApi(client).updateCustomerAgentConnectionPermissions(customerId,customerAgentId,connectionId,params.ifMatch,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
+      }
+    }
+public static final class InferencesResource {
+      private final Resources client; private final RequestOptions options;
+      private InferencesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public InferencesResource withOptions(RequestOptions options){return new InferencesResource(client,Objects.requireNonNull(options));}
+      public RunAccepted createBoundedAgentRun(BoundedAgentCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new InferencesApi(client).createBoundedAgentRun(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ContextArtifact createContextArtifact(ContextArtifactCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new InferencesApi(client).createContextArtifact(key,input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public DecisionDefinition createDecisionDefinition(DecisionDefinitionCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new InferencesApi(client).createDecisionDefinition(key,input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public RunAccepted create(InferenceCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new InferencesApi(client).createInference(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public ContextArtifact deleteContextArtifact(UUID artifactId) throws ApiException {
+
+
+        try {return new InferencesApi(client).deleteContextArtifact(artifactId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public DecisionDefinition deleteDecisionDefinition(UUID definitionId) throws ApiException {
+
+
+        try {return new InferencesApi(client).deleteDecisionDefinition(definitionId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public ContextArtifact getContextArtifact(UUID artifactId) throws ApiException {
+
+
+        try {return new InferencesApi(client).getContextArtifact(artifactId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public DecisionDefinition getDecisionDefinition(UUID definitionId) throws ApiException {
+
+
+        try {return new InferencesApi(client).getDecisionDefinition(definitionId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+    }
+public static final class TasksResource {
+      private final Resources client; private final RequestOptions options;
+      private TasksResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public TasksResource withOptions(RequestOptions options){return new TasksResource(client,Objects.requireNonNull(options));}
+      public DecisionTask closeDecision(UUID taskId) throws ApiException {
+        String key=options.identity();
+
+        try {return new TasksApi(client).closeDecisionTask(key,taskId);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public DecisionTask createDecision(DecisionTaskCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new TasksApi(client).createDecisionTask(key,input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public DecisionTask getDecision(UUID taskId) throws ApiException {
+
+
+        try {return new TasksApi(client).getDecisionTask(taskId);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public DecisionTask recordOutcome(UUID taskId,ApplicationOutcome input) throws ApiException {
+        String key=options.identity();
+
+        try {return new TasksApi(client).recordTaskOutcome(key,taskId,input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public DecisionTask wakeDecision(UUID taskId,DecisionTaskWake input) throws ApiException {
+        String key=options.identity();
+
+        try {return new TasksApi(client).wakeDecisionTask(key,taskId,input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+    }
+public static final class ListSandboxesParams {
+        private UUID worktreeId;
+private UUID cursor;
+private Integer limit;
+        public ListSandboxesParams(){}
+        public ListSandboxesParams worktreeId(UUID value){this.worktreeId=value;return this;}
+public ListSandboxesParams cursor(UUID value){this.cursor=value;return this;}
+public ListSandboxesParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class SandboxesResource {
+      private final Resources client; private final RequestOptions options;
+      private SandboxesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public SandboxesResource withOptions(RequestOptions options){return new SandboxesResource(client,Objects.requireNonNull(options));}
+      public Sandbox create(SandboxCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new SandboxesApi(client).createSandbox(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Sandbox destroy(UUID sandboxId) throws ApiException {
+        String key=options.identity();
+
+        try {return new SandboxesApi(client).destroySandbox(sandboxId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Sandbox get(UUID sandboxId) throws ApiException {
+
+
+        try {return new SandboxesApi(client).getSandbox(sandboxId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public SandboxPage list() throws ApiException {
+        return list(new ListSandboxesParams());
+      }
+public SandboxPage list(ListSandboxesParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new SandboxesApi(client).listSandboxes(options.organization(),params.worktreeId,params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public Sandbox pause(UUID sandboxId) throws ApiException {
+        String key=options.identity();
+
+        try {return new SandboxesApi(client).pauseSandbox(sandboxId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Sandbox resume(UUID sandboxId) throws ApiException {
+        String key=options.identity();
+
+        try {return new SandboxesApi(client).resumeSandbox(sandboxId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
 }

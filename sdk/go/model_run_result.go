@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -34,6 +34,7 @@ type RunResult struct {
 	Error *ErrorDetail `json:"error,omitempty"`
 	ContentExpired *bool `json:"content_expired,omitempty"`
 	ContentExpiredAt *time.Time `json:"content_expired_at,omitempty"`
+	Inference *InferenceReceipt `json:"inference,omitempty"`
 }
 
 type _RunResult RunResult
@@ -379,6 +380,38 @@ func (o *RunResult) SetContentExpiredAt(v time.Time) {
 	o.ContentExpiredAt = &v
 }
 
+// GetInference returns the Inference field value if set, zero value otherwise.
+func (o *RunResult) GetInference() InferenceReceipt {
+	if o == nil || IsNil(o.Inference) {
+		var ret InferenceReceipt
+		return ret
+	}
+	return *o.Inference
+}
+
+// GetInferenceOk returns a tuple with the Inference field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunResult) GetInferenceOk() (*InferenceReceipt, bool) {
+	if o == nil || IsNil(o.Inference) {
+		return nil, false
+	}
+	return o.Inference, true
+}
+
+// HasInference returns a boolean if a field has been set.
+func (o *RunResult) HasInference() bool {
+	if o != nil && !IsNil(o.Inference) {
+		return true
+	}
+
+	return false
+}
+
+// SetInference gets a reference to the given InferenceReceipt and assigns it to the Inference field.
+func (o *RunResult) SetInference(v InferenceReceipt) {
+	o.Inference = &v
+}
+
 func (o RunResult) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -413,6 +446,9 @@ func (o RunResult) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ContentExpiredAt) {
 		toSerialize["content_expired_at"] = o.ContentExpiredAt
+	}
+	if !IsNil(o.Inference) {
+		toSerialize["inference"] = o.Inference
 	}
 	return toSerialize, nil
 }

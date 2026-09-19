@@ -46,7 +46,7 @@ export function AuthForm({
             <br />
             where you left off.
           </h1>
-          <p>One persistent workspace. Every conversation, every file, every step forward.</p>
+          <p>One persistent worktree. Every conversation, every file, every step forward.</p>
           <div className="auth-features">
             <span>
               <FolderGit2 />
@@ -76,7 +76,7 @@ export function AuthForm({
               ? 'Create your account to start building with cloud agents.'
               : mode === 'forgot'
                 ? 'We’ll email you a secure reset link.'
-                : 'Sign in to your persistent agent workspace.'}
+                : 'Sign in to your persistent agent worktree.'}
           </p>
           {sent ? (
             <div className="success-note">

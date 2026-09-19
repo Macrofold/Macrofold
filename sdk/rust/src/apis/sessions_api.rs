@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -48,8 +48,8 @@ pub enum ListSessionsError {
 }
 
 
-/// 
-pub async fn continue_session(configuration: &configuration::Configuration, session_id: &str, idempotency_key: &str, message_create: models::MessageCreate, x_organization_id: Option<&str>) -> Result<models::RunAccepted, Error<ContinueSessionError>> {
+///
+pub async fn continue_session(configuration: &configuration::Configuration, session_id: &str, idempotency_key: &str, message_create: models::MessageCreate, x_organization_id: Option<&str>) -> Result<models::NativeRunAccepted, Error<ContinueSessionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_session_id = session_id;
     let p_header_idempotency_key = idempotency_key;
@@ -89,8 +89,8 @@ pub async fn continue_session(configuration: &configuration::Configuration, sess
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::RunAccepted`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::RunAccepted`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::NativeRunAccepted`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::NativeRunAccepted`")))),
         }
     } else {
         let content = resp.text().await?;
@@ -99,7 +99,7 @@ pub async fn continue_session(configuration: &configuration::Configuration, sess
     }
 }
 
-/// 
+///
 pub async fn create_session(configuration: &configuration::Configuration, idempotency_key: &str, session_create: models::SessionCreate, x_organization_id: Option<&str>) -> Result<models::Session, Error<CreateSessionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
@@ -149,7 +149,7 @@ pub async fn create_session(configuration: &configuration::Configuration, idempo
     }
 }
 
-/// 
+///
 pub async fn get_session(configuration: &configuration::Configuration, session_id: &str, x_organization_id: Option<&str>) -> Result<models::Session, Error<GetSessionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_session_id = session_id;
@@ -196,12 +196,12 @@ pub async fn get_session(configuration: &configuration::Configuration, session_i
     }
 }
 
-/// 
-pub async fn list_sessions(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, workspace_id: Option<&str>, x_organization_id: Option<&str>) -> Result<models::ListSessions200Response, Error<ListSessionsError>> {
+///
+pub async fn list_sessions(configuration: &configuration::Configuration, cursor: Option<&str>, limit: Option<i32>, worktree_id: Option<&str>, x_organization_id: Option<&str>) -> Result<models::ListSessions200Response, Error<ListSessionsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_cursor = cursor;
     let p_query_limit = limit;
-    let p_query_workspace_id = workspace_id;
+    let p_query_worktree_id = worktree_id;
     let p_header_x_organization_id = x_organization_id;
 
     let uri_str = format!("{}/v1/sessions", configuration.base_path);
@@ -213,8 +213,8 @@ pub async fn list_sessions(configuration: &configuration::Configuration, cursor:
     if let Some(ref param_value) = p_query_limit {
         req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_query_workspace_id {
-        req_builder = req_builder.query(&[("workspace_id", &param_value.to_string())]);
+    if let Some(ref param_value) = p_query_worktree_id {
+        req_builder = req_builder.query(&[("worktree_id", &param_value.to_string())]);
     }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());

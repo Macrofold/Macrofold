@@ -4,7 +4,7 @@ import { fixtureAccount } from '../fixtures/account';
 import { adminReport } from '../../packages/core/src/reports';
 import { snapshotReports } from '../../packages/core/src/report-snapshots';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import { admitRun } from '../../packages/core/src/runs';
 import { executeRun } from '../../packages/core/src/engine';
 import { credit } from '../../packages/core/src/ledger';
@@ -21,10 +21,10 @@ it('separates simulated activation, matured cohorts, excluded accounts and immut
   await pool.query('UPDATE organizations SET created_at=$2 WHERE id=$1', [p.organizationId, created]);
   const admitted = await transaction(p.organizationId, async (tx) => {
     await credit(tx, p.organizationId, 20000000n, 'growth:' + id());
-    const project = await resources.create(tx, 'projects', p.organizationId, { name: 'Growth' });
-    const op = await createWorkspace(tx, p, project.id, { name: 'main', branch: 'main' });
+    const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Growth' });
+    const op = await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' });
     return admitRun(tx, p, {
-      workspace_id: String((op.result as any).workspace_id),
+      worktree_id: String((op.result as any).worktree_id),
       harness: 'codex',
       model: 'fixture-model',
       prompt: 'Local simulated activation fixture',
@@ -77,14 +77,14 @@ it('separates simulated activation, matured cohorts, excluded accounts and immut
   expect(saved.data[0]).toMatchObject({ day: '1999-12-31', report: { definition_version: '2' } });
   await pool.query("DELETE FROM report_snapshots WHERE day='1999-12-31'");
 });
-it('keeps organization reports outside project-restricted keys and records completed request metadata', async () => {
+it('keeps organization reports outside workspace-restricted keys and records completed request metadata', async () => {
   const { p, key } = await fixtureAccount('Restricted reporting');
-  const project = await transaction(p.organizationId, (tx) =>
-    resources.create(tx, 'projects', p.organizationId, { name: 'Only project' }),
+  const workspace = await transaction(p.organizationId, (tx) =>
+    resources.create(tx, 'workspaces', p.organizationId, { name: 'Only workspace' }),
   );
-  await pool.query('UPDATE api_keys SET project_ids=$2 WHERE organization_id=$1', [
+  await pool.query('UPDATE api_keys SET workspace_ids=$2 WHERE organization_id=$1', [
     p.organizationId,
-    [project.id],
+    [workspace.id],
   ]);
   const response = await handleApi(
     new Request('http://localhost:3210/v1/usage', { headers: { Authorization: `Bearer ${key}` } }),

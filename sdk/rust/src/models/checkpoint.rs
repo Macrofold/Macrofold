@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct Checkpoint {
     #[serde(rename = "id")]
     pub id: uuid::Uuid,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "run_id", skip_serializing_if = "Option::is_none")]
     pub run_id: Option<uuid::Uuid>,
     #[serde(rename = "created_at")]
@@ -39,10 +39,10 @@ pub struct Checkpoint {
 }
 
 impl Checkpoint {
-    pub fn new(id: uuid::Uuid, workspace_id: uuid::Uuid, created_at: chrono::DateTime<chrono::FixedOffset>, consistency: Consistency, verification: Verification, pinned: bool) -> Checkpoint {
+    pub fn new(id: uuid::Uuid, worktree_id: uuid::Uuid, created_at: chrono::DateTime<chrono::FixedOffset>, consistency: Consistency, verification: Verification, pinned: bool) -> Checkpoint {
         Checkpoint {
             id,
-            workspace_id,
+            worktree_id,
             run_id: None,
             created_at,
             consistency,
@@ -55,7 +55,7 @@ impl Checkpoint {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Consistency {
     #[serde(rename = "crash_consistent")]
@@ -69,7 +69,7 @@ impl Default for Consistency {
         Self::CrashConsistent
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Verification {
     #[serde(rename = "pending")]
@@ -85,7 +85,7 @@ impl Default for Verification {
         Self::Pending
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum GitStatus {
     #[serde(rename = "ready")]

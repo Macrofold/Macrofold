@@ -16,8 +16,8 @@ const WebhooksView = dynamic(() => import('./webhooks').then((m) => m.WebhooksVi
 const TriggersView = dynamic(() => import('./triggers').then((m) => m.TriggersView), { loading });
 const SecurityView = dynamic(() => import('./security').then((m) => m.SecurityView), { loading });
 const TeamView = dynamic(() => import('./team').then((m) => m.TeamView), { loading });
-const ProjectsView = dynamic(() => import('./projects').then((m) => m.ProjectsView), { loading });
-const WorkspaceView = dynamic(() => import('./projects').then((m) => m.WorkspaceView), { loading });
+const WorkspacesView = dynamic(() => import('./workspaces').then((m) => m.WorkspacesView), { loading });
+const WorktreeView = dynamic(() => import('./workspaces').then((m) => m.WorktreeView), { loading });
 const RunDetail = dynamic(() => import('./runs').then((m) => m.RunDetail), { loading });
 const RunsView = dynamic(() => import('./runs').then((m) => m.RunsView), { loading });
 const ConnectionsView = dynamic(() => import('./management').then((m) => m.ConnectionsView), { loading });
@@ -36,11 +36,11 @@ export function Dashboard({ segments }: { segments: string[] }) {
   let content: React.ReactNode;
   if (route === 'overview') content = <DashboardHome onRun={openRun} />;
   else if (route === 'templates') content = <TemplatesView />;
-  else if (route === 'projects')
+  else if (route === 'workspaces')
     content = segments[1] ? (
-      <WorkspaceView key={segments[1]} projectId={segments[1]} workspaceId={segments[3]} />
+      <WorktreeView key={segments[1]} workspaceId={segments[1]} worktreeId={segments[3]} />
     ) : (
-      <ProjectsView />
+      <WorkspacesView />
     );
   else if (route === 'runs')
     content = segments[1] ? (
@@ -87,13 +87,13 @@ export function Dashboard({ segments }: { segments: string[] }) {
 }
 function DevelopersView() {
   const origin = typeof window !== 'undefined' ? location.origin : 'https://your-domain.example';
-  const code = `curl ${origin}/v1/runs \\\n  -H "Authorization: Bearer $MACROFOLD_API_KEY" \\\n  -H "Idempotency-Key: $(uuidgen)" \\\n  -H "Content-Type: application/json" \\\n  -d '{"project_id":"YOUR_PROJECT_ID","harness":"codex",\n       "model":"YOUR_MODEL","billing_mode":"managed",\n       "prompt":"Review this project and suggest the next step.",\n       "limits":{"timeout_seconds":300,"max_cost_micro_usd":"1000000"}}'`;
+  const code = `curl ${origin}/v1/runs \\\n  -H "Authorization: Bearer $MACROFOLD_API_KEY" \\\n  -H "Idempotency-Key: $(uuidgen)" \\\n  -H "Content-Type: application/json" \\\n  -d '{"workspace_id":"YOUR_WORKSPACE_ID","harness":"codex",\n       "model":"YOUR_MODEL","billing_mode":"managed",\n       "prompt":"Review this workspace and suggest the next step.",\n       "limits":{"timeout_seconds":300,"max_cost_micro_usd":"1000000"}}'`;
   return (
     <div className="page narrow-page">
       <PageHeading
         eyebrow="Build with AI"
-        title="Your workspace, everywhere."
-        description="The dashboard, API, SDKs, and CLI all operate on the same projects and history."
+        title="Your worktree, everywhere."
+        description="The dashboard, API, SDKs, and CLI all operate on the same workspaces and history."
       />
       <div className="developer-sections">
         <section className="panel developer-ai-start">
@@ -113,10 +113,10 @@ function DevelopersView() {
           <SectionHeading title="01 · Connect from your terminal" />
           <p>
             Follow the <Link href="/docs/cli">CLI installation guide</Link>, then run these commands from your
-            local project folder. Browser sign-in connects the CLI to your hosted workspace.
+            local workspace folder. Browser sign-in connects the CLI to your hosted worktree.
           </p>
           <pre className="code-block">
-            {`macrofold login --host ${origin}\nmacrofold project list\nmacrofold link YOUR_PROJECT_ID\nmacrofold worktree create exploration --from main --use\nmacrofold doctor\nmacrofold chat --harness codex --model YOUR_ENABLED_MODEL`}
+            {`macrofold login --host ${origin}\nmacrofold workspace list\nmacrofold link YOUR_WORKSPACE_ID\nmacrofold worktree create exploration --from main --use\nmacrofold doctor\nmacrofold chat --harness codex --model YOUR_ENABLED_MODEL`}
           </pre>
           <Link href="/api-keys" className="text-link">
             Create an API key <ArrowUpRight size={14} />
@@ -138,7 +138,7 @@ function DevelopersView() {
           <SectionHeading title="Optional · Integration paths" />
           <p>
             Building an assistant for each customer? The Customer agents path handles setup and ownership
-            using the same projects, worktrees, presets and runs. Add account connections when your customers
+            using the same workspaces, worktrees, presets and runs. Add account connections when your customers
             need them.
           </p>
           <div className="button-row">

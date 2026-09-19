@@ -14,7 +14,7 @@ Catalog inclusion describes available integration metadata. Your deployment must
 
 Native integrations include Anthropic, OpenAI, and OpenRouter model keys; Brave, Exa, Tavily, Parallel AI, and Firecrawl search; GitHub repository synchronization; and remote or command-based MCP servers. Custom MCP servers can expose additional tools, including database access.
 
-See [connections and permissions](README.md) for setup and grants, and [persistent workspaces](../workspaces/README.md) for repository synchronization. Harnesses and model providers are distinct: choose a model compatible with the selected harness.
+See [connections and permissions](README.md) for setup and grants, and [persistent worktrees](../workspaces/README.md) for repository synchronization. Harnesses and model providers are distinct: choose a model compatible with the selected harness.
 
 ## Application catalog
 

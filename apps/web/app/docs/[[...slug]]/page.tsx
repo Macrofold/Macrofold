@@ -85,7 +85,7 @@ export default async function Doc({ params }: Props) {
                 '/docs/api/quickstart',
                 'Quickstart',
                 'Make your first request',
-                'A project, a task, and a complete result.',
+                'A workspace, a task, and a complete result.',
               ],
               [
                 '/docs/cloud',

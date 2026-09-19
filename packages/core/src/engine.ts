@@ -1,12 +1,16 @@
+import { acquireSandbox, changeSandbox, getSandbox, sandboxCost } from './sandboxes';
+import { computeMaximum } from './catalog';
+import { createHash } from 'node:crypto';
+import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
 import { pool, transaction, lock } from '../../db';
 import { config, isLocal } from './config';
 import { id } from './crypto';
-import { assert } from './errors';
+import { AppError, assert } from './errors';
 import { emit } from './events';
-import { getRun, terminal, type RunRow } from './runs';
+import { getRun, terminal, requireNativeRun, type RunRow } from './runs';
 import { settle } from './ledger';
 import * as resources from './resources';
 import { checkpointState, checkpoint, normalizePath, type FileRecord } from './files';
@@ -17,6 +21,8 @@ import { getExecutionPolicy } from './plans';
 import { schedulerTurn, recordTurn, pendingRunCandidates } from './scheduling';
 import { actorAuthorized } from './actor-authorization';
 import { queueRetryAt } from './queue-wait';
+import { decisionsEnabled } from './decision-capability';
+import { initialReceipt } from './inference-receipt';
 
 export function principalFor(row: RunRow): Principal {
   return {
@@ -26,7 +32,7 @@ export function principalFor(row: RunRow): Principal {
     kind: row.config.principal_kind,
     role: 'member',
     scopes: customerScopes,
-    projectIds: row.config.project_ids,
+    workspaceIds: row.config.workspace_ids,
     operator: false,
     oauthTokenId: row.config.oauth_token_id,
   };
@@ -34,8 +40,9 @@ export function principalFor(row: RunRow): Principal {
 export async function claimRun(org: string, runId: string) {
   return transaction(org, async (tx) => {
     let run = await getRun(tx, runId);
+    if (run.kind !== 'native_agent' && !decisionsEnabled()) return null;
     await lock(tx, `organization:${org}`);
-    await lock(tx, `workspace:${run.workspace_id}`);
+    await lock(tx, run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`);
     run = await getRun(tx, runId);
     if (run.status !== 'queued') {
       // Old outbox entries must not starve newer work. An active execution is never replayed.
@@ -51,23 +58,37 @@ export async function claimRun(org: string, runId: string) {
       queueRetryAt(run, Date.now()),
     ]);
     const denied = !(await actorAuthorized(tx, run));
-    const workspace = await resources.get(tx, 'workspaces', run.workspace_id),
-      project = await resources.get(tx, 'projects', run.project_id);
+    const worktree = run.kind === 'native_agent' ? await resources.get(tx, 'worktrees', run.worktree_id) : null,
+      workspace = run.workspace_id ? await resources.get(tx, 'workspaces', run.workspace_id) : null;
     const unavailable =
-      project.archived ||
-      project.deleted ||
-      workspace.deleted ||
-      ['deleting', 'degraded', 'restoring'].includes(String(workspace.status));
+      workspace?.archived ||
+      workspace?.deleted ||
+      !!worktree?.deleted ||
+      ['deleting', 'degraded', 'restoring'].includes(String(worktree?.status));
     const policy = await getExecutionPolicy(tx, org);
     const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
-    const subscriptionUnavailable = run.config.billing_mode === 'subscription';
+    let sandbox = run.kind === 'native_agent' && run.config.sandbox_id ? await getSandbox(tx, run.config.sandbox_id) : null;
+    // An accepted message can wait longer than the idle window. Resume only while its actor remains authorized.
+    if (sandbox?.status === 'paused' && !denied && !unavailable && !run.cancel_requested && !timeoutUnavailable && run.queue_expires_at.getTime() > Date.now()) {
+      try {
+        await changeSandbox(tx, principalFor(run), sandbox.id, 'resume');
+        sandbox = await getSandbox(tx, sandbox.id);
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        if (['sandbox_limit', 'sandbox_busy'].includes(error.code)) return null;
+        if (error.status !== 402) throw error;
+        // Insufficient funds fail below and release the already-reserved run budget.
+      }
+    }
+    const sandboxUnavailable = sandbox && (!['ready','creating','pausing'].includes(sandbox.status) || BigInt(sandbox.reserved_micro_usd) - sandboxCost(sandbox) < computeMaximum(run.config.limits?.timeout_seconds || 900, sandbox.rate_micro_usd_per_minute));
+    const subscriptionUnavailable = run.kind === 'native_agent' && run.config.billing_mode === 'subscription';
     if (
       run.cancel_requested ||
       run.queue_expires_at.getTime() <= Date.now() ||
       denied ||
       unavailable ||
       timeoutUnavailable ||
-      subscriptionUnavailable
+      subscriptionUnavailable || sandboxUnavailable
     ) {
       // Deletion and billing controls cancel queued rows without invoking the public
       // cancel handler. Honor that flag before provisioning or any native side effect.
@@ -77,10 +98,12 @@ export async function claimRun(org: string, runId: string) {
         : denied
           ? 'authorization_revoked'
           : unavailable
-            ? 'workspace_unavailable'
+            ? 'worktree_unavailable'
             : timeoutUnavailable
               ? 'execution_limit_changed'
-              : subscriptionUnavailable
+              : sandboxUnavailable
+                ? 'sandbox_unavailable'
+                : subscriptionUnavailable
                 ? 'claude_subscription_unavailable'
                 : 'queue_expired';
       await tx.query('UPDATE runs SET status=$3,completed_at=now(),result=$2 WHERE id=$1', [
@@ -89,6 +112,7 @@ export async function claimRun(org: string, runId: string) {
           execution_outcome: run.cancel_requested ? 'cancelled' : 'failure',
           persistence_status: 'not_required',
           failure_code: code,
+          ...(run.kind === 'native_agent' ? {} : { inference: { ...initialReceipt(run.config, run.id), outcome: 'failed' } }),
         }),
         status,
       ]);
@@ -102,18 +126,21 @@ export async function claimRun(org: string, runId: string) {
     }
     // A simulator left running must never impersonate a newly admitted native execution.
     // Cancellation and queue expiry above still settle work even under the wrong local profile.
-    if (run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
+    if (run.kind === 'native_agent' && run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
+    if (sandbox?.status === 'pausing') return null;
+    if (sandbox && ((sandbox.active_run_id && sandbox.active_run_id !== runId) || (sandbox.lease_until && sandbox.lease_until.getTime() > Date.now()))) return null;
     // Capacity and weighted turns commit together under the existing global lock.
     // A Workflow retry for a specific run must obey the same scheduler as a poller.
     await lock(tx, 'capacity:global');
     const turn = await schedulerTurn(tx);
     if (!turn || turn.id !== runId) return null;
+    if (sandbox && run.kind === 'native_agent') await acquireSandbox(tx, sandbox.id, runId, run.worktree_id);
     await recordTurn(tx, org, turn);
     await tx.query(
       "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
       [runId, run.config.limits?.timeout_seconds || 900],
     );
-    await resources.update(tx, 'workspaces', run.workspace_id, { status: 'busy' });
+    if (run.kind === 'native_agent') await resources.update(tx, 'worktrees', run.worktree_id, { status: 'busy' });
     await emit(tx, org, runId, 'run.provisioning', {});
     await tx.query(
       "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
@@ -125,8 +152,15 @@ export async function claimRun(org: string, runId: string) {
 
 /** Claims serialize writers. A crashed execution is never silently re-run. */
 export async function executeRun(org: string, runId: string, provider?: ExecutionProvider) {
+  const candidate = await transaction(org, (tx) => getRun(tx, runId));
+  if (candidate.kind !== 'native_agent') {
+    const { advanceInference } = await import('./inference-engine');
+    await advanceInference(org, runId);
+    return true;
+  }
   const run = await claimRun(org, runId);
   if (!run) return false;
+  requireNativeRun(run);
   const p = principalFor(run);
   const abort = new AbortController();
   let stopped = false;
@@ -146,7 +180,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     }).catch(() => abort.abort(new Error('heartbeat_failed')));
   }, 1000);
   try {
-    const ws = await transaction(org, (tx) => resources.get(tx, 'workspaces', run.workspace_id));
+    const ws = await transaction(org, (tx) => resources.get(tx, 'worktrees', run.worktree_id));
     const session = await transaction(org, (tx) => resources.get(tx, 'sessions', run.session_id));
     const files = await Promise.all(
       ((ws.files || []) as FileRecord[])
@@ -161,6 +195,15 @@ export async function executeRun(org: string, runId: string, provider?: Executio
           mode: f.mode,
         })),
     );
+    for (const attachment of run.config.attachments || []) {
+      const file = files.find((entry) => entry.path === attachment.path);
+      assert(
+        file && createHash('sha256').update(file.bytes).digest('hex') === attachment.sha256,
+        409,
+        'attachment_changed',
+        'An attachment changed after this run was queued. Submit a new run with the current file.',
+      );
+    }
     if (!provider) {
       assert(
         isLocal() && config.execution === 'simulator',
@@ -183,6 +226,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         model: run.config.model,
         prompt: run.config.prompt,
         instructions: run.config.instructions,
+        attachments: run.config.attachments,
         files,
         timeoutSeconds: run.config.limits?.timeout_seconds || 900,
         resumeState: session.resume_state as string | undefined,
@@ -229,7 +273,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
       });
     }
     await transaction(org, async (tx) => {
-      await lock(tx, `workspace:${run.workspace_id}`);
+      await lock(tx, `worktree:${run.worktree_id}`);
       const current = await getRun(tx, runId);
       assert(
         current.lease_generation === run.lease_generation && !terminal(current.status),
@@ -237,21 +281,22 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         'lease_lost',
         'Execution lease was lost before publication.',
       );
+      const previousFiles = (await resources.get(tx, 'worktrees', run.worktree_id)).files || [];
       const cp = await checkpoint(
         tx,
         p,
-        run.workspace_id,
+        run.worktree_id,
         'Run completed',
         guardedToolsRequired(run.config.permission_layers || [])
           ? permissionOutput(
               run.config.permission_layers || [],
-              (await resources.get(tx, 'workspaces', run.workspace_id)).files || [],
+              (await resources.get(tx, 'worktrees', run.worktree_id)).files || [],
               saved,
             )
           : saved,
       );
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
-      await resources.update(tx, 'workspaces', run.workspace_id, {
+      await resources.update(tx, 'worktrees', run.worktree_id, {
         ...checkpointState(cp),
         status: 'idle',
       });
@@ -261,7 +306,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         execution_outcome: 'success',
         persistence_status: 'verified',
         checkpoint_id: cp.id,
-        artifact_ids: [],
+        artifact_ids: await publishArtifacts(tx, run, previousFiles, cp.files || []),
         sync_status: 'disabled',
       };
       await tx.query("UPDATE runs SET status='succeeded',completed_at=now(),result=$2 WHERE id=$1", [
@@ -286,7 +331,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
       );
       await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(current.cost_micro_usd));
       await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
-      if (await queueAutomaticSync(tx, p, run.workspace_id, runId)) value.sync_status = 'pending';
+      if (await queueAutomaticSync(tx, p, run.worktree_id, runId)) value.sync_status = 'pending';
       await emit(tx, org, runId, 'run.succeeded', { ...value, status: 'succeeded' });
       await tx.query("UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE resource_id=$1", [runId]);
       await tx.query(
@@ -308,7 +353,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
           : status === 'failed'
             ? 'execution_failed'
             : status;
-      await resources.update(tx, 'workspaces', run.workspace_id, { status: 'idle' });
+      await resources.update(tx, 'worktrees', run.worktree_id, { status: 'idle' });
       await tx.query('UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1', [
         runId,
         status,
@@ -316,7 +361,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
           execution_outcome: status === 'failed' ? 'failure' : status,
           persistence_status: 'verified',
           failure_code: failure,
-          checkpoint_id: (await resources.get(tx, 'workspaces', run.workspace_id)).latest_checkpoint_id,
+          checkpoint_id: (await resources.get(tx, 'worktrees', run.worktree_id)).latest_checkpoint_id,
         }),
       ]);
       await settle(tx, org, runId, BigInt(current.reservation_micro_usd), BigInt(current.cost_micro_usd));
@@ -358,9 +403,11 @@ export async function maintainRuns() {
     for (const row of stale.rows)
       await transaction(row.organization_id, async (tx) => {
         let run = await getRun(tx, row.id);
-        await lock(tx, `workspace:${run.workspace_id}`);
+        if (run.kind !== 'native_agent') return;
+        await lock(tx, `worktree:${run.worktree_id}`);
         await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [row.id]);
         run = await getRun(tx, row.id);
+        requireNativeRun(run);
         if (terminal(run.status) || !run.heartbeat_at || Date.now() - run.heartbeat_at.getTime() <= 90000)
           return;
         await tx.query(
@@ -383,7 +430,7 @@ export async function maintainRuns() {
           BigInt(run.reservation_micro_usd),
           BigInt(run.cost_micro_usd),
         );
-        await resources.update(tx, 'workspaces', run.workspace_id, { status: 'idle' });
+        await resources.update(tx, 'worktrees', run.worktree_id, { status: 'idle' });
         await emit(tx, row.organization_id, row.id, 'run.failed', { status: 'failed', code: 'worker_lost' });
         await tx.query(
           "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",

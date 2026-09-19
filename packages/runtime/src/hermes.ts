@@ -1,13 +1,17 @@
 import type { HarnessAdapter, HarnessContext } from './types';
-import { runNativeBridge } from './native-bridge';
+import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 
 export class HermesAdapter implements HarnessAdapter {
+  private bridge = new NativeBridge();
+  close() {
+    this.bridge.close();
+  }
   run(context: HarnessContext) {
     const c = context.configuration;
     const guarded = permissionAdapters.hermes.translate(c.permissions || []).mode === 'guarded';
     if (guarded && !context.fileTools) throw new Error('Checked file service unavailable.');
-    return runNativeBridge(
+    return this.bridge.run(
       'Hermes',
       '/opt/hermes/.venv/bin/python',
       ['/opt/platform/hermes-bridge.py'],

@@ -41,7 +41,7 @@ async function account(label: string) {
     role: 'owner',
     kind: 'user',
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
     operator: false,
   };
   const key = await transaction(org, (tx) =>
@@ -88,9 +88,9 @@ describe('tenant API and execution invariants', () => {
   it.each(['editor', 'transfer'])(
     'preserves executable permissions when %s replaces file content',
     async (source) => {
-      const project = (await request('POST', '/v1/projects', { name: 'Executable file' })).value;
-      const workspace = await transaction(a.organizationId, async (tx) => {
-        const cp = await checkpoint(tx, a, project.default_workspace_id, 'Executable fixture', [
+      const workspace = (await request('POST', '/v1/workspaces', { name: 'Executable file' })).value;
+      const worktree = await transaction(a.organizationId, async (tx) => {
+        const cp = await checkpoint(tx, a, workspace.default_worktree_id, 'Executable fixture', [
           {
             ...(await saveContent(a.organizationId, Buffer.from('original'))),
             path: 'script.sh',
@@ -100,22 +100,22 @@ describe('tenant API and execution invariants', () => {
             git_ignored: false,
           },
         ]);
-        return resources.update(tx, 'workspaces', project.default_workspace_id, checkpointState(cp));
+        return resources.update(tx, 'worktrees', workspace.default_worktree_id, checkpointState(cp));
       });
       if (source === 'editor') {
         expect(
           (
-            await request('PUT', `/v1/workspaces/${workspace.id}/file?path=script.sh`, 'changed', keyA, {
+            await request('PUT', `/v1/worktrees/${worktree.id}/file?path=script.sh`, 'changed', keyA, {
               'Content-Type': 'application/octet-stream',
-              'If-Match': workspace.revision,
+              'If-Match': worktree.revision,
             })
           ).response.status,
         ).toBe(202);
       } else {
         const plan = (
-          await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+          await request('POST', `/v1/worktrees/${worktree.id}/transfers`, {
             direction: 'push',
-            base_revision: workspace.revision,
+            base_revision: worktree.revision,
             paths: ['script.sh'],
             manifest: [
               {
@@ -134,12 +134,12 @@ describe('tenant API and execution invariants', () => {
             .status,
         ).toBe(204);
         expect(
-          (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: workspace.revision }))
+          (await request('POST', `/v1/transfers/${plan.id}/apply`, { expected_revision: worktree.revision }))
             .response.status,
         ).toBe(202);
       }
       const saved = await transaction(a.organizationId, (tx) =>
-        resources.get(tx, 'workspaces', workspace.id),
+        resources.get(tx, 'worktrees', worktree.id),
       );
       const file = (saved.files as FileRecord[])[0];
       expect(file.mode).toBe(0o755);
@@ -154,29 +154,29 @@ describe('tenant API and execution invariants', () => {
   );
   it('replays admitted mutations, rejects changed payloads, and enforces tenant isolation at API and SQL layers', async () => {
     const token = id();
-    const first = await request('POST', '/v1/projects', { name: 'Private project' }, keyA, {
+    const first = await request('POST', '/v1/workspaces', { name: 'Private workspace' }, keyA, {
       'Idempotency-Key': token,
     });
     expect(first.response.status).toBe(201);
-    check('Project', first.value);
-    const replay = await request('POST', '/v1/projects', { name: 'Private project' }, keyA, {
+    check('Workspace', first.value);
+    const replay = await request('POST', '/v1/workspaces', { name: 'Private workspace' }, keyA, {
       'Idempotency-Key': token,
     });
     expect(replay.value.id).toBe(first.value.id);
     expect(replay.response.headers.get('idempotency-replayed')).toBe('true');
     expect(
-      (await request('POST', '/v1/projects', { name: 'Other' }, keyA, { 'Idempotency-Key': token })).response
+      (await request('POST', '/v1/workspaces', { name: 'Other' }, keyA, { 'Idempotency-Key': token })).response
         .status,
     ).toBe(409);
-    expect((await request('GET', `/v1/projects/${first.value.id}`, undefined, keyB)).response.status).toBe(
+    expect((await request('GET', `/v1/workspaces/${first.value.id}`, undefined, keyB)).response.status).toBe(
       404,
     );
     const hidden = await transaction(b.organizationId, (tx) =>
-      tx.query('SELECT id FROM projects WHERE id=$1', [first.value.id]),
+      tx.query('SELECT id FROM workspaces WHERE id=$1', [first.value.id]),
     );
     expect(hidden.rowCount).toBe(0);
     const inserted = await transaction(b.organizationId, (tx) =>
-      tx.query('INSERT INTO projects(id,organization_id,data) VALUES($1,$2,$3)', [
+      tx.query('INSERT INTO workspaces(id,organization_id,data) VALUES($1,$2,$3)', [
         id(),
         a.organizationId,
         '{}',
@@ -186,37 +186,37 @@ describe('tenant API and execution invariants', () => {
   });
   it('prevents key scope escalation and rejects revoked keys', async () => {
     const scoped = await transaction(a.organizationId, (tx) =>
-      createKey(tx, a, { name: 'Read only', scopes: ['identity:read', 'projects:read'] }),
+      createKey(tx, a, { name: 'Read only', scopes: ['identity:read', 'workspaces:read'] }),
     );
-    expect((await request('POST', '/v1/projects', { name: 'Denied' }, scoped.secret)).response.status).toBe(
+    expect((await request('POST', '/v1/workspaces', { name: 'Denied' }, scoped.secret)).response.status).toBe(
       403,
     );
     await request('DELETE', `/v1/api-keys/${scoped.id}`);
     expect((await request('GET', '/v1/me', undefined, scoped.secret)).response.status).toBe(401);
   });
   it('preserves files across runs and sessions, publishes contiguous events, and supports cursor reconnect', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Persistent execution' })).value;
-    let workspace = (await request('GET', `/v1/workspaces/${project.default_workspace_id}`)).value;
-    check('Workspace', workspace);
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Persistent execution' })).value;
+    let worktree = (await request('GET', `/v1/worktrees/${workspace.default_worktree_id}`)).value;
+    check('Worktree', worktree);
     const write = await request(
       'PUT',
-      `/v1/workspaces/${workspace.id}/file?path=brief.md`,
+      `/v1/worktrees/${worktree.id}/file?path=brief.md`,
       'Remember this content.',
       keyA,
-      { 'Content-Type': 'application/octet-stream', 'If-Match': workspace.revision },
+      { 'Content-Type': 'application/octet-stream', 'If-Match': worktree.revision },
     );
     expect(write.response.status).toBe(202);
     expect(
       (
-        await request('PUT', `/v1/workspaces/${workspace.id}/file?path=brief.md`, 'Stale overwrite', keyA, {
+        await request('PUT', `/v1/worktrees/${worktree.id}/file?path=brief.md`, 'Stale overwrite', keyA, {
           'Content-Type': 'application/octet-stream',
-          'If-Match': workspace.revision,
+          'If-Match': worktree.revision,
         })
       ).response.status,
     ).toBe(412);
     const accepted = (
       await request('POST', '/v1/runs', {
-        workspace_id: workspace.id,
+        worktree_id: worktree.id,
         harness: 'codex',
         model: 'fixture-model',
         billing_mode: 'managed',
@@ -227,7 +227,7 @@ describe('tenant API and execution invariants', () => {
     expect(
       (
         await request('POST', '/v1/runs', {
-          workspace_id: workspace.id,
+          worktree_id: worktree.id,
           harness: 'codex',
           model: 'fixture-model',
           billing_mode: 'managed',
@@ -242,7 +242,7 @@ describe('tenant API and execution invariants', () => {
     const result = (await request('GET', `/v1/runs/${accepted.run_id}/result`)).value;
     check('RunResult', result);
     expect(result.persistence_status).toBe('verified');
-    const listing = (await request('GET', `/v1/workspaces/${workspace.id}/files`)).value;
+    const listing = (await request('GET', `/v1/worktrees/${worktree.id}/files`)).value;
     check('FileListing', listing);
     expect(listing.entries.map((f: { path: string }) => f.path)).toContain('brief.md');
     const history = await eventsAfter(a.organizationId, accepted.run_id, '0');
@@ -264,10 +264,10 @@ describe('tenant API and execution invariants', () => {
     expect(continued.output_text).toContain('turn 2');
   });
   it('deduplicates producer events under concurrent delivery', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Event deduplication' })).value;
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Event deduplication' })).value;
     const run = (
       await request('POST', '/v1/runs', {
-        project_id: project.id,
+        workspace_id: workspace.id,
         harness: 'codex',
         model: 'fixture-model',
         billing_mode: 'managed',
@@ -293,35 +293,35 @@ describe('tenant API and execution invariants', () => {
     await request('POST', `/v1/runs/${run.run_id}/cancel`, {});
   });
   it('rejects file and directory collisions without changing the last restorable checkpoint', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Valid filesystem tree' })).value;
-    const workspaceId = project.default_workspace_id;
-    let workspace = (await request('GET', `/v1/workspaces/${workspaceId}`)).value;
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Valid filesystem tree' })).value;
+    const worktreeId = workspace.default_worktree_id;
+    let worktree = (await request('GET', `/v1/worktrees/${worktreeId}`)).value;
     const write = (path: string, revision: string) =>
-      request('PUT', `/v1/workspaces/${workspaceId}/file?path=${path}`, 'retained content', keyA, {
+      request('PUT', `/v1/worktrees/${worktreeId}/file?path=${path}`, 'retained content', keyA, {
         'Content-Type': 'application/octet-stream',
         'If-Match': revision,
       });
-    expect((await write('parent', workspace.revision)).response.status).toBe(202);
-    workspace = (await request('GET', `/v1/workspaces/${workspaceId}`)).value;
-    const collision = await write('parent/child.txt', workspace.revision);
+    expect((await write('parent', worktree.revision)).response.status).toBe(202);
+    worktree = (await request('GET', `/v1/worktrees/${worktreeId}`)).value;
+    const collision = await write('parent/child.txt', worktree.revision);
     expect(collision.response.status).toBe(409);
     expect(collision.value.error.code).toBe('file_path_conflict');
-    expect((await request('GET', `/v1/workspaces/${workspaceId}`)).value).toMatchObject({
-      revision: workspace.revision,
-      latest_checkpoint_id: workspace.latest_checkpoint_id,
+    expect((await request('GET', `/v1/worktrees/${worktreeId}`)).value).toMatchObject({
+      revision: worktree.revision,
+      latest_checkpoint_id: worktree.latest_checkpoint_id,
     });
-    expect((await write('folder/child.txt', workspace.revision)).response.status).toBe(202);
-    workspace = (await request('GET', `/v1/workspaces/${workspaceId}`)).value;
-    expect((await write('folder', workspace.revision)).response.status).toBe(409);
-    const restored = await request('POST', `/v1/workspaces/${workspaceId}/restore`, {
-      checkpoint_id: workspace.latest_checkpoint_id,
+    expect((await write('folder/child.txt', worktree.revision)).response.status).toBe(202);
+    worktree = (await request('GET', `/v1/worktrees/${worktreeId}`)).value;
+    expect((await write('folder', worktree.revision)).response.status).toBe(409);
+    const restored = await request('POST', `/v1/worktrees/${worktreeId}/restore`, {
+      checkpoint_id: worktree.latest_checkpoint_id,
     });
     expect(restored.response.status).toBe(202);
-    const files = (await request('GET', `/v1/workspaces/${workspaceId}/files`)).value.entries;
+    const files = (await request('GET', `/v1/worktrees/${worktreeId}/files`)).value.entries;
     expect(files.map((file: { path: string }) => file.path)).toEqual(['folder/child.txt', 'parent']);
     for (const file of files) {
       const response = await handleApi(
-        new Request(`${config.origin}/v1/workspaces/${workspaceId}/file?path=${file.path}`, {
+        new Request(`${config.origin}/v1/worktrees/${worktreeId}/file?path=${file.path}`, {
           headers: { Authorization: `Bearer ${keyA}` },
         }),
       );
@@ -329,11 +329,11 @@ describe('tenant API and execution invariants', () => {
     }
   });
   it('rejects a conflicting upload tree during planning before returning upload capabilities', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Transfer tree collisions' })).value;
-    const workspace = (await request('GET', `/v1/workspaces/${project.default_workspace_id}`)).value;
-    const planned = await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Transfer tree collisions' })).value;
+    const worktree = (await request('GET', `/v1/worktrees/${workspace.default_worktree_id}`)).value;
+    const planned = await request('POST', `/v1/worktrees/${worktree.id}/transfers`, {
       direction: 'push',
-      base_revision: workspace.revision,
+      base_revision: worktree.revision,
       paths: [],
       manifest: ['file', 'file/child'].map((path) => ({
         path,
@@ -345,24 +345,24 @@ describe('tenant API and execution invariants', () => {
     });
     expect(planned.response.status).toBe(409);
     expect(planned.value.error.code).toBe('file_path_conflict');
-    expect((await request('GET', `/v1/workspaces/${workspace.id}/transfers`)).value.data).toHaveLength(0);
-    expect((await request('GET', `/v1/workspaces/${workspace.id}`)).value.revision).toBe(workspace.revision);
+    expect((await request('GET', `/v1/worktrees/${worktree.id}/transfers`)).value.data).toHaveLength(0);
+    expect((await request('GET', `/v1/worktrees/${worktree.id}`)).value.revision).toBe(worktree.revision);
   });
-  it('serializes workspace branch creation across concurrent requests', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Concurrent branch creation' })).value;
+  it('serializes worktree branch creation across concurrent requests', async () => {
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Concurrent branch creation' })).value;
     const responses = await Promise.all(
       [1, 2].map(() =>
-        request('POST', `/v1/projects/${project.id}/workspaces`, { name: 'Review', branch: 'review' }),
+        request('POST', `/v1/workspaces/${workspace.id}/worktrees`, { name: 'Review', branch: 'review' }),
       ),
     );
     expect(responses.map((result) => result.response.status).sort()).toEqual([202, 409]);
     expect(responses.find((result) => result.response.status === 409)?.value.error.code).toBe('name_exists');
-    const workspaces = (await request('GET', `/v1/projects/${project.id}/workspaces`)).value.data;
-    expect(workspaces.filter((workspace: { branch: string }) => workspace.branch === 'review')).toHaveLength(
+    const worktrees = (await request('GET', `/v1/workspaces/${workspace.id}/worktrees`)).value.data;
+    expect(worktrees.filter((worktree: { branch: string }) => worktree.branch === 'review')).toHaveLength(
       1,
     );
   });
-  it('stops queued runs before execution when deletion cancels them or their project becomes unavailable', async () => {
+  it('stops queued runs before execution when deletion cancels them or their workspace becomes unavailable', async () => {
     let invocations = 0;
     const provider = {
       execute: async () => {
@@ -371,11 +371,11 @@ describe('tenant API and execution invariants', () => {
       },
     };
     for (const action of ['deletion', 'archive']) {
-      const project = (await request('POST', '/v1/projects', { name: `Stopped ${action}` })).value;
-      const workspace = (await request('GET', `/v1/workspaces/${project.default_workspace_id}`)).value;
+      const workspace = (await request('POST', '/v1/workspaces', { name: `Stopped ${action}` })).value;
+      const worktree = (await request('GET', `/v1/worktrees/${workspace.default_worktree_id}`)).value;
       const run = (
         await request('POST', '/v1/runs', {
-          project_id: project.id,
+          workspace_id: workspace.id,
           harness: 'codex',
           model: 'fixture-model',
           billing_mode: 'managed',
@@ -384,29 +384,29 @@ describe('tenant API and execution invariants', () => {
       ).value;
       const changed =
         action === 'deletion'
-          ? await request('POST', `/v1/projects/${project.id}/deletion`, { confirmation: project.name })
-          : await request('PATCH', `/v1/projects/${project.id}`, { archived: true });
+          ? await request('POST', `/v1/workspaces/${workspace.id}/deletion`, { confirmation: workspace.name })
+          : await request('PATCH', `/v1/workspaces/${workspace.id}`, { archived: true });
       expect(changed.response.ok).toBe(true);
       expect(await executeRun(a.organizationId, run.run_id, provider)).toBe(false);
       const state = (await request('GET', `/v1/runs/${run.run_id}`)).value;
       expect(state.status).toBe(action === 'deletion' ? 'cancelled' : 'failed');
-      expect(state.failure_code).toBe(action === 'deletion' ? 'cancelled' : 'workspace_unavailable');
+      expect(state.failure_code).toBe(action === 'deletion' ? 'cancelled' : 'worktree_unavailable');
       expect(state.started_at).toBeUndefined();
       expect(state.cost_micro_usd).toBe('0');
-      expect((await request('GET', `/v1/workspaces/${workspace.id}`)).value.latest_checkpoint_id).toBe(
-        workspace.latest_checkpoint_id,
+      expect((await request('GET', `/v1/worktrees/${worktree.id}`)).value.latest_checkpoint_id).toBe(
+        worktree.latest_checkpoint_id,
       );
     }
     expect(invocations).toBe(0);
   });
   it('stages verified transfers and preserves changed remote content', async () => {
-    const project = (await request('POST', '/v1/projects', { name: 'Transfer safety' })).value;
-    const workspace = (await request('GET', `/v1/workspaces/${project.default_workspace_id}`)).value;
+    const workspace = (await request('POST', '/v1/workspaces', { name: 'Transfer safety' })).value;
+    const worktree = (await request('GET', `/v1/worktrees/${workspace.default_worktree_id}`)).value;
     const content = 'A safely staged file';
     const hash = sha256(content);
-    const created = await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+    const created = await request('POST', `/v1/worktrees/${worktree.id}/transfers`, {
       direction: 'push',
-      base_revision: workspace.revision,
+      base_revision: worktree.revision,
       manifest: [
         {
           path: 'safe.md',
@@ -426,11 +426,11 @@ describe('tenant API and execution invariants', () => {
       (await serveObject(new Request(action.url, { method: 'PUT', body: content }), capability)).status,
     ).toBe(204);
     const apply = await request('POST', `/v1/transfers/${created.value.id}/apply`, {
-      expected_revision: workspace.revision,
+      expected_revision: worktree.revision,
     });
     expect(apply.response.status).toBe(202);
-    const ws = (await request('GET', `/v1/workspaces/${workspace.id}`)).value;
-    const conflict = await request('POST', `/v1/workspaces/${workspace.id}/transfers`, {
+    const ws = (await request('GET', `/v1/worktrees/${worktree.id}`)).value;
+    const conflict = await request('POST', `/v1/worktrees/${worktree.id}/transfers`, {
       direction: 'push',
       base_revision: ws.revision,
       manifest: [
@@ -484,8 +484,8 @@ describe('tenant API and execution invariants', () => {
 });
 
 it('limits diff content reads to returned paths while retaining truncation and path filtering', async () => {
-  const project = (await request('POST', '/v1/projects', { name: 'Bounded diff' })).value;
-  const workspaceId = project.default_workspace_id;
+  const workspace = (await request('POST', '/v1/workspaces', { name: 'Bounded diff' })).value;
+  const worktreeId = workspace.default_worktree_id;
   await transaction(a.organizationId, async (tx) => {
     const files: FileRecord[] = [];
     for (const name of ['a.txt', 'b.txt', 'c.txt'])
@@ -497,13 +497,13 @@ it('limits diff content reads to returned paths while retaining truncation and p
         modified_at: new Date().toISOString(),
         git_ignored: false,
       });
-    const cp = await checkpoint(tx, a, workspaceId, 'Diff fixture', files);
-    await resources.update(tx, 'workspaces', workspaceId, checkpointState(cp));
+    const cp = await checkpoint(tx, a, worktreeId, 'Diff fixture', files);
+    await resources.update(tx, 'worktrees', worktreeId, checkpointState(cp));
   });
   const storage = await import('../../packages/providers/src/storage');
   const reads = vi.spyOn(storage, 'readContent');
   try {
-    const result = await request('GET', `/v1/workspaces/${workspaceId}/diff?limit=1`);
+    const result = await request('GET', `/v1/worktrees/${worktreeId}/diff?limit=1`);
     expect(result.response.status).toBe(200);
     expect(result.value).toMatchObject({
       truncated: true,
@@ -511,7 +511,7 @@ it('limits diff content reads to returned paths while retaining truncation and p
     });
     expect(reads).toHaveBeenCalledTimes(1);
     reads.mockClear();
-    const filtered = await request('GET', `/v1/workspaces/${workspaceId}/diff?limit=1&path=c.txt`);
+    const filtered = await request('GET', `/v1/worktrees/${worktreeId}/diff?limit=1&path=c.txt`);
     expect(filtered.value).toMatchObject({ truncated: false, data: [{ path: 'c.txt' }] });
     expect(reads).toHaveBeenCalledTimes(1);
   } finally {
@@ -526,8 +526,8 @@ it.each([
   [0, 1073741824, false],
   [1073741824, 0, false],
 ] as const)('checks diff sizes %i + %i before loading content', async (before, after, inspect) => {
-  const project = (await request('POST', '/v1/projects', { name: 'Diff size boundary' })).value;
-  const workspaceId = project.default_workspace_id;
+  const workspace = (await request('POST', '/v1/workspaces', { name: 'Diff size boundary' })).value;
+  const worktreeId = workspace.default_worktree_id;
   // Publish fixture metadata directly: large objects deliberately do not exist. A read must fail.
   const entry = async (size: number, byte: number): Promise<FileRecord[]> =>
     size
@@ -551,19 +551,19 @@ it.each([
     newFiles = await entry(after, 2);
   const base = await transaction(a.organizationId, async (tx) => {
     const cp = await resources.create(tx, 'checkpoints', a.organizationId, {
-      workspace_id: workspaceId,
-      project_id: project.id,
+      worktree_id: worktreeId,
+      workspace_id: workspace.id,
       files: oldFiles,
     });
-    await resources.update(tx, 'workspaces', workspaceId, { files: newFiles });
+    await resources.update(tx, 'worktrees', worktreeId, { files: newFiles });
     return cp.id;
   });
   const storage = await import('../../packages/providers/src/storage');
   const reads = vi.spyOn(storage, 'readContent');
   try {
-    const result = await request('GET', `/v1/workspaces/${workspaceId}/diff?base_checkpoint_id=${base}`);
+    const result = await request('GET', `/v1/worktrees/${worktreeId}/diff?base_checkpoint_id=${base}`);
     expect(result.response.status).toBe(200);
-    check('WorkspaceDiff', result.value);
+    check('WorktreeDiff', result.value);
     expect(result.value.data).toHaveLength(1);
     expect(result.value.data[0]).toMatchObject({
       path: 'data.txt',

@@ -1,13 +1,13 @@
 import { test, expect } from '../fixtures/browser';
 import AxeBuilder from '@axe-core/playwright';
-test('project deletion has explicit confirmation, an archived view and a working undo', async ({ page }) => {
+test('workspace deletion has explicit confirmation, an archived view and a working undo', async ({ page }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
   const name = 'Deletion browser ' + Date.now();
-  await page.getByLabel('Project name').fill(name);
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByLabel('Workspace name').fill(name);
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Schedule deletion', exact: true }).click();
@@ -24,8 +24,8 @@ test('project deletion has explicit confirmation, an archived view and a working
   );
   await page.getByRole('button', { name: 'Schedule permanent deletion', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Deletion scheduled', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'All projects', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Project status' }).click();
+  await page.getByRole('link', { name: 'All workspaces', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Workspace status' }).click();
   await page.getByRole('option', { name: 'Archived & pending deletion' }).click();
   await page
     .getByRole('link')

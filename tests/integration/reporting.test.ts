@@ -13,7 +13,7 @@ const operator: Principal = {
   role: 'operator',
   kind: 'operator',
   scopes: ['metrics:read', 'operations:read', 'accounts:read'],
-  projectIds: [],
+  workspaceIds: [],
   operator: true,
 };
 afterAll(async () => {

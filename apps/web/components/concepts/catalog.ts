@@ -143,4 +143,4 @@ export const concepts = [
 ] as const;
 export type Concept = (typeof concepts)[number];
 export const productDescription =
-  'Run Claude Code, Codex, and OpenCode in the cloud through one API. Persistent sandbox files, version control, and the same workspace in your CLI and dashboard.';
+  'Run Claude Code, Codex, and OpenCode in the cloud through one API. Persistent sandbox files, version control, and the same worktree in your CLI and dashboard.';

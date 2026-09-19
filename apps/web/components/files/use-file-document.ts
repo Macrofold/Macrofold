@@ -1,5 +1,6 @@
 'use client';
 
+import { mediaFormat } from '../../../../packages/contracts/media';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -11,25 +12,25 @@ import { publishFileMutation } from '../../lib/workspace-files';
  * selects the document; remote refreshes cannot replace a dirty or saving buffer.
  * Keep this independent of CodeMirror/Tiptap so both editors share save semantics. */
 export function useFileDocument({
-  workspace,
+  worktree,
   selected,
   isMutating,
   onCreated,
   onCreateError,
 }: {
-  workspace: Schema['Workspace'];
+  worktree: Schema['Worktree'];
   selected: Schema['FileEntry'] | null;
   isMutating: () => boolean;
   onCreated: (entry: Schema['FileEntry']) => void;
   onCreateError: (message: string) => void;
 }) {
   const client = useQueryClient();
-  const rootPath = `/v1/workspaces/${workspace.id}`;
+  const rootPath = `/v1/worktrees/${worktree.id}`;
   const selectedPath = selected?.path ?? '';
   const isFile = Boolean(selected && selected.type !== 'directory');
   const [text, setText] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [revision, setRevision] = useState(workspace.revision);
+  const [revision, setRevision] = useState(worktree.revision);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const draft = useRef('');
@@ -81,11 +82,14 @@ export function useFileDocument({
     };
   }, [dirty]);
   const content = useQuery({
-    queryKey: ['file', workspace.id, selectedPath],
+    queryKey: ['file', worktree.id, selectedPath],
     enabled: Boolean(
-      isFile && selected?.type === 'file' && Number(selected.size_bytes ?? 0) <= 4 * 1024 * 1024,
+      isFile &&
+      selected?.type === 'file' &&
+      (!mediaFormat(selectedPath) || mediaFormat(selectedPath)?.kind === 'text') &&
+      Number(selected.size_bytes ?? 0) <= 4 * 1024 * 1024,
     ),
-    queryFn: ({ signal }) => readDocument(workspace.id, selectedPath, signal),
+    queryFn: ({ signal }) => readDocument(worktree.id, selectedPath, signal),
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -106,26 +110,26 @@ export function useFileDocument({
     setSaveError('');
     if (create) onCreateError('');
     try {
-      const current = client.getQueryData<Schema['Workspace']>([rootPath]);
+      const current = client.getQueryData<Schema['Worktree']>([rootPath]);
       const operation = await request('writeFile', {
         params: {
-          path: { workspace_id: workspace.id },
+          path: { worktree_id: worktree.id },
           query: { path: filePath, ...(create ? { create_only: true } : {}) },
-          header: { 'If-Match': create ? (current?.revision ?? workspace.revision) : revision },
+          header: { 'If-Match': create ? (current?.revision ?? worktree.revision) : revision },
         },
         body: value,
       });
-      const result = await publishFileMutation(client, workspace.id, operation);
+      const result = await publishFileMutation(client, worktree.id, operation);
       const savedRevision = result.revision;
       savedText.current = value;
       setRevision(savedRevision);
-      await client.cancelQueries({ queryKey: ['file', workspace.id, filePath] });
-      client.setQueryData(['file', workspace.id, filePath], { text: value, revision: savedRevision });
+      await client.cancelQueries({ queryKey: ['file', worktree.id, filePath] });
+      client.setQueryData(['file', worktree.id, filePath], { text: value, revision: savedRevision });
       // Existing edits retain their buffer until their own committed file refreshes.
       // Other dashboard queries never delay the editor's completion.
       if (!create)
         await client.invalidateQueries(
-          { queryKey: ['file', workspace.id, filePath] },
+          { queryKey: ['file', worktree.id, filePath] },
           { throwOnError: true },
         );
       setDirty(!create && draft.current !== value);
@@ -150,10 +154,10 @@ export function useFileDocument({
     void save();
   });
   useEffect(() => {
-    if (!dirty || saving || saveError || !isFile || workspace.status === 'busy') return;
+    if (!dirty || saving || saveError || !isFile || worktree.status === 'busy') return;
     const timer = setTimeout(autosave, 2000);
     return () => clearTimeout(timer);
-  }, [text, dirty, saving, saveError, isFile, workspace.status]);
+  }, [text, dirty, saving, saveError, isFile, worktree.status]);
   return {
     text,
     dirty,

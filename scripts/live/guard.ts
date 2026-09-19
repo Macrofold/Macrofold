@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { config, isLocal } from '../../packages/core/src/config';
 import { boundedJSON } from '../../packages/core/src/body';
 
-export type Platform = 'openai' | 'anthropic' | 'openrouter' | 'composio' | 'resend' | 'r2';
+export type Platform = 'openai' | 'anthropic' | 'openrouter' | 'composio' | 'resend' | 'r2' | 'langfuse';
 type Attempt = { platform: Platform; operation: string; ceilingMicroUsd: number; at: string };
 const directory = fileURLToPath(new URL('../../.data/live-checks/', import.meta.url));
 const journal = path.join(directory, 'budget.json');

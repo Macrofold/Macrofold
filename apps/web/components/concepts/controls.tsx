@@ -73,8 +73,8 @@ const flowStages = [
     title: 'Request',
     icon: Terminal,
     label: 'Your app, CLI, or dashboard',
-    detail: 'Choose a workspace and a native harness. Submit a task with execution and spending limits.',
-    rows: ['POST /v1/runs', 'harness: codex', 'workspace: your-project'],
+    detail: 'Choose a worktree and a native harness. Submit a task with execution and spending limits.',
+    rows: ['POST /v1/runs', 'harness: codex', 'worktree: your-workspace'],
   },
   {
     title: 'Execute',
@@ -87,7 +87,7 @@ const flowStages = [
   {
     title: 'Keep',
     icon: Folder,
-    label: 'Persistent project files',
+    label: 'Persistent workspace files',
     detail:
       'After execution, inspect the checkpoint outcome. Saved files and retained run history are ready for the next task.',
     rows: ['Source, notes, artifacts', 'Verified checkpoints', 'Retained output and tool history'],
@@ -98,7 +98,7 @@ const flowStages = [
     label: 'Version, inspect, work again',
     detail:
       'Review changes, synchronize an optional GitHub repository, or start independent work in a worktree. Git conflicts stay visible.',
-    rows: ['Review changes', 'Optional GitHub synchronization', 'Continue from the saved project'],
+    rows: ['Review changes', 'Optional GitHub synchronization', 'Continue from the saved workspace'],
   },
 ] as const;
 
@@ -107,7 +107,7 @@ export function ProductFlow() {
   return (
     <Tabs.Root defaultValue="Request" className="concept-flow">
       <div className="concept-flow-heading">
-        <span>One project. Every interface.</span>
+        <span>One workspace. Every interface.</span>
         <span>Interactive walkthrough</span>
       </div>
       <Tabs.List aria-label="Product workflow">

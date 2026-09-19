@@ -21,7 +21,7 @@ Public Composio tools do not require a connected account. The provider explicitl
 
 The GitHub managed auth configuration requests only `read:user`, with toolkit version `20260902_00`. Auth-config retrieval and discovery identified `GITHUB_GET_THE_AUTHENTICATED_USER` with empty arguments. The signed-in local dashboard created an owner-bound connection, the user approved read-only GitHub profile access, and the real `complete_auth` return activated the connection. The dashboard shows Healthy; PostgreSQL confirms the expected owner and `identity_verified=true`. One guarded execution through the application's Composio client returned the expected GitHub login/profile URL and a nonempty log ID. It used the stored connected-account ID and the same `organizationId:userId`, version and argument mapping as the broker. Sanitized evidence and the single-attempt marker are retained in ignored `.data/composio-callback/`; no credentials or full private profile payload were recorded.
 
-The development project has a saved public HTTPS verifier pointing to a callback-only relay. Six synthetic local checks verified rejected dashboard/API paths, rejected POST/duplicate session parameters, fixed-origin redirects and correct parameter encoding; an external HTTPS request also returned the expected local redirect. The public tunnel does not expose the dashboard. Tunnel inspection is disabled. The application still verifies its signed browser state and current identity after the redirect. The tunnel and relay are temporary local processes and must remain running for new authorizations.
+The development workspace has a saved public HTTPS verifier pointing to a callback-only relay. Six synthetic local checks verified rejected dashboard/API paths, rejected POST/duplicate session parameters, fixed-origin redirects and correct parameter encoding; an external HTTPS request also returned the expected local redirect. The public tunnel does not expose the dashboard. Tunnel inspection is disabled. The application still verifies its signed browser state and current identity after the redirect. The tunnel and relay are temporary local processes and must remain running for new authorizations.
 
 Live HTTP inspection revealed that cloning Next.js's proxied request throws before authentication. Both Composio handlers now construct the authentication request from public URL, method and header fields. The existing identity/replay test now uses proxied requests: it failed against the original implementation and passes after the fix, including wrong-user denial, one-time callback use and verified account activation against deterministic fixtures. All 10 focused Composio/connection tests pass with disposable PostgreSQL; strict TypeScript and an isolated production build also pass. The rebuilt server returns 200 for health, 401 for unauthenticated install and 400 for a callback without signed state. The local preview was reloaded with callback verification enabled; paid agent execution remains disabled.
 
@@ -45,11 +45,14 @@ Use the root local simulation profile and existing provider keys. Start the norm
 LIVE_API_TESTS=1 pnpm test:live metadata
 LIVE_API_TESTS=1 pnpm test:live models
 LIVE_API_TESTS=1 LIVE_BILLING_MODE=byok pnpm test:live models
+LIVE_API_TESTS=1 pnpm test:live decisions
 LIVE_API_TESTS=1 pnpm test:live composio
 LIVE_API_TESTS=1 pnpm test:live resend
 # Only after confirming the stated free R2 allowance:
 LIVE_API_TESTS=1 LIVE_R2_FREE_CLASS_A=1 pnpm test:live r2
 ```
+
+The `decisions` group explicitly forwards only `OPENROUTER_API_KEY` into a disposable database fixture and makes two tiny synthetic requests to `typesafe/jev-1.13`: managed choice and encrypted BYOK score. It exercises TypeScript SDK → loopback API → durable executor → real OpenRouter → receipt and settlement. Its transport guard allows only the fixed Decisions endpoint, one question per request, frozen price ceilings, no retries and at most two requests, reserving $0.002 per attempt. The BYOK call runs with the managed key unavailable. [Decision verification](../../features/decisions/verification.md#openrouter-jev-acceptance) records the result. Ordinary domain/CI fixtures continue to receive blank provider credentials.
 
 Set `LIVE_PLATFORMS=anthropic` (or a comma-separated subset) to repeat only selected model checks. `EMAIL_FROM` chooses Resend's verified sender; its absence uses the explicit provider test sender and cannot qualify production email readiness. A send-only key need not be replaced with an administrative key merely to make domain listing pass.
 

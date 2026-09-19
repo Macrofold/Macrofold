@@ -82,7 +82,7 @@ test('team invitations, organization switching, owner protection and immediate m
     ).toBe(403);
     const keyResult = await other.request.post('/v1/api-keys', {
       headers: { Origin: origin, 'Idempotency-Key': randomUUID() },
-      data: { name: 'Revocation fixture', scopes: ['identity:read', 'projects:read'] },
+      data: { name: 'Revocation fixture', scopes: ['identity:read', 'workspaces:read'] },
     });
     expect(keyResult.status()).toBe(201);
     const key = (await keyResult.json()).secret;

@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -19,8 +19,10 @@ import dev.macrofold.Configuration;
 import dev.macrofold.Pair;
 
 import dev.macrofold.model.Billing;
+import dev.macrofold.model.BillingUsagePage;
 import dev.macrofold.model.CheckoutCreate;
 import dev.macrofold.model.Error;
+import java.time.OffsetDateTime;
 import dev.macrofold.model.Redirect;
 import dev.macrofold.model.Storage;
 import dev.macrofold.model.StoragePolicy;
@@ -664,6 +666,227 @@ public class BillingApi {
     String localVarPath = "/v1/storage";
 
     localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    if (xOrganizationId != null) {
+      localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
+    }
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    // Add custom headers if provided
+    localVarRequestBuilder = HttpRequestBuilderExtensions.withAdditionalHeaders(localVarRequestBuilder, headers);
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * List detailed billed usage and model tokens
+   * Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+   * @param from Inclusive RFC3339 interval start. (required)
+   * @param to Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. (required)
+   * @param workspaceId  (optional)
+   * @param worktreeId  (optional)
+   * @param runId  (optional)
+   * @param sessionId  (optional)
+   * @param customerId  (optional)
+   * @param agentKey  (optional)
+   * @param provider  (optional)
+   * @param model  (optional)
+   * @param kind  (optional)
+   * @param billingMode  (optional)
+   * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
+   * @param limit  (optional, default to 25)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return BillingUsagePage
+   * @throws ApiException if fails to make API call
+   */
+  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return listBillingUsage(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, null);
+  }
+
+  /**
+   * List detailed billed usage and model tokens
+   * Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+   * @param from Inclusive RFC3339 interval start. (required)
+   * @param to Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. (required)
+   * @param workspaceId  (optional)
+   * @param worktreeId  (optional)
+   * @param runId  (optional)
+   * @param sessionId  (optional)
+   * @param customerId  (optional)
+   * @param agentKey  (optional)
+   * @param provider  (optional)
+   * @param model  (optional)
+   * @param kind  (optional)
+   * @param billingMode  (optional)
+   * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
+   * @param limit  (optional, default to 25)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return BillingUsagePage
+   * @throws ApiException if fails to make API call
+   */
+  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<BillingUsagePage> localVarResponse = listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, headers);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * List detailed billed usage and model tokens
+   * Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+   * @param from Inclusive RFC3339 interval start. (required)
+   * @param to Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. (required)
+   * @param workspaceId  (optional)
+   * @param worktreeId  (optional)
+   * @param runId  (optional)
+   * @param sessionId  (optional)
+   * @param customerId  (optional)
+   * @param agentKey  (optional)
+   * @param provider  (optional)
+   * @param model  (optional)
+   * @param kind  (optional)
+   * @param billingMode  (optional)
+   * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
+   * @param limit  (optional, default to 25)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @return ApiResponse&lt;BillingUsagePage&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, null);
+  }
+
+  /**
+   * List detailed billed usage and model tokens
+   * Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+   * @param from Inclusive RFC3339 interval start. (required)
+   * @param to Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. (required)
+   * @param workspaceId  (optional)
+   * @param worktreeId  (optional)
+   * @param runId  (optional)
+   * @param sessionId  (optional)
+   * @param customerId  (optional)
+   * @param agentKey  (optional)
+   * @param provider  (optional)
+   * @param model  (optional)
+   * @param kind  (optional)
+   * @param billingMode  (optional)
+   * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
+   * @param limit  (optional, default to 25)
+   * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param headers Optional headers to include in the request
+   * @return ApiResponse&lt;BillingUsagePage&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listBillingUsageRequestBuilder(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, headers);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      InputStream localVarResponseBody = null;
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listBillingUsage", localVarResponse);
+        }
+        localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
+        if (localVarResponseBody == null) {
+          return new ApiResponse<BillingUsagePage>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+
+
+        String responseBody = new String(localVarResponseBody.readAllBytes());
+        BillingUsagePage responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<BillingUsagePage>() {});
+
+
+        return new ApiResponse<BillingUsagePage>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseValue
+        );
+      } finally {
+        if (localVarResponseBody != null) {
+          localVarResponseBody.close();
+        }
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listBillingUsageRequestBuilder(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    // verify the required parameter 'from' is set
+    if (from == null) {
+      throw new ApiException(400, "Missing the required parameter 'from' when calling listBillingUsage");
+    }
+    // verify the required parameter 'to' is set
+    if (to == null) {
+      throw new ApiException(400, "Missing the required parameter 'to' when calling listBillingUsage");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/v1/billing/usage";
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "from";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("from", from));
+    localVarQueryParameterBaseName = "to";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("to", to));
+    localVarQueryParameterBaseName = "workspace_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("workspace_id", workspaceId));
+    localVarQueryParameterBaseName = "worktree_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("worktree_id", worktreeId));
+    localVarQueryParameterBaseName = "run_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("run_id", runId));
+    localVarQueryParameterBaseName = "session_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("session_id", sessionId));
+    localVarQueryParameterBaseName = "customer_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("customer_id", customerId));
+    localVarQueryParameterBaseName = "agent_key";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("agent_key", agentKey));
+    localVarQueryParameterBaseName = "provider";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("provider", provider));
+    localVarQueryParameterBaseName = "model";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("model", model));
+    localVarQueryParameterBaseName = "kind";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("kind", kind));
+    localVarQueryParameterBaseName = "billing_mode";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("billing_mode", billingMode));
+    localVarQueryParameterBaseName = "cursor";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
+    localVarQueryParameterBaseName = "limit";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
 
     if (xOrganizationId != null) {
       localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());

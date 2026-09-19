@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -24,7 +24,7 @@ pub enum ListModelsError {
 }
 
 
-/// 
+///
 pub async fn list_models(configuration: &configuration::Configuration, harness: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListModels200Response, Error<ListModelsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_harness = harness;

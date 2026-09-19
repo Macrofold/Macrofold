@@ -24,7 +24,7 @@ export const agentTemplates: readonly AgentTemplate[] = [
       'A question and source documents or links',
       'An authorized search connection for live research',
     ],
-    instructions: `Build a concise research brief about the topic in my task. Start with the source material in this workspace and use only explicitly authorized tools for additional research. If live search is unavailable, work from supplied sources and identify the gap.
+    instructions: `Build a concise research brief about the topic in my task. Start with the source material in this worktree and use only explicitly authorized tools for additional research. If live search is unavailable, work from supplied sources and identify the gap.
 
 Separate evidence from interpretation. Cite a source for each material factual claim, compare conflicting evidence, and state what remains uncertain. Do not invent sources or quotes.
 
@@ -40,7 +40,7 @@ Write research-brief.md with an answer first, key findings, sources, open questi
     category: 'Engineering',
     description: 'Review a change for concrete bugs and explain what needs attention.',
     outcome: 'A code-review.md report with actionable findings, file references, and verification gaps.',
-    requirements: ['Repository files in the selected workspace', 'A change, diff, or review scope'],
+    requirements: ['Repository files in the selected worktree', 'A change, diff, or review scope'],
     instructions: `Review the code and change scope described in my task. Read the repository instructions, relevant callers, and existing tests before making a judgment. Prioritize demonstrated correctness, security, data loss, and recovery problems.
 
 Do not modify implementation files or run commands with external side effects. Use existing local checks when they are safe and available. For each finding, give its impact, a concrete trigger, the file and line, and a small repair direction. Distinguish verified defects from uncertainties; do not invent findings to fill a quota.
@@ -57,12 +57,12 @@ Save code-review.md with the findings and checks actually performed. If no actio
     category: 'Data',
     description: 'Explore a dataset and turn the important patterns into a useful report.',
     outcome: 'An analysis.md report and reproducible analysis files, without changing source data.',
-    requirements: ['A CSV or JSON dataset in the workspace', 'The question you want the data to answer'],
+    requirements: ['A CSV or JSON dataset in the worktree', 'The question you want the data to answer'],
     instructions: `Analyze the dataset and question described in my task. Inspect its schema, units, missing values, duplicates, and date coverage before calculating results. Preserve the original data and work in separate output files.
 
 Use reproducible local code for calculations. Distinguish observed associations from causal claims, document exclusions, and avoid exposing individual records unnecessarily. If the available data cannot answer the question, explain what is missing.
 
-Save analysis.md with an answer, key measurements, methodology, caveats, and next steps. Include the analysis script and any useful summary tables in the workspace. Tell me how to reproduce the result.`,
+Save analysis.md with an answer, key measurements, methodology, caveats, and next steps. Include the analysis script and any useful summary tables in the worktree. Tell me how to reproduce the result.`,
     example:
       '# Analysis\n\n## Answer\nWhat the available data supports.\n\n## Measurements\nMetric | Value | Unit\n\n## Method and limitations\nCoverage, exclusions, and reproduction steps.',
     tone: 'ember',
@@ -78,7 +78,7 @@ Save analysis.md with an answer, key measurements, methodology, caveats, and nex
       'Support requests and product documentation',
       'Optional authorized connection to your support source',
     ],
-    instructions: `Triage the support requests supplied in my task or available through explicitly authorized connections. Use this workspace's product documentation to distinguish known behavior, configuration issues, and potential defects.
+    instructions: `Triage the support requests supplied in my task or available through explicitly authorized connections. Use this worktree's product documentation to distinguish known behavior, configuration issues, and potential defects.
 
 For each request, capture the problem, severity with a reason, missing information, a suggested owner, and a concise reply draft grounded in the documentation. Escalate uncertainty rather than promising an unsupported fix or deadline.
 
@@ -98,7 +98,7 @@ Save support-triage.md for human review. Do not send replies, change tickets, or
       'Your goal, available time, and preferences',
       'Relevant notes or files you choose to share; connections are optional',
     ],
-    instructions: `Help me accomplish the personal task I describe, such as planning a day, organizing errands, or comparing options. Start with the relevant notes and files I choose to share in this workspace. Ask for missing constraints that would materially change the plan, and make ordinary planning assumptions explicit.
+    instructions: `Help me accomplish the personal task I describe, such as planning a day, organizing errands, or comparing options. Start with the relevant notes and files I choose to share in this worktree. Ask for missing constraints that would materially change the plan, and make ordinary planning assumptions explicit.
 
 Use only the files needed for this task and explicitly authorized connections. Keep personal details private: do not copy sensitive records into summaries unnecessarily, expose credentials, or share my information with another service without authorization. If current availability, travel time, or prices matter, verify them with an authorized source or clearly mark them as unverified.
 
@@ -108,17 +108,17 @@ Save personal-plan.md with the goal, ordered priorities, a realistic plan, any t
     tone: 'sage',
   },
   {
-    slug: 'weekly-project-digest',
+    slug: 'weekly-workspace-digest',
     featured: false,
-    name: 'Weekly project digest',
+    name: 'Weekly workspace digest',
     category: 'Operations',
     description: 'Bring the week’s progress, decisions, and blockers into one update.',
     outcome: 'A weekly-digest.md draft with changes, decisions, blockers, and the next priorities.',
     requirements: [
-      'Project notes, changelog, or authorized activity sources',
+      'Workspace notes, changelog, or authorized activity sources',
       'A reporting date range; add a schedule separately if needed',
     ],
-    instructions: `Prepare a project digest for the date range in my task. Review the notes, changelog, and activity available in this workspace or through explicitly authorized connections. State the reporting period and source coverage.
+    instructions: `Prepare a workspace digest for the date range in my task. Review the notes, changelog, and activity available in this worktree or through explicitly authorized connections. State the reporting period and source coverage.
 
 Summarize completed work, important decisions, active blockers, and the next priorities. Link each substantive update to its source. Do not infer completion from a plan or an open task, and do not invent activity when the sources are quiet.
 
@@ -183,7 +183,7 @@ Inputs to arrange: ${template.requirements.join('; ')}.
 
 Read and follow the current integration brief at ${docsOrigin}/docs/raw/agents.md, then the API quickstart at ${docsOrigin}/docs/raw/api/quickstart.md and SDK guide at ${docsOrigin}/docs/raw/sdk.md. These apply to this deployment; inspect its enabled models and available connections instead of assuming access. If these local URLs are unreachable, ask me for the Markdown rather than guessing.
 
-Create a reviewable agent preset using the following instructions. Let me select the project/workspace, compatible model, funding method, and exact authorized connections. Do not invent a tool grant or configure a schedule automatically. Store credentials securely outside source code and chat. Ask for an explicit budget before paid execution. Verify the integration with deterministic fixtures or free local simulation first.
+Create a reviewable agent preset using the following instructions. Let me select the workspace/worktree, compatible model, funding method, and exact authorized connections. Do not invent a tool grant or configure a schedule automatically. Store credentials securely outside source code and chat. Ask for an explicit budget before paid execution. Verify the integration with deterministic fixtures or free local simulation first.
 
 Agent instructions:
 ${template.instructions}`;

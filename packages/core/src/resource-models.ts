@@ -17,12 +17,12 @@ type SavedFiles = Partial<GitState>;
 /** Persisted fields are explicit, including private state that is never part of an
  * API response. Public response projection remains the HTTP boundary's job. */
 export type ResourceModels = {
-  projects: Omit<Fields<'Project'>, 'connections'> & {
+  workspaces: Omit<Fields<'Workspace'>, 'connections'> & {
     target_branch?: string;
     deleted?: boolean;
     deletion_prior_archived?: boolean;
   };
-  workspaces: Fields<'Workspace'> &
+  worktrees: Fields<'Worktree'> &
     SavedFiles & {
       recovery_run_id?: string;
       source_ref?: string;
@@ -31,7 +31,7 @@ export type ResourceModels = {
     };
   agents: Omit<Fields<'Agent'>, 'connections'>;
   sessions: Fields<'Session'> & {
-    project_id: string;
+    workspace_id: string;
     instructions?: string;
     config?: Schema['SessionCreate'];
     permission_fingerprint?: string;
@@ -57,8 +57,8 @@ export type ResourceModels = {
     last_error?: string | null;
   };
   checkpoints: Fields<'Checkpoint'> &
-    SavedFiles & { project_id: string; label?: string; created_by?: string };
-  artifacts: Fields<'Artifact'> & { key: string; project_id: string; workspace_id?: string };
+    SavedFiles & { workspace_id: string; label?: string; created_by?: string };
+  artifacts: Fields<'Artifact'> & { key: string; workspace_id: string; worktree_id?: string; kind?: 'context' | 'proposal'; retention?: 'published'; application_namespace?: string; audience?: Schema['ContextAudience'] };
   webhooks: Fields<'Webhook'> & {
     secret_ciphertext: string;
     previous_secret_ciphertext?: string;
@@ -80,11 +80,11 @@ export type ResourceModels = {
     mode?: 'push' | 'pull' | 'pull_request';
     source_run_id?: string;
     github_notification?: boolean;
-    actor?: Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'projectIds'>;
+    actor?: Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'workspaceIds'>;
     expires_at?: string;
   };
   transfers: Fields<'Transfer'> & {
-    project_id: string;
+    workspace_id: string;
     principal_id: string;
     files?: FileRecord[];
     snapshot_files?: FileRecord[];
@@ -99,7 +99,7 @@ export type ResourceMetadata = {
   created_at: string;
   revision: string;
   deleted?: boolean;
-  project_id?: string;
   workspace_id?: string;
+  worktree_id?: string;
 };
 export type Document<K extends keyof ResourceModels> = ResourceMetadata & ResourceModels[K];

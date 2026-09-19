@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -47,7 +47,7 @@ impl CliCapabilities {
         }
     }
 }
-/// 
+///
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize_repr, Deserialize_repr)]
 pub enum StreamRotationSeconds {
@@ -67,7 +67,7 @@ impl Default for StreamRotationSeconds {
         Self::Variant55
     }
 }
-/// 
+///
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize_repr, Deserialize_repr)]
 pub enum MaxTransferFiles {
@@ -87,7 +87,7 @@ impl Default for MaxTransferFiles {
         Self::Variant1000
     }
 }
-/// 
+///
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize_repr, Deserialize_repr)]
 pub enum MaxTransferBytes {
@@ -107,7 +107,7 @@ impl Default for MaxTransferBytes {
         Self::Variant262144000
     }
 }
-/// 
+///
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize_repr, Deserialize_repr)]
 pub enum MaxFileBytes {

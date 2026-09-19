@@ -38,7 +38,7 @@ export function customerAgentHandlers(core: Primitives): HandlerMap {
     <T>(handler: (c: Context) => Promise<T>) =>
     async (c: Context) => {
       const b = await binding(c);
-      return handler({ ...c, params: { ...c.params, workspace_id: b.workspace_id } });
+      return handler({ ...c, params: { ...c.params, worktree_id: b.worktree_id } });
     };
   return {
     ensureCustomerAgent: (c) =>
@@ -54,11 +54,12 @@ export function customerAgentHandlers(core: Primitives): HandlerMap {
         c.p,
         {
           prompt: value.prompt,
+          attachments: value.attachments,
           limits: value.limits,
           queue_if_busy: value.queue_if_busy,
           ...(value.conversation_id
             ? { session_id: value.conversation_id }
-            : { workspace_id: b.workspace_id, agent_id: b.agent_id }),
+            : { worktree_id: b.worktree_id, agent_id: b.agent_id }),
           connection_grants: await customerConnectionGrants(c.tx, b),
         },
         requestClientType(c.request),
@@ -67,7 +68,7 @@ export function customerAgentHandlers(core: Primitives): HandlerMap {
     listCustomerAgentConversations: async (c) => {
       const b = await binding(c);
       return resources.list(c.tx, 'sessions', c.p, c.query, {
-        workspace_id: b.workspace_id,
+        worktree_id: b.worktree_id,
         agent_id: b.agent_id,
       });
     },

@@ -101,7 +101,7 @@ const capabilities = [
 const integrationGroups = [
   { title: 'Native harnesses', names: ['Claude Code', 'Codex', 'OpenCode'] },
   { title: 'Model providers', names: ['Anthropic', 'OpenAI', 'OpenRouter'] },
-  { title: 'Tools & projects', names: ['MCP', 'Composio', 'GitHub'] },
+  { title: 'Tools & workspaces', names: ['MCP', 'Composio', 'GitHub'] },
   { title: 'Search & web', names: ['Brave', 'Exa', 'Tavily', 'Parallel AI', 'Firecrawl'] },
 ];
 
@@ -144,7 +144,7 @@ export function HomepageSite({ study, name }: { study: Homepage; name: string })
               lines of code.
             </h2>
             <p>
-              Choose a project, harness, and model.
+              Choose a workspace, harness, and model.
               <br />
               Give it a task. Let it work.
             </p>
@@ -168,7 +168,7 @@ export function HomepageSite({ study, name }: { study: Homepage; name: string })
             <p className="hp-eyebrow">A familiar workflow. A different reach.</p>
             <h2 id="product-heading">{study.introduction}</h2>
             <p>
-              Follow a project from its first file to independent agents,
+              Follow a workspace from its first file to independent agents,
               <br className="hp-desktop-break" /> saved versions, and the interfaces in your application.
             </p>
           </div>

@@ -6,6 +6,8 @@ The [branding asset kit](../branding/README.md) contains the selected Saddle log
 
 [Ranked improvements](improvements.md) tracks product, integrations, examples, docs, dashboard, marketing, architecture and operations proposals, including competitive research and dashboard reference studies. Each entry records current state, benefit, difficulty and status.
 
+The [September 2026 strategy proposal](strategy-2026-09.md) reviews the current competitive landscape and recommends a focused customer workflow, feature priorities, and commercial validation criteria. It supplies the research behind the updated improvements tracker; proposed product behavior and marketing copy remain distinct from implemented capabilities and accepted design decisions.
+
 ## Outcome and audience
 
 Provide an inference-like API whose unit of work is a full agent harness. A developer submits a task, the harness uses a cloud computer and authorized tools for multiple turns, and the developer polls, streams, or receives a completion webhook. A filesystem and conversation can survive between invocations.
@@ -16,20 +18,20 @@ Keep four concepts distinct: the sandbox supplies execution isolation; the harne
 
 ### Customer-agent direction
 
-A customer’s information can remain the stable resource while different agents, conversations and scheduled tasks work on it over time. Independent workspaces already support this resource model; native conversation state remains session-specific.
+A customer’s information can remain the stable resource while different agents, conversations and scheduled tasks work on it over time. Independent worktrees already support this resource model; native conversation state remains session-specific.
 
-“Give every customer a persistent agent—with its own workspace, memory, tools and ongoing work” describes the intended packaged experience. The integrating application still owns its customers and can compose today’s resources; optional memory conventions, named-agent setup helpers and lifecycle controls are ranked in the [improvements tracker](improvements.md). This positioning does not imply exclusive support for persistent agents or a completed managed-memory feature.
+“Give every customer a persistent agent—with its own worktree, memory, tools and ongoing work” describes the intended packaged experience. The integrating application still owns its customers and can compose today’s resources; optional memory conventions, named-agent setup helpers and lifecycle controls are ranked in the [improvements tracker](improvements.md). This positioning does not imply exclusive support for persistent agents or a completed managed-memory feature.
 
 ## Required user journeys
 
-1. Sign up, verify email, create an organization, configure BYOK or buy credits, create a project, generate an API key, copy an example, and inspect the first successful run.
-2. Run a task against an existing project; let it edit files; come back later with a follow-up that reads those changes and continues the conversation.
+1. Sign up, verify email, create an organization, configure BYOK or buy credits, create a workspace, generate an API key, copy an example, and inspect the first successful run.
+2. Run a task against an existing workspace; let it edit files; come back later with a follow-up that reads those changes and continues the conversation.
 3. Import an authorized GitHub repository; create two independent agents; inspect their isolated changes; automatically integrate clean changes into the selected branch; inspect and resolve conflicts without data loss.
 4. Add a remote MCP endpoint through the dashboard; authenticate through OAuth or a credential; select permitted tools; attach the connection to an agent or run. Reauthorize expired or revoked connections.
-5. Browse project files, preview and edit text, upload/download files, inspect diffs, and restore a checkpoint without needing a desktop IDE.
+5. Browse workspace files, preview and edit text, upload/download files, inspect diffs, and restore a checkpoint without needing a desktop IDE.
 6. View current agents and historical runs, including messages, provider-exposed reasoning summaries, tools, logs, artifacts, files, usage, and synchronization results.
 7. Use the operator dashboard/API/MCP to understand growth, accounts, usage, costs, infrastructure, and reliability, then decide whether to scale or improve the product.
-8. Log in from a terminal, link a local folder to a hosted project, create/select remote workspaces, chat with a remote harness, stream tools/results, detach, and resume from another machine.
+8. Log in from a terminal, link a local folder to a hosted workspace, create/select remote worktrees, chat with a remote harness, stream tools/results, detach, and resume from another machine.
 9. Explicitly push local edits or pull remote edits with a preview and conflict checks; optionally check out a remote branch as a true local Git worktree. Working only in the cloud requires no local clone.
 
 ## Launch scope and boundaries
@@ -44,21 +46,21 @@ Operators can read and recommend through the management MCP. Tenant agents can a
 
 | Setting                   | Default                                                                                                   |
 | ------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Project mode              | Persistent                                                                                                |
-| Agent filesystem          | Independent workspace and branch                                                                          |
-| Workspace concurrency     | One active writer                                                                                         |
+| Workspace mode              | Persistent                                                                                                |
+| Agent filesystem          | Independent worktree and branch                                                                          |
+| Worktree concurrency     | One active writer                                                                                         |
 | Terminal execution        | Remote; local linking and selection have no file side effects                                             |
 | Chat while a run is busy  | Explicit queued follow-up, up to 10 pending per session, 24-hour default queue deadline, user-shortenable |
 | Run timeout               | 15 minutes, maximum 2 hours                                                                               |
 | Run budget                | $2, bounded by organization/platform caps                                                                 |
-| Git integration           | Optional automatic merge/push after explicit project enablement                                           |
+| Git integration           | Optional automatic merge/push after explicit workspace enablement                                           |
 | Conflict                  | Keep work; surface conflict; require a new resolution action                                              |
 | BYOK failure              | Surface error; no managed-credit fallback                                                                 |
 | Public signup             | Email verification required before execution                                                              |
 | Tool authority            | Explicit grants, then autonomous execution within grants                                                  |
 | Product/operator timezone | UTC metrics; timestamps localized for display                                                             |
 
-Persist latest project files until explicit deletion. Keep terminal run/accounting identities separately from detailed content; final response and tool history follow their 30/90-day retention. Default detailed trace/artifact retention is 30 days for Starter and 90 for Pro and Scale; show the expiration before users start work and allow exports. Older traces may be archived to R2 during their retention period. Historical filesystem checkpoints keep all for 24 hours, daily for 30 days, weekly for 12 weeks; always protect the latest verified checkpoint and explicit user-pinned checkpoints. User-pinned checkpoints count toward storage.
+Persist latest workspace files until explicit deletion. Keep terminal run/accounting identities separately from detailed content; final response and tool history follow their 30/90-day retention. Default detailed trace/artifact retention is 30 days for Starter and 90 for Pro and Scale; show the expiration before users start work and allow exports. Older traces may be archived to R2 during their retention period. Historical filesystem checkpoints keep all for 24 hours, daily for 30 days, weekly for 12 weeks; always protect the latest verified checkpoint and explicit user-pinned checkpoints. User-pinned checkpoints count toward storage.
 
 ## Success criteria
 

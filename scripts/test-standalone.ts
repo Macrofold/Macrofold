@@ -28,7 +28,7 @@ assert((await fetch(origin + asset[1].replaceAll('&amp;', '&'))).ok);
 const contract = await (await fetch(origin + '/openapi.json')).json();
 assert(contract.paths['/v1/runs']);
 const project = await (
-  await call('POST', '/v1/projects', { name: 'Standalone acceptance ' + Date.now() })
+  await call('POST', '/v1/workspaces', { name: 'Standalone acceptance ' + Date.now() })
 ).json();
 assert(project.default_workspace_id);
 const ws = await (await call('GET', `/v1/workspaces/${project.default_workspace_id}`)).json();

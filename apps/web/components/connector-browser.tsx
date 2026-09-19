@@ -213,7 +213,7 @@ function CatalogResults({
                   <ChevronRight size={15} className="connector-card-arrow" aria-hidden="true" />
                 </div>
                 <strong>{entry.name}</strong>
-                <p>{entry.description || `Connect ${entry.name} to your agents’ workspace.`}</p>
+                <p>{entry.description || `Connect ${entry.name} to your agents’ worktree.`}</p>
                 <div className="connector-app-meta">
                   <span>{categoryLabel(entry.categories[0] || 'Other')}</span>
                   <small>{entry.tool_count.toLocaleString()} tools</small>

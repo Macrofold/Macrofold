@@ -26,7 +26,7 @@ Setup starts PostgreSQL and Mailpit, applies migrations, and creates demo data. 
 
 ## Invoke an agent through the API
 
-1. Create a key in the dashboard's **API keys** page with project and run read/write scopes.
+1. Create a key in the dashboard's **API keys** page with workspace and run read/write scopes.
 2. Follow the [API quickstart](../../features/api/quickstart.md), keeping the origin `http://localhost:3210` and model `fixture-model`.
 3. Submit the request, follow its stream, and open the run in the dashboard to inspect its status and saved results.
 
@@ -45,13 +45,29 @@ The domain test wrapper creates disposable databases and files. It leaves the de
 
 ## Stop and resume
 
-Press Ctrl-C in the dashboard/API and worker terminals, then stop PostgreSQL and Mailpit without deleting their data:
+From the repository root, stop the local dashboard/API, worker, PostgreSQL, and Mailpit without deleting database data or local files:
 
 ```sh
-docker compose -f infra/compose.yml stop
+pnpm run stop
 ```
 
 To resume, run `pnpm run setup`, `pnpm dev`, and `pnpm worker` in the same two-terminal arrangement.
+
+The shutdown command supports macOS/Linux with `ps` and `lsof`. It recognizes this checkout's standard web launcher on port 3210 and `scripts/worker.ts`, including the Docker-overlay launchers. It sends SIGTERM and waits up to 60 seconds for graceful shutdown before stopping infrastructure. If draining takes longer, PostgreSQL stays running; retry when the worker finishes. Test-runner processes, other checkouts, remote servers, and separately created execution containers are outside its scope. Avoid stopping shared infrastructure while tests are using it. Custom launch commands should be stopped with Ctrl-C first.
+
+Preview the actions without stopping anything:
+
+```sh
+pnpm run stop --dry-run
+```
+
+For a cleaner teardown, also remove the stopped infrastructure containers and their Compose network:
+
+```sh
+pnpm run stop --down
+```
+
+Use **stop** for ordinary development: containers, logs, and their writable layers remain available for a quick restart. Use **down** when you want containers/network recreated, for example after configuration changes; container logs and writable layers are discarded. Both retain PostgreSQL's named volume and `.data` files. Stopped containers consume disk space but no running CPU. There is no need to remove the network every time. **Do not add `-v`/`--volumes` to a manual Compose down command:** that deletes the database volume. This shutdown command deliberately offers no volume-deletion option.
 
 ## Further details
 
@@ -81,7 +97,7 @@ COVERAGE_DIR="$PWD/coverage/customer-$(uuidgen)" pnpm test:dashboard:isolated
 
 This runner owns a separate app, worker, database, files, and loopback port. It cleans up its fixtures and leaves reports in the new coverage directory. Avoid changing source during its build. These journeys still use simulated agents.
 
-`pnpm test:packages` separately installs the CLI and TypeScript SDK into temporary customer projects. The [testing reference](../../engineering/testing.md) covers other languages, coverage, and the full CI suite.
+`pnpm test:packages` separately installs the CLI and TypeScript SDK into temporary customer workspaces. The [testing reference](../../engineering/testing.md) covers other languages, coverage, and the full CI suite.
 
 ### Troubleshooting
 

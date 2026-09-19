@@ -14,13 +14,13 @@ import {
   dispatchTriggers,
 } from '../../packages/core/src/trigger-dispatch';
 import { claimRun, executeRun } from '../../packages/core/src/engine';
-import { cancelRun, getRun } from '../../packages/core/src/runs';
+import { cancelRun, getNativeRun as getRun } from '../../packages/core/src/runs';
 import { id } from '../../packages/core/src/crypto';
 import { SlackClient, SlackError } from '../../packages/providers/src/slack';
 import { fixtureAccount } from '../fixtures/account';
 import * as catalog from '../../packages/core/src/catalog';
 import { credit } from '../../packages/core/src/ledger';
-import { purgeProjects } from '../../packages/core/src/deletion';
+import { purgeWorkspaces } from '../../packages/core/src/deletion';
 
 const ownedAccounts: Awaited<ReturnType<typeof fixtureAccount>>[] = [];
 afterEach(async () => {
@@ -49,7 +49,7 @@ async function setup(kind: 'webhook' | 'schedule' | 'slack' = 'webhook') {
     baseURL: config.origin,
     fetch: async (url, init) => handleApi(new Request(url, init)),
   });
-  const project = await client.projects.create({ name: 'Persistent trigger files' });
+  const workspace = await client.workspaces.create({ name: 'Persistent trigger files' });
   const agent = await client.agents.create({
     name: 'Trigger agent',
     harness: 'codex',
@@ -68,7 +68,7 @@ async function setup(kind: 'webhook' | 'schedule' | 'slack' = 'webhook') {
   const trigger = await client.triggers.create({
     name: 'Test automation',
     kind,
-    project_id: project.id,
+    workspace_id: workspace.id,
     agent_id: agent.id,
     prompt: 'Create hello.txt containing Hello world.',
     ...(kind === 'schedule' ? { cron: '* * * * *', timezone: 'UTC' } : {}),
@@ -76,7 +76,7 @@ async function setup(kind: 'webhook' | 'schedule' | 'slack' = 'webhook') {
   });
   const query = (sql: string, values: unknown[] = []) =>
     transaction(account.p.organizationId, (tx) => tx.query(sql, values));
-  return { account, client, project, agent, trigger, connection, query };
+  return { account, client, workspace, agent, trigger, connection, query };
 }
 type Fixture = Awaited<ReturnType<typeof setup>>;
 async function incoming(
@@ -141,7 +141,7 @@ async function dispatch(f: Fixture, deliveryId: string, provider?: SlackClient) 
 }
 
 describe('complete trigger admission and simulation journeys', () => {
-  it('resolves the saved preset in its real project and never accepts inbound access exceptions', async () => {
+  it('resolves the saved preset in its real workspace and never accepts inbound access exceptions', async () => {
     const f = await setup();
     const connection = await f.client.connections.create({
       name: 'Trigger search',
@@ -151,8 +151,8 @@ describe('complete trigger admission and simulation journeys', () => {
     });
     await f.client.connections.updateAccess(connection.id, { tools: ['web_search'], ifMatch: '"1"' });
     await f.client.connections.createAccessRule(connection.id, {
-      scope: 'project_agent',
-      project_id: f.project.id,
+      scope: 'workspace_agent',
+      workspace_id: f.workspace.id,
       agent_id: f.agent.id,
       ifMatch: '"2"',
     });
@@ -170,7 +170,7 @@ describe('complete trigger admission and simulation journeys', () => {
       expect(run.config.agent_id).toBe(f.agent.id);
       expect(run.config.agent_version).toBe(f.agent.version);
       expect(run.config.connection_grants).toEqual([{ connection_id: connection.id, tools: ['web_search'] }]);
-      expect(run.config.connection_access[0]).toMatchObject({ source: 'project_agent', access_version: '3' });
+      expect(run.config.connection_access[0]).toMatchObject({ source: 'workspace_agent', access_version: '3' });
       expect(run.config.connection_access[0].override).toBeUndefined();
     });
   });
@@ -213,7 +213,7 @@ describe('complete trigger admission and simulation journeys', () => {
     await dispatch(f, d.id);
     expect((await f.query('SELECT id FROM runs')).rowCount).toBe(1);
   });
-  it('serializes persistent workspace deliveries, waits without reservations, and starts after capacity is available', async () => {
+  it('serializes persistent worktree deliveries, waits without reservations, and starts after capacity is available', async () => {
     const f = await setup();
     const a = await (await incoming(f)).json(),
       b = await (await incoming(f)).json();
@@ -223,7 +223,7 @@ describe('complete trigger admission and simulation journeys', () => {
     expect(rows.find((d) => d.id === b.id)).toMatchObject({
       status: 'pending',
       run_id: null,
-      error_code: 'workspace_busy',
+      error_code: 'worktree_busy',
     });
     const first = rows.find((d) => d.id === a.id)!;
     await f.client.runs.cancel(first.run_id!);
@@ -344,7 +344,7 @@ describe('trigger authorization, limits and recovery', () => {
       await sending;
     }
   });
-  it('keeps a trigger in its original project and allows administrators to stop, but not assume, another creator’s automation', async () => {
+  it('keeps a trigger in its original workspace and allows administrators to stop, but not assume, another creator’s automation', async () => {
     const a = await setup(),
       b = await setup();
     await a.query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'member')", [
@@ -373,7 +373,7 @@ describe('trigger authorization, limits and recovery', () => {
     const stopKey = await member.apiKeys.create({
       name: 'Stop automation only',
       scopes: ['triggers:write'],
-      project_id: a.project.id,
+      workspace_id: a.workspace.id,
     });
     const stopper = new Macrofold({
       apiKey: stopKey.secret,
@@ -385,8 +385,8 @@ describe('trigger authorization, limits and recovery', () => {
     await expect(member.triggers.update(a.trigger.id, { enabled: true })).rejects.toMatchObject({
       status: 403,
     });
-    const next = await a.client.projects.create({ name: 'Another project' });
-    await expect(a.client.triggers.update(a.trigger.id, { project_id: next.id })).rejects.toMatchObject({
+    const next = await a.client.workspaces.create({ name: 'Another workspace' });
+    await expect(a.client.triggers.update(a.trigger.id, { workspace_id: next.id })).rejects.toMatchObject({
       status: 400,
     });
     await expect(a.client.triggers.list({ cursor: 'not-a-cursor' })).rejects.toMatchObject({ status: 400 });
@@ -413,9 +413,9 @@ describe('trigger authorization, limits and recovery', () => {
     });
     expect(channels).toHaveBeenCalledWith('fixture-only-bot-token', 'current-page');
     const key = await f.client.apiKeys.create({
-      name: 'Project-restricted connection access',
+      name: 'Workspace-restricted connection access',
       scopes: ['connections:write'],
-      project_id: f.project.id,
+      workspace_id: f.workspace.id,
     });
     const scoped = new Macrofold({
       apiKey: key.secret,
@@ -439,14 +439,14 @@ describe('trigger authorization, limits and recovery', () => {
         .rows[0].secret_ciphertext,
     ).toBe('');
   });
-  it('purges incoming prompt content and routing when its project is permanently deleted', async () => {
+  it('purges incoming prompt content and routing when its workspace is permanently deleted', async () => {
     const f = await setup();
     const d = await (await incoming(f, { prompt: 'Private incoming text' })).json();
     await f.query(
-      "UPDATE projects SET data=data||jsonb_build_object('deletion_due_at',now()-interval '1 second') WHERE id=$1",
-      [f.project.id],
+      "UPDATE workspaces SET data=data||jsonb_build_object('deletion_due_at',now()-interval '1 second') WHERE id=$1",
+      [f.workspace.id],
     );
-    await transaction(f.account.p.organizationId, (tx) => purgeProjects(tx, new Date()), {
+    await transaction(f.account.p.organizationId, (tx) => purgeWorkspaces(tx, new Date()), {
       exclusiveStorage: true,
     });
     expect(
@@ -623,17 +623,17 @@ describe('trigger authorization, limits and recovery', () => {
       ).toBe('0');
     },
   );
-  it('isolates tenant and project access in API and RLS', async () => {
+  it('isolates tenant and workspace access in API and RLS', async () => {
     const a = await setup(),
       b = await setup();
     await expect(b.client.triggers.get(a.trigger.id)).rejects.toMatchObject({ status: 404 });
     await expect(b.client.triggers.listDeliveries(a.trigger.id)).rejects.toMatchObject({ status: 404 });
     expect((await b.query('SELECT id FROM triggers WHERE id=$1', [a.trigger.id])).rows).toEqual([]);
-    const restrictedProject = await a.client.projects.create({ name: 'Other allowed project' });
+    const restrictedWorkspace = await a.client.workspaces.create({ name: 'Other allowed workspace' });
     const key = await a.client.apiKeys.create({
-      name: 'Wrong project',
-      scopes: ['triggers:read', 'triggers:write', 'runs:read', 'runs:write', 'projects:read'],
-      project_id: restrictedProject.id,
+      name: 'Wrong workspace',
+      scopes: ['triggers:read', 'triggers:write', 'runs:read', 'runs:write', 'workspaces:read'],
+      workspace_id: restrictedWorkspace.id,
     });
     const scoped = new Macrofold({
       apiKey: key.secret,
@@ -683,7 +683,7 @@ it('reports account capacity, serializes the last slot, and preserves definition
   const other = await setup('schedule');
   expect((await f.client.triggers.list()).quota).toEqual({ limit: 100, used: 1, remaining: 99 });
   await fixtureOperator((db) => db.query('UPDATE organizations SET trigger_definition_limit=2 WHERE id=$1', [f.account.p.organizationId]));
-  const body = { name: 'Another', kind: 'schedule' as const, project_id: f.project.id,
+  const body = { name: 'Another', kind: 'schedule' as const, workspace_id: f.workspace.id,
     agent_id: f.agent.id, prompt: 'Fixture', cron: '0 9 * * *', timezone: 'UTC' };
   const outcomes = await Promise.allSettled([f.client.triggers.create(body), f.client.triggers.create(body)]);
   expect(outcomes.filter((r) => r.status === 'fulfilled')).toHaveLength(1);

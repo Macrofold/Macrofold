@@ -57,7 +57,7 @@ export const journeys = [
     name: 'Aperture',
     layout: 'chapters',
     form: 'aperture',
-    description: 'Five cinematic frames alternate between the whole project and its working parts.',
+    description: 'Five cinematic frames alternate between the whole workspace and its working parts.',
     extra: 'permissions',
   },
   {
@@ -89,7 +89,7 @@ export type Journey = (typeof journeys)[number];
 export type Form = Journey['form'];
 
 export const pillars = [
-  { label: 'Project', link: '/docs/workspaces' },
+  { label: 'Workspace', link: '/docs/workspaces' },
   { label: 'Worktrees', link: '/docs/workspaces' },
   { label: 'Checkpoints and Git Sync', link: '/docs/workspaces' },
   { label: 'API, CLI, UI', link: '/docs/cli' },
@@ -99,7 +99,7 @@ export const pillars = [
 export const useCases = [
   {
     id: 'customers',
-    label: 'Per-Customer Agent Workspaces',
+    label: 'Per-Customer Agent Worktrees',
     short: 'Customer context',
     prompt: 'Write a cold email to Alex at Northstar.',
     tasks: ['Draft the email', 'Research the account', 'Update the brief', 'Review the draft'],
@@ -108,7 +108,7 @@ export const useCases = [
     stages: [
       [
         'An agent that knows your customer.',
-        'Give each customer a workspace with their product context, voice, and notes. The agent reads those files before writing the first draft.',
+        'Give each customer a worktree with their product context, voice, and notes. The agent reads those files before writing the first draft.',
       ],
       [
         'One context. Independent tasks.',
@@ -131,7 +131,7 @@ export const useCases = [
   {
     id: 'improvement',
     label: 'Self-improving Agents',
-    short: 'Strategy workspace',
+    short: 'Strategy worktree',
     prompt: 'Run a simulation and revise the strategy.',
     tasks: ['Run the baseline', 'Test an alternative', 'Review the results', 'Inspect the revision'],
     files: ['strategy.md', 'simulation.py', 'constraints.md', 'results.json', 'observations.md'],
@@ -162,7 +162,7 @@ export const useCases = [
   {
     id: 'team',
     label: 'Shared Team Agents',
-    short: 'Team workspace',
+    short: 'Team worktree',
     prompt: 'Help debug the checkout timeout.',
     tasks: ['Trace the failure', 'Test the fix', 'Review the incident', 'Inspect the patch'],
     files: ['src/', 'tests/', 'runbook.md', 'incident.md', 'patch.diff'],
@@ -170,7 +170,7 @@ export const useCases = [
     stages: [
       [
         'Start with the team’s working context.',
-        'Give the agent your code and runbook. A concrete issue becomes a task in a shared project, with the context your team already maintains.',
+        'Give the agent your code and runbook. A concrete issue becomes a task in a shared workspace, with the context your team already maintains.',
       ],
       [
         'Investigate without getting in the way.',
@@ -181,7 +181,7 @@ export const useCases = [
         'Save files in a verified checkpoint and inspect the diff. Sync to GitHub when ready; repository conflicts stay visible for review.',
       ],
       [
-        'One workspace across the team.',
+        'One worktree across the team.',
         'Start an investigation from your internal tool. A developer can continue from the terminal while a teammate reviews the output in the UI.',
       ],
       [
@@ -208,7 +208,7 @@ export const extras = {
   ],
   permissions: [
     'Scope access to the task.',
-    'Choose the project, keys, and connection grants each agent can use. Keep account boundaries intact.',
+    'Choose the workspace, keys, and connection grants each agent can use. Keep account boundaries intact.',
     '/docs/connections',
     'Connections and permissions',
   ],

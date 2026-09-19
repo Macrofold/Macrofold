@@ -47,7 +47,14 @@ export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   return undefined;
 }
 export class CodexAdapter implements HarnessAdapter {
-  async run({ configuration: c, signal, emit, ask }: HarnessContext): Promise<NativeResult> {
+  private rpc?: JsonRpcProcess;
+  private threadId?: string;
+  close() {
+    this.rpc?.close();
+    this.rpc = undefined;
+    this.threadId = undefined;
+  }
+  async run({ configuration: c, images = [], signal, emit, ask }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.codex.translate(c.permissions || []).mode === 'guarded';
     const files = permissionFileTools(c.workspace, c.permissions || []);
     await mkdir(`${c.stateHome}/.codex`, { recursive: true, mode: 0o700 });
@@ -75,26 +82,31 @@ export class CodexAdapter implements HarnessAdapter {
       overrides['mcp_servers.platform.default_tools_approval_mode'] = 'approve';
       overrides['mcp_servers.platform.required'] = true;
     }
-    const rpc = new JsonRpcProcess(
-      process.env.CODEX_BINARY || 'codex',
-      [
-        'app-server',
-        '--stdio',
-        ...Object.entries(overrides).flatMap(([key, value]) => ['-c', `${key}=${JSON.stringify(value)}`]),
-      ],
-      {
-        cwd: c.workspace,
-        env: {
-          NODE_ENV: 'production',
-          PATH: process.env.PATH,
-          HOME: c.stateHome,
-          CODEX_HOME: `${c.stateHome}/.codex`,
-          PLATFORM_RUN_TOKEN: c.token,
+    const reused = Boolean(this.rpc);
+    const rpc =
+      this.rpc ||
+      new JsonRpcProcess(
+        process.env.CODEX_BINARY || 'codex',
+        [
+          'app-server',
+          '--stdio',
+          ...Object.entries(overrides).flatMap(([key, value]) => ['-c', `${key}=${JSON.stringify(value)}`]),
+        ],
+        {
+          cwd: c.workspace,
+          env: {
+            NODE_ENV: 'production',
+            PATH: process.env.PATH,
+            HOME: c.stateHome,
+            CODEX_HOME: `${c.stateHome}/.codex`,
+            PLATFORM_RUN_TOKEN: c.token,
+          },
         },
-      },
-    );
+      );
+    this.rpc = rpc;
+    let succeeded = false;
     let output = '',
-      threadId = c.resumeId,
+      threadId = this.threadId || c.resumeId,
       turnId = '';
     let resolve!: (value: NativeResult) => void, reject!: (error: Error) => void;
     const completed = new Promise<NativeResult>((yes, no) => {
@@ -161,57 +173,69 @@ export class CodexAdapter implements HarnessAdapter {
     };
     signal.addEventListener('abort', abort, { once: true });
     try {
-      await rpc.request('initialize', {
-        clientInfo: { name: 'platform-runtime', title: 'Hosted agent runtime', version: '0.1.0' },
-        capabilities: { experimentalApi: true },
+      if (!reused) {
+        await rpc.request('initialize', {
+          clientInfo: { name: 'platform-runtime', title: 'Hosted agent runtime', version: '0.1.0' },
+          capabilities: { experimentalApi: true },
+        });
+        rpc.send({ method: 'initialized', params: {} });
+        const options = {
+          cwd: c.workspace,
+          model: c.model,
+          modelProvider: 'platform',
+          approvalPolicy: 'never',
+          ...(guarded ? { permissions: 'worktree_guarded' } : { sandbox: 'danger-full-access' }),
+          ...(c.instructions ? { developerInstructions: c.instructions } : {}),
+        };
+        const thread = await rpc.request<{ thread: { id: string } }>(
+          threadId ? 'thread/resume' : 'thread/start',
+          {
+            ...options,
+            ...(threadId
+              ? { threadId }
+              : {
+                  ephemeral: false,
+                  ...(guarded
+                    ? {
+                        dynamicTools: [
+                          {
+                            type: 'function',
+                            name: fileToolName,
+                            description: fileToolDescription,
+                            inputSchema: z.toJSONSchema(fileToolSchema),
+                            deferLoading: false,
+                          },
+                        ],
+                      }
+                    : {}),
+                }),
+          },
+        );
+        threadId = thread.thread.id;
+        this.threadId = threadId;
+      }
+      await emit({
+        type: 'runtime.started',
+        data: { harness: 'codex', native_session_id: threadId, reused },
       });
-      rpc.send({ method: 'initialized', params: {} });
-      const options = {
-        cwd: c.workspace,
-        model: c.model,
-        modelProvider: 'platform',
-        approvalPolicy: 'never',
-        ...(guarded ? { permissions: 'worktree_guarded' } : { sandbox: 'danger-full-access' }),
-        ...(c.instructions ? { developerInstructions: c.instructions } : {}),
-      };
-      const thread = await rpc.request<{ thread: { id: string } }>(
-        threadId ? 'thread/resume' : 'thread/start',
-        {
-          ...options,
-          ...(threadId
-            ? { threadId }
-            : {
-                ephemeral: false,
-                ...(guarded
-                  ? {
-                      dynamicTools: [
-                        {
-                          type: 'function',
-                          name: fileToolName,
-                          description: fileToolDescription,
-                          inputSchema: z.toJSONSchema(fileToolSchema),
-                          deferLoading: false,
-                        },
-                      ],
-                    }
-                  : {}),
-              }),
-        },
-      );
-      threadId = thread.thread.id;
-      await emit({ type: 'runtime.started', data: { harness: 'codex', native_session_id: threadId } });
       const turn = await rpc.request<{ turn: { id: string } }>('turn/start', {
         threadId,
-        input: [{ type: 'text', text: c.prompt, text_elements: [] }],
+        // Forward verified bytes directly. Local-image decoding can silently drop
+        // an invalid image instead of letting the model endpoint reject it.
+        input: [
+          { type: 'text', text: c.prompt, text_elements: [] },
+          ...images.map((image) => ({ type: 'image', url: `data:${image.mediaType};base64,${image.data}` })),
+        ],
         serviceTierForTurn: 'default',
       });
       turnId = turn.turn.id;
       const result = await completed;
       await rpc.drain();
+      succeeded = result.outcome === 'success';
       return result;
     } finally {
       signal.removeEventListener('abort', abort);
-      rpc.close();
+      if (!c.warm || !succeeded) this.close();
     }
   }
 }

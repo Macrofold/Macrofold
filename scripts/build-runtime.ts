@@ -3,7 +3,10 @@ import { build } from 'esbuild';
 await build({
   entryPoints: [
     'packages/runtime/src/entry.ts',
+    'packages/runtime/src/sandbox-control.ts',
+    'packages/runtime/src/sandbox-control-cli.ts',
     'packages/runtime/src/native-worker.ts',
+    'packages/runtime/src/document-worker.ts',
     'packages/runtime/src/deepseek-bridge.ts',
     'packages/runtime/src/probe.ts',
     'packages/runtime/src/restore.ts',

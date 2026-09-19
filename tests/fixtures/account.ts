@@ -18,7 +18,7 @@ export async function fixtureAccount(label: string) {
     role: 'owner',
     scopes: customerScopes,
     operator: false,
-    projectIds: [],
+    workspaceIds: [],
   };
   const key = await transaction(org, (tx) => createKey(tx, p, { name: 'Fixture', scopes: customerScopes }));
   const signed = await auth.api.signInEmail({ body: { email, password }, returnHeaders: true });

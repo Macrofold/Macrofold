@@ -18,7 +18,7 @@ export async function generateResourceReference() {
 
 Generated from the [OpenAPI contract](../../../api/openapi.json). All ${operations.length} public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
-Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as \`client.projects().create(...)\`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
+Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as \`client.workspaces().create(...)\`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
 Path identifiers are positional. Required request values stay typed; optional transport settings expose idempotency, cancellation, and organization selection where supported. Methods retain each SDK's documented transport behavior. The run \`events\` method delegates to resumable incremental streaming; \`stream\` remains available. Closing a stream leaves the remote run active; call \`runs.cancel\` to stop it.
 

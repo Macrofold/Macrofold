@@ -44,7 +44,7 @@ func TestConstructorAndResourceFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.Projects.Create(context.Background(), NewProjectCreate("Research"))
+	_, err = client.Workspaces.Create(context.Background(), NewWorkspaceCreate("Research"))
 	var failure *RequestError
 	if !errors.As(err, &failure) || failure.Response.StatusCode != 503 || failure.IdempotencyKey != identity || calls != 1 {
 		t.Fatalf("single-attempt error and identity: %v", err)
@@ -75,7 +75,7 @@ func TestTypedRequestAndError(t *testing.T) {
 		t.Fatal(err)
 	}
 	limit := int32(3)
-	result, err := client.Projects.List(context.Background(), &ListProjectsParams{Limit: &limit})
+	result, err := client.Workspaces.List(context.Background(), &ListWorkspacesParams{Limit: &limit})
 	if err != nil || len(result.Data) != 0 {
 		t.Fatalf("unexpected response: %v %v", result, err)
 	}
@@ -98,7 +98,7 @@ func TestStreamingRotationAndDuplicateSuppression(t *testing.T) {
 		}
 		if !strings.HasSuffix(r.URL.Path, "/stream") {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":%q,"organization_id":%q,"session_id":%q,"workspace_id":%q,"harness":"codex","model":"simulator","status":"succeeded","created_at":"2026-09-07T00:00:00Z"}`, testID, testID, testID, testID)
+			fmt.Fprintf(w, `{"id":%q,"kind":"native_agent","workspace_id":%q,"organization_id":%q,"session_id":%q,"worktree_id":%q,"harness":"codex","model":"simulator","status":"succeeded","created_at":"2026-09-07T00:00:00Z"}`, testID, testID, testID, testID, testID)
 			return
 		}
 		connections++
@@ -158,7 +158,7 @@ func TestOriginAndRedirectBoundaries(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, other.URL, 302) }))
 	defer server.Close()
 	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
-	_, response, err := client.ProjectsAPI.ListProjects(context.Background()).Execute()
+	_, response, err := client.WorkspacesAPI.ListWorkspaces(context.Background()).Execute()
 	if err == nil || reached || response.StatusCode != 302 {
 		t.Fatal("redirect must be refused")
 	}
@@ -200,9 +200,9 @@ func TestMutationAndBinaryWireContract(t *testing.T) {
 	}))
 	defer server.Close()
 	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
-	project, err := client.Projects.Create(context.Background(), NewProjectCreate("Research"), WithIdempotencyKey("request-1"))
-	if err != nil || project.Name != "Research" {
-		t.Fatalf("project: %v %v", project, err)
+	workspace, err := client.Workspaces.Create(context.Background(), NewWorkspaceCreate("Research"), WithIdempotencyKey("request-1"))
+	if err != nil || workspace.Name != "Research" {
+		t.Fatalf("workspace: %v %v", workspace, err)
 	}
 	file, err := os.CreateTemp(t.TempDir(), "upload")
 	if err != nil {
@@ -211,7 +211,7 @@ func TestMutationAndBinaryWireContract(t *testing.T) {
 	defer file.Close()
 	file.WriteString("hello\x00world")
 	file.Seek(0, 0)
-	operation, err := client.Workspaces.WriteFile(context.Background(), testID, file, &WriteFileParams{Path: "notes/a + b.bin", IfMatch: "revision-1"}, WithIdempotencyKey("request-1"))
+	operation, err := client.Worktrees.WriteFile(context.Background(), testID, file, &WriteFileParams{Path: "notes/a + b.bin", IfMatch: "revision-1"}, WithIdempotencyKey("request-1"))
 	if err != nil || operation.Status != "succeeded" || calls != 2 {
 		t.Fatalf("operation: %v %v", operation, err)
 	}
@@ -227,9 +227,9 @@ func TestApplicationWorkflow(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	filesWorkspace := os.Getenv("MACROFOLD_FIXTURE_FILES_WORKSPACE")
+	filesWorktree := os.Getenv("MACROFOLD_FIXTURE_FILES_WORKTREE")
 	for filePath, expected := range map[string]string{"notes/日本語 + #?.bin": string([]byte{0, 255, 10, 128}), "empty.txt": ""} {
-		file, err := client.Workspaces.ReadFile(ctx, filesWorkspace, &ReadFileParams{Path: filePath})
+		file, err := client.Worktrees.ReadFile(ctx, filesWorktree, &ReadFileParams{Path: filePath})
 		if err != nil || file == nil {
 			t.Fatalf("read %s: %v", filePath, err)
 		}
@@ -240,30 +240,30 @@ func TestApplicationWorkflow(t *testing.T) {
 			t.Fatalf("read %s: %x %v", filePath, content, readErr)
 		}
 	}
-	_, err = client.Workspaces.ReadFile(ctx, filesWorkspace, &ReadFileParams{Path: "missing.txt"})
+	_, err = client.Worktrees.ReadFile(ctx, filesWorktree, &ReadFileParams{Path: "missing.txt"})
 	var missing *RequestError
 	if !errors.As(err, &missing) || missing.Response == nil || missing.Response.StatusCode != 404 {
 		t.Fatalf("missing file: %v", err)
 	}
-	project, err := client.Projects.Create(ctx, NewProjectCreate("Go application fixture"))
+	workspace, err := client.Workspaces.Create(ctx, NewWorkspaceCreate("Go application fixture"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	workspaceID := project.GetDefaultWorkspaceId()
-	workspace, err := client.Workspaces.Get(ctx, workspaceID)
+	worktreeID := workspace.GetDefaultWorktreeId()
+	worktree, err := client.Worktrees.Get(ctx, worktreeID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	folder, err := client.Workspaces.CreateFolder(ctx, workspaceID, NewFolderCreate("examples"), &CreateFolderParams{IfMatch: workspace.Revision})
+	folder, err := client.Worktrees.CreateFolder(ctx, worktreeID, NewFolderCreate("examples"), &CreateFolderParams{IfMatch: worktree.Revision})
 	if err != nil || folder.Result == nil || folder.Result.Entry == nil || folder.Result.Entry.Type != "directory" {
 		t.Fatalf("folder: %v %v", folder, err)
 	}
-	renamed, err := client.Workspaces.RenameFile(ctx, workspaceID, NewFileRename("examples/renamed.txt"), &RenameFileParams{Path: "examples/.gitkeep", IfMatch: folder.Result.GetRevision()})
+	renamed, err := client.Worktrees.RenameFile(ctx, worktreeID, NewFileRename("examples/renamed.txt"), &RenameFileParams{Path: "examples/.gitkeep", IfMatch: folder.Result.GetRevision()})
 	if err != nil || renamed.Result == nil || renamed.Result.GetPreviousPath() != "examples/.gitkeep" {
 		t.Fatalf("rename: %v %v", renamed, err)
 	}
 	recursive := false
-	listing, err := client.Workspaces.ListFiles(ctx, workspaceID, &ListFilesParams{Recursive: &recursive})
+	listing, err := client.Worktrees.ListFiles(ctx, worktreeID, &ListFilesParams{Recursive: &recursive})
 	if err != nil || len(listing.Entries) != 1 || listing.Entries[0].Type != "directory" {
 		t.Fatalf("folders: %v %v", listing, err)
 	}
@@ -272,7 +272,7 @@ func TestApplicationWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runBody.SetProjectId(project.Id)
+	runBody.SetWorkspaceId(workspace.Id)
 	runBody.SetAgentId(agent.Id)
 	run, err := client.Runs.Create(ctx, runBody)
 	if err != nil {
@@ -294,11 +294,11 @@ func TestApplicationWorkflow(t *testing.T) {
 	if err != nil || state.Status != "succeeded" {
 		t.Fatalf("state: %v %v", state, err)
 	}
-	checkpoints, err := client.Workspaces.ListCheckpoints(ctx, run.WorkspaceId, nil)
+	checkpoints, err := client.Worktrees.ListCheckpoints(ctx, run.WorktreeId, nil)
 	if err != nil || len(checkpoints.Data) == 0 {
 		t.Fatalf("checkpoints: %v %v", checkpoints, err)
 	}
-	note, err := client.Workspaces.ReadFile(ctx, run.WorkspaceId, &ReadFileParams{Path: "notes/run-" + run.RunId + ".md"})
+	note, err := client.Worktrees.ReadFile(ctx, run.WorktreeId, &ReadFileParams{Path: "notes/run-" + run.RunId + ".md"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestReadFileBytesAndErrors(t *testing.T) {
 		t.Run(fixture.name, func(t *testing.T) {
 			content := fixture.content
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "GET" || r.URL.Path != "/v1/workspaces/"+testID+"/file" || r.Header.Get("Authorization") != "Bearer fixture" {
+				if r.Method != "GET" || r.URL.Path != "/v1/worktrees/"+testID+"/file" || r.Header.Get("Authorization") != "Bearer fixture" {
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 				}
 				if r.URL.Query().Get("path") == "missing.txt" {
@@ -345,7 +345,7 @@ func TestReadFileBytesAndErrors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			file, err := client.Workspaces.ReadFile(context.Background(), testID, &ReadFileParams{Path: "notes/日本語 + #?.bin"})
+			file, err := client.Worktrees.ReadFile(context.Background(), testID, &ReadFileParams{Path: "notes/日本語 + #?.bin"})
 			if err != nil || file == nil {
 				t.Fatalf("file: %v, error: %v", file, err)
 			}
@@ -355,7 +355,7 @@ func TestReadFileBytesAndErrors(t *testing.T) {
 			if err != nil || string(got) != string(content) {
 				t.Fatalf("bytes: %x, error: %v", got, err)
 			}
-			_, err = client.Workspaces.ReadFile(context.Background(), testID, &ReadFileParams{Path: "missing.txt"})
+			_, err = client.Worktrees.ReadFile(context.Background(), testID, &ReadFileParams{Path: "missing.txt"})
 			var failure *RequestError
 			if !errors.As(err, &failure) || failure.Response == nil || failure.Response.StatusCode != 404 {
 				t.Fatalf("missing file: %v", err)

@@ -73,16 +73,16 @@ test('run composer uses styled, accessible listboxes and keyboard selection', as
   );
 });
 
-test('an interrupted create recovers with the same idempotency key and creates one project', async ({
+test('an interrupted create recovers with the same idempotency key and creates one workspace', async ({
   page,
 }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('link', { name: 'Projects', exact: true }).click();
-  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+  await page.getByRole('button', { name: 'New workspace', exact: true }).click();
   const name = `Uncertain response ${Date.now()}`;
   const keys: string[] = [];
-  await page.route('**/v1/projects', async (route) => {
+  await page.route('**/v1/workspaces', async (route) => {
     if (route.request().method() !== 'POST') return route.continue();
     keys.push(route.request().headers()['idempotency-key']);
     if (keys.length === 1) {
@@ -91,14 +91,14 @@ test('an interrupted create recovers with the same idempotency key and creates o
       await route.abort('connectionreset');
     } else await route.continue();
   });
-  await page.getByRole('textbox', { name: 'Project name' }).fill(name);
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Workspace name' }).fill(name);
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Retry the unchanged action');
-  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBeTruthy();
   expect(keys[1]).toBe(keys[0]);
-  const result = await (await page.request.get(`/v1/projects?query=${encodeURIComponent(name)}`)).json();
+  const result = await (await page.request.get(`/v1/workspaces?query=${encodeURIComponent(name)}`)).json();
   expect(result.data.filter((p: { name: string }) => p.name === name)).toHaveLength(1);
 });

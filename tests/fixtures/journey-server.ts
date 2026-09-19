@@ -7,7 +7,7 @@ import { handleModelRequest } from '../../packages/core/src/model-gateway';
 import { handleRuntimeMcp } from '../../packages/core/src/tool-broker';
 import { verifyRuntime } from '../../packages/core/src/runtime-auth';
 import { transaction } from '../../packages/db';
-import { getRun } from '../../packages/core/src/runs';
+import { getNativeRun as getRun } from '../../packages/core/src/runs';
 import { config, isLocal } from '../../packages/core/src/config';
 
 if (

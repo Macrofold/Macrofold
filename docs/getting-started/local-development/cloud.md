@@ -8,11 +8,11 @@ You need access to a configured staging deployment and an approved budget for mo
 
 On an existing staging deployment:
 
-1. Sign in, select your test organization, and create a project and API key.
+1. Sign in, select your test organization, and create a workspace and API key.
 2. Select an enabled model compatible with the desired harness. Use managed inference with test credits, or add your own provider connection and select BYOK. Compute and authorized tools can still consume application credits.
 3. Follow the [API quickstart](../../features/api/quickstart.md), using your staging HTTPS origin and real model ID instead of localhost and `fixture-model`.
 4. Use a small task: **Create `hello.txt` containing `Hello from the agent`, then read it back.** Set a short execution timeout and an explicitly approved spending limit.
-5. Follow the run stream, retrieve its final result, and open the workspace file in the dashboard after checkpoint publication.
+5. Follow the run stream, retrieve its final result, and open the worktree file in the dashboard after checkpoint publication.
 
 The quickstart uses Codex and managed billing. To try another [harness](../../features/execution/harnesses.md), change its `harness` field and select a matching model. The [model catalog](../../features/execution/models.md) defines supported combinations; changing only the provider name is insufficient.
 
@@ -20,7 +20,7 @@ There is no separate `pnpm worker` process for the Vercel Workflow deployment. W
 
 ## Set up staging once
 
-If you do not already have a deployment, follow [Deploy on Vercel](../../operations/launch-guide.md) using a dedicated staging project. That guide owns the exact provisioning commands. The dependency order is:
+If you do not already have a deployment, follow [Deploy on Vercel](../../operations/launch-guide.md) using a dedicated staging workspace. That guide owns the exact provisioning commands. The dependency order is:
 
 1. Prepare an isolated release checkout and private runtime/migration configuration.
 2. Configure a staging PostgreSQL database with restricted runtime access, private R2 storage, and identity email.
@@ -34,7 +34,7 @@ Keep the source checkout's local `.env` for simulation. Cloud configuration belo
 
 ## Test a real agent journey
 
-Repeat the small task for each supported harness/model route, in separate test workspaces. Confirm the run selects the intended harness, executes tools, emits output and usage, and publishes the exact file contents. Then continue its session in a fresh sandbox and confirm it can read the existing file and retain compatible native conversation state.
+Repeat the small task for each supported harness/model route, in separate test worktrees. Confirm the run selects the intended harness, executes tools, emits output and usage, and publishes the exact file contents. Then continue its session in a fresh sandbox and confirm it can read the existing file and retain compatible native conversation state.
 
 For the complete journey, also check API status/result, detailed stream replay, dashboard freshness, and final accounting. Execution, persistence, and optional Git synchronization have separate outcomes. Provider acceptance alone cannot prove any of the sandbox or persistence steps.
 
@@ -57,7 +57,7 @@ The example permits two $1 application run ceilings under a $2 aggregate allowan
 
 For local Docker acceptance, change `AGENT_JOURNEY_ENVIRONMENT` to `docker` and `AGENT_HOST` to `http://localhost:3210`, keeping the Docker API and worker running. For BYOK, also set `AGENT_CONNECTION_ID` to the synthetic customer's selected model connection. Repeat explicitly for each compatible harness/model route; one route does not establish another's compatibility.
 
-Each invocation creates a project, performs the file task, replays its stream, and continues the native session to copy the restored bytes into `continued.txt`. It checks native identity, tool/output/checkpoint events, file bytes, and terminal reservations. Successful output is sanitized JSON with `passed: true` and run IDs. The project is archived afterward; known unfinished runs receive explicit cancellation if a check fails. Inspect failed runs until persistence and settlement finish.
+Each invocation creates a workspace, performs the file task, replays its stream, and continues the native session to copy the restored bytes into `continued.txt`. It checks native identity, tool/output/checkpoint events, file bytes, and terminal reservations. Successful output is sanitized JSON with `passed: true` and run IDs. The workspace is archived afterward; known unfinished runs receive explicit cancellation if a check fails. Inspect failed runs until persistence and settlement finish.
 
 The private `.data/agent-acceptance/attempts.jsonl` journal records full run ceilings and idempotency keys **before** requests. Retries and uncertain responses never free that allowance; continuation consumes another ceiling. Concurrent invocations are rejected by a lock. After a process crash, inspect the recorded request keys/runs and confirm no runner remains active before removing its stale lock. Never delete or reset the budget journal to retry without a new approval. Keep the API, worker/deployment and approved provider rates unchanged through acceptance.
 

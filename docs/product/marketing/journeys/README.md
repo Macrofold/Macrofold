@@ -12,18 +12,18 @@ Open **[/journeys](http://localhost:3210/journeys)** in the local application. S
 | Lanes         | Text beside a sticky diagram     | Requests and saved work travel through parallel lanes        |
 | Strata        | Diagram first                    | Layered contexts emphasize persistence                       |
 | Switchboard   | Wide diagram                     | Angular routing connects interfaces to working units         |
-| Aperture      | Alternating illustrated chapters | Framed close-ups and project-wide views                      |
+| Aperture      | Alternating illustrated chapters | Framed close-ups and workspace-wide views                      |
 | Ledger        | Text beside a sticky diagram     | Independent executions sit alongside saved revisions         |
-| Constellation | Wide diagram                     | Sparse, distributed workspaces with explicit connections     |
+| Constellation | Wide diagram                     | Sparse, distributed worktrees with explicit connections     |
 | Assembly      | Alternating illustrated chapters | Separate execution tiles assemble into a system              |
 
 These names identify presentation treatments, not product features or capacity guarantees. The third supporting capability varies between retained history, budgets, scoped permissions, results, and continued sessions.
 
 ## Three use cases, five pillars
 
-**Per-Customer Agent Workspaces** starts with a cold-email request and the customer's product, audience, and voice files. **Self-improving Agents** starts with a simulation and a strategy revision governed by the user's evaluation instructions. **Shared Team Agents** starts with a debugging request and the team's code, issue, and incident context. They illustrate possible applications rather than prebuilt autonomous products.
+**Per-Customer Agent Worktrees** starts with a cold-email request and the customer's product, audience, and voice files. **Self-improving Agents** starts with a simulation and a strategy revision governed by the user's evaluation instructions. **Shared Team Agents** starts with a debugging request and the team's code, issue, and incident context. They illustrate possible applications rather than prebuilt autonomous products.
 
-Every story follows Project → Worktrees → Checkpoints and Git Sync → API, CLI, UI → Connectors. Worktrees receive separate tasks. Checkpoint indicators stay attached to their files; Git synchronization remains a separate action. The interface stage shows two API requests, a CLI request, and another workspace accessed through the UI. The connector stage returns to one working unit and shows relevant tools, including database access through custom MCP for the team example.
+Every story follows Workspace → Worktrees → Checkpoints and Git Sync → API, CLI, UI → Connectors. Worktrees receive separate tasks. Checkpoint indicators stay attached to their files; Git synchronization remains a separate action. The interface stage shows two API requests, a CLI request, and another worktree accessed through the UI. The connector stage returns to one working unit and shows relevant tools, including database access through custom MCP for the team example.
 
 Diagrams use straight connections, compact folders, real harness marks, and short task labels. The main explanation stays in adjacent text. Desktop scrolling updates the diagram without intercepting scrolling; narrow screens use accessible feature tabs. Reduced motion, explicit pause, hidden-tab handling, and offscreen observation control animation. Study-to-study links use ordinary document navigation, avoiding eager prefetch of ten complete previews and resetting each composition for comparison. The hero is the existing original Swarm poster with CSS drift; no live particle renderer or customer telemetry is involved.
 
@@ -31,7 +31,7 @@ Diagrams use straight connections, compact folders, real harness marks, and shor
 
 The hero links **Start building** to registration and **View docs** to documentation. Its source row contains the repository icon, contributor guide, and **Star** link. Starring happens on GitHub after the visitor chooses Star; the preview neither uses a GitHub account nor claims that following a link has starred the repository.
 
-The centered code panel combines run and stream in TypeScript, Python, Go, Rust, cURL, and CLI examples. The example starts a new run directly with a project, harness, model, billing mode, and prompt. The catalog determines the provider. There is no prerequisite session or saved preset. Setup is disclosed below the example; required fields remain explicit. Public imports use `Macrofold`, and terminal examples use the installed `macrofold` command. Go and Rust examples are function bodies with documented context, not complete source files. Python uses explicit closure and no context manager.
+The centered code panel combines run and stream in TypeScript, Python, Go, Rust, cURL, and CLI examples. The example starts a new run directly with a workspace, harness, model, billing mode, and prompt. The catalog determines the provider. There is no prerequisite session or saved preset. Setup is disclosed below the example; required fields remain explicit. Public imports use `Macrofold`, and terminal examples use the installed `macrofold` command. Go and Rust examples are function bodies with documented context, not complete source files. Python uses explicit closure and no context manager.
 
 SDKs use their actual hosted default, `https://app.macrofold.ai`; cURL spells out the same origin. It retains the required idempotency key, uses `jq` to capture the returned ID, and only streams after a nonempty successful extraction. Registry publication and a root-domain API alias are not implied. Self-hosting instructions remain linked documentation rather than the main onboarding story.
 

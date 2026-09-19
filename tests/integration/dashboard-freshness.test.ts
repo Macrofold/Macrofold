@@ -44,10 +44,10 @@ afterAll(async () => {
 
 describe('committed dashboard revisions', () => {
   it('signals API admission and simulated lifecycle without routing detailed output through the dashboard protocol', async () => {
-    const project = await post('/v1/projects', { name: 'Stream fixture', persistence: 'persistent' });
+    const workspace = await post('/v1/workspaces', { name: 'Stream fixture', persistence: 'persistent' });
     const before = await snapshot();
     const run = await post('/v1/runs', {
-      project_id: project.id,
+      workspace_id: workspace.id,
       harness: 'codex',
       model: 'fixture-model',
       prompt: 'Private prompt is never a signal',
@@ -68,14 +68,14 @@ describe('committed dashboard revisions', () => {
     await executeRun(a.p.organizationId, run.run_id);
     const completed = await snapshot();
     expect(BigInt(completed.revisions.runs)).toBeGreaterThan(BigInt(admitted.revisions.runs));
-    expect(BigInt(completed.revisions.workspace)).toBeGreaterThan(BigInt(admitted.revisions.workspace));
+    expect(BigInt(completed.revisions.worktree)).toBeGreaterThan(BigInt(admitted.revisions.worktree));
     expect((await eventsAfter(a.p.organizationId, run.run_id, '0')).at(-1)?.type).toBe('run.succeeded');
     expect(JSON.stringify(completed)).not.toMatch(/Private prompt|private streamed output/);
   });
 
-  it('reads only committed data across processes and detects workspace, checkpoint and Git publication', async () => {
-    const project = await post('/v1/projects', { name: 'Cross instance', persistence: 'persistent' });
-    const workspace = project.default_workspace_id;
+  it('reads only committed data across processes and detects worktree, checkpoint and Git publication', async () => {
+    const workspace = await post('/v1/workspaces', { name: 'Cross instance', persistence: 'persistent' });
+    const worktree = workspace.default_worktree_id;
     const child = fork(new URL('../fixtures/dashboard-instance.ts', import.meta.url), {
       execArgv: ['--import', 'tsx'],
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
@@ -101,7 +101,7 @@ describe('committed dashboard revisions', () => {
       try {
         await writer.query('BEGIN');
         await writer.query("SELECT set_config('app.organization_id',$1,true)", [a.p.organizationId]);
-        await resources.update(writer, 'workspaces', workspace, { sync: { workspace_id: workspace, updated_at: new Date().toISOString(), status: 'pending' } });
+        await resources.update(writer, 'worktrees', worktree, { sync: { worktree_id: worktree, updated_at: new Date().toISOString(), status: 'pending' } });
         // The other transaction still sees the last committed resource state.
         expect((await snapshot()).revisions).toEqual(before.revisions);
         await writer.query('ROLLBACK');
@@ -110,15 +110,15 @@ describe('committed dashboard revisions', () => {
       }
       expect((await snapshot()).revisions).toEqual(before.revisions);
       await transaction(a.p.organizationId, (tx) =>
-        resources.update(tx, 'workspaces', workspace, {
-          sync: { workspace_id: workspace, updated_at: new Date().toISOString(), status: 'conflict', error_code: 'private diagnostic' },
+        resources.update(tx, 'worktrees', worktree, {
+          sync: { worktree_id: worktree, updated_at: new Date().toISOString(), status: 'conflict', error_code: 'private diagnostic' },
         }),
       );
       await expect
         .poll(() => frames.filter((f) => f.event === 'change').map((f) => JSON.parse(f.data!)))
         .toEqual(
           expect.arrayContaining([
-            { category: 'workspace', organization_id: a.p.organizationId },
+            { category: 'worktree', organization_id: a.p.organizationId },
             { category: 'git', organization_id: a.p.organizationId },
           ]),
         );
@@ -126,13 +126,13 @@ describe('committed dashboard revisions', () => {
       const changed = await snapshot();
       await transaction(a.p.organizationId, (tx) =>
         resources.create(tx, 'checkpoints', a.p.organizationId, {
-          workspace_id: workspace,
-          project_id: project.id,
+          worktree_id: worktree,
+          workspace_id: workspace.id,
           label: 'Published checkpoint',
         }),
       );
-      expect(BigInt((await snapshot()).revisions.workspace)).toBeGreaterThan(
-        BigInt(changed.revisions.workspace),
+      expect(BigInt((await snapshot()).revisions.worktree)).toBeGreaterThan(
+        BigInt(changed.revisions.worktree),
       );
       expect(stderr).toBe('');
     } finally {
@@ -146,7 +146,7 @@ describe('committed dashboard revisions', () => {
   it('enforces tenant isolation and rejects unauthenticated, bearer and mismatched organization streams', async () => {
     const foreign = await dashboardAccess(browser(b.cookie, b.p.organizationId));
     const foreignSnapshot = await readDashboardSnapshot(b.p.organizationId, [foreign]);
-    expect(foreignSnapshot.revisions).toEqual({ runs: '0', workspace: '0', git: '0' });
+    expect(foreignSnapshot.revisions).toEqual({ runs: '0', worktree: '0', git: '0' });
     expect(foreignSnapshot.authorizedSessions).toEqual(new Set([foreign.sessionId + ':owner']));
     await expect(readDashboardSnapshot(b.p.organizationId, [access])).rejects.toMatchObject({ status: 400 });
     expect((await GET(browser('', a.p.organizationId))).status).toBe(401);

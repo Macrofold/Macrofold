@@ -101,8 +101,8 @@ export async function githubWebhook(request: Request) {
           [payload.installation.id, revokeAll, removed],
         );
         await tx.query(
-          `UPDATE workspaces w SET data=w.data || jsonb_build_object('sync',jsonb_build_object('workspace_id',w.id,'status','blocked','error_code','github_access_revoked','updated_at',now())),revision=w.revision+1,updated_at=now()
-          FROM projects p WHERE w.project_id=p.id AND p.data->'github'->>'installation_id'=$1 AND ($2 OR p.data->'github'->>'repository_id'=ANY($3::text[]))`,
+          `UPDATE worktrees w SET data=w.data || jsonb_build_object('sync',jsonb_build_object('worktree_id',w.id,'status','blocked','error_code','github_access_revoked','updated_at',now())),revision=w.revision+1,updated_at=now()
+          FROM workspaces p WHERE w.workspace_id=p.id AND p.data->'github'->>'installation_id'=$1 AND ($2 OR p.data->'github'->>'repository_id'=ANY($3::text[]))`,
           [payload.installation.id, revokeAll, removed],
         );
         continue;
@@ -110,7 +110,7 @@ export async function githubWebhook(request: Request) {
       // Added/unsuspended events never restore access. An owner must re-prove current permissions.
       if (event !== 'push' || !payload.ref!.startsWith('refs/heads/')) continue;
       const matches = await tx.query(
-        `SELECT w.id,w.data FROM workspaces w JOIN projects p ON p.id=w.project_id
+        `SELECT w.id,w.data FROM worktrees w JOIN workspaces p ON p.id=w.workspace_id
         WHERE p.data->'github'->>'installation_id'=$1 AND p.data->'github'->>'repository_id'=$2
         AND p.data->'github'->>'target_branch'=$3 AND COALESCE(p.data->>'archived','false')<>'true'
         AND COALESCE(w.data->>'deleted','false')<>'true'`,
@@ -118,7 +118,7 @@ export async function githubWebhook(request: Request) {
       );
       for (const ws of matches.rows) {
         if (ws.data.git_commit === payload.after) continue;
-        await resources.update(tx, 'workspaces', ws.id, {
+        await resources.update(tx, 'worktrees', ws.id, {
           remote_change: {
             ref: payload.ref,
             observed_commit: payload.after,
@@ -138,7 +138,7 @@ export async function githubWebhook(request: Request) {
 }
 
 /** Coalesce notifications into a current remote fetch, never replay the event's commit. A busy
- * workspace is deferred; the existing Git merge implementation preserves divergent local files. */
+ * worktree is deferred; the existing Git merge implementation preserves divergent local files. */
 export async function dispatchGithubPulls() {
   const jobs = await pool.query(
     "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='github_pull' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT 5",
@@ -148,23 +148,23 @@ export async function dispatchGithubPulls() {
       await transaction(job.organization_id, async (tx) => {
         const acquired = (
           await tx.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1,0)) AS ok', [
-            `workspace:${job.resource_id}`,
+            `worktree:${job.resource_id}`,
           ])
         ).rows[0].ok;
         if (!acquired) return;
-        await tx.query('SELECT id FROM workspaces WHERE id=$1 FOR UPDATE', [job.resource_id]);
+        await tx.query('SELECT id FROM worktrees WHERE id=$1 FOR UPDATE', [job.resource_id]);
         // Lock the row so a newly arriving notification cannot be marked done by this sweep.
         const pending = await tx.query(
           "SELECT 1 FROM dispatch_jobs WHERE kind='github_pull' AND resource_id=$1 AND state<>'done' FOR UPDATE",
           [job.resource_id],
         );
         if (!pending.rowCount) return;
-        const ws = await resources.get(tx, 'workspaces', job.resource_id);
-        const project = await resources.get(tx, 'projects', String(ws.project_id));
-        const target = project.github as
+        const ws = await resources.get(tx, 'worktrees', job.resource_id);
+        const workspace = await resources.get(tx, 'workspaces', String(ws.workspace_id));
+        const target = workspace.github as
           { installation_id: string; repository_id: string; auto_pull?: boolean } | undefined;
         const change = ws.remote_change as { deleted: boolean } | undefined;
-        if (target?.auto_pull && !change?.deleted && !ws.deleted && !project.archived) {
+        if (target?.auto_pull && !change?.deleted && !ws.deleted && !workspace.archived) {
           const actor = (
             await tx.query(
               `SELECT g.granted_by,m.role FROM github_repository_grants g JOIN memberships m ON m.organization_id=g.organization_id AND m.user_id=g.granted_by
@@ -175,7 +175,7 @@ export async function dispatchGithubPulls() {
           ).rows[0];
           if (actor) {
             const active = await tx.query(
-              "SELECT 1 FROM runs WHERE workspace_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
+              "SELECT 1 FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
               [ws.id],
             );
             if (active.rowCount) {
@@ -193,7 +193,7 @@ export async function dispatchGithubPulls() {
               kind: 'user',
               operator: false,
               scopes: customerScopes,
-              projectIds: [],
+              workspaceIds: [],
             };
             const op = await queueGitSync(tx, p, ws.id, 'pull');
             await resources.update(tx, 'operations', op.id, { github_notification: true });

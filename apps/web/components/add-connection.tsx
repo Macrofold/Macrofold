@@ -20,7 +20,7 @@ const kinds = [
 ] as const;
 type Kind = (typeof kinds)[number]['id'];
 const descriptions: Record<Kind, string> = {
-  composio: 'Bring the apps you use every day into your agents’ workspace.',
+  composio: 'Bring the apps you use every day into your agents’ worktree.',
   model: 'Use your own provider account. Your API key stays encrypted on the server.',
   claude_subscription:
     'Save a named Claude account configuration. Subscription authentication is not yet available; provider approval and isolated runtime validation are required.',
@@ -155,7 +155,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
               <div className="subscription-unavailable">
                 <span className="badge">Not yet available</span>
                 <p>
-                  Use Codex with workspace credits or your OpenAI API key today. Subscription sign-in will
+                  Use Codex with worktree credits or your OpenAI API key today. Subscription sign-in will
                   appear here when it is supported.
                 </p>
                 <Button variant="secondary" onClick={() => changeKind('model')}>

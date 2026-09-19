@@ -11,7 +11,7 @@ import { boundedBody } from './body';
 export function organizationManager(p: Principal) {
   requireScopes(p, ['organizations:write']);
   assert(
-    !p.projectIds.length && ['owner', 'admin'].includes(p.role),
+    !p.workspaceIds.length && ['owner', 'admin'].includes(p.role),
     403,
     'organization_admin_required',
     'An unrestricted organization owner or admin credential is required.',
@@ -31,7 +31,7 @@ async function audit(
 }
 export async function createOrganization(tx: Tx, p: Principal, name: string) {
   assert(
-    p.kind === 'user' && !p.projectIds.length && p.userId,
+    p.kind === 'user' && !p.workspaceIds.length && p.userId,
     403,
     'user_required',
     'Create organizations with a user credential.',
@@ -51,7 +51,7 @@ export async function createOrganization(tx: Tx, p: Principal, name: string) {
   return { id: org, name, role: 'owner' as const };
 }
 export async function listMembers(tx: Tx, p: Principal) {
-  assert(!p.projectIds.length, 403, 'forbidden', 'Use an unrestricted credential to view the organization.');
+  assert(!p.workspaceIds.length, 403, 'forbidden', 'Use an unrestricted credential to view the organization.');
   return {
     data: (
       await tx.query(

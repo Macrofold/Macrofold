@@ -2,7 +2,7 @@ import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import spec from '../../../docs/api/openapi.json';
 import { assert } from './errors';
-type JSONSchema = {
+export type JSONSchema = {
   $ref?: string;
   type?: string | string[];
   properties?: Record<string, JSONSchema>;
@@ -12,11 +12,39 @@ type JSONSchema = {
 };
 export type Operation = {
   operationId: keyof import('../../contracts/api').operations;
+  summary?: string;
+  description?: string;
   parameters?: { $ref?: string; name?: string; in?: string; required?: boolean; schema?: JSONSchema }[];
   requestBody?: { required?: boolean; content: Record<string, { schema: JSONSchema }> };
   responses: Record<string, { content?: Record<string, { schema: JSONSchema }> }>;
   security?: Record<string, string[]>[];
+  'x-required-scopes'?: string[];
 };
+/** Scope policy is independent of the supported authentication mechanisms. */
+export function operationScopes(operation: Operation): string[] {
+  return (
+    operation['x-required-scopes'] ??
+    operation.security?.find((s) => s.OperatorOAuth)?.OperatorOAuth ??
+    operation.security?.find((s) => s.CustomerOAuth)?.CustomerOAuth ??
+    []
+  );
+}
+export type Parameter = {
+  name: string;
+  in: string;
+  required?: boolean;
+  schema: JSONSchema;
+  description?: string;
+};
+export function operationParameters(operation: Operation): Parameter[] {
+  return (operation.parameters || []).map(
+    (parameter) =>
+      (parameter.$ref
+        ? root.components.parameters[parameter.$ref.split('/').pop()!]
+        : parameter) as Parameter,
+  );
+}
+export const apiSchemas = spec.components.schemas as Record<string, JSONSchema>;
 export const apiSpec = spec;
 const root = spec as unknown as {
   components: { parameters: Record<string, unknown>; schemas: Record<string, JSONSchema> };
@@ -64,13 +92,7 @@ export function matchRoute(request: Request) {
 }
 export function validateParameters(operation: Operation, request: Request, params: Record<string, string>) {
   const url = new URL(request.url);
-  for (const ref of operation.parameters || []) {
-    const parameter = (ref.$ref ? root.components.parameters[ref.$ref.split('/').pop()!] : ref) as {
-      name: string;
-      in: string;
-      required?: boolean;
-      schema: JSONSchema;
-    };
+  for (const parameter of operationParameters(operation)) {
     if (parameter.in === 'query')
       assert(
         url.searchParams.getAll(parameter.name).length <= 1,
@@ -111,10 +133,10 @@ function resolve(schema: JSONSchema): JSONSchema {
   return schema.$ref ? root.components.schemas[schema.$ref.split('/').pop()!] || schema : schema;
 }
 /** Public responses are projected from the contract; encrypted/internal fields never reach callers. */
-export function projectResponse(value: unknown, schema: JSONSchema): unknown {
+export function workspaceResponse(value: unknown, schema: JSONSchema): unknown {
   schema = resolve(schema);
   if (value === null || value === undefined) return value;
-  if (Array.isArray(value)) return value.map((v) => (schema.items ? projectResponse(v, schema.items) : v));
+  if (Array.isArray(value)) return value.map((v) => (schema.items ? workspaceResponse(v, schema.items) : v));
   if (typeof value === 'object' && !(value instanceof Date) && schema.properties) {
     const record = value as Record<string, unknown>;
     const properties = schema.properties;
@@ -126,7 +148,7 @@ export function projectResponse(value: unknown, schema: JSONSchema): unknown {
         )
         .map(([key, child]) => [
           key,
-          Object.hasOwn(properties, key) ? projectResponse(child, properties[key]) : child,
+          Object.hasOwn(properties, key) ? workspaceResponse(child, properties[key]) : child,
         ]),
     );
   }
@@ -135,5 +157,5 @@ export function projectResponse(value: unknown, schema: JSONSchema): unknown {
 export function responseFor(operation: Operation, value: unknown) {
   const [code, result] = Object.entries(operation.responses).find(([code]) => code.startsWith('2'))!;
   const schema = result.content?.['application/json']?.schema;
-  return { status: Number(code), body: schema ? projectResponse(value, schema) : value };
+  return { status: Number(code), body: schema ? workspaceResponse(value, schema) : value };
 }

@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -26,6 +26,8 @@ type CustomerAgentMessage struct {
 	Limits *Limits `json:"limits,omitempty"`
 	// Queue when this worktree is busy. Omitted means false.
 	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
+	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+	Attachments []string `json:"attachments,omitempty"`
 }
 
 type _CustomerAgentMessage CustomerAgentMessage
@@ -168,6 +170,38 @@ func (o *CustomerAgentMessage) SetQueueIfBusy(v bool) {
 	o.QueueIfBusy = &v
 }
 
+// GetAttachments returns the Attachments field value if set, zero value otherwise.
+func (o *CustomerAgentMessage) GetAttachments() []string {
+	if o == nil || IsNil(o.Attachments) {
+		var ret []string
+		return ret
+	}
+	return o.Attachments
+}
+
+// GetAttachmentsOk returns a tuple with the Attachments field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CustomerAgentMessage) GetAttachmentsOk() ([]string, bool) {
+	if o == nil || IsNil(o.Attachments) {
+		return nil, false
+	}
+	return o.Attachments, true
+}
+
+// HasAttachments returns a boolean if a field has been set.
+func (o *CustomerAgentMessage) HasAttachments() bool {
+	if o != nil && !IsNil(o.Attachments) {
+		return true
+	}
+
+	return false
+}
+
+// SetAttachments gets a reference to the given []string and assigns it to the Attachments field.
+func (o *CustomerAgentMessage) SetAttachments(v []string) {
+	o.Attachments = v
+}
+
 func (o CustomerAgentMessage) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -187,6 +221,9 @@ func (o CustomerAgentMessage) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.QueueIfBusy) {
 		toSerialize["queue_if_busy"] = o.QueueIfBusy
+	}
+	if !IsNil(o.Attachments) {
+		toSerialize["attachments"] = o.Attachments
 	}
 	return toSerialize, nil
 }

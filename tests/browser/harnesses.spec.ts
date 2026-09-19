@@ -8,18 +8,18 @@ for (const [harness, label] of [
   test(`${label} can be selected, run, and replayed through the dashboard`, async ({ page }) => {
     await page.goto('/login');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('link', { name: 'Projects', exact: true }).click();
-    await page.getByRole('button', { name: 'New project', exact: true }).click();
+    await page.getByRole('link', { name: 'Workspaces', exact: true }).click();
+    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
     const name = `${label} browser fixture ${Date.now()}`;
-    await page.getByRole('textbox', { name: 'Project name' }).fill(name);
-    await page.getByRole('button', { name: 'Create project', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Workspace name' }).fill(name);
+    await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'New run', exact: true }).click();
     await page.getByRole('combobox', { name: 'Harness', exact: true }).click();
     await page.getByRole('option', { name: label, exact: true }).click();
     await page
       .getByRole('textbox', { name: 'What would you like to get done?' })
-      .fill('Record a project note.');
+      .fill('Record a workspace note.');
     const submitted = page.waitForResponse(
       (r) => r.url().endsWith('/v1/runs') && r.request().method() === 'POST',
     );

@@ -33,7 +33,7 @@ Changes preserve the existing provider/domain boundaries, PostgreSQL scheduler, 
 
 The [ten marketing concepts](../../product/marketing/README.md) share a catalog, server-rendered content, Radix controls and original CSS/SVG artwork. Research covers all 26 requested companies. The canonical homepage is unchanged, concepts are noindexed, and no package or hosted service was added. Contributor documentation keeps a short setup path before detailed references.
 
-Relevant behavior is maintained in the [billing](../../features/billing/implementation.md), [identity](../../features/identity-integrations/implementation.md), [workspace](../../features/workspaces/implementation.md), [execution](../../features/execution/implementation.md), [CLI](../../features/cli/implementation.md), and [dashboard](../../features/dashboard/implementation.md) references.
+Relevant behavior is maintained in the [billing](../../features/billing/implementation.md), [identity](../../features/identity-integrations/implementation.md), [worktree](../../features/workspaces/implementation.md), [execution](../../features/execution/implementation.md), [CLI](../../features/cli/implementation.md), and [dashboard](../../features/dashboard/implementation.md) references.
 
 ## Acceptance evidence
 

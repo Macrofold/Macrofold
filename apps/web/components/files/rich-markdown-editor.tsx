@@ -118,7 +118,7 @@ export default function RichMarkdownEditor({
     editable: editable && !unsupported,
     editorProps: {
       attributes: {
-        class: 'workspace-markdown-body rich-markdown-body',
+        class: 'worktree-markdown-body rich-markdown-body',
         'aria-label': 'Rich Markdown editor',
         role: 'textbox',
         'aria-multiline': 'true',

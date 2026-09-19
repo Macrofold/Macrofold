@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct Transfer {
     #[serde(rename = "id")]
     pub id: uuid::Uuid,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "worktree_id")]
+    pub worktree_id: uuid::Uuid,
     #[serde(rename = "direction")]
     pub direction: Direction,
     #[serde(rename = "base_revision")]
@@ -42,10 +42,10 @@ pub struct Transfer {
 }
 
 impl Transfer {
-    pub fn new(id: uuid::Uuid, workspace_id: uuid::Uuid, direction: Direction, base_revision: String, status: Status, dry_run: bool, actions: Vec<models::TransferAction>, expires_at: chrono::DateTime<chrono::FixedOffset>, created_at: chrono::DateTime<chrono::FixedOffset>) -> Transfer {
+    pub fn new(id: uuid::Uuid, worktree_id: uuid::Uuid, direction: Direction, base_revision: String, status: Status, dry_run: bool, actions: Vec<models::TransferAction>, expires_at: chrono::DateTime<chrono::FixedOffset>, created_at: chrono::DateTime<chrono::FixedOffset>) -> Transfer {
         Transfer {
             id,
-            workspace_id,
+            worktree_id,
             direction,
             base_revision,
             status,
@@ -60,7 +60,7 @@ impl Transfer {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Direction {
     #[serde(rename = "push")]
@@ -74,7 +74,7 @@ impl Default for Direction {
         Self::Push
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Status {
     #[serde(rename = "planned")]

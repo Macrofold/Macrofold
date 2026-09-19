@@ -44,7 +44,7 @@ Documentation is bundled with the application release. It uses no database, mode
 
 Search is appropriate for the current guide set; measure its size before adding a separate search engine.
 
-Keep GitHub source links aligned with repository ownership and the default branch. A fork should update `docs/site.json` before publishing; it owns the source repository and branch links. Domain/project business logic remains independent of the public brand.
+Keep GitHub source links aligned with repository ownership and the default branch. A fork should update `docs/site.json` before publishing; it owns the source repository and branch links. Domain/workspace business logic remains independent of the public brand.
 
 ## Validation
 

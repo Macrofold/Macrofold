@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -22,7 +22,7 @@ var _ MappedNullable = &ConnectionAccessRuleInputOneOf2{}
 // ConnectionAccessRuleInputOneOf2 struct for ConnectionAccessRuleInputOneOf2
 type ConnectionAccessRuleInputOneOf2 struct {
 	Scope string `json:"scope"`
-	ProjectId string `json:"project_id"`
+	WorkspaceId string `json:"workspace_id"`
 	AgentId string `json:"agent_id"`
 }
 
@@ -32,10 +32,10 @@ type _ConnectionAccessRuleInputOneOf2 ConnectionAccessRuleInputOneOf2
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewConnectionAccessRuleInputOneOf2(scope string, projectId string, agentId string) *ConnectionAccessRuleInputOneOf2 {
+func NewConnectionAccessRuleInputOneOf2(scope string, workspaceId string, agentId string) *ConnectionAccessRuleInputOneOf2 {
 	this := ConnectionAccessRuleInputOneOf2{}
 	this.Scope = scope
-	this.ProjectId = projectId
+	this.WorkspaceId = workspaceId
 	this.AgentId = agentId
 	return &this
 }
@@ -72,28 +72,28 @@ func (o *ConnectionAccessRuleInputOneOf2) SetScope(v string) {
 	o.Scope = v
 }
 
-// GetProjectId returns the ProjectId field value
-func (o *ConnectionAccessRuleInputOneOf2) GetProjectId() string {
+// GetWorkspaceId returns the WorkspaceId field value
+func (o *ConnectionAccessRuleInputOneOf2) GetWorkspaceId() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.ProjectId
+	return o.WorkspaceId
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
 // and a boolean to check if the value has been set.
-func (o *ConnectionAccessRuleInputOneOf2) GetProjectIdOk() (*string, bool) {
+func (o *ConnectionAccessRuleInputOneOf2) GetWorkspaceIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.ProjectId, true
+	return &o.WorkspaceId, true
 }
 
-// SetProjectId sets field value
-func (o *ConnectionAccessRuleInputOneOf2) SetProjectId(v string) {
-	o.ProjectId = v
+// SetWorkspaceId sets field value
+func (o *ConnectionAccessRuleInputOneOf2) SetWorkspaceId(v string) {
+	o.WorkspaceId = v
 }
 
 // GetAgentId returns the AgentId field value
@@ -131,7 +131,7 @@ func (o ConnectionAccessRuleInputOneOf2) MarshalJSON() ([]byte, error) {
 func (o ConnectionAccessRuleInputOneOf2) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["scope"] = o.Scope
-	toSerialize["project_id"] = o.ProjectId
+	toSerialize["workspace_id"] = o.WorkspaceId
 	toSerialize["agent_id"] = o.AgentId
 	return toSerialize, nil
 }
@@ -142,7 +142,7 @@ func (o *ConnectionAccessRuleInputOneOf2) UnmarshalJSON(data []byte) (err error)
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"scope",
-		"project_id",
+		"workspace_id",
 		"agent_id",
 	}
 

@@ -63,9 +63,9 @@ it('retains current, pinned and sampled checkpoints and collects only unreachabl
     ),
   );
   const values = await transaction(org, async (tx) => {
-    const project = await r.create(tx, 'projects', org, { name: 'Retained files' });
-    const ws = await r.create(tx, 'workspaces', org, {
-      project_id: project.id,
+    const workspace = await r.create(tx, 'workspaces', org, { name: 'Retained files' });
+    const ws = await r.create(tx, 'worktrees', org, {
+      workspace_id: workspace.id,
       files: [
         {
           key: manifest,
@@ -79,11 +79,11 @@ it('retains current, pinned and sampled checkpoints and collects only unreachabl
       ],
       git_files: [],
     });
-    const current = await r.create(tx, 'checkpoints', org, { workspace_id: ws.id, files: [], pinned: false });
-    const pinned = await r.create(tx, 'checkpoints', org, { workspace_id: ws.id, files: [], pinned: true });
-    const old = await r.create(tx, 'checkpoints', org, { workspace_id: ws.id, files: [], pinned: false });
+    const current = await r.create(tx, 'checkpoints', org, { worktree_id: ws.id, files: [], pinned: false });
+    const pinned = await r.create(tx, 'checkpoints', org, { worktree_id: ws.id, files: [], pinned: true });
+    const old = await r.create(tx, 'checkpoints', org, { worktree_id: ws.id, files: [], pinned: false });
     await tx.query('UPDATE checkpoints SET created_at=$1', [new Date(at.getTime() - 100 * DAY)]);
-    await r.update(tx, 'workspaces', ws.id, { latest_checkpoint_id: current.id });
+    await r.update(tx, 'worktrees', ws.id, { latest_checkpoint_id: current.id });
     return { ws, current, pinned, old };
   });
   expect((await maintainStorage(org, fixture.store, at)).deleted).toBe(0);

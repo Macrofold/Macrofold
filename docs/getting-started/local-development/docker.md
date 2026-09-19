@@ -40,7 +40,7 @@ Open **http://localhost:3210**. The dashboard identifies this mode as **Local Do
 
 Follow the [API quickstart](../../features/api/quickstart.md) against localhost, selecting a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing `Hello from the agent`, followed by one newline, and read it back. Start with a 120-second timeout and a deliberately approved run budget.
 
-Use the dashboard, CLI, or SDK to follow events and inspect the published file. Continue the returned session to restore both workspace files and compatible native conversation state in a fresh container. Execution, persistence, and optional Git synchronization retain their separate outcomes.
+Use the dashboard, CLI, or SDK to follow events and inspect the published file. Continue the returned session to restore both worktree files and compatible native conversation state in a fresh container. Execution, persistence, and optional Git synchronization retain their separate outcomes.
 
 The seeded account has synthetic application credits, so Stripe is unnecessary for local development. **Synthetic credits do not make provider inference free.** Local Docker compute defaults to zero micro-USD per minute; `.env.docker.example` sets that explicitly. Model/tool budgets, exact BYOK selection, revocation, reservations, and settlement still apply.
 
@@ -70,9 +70,15 @@ pnpm test:native hermes deepseek pi --tools
 
 These narrower tests run real harnesses with networking disabled and a model fixture inside the container. They cover tools, capture, restore, and native continuation, but bypass API admission and Docker provisioning through the worker. `pnpm test:native --image-only` tests the code baked into the image; otherwise the runner mounts fresh runtime bundles. OpenCode questions and stdio MCP have `pnpm test:native opencode --questions` and `pnpm test:native --stdio` paths.
 
+## Temporary and long-running compute
+
+Both sandbox modes run locally in Docker. Create a sandbox with `long_running: true` to keep its container available without a fixed lifetime cutoff or default idle timeout. No Render credentials are needed. An ordinary sandbox (`long_running: false`) retains its bounded lifetime and keep-warm policy; runs without a reusable sandbox still clean up their containers normally.
+
+Use the same [sandbox API](../../features/execution/sandboxes.md) for create, pause, resume and destroy. Pause removes local compute; resume creates a fresh container, restoring verified files and conversation state on the next run. Destroy never deletes checkpoints. Docker and the SQL worker must remain running. The container can stay warm, but each run still starts its own native harness process.
+
 ## Stop and resume
 
-Cancel unfinished runs through the API or dashboard and wait for terminal persistence before stopping the worker. Then press Ctrl-C in both terminals. To resume this profile, run `pnpm dev:docker` and `pnpm worker:docker` again; saved projects live independently in PostgreSQL and encrypted local storage.
+Cancel unfinished runs through the API or dashboard and wait for terminal persistence before stopping the worker. Then press Ctrl-C in both terminals. To resume this profile, run `pnpm dev:docker` and `pnpm worker:docker` again; saved workspaces live independently in PostgreSQL and encrypted local storage.
 
 A worker crash does not restart a native prompt: the replacement worker observes the same container and execution marker. A stopped or externally restarted container is a recovery condition; do not `docker start` it to resume an agent. The normal continuation path creates a new container from a verified checkpoint.
 
@@ -90,7 +96,7 @@ Only the Docker adapter rewrites the run's application model/MCP URLs to `host.d
 
 This is trusted contributor development, not hosted multi-tenant isolation. Containers use two CPUs, four GiB memory without additional swap, a 512-process limit, no new privileges, and only the Linux capabilities required by the existing supervisor. No host directory, checkout, Docker socket, database/storage credential, or upstream model key is mounted or passed into them. Only run-scoped gateway credentials enter protected configuration through stdin.
 
-The example overlay starts with `GLOBAL_CONCURRENT_RUN_LIMIT=1`. Raise it only within Docker's allocated CPU/memory, leaving headroom for PostgreSQL and the application. Organization and workspace limits still apply.
+The example overlay starts with `GLOBAL_CONCURRENT_RUN_LIMIT=1`. Raise it only within Docker's allocated CPU/memory, leaving headroom for PostgreSQL and the application. Organization and worktree limits still apply.
 
 The runtime image is already built locally; provisioning never implicitly pulls one. `DOCKER_RUNTIME_IMAGE` selects another locally built matching image. Normal development uses Docker's bridge network; `DOCKER_NETWORK` can select a custom bridge. Docker is deliberately not advertised as Vercel's microVM or egress-isolation equivalent.
 
@@ -98,9 +104,9 @@ The deterministic runner uses an owned internal network with no external route. 
 
 ### Recovery and cleanup
 
-SQL phase leases, workspace serialization, organization/global limits, and checkpoint verification are shared with cloud execution. Ordinary execution observation uses the existing two-second phase delay plus worker/provider time; input and cancellation follow that cadence. A killed worker may leave a two-minute phase lease before replacement can advance. Queue expiry uses the worker's 15-second maintenance sweep; its 24-hour deadline remains independent of execution timeout.
+SQL phase leases, worktree serialization, organization/global limits, and checkpoint verification are shared with cloud execution. Ordinary execution observation uses the existing two-second phase delay plus worker/provider time; input and cancellation follow that cadence. A killed worker may leave a two-minute phase lease before replacement can advance. Queue expiry uses the worker's 15-second maintenance sweep; its 24-hour deadline remains independent of execution timeout.
 
-Successful checkpoint publication permits container deletion. Persistence failure stops and retains the owned container's writable layer for manual recovery, while preserving the last verified checkpoint and blocking competing workspace writes. That layer is not an independent backup; deleting Docker data destroys it. Containers also stop after the requested timeout plus the existing 30-minute persistence allowance. Back up PostgreSQL, encrypted objects, and vault keys together.
+Successful checkpoint publication permits container deletion. Persistence failure stops and retains the owned container's writable layer for manual recovery, while preserving the last verified checkpoint and blocking competing worktree writes. That layer is not an independent backup; deleting Docker data destroys it. Containers also stop after the requested timeout plus the existing 30-minute persistence allowance. Back up PostgreSQL, encrypted objects, and vault keys together.
 
 ### Cleanup
 

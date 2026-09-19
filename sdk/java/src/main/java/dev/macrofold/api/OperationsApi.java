@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -166,7 +166,7 @@ public class OperationsApi {
 
   /**
    * Inspect asynchronous action
-   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
    * @param operationId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return Operation
@@ -178,7 +178,7 @@ public class OperationsApi {
 
   /**
    * Inspect asynchronous action
-   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
    * @param operationId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
@@ -192,7 +192,7 @@ public class OperationsApi {
 
   /**
    * Inspect asynchronous action
-   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
    * @param operationId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return ApiResponse&lt;Operation&gt;
@@ -204,7 +204,7 @@ public class OperationsApi {
 
   /**
    * Inspect asynchronous action
-   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+   * Inspect durable operation. For kind&#x3D;checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
    * @param operationId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request

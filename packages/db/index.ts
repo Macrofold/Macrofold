@@ -1,6 +1,14 @@
 import pg from 'pg';
 import { config } from '../core/src/config';
 export type Tx = pg.PoolClient;
+const commitObservers = new WeakMap<Tx, (() => void)[]>();
+/** Non-authoritative, synchronous notifications only. External I/O belongs in
+ * the observer's bounded exporter, never inside the SQL transaction. */
+export function afterCommit(tx: Tx, callback: () => void) {
+  const observers = commitObservers.get(tx);
+  if (!observers) throw new Error('Commit observers require a managed transaction.');
+  observers.push(callback);
+}
 const globals = globalThis as unknown as {
   platformPool?: pg.Pool;
   authPool?: pg.Pool;
@@ -52,6 +60,9 @@ async function transact<T>(
   statementTimeoutMs?: number,
 ) {
   const tx = await connections.connect();
+  const observers: (() => void)[] = [];
+  commitObservers.set(tx, observers);
+  let committed = false;
   try {
     await tx.query('BEGIN');
     // Apply before lock acquisition too, so bounded metadata readers cannot wait
@@ -68,12 +79,22 @@ async function transact<T>(
       );
     const result = await fn(tx);
     await tx.query('COMMIT');
+    committed = true;
     return result;
   } catch (error) {
     await tx.query('ROLLBACK');
     throw error;
   } finally {
+    commitObservers.delete(tx);
     tx.release();
+    if (committed)
+      for (const observer of observers) {
+        try {
+          observer();
+        } catch {
+          console.warn(JSON.stringify({ code: 'commit_observer_failed' }));
+        }
+      }
   }
 }
 export async function lock(tx: Tx, value: string) {

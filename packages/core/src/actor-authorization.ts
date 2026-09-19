@@ -5,8 +5,11 @@ import { config } from './config';
 /** Recheck delegated execution authority at dispatch and before every external model/tool action. */
 export async function actorAuthorized(
   tx: Tx,
-  run: Pick<RunRow, 'organization_id' | 'project_id'> & {
-    config: Pick<RunRow['config'], 'user_id' | 'principal_id' | 'principal_kind' | 'oauth_token_id'>;
+  run: Pick<RunRow, 'organization_id' | 'workspace_id'> & {
+    config: Pick<
+      RunRow['config'],
+      'user_id' | 'principal_id' | 'principal_kind' | 'oauth_token_id' | 'oauth_audience'
+    >;
   },
   scope = 'runs:write',
 ) {
@@ -17,8 +20,8 @@ export async function actorAuthorized(
   if (!member.rowCount || member.rows[0].role === 'viewer') return false;
   if (run.config.principal_kind === 'api_key') {
     const key = await tx.query(
-      `SELECT 1 FROM api_keys WHERE id=$1 AND organization_id=$2 AND user_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND $5=ANY(scopes) AND (cardinality(project_ids)=0 OR $4=ANY(project_ids))`,
-      [run.config.principal_id, run.organization_id, run.config.user_id, run.project_id, scope],
+      `SELECT 1 FROM api_keys WHERE id=$1 AND organization_id=$2 AND user_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND $5=ANY(scopes) AND (cardinality(workspace_ids)=0 OR $4=ANY(workspace_ids))`,
+      [run.config.principal_id, run.organization_id, run.config.user_id, run.workspace_id, scope],
     );
     if (!key.rowCount) return false;
   }
@@ -27,7 +30,7 @@ export async function actorAuthorized(
     // Explicit token/session/client revocation does. Retain expired records while dependent runs are active.
     const token = await tx.query(
       `SELECT 1 FROM auth."oauthAccessToken" t JOIN auth."oauthClient" c ON c."clientId"=t."clientId" JOIN auth."oauthClientResource" cr ON cr."clientId"=c."clientId" AND cr."resourceId"=$2 JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE t.id=$1 AND t.scopes::jsonb ? $3 AND c.scopes::jsonb ? $3 AND t.revoked IS NULL AND c.disabled=false AND r.disabled=false AND (t."sessionId" IS NULL OR EXISTS(SELECT 1 FROM auth.session s WHERE s.id=t."sessionId" AND s."expiresAt">now()))`,
-      [run.config.oauth_token_id, `${config.origin}/v1`, scope],
+      [run.config.oauth_token_id, run.config.oauth_audience || `${config.origin}/v1`, scope],
     );
     if (!token.rowCount) return false;
   }

@@ -122,7 +122,7 @@ test('documentation navigation, search recovery, copy, and mobile access', async
   await expect(page.getByRole('dialog').getByRole('link', { name: /API conventions/ })).toBeVisible();
   await page.getByRole('textbox', { name: 'Search documentation' }).fill('zzzzunfindable');
   await expect(page.getByText('No matching pages.')).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search documentation' }).fill('workspaces');
+  await page.getByRole('textbox', { name: 'Search documentation' }).fill('worktrees');
   expect(
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
   ).toEqual([]);
@@ -130,9 +130,9 @@ test('documentation navigation, search recovery, copy, and mobile access', async
   await page.goto('/docs/api/quickstart');
   await page
     .getByRole('navigation', { name: 'On this page' })
-    .getByRole('link', { name: '1. Create a project' })
+    .getByRole('link', { name: '1. Create a workspace' })
     .click();
-  await expect(page).toHaveURL(/#1-create-a-project$/);
+  await expect(page).toHaveURL(/#1-create-a-workspace$/);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: 'Copy page' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('# API quickstart');
@@ -253,7 +253,7 @@ test('AI setup copies deployment-specific links and remains accessible on mobile
   await page.screenshot({ path: 'test-results/docs-ai-mobile.png', fullPage: true });
 });
 
-test('published Python quickstart and shared-workspace example execute through the local API', async () => {
+test('published Python quickstart and shared-worktree example execute through the local API', async () => {
   test.setTimeout(120000);
   expect(new URL(fixtureOrigin).hostname).toBe('localhost');
   const account: { api_key: string } = JSON.parse(
@@ -271,24 +271,24 @@ from macrofold import Macrofold
 
 setup = Macrofold(base_url=os.environ['MACROFOLD_BASE_URL'])
 try:
-    project = setup.projects.create(name='Shared workspace documentation')
-    workspace = setup.workspaces.get(project.default_workspace_id)
-    setup.workspaces.write_file(workspace.id, path='handoff.txt', if_match=workspace.revision, content=b'Persistent handoff')
+    workspace = setup.workspaces.create(name='Shared worktree documentation')
+    worktree = setup.worktrees.get(workspace.default_worktree_id)
+    setup.worktrees.write_file(worktree.id, path='handoff.txt', if_match=worktree.revision, content=b'Persistent handoff')
     research_agent = setup.agents.create(name='Research docs', harness='codex', model='fixture-model', billing_mode='managed')
     review_agent = setup.agents.create(name='Review docs', harness='pi', model='fixture-model', billing_mode='managed')
     example = ${JSON.stringify(shared)}
     example = example.replace('Macrofold()', 'Macrofold(base_url=os.environ["MACROFOLD_BASE_URL"])')
-    example = example.replace('YOUR_WORKSPACE_ID', str(workspace.id)).replace('YOUR_RESEARCH_AGENT_ID', str(research_agent.id)).replace('YOUR_REVIEW_AGENT_ID', str(review_agent.id))
+    example = example.replace('YOUR_WORKTREE_ID', str(worktree.id)).replace('YOUR_RESEARCH_AGENT_ID', str(research_agent.id)).replace('YOUR_REVIEW_AGENT_ID', str(review_agent.id))
     scope = {'os': os}
     exec(example, scope)
     first, second = scope['research'], scope['review']
-    assert first.workspace_id == second.workspace_id == workspace.id
+    assert first.worktree_id == second.worktree_id == worktree.id
     assert first.session_id != second.session_id
     assert setup.runs.get(first.run_id).harness == 'codex'
     assert setup.runs.get(second.run_id).harness == 'pi'
     assert setup.runs.get_result(first.run_id).checkpoint_id is not None
     assert scope['result'].checkpoint_id is not None
-    assert setup.workspaces.read_file(workspace.id, path='handoff.txt') == b'Persistent handoff'
+    assert setup.worktrees.read_file(worktree.id, path='handoff.txt') == b'Persistent handoff'
 finally:
     setup.close()
 print('Documentation: Python quickstart and two-agent persisted handoff passed.')

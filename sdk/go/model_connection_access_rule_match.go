@@ -1,7 +1,7 @@
 /*
 Macrofold API
 
-Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
 
 API version: 0.9.0
 */
@@ -23,9 +23,9 @@ var _ MappedNullable = &ConnectionAccessRuleMatch{}
 type ConnectionAccessRuleMatch struct {
 	RuleId string `json:"rule_id"`
 	Scope string `json:"scope"`
-	ProjectId NullableString `json:"project_id,omitempty"`
+	WorkspaceId NullableString `json:"workspace_id,omitempty"`
 	AgentId NullableString `json:"agent_id,omitempty"`
-	ProjectName NullableString `json:"project_name,omitempty"`
+	WorkspaceName NullableString `json:"workspace_name,omitempty"`
 	AgentName NullableString `json:"agent_name,omitempty"`
 }
 
@@ -98,46 +98,46 @@ func (o *ConnectionAccessRuleMatch) SetScope(v string) {
 	o.Scope = v
 }
 
-// GetProjectId returns the ProjectId field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *ConnectionAccessRuleMatch) GetProjectId() string {
-	if o == nil || IsNil(o.ProjectId.Get()) {
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *ConnectionAccessRuleMatch) GetWorkspaceId() string {
+	if o == nil || IsNil(o.WorkspaceId.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.ProjectId.Get()
+	return *o.WorkspaceId.Get()
 }
 
-// GetProjectIdOk returns a tuple with the ProjectId field value if set, nil otherwise
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *ConnectionAccessRuleMatch) GetProjectIdOk() (*string, bool) {
+func (o *ConnectionAccessRuleMatch) GetWorkspaceIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.ProjectId.Get(), o.ProjectId.IsSet()
+	return o.WorkspaceId.Get(), o.WorkspaceId.IsSet()
 }
 
-// HasProjectId returns a boolean if a field has been set.
-func (o *ConnectionAccessRuleMatch) HasProjectId() bool {
-	if o != nil && o.ProjectId.IsSet() {
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *ConnectionAccessRuleMatch) HasWorkspaceId() bool {
+	if o != nil && o.WorkspaceId.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetProjectId gets a reference to the given NullableString and assigns it to the ProjectId field.
-func (o *ConnectionAccessRuleMatch) SetProjectId(v string) {
-	o.ProjectId.Set(&v)
+// SetWorkspaceId gets a reference to the given NullableString and assigns it to the WorkspaceId field.
+func (o *ConnectionAccessRuleMatch) SetWorkspaceId(v string) {
+	o.WorkspaceId.Set(&v)
 }
-// SetProjectIdNil sets the value for ProjectId to be an explicit nil
-func (o *ConnectionAccessRuleMatch) SetProjectIdNil() {
-	o.ProjectId.Set(nil)
+// SetWorkspaceIdNil sets the value for WorkspaceId to be an explicit nil
+func (o *ConnectionAccessRuleMatch) SetWorkspaceIdNil() {
+	o.WorkspaceId.Set(nil)
 }
 
-// UnsetProjectId ensures that no value is present for ProjectId, not even an explicit nil
-func (o *ConnectionAccessRuleMatch) UnsetProjectId() {
-	o.ProjectId.Unset()
+// UnsetWorkspaceId ensures that no value is present for WorkspaceId, not even an explicit nil
+func (o *ConnectionAccessRuleMatch) UnsetWorkspaceId() {
+	o.WorkspaceId.Unset()
 }
 
 // GetAgentId returns the AgentId field value if set, zero value otherwise (both if not set or set to explicit null).
@@ -182,46 +182,46 @@ func (o *ConnectionAccessRuleMatch) UnsetAgentId() {
 	o.AgentId.Unset()
 }
 
-// GetProjectName returns the ProjectName field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *ConnectionAccessRuleMatch) GetProjectName() string {
-	if o == nil || IsNil(o.ProjectName.Get()) {
+// GetWorkspaceName returns the WorkspaceName field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *ConnectionAccessRuleMatch) GetWorkspaceName() string {
+	if o == nil || IsNil(o.WorkspaceName.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.ProjectName.Get()
+	return *o.WorkspaceName.Get()
 }
 
-// GetProjectNameOk returns a tuple with the ProjectName field value if set, nil otherwise
+// GetWorkspaceNameOk returns a tuple with the WorkspaceName field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *ConnectionAccessRuleMatch) GetProjectNameOk() (*string, bool) {
+func (o *ConnectionAccessRuleMatch) GetWorkspaceNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.ProjectName.Get(), o.ProjectName.IsSet()
+	return o.WorkspaceName.Get(), o.WorkspaceName.IsSet()
 }
 
-// HasProjectName returns a boolean if a field has been set.
-func (o *ConnectionAccessRuleMatch) HasProjectName() bool {
-	if o != nil && o.ProjectName.IsSet() {
+// HasWorkspaceName returns a boolean if a field has been set.
+func (o *ConnectionAccessRuleMatch) HasWorkspaceName() bool {
+	if o != nil && o.WorkspaceName.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetProjectName gets a reference to the given NullableString and assigns it to the ProjectName field.
-func (o *ConnectionAccessRuleMatch) SetProjectName(v string) {
-	o.ProjectName.Set(&v)
+// SetWorkspaceName gets a reference to the given NullableString and assigns it to the WorkspaceName field.
+func (o *ConnectionAccessRuleMatch) SetWorkspaceName(v string) {
+	o.WorkspaceName.Set(&v)
 }
-// SetProjectNameNil sets the value for ProjectName to be an explicit nil
-func (o *ConnectionAccessRuleMatch) SetProjectNameNil() {
-	o.ProjectName.Set(nil)
+// SetWorkspaceNameNil sets the value for WorkspaceName to be an explicit nil
+func (o *ConnectionAccessRuleMatch) SetWorkspaceNameNil() {
+	o.WorkspaceName.Set(nil)
 }
 
-// UnsetProjectName ensures that no value is present for ProjectName, not even an explicit nil
-func (o *ConnectionAccessRuleMatch) UnsetProjectName() {
-	o.ProjectName.Unset()
+// UnsetWorkspaceName ensures that no value is present for WorkspaceName, not even an explicit nil
+func (o *ConnectionAccessRuleMatch) UnsetWorkspaceName() {
+	o.WorkspaceName.Unset()
 }
 
 // GetAgentName returns the AgentName field value if set, zero value otherwise (both if not set or set to explicit null).
@@ -278,14 +278,14 @@ func (o ConnectionAccessRuleMatch) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["rule_id"] = o.RuleId
 	toSerialize["scope"] = o.Scope
-	if o.ProjectId.IsSet() {
-		toSerialize["project_id"] = o.ProjectId.Get()
+	if o.WorkspaceId.IsSet() {
+		toSerialize["workspace_id"] = o.WorkspaceId.Get()
 	}
 	if o.AgentId.IsSet() {
 		toSerialize["agent_id"] = o.AgentId.Get()
 	}
-	if o.ProjectName.IsSet() {
-		toSerialize["project_name"] = o.ProjectName.Get()
+	if o.WorkspaceName.IsSet() {
+		toSerialize["workspace_name"] = o.WorkspaceName.Get()
 	}
 	if o.AgentName.IsSet() {
 		toSerialize["agent_name"] = o.AgentName.Get()

@@ -4,60 +4,17 @@
  */
 
 export interface paths {
-    "/v1/projects": {
+    "/v1/workspaces": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List authorized projects */
-        get: operations["listProjects"];
-        put?: never;
-        /** Create a project */
-        post: operations["createProject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/projects/{project_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect a project
-         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
-         */
-        get: operations["getProject"];
-        put?: never;
-        post?: never;
-        /**
-         * Archive a project
-         * @description Archive a project once its runs finish. Files and history remain available. Use the project deletion endpoint to schedule permanent removal.
-         */
-        delete: operations["deleteProject"];
-        options?: never;
-        head?: never;
-        /** Update project settings */
-        patch: operations["updateProject"];
-        trace?: never;
-    };
-    "/v1/projects/{project_id}/workspaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List project workspaces */
+        /** List authorized workspaces */
         get: operations["listWorkspaces"];
         put?: never;
-        /** Create an isolated workspace */
+        /** Create a workspace */
         post: operations["createWorkspace"];
         delete?: never;
         options?: never;
@@ -72,26 +29,69 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Inspect a workspace */
+        /**
+         * Inspect a workspace
+         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+         */
         get: operations["getWorkspace"];
         put?: never;
         post?: never;
-        /** Schedule workspace deletion */
+        /**
+         * Archive a workspace
+         * @description Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.
+         */
         delete: operations["deleteWorkspace"];
         options?: never;
         head?: never;
-        /** Rename a remote workspace */
+        /** Update workspace settings */
         patch: operations["updateWorkspace"];
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/files": {
+    "/v1/workspaces/{workspace_id}/worktrees": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Browse a revision of the workspace */
+        /** List workspace worktrees */
+        get: operations["listWorktrees"];
+        put?: never;
+        /** Create an isolated worktree */
+        post: operations["createWorktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect a worktree */
+        get: operations["getWorktree"];
+        put?: never;
+        post?: never;
+        /** Schedule worktree deletion */
+        delete: operations["deleteWorktree"];
+        options?: never;
+        head?: never;
+        /** Rename a remote worktree */
+        patch: operations["updateWorktree"];
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browse a revision of the worktree */
         get: operations["listFiles"];
         put?: never;
         post?: never;
@@ -101,7 +101,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/file": {
+    "/v1/worktrees/{worktree_id}/file": {
         parameters: {
             query?: never;
             header?: never;
@@ -110,7 +110,7 @@ export interface paths {
         };
         /**
          * Read file bytes
-         * @description Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.
+         * @description Returns the complete bytes of a regular file from the latest published worktree revision, including empty and binary files. Supply a worktree-relative path and a credential with files:read access to the workspace. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed worktree revision.
          */
         get: operations["readFile"];
         /**
@@ -124,13 +124,13 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename a workspace file
-         * @description Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.
+         * Rename a worktree file
+         * @description Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current worktree revision and an idle writer.
          */
         patch: operations["renameFile"];
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/checkpoints": {
+    "/v1/worktrees/{worktree_id}/checkpoints": {
         parameters: {
             query?: never;
             header?: never;
@@ -148,7 +148,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/restore": {
+    "/v1/worktrees/{worktree_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -158,14 +158,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore without rewriting remote history */
-        post: operations["restoreWorkspace"];
+        post: operations["restoreWorktree"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/sync": {
+    "/v1/worktrees/{worktree_id}/sync": {
         parameters: {
             query?: never;
             header?: never;
@@ -176,7 +176,7 @@ export interface paths {
         get: operations["getSync"];
         put?: never;
         /** Retry Git integration without rerunning the agent */
-        post: operations["syncWorkspace"];
+        post: operations["syncWorktree"];
         delete?: never;
         options?: never;
         head?: never;
@@ -753,7 +753,7 @@ export interface paths {
         };
         /**
          * Inspect asynchronous action
-         * @description Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.
+         * @description Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
          */
         get: operations["getOperation"];
         put?: never;
@@ -995,7 +995,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/diff": {
+    "/v1/worktrees/{worktree_id}/diff": {
         parameters: {
             query?: never;
             header?: never;
@@ -1004,9 +1004,9 @@ export interface paths {
         };
         /**
          * Inspect checkpoint-based remote file changes
-         * @description Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
+         * @description Default baseline is worktree creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
          */
-        get: operations["getWorkspaceDiff"];
+        get: operations["getWorktreeDiff"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1015,7 +1015,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/transfers": {
+    "/v1/worktrees/{worktree_id}/transfers": {
         parameters: {
             query?: never;
             header?: never;
@@ -1130,7 +1130,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_id}/github": {
+    "/v1/workspaces/{workspace_id}/github": {
         parameters: {
             query?: never;
             header?: never;
@@ -1303,7 +1303,7 @@ export interface paths {
         patch: operations["updateStoragePolicy"];
         trace?: never;
     };
-    "/v1/projects/{project_id}/deletion": {
+    "/v1/workspaces/{workspace_id}/deletion": {
         parameters: {
             query?: never;
             header?: never;
@@ -1313,9 +1313,9 @@ export interface paths {
         get?: never;
         put?: never;
         /** Schedule permanent deletion with seven days to undo */
-        post: operations["scheduleProjectDeletion"];
+        post: operations["scheduleWorkspaceDeletion"];
         /** Cancel pending permanent deletion */
-        delete: operations["cancelProjectDeletion"];
+        delete: operations["cancelWorkspaceDeletion"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1548,7 +1548,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/folders": {
+    "/v1/worktrees/{worktree_id}/folders": {
         parameters: {
             query?: never;
             header?: never;
@@ -1558,8 +1558,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create a workspace folder
-         * @description Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.
+         * Create a worktree folder
+         * @description Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current worktree revision and an idle writer.
          */
         post: operations["createFolder"];
         delete?: never;
@@ -1568,7 +1568,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_id}/worktree-options": {
+    "/v1/workspaces/{workspace_id}/worktree-options": {
         parameters: {
             query?: never;
             header?: never;
@@ -1577,7 +1577,7 @@ export interface paths {
         };
         /**
          * List saved branches and validate worktree names
-         * @description Read-only validation. Creation rechecks names and branches under the project lock. Branches come from saved project repositories.
+         * @description Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
          */
         get: operations["getWorktreeOptions"];
         put?: never;
@@ -1588,7 +1588,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/files/duplicate": {
+    "/v1/worktrees/{worktree_id}/files/duplicate": {
         parameters: {
             query?: never;
             header?: never;
@@ -2007,6 +2007,360 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a typed decision with explicit context
+         * @description One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["createInference"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish an immutable named decision revision
+         * @description Publish an immutable workspace/name/revision decision contract. Reuse its ID and exact revision in new inference submissions; withdrawing it prevents future resolution without rewriting admitted runs.
+         */
+        post: operations["createDecisionDefinition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision-definitions/{definition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a published decision revision */
+        get: operations["getDecisionDefinition"];
+        put?: never;
+        post?: never;
+        /** Withdraw a published definition from new admissions */
+        delete: operations["deleteDecisionDefinition"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/context-artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish an immutable workspace-owned context snapshot
+         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["createContextArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/context-artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read context snapshot metadata */
+        get: operations["getContextArtifact"];
+        put?: never;
+        post?: never;
+        /** Release a published context snapshot */
+        delete: operations["deleteContextArtifact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bounded-agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a finite agent that inspects authorized evidence
+         * @description A bounded JSON decision loop can read explicitly granted context snapshots, then return a validated proposal. Shares run status, events, cancellation and budget. Requires an Anthropic JSON definition with a bounded_agent policy; max_output_tokens bounds aggregate model output. No native worktree or shell. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["createBoundedAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a waiting task with a pinned, bounded recipe
+         * @description Create a waiting sequential decision task with a cumulative spend ceiling, optional bounded investigation and evidence horizon. Requires a backend API key bound to exactly one workspace. Creating a task does not start paid work; wake it with explicit authorized evidence.
+         */
+        post: operations["createDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect task budget, run lineage and application outcomes */
+        get: operations["getDecisionTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/wake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Observe an application event and start a budgeted decision
+         * @description Submit an application observation and admit one decision child under the existing task and wallet limits. Use a stable event_id and identical body for duplicate delivery. Requires the creating workspace-bound backend API key; only waiting tasks can start a new cycle.
+         */
+        post: operations["wakeDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record application acceptance, rejection or uncertainty
+         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["recordTaskOutcome"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop new task work and release evidence when child settlement completes */
+        post: operations["closeDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Release a published artifact
+         * @description Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+         */
+        delete: operations["deleteArtifact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List detailed billed usage and model tokens
+         * @description Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+         */
+        get: operations["listBillingUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List authorized sandboxes
+         * @description List authorized sandboxes Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        get: operations["listSandboxes"];
+        put?: never;
+        /**
+         * Create a sandbox or long-running server
+         * @description Create a sandbox or long-running server Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        post: operations["createSandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandboxes/{sandbox_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get sandbox state and compute allocation
+         * @description Get sandbox state and compute allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        get: operations["getSandbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandboxes/{sandbox_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause compute after verified run persistence
+         * @description Pause compute after verified run persistence Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        post: operations["pauseSandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandboxes/{sandbox_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume compute with a new prepaid allocation
+         * @description Resume compute with a new prepaid allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        post: operations["resumeSandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandboxes/{sandbox_id}/destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Destroy disposable compute and retire this sandbox ID
+         * @description Destroy disposable compute and retire this sandbox ID Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
+         */
+        post: operations["destroySandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2023,7 +2377,7 @@ export interface components {
             /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
             result?: {
                 /** Format: uuid */
-                workspace_id?: string;
+                worktree_id?: string;
                 revision?: string;
                 /** Format: uuid */
                 checkpoint_id?: string;
@@ -2034,7 +2388,7 @@ export interface components {
                 /** @description Authoritative resulting file or directory entry, absent for deletion. */
                 entry?: components["schemas"]["FileEntry"];
                 /** Format: uuid */
-                project_id?: string;
+                workspace_id?: string;
                 /** Format: uuid */
                 transfer_id?: string;
                 /** Format: uuid */
@@ -2061,7 +2415,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
-        ProjectCreate: {
+        WorkspaceCreate: {
             name: string;
             /** @enum {string} */
             persistence?: "persistent" | "ephemeral";
@@ -2080,14 +2434,14 @@ export interface components {
                  */
                 sync_mode: "push" | "pull_request";
                 /**
-                 * @description Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files.
+                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
                  * @default false
                  */
                 auto_pull: boolean;
             };
             permissions?: components["schemas"]["AgentPermissions"];
         };
-        ProjectPatch: {
+        WorkspacePatch: {
             name?: string;
             github?: {
                 installation_id: string;
@@ -2104,7 +2458,7 @@ export interface components {
                  */
                 sync_mode: "push" | "pull_request";
                 /**
-                 * @description Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files.
+                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
                  * @default false
                  */
                 auto_pull: boolean;
@@ -2112,7 +2466,7 @@ export interface components {
             archived?: boolean;
             permissions?: components["schemas"]["AgentPermissions"];
         };
-        Project: {
+        Workspace: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -2135,7 +2489,7 @@ export interface components {
                  */
                 sync_mode: "push" | "pull_request";
                 /**
-                 * @description Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files.
+                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
                  * @default false
                  */
                 auto_pull: boolean;
@@ -2146,7 +2500,7 @@ export interface components {
             storage_bytes?: string;
             archived?: boolean;
             /** Format: uuid */
-            default_workspace_id?: string;
+            default_worktree_id?: string;
             revision?: string;
             /** Format: date-time */
             deletion_due_at?: string | null;
@@ -2155,15 +2509,15 @@ export interface components {
             permissions?: components["schemas"]["AgentPermissions"];
             connections?: components["schemas"]["ContextualConnectionPage"];
         };
-        /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder. */
-        WorkspaceCreate: {
+        /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the workspace. Source selects saved starting files and never uploads a local folder. */
+        WorktreeCreate: {
             /** @description Optional. Leave empty for smart naming. */
             name?: string;
             /** Format: uuid */
             checkpoint_id?: string;
             /** @description Optional. Leave empty for smart naming. */
             branch?: string;
-            source?: components["schemas"]["WorkspaceSource"];
+            source?: components["schemas"]["WorktreeSource"];
             /**
              * @description Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
              * @enum {string}
@@ -2171,11 +2525,11 @@ export interface components {
             branch_mode?: "auto" | "new" | "existing";
             permissions?: components["schemas"]["AgentPermissions"];
         };
-        Workspace: {
+        Worktree: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             organization_id: string;
             name: string | null;
@@ -2222,7 +2576,7 @@ export interface components {
             entries: components["schemas"]["FileEntry"][];
             revision: string;
             /** @enum {string} */
-            source: "active_workspace" | "checkpoint";
+            source: "active_worktree" | "checkpoint";
             /** Format: date-time */
             observed_at: string;
             next_cursor: string | null;
@@ -2231,7 +2585,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** Format: uuid */
             run_id?: string;
             /** Format: date-time */
@@ -2257,7 +2611,7 @@ export interface components {
         };
         GitSync: {
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** @enum {string} */
             status: "disabled" | "pending" | "running" | "synced" | "already_integrated" | "conflict" | "blocked" | "failed";
             source_commit?: string;
@@ -2345,7 +2699,7 @@ export interface components {
         /** @description Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants. */
         SessionCreate: {
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** @enum {string} */
             harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
@@ -2364,7 +2718,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** @enum {string} */
             harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             model: string;
@@ -2384,13 +2738,13 @@ export interface components {
             agent_id?: string | null;
             agent_version?: number | null;
         };
-        /** @description Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
+        /** @description Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
         RunCreate: {
             prompt: string;
             /** Format: uuid */
-            project_id?: string;
-            /** Format: uuid */
             workspace_id?: string;
+            /** Format: uuid */
+            worktree_id?: string;
             /** Format: uuid */
             session_id?: string;
             /** Format: uuid */
@@ -2416,13 +2770,21 @@ export interface components {
              * @enum {string}
              */
             scheduling_class?: "background" | "interactive";
-            /** @description Only session follow-ups can queue behind workspace work. */
+            /** @description Only session follow-ups can queue behind worktree work. */
             queue_if_busy?: boolean;
             permissions?: components["schemas"]["AgentPermissions"];
             /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
             connection_access_overrides?: components["schemas"]["Grant"][];
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
+            /** Format: uuid */
+            sandbox_id?: string;
+            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
+            keep_warm_seconds?: number | null;
+            /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
+            sandbox_max_cost_micro_usd?: string;
         } & (unknown | unknown | unknown);
-        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered workspace work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
+        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
         MessageCreate: {
             prompt: string;
             limits?: components["schemas"]["Limits"];
@@ -2443,14 +2805,22 @@ export interface components {
             connection_grants?: components["schemas"]["Grant"][];
             /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
             connection_access_overrides?: components["schemas"]["Grant"][];
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
+            /** Format: uuid */
+            sandbox_id?: string;
+            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
+            keep_warm_seconds?: number | null;
+            /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
+            sandbox_max_cost_micro_usd?: string;
         };
         RunAccepted: {
             /** Format: uuid */
             run_id: string;
             /** Format: uuid */
-            session_id: string;
+            session_id: string | null;
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string | null;
             /** @enum {string} */
             status: "queued" | "provisioning" | "running";
             urls: {
@@ -2476,11 +2846,18 @@ export interface components {
              * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
              * @enum {string|null}
              */
-            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_workspace_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "workspace_unavailable" | null;
+            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity";
             /** @description Funds still held and unavailable for other jobs; released on settlement. */
             reserved_micro_usd?: string;
             /** @enum {string} */
             scheduling_class?: "background" | "interactive";
+            /** @enum {string} */
+            kind?: "native_agent" | "inference" | "bounded_agent";
+            /**
+             * Format: uuid
+             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
+             */
+            sandbox_id?: string | null;
         };
         Run: {
             /** Format: uuid */
@@ -2488,10 +2865,10 @@ export interface components {
             /** Format: uuid */
             organization_id: string;
             /** Format: uuid */
-            session_id: string;
+            session_id: string | null;
             /** Format: uuid */
-            workspace_id: string;
-            harness: string;
+            worktree_id: string | null;
+            harness: string | null;
             model: string;
             /** @enum {string} */
             status: "queued" | "provisioning" | "running" | "waiting_for_input" | "persisting" | "succeeded" | "failed" | "cancelled" | "timed_out";
@@ -2522,7 +2899,7 @@ export interface components {
              * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
              * @enum {string|null}
              */
-            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_workspace_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "workspace_unavailable" | null;
+            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity";
             /** @description Funds still held and unavailable for other jobs; released on settlement. */
             reserved_micro_usd?: string;
             /** @enum {string} */
@@ -2536,6 +2913,17 @@ export interface components {
             /** Format: uuid */
             agent_id?: string | null;
             agent_version?: number | null;
+            /** @enum {string} */
+            kind: "native_agent" | "inference" | "bounded_agent";
+            /** Format: uuid */
+            workspace_id: string | null;
+            /** Format: uuid */
+            task_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
+             */
+            sandbox_id?: string | null;
         };
         RunInput: {
             /** Format: uuid */
@@ -2563,6 +2951,7 @@ export interface components {
             content_expired?: boolean;
             /** Format: date-time */
             content_expired_at?: string;
+            inference?: components["schemas"]["InferenceReceipt"];
         };
         Event: {
             /** Format: uuid */
@@ -2587,7 +2976,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            run_id: string;
+            run_id: string | null;
             name: string;
             media_type: string;
             /** @description Non-negative integer count as a decimal string. */
@@ -2713,7 +3102,7 @@ export interface components {
             name: string;
             scopes: string[];
             /** Format: uuid */
-            project_id?: string;
+            workspace_id?: string;
             /** Format: date-time */
             expires_at?: string;
         };
@@ -2724,7 +3113,7 @@ export interface components {
             prefix: string;
             scopes: string[];
             /** Format: uuid */
-            project_id?: string;
+            workspace_id?: string;
             /** Format: date-time */
             last_used_at?: string;
             /** Format: date-time */
@@ -2739,7 +3128,7 @@ export interface components {
             prefix: string;
             scopes: string[];
             /** Format: uuid */
-            project_id?: string;
+            workspace_id?: string;
             /** Format: date-time */
             last_used_at?: string;
             /** Format: date-time */
@@ -2974,8 +3363,8 @@ export interface components {
         CheckpointPatch: {
             pinned: boolean;
         };
-        /** @description Resolve within the authorized project to an immutable commit/checkpoint before creating the clone. */
-        WorkspaceSource: {
+        /** @description Resolve within the authorized workspace to an immutable commit/checkpoint before creating the clone. */
+        WorktreeSource: {
             /** @constant */
             kind: "git_ref";
             ref: string;
@@ -2985,7 +3374,7 @@ export interface components {
             /** Format: uuid */
             checkpoint_id: string;
         };
-        WorkspacePatch: {
+        WorktreePatch: {
             name?: string;
             permissions?: components["schemas"]["AgentPermissions"];
         };
@@ -3018,7 +3407,7 @@ export interface components {
                 role: "owner" | "admin" | "member" | "viewer";
             }[];
             effective_scopes: string[];
-            project_restrictions: string[];
+            workspace_restrictions: string[];
             capabilities: components["schemas"]["CliCapabilities"];
             /** Format: uuid */
             organization_id?: string;
@@ -3036,9 +3425,9 @@ export interface components {
             binary: boolean | null;
             patch?: string;
         };
-        WorkspaceDiff: {
+        WorktreeDiff: {
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** Format: uuid */
             base_checkpoint_id?: string;
             revision: string;
@@ -3097,7 +3486,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** @enum {string} */
             direction: "push" | "pull";
             base_revision: string;
@@ -3271,7 +3660,7 @@ export interface components {
                 unreferenced_grace_days?: number;
             };
         };
-        ProjectDeletion: {
+        WorkspaceDeletion: {
             confirmation: string;
             password?: string;
         };
@@ -3364,7 +3753,7 @@ export interface components {
         TriggerCreate: {
             name: string;
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             agent_id: string;
             /** @enum {string} */
@@ -3381,7 +3770,7 @@ export interface components {
         TriggerPatch: {
             name?: string;
             /** Format: uuid */
-            project_id?: string;
+            workspace_id?: string;
             /** Format: uuid */
             agent_id?: string;
             prompt?: string;
@@ -3396,7 +3785,7 @@ export interface components {
         Trigger: {
             name: string;
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             agent_id: string;
             /** @enum {string} */
@@ -3426,7 +3815,7 @@ export interface components {
         NewTrigger: {
             name: string;
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             agent_id: string;
             /** @enum {string} */
@@ -3508,11 +3897,11 @@ export interface components {
             enabled: boolean;
         };
         FolderCreate: {
-            /** @description Relative workspace path without traversal, empty segments, or reserved platform paths. */
+            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
             path: string;
         };
         FileRename: {
-            /** @description Relative workspace path without traversal, empty segments, or reserved platform paths. */
+            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
             new_path: string;
         };
         WorktreeOptions: {
@@ -3520,7 +3909,7 @@ export interface components {
                 name: string;
                 ref: string;
                 /** Format: uuid */
-                workspace_id: string;
+                worktree_id: string;
             }[];
             valid: boolean;
             name?: string | null;
@@ -3537,7 +3926,7 @@ export interface components {
             include?: string[];
             exclude?: string[];
         };
-        /** @description Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation. */
+        /** @description Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation. */
         AgentPermissions: {
             /** @enum {integer} */
             version: 1;
@@ -3565,9 +3954,9 @@ export interface components {
         };
         ConnectionAccessRuleInput: {
             /** @enum {string} */
-            scope: "project";
+            scope: "workspace";
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
         } | {
             /** @enum {string} */
             scope: "agent";
@@ -3575,9 +3964,9 @@ export interface components {
             agent_id: string;
         } | {
             /** @enum {string} */
-            scope: "project_agent";
+            scope: "workspace_agent";
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             agent_id: string;
         };
@@ -3587,12 +3976,12 @@ export interface components {
             /** Format: uuid */
             connection_id: string;
             /** @enum {string} */
-            scope: "project" | "agent" | "project_agent";
+            scope: "workspace" | "agent" | "workspace_agent";
             /** Format: uuid */
-            project_id: string | null;
+            workspace_id: string | null;
             /** Format: uuid */
             agent_id: string | null;
-            project_name: string | null;
+            workspace_name: string | null;
             agent_name: string | null;
             unavailable: boolean;
             /** Format: date-time */
@@ -3615,7 +4004,7 @@ export interface components {
             version: string;
         };
         ConnectionAccessMatch: {
-            scopes: ("organization" | "project" | "agent" | "project_agent")[];
+            scopes: ("organization" | "workspace" | "agent" | "workspace_agent")[];
             conditional: boolean;
             matched_rule_count: number;
             matching_rules: components["schemas"]["ConnectionAccessRuleMatch"][];
@@ -3664,7 +4053,7 @@ export interface components {
             name: string;
             tools: string[];
             /** @enum {string} */
-            source: "organization" | "project" | "agent" | "project_agent" | "run_override" | "none";
+            source: "organization" | "workspace" | "agent" | "workspace_agent" | "run_override" | "none";
             ready: boolean;
             rejection_codes: string[];
             access_match: components["schemas"]["ConnectionAccessMatch"];
@@ -3676,9 +4065,9 @@ export interface components {
         };
         ConnectionAccessResolve: {
             /** Format: uuid */
-            project_id?: string;
-            /** Format: uuid */
             workspace_id?: string;
+            /** Format: uuid */
+            worktree_id?: string;
             /** Format: uuid */
             session_id?: string;
             /** Format: uuid */
@@ -3692,12 +4081,12 @@ export interface components {
             /** Format: uuid */
             rule_id: string;
             /** @enum {string} */
-            scope: "project" | "agent" | "project_agent";
+            scope: "workspace" | "agent" | "workspace_agent";
             /** Format: uuid */
-            project_id?: string | null;
+            workspace_id?: string | null;
             /** Format: uuid */
             agent_id?: string | null;
-            project_name?: string | null;
+            workspace_name?: string | null;
             agent_name?: string | null;
         };
         CustomerAgentConfiguration: {
@@ -3714,7 +4103,7 @@ export interface components {
             provider_connection_id?: string;
             limits: components["schemas"]["Limits"];
         };
-        /** @description Integration path only. Creates one project, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts. */
+        /** @description Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts. */
         CustomerAgentEnsure: {
             key: string;
             name: string;
@@ -3730,11 +4119,11 @@ export interface components {
             key: string;
             name: string;
             /** Format: uuid */
-            project_id: string;
+            workspace_id: string;
             /** Format: uuid */
             agent_id: string;
             /** Format: uuid */
-            workspace_id: string;
+            worktree_id: string;
             /** Format: date-time */
             created_at: string;
         };
@@ -3750,6 +4139,8 @@ export interface components {
             limits?: components["schemas"]["Limits"];
             /** @description Queue when this worktree is busy. Omitted means false. */
             queue_if_busy?: boolean;
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
         };
         /** @description An application-reviewed permission preset. Exact tool names are validated against the enabled provider catalog; labels are not inferred from tool names and do not replace provider OAuth scopes. */
         ConnectionCapability: {
@@ -3798,6 +4189,452 @@ export interface components {
         CustomerConnectionComplete: {
             code: string;
         };
+        InferenceLimits: {
+            max_cost_micro_usd: string;
+            max_output_tokens: number;
+            timeout_seconds: number;
+        };
+        DecisionBinding: {
+            /** @enum {string} */
+            provider: "anthropic" | "typesafe" | "openrouter";
+            model: string;
+            /** @enum {string} */
+            billing_mode: "managed" | "byok";
+            /** Format: uuid */
+            provider_connection_id?: string;
+        };
+        DecisionQuestion: {
+            /** @enum {string} */
+            kind: "json";
+        } | {
+            /** @enum {string} */
+            kind: "choice";
+            criteria: {
+                [key: string]: string;
+            };
+        } | {
+            /** @enum {string} */
+            kind: "score";
+            criteria: string[];
+        };
+        InferenceDefinition: {
+            revision: string;
+            prompt: string;
+            input_schema: {
+                [key: string]: unknown;
+            };
+            output_schema: {
+                [key: string]: unknown;
+            };
+            question: components["schemas"]["DecisionQuestion"];
+            allowed_models: {
+                /** @enum {string} */
+                provider: "anthropic" | "typesafe" | "openrouter";
+                model: string;
+            }[];
+            limits: components["schemas"]["InferenceLimits"];
+            required_records?: string[];
+            required_known?: string[];
+            require_complete?: boolean;
+            require_snapshot?: boolean;
+            bounded_agent?: components["schemas"]["BoundedAgentPolicy"];
+            /** @description Exact validated outputs treated as explicit abstention, rather than a usable value. */
+            unknown_values?: unknown[];
+        };
+        ContextAudience: {
+            /** @enum {string} */
+            kind: "application_actor" | "application";
+            id: string;
+        };
+        ContextItem: {
+            id: string;
+            /** @enum {string} */
+            kind: "observation" | "inference" | "correction" | "instruction";
+            /** @enum {string} */
+            status: "known" | "unknown" | "conflicting" | "not_applicable" | "omitted";
+            value?: unknown;
+            source: string;
+            source_revision: string;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        ExplicitContext: {
+            /** @constant */
+            schema_version: 1;
+            template_revision: string;
+            audience: components["schemas"]["ContextAudience"];
+            items: components["schemas"]["ContextItem"][];
+            complete: boolean;
+            truncated: boolean;
+            /** @enum {string} */
+            consistency: "snapshot" | "read_interval";
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            read_completed_at?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            dependency_tokens: {
+                [key: string]: string;
+            };
+        };
+        InferenceCreate: {
+            /** Format: uuid */
+            workspace_id?: string;
+            definition: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
+            input: unknown;
+            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+            model_binding: components["schemas"]["DecisionBinding"];
+            limits?: components["schemas"]["InferenceLimits"];
+            queue_timeout_seconds?: number;
+        };
+        InferenceReceipt: {
+            /** Format: uuid */
+            invocation_id: string;
+            definition_revision: string;
+            definition_digest: string;
+            context_digest: string;
+            provider_request_digest: string | null;
+            transformation_version: string;
+            dependency_tokens: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            outcome: "value" | "unknown" | "refused" | "invalid_output" | "failed" | "uncertain" | "stale_input";
+            value?: unknown;
+            /** @enum {string} */
+            provider_outcome: "not_invoked" | "responded" | "uncertain";
+            provider_request_id?: string | null;
+            model: string;
+            model_revision?: string | null;
+            /** @enum {string} */
+            model_revision_status: "pinned" | "reported" | "unavailable";
+            validation: {
+                schema_digest: string;
+                /** @enum {string} */
+                status: "not_run" | "passed" | "failed";
+            };
+            /** Format: uuid */
+            usage_request_id?: string | null;
+            timings_ms?: {
+                [key: string]: number;
+            };
+            reason_code?: string;
+            provider_evidence?: {
+                confidence?: number;
+                probabilities?: {
+                    [key: string]: number;
+                };
+            };
+        };
+        NativeRunAccepted: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            session_id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            status: "queued" | "provisioning" | "running";
+            urls: {
+                /** Format: uri */
+                status: string;
+                /** Format: uri */
+                events: string;
+                /** Format: uri */
+                stream: string;
+                /** Format: uri */
+                result: string;
+                /**
+                 * Format: uri
+                 * @description POST to request cancellation.
+                 */
+                cancel?: string;
+            };
+            /** Format: date-time */
+            queue_expires_at?: string;
+            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+            wait_seconds?: number;
+            /**
+             * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
+             * @enum {string|null}
+             */
+            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity";
+            /** @description Funds still held and unavailable for other jobs; released on settlement. */
+            reserved_micro_usd?: string;
+            /** @enum {string} */
+            scheduling_class?: "background" | "interactive";
+            /** @enum {string} */
+            kind?: "native_agent";
+            /**
+             * Format: uuid
+             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
+             */
+            sandbox_id?: string | null;
+        };
+        DefinitionReference: {
+            /** Format: uuid */
+            definition_id: string;
+            revision: string;
+        };
+        ContextReference: {
+            /** Format: uuid */
+            artifact_id: string;
+            revision: string;
+            audience: components["schemas"]["ContextAudience"];
+        };
+        DecisionDefinitionCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            definition: components["schemas"]["InferenceDefinition"];
+        };
+        DecisionDefinition: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            definition: components["schemas"]["InferenceDefinition"];
+            digest: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ContextArtifactCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            context: components["schemas"]["ExplicitContext"];
+            /** Format: uuid */
+            source_run_id?: string;
+        };
+        ContextArtifact: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            revision: string;
+            sha256: string;
+            size_bytes: string;
+            audience: components["schemas"]["ContextAudience"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
+        BoundedAgentPolicy: {
+            max_model_calls: number;
+            max_tool_calls: number;
+            context_artifacts: components["schemas"]["ContextReference"][];
+        };
+        BoundedAgentCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            definition: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
+            input: unknown;
+            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+            model_binding: components["schemas"]["DecisionBinding"];
+            limits?: components["schemas"]["InferenceLimits"];
+            queue_timeout_seconds?: number;
+        };
+        TaskStepDefinition: {
+            definition: components["schemas"]["InferenceDefinition"];
+            model_binding: components["schemas"]["DecisionBinding"];
+        };
+        DecisionTaskCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            objective: string;
+            decide: components["schemas"]["TaskStepDefinition"];
+            investigate?: components["schemas"]["TaskStepDefinition"];
+            investigate_when?: unknown;
+            max_cost_micro_usd: string;
+            max_runs: number;
+            evidence_horizon_seconds: number;
+        };
+        DecisionTaskWake: {
+            event_id: string;
+            input: unknown;
+            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+        };
+        ApplicationOutcome: {
+            event_id: string;
+            /** Format: uuid */
+            wake_id: string;
+            /** @enum {string} */
+            outcome: "accepted" | "rejected" | "unknown";
+            evidence: {
+                [key: string]: string;
+            };
+            note?: string;
+        };
+        TaskRun: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            wake_id: string;
+            /** @enum {string} */
+            step: "decide" | "investigate";
+            allocated_micro_usd: string;
+            committed_micro_usd: string | null;
+            status: string;
+        };
+        TaskOutcomeReceipt: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            created_at: string;
+            receipt: components["schemas"]["ApplicationOutcome"];
+        };
+        DecisionTask: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            objective: string;
+            /** @enum {string} */
+            status: "waiting" | "running" | "needs_investigation" | "publishing" | "proposal" | "stopped" | "closed";
+            next_step: string;
+            max_cost_micro_usd: string;
+            committed_micro_usd: string;
+            outstanding_micro_usd: string;
+            max_runs: number;
+            /** Format: date-time */
+            evidence_expires_at: string;
+            /** Format: uuid */
+            latest_wake_id: string | null;
+            /** Format: uuid */
+            proposal_artifact_id: string | null;
+            failure_code: string | null;
+            runs: components["schemas"]["TaskRun"][];
+            outcomes: components["schemas"]["TaskOutcomeReceipt"][];
+        };
+        BillingModelUsage: {
+            /** @description Total input, including cached reads and writes once. */
+            input_tokens: string | null;
+            /** @description Output includes reasoning subsets when reported. */
+            output_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cached_input_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cache_write_input_tokens: string | null;
+            completeness: string;
+            provisional: boolean;
+            bound_breached: boolean;
+            /** @description Consumes the run budget even for BYOK; not an additional charge. */
+            budget_cost_micro_usd: string | null;
+            /** @description Original model-call ceiling. */
+            reserved_micro_usd: string | null;
+            /** @description Usage at accepted retail rates, before the authorized ceiling. */
+            reported_micro_usd: string | null;
+            /** @description Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge. */
+            provider_cost_micro_usd: string | null;
+            /** @enum {string} */
+            provider_cost_status: "estimated_from_usage" | "unavailable";
+            /** @description Durable model-call identity; use to correlate gateway diagnostics and tracing. */
+            request_id: string;
+        };
+        BillingUsageEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "model" | "tool" | "compute" | "storage";
+            /**
+             * Format: date-time
+             * @description Model settlement, tool admission, run settlement, or storage observation time.
+             */
+            occurred_at: string;
+            /** Format: uuid */
+            run_id: string | null;
+            /** Format: uuid */
+            workspace_id: string | null;
+            /**
+             * Format: uuid
+             * @description Worktree ID.
+             */
+            worktree_id: string | null;
+            /** Format: uuid */
+            session_id: string | null;
+            /** @description Customer-agent binding label, when available. */
+            customer_id: string | null;
+            agent_key: string | null;
+            /** @description Model provider; otherwise null. */
+            provider: string | null;
+            model: string | null;
+            /** @enum {string|null} */
+            billing_mode: "managed" | "byok" | null;
+            /** @description Macrofold usage charge. BYOK models are zero. Null means unavailable. */
+            charged_micro_usd: string | null;
+            model_usage?: components["schemas"]["BillingModelUsage"];
+            tool?: {
+                name: string;
+                /** Format: uuid */
+                connection_id: string;
+                status: string;
+            };
+            storage?: {
+                physical_bytes: string;
+                object_count: string;
+            };
+            /**
+             * Format: uuid
+             * @description Compute allocation charged independently of individual runs, when present.
+             */
+            sandbox_id?: string;
+        };
+        BillingUsagePage: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @enum {string} */
+            currency: "USD";
+            data: components["schemas"]["BillingUsageEntry"][];
+            next_cursor: string | null;
+        };
+        /** @description Disposable compute attached to one worktree. A long-running sandbox with omitted keep_warm_seconds stays ready until paused, destroyed, or its compute allocation is exhausted. Poll its status before starting latency-sensitive work. */
+        SandboxCreate: {
+            /** Format: uuid */
+            worktree_id: string;
+            name?: string;
+            /** @description Keep compute running between agents without a default idle timeout: Docker locally, Render in hosted deployments. The filesystem is disposable; successive agents reuse the same compute environment. Ordinary sandboxes retain bounded lifetimes. */
+            long_running?: boolean;
+            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
+            keep_warm_seconds?: number | null;
+            /** @description Separate prepaid compute allocation, covering ready and idle time until pause/destroy or exhaustion. Each explicit resume authorizes another allocation of this size. Model/tool costs retain the run budget. */
+            max_cost_micro_usd?: string;
+        };
+        Sandbox: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            name: string | null;
+            long_running: boolean;
+            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
+            keep_warm_seconds: number | null;
+            /** @enum {string} */
+            status: "creating" | "ready" | "pausing" | "paused" | "destroying" | "destroyed" | "error";
+            /** Format: uuid */
+            active_run_id: string | null;
+            /** Format: date-time */
+            idle_expires_at: string | null;
+            cost_micro_usd: string;
+            max_cost_micro_usd: string;
+            reserved_micro_usd: string;
+            rate_micro_usd_per_minute: string;
+            failure_code: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SandboxPage: {
+            data: components["schemas"]["Sandbox"][];
+            next_cursor: string | null;
+        };
     };
     responses: never;
     parameters: {
@@ -3819,14 +4656,14 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listProjects: {
+    listWorkspaces: {
         parameters: {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                /** @description Case-insensitive literal substring of the project name. */
+                /** @description Case-insensitive literal substring of the workspace name. */
                 query?: string;
-                /** @description Filter archived or active projects. */
+                /** @description Filter archived or active workspaces. */
                 archived?: boolean;
             };
             header?: {
@@ -3834,194 +4671,6 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Project"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createProject: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Project"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getProject: {
-        parameters: {
-            query?: {
-                include_connections?: boolean;
-                agent_id?: string;
-                connections_limit?: number;
-                connections_cursor?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Project"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteProject: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateProject: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Project"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listWorkspaces: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                project_id: string;
-            };
             cookie?: never;
         };
         requestBody?: never;
@@ -4057,9 +4706,7 @@ export interface operations {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
-            path: {
-                project_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -4068,13 +4715,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Operation"];
+                    "application/json": components["schemas"]["Workspace"];
                 };
             };
             /** @description Error */
@@ -4090,7 +4737,12 @@ export interface operations {
     };
     getWorkspace: {
         parameters: {
-            query?: never;
+            query?: {
+                include_connections?: boolean;
+                agent_id?: string;
+                connections_limit?: number;
+                connections_cursor?: string;
+            };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
@@ -4194,6 +4846,191 @@ export interface operations {
             };
         };
     };
+    listWorktrees: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Worktree"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWorktree: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorktreeCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorktree: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worktree"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteWorktree: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWorktree: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorktreePatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worktree"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     listFiles: {
         parameters: {
             query?: {
@@ -4210,7 +5047,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4248,7 +5085,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4297,7 +5134,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4339,7 +5176,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4377,7 +5214,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4418,7 +5255,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4456,7 +5293,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4486,7 +5323,7 @@ export interface operations {
             };
         };
     };
-    restoreWorkspace: {
+    restoreWorktree: {
         parameters: {
             query?: never;
             header: {
@@ -4495,7 +5332,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4533,7 +5370,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4559,7 +5396,7 @@ export interface operations {
             };
         };
     };
-    syncWorkspace: {
+    syncWorktree: {
         parameters: {
             query?: never;
             header: {
@@ -4568,7 +5405,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -4685,7 +5522,7 @@ export interface operations {
         parameters: {
             query?: {
                 include_connections?: boolean;
-                project_id?: string;
+                workspace_id?: string;
                 connections_limit?: number;
                 connections_cursor?: string;
             };
@@ -4795,7 +5632,7 @@ export interface operations {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                workspace_id?: string;
+                worktree_id?: string;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -4925,7 +5762,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunAccepted"];
+                    "application/json": components["schemas"]["NativeRunAccepted"];
                 };
             };
             /** @description Error */
@@ -4943,14 +5780,14 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
-                project_id?: string;
+                workspace_id?: string;
                 /** @description Inclusive interval start; default trailing 7 days. */
                 from?: components["parameters"]["From"];
                 /** @description Exclusive interval end; default now. */
                 to?: components["parameters"]["To"];
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                workspace_id?: string;
+                worktree_id?: string;
                 session_id?: string;
             };
             header?: {
@@ -5008,7 +5845,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunAccepted"];
+                    "application/json": components["schemas"]["NativeRunAccepted"];
                 };
             };
             /** @description Error */
@@ -5325,7 +6162,7 @@ export interface operations {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                project_id?: string;
+                workspace_id?: string;
                 agent_id?: string;
             };
             header?: {
@@ -6687,7 +7524,7 @@ export interface operations {
             };
         };
     };
-    getWorkspaceDiff: {
+    getWorktreeDiff: {
         parameters: {
             query?: {
                 base_checkpoint_id?: string;
@@ -6700,7 +7537,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -6712,7 +7549,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkspaceDiff"];
+                    "application/json": components["schemas"]["WorktreeDiff"];
                 };
             };
             /** @description Error */
@@ -6737,7 +7574,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -6775,7 +7612,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -6992,7 +7829,7 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["Idempotency"];
             };
             path: {
-                project_id: string;
+                workspace_id: string;
             };
             cookie?: never;
         };
@@ -7004,7 +7841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"];
+                    "application/json": components["schemas"]["Workspace"];
                 };
             };
             /** @description Request failed */
@@ -7441,7 +8278,7 @@ export interface operations {
             };
         };
     };
-    scheduleProjectDeletion: {
+    scheduleWorkspaceDeletion: {
         parameters: {
             query?: never;
             header: {
@@ -7450,13 +8287,13 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                project_id: string;
+                workspace_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectDeletion"];
+                "application/json": components["schemas"]["WorkspaceDeletion"];
             };
         };
         responses: {
@@ -7466,7 +8303,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"];
+                    "application/json": components["schemas"]["Workspace"];
                 };
             };
             /** @description Error */
@@ -7480,7 +8317,7 @@ export interface operations {
             };
         };
     };
-    cancelProjectDeletion: {
+    cancelWorkspaceDeletion: {
         parameters: {
             query?: never;
             header: {
@@ -7489,7 +8326,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                project_id: string;
+                workspace_id: string;
             };
             cookie?: never;
         };
@@ -7501,7 +8338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"];
+                    "application/json": components["schemas"]["Workspace"];
                 };
             };
             /** @description Error */
@@ -8157,7 +8994,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -8198,7 +9035,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                project_id: string;
+                workspace_id: string;
             };
             cookie?: never;
         };
@@ -8234,7 +9071,7 @@ export interface operations {
                 "X-Organization-Id"?: string;
             };
             path: {
-                workspace_id: string;
+                worktree_id: string;
             };
             cookie?: never;
         };
@@ -8347,9 +9184,9 @@ export interface operations {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                project_id?: string;
+                workspace_id?: string;
                 agent_id?: string;
-                sort?: "project" | "agent" | "created_at";
+                sort?: "workspace" | "agent" | "created_at";
                 direction?: "asc" | "desc";
             };
             header?: {
@@ -8691,7 +9528,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunAccepted"];
+                    "application/json": components["schemas"]["NativeRunAccepted"];
                 };
             };
             /** @description Error */
@@ -9268,6 +10105,742 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createInference: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InferenceCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDefinitionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createContextArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContextArtifactCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getContextArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteContextArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createBoundedAgentRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoundedAgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createDecisionTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionTaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDecisionTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    wakeDecisionTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionTaskWake"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    recordTaskOutcome: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplicationOutcome"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    closeDecisionTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Released */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listBillingUsage: {
+        parameters: {
+            query: {
+                /** @description Inclusive RFC3339 interval start. */
+                from: string;
+                /** @description Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. */
+                to: string;
+                workspace_id?: string;
+                worktree_id?: string;
+                run_id?: string;
+                session_id?: string;
+                customer_id?: string;
+                agent_key?: string;
+                provider?: string;
+                model?: string;
+                kind?: "model" | "tool" | "compute" | "storage";
+                billing_mode?: "managed" | "byok";
+                /** @description Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. */
+                cursor?: string;
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage records; next_cursor is null when finished. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingUsagePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSandboxes: {
+        parameters: {
+            query?: {
+                worktree_id?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SandboxPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSandbox: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SandboxCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sandbox"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSandbox: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                sandbox_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sandbox"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    pauseSandbox: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                sandbox_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sandbox"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    resumeSandbox: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                sandbox_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sandbox"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    destroySandbox: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                sandbox_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sandbox"];
                 };
             };
             /** @description Error */

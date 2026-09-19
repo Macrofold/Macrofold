@@ -1,6 +1,6 @@
 # Deploy on Vercel
 
-Deploy the dashboard and API on Vercel, store application data in Neon PostgreSQL, keep encrypted project files in Cloudflare R2, and run agents in Vercel Sandbox.
+Deploy the dashboard and API on Vercel, store application data in Neon PostgreSQL, keep encrypted workspace files in Cloudflare R2, and run agents in Vercel Sandbox.
 
 Follow this guide **first for staging**, then repeat it for production with separate resources. The commands below are for macOS or Linux in Bash. Run each block in order and wait for its check to pass. You do not need to create a separate worker service, install Redis, or provision Neon Auth.
 
@@ -196,7 +196,7 @@ chmod 600 "$LAUNCH_DIR/runtime.env" "$LAUNCH_DIR/migration.env"
 | `migration.env`   | Schema migrations and OAuth provisioning on your computer  | **Never**                    |
 | Repository `.env` | Local simulation only                                      | **Never**                    |
 
-Back up the completed files in your password manager. The vault key is required to decrypt stored credentials and project data.
+Back up the completed files in your password manager. The vault key is required to decrypt stored credentials and workspace data.
 
 ### If this environment already exists
 
@@ -368,6 +368,8 @@ In **Settings → Object lifecycle rules**, add a rule with:
 
 ### 3.3 Verify the sending domain in Resend
 
+Check the domain's current authoritative nameservers before editing DNS. If DNS hosting moved, add the required records at the new provider and verify their public answers; a sender's previously verified status does not prove that records survived the move. Preserve existing website and mail records.
+
 1. Open [Resend Domains](https://resend.com/domains) and choose **Add domain**. Use a sending subdomain you control, such as `mail.example.com`.
 2. Copy each required DNS record's type, name, and value into your DNS provider. Keep any mail/DNS records that already serve other systems.
 3. Return to Resend and verify the domain. Wait until the sending records are verified.
@@ -386,6 +388,10 @@ Replace `mail.example.com` with the domain you verified. The operator's receivin
 ## 4. Build the native runtime
 
 ### 4.1 Create and link the Vercel project
+
+Use a dedicated application project when your main domain already serves a marketing site. Link the release to that application project and attach its app hostname; do not replace the marketing project's runtime configuration or domain assignment.
+
+For a dedicated app hostname, add `LOGIN_HOMEPAGE=true` to its runtime file and Vercel environment, leaving `MARKETING_HOMEPAGE` unset. Signed-out visits to `/` then redirect to `/login`; signed-in visits still open the dashboard. The separate marketing deployment can keep `MARKETING_HOMEPAGE=true`.
 
 Keep using the release-copy terminal. Define a short command for the current Vercel CLI and log in:
 
@@ -656,16 +662,16 @@ Make the canonical staging origin externally reachable before testing CLI or web
 Then:
 
 1. Sign out and use **Forgot password**. Complete the emailed reset, sign in again, and verify the authenticator prompt.
-2. In **Projects**, create `Launch check`. Keep it as an empty persistent project for now.
+2. In **Workspaces**, create `Launch check`. Keep it as an empty persistent workspace for now.
 3. Open its workspace files, click **New file**, enter `launch-check.txt`, and click **Create file**. Enter a short test sentence, click **Save**, reload, and verify the contents remain.
-4. In **API keys → Create API key**, enter `launch-check`, set **Project access** to `Launch check`, choose **30 days** under **Expires after**, and select only `projects:read` and `runs:read` in **Permissions**. Create it and copy the value once to your password manager. You will revoke it immediately after the check.
+4. In **API keys → Create API key**, enter `launch-check`, set **Workspace access** to `Launch check`, choose **30 days** under **Expires after**, and select only `workspaces:read` and `runs:read` in **Permissions**. Create it and copy the value once to your password manager. You will revoke it immediately after the check.
 5. Test that key without storing it in shell history:
 
 ```sh
 read -r -s -p "Paste the launch-check API key: " LAUNCH_API_KEY
 printf '\n'
 printf 'Authorization: Bearer %s\n' "$LAUNCH_API_KEY" |
-  curl --fail-with-body --silent --show-error --header @- "$LAUNCH_ORIGIN/v1/projects"
+  curl --fail-with-body --silent --show-error --header @- "$LAUNCH_ORIGIN/v1/workspaces"
 unset LAUNCH_API_KEY
 ```
 
@@ -675,11 +681,11 @@ unset LAUNCH_API_KEY
 ```sh
 export AGENT_CONFIG_DIR="$LAUNCH_DIR/cli"
 pnpm cli login --host "$LAUNCH_ORIGIN"
-pnpm cli project list
+pnpm cli workspace list
 pnpm cli doctor
 ```
 
-Complete device authorization in your browser. **Check:** it selects the intended organization, project listing works, and doctor sees the configured model without executing it. [CLI instructions](../features/cli/README.md).
+Complete device authorization in your browser. **Check:** it selects the intended organization, workspace listing works, and doctor sees the configured model without executing it. [CLI instructions](../features/cli/README.md).
 
 ### 7.3 Activate and check billing
 
@@ -737,7 +743,7 @@ If a check fails, pause admission, inspect the existing run and logs, and diagno
 
 ### 8.2 Complete the launch acceptance checks
 
-Use only synthetic projects/accounts. Complete [the pre-deployment checklist](pre-deployment.md), including:
+Use only synthetic workspaces/accounts. Complete [the pre-deployment checklist](pre-deployment.md), including:
 
 | Test                                  | Required result                                                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -746,7 +752,7 @@ Use only synthetic projects/accounts. Complete [the pre-deployment checklist](pr
 | Historical streaming                  | Leave a run page and return; saved output and tool events replay.                                                  |
 | Cancellation and queue expiry         | Explicit terminal outcome, preserved history, and released reservations.                                           |
 | File transfer and recovery            | Upload a file larger than 4 MiB through staged transfer; download identical bytes; restore a known checkpoint.     |
-| Tenant isolation                      | A second synthetic organization cannot read the first organization's project, files, run, or stream.               |
+| Tenant isolation                      | A second synthetic organization cannot read the first organization's workspace, files, run, or stream.               |
 | Revocation                            | A revoked API key, session, or delegated connection loses access.                                                  |
 | Scheduling/recovery                   | Worker/Workflow recovery preserves one execution identity; queues drain and limits hold.                           |
 | Offered integrations                  | Each enabled harness/model, Git sync, search, connector, and MCP path passes its specific success/revocation test. |

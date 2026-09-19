@@ -5,7 +5,7 @@ import { id } from '../../packages/core/src/crypto';
 import { customerScopes, type Principal } from '../../packages/core/src/auth';
 import { githubWebhook, dispatchGithubPulls } from '../../packages/core/src/github-webhooks';
 import { queueGitSync, executeGitJob } from '../../packages/core/src/git-jobs';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import * as r from '../../packages/core/src/resources';
 import { gitServer } from '../fixtures/git-server';
 process.env.GITHUB_WEBHOOK_SECRET = 'local-webhook-fixture-only';
@@ -48,7 +48,7 @@ it('verifies and deduplicates notifications, pulls real Git changes, and fences 
     role: 'owner',
     operator: false,
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
   };
   const server = await gitServer();
   let calls = 0;
@@ -70,15 +70,15 @@ it('verifies and deduplicates notifications, pulls real Git changes, and fences 
         "INSERT INTO github_repository_grants(organization_id,installation_id,repository_id,full_name,default_branch,granted_by) VALUES($1,$2,'1','fixture/repo','main',$3)",
         [org, installation, user],
       );
-      const project = await r.create(tx, 'projects', org, {
-        name: 'Webhook project',
+      const workspace = await r.create(tx, 'workspaces', org, {
+        name: 'Webhook workspace',
         github: { installation_id: installation, repository_id: '1', target_branch: 'main', auto_pull: true,
           auto_sync: false,
           sync_mode: 'push',
         },
       });
-      const op = await createWorkspace(tx, p, project.id, { name: 'main' });
-      return r.get(tx, 'workspaces', String((op.result as { workspace_id: string }).workspace_id));
+      const op = await createWorktree(tx, p, workspace.id, { name: 'main' });
+      return r.get(tx, 'worktrees', String((op.result as { worktree_id: string }).worktree_id));
     });
     const first = await transaction(org, (tx) => queueGitSync(tx, p, ws.id, 'pull'));
     await executeGitJob(org, first.id, host);
@@ -109,7 +109,7 @@ it('verifies and deduplicates notifications, pulls real Git changes, and fences 
       async (tx) =>
         (
           await tx.query(
-            "SELECT id FROM operations WHERE data->>'github_notification'='true' AND data->'result'->>'workspace_id'=$1",
+            "SELECT id FROM operations WHERE data->>'github_notification'='true' AND data->'result'->>'worktree_id'=$1",
             [ws.id],
           )
         ).rows[0],
@@ -117,7 +117,7 @@ it('verifies and deduplicates notifications, pulls real Git changes, and fences 
     expect(operation).toBeDefined();
     await executeGitJob(org, operation.id, host);
     await transaction(org, async (tx) => {
-      const current = await r.get(tx, 'workspaces', ws.id);
+      const current = await r.get(tx, 'worktrees', ws.id);
       expect(current.git_commit).toBe(after);
       expect(current.remote_change).toBeNull();
       expect((await r.get(tx, 'operations', operation.id)).status).toBe('succeeded');

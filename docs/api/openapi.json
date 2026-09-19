@@ -4,7 +4,7 @@
   "info": {
     "title": "Macrofold API",
     "version": "0.9.0",
-    "description": "Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.",
+    "description": "Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.",
     "license": {
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
@@ -17,12 +17,12 @@
     }
   ],
   "paths": {
-    "/v1/projects": {
+    "/v1/workspaces": {
       "get": {
-        "operationId": "listProjects",
-        "summary": "List authorized projects",
+        "operationId": "listWorkspaces",
+        "summary": "List authorized workspaces",
         "tags": [
-          "projects"
+          "workspaces"
         ],
         "description": "",
         "security": [
@@ -34,7 +34,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
@@ -62,7 +62,7 @@
               "type": "string",
               "maxLength": 120
             },
-            "description": "Case-insensitive literal substring of the project name."
+            "description": "Case-insensitive literal substring of the workspace name."
           },
           {
             "in": "query",
@@ -70,7 +70,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "Filter archived or active projects."
+            "description": "Filter archived or active workspaces."
           }
         ],
         "responses": {
@@ -84,7 +84,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Project"
+                        "$ref": "#/components/schemas/Workspace"
                       }
                     },
                     "next_cursor": {
@@ -115,14 +115,14 @@
           }
         },
         "x-required-scopes": [
-          "projects:read"
+          "workspaces:read"
         ]
       },
       "post": {
-        "operationId": "createProject",
-        "summary": "Create a project",
+        "operationId": "createWorkspace",
+        "summary": "Create a workspace",
         "tags": [
-          "projects"
+          "workspaces"
         ],
         "description": "",
         "security": [
@@ -134,7 +134,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
             ]
           }
         ],
@@ -159,7 +159,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
@@ -180,22 +180,22 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProjectCreate"
+                "$ref": "#/components/schemas/WorkspaceCreate"
               }
             }
           }
         },
         "x-required-scopes": [
-          "projects:write"
+          "workspaces:write"
         ]
       }
     },
-    "/v1/projects/{project_id}": {
+    "/v1/workspaces/{workspace_id}": {
       "get": {
-        "operationId": "getProject",
-        "summary": "Inspect a project",
+        "operationId": "getWorkspace",
+        "summary": "Inspect a workspace",
         "tags": [
-          "projects"
+          "workspaces"
         ],
         "description": "Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.",
         "security": [
@@ -207,13 +207,13 @@
           },
           {
             "CustomerOAuth": [
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
         "parameters": [
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -275,393 +275,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:read"
-        ]
-      },
-      "patch": {
-        "operationId": "updateProject",
-        "summary": "Update project settings",
-        "tags": [
-          "projects"
-        ],
-        "description": "",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "projects:write"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Project"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProjectPatch"
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:write"
-        ]
-      },
-      "delete": {
-        "operationId": "deleteProject",
-        "summary": "Archive a project",
-        "tags": [
-          "projects"
-        ],
-        "description": "Archive a project once its runs finish. Files and history remain available. Use the project deletion endpoint to schedule permanent removal.",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "projects:write"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted asynchronous operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Operation"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:write"
-        ]
-      }
-    },
-    "/v1/projects/{project_id}/workspaces": {
-      "get": {
-        "operationId": "listWorkspaces",
-        "summary": "List project workspaces",
-        "tags": [
-          "projects"
-        ],
-        "description": "",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "projects:read"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Cursor"
-          },
-          {
-            "$ref": "#/components/parameters/Limit"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Workspace"
-                      }
-                    },
-                    "next_cursor": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "next_cursor"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:read"
-        ]
-      },
-      "post": {
-        "operationId": "createWorkspace",
-        "summary": "Create an isolated workspace",
-        "tags": [
-          "projects"
-        ],
-        "description": "",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "projects:write"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted asynchronous operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Operation"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorkspaceCreate"
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:write"
-        ]
-      }
-    },
-    "/v1/workspaces/{workspace_id}": {
-      "get": {
-        "operationId": "getWorkspace",
-        "summary": "Inspect a workspace",
-        "tags": [
-          "workspaces"
-        ],
-        "description": "",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "projects:read"
-            ]
-          }
-        ],
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
                   "$ref": "#/components/schemas/Workspace"
                 }
               }
@@ -679,12 +292,12 @@
           }
         },
         "x-required-scopes": [
-          "projects:read"
+          "workspaces:read"
         ]
       },
-      "delete": {
-        "operationId": "deleteWorkspace",
-        "summary": "Schedule workspace deletion",
+      "patch": {
+        "operationId": "updateWorkspace",
+        "summary": "Update workspace settings",
         "tags": [
           "workspaces"
         ],
@@ -698,63 +311,9 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
             ]
           }
-        ],
-        "parameters": [
-          {
-            "name": "workspace_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted asynchronous operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Operation"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "x-required-scopes": [
-          "projects:write"
-        ]
-      },
-      "patch": {
-        "operationId": "updateWorkspace",
-        "summary": "Rename a remote workspace",
-        "description": "",
-        "tags": [
-          "workspaces"
         ],
         "parameters": [
           {
@@ -809,6 +368,17 @@
             }
           }
         },
+        "x-required-scopes": [
+          "workspaces:write"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteWorkspace",
+        "summary": "Archive a workspace",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "Archive a workspace once its runs finish. Files and history remain available. Use the workspace deletion endpoint to schedule permanent removal.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -818,21 +388,451 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "workspaces:write"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspace_id}/worktrees": {
+      "get": {
+        "operationId": "listWorktrees",
+        "summary": "List workspace worktrees",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workspaces:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Worktree"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next_cursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "workspaces:read"
+        ]
+      },
+      "post": {
+        "operationId": "createWorktree",
+        "summary": "Create an isolated worktree",
+        "tags": [
+          "workspaces"
+        ],
+        "description": "",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workspaces:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorktreeCreate"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "workspaces:write"
+        ]
+      }
+    },
+    "/v1/worktrees/{worktree_id}": {
+      "get": {
+        "operationId": "getWorktree",
+        "summary": "Inspect a worktree",
+        "tags": [
+          "worktrees"
+        ],
+        "description": "",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workspaces:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "worktree_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worktree"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "workspaces:read"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteWorktree",
+        "summary": "Schedule worktree deletion",
+        "tags": [
+          "worktrees"
+        ],
+        "description": "",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workspaces:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "worktree_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "workspaces:write"
+        ]
+      },
+      "patch": {
+        "operationId": "updateWorktree",
+        "summary": "Rename a remote worktree",
+        "description": "",
+        "tags": [
+          "worktrees"
+        ],
+        "parameters": [
+          {
+            "name": "worktree_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worktree"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorktreePatch"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workspaces:write"
             ]
           }
         ],
         "x-required-scopes": [
-          "projects:write"
+          "workspaces:write"
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/files": {
+    "/v1/worktrees/{worktree_id}/files": {
       "get": {
         "operationId": "listFiles",
-        "summary": "Browse a revision of the workspace",
+        "summary": "Browse a revision of the worktree",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -850,7 +850,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -928,14 +928,14 @@
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/file": {
+    "/v1/worktrees/{worktree_id}/file": {
       "get": {
         "operationId": "readFile",
         "summary": "Read file bytes",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
-        "description": "Returns the complete bytes of a regular file from the latest published workspace revision, including empty and binary files. Supply a workspace-relative path and a credential with files:read access to the project. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed workspace revision.",
+        "description": "Returns the complete bytes of a regular file from the latest published worktree revision, including empty and binary files. Supply a worktree-relative path and a credential with files:read access to the workspace. Wait for run execution and persistence before reading agent edits; active runs expose the last published revision. Direct reads are limited to 4 MiB and larger files return 413 without truncation. Use download=true for a short-lived streaming download URL. Symlinks are not followed. The ETag identifies the observed worktree revision.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -951,7 +951,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1031,7 +1031,7 @@
         "operationId": "writeFile",
         "summary": "Persist an atomic file replacement",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "Binary-safe direct file writes up to 4 MiB; use staged transfers for files up to 25 MiB. Requires If-Match and Idempotency-Key; no active writer.",
         "security": [
@@ -1049,7 +1049,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1128,7 +1128,7 @@
         "operationId": "deleteFile",
         "summary": "Persist file deletion",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1146,7 +1146,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1202,11 +1202,11 @@
       },
       "patch": {
         "operationId": "renameFile",
-        "summary": "Rename a workspace file",
+        "summary": "Rename a worktree file",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
-        "description": "Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current workspace revision and an idle writer.",
+        "description": "Move a persisted file or symlink to new_path in one verified checkpoint. Does not overwrite an existing file or directory and does not follow symlinks. Requires the current worktree revision and an idle writer.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1222,7 +1222,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1287,12 +1287,12 @@
         }
       }
     },
-    "/v1/workspaces/{workspace_id}/checkpoints": {
+    "/v1/worktrees/{worktree_id}/checkpoints": {
       "get": {
         "operationId": "listCheckpoints",
         "summary": "List recoverable checkpoints",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1310,7 +1310,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1384,7 +1384,7 @@
         "operationId": "createCheckpoint",
         "summary": "Create a verified checkpoint",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1402,7 +1402,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1461,12 +1461,12 @@
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/restore": {
+    "/v1/worktrees/{worktree_id}/restore": {
       "post": {
-        "operationId": "restoreWorkspace",
+        "operationId": "restoreWorktree",
         "summary": "Restore without rewriting remote history",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1484,7 +1484,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1543,12 +1543,12 @@
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/sync": {
+    "/v1/worktrees/{worktree_id}/sync": {
       "get": {
         "operationId": "getSync",
         "summary": "Inspect Git integration",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1566,7 +1566,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1612,10 +1612,10 @@
         ]
       },
       "post": {
-        "operationId": "syncWorkspace",
+        "operationId": "syncWorktree",
         "summary": "Retry Git integration without rerunning the agent",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "",
         "security": [
@@ -1633,7 +1633,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1920,7 +1920,7 @@
             }
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2141,7 +2141,7 @@
             "$ref": "#/components/parameters/Limit"
           },
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2397,7 +2397,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunAccepted"
+                  "$ref": "#/components/schemas/NativeRunAccepted"
                 }
               }
             }
@@ -2458,7 +2458,7 @@
             }
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "query",
             "schema": {
               "type": "string",
@@ -2478,7 +2478,7 @@
             "$ref": "#/components/parameters/Limit"
           },
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2592,7 +2592,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunAccepted"
+                  "$ref": "#/components/schemas/NativeRunAccepted"
                 }
               }
             }
@@ -3320,7 +3320,7 @@
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -5139,7 +5139,7 @@
         "tags": [
           "operations"
         ],
-        "description": "Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a workspace resolves result.workspace_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding project/file/run read permission, never merely possession of operation ID.",
+        "description": "Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -5196,8 +5196,8 @@
         },
         "x-required-scopes": [],
         "x-conditional-scopes": {
-          "workspace_lifecycle": [
-            "projects:read"
+          "worktree_lifecycle": [
+            "workspaces:read"
           ],
           "file_transfer_or_checkpoint_or_export_or_git_sync": [
             "files:read"
@@ -5998,17 +5998,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/diff": {
+    "/v1/worktrees/{worktree_id}/diff": {
       "get": {
-        "operationId": "getWorkspaceDiff",
+        "operationId": "getWorktreeDiff",
         "summary": "Inspect checkpoint-based remote file changes",
-        "description": "Default baseline is workspace creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.",
+        "description": "Default baseline is worktree creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6059,7 +6059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkspaceDiff"
+                  "$ref": "#/components/schemas/WorktreeDiff"
                 }
               }
             }
@@ -6093,17 +6093,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/transfers": {
+    "/v1/worktrees/{worktree_id}/transfers": {
       "post": {
         "operationId": "createTransfer",
         "summary": "Plan explicit local/remote file transfer",
         "description": "Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6187,11 +6187,11 @@
         "summary": "List file transfer plans",
         "description": "",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6548,7 +6548,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
             ]
           }
         ],
@@ -6587,7 +6587,7 @@
           }
         },
         "x-required-scopes": [
-          "projects:write"
+          "workspaces:write"
         ]
       }
     },
@@ -6607,7 +6607,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
             ]
           }
         ],
@@ -6655,11 +6655,11 @@
           }
         },
         "x-required-scopes": [
-          "projects:write"
+          "workspaces:write"
         ]
       }
     },
-    "/v1/projects/{project_id}/github": {
+    "/v1/workspaces/{workspace_id}/github": {
       "delete": {
         "operationId": "disconnectGithub",
         "summary": "disconnectGithub",
@@ -6675,13 +6675,13 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write"
+              "workspaces:write"
             ]
           }
         ],
         "parameters": [
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6709,7 +6709,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
@@ -6726,7 +6726,7 @@
           }
         },
         "x-required-scopes": [
-          "projects:write"
+          "workspaces:write"
         ]
       }
     },
@@ -7584,12 +7584,12 @@
         }
       }
     },
-    "/v1/projects/{project_id}/deletion": {
+    "/v1/workspaces/{workspace_id}/deletion": {
       "post": {
-        "operationId": "scheduleProjectDeletion",
+        "operationId": "scheduleWorkspaceDeletion",
         "summary": "Schedule permanent deletion with seven days to undo",
         "tags": [
-          "projects"
+          "workspaces"
         ],
         "description": "",
         "security": [
@@ -7601,7 +7601,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:delete"
+              "workspaces:delete"
             ]
           }
         ],
@@ -7620,7 +7620,7 @@
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -7635,7 +7635,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
@@ -7656,20 +7656,20 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProjectDeletion"
+                "$ref": "#/components/schemas/WorkspaceDeletion"
               }
             }
           }
         },
         "x-required-scopes": [
-          "projects:delete"
+          "workspaces:delete"
         ]
       },
       "delete": {
-        "operationId": "cancelProjectDeletion",
+        "operationId": "cancelWorkspaceDeletion",
         "summary": "Cancel pending permanent deletion",
         "tags": [
-          "projects"
+          "workspaces"
         ],
         "description": "",
         "security": [
@@ -7681,7 +7681,7 @@
           },
           {
             "CustomerOAuth": [
-              "projects:delete"
+              "workspaces:delete"
             ]
           }
         ],
@@ -7700,7 +7700,7 @@
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -7715,7 +7715,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Project"
+                  "$ref": "#/components/schemas/Workspace"
                 }
               }
             }
@@ -7732,7 +7732,7 @@
           }
         },
         "x-required-scopes": [
-          "projects:delete"
+          "workspaces:delete"
         ]
       }
     },
@@ -8126,7 +8126,7 @@
               "triggers:write",
               "runs:write",
               "runs:read",
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
@@ -8134,7 +8134,7 @@
           "triggers:write",
           "runs:write",
           "runs:read",
-          "projects:read"
+          "workspaces:read"
         ],
         "parameters": [
           {
@@ -9089,14 +9089,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace_id}/folders": {
+    "/v1/worktrees/{worktree_id}/folders": {
       "post": {
         "operationId": "createFolder",
-        "summary": "Create a workspace folder",
+        "summary": "Create a worktree folder",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
-        "description": "Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current workspace revision and an idle writer.",
+        "description": "Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current worktree revision and an idle writer.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -9112,7 +9112,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -9174,14 +9174,14 @@
         }
       }
     },
-    "/v1/projects/{project_id}/worktree-options": {
+    "/v1/workspaces/{workspace_id}/worktree-options": {
       "get": {
         "operationId": "getWorktreeOptions",
         "summary": "List saved branches and validate worktree names",
         "tags": [
-          "projects"
+          "workspaces"
         ],
-        "description": "Read-only validation. Creation rechecks names and branches under the project lock. Branches come from saved project repositories.",
+        "description": "Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -9191,13 +9191,13 @@
           },
           {
             "CustomerOAuth": [
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
         "parameters": [
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -9255,16 +9255,16 @@
           }
         },
         "x-required-scopes": [
-          "projects:read"
+          "workspaces:read"
         ]
       }
     },
-    "/v1/workspaces/{workspace_id}/files/duplicate": {
+    "/v1/worktrees/{worktree_id}/files/duplicate": {
       "post": {
         "operationId": "duplicateFile",
         "summary": "Duplicate a file",
         "tags": [
-          "workspaces"
+          "worktrees"
         ],
         "description": "Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.",
         "security": [
@@ -9282,7 +9282,7 @@
         ],
         "parameters": [
           {
-            "name": "workspace_id",
+            "name": "worktree_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -9566,7 +9566,7 @@
             "$ref": "#/components/parameters/Limit"
           },
           {
-            "name": "project_id",
+            "name": "workspace_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -9590,7 +9590,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "project",
+                "workspace",
                 "agent",
                 "created_at"
               ]
@@ -10040,13 +10040,13 @@
           },
           {
             "CustomerOAuth": [
-              "projects:write",
+              "workspaces:write",
               "runs:write"
             ]
           }
         ],
         "x-required-scopes": [
-          "projects:write",
+          "workspaces:write",
           "runs:write"
         ],
         "parameters": [
@@ -10059,7 +10059,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "X-Organization-Id",
@@ -10110,7 +10110,7 @@
       },
       "get": {
         "operationId": "listCustomerAgents",
-        "summary": "List one customer’s agent bindings",
+        "summary": "List one customer\u2019s agent bindings",
         "tags": [
           "customerAgents"
         ],
@@ -10125,12 +10125,12 @@
           },
           {
             "CustomerOAuth": [
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
         "x-required-scopes": [
-          "projects:read"
+          "workspaces:read"
         ],
         "parameters": [
           {
@@ -10142,7 +10142,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "X-Organization-Id",
@@ -10215,12 +10215,12 @@
           },
           {
             "CustomerOAuth": [
-              "projects:read"
+              "workspaces:read"
             ]
           }
         ],
         "x-required-scopes": [
-          "projects:read"
+          "workspaces:read"
         ],
         "parameters": [
           {
@@ -10232,7 +10232,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10313,7 +10313,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10344,7 +10344,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunAccepted"
+                  "$ref": "#/components/schemas/NativeRunAccepted"
                 }
               }
             }
@@ -10375,7 +10375,7 @@
     "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/conversations": {
       "get": {
         "operationId": "listCustomerAgentConversations",
-        "summary": "List this agent’s conversations",
+        "summary": "List this agent\u2019s conversations",
         "tags": [
           "customerAgents"
         ],
@@ -10407,7 +10407,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10525,7 +10525,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10615,7 +10615,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10705,7 +10705,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10829,7 +10829,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -10937,7 +10937,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11043,7 +11043,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11156,7 +11156,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11236,7 +11236,7 @@
     "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections": {
       "get": {
         "operationId": "listCustomerAgentConnections",
-        "summary": "List this agent’s connected accounts",
+        "summary": "List this agent\u2019s connected accounts",
         "tags": [
           "customerAgents"
         ],
@@ -11268,7 +11268,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11369,7 +11369,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11431,7 +11431,7 @@
     "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}": {
       "delete": {
         "operationId": "deleteCustomerAgentConnection",
-        "summary": "Revoke this customer’s connection",
+        "summary": "Revoke this customer\u2019s connection",
         "tags": [
           "customerAgents"
         ],
@@ -11465,7 +11465,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11552,7 +11552,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11664,7 +11664,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11771,7 +11771,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "description": "Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID."
+            "description": "Stable opaque subject from your application\u2019s authenticated backend. Never trust a browser-supplied customer ID."
           },
           {
             "name": "customer_agent_id",
@@ -11838,6 +11838,1480 @@
           }
         }
       }
+    },
+    "/v1/inferences": {
+      "post": {
+        "operationId": "createInference",
+        "summary": "Request a typed decision with explicit context",
+        "tags": [
+          "inferences"
+        ],
+        "description": "One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InferenceCreate"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "runs:write"
+        ]
+      }
+    },
+    "/v1/decision-definitions": {
+      "post": {
+        "operationId": "createDecisionDefinition",
+        "summary": "Publish an immutable named decision revision",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDefinition"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDefinitionCreate"
+              }
+            }
+          }
+        },
+        "description": "Publish an immutable workspace/name/revision decision contract. Reuse its ID and exact revision in new inference submissions; withdrawing it prevents future resolution without rewriting admitted runs."
+      }
+    },
+    "/v1/decision-definitions/{definition_id}": {
+      "get": {
+        "operationId": "getDecisionDefinition",
+        "summary": "Read a published decision revision",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "definition_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDefinition"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDecisionDefinition",
+        "summary": "Withdraw a published definition from new admissions",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "definition_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDefinition"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/context-artifacts": {
+      "post": {
+        "operationId": "createContextArtifact",
+        "summary": "Publish an immutable workspace-owned context snapshot",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "x-required-scopes": [
+          "files:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextArtifact"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextArtifactCreate"
+              }
+            }
+          }
+        },
+        "description": " Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation."
+      }
+    },
+    "/v1/context-artifacts/{artifact_id}": {
+      "get": {
+        "operationId": "getContextArtifact",
+        "summary": "Read context snapshot metadata",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "files:read"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextArtifact"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteContextArtifact",
+        "summary": "Release a published context snapshot",
+        "tags": [
+          "inferences"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "files:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextArtifact"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bounded-agent-runs": {
+      "post": {
+        "operationId": "createBoundedAgentRun",
+        "summary": "Run a finite agent that inspects authorized evidence",
+        "tags": [
+          "inferences"
+        ],
+        "description": "A bounded JSON decision loop can read explicitly granted context snapshots, then return a validated proposal. Shares run status, events, cancellation and budget. Requires an Anthropic JSON definition with a bounded_agent policy; max_output_tokens bounds aggregate model output. No native worktree or shell. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted asynchronous operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoundedAgentCreate"
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "runs:write"
+        ]
+      }
+    },
+    "/v1/tasks": {
+      "post": {
+        "operationId": "createDecisionTask",
+        "summary": "Create a waiting task with a pinned, bounded recipe",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTask"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionTaskCreate"
+              }
+            }
+          }
+        },
+        "description": "Create a waiting sequential decision task with a cumulative spend ceiling, optional bounded investigation and evidence horizon. Requires a backend API key bound to exactly one workspace. Creating a task does not start paid work; wake it with explicit authorized evidence."
+      }
+    },
+    "/v1/tasks/{task_id}": {
+      "get": {
+        "operationId": "getDecisionTask",
+        "summary": "Inspect task budget, run lineage and application outcomes",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTask"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tasks/{task_id}/wake": {
+      "post": {
+        "operationId": "wakeDecisionTask",
+        "summary": "Observe an application event and start a budgeted decision",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTask"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionTaskWake"
+              }
+            }
+          }
+        },
+        "description": "Submit an application observation and admit one decision child under the existing task and wallet limits. Use a stable event_id and identical body for duplicate delivery. Requires the creating workspace-bound backend API key; only waiting tasks can start a new cycle."
+      }
+    },
+    "/v1/tasks/{task_id}/outcomes": {
+      "post": {
+        "operationId": "recordTaskOutcome",
+        "summary": "Record application acceptance, rejection or uncertainty",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTask"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationOutcome"
+              }
+            }
+          }
+        },
+        "description": " Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation."
+      }
+    },
+    "/v1/tasks/{task_id}/close": {
+      "post": {
+        "operationId": "closeDecisionTask",
+        "summary": "Stop new task work and release evidence when child settlement completes",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTask"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/artifacts/{artifact_id}": {
+      "delete": {
+        "operationId": "deleteArtifact",
+        "summary": "Release a published artifact",
+        "description": "Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.",
+        "tags": [
+          "artifacts"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "files:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Released"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scopes": [
+          "files:write"
+        ]
+      }
+    },
+    "/v1/billing/usage": {
+      "get": {
+        "operationId": "listBillingUsage",
+        "summary": "List detailed billed usage and model tokens",
+        "description": "Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "usage:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "usage:read"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Inclusive RFC3339 interval start."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range."
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "worktree_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "agent_key",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "model",
+                "tool",
+                "compute",
+                "storage"
+              ]
+            }
+          },
+          {
+            "name": "billing_mode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "managed",
+                "byok"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID."
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage records; next_cursor is null when finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingUsagePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes": {
+      "post": {
+        "operationId": "createSandbox",
+        "summary": "Create a sandbox or long-running server",
+        "description": "Create a sandbox or long-running server Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SandboxCreate"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listSandboxes",
+        "summary": "List authorized sandboxes",
+        "description": "List authorized sandboxes Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "worktree_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{sandbox_id}": {
+      "get": {
+        "operationId": "getSandbox",
+        "summary": "Get sandbox state and compute allocation",
+        "description": "Get sandbox state and compute allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:read"
+        ],
+        "parameters": [
+          {
+            "name": "sandbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{sandbox_id}/pause": {
+      "post": {
+        "operationId": "pauseSandbox",
+        "summary": "Pause compute after verified run persistence",
+        "description": "Pause compute after verified run persistence Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "sandbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{sandbox_id}/resume": {
+      "post": {
+        "operationId": "resumeSandbox",
+        "summary": "Resume compute with a new prepaid allocation",
+        "description": "Resume compute with a new prepaid allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "sandbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{sandbox_id}/destroy": {
+      "post": {
+        "operationId": "destroySandbox",
+        "summary": "Destroy disposable compute and retire this sandbox ID",
+        "description": "Destroy disposable compute and retire this sandbox ID Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
+        "tags": [
+          "Sandboxes"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "runs:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "runs:write"
+        ],
+        "parameters": [
+          {
+            "name": "sandbox_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -11878,7 +13352,7 @@
             "additionalProperties": true,
             "description": "Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.",
             "properties": {
-              "workspace_id": {
+              "worktree_id": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -11901,7 +13375,7 @@
                 "$ref": "#/components/schemas/FileEntry",
                 "description": "Authoritative resulting file or directory entry, absent for deletion."
               },
-              "project_id": {
+              "workspace_id": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -11974,7 +13448,7 @@
         ],
         "additionalProperties": false
       },
-      "ProjectCreate": {
+      "WorkspaceCreate": {
         "type": "object",
         "properties": {
           "name": {
@@ -12017,7 +13491,7 @@
               "auto_pull": {
                 "type": "boolean",
                 "default": false,
-                "description": "Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files."
+                "description": "Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files."
               }
             },
             "required": [
@@ -12036,7 +13510,7 @@
         ],
         "additionalProperties": false
       },
-      "ProjectPatch": {
+      "WorkspacePatch": {
         "type": "object",
         "properties": {
           "name": {
@@ -12070,7 +13544,7 @@
               "auto_pull": {
                 "type": "boolean",
                 "default": false,
-                "description": "Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files."
+                "description": "Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files."
               }
             },
             "required": [
@@ -12090,7 +13564,7 @@
         "required": [],
         "additionalProperties": false
       },
-      "Project": {
+      "Workspace": {
         "type": "object",
         "properties": {
           "id": {
@@ -12142,7 +13616,7 @@
               "auto_pull": {
                 "type": "boolean",
                 "default": false,
-                "description": "Fetch and merge incoming target-branch pushes when the workspace is idle. Conflicts preserve local files."
+                "description": "Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files."
               }
             },
             "required": [
@@ -12164,7 +13638,7 @@
           "archived": {
             "type": "boolean"
           },
-          "default_workspace_id": {
+          "default_worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12201,7 +13675,7 @@
         ],
         "additionalProperties": false
       },
-      "WorkspaceCreate": {
+      "WorktreeCreate": {
         "type": "object",
         "properties": {
           "name": {
@@ -12219,7 +13693,7 @@
             "description": "Optional. Leave empty for smart naming."
           },
           "source": {
-            "$ref": "#/components/schemas/WorkspaceSource"
+            "$ref": "#/components/schemas/WorktreeSource"
           },
           "branch_mode": {
             "type": "string",
@@ -12241,16 +13715,16 @@
             "checkpoint_id"
           ]
         },
-        "description": "Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the project. Source selects saved starting files and never uploads a local folder."
+        "description": "Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the workspace. Source selects saved starting files and never uploads a local folder."
       },
-      "Workspace": {
+      "Worktree": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12346,7 +13820,7 @@
         },
         "required": [
           "id",
-          "project_id",
+          "workspace_id",
           "organization_id",
           "name",
           "revision",
@@ -12412,7 +13886,7 @@
           "source": {
             "type": "string",
             "enum": [
-              "active_workspace",
+              "active_worktree",
               "checkpoint"
             ]
           },
@@ -12443,7 +13917,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12497,7 +13971,7 @@
         },
         "required": [
           "id",
-          "workspace_id",
+          "worktree_id",
           "created_at",
           "consistency",
           "verification",
@@ -12531,7 +14005,7 @@
       "GitSync": {
         "type": "object",
         "properties": {
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12573,7 +14047,7 @@
           }
         },
         "required": [
-          "workspace_id",
+          "worktree_id",
           "status",
           "updated_at"
         ],
@@ -12807,7 +14281,7 @@
       "SessionCreate": {
         "type": "object",
         "properties": {
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12850,7 +14324,7 @@
           }
         },
         "required": [
-          "workspace_id",
+          "worktree_id",
           "harness",
           "model",
           "billing_mode"
@@ -12865,7 +14339,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -12927,7 +14401,7 @@
         },
         "required": [
           "id",
-          "workspace_id",
+          "worktree_id",
           "harness",
           "model",
           "created_at"
@@ -12942,11 +14416,11 @@
             "minLength": 1,
             "maxLength": 100000
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -13018,7 +14492,7 @@
           },
           "queue_if_busy": {
             "type": "boolean",
-            "description": "Only session follow-ups can queue behind workspace work."
+            "description": "Only session follow-ups can queue behind worktree work."
           },
           "permissions": {
             "$ref": "#/components/schemas/AgentPermissions"
@@ -13029,6 +14503,35 @@
               "$ref": "#/components/schemas/Grant"
             },
             "description": "Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults."
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
+          },
+          "sandbox_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "keep_warm_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
+          },
+          "sandbox_max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$",
+            "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
           }
         },
         "required": [
@@ -13038,13 +14541,13 @@
         "oneOf": [
           {
             "required": [
-              "project_id"
+              "workspace_id"
             ],
             "not": {
               "anyOf": [
                 {
                   "required": [
-                    "workspace_id"
+                    "worktree_id"
                   ]
                 },
                 {
@@ -13057,13 +14560,13 @@
           },
           {
             "required": [
-              "workspace_id"
+              "worktree_id"
             ],
             "not": {
               "anyOf": [
                 {
                   "required": [
-                    "project_id"
+                    "workspace_id"
                   ]
                 },
                 {
@@ -13082,19 +14585,19 @@
               "anyOf": [
                 {
                   "required": [
-                    "project_id"
+                    "workspace_id"
                   ]
                 },
                 {
                   "required": [
-                    "workspace_id"
+                    "worktree_id"
                   ]
                 }
               ]
             }
           }
         ],
-        "description": "Exactly one project/workspace/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules."
+        "description": "Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules."
       },
       "MessageCreate": {
         "type": "object",
@@ -13152,13 +14655,42 @@
               "$ref": "#/components/schemas/Grant"
             },
             "description": "Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults."
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
+          },
+          "sandbox_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "keep_warm_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
+          },
+          "sandbox_max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$",
+            "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
           }
         },
         "required": [
           "prompt"
         ],
         "additionalProperties": false,
-        "description": "Follow-up to pinned session configuration. queue_if_busy accepts ordered workspace work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start."
+        "description": "Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start."
       },
       "RunAccepted": {
         "type": "object",
@@ -13168,11 +14700,17 @@
             "format": "uuid"
           },
           "session_id": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
-          "workspace_id": {
-            "type": "string",
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
           "status": {
@@ -13233,12 +14771,14 @@
             "enum": [
               "global_capacity",
               "account_concurrency",
-              "earlier_workspace_work",
+              "earlier_worktree_work",
               "scheduler_turn",
               "cancellation_requested",
               "deadline_expired",
-              "workspace_unavailable",
-              null
+              "worktree_unavailable",
+              null,
+              "lightweight_capacity",
+              "reserved_lightweight_capacity"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -13253,12 +14793,28 @@
               "background",
               "interactive"
             ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent",
+              "inference",
+              "bounded_agent"
+            ]
+          },
+          "sandbox_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           }
         },
         "required": [
           "run_id",
           "session_id",
-          "workspace_id",
+          "worktree_id",
           "status",
           "urls"
         ],
@@ -13276,15 +14832,24 @@
             "format": "uuid"
           },
           "session_id": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
-          "workspace_id": {
-            "type": "string",
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
           "harness": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "model": {
             "type": "string"
@@ -13390,12 +14955,14 @@
             "enum": [
               "global_capacity",
               "account_concurrency",
-              "earlier_workspace_work",
+              "earlier_worktree_work",
               "scheduler_turn",
               "cancellation_requested",
               "deadline_expired",
-              "workspace_unavailable",
-              null
+              "worktree_unavailable",
+              null,
+              "lightweight_capacity",
+              "reserved_lightweight_capacity"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -13438,17 +15005,49 @@
               "null"
             ],
             "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent",
+              "inference",
+              "bounded_agent"
+            ]
+          },
+          "workspace_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sandbox_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           }
         },
         "required": [
           "id",
           "organization_id",
           "session_id",
-          "workspace_id",
+          "worktree_id",
           "harness",
           "model",
           "status",
-          "created_at"
+          "created_at",
+          "kind",
+          "workspace_id"
         ],
         "additionalProperties": false
       },
@@ -13515,6 +15114,9 @@
           "content_expired_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "inference": {
+            "$ref": "#/components/schemas/InferenceReceipt"
           }
         },
         "required": [
@@ -13582,7 +15184,10 @@
             "format": "uuid"
           },
           "run_id": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
           "name": {
@@ -13978,7 +15583,7 @@
               "type": "string"
             }
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -14012,7 +15617,7 @@
               "type": "string"
             }
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -14056,7 +15661,7 @@
               "type": "string"
             }
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -14898,7 +16503,7 @@
         ],
         "additionalProperties": false
       },
-      "WorkspaceSource": {
+      "WorktreeSource": {
         "oneOf": [
           {
             "type": "object",
@@ -14935,9 +16540,9 @@
             "additionalProperties": false
           }
         ],
-        "description": "Resolve within the authorized project to an immutable commit/checkpoint before creating the clone."
+        "description": "Resolve within the authorized workspace to an immutable commit/checkpoint before creating the clone."
       },
-      "WorkspacePatch": {
+      "WorktreePatch": {
         "type": "object",
         "properties": {
           "name": {
@@ -15053,7 +16658,7 @@
               "type": "string"
             }
           },
-          "project_restrictions": {
+          "workspace_restrictions": {
             "type": "array",
             "items": {
               "type": "string",
@@ -15073,7 +16678,7 @@
           "principal_type",
           "organizations",
           "effective_scopes",
-          "project_restrictions",
+          "workspace_restrictions",
           "capabilities"
         ],
         "additionalProperties": false
@@ -15133,10 +16738,10 @@
         ],
         "additionalProperties": false
       },
-      "WorkspaceDiff": {
+      "WorktreeDiff": {
         "type": "object",
         "properties": {
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -15164,7 +16769,7 @@
           }
         },
         "required": [
-          "workspace_id",
+          "worktree_id",
           "revision",
           "data",
           "next_cursor",
@@ -15370,7 +16975,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -15431,7 +17036,7 @@
         },
         "required": [
           "id",
-          "workspace_id",
+          "worktree_id",
           "direction",
           "base_revision",
           "status",
@@ -16040,7 +17645,7 @@
         ],
         "additionalProperties": false
       },
-      "ProjectDeletion": {
+      "WorkspaceDeletion": {
         "type": "object",
         "properties": {
           "confirmation": {
@@ -16418,7 +18023,7 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -16469,7 +18074,7 @@
         },
         "required": [
           "name",
-          "project_id",
+          "workspace_id",
           "agent_id",
           "kind",
           "prompt"
@@ -16485,7 +18090,7 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -16538,7 +18143,7 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -16633,7 +18238,7 @@
         "required": [
           "id",
           "name",
-          "project_id",
+          "workspace_id",
           "agent_id",
           "kind",
           "prompt",
@@ -16658,7 +18263,7 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -16757,7 +18362,7 @@
         "required": [
           "id",
           "name",
-          "project_id",
+          "workspace_id",
           "agent_id",
           "kind",
           "prompt",
@@ -16961,7 +18566,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 4096,
-            "description": "Relative workspace path without traversal, empty segments, or reserved platform paths."
+            "description": "Relative worktree path without traversal, empty segments, or reserved platform paths."
           }
         },
         "required": [
@@ -16976,7 +18581,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 4096,
-            "description": "Relative workspace path without traversal, empty segments, or reserved platform paths."
+            "description": "Relative worktree path without traversal, empty segments, or reserved platform paths."
           }
         },
         "required": [
@@ -17000,7 +18605,7 @@
               "required": [
                 "name",
                 "ref",
-                "workspace_id"
+                "worktree_id"
               ],
               "properties": {
                 "name": {
@@ -17009,7 +18614,7 @@
                 "ref": {
                   "type": "string"
                 },
-                "workspace_id": {
+                "worktree_id": {
                   "type": "string",
                   "format": "uuid"
                 }
@@ -17090,7 +18695,7 @@
         "required": [
           "version"
         ],
-        "description": "Agent authority, separate from human/API scopes. Project, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.",
+        "description": "Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation.",
         "properties": {
           "version": {
             "type": "integer",
@@ -17191,17 +18796,17 @@
               "scope": {
                 "type": "string",
                 "enum": [
-                  "project"
+                  "workspace"
                 ]
               },
-              "project_id": {
+              "workspace_id": {
                 "type": "string",
                 "format": "uuid"
               }
             },
             "required": [
               "scope",
-              "project_id"
+              "workspace_id"
             ],
             "additionalProperties": false
           },
@@ -17231,10 +18836,10 @@
               "scope": {
                 "type": "string",
                 "enum": [
-                  "project_agent"
+                  "workspace_agent"
                 ]
               },
-              "project_id": {
+              "workspace_id": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -17245,7 +18850,7 @@
             },
             "required": [
               "scope",
-              "project_id",
+              "workspace_id",
               "agent_id"
             ],
             "additionalProperties": false
@@ -17266,12 +18871,12 @@
           "scope": {
             "type": "string",
             "enum": [
-              "project",
+              "workspace",
               "agent",
-              "project_agent"
+              "workspace_agent"
             ]
           },
-          "project_id": {
+          "workspace_id": {
             "type": [
               "string",
               "null"
@@ -17285,7 +18890,7 @@
             ],
             "format": "uuid"
           },
-          "project_name": {
+          "workspace_name": {
             "type": [
               "string",
               "null"
@@ -17313,9 +18918,9 @@
           "id",
           "connection_id",
           "scope",
-          "project_id",
+          "workspace_id",
           "agent_id",
-          "project_name",
+          "workspace_name",
           "agent_name",
           "unavailable",
           "created_at",
@@ -17394,9 +18999,9 @@
               "type": "string",
               "enum": [
                 "organization",
-                "project",
+                "workspace",
                 "agent",
-                "project_agent"
+                "workspace_agent"
               ]
             }
           },
@@ -17570,9 +19175,9 @@
             "type": "string",
             "enum": [
               "organization",
-              "project",
+              "workspace",
               "agent",
-              "project_agent",
+              "workspace_agent",
               "run_override",
               "none"
             ]
@@ -17630,11 +19235,11 @@
       "ConnectionAccessResolve": {
         "type": "object",
         "properties": {
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -17667,13 +19272,13 @@
         "oneOf": [
           {
             "required": [
-              "project_id"
+              "workspace_id"
             ],
             "not": {
               "anyOf": [
                 {
                   "required": [
-                    "workspace_id"
+                    "worktree_id"
                   ]
                 },
                 {
@@ -17686,13 +19291,13 @@
           },
           {
             "required": [
-              "workspace_id"
+              "worktree_id"
             ],
             "not": {
               "anyOf": [
                 {
                   "required": [
-                    "project_id"
+                    "workspace_id"
                   ]
                 },
                 {
@@ -17711,12 +19316,12 @@
               "anyOf": [
                 {
                   "required": [
-                    "project_id"
+                    "workspace_id"
                   ]
                 },
                 {
                   "required": [
-                    "workspace_id"
+                    "worktree_id"
                   ]
                 }
               ]
@@ -17735,12 +19340,12 @@
           "scope": {
             "type": "string",
             "enum": [
-              "project",
+              "workspace",
               "agent",
-              "project_agent"
+              "workspace_agent"
             ]
           },
-          "project_id": {
+          "workspace_id": {
             "type": [
               "string",
               "null"
@@ -17754,7 +19359,7 @@
             ],
             "format": "uuid"
           },
-          "project_name": {
+          "workspace_name": {
             "type": [
               "string",
               "null"
@@ -17841,7 +19446,7 @@
           "configuration"
         ],
         "additionalProperties": false,
-        "description": "Integration path only. Creates one project, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts."
+        "description": "Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts."
       },
       "CustomerAgentBinding": {
         "type": "object",
@@ -17865,7 +19470,7 @@
           "name": {
             "type": "string"
           },
-          "project_id": {
+          "workspace_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -17873,7 +19478,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "workspace_id": {
+          "worktree_id": {
             "type": "string",
             "format": "uuid"
           },
@@ -17888,9 +19493,9 @@
           "customer_id",
           "key",
           "name",
-          "project_id",
-          "agent_id",
           "workspace_id",
+          "agent_id",
+          "worktree_id",
           "created_at"
         ],
         "additionalProperties": false,
@@ -17936,6 +19541,17 @@
           "queue_if_busy": {
             "type": "boolean",
             "description": "Queue when this worktree is busy. Omitted means false."
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
           }
         },
         "required": [
@@ -18141,6 +19757,1745 @@
         ],
         "additionalProperties": false,
         "description": "Single-use callback code. Only send after authenticating the returning user in your app and deriving customer_id from that verified session. Browser-supplied identity is not authority."
+      },
+      "InferenceLimits": {
+        "type": "object",
+        "properties": {
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8192
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300
+          }
+        },
+        "required": [
+          "max_cost_micro_usd",
+          "max_output_tokens",
+          "timeout_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionBinding": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "anthropic",
+              "typesafe",
+              "openrouter"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "billing_mode": {
+            "type": "string",
+            "enum": [
+              "managed",
+              "byok"
+            ]
+          },
+          "provider_connection_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "billing_mode"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionQuestion": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "json"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "choice"
+                ]
+              },
+              "criteria": {
+                "type": "object",
+                "minProperties": 2,
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "criteria"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "score"
+                ]
+              },
+              "criteria": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "maxItems": 64,
+                "minItems": 2
+              }
+            },
+            "required": [
+              "kind",
+              "criteria"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "InferenceDefinition": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32000
+          },
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "output_schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "question": {
+            "$ref": "#/components/schemas/DecisionQuestion"
+          },
+          "allowed_models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "enum": [
+                    "anthropic",
+                    "typesafe",
+                    "openrouter"
+                  ]
+                },
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "provider",
+                "model"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 16,
+            "minItems": 1
+          },
+          "limits": {
+            "$ref": "#/components/schemas/InferenceLimits"
+          },
+          "required_records": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 64
+          },
+          "required_known": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 64
+          },
+          "require_complete": {
+            "type": "boolean"
+          },
+          "require_snapshot": {
+            "type": "boolean"
+          },
+          "bounded_agent": {
+            "$ref": "#/components/schemas/BoundedAgentPolicy"
+          },
+          "unknown_values": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {},
+            "description": "Exact validated outputs treated as explicit abstention, rather than a usable value."
+          }
+        },
+        "required": [
+          "revision",
+          "prompt",
+          "input_schema",
+          "output_schema",
+          "question",
+          "allowed_models",
+          "limits"
+        ],
+        "additionalProperties": false
+      },
+      "ContextAudience": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "application_actor",
+              "application"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "ContextItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "inference",
+              "correction",
+              "instruction"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "known",
+              "unknown",
+              "conflicting",
+              "not_applicable",
+              "omitted"
+            ]
+          },
+          "value": {},
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "source_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "source",
+          "source_revision",
+          "observed_at"
+        ],
+        "additionalProperties": false
+      },
+      "ExplicitContext": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "template_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "audience": {
+            "$ref": "#/components/schemas/ContextAudience"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContextItem"
+            },
+            "maxItems": 64
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "consistency": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "read_interval"
+            ]
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "read_completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dependency_tokens": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        },
+        "required": [
+          "schema_version",
+          "template_revision",
+          "audience",
+          "items",
+          "complete",
+          "truncated",
+          "consistency",
+          "observed_at",
+          "dependency_tokens"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "definition": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InferenceDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/DefinitionReference"
+              }
+            ]
+          },
+          "input": {},
+          "context": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExplicitContext"
+              },
+              {
+                "$ref": "#/components/schemas/ContextReference"
+              }
+            ]
+          },
+          "model_binding": {
+            "$ref": "#/components/schemas/DecisionBinding"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/InferenceLimits"
+          },
+          "queue_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": [
+          "definition",
+          "input",
+          "context",
+          "model_binding"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceReceipt": {
+        "type": "object",
+        "properties": {
+          "invocation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "definition_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "definition_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "context_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "provider_request_digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transformation_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "dependency_tokens": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "value",
+              "unknown",
+              "refused",
+              "invalid_output",
+              "failed",
+              "uncertain",
+              "stale_input"
+            ]
+          },
+          "value": {},
+          "provider_outcome": {
+            "type": "string",
+            "enum": [
+              "not_invoked",
+              "responded",
+              "uncertain"
+            ]
+          },
+          "provider_request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "model_revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model_revision_status": {
+            "type": "string",
+            "enum": [
+              "pinned",
+              "reported",
+              "unavailable"
+            ]
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "schema_digest": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_run",
+                  "passed",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "schema_digest",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "usage_request_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "timings_ms": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "reason_code": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "provider_evidence": {
+            "type": "object",
+            "properties": {
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "probabilities": {
+                "type": "object",
+                "maxProperties": 255,
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "invocation_id",
+          "definition_revision",
+          "definition_digest",
+          "context_digest",
+          "provider_request_digest",
+          "transformation_version",
+          "dependency_tokens",
+          "outcome",
+          "provider_outcome",
+          "model",
+          "model_revision_status",
+          "validation"
+        ],
+        "additionalProperties": false
+      },
+      "NativeRunAccepted": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "provisioning",
+              "running"
+            ]
+          },
+          "urls": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "format": "uri"
+              },
+              "events": {
+                "type": "string",
+                "format": "uri"
+              },
+              "stream": {
+                "type": "string",
+                "format": "uri"
+              },
+              "result": {
+                "type": "string",
+                "format": "uri"
+              },
+              "cancel": {
+                "type": "string",
+                "format": "uri",
+                "description": "POST to request cancellation."
+              }
+            },
+            "required": [
+              "status",
+              "events",
+              "stream",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "queue_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Submission to execution start, or elapsed wait through now/completion if never started."
+          },
+          "waiting_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "global_capacity",
+              "account_concurrency",
+              "earlier_worktree_work",
+              "scheduler_turn",
+              "cancellation_requested",
+              "deadline_expired",
+              "worktree_unavailable",
+              null,
+              "lightweight_capacity",
+              "reserved_lightweight_capacity"
+            ],
+            "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Funds still held and unavailable for other jobs; released on settlement."
+          },
+          "scheduling_class": {
+            "type": "string",
+            "enum": [
+              "background",
+              "interactive"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent"
+            ]
+          },
+          "sandbox_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
+          }
+        },
+        "required": [
+          "run_id",
+          "session_id",
+          "worktree_id",
+          "status",
+          "urls"
+        ],
+        "additionalProperties": false
+      },
+      "DefinitionReference": {
+        "type": "object",
+        "properties": {
+          "definition_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "definition_id",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "ContextReference": {
+        "type": "object",
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "audience": {
+            "$ref": "#/components/schemas/ContextAudience"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "revision",
+          "audience"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionDefinitionCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "definition": {
+            "$ref": "#/components/schemas/InferenceDefinition"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "name",
+          "definition"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "definition": {
+            "$ref": "#/components/schemas/InferenceDefinition"
+          },
+          "digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "definition",
+          "digest",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "ContextArtifactCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "context": {
+            "$ref": "#/components/schemas/ExplicitContext"
+          },
+          "source_run_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "name",
+          "context"
+        ],
+        "additionalProperties": false
+      },
+      "ContextArtifact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "size_bytes": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "audience": {
+            "$ref": "#/components/schemas/ContextAudience"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "revision",
+          "sha256",
+          "size_bytes",
+          "audience",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "BoundedAgentPolicy": {
+        "type": "object",
+        "properties": {
+          "max_model_calls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "max_tool_calls": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "context_artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContextReference"
+            },
+            "maxItems": 8
+          }
+        },
+        "required": [
+          "max_model_calls",
+          "max_tool_calls",
+          "context_artifacts"
+        ],
+        "additionalProperties": false,
+        "description": "Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools."
+      },
+      "BoundedAgentCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "definition": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InferenceDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/DefinitionReference"
+              }
+            ]
+          },
+          "input": {},
+          "context": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExplicitContext"
+              },
+              {
+                "$ref": "#/components/schemas/ContextReference"
+              }
+            ]
+          },
+          "model_binding": {
+            "$ref": "#/components/schemas/DecisionBinding"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/InferenceLimits"
+          },
+          "queue_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": [
+          "workspace_id",
+          "definition",
+          "input",
+          "context",
+          "model_binding"
+        ],
+        "additionalProperties": false
+      },
+      "TaskStepDefinition": {
+        "type": "object",
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/InferenceDefinition"
+          },
+          "model_binding": {
+            "$ref": "#/components/schemas/DecisionBinding"
+          }
+        },
+        "required": [
+          "definition",
+          "model_binding"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionTaskCreate": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "decide": {
+            "$ref": "#/components/schemas/TaskStepDefinition"
+          },
+          "investigate": {
+            "$ref": "#/components/schemas/TaskStepDefinition"
+          },
+          "investigate_when": {},
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "max_runs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "evidence_horizon_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 2592000
+          }
+        },
+        "required": [
+          "workspace_id",
+          "objective",
+          "decide",
+          "max_cost_micro_usd",
+          "max_runs",
+          "evidence_horizon_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionTaskWake": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "input": {},
+          "context": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExplicitContext"
+              },
+              {
+                "$ref": "#/components/schemas/ContextReference"
+              }
+            ]
+          }
+        },
+        "required": [
+          "event_id",
+          "input",
+          "context"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationOutcome": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wake_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected",
+              "unknown"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "maxProperties": 64
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "event_id",
+          "wake_id",
+          "outcome",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "TaskRun": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "wake_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "step": {
+            "type": "string",
+            "enum": [
+              "decide",
+              "investigate"
+            ]
+          },
+          "allocated_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "committed_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "run_id",
+          "wake_id",
+          "step",
+          "allocated_micro_usd",
+          "committed_micro_usd",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "TaskOutcomeReceipt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/ApplicationOutcome"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "receipt"
+        ],
+        "additionalProperties": false
+      },
+      "DecisionTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "running",
+              "needs_investigation",
+              "publishing",
+              "proposal",
+              "stopped",
+              "closed"
+            ]
+          },
+          "next_step": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "committed_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "outstanding_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "max_runs": {
+            "type": "integer"
+          },
+          "evidence_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "latest_wake_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "proposal_artifact_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskRun"
+            }
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskOutcomeReceipt"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "objective",
+          "status",
+          "next_step",
+          "max_cost_micro_usd",
+          "committed_micro_usd",
+          "outstanding_micro_usd",
+          "max_runs",
+          "evidence_expires_at",
+          "latest_wake_id",
+          "proposal_artifact_id",
+          "failure_code",
+          "runs",
+          "outcomes"
+        ],
+        "additionalProperties": false
+      },
+      "BillingModelUsage": {
+        "type": "object",
+        "properties": {
+          "input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Total input, including cached reads and writes once."
+          },
+          "output_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Output includes reasoning subsets when reported."
+          },
+          "cached_input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Subset of input tokens; null when unavailable."
+          },
+          "cache_write_input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Subset of input tokens; null when unavailable."
+          },
+          "completeness": {
+            "type": "string"
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "bound_breached": {
+            "type": "boolean"
+          },
+          "budget_cost_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Consumes the run budget even for BYOK; not an additional charge."
+          },
+          "reserved_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Original model-call ceiling."
+          },
+          "reported_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Usage at accepted retail rates, before the authorized ceiling."
+          },
+          "provider_cost_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge."
+          },
+          "provider_cost_status": {
+            "type": "string",
+            "enum": [
+              "estimated_from_usage",
+              "unavailable"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Durable model-call identity; use to correlate gateway diagnostics and tracing."
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "cache_write_input_tokens",
+          "completeness",
+          "provisional",
+          "bound_breached",
+          "budget_cost_micro_usd",
+          "reserved_micro_usd",
+          "reported_micro_usd",
+          "provider_cost_micro_usd",
+          "provider_cost_status",
+          "request_id"
+        ],
+        "additionalProperties": false
+      },
+      "BillingUsageEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "model",
+              "tool",
+              "compute",
+              "storage"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Model settlement, tool admission, run settlement, or storage observation time."
+          },
+          "run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Worktree ID."
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "customer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Customer-agent binding label, when available."
+          },
+          "agent_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model provider; otherwise null."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billing_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "managed",
+              "byok",
+              null
+            ]
+          },
+          "charged_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Macrofold usage charge. BYOK models are zero. Null means unavailable."
+          },
+          "model_usage": {
+            "$ref": "#/components/schemas/BillingModelUsage"
+          },
+          "tool": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "connection_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "connection_id",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "storage": {
+            "type": "object",
+            "properties": {
+              "physical_bytes": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "object_count": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "required": [
+              "physical_bytes",
+              "object_count"
+            ],
+            "additionalProperties": false
+          },
+          "sandbox_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Compute allocation charged independently of individual runs, when present."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "occurred_at",
+          "run_id",
+          "workspace_id",
+          "worktree_id",
+          "session_id",
+          "customer_id",
+          "agent_key",
+          "provider",
+          "model",
+          "billing_mode",
+          "charged_micro_usd"
+        ],
+        "additionalProperties": false
+      },
+      "BillingUsagePage": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingUsageEntry"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "currency",
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "worktree_id"
+        ],
+        "properties": {
+          "worktree_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "long_running": {
+            "type": "boolean",
+            "description": "Keep compute running between agents without a default idle timeout: Docker locally, Render in hosted deployments. The filesystem is disposable; successive agents reuse the same compute environment. Ordinary sandboxes retain bounded lifetimes."
+          },
+          "keep_warm_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
+          },
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$",
+            "description": "Separate prepaid compute allocation, covering ready and idle time until pause/destroy or exhaustion. Each explicit resume authorizes another allocation of this size. Model/tool costs retain the run budget."
+          }
+        },
+        "description": "Disposable compute attached to one worktree. A long-running sandbox with omitted keep_warm_seconds stays ready until paused, destroyed, or its compute allocation is exhausted. Poll its status before starting latency-sensitive work."
+      },
+      "Sandbox": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "long_running": {
+            "type": "boolean"
+          },
+          "keep_warm_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "creating",
+              "ready",
+              "pausing",
+              "paused",
+              "destroying",
+              "destroyed",
+              "error"
+            ]
+          },
+          "active_run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "idle_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "max_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "rate_micro_usd_per_minute": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}$"
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "worktree_id",
+          "name",
+          "long_running",
+          "keep_warm_seconds",
+          "status",
+          "active_run_id",
+          "idle_expires_at",
+          "cost_micro_usd",
+          "max_cost_micro_usd",
+          "reserved_micro_usd",
+          "rate_micro_usd_per_minute",
+          "failure_code",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sandbox"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {
@@ -18273,8 +21628,8 @@
             "tokenUrl": "https://api.example.com/auth/oauth2/token",
             "scopes": {
               "identity:read": "Inspect current principal and authorized organizations",
-              "projects:read": "Read authorized projects/workspaces",
-              "projects:write": "Manage authorized projects/workspaces",
+              "workspaces:read": "Read authorized workspaces/worktrees",
+              "workspaces:write": "Manage authorized workspaces/worktrees",
               "files:read": "Read files, checkpoints and exports",
               "files:write": "Edit, transfer and restore files or synchronize Git",
               "runs:read": "Read agents, sessions, runs and events",
@@ -18289,7 +21644,7 @@
               "offline_access": "Rotating refresh token",
               "organizations:read": "Read team membership",
               "organizations:write": "Manage organizations, roles and invitations",
-              "projects:delete": "Schedule or cancel permanent project deletion (owner/admin only)",
+              "workspaces:delete": "Schedule or cancel permanent workspace deletion (owner/admin only)",
               "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
               "triggers:write": "Manage incoming triggers and scheduled tasks"
             }
@@ -18302,7 +21657,7 @@
   "tags": [
     {
       "name": "customerAgents",
-      "description": "Integration path · Customer agents. Optional use-case-specific composition of core projects, presets, worktrees, sessions, runs and connections. Customer identity is asserted by your authenticated backend; core platform primitives do not depend on this path."
+      "description": "Integration path \u00b7 Customer agents. Optional use-case-specific composition of core workspaces, presets, worktrees, sessions, runs and connections. Customer identity is asserted by your authenticated backend; core platform primitives do not depend on this path."
     }
   ]
 }

@@ -44,9 +44,9 @@ it('commits a run completion delivery, signs exact bytes, retries, rotates and c
   expect(created.status).toBe(201);
   expect(created.body.signing_secret).toMatch(/^whsec_/);
   expect(created.body.secret_ciphertext).toBeUndefined();
-  const project = await request('POST', '/v1/projects', { name: 'Webhook lifecycle' });
+  const workspace = await request('POST', '/v1/workspaces', { name: 'Webhook lifecycle' });
   const admitted = await request('POST', '/v1/runs', {
-    project_id: project.body.id,
+    workspace_id: workspace.body.id,
     harness: 'codex',
     model: 'fixture-model',
     billing_mode: 'managed',

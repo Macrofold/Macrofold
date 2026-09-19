@@ -91,10 +91,10 @@ it('atomically ensures one composition per customer/key under concurrent retries
   alice = result[0];
   expect(result[1]).toEqual(alice);
   expect(alice.integration_path).toBe('customer-agents');
-  expect((await client.projects.list()).data).toHaveLength(1);
+  expect((await client.workspaces.list()).data).toHaveLength(1);
   expect((await client.agents.get(alice.agent_id)).name).toBe('Milo');
   bob = await client.customerAgents.ensure('bob', settings);
-  expect(bob.workspace_id).not.toBe(alice.workspace_id);
+  expect(bob.worktree_id).not.toBe(alice.worktree_id);
   expect((await client.customerAgents.list('alice')).data.map((b) => b.id)).toEqual([alice.id]);
   await expect(client.customerAgents.get('bob', alice.id)).rejects.toMatchObject({ status: 404 });
   await expect(

@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1' # Refresh dependency/image advisory data weekly.
 permissions:
   contents: read
 concurrency:
@@ -134,12 +136,31 @@ jobs:
         run: |
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
           pnpm test:native --image-only
+          pnpm test:native codex claude-code --media --image-only
           pnpm test:native --permissions --image-only
           pnpm test:native opencode --questions --image-only
           pnpm test:native hermes deepseek pi --tools --image-only
           pnpm test:native hermes deepseek pi --failure --image-only
           pnpm test:native hermes deepseek pi --cancel --image-only
           pnpm test:native --stdio --image-only
+      - name: Scan the actual OS, Python and JavaScript runtime dependencies
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          version: v0.74.0
+          image-ref: platform-runtime:0.1.0
+          scanners: vuln
+          format: json
+          output: runtime-vulnerabilities.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Runtime vulnerability report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: runtime-vulnerabilities
+          path: runtime-vulnerabilities.json
+          retention-days: 14
       - name: Complete API-triggered Docker journeys with scripted providers
         run: |
           docker compose -f infra/compose.yml up -d --wait

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import type { Client, Schema } from '../../../sdk/typescript/src/client';
-import { git, relativeFile, safeLocalPath, saveBaseline } from './local-project';
+import { git, relativeFile, safeLocalPath, saveBaseline } from './local-workspace';
 import { CliError } from './output';
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const manifestSchema = z.object({
@@ -60,7 +60,7 @@ export async function downloadVerified(
 export async function checkout(
   client: Client,
   root: string,
-  workspace: Schema['Workspace'],
+  worktree: Schema['Worktree'],
   destination: string,
   branch?: string,
 ) {
@@ -72,10 +72,10 @@ export async function checkout(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
-  if (!workspace.latest_checkpoint_id)
-    throw new CliError('Create a verified checkpoint before checking out this workspace.', 5);
+  if (!worktree.latest_checkpoint_id)
+    throw new CliError('Create a verified checkpoint before checking out this worktree.', 5);
   const operation = await client.request('exportCheckpoint', {
-    params: { path: { checkpoint_id: workspace.latest_checkpoint_id } },
+    params: { path: { checkpoint_id: worktree.latest_checkpoint_id } },
     body: { format: 'git_bundle' },
   });
   const completed = await client.waitOperation(operation.id);
@@ -101,7 +101,7 @@ export async function checkout(
     ),
   );
   if (
-    manifest.checkpoint_id !== workspace.latest_checkpoint_id ||
+    manifest.checkpoint_id !== worktree.latest_checkpoint_id ||
     new Set(manifest.files.map((f) => f.path)).size !== manifest.files.length
   )
     throw new CliError('The export manifest does not match this checkpoint.', 7);
@@ -130,11 +130,11 @@ export async function checkout(
   if (BigInt(bytes.length) !== BigInt(exported.size_bytes))
     throw new CliError('Git bundle size mismatch.', 7);
   const dir = await mkdtemp(path.join(tmpdir(), 'agent-review-')),
-    bundle = path.join(dir, 'workspace.bundle'),
+    bundle = path.join(dir, 'worktree.bundle'),
     reference = `refs/hosted-reviews/${crypto.randomUUID()}`;
   const localBranch =
     branch ||
-    `review/${(workspace.name || 'worktree').replace(/[^a-zA-Z0-9_-]/g, '-')}-${workspace.id.slice(-8)}`;
+    `review/${(worktree.name || 'worktree').replace(/[^a-zA-Z0-9_-]/g, '-')}-${worktree.id.slice(-8)}`;
   await git(['check-ref-format', '--branch', localBranch], root);
   try {
     await writeFile(bundle, bytes, { mode: 0o600 });
@@ -181,7 +181,7 @@ export async function checkout(
       } else await writeFile(dest, content, { mode: file.mode & 0o111 ? 0o755 : 0o644, flag: 'wx' });
       baseline[file.path] = file.sha256;
     }
-    await saveBaseline(target, workspace.id, baseline);
+    await saveBaseline(target, worktree.id, baseline);
     return {
       directory: target,
       branch: localBranch,

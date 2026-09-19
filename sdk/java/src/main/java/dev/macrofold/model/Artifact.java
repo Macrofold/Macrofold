@@ -1,6 +1,6 @@
 /*
  * Macrofold API
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -50,7 +50,7 @@ public class Artifact {
   private UUID id;
 
   public static final String JSON_PROPERTY_RUN_ID = "run_id";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private UUID runId;
 
   public static final String JSON_PROPERTY_NAME = "name";
@@ -100,7 +100,7 @@ public class Artifact {
   }
 
 
-  public Artifact runId(@javax.annotation.Nonnull UUID runId) {
+  public Artifact runId(@javax.annotation.Nullable UUID runId) {
     this.runId = runId;
     return this;
   }
@@ -109,17 +109,17 @@ public class Artifact {
    * Get runId
    * @return runId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public UUID getRunId() {
     return runId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setRunId(@javax.annotation.Nonnull UUID runId) {
+  public void setRunId(@javax.annotation.Nullable UUID runId) {
     this.runId = runId;
   }
 

@@ -22,7 +22,7 @@ For real reasoning, choose the explicit [Docker profile](local-development/docke
 
 ## Try the API
 
-Use the same [API quickstart](../features/api/quickstart.md) in each implemented mode: create an API key and project, submit a run and wait for its complete result. Point the client at the local or staging origin. Select `fixture-model` only for simulation; real execution needs an enabled model compatible with the selected harness.
+Use the same [API quickstart](../features/api/quickstart.md) in each implemented mode: create an API key and workspace, submit a run and wait for its complete result. Point the client at the local or staging origin. Select `fixture-model` only for simulation; real execution needs an enabled model compatible with the selected harness.
 
 Start with the SDK quickstart, [cURL guide](../features/api/http-quickstart.md), or the interactive API reference. Postman is optional; import [OpenAPI](../api/openapi.json) and set your service origin and Bearer token. The CLI and SDKs use that same API.
 

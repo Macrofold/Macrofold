@@ -44,7 +44,7 @@ for (const study of journeys) {
       await page.locator('[data-journey-step="2"]').evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await expect(saved.locator('.jl-saved')).toHaveCount(3);
     await page.screenshot({
-      path: test.info().outputPath(`${study.slug}-workspace.png`),
+      path: test.info().outputPath(`${study.slug}-worktree.png`),
       animations: 'disabled',
     });
     await page.getByRole('button', { name: 'Pause animations', exact: true }).click();

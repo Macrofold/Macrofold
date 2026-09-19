@@ -1,7 +1,7 @@
 /*
  * Macrofold API
  *
- * Manage persistent projects, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
+ * Manage persistent workspaces, run cloud agents, stream progress, and integrate tools, billing, and operator reporting. Provider-owned OAuth, internal runtime ingress, and MCP JSON-RPC use separate contracts.
  *
  * The version of the OpenAPI document: 0.9.0
  *
@@ -15,6 +15,10 @@ use serde::{Deserialize, Serialize};
 pub struct WorkspacePatch {
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(rename = "github", skip_serializing_if = "Option::is_none")]
+    pub github: Option<Box<models::WorkspaceCreateGithub>>,
+    #[serde(rename = "archived", skip_serializing_if = "Option::is_none")]
+    pub archived: Option<bool>,
     #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Box<models::AgentPermissions>>,
 }
@@ -23,6 +27,8 @@ impl WorkspacePatch {
     pub fn new() -> WorkspacePatch {
         WorkspacePatch {
             name: None,
+            github: None,
+            archived: None,
             permissions: None,
         }
     }

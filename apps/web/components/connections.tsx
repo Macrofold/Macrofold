@@ -39,11 +39,11 @@ import { connectionLogoProvider } from '../lib/provider-branding';
 export function ConnectionsView() {
   const filters = useSearchParams(),
     router = useRouter();
-  const project = filters.get('project_id') || '',
+  const workspace = filters.get('workspace_id') || '',
     agent = filters.get('agent_id') || '';
   const query = useDataPages({
     operation: 'listConnections',
-    params: { query: { ...(project ? { project_id: project } : {}), ...(agent ? { agent_id: agent } : {}) } },
+    params: { query: { ...(workspace ? { workspace_id: workspace } : {}), ...(agent ? { agent_id: agent } : {}) } },
   });
   const identity = useData({ operation: 'getIdentity' });
   const [accessConnection, setAccessConnection] = useState<Schema['Connection']>();
@@ -64,7 +64,7 @@ export function ConnectionsView() {
       <PageHeading
         eyebrow="CONNECTED TO YOUR WORLD"
         title="Connections"
-        description="Bring your models, tools, and apps into your agents’ workspace."
+        description="Bring your models, tools, and apps into your agents’ worktree."
         action={
           <Button
             onClick={() => {
@@ -108,11 +108,11 @@ export function ConnectionsView() {
       />
       <div className="form-grid">
         <AccessResourceSelect
-          kind="project"
-          label="Project filter"
-          value={project}
-          onChange={(value) => filter('project_id', value)}
-          onUnavailable={() => filter('project_id', '')}
+          kind="workspace"
+          label="Workspace filter"
+          value={workspace}
+          onChange={(value) => filter('workspace_id', value)}
+          onUnavailable={() => filter('workspace_id', '')}
         />
         <AccessResourceSelect
           kind="agent"
@@ -129,14 +129,14 @@ export function ConnectionsView() {
       ) : !total ? (
         <Empty
           icon={<PlugZap />}
-          title={project || agent ? 'No connections match these filters' : 'Connect your first tool'}
+          title={workspace || agent ? 'No connections match these filters' : 'Connect your first tool'}
           description={
-            project || agent
-              ? 'Choose another project or preset, or clear the filters to see your connections.'
+            workspace || agent
+              ? 'Choose another workspace or preset, or clear the filters to see your connections.'
               : 'Give your agents access to the services that make your work possible.'
           }
           action={
-            project || agent ? (
+            workspace || agent ? (
               <Button variant="secondary" onClick={() => router.replace('/connections', { scroll: false })}>
                 Clear filters
               </Button>
@@ -175,17 +175,17 @@ export function ConnectionsView() {
               {c.access_match?.scopes.length ? (
                 <p className="form-hint">
                   {c.access_match.conditional
-                    ? project
+                    ? workspace
                       ? `Requires preset: ${c.access_match.matching_rules
                           .map((rule) => rule.agent_name)
                           .filter(Boolean)
                           .join(', ')}`
                       : agent
-                        ? `Requires project: ${c.access_match.matching_rules
-                            .map((rule) => rule.project_name)
+                        ? `Requires workspace: ${c.access_match.matching_rules
+                            .map((rule) => rule.workspace_name)
                             .filter(Boolean)
                             .join(', ')}`
-                        : `Requires: ${c.access_match.matching_rules.map((rule) => [rule.project_name, rule.agent_name].filter(Boolean).join(' + ')).join(', ')}`
+                        : `Requires: ${c.access_match.matching_rules.map((rule) => [rule.workspace_name, rule.agent_name].filter(Boolean).join(' + ')).join(', ')}`
                     : 'Available in this context'}{' '}
                   · {c.access_match.scopes.map((scope) => scope.replaceAll('_', ' + ')).join(', ')}
                   {c.access_match.matched_rule_count > 0 &&

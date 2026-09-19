@@ -5,64 +5,78 @@ import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
 export class OpenCodeAdapter implements HarnessAdapter {
+  private server?: Awaited<ReturnType<typeof createOpencodeServer>>;
+  private sessionId?: string;
+  close() {
+    this.server?.close();
+    this.server = undefined;
+    this.sessionId = undefined;
+  }
   async run({ configuration: c, signal, emit, ask, fileTools }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
     if (guarded && !fileTools) throw new Error('Checked file service unavailable.');
     const npm = c.provider === 'anthropic' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible';
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
-    const server = await createOpencodeServer({
-      hostname: '127.0.0.1',
-      port: 4096,
-      // Cold server startup can exceed the SDK's five-second default. It still
-      // shares the run's deadline and cancellation signal; no prompt has started.
-      timeout: Math.max(1, Math.min(30_000, Date.parse(c.deadline) - Date.now())),
-      signal,
-      config: {
-        model: `platform/${c.model}`,
-        small_model: `platform/${c.model}`,
-        autoupdate: false,
-        share: 'disabled',
-        enabled_providers: ['platform'],
-        provider: {
-          platform: {
-            npm,
-            name: 'Platform',
-            options: {
-              baseURL: `${c.gatewayURL}/v1`,
-              apiKey: c.token,
+    const reused = Boolean(this.server);
+    const server =
+      this.server ||
+      (await createOpencodeServer({
+        hostname: '127.0.0.1',
+        port: 4096,
+        // A cold one-shot worker shares its run signal. Resident servers outlive it;
+        // the root supervisor still bounds startup and terminates cancelled workers.
+        signal: c.warm ? undefined : signal,
+        // Cold server startup can exceed the SDK's five-second default. It still
+        // shares the run's deadline and cancellation signal; no prompt has started.
+        timeout: Math.max(1, Math.min(30_000, Date.parse(c.deadline) - Date.now())),
+        config: {
+          model: `platform/${c.model}`,
+          small_model: `platform/${c.model}`,
+          autoupdate: false,
+          share: 'disabled',
+          enabled_providers: ['platform'],
+          provider: {
+            platform: {
+              npm,
+              name: 'Platform',
+              options: {
+                baseURL: `${c.gatewayURL}/v1`,
+                apiKey: c.token,
+              },
+              models: { [c.model]: { name: c.model, limit: { context: 128000, output: 8192 } } },
             },
-            models: { [c.model]: { name: c.model, limit: { context: 128000, output: 8192 } } },
+          },
+          ...(guarded
+            ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
+            : { permission: { edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+          mcp: {
+            ...(c.toolGrants
+              ? {
+                  platform: {
+                    type: 'remote',
+                    url: c.toolURL,
+                    headers: { Authorization: `Bearer ${c.token}` },
+                    enabled: true,
+                  },
+                }
+              : {}),
+            ...(fileTools
+              ? {
+                  worktree: {
+                    type: 'remote' as const,
+                    url: fileTools.url,
+                    headers: { Authorization: `Bearer ${fileTools.token}` },
+                    enabled: true,
+                  },
+                }
+              : {}),
           },
         },
-        ...(guarded
-          ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
-          : { permission: { edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
-        mcp: {
-          ...(c.toolGrants
-            ? {
-                platform: {
-                  type: 'remote',
-                  url: c.toolURL,
-                  headers: { Authorization: `Bearer ${c.token}` },
-                  enabled: true,
-                },
-              }
-            : {}),
-          ...(fileTools
-            ? {
-                worktree: {
-                  type: 'remote' as const,
-                  url: fileTools.url,
-                  headers: { Authorization: `Bearer ${fileTools.token}` },
-                  enabled: true,
-                },
-              }
-            : {}),
-        },
-      },
-    });
+      }));
+    this.server = server;
+    let successful = false;
     const client = createSessionClient({ baseUrl: server.url });
-    let sessionId = c.resumeId,
+    let sessionId = this.sessionId || c.resumeId,
       output = '';
     let done = false;
     const controller = new AbortController();
@@ -73,7 +87,11 @@ export class OpenCodeAdapter implements HarnessAdapter {
         if (!session.data) throw new Error('OpenCode could not create a session');
         sessionId = session.data.id;
       }
-      await emit({ type: 'runtime.started', data: { harness: 'opencode', native_session_id: sessionId } });
+      this.sessionId = sessionId;
+      await emit({
+        type: 'runtime.started',
+        data: { harness: 'opencode', native_session_id: sessionId, reused },
+      });
       const subscription = await client.event.subscribe({ signal: controller.signal });
       const consume = (async () => {
         for await (const event of subscription.stream) {
@@ -166,6 +184,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
         done = true;
         controller.abort();
         await consume;
+        successful = !signal.aborted;
         return { output, resumeId: sessionId, outcome: signal.aborted ? 'cancelled' : 'success' };
       } finally {
         signal.removeEventListener('abort', abort);
@@ -173,7 +192,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     } finally {
       done = true;
       controller.abort();
-      server.close();
+      if (!c.warm || !successful) this.close();
     }
   }
 }

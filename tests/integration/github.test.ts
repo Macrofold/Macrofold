@@ -5,7 +5,7 @@ import { customerScopes, type Principal } from '../../packages/core/src/auth';
 import { id, seal } from '../../packages/core/src/crypto';
 import { authorizeRepository } from '../../packages/core/src/github-auth';
 import * as resources from '../../packages/core/src/resources';
-import { createWorkspace } from '../../packages/core/src/files';
+import { createWorktree } from '../../packages/core/src/files';
 import { queueGitSync, executeGitJob } from '../../packages/core/src/git-jobs';
 import { gitServer } from '../fixtures/git-server';
 import { createKey } from '../../packages/core/src/keys';
@@ -31,7 +31,7 @@ beforeAll(async () => {
     role: 'owner',
     operator: false,
     scopes: customerScopes,
-    projectIds: [],
+    workspaceIds: [],
   };
   await transaction(org, (tx) =>
     tx.query(
@@ -112,7 +112,7 @@ it('executes a queued sync against real Git HTTP, persists history and denies a 
   };
   try {
     const ws = await transaction(p.organizationId, async (tx) => {
-      const project = await resources.create(tx, 'projects', p.organizationId, {
+      const workspace = await resources.create(tx, 'workspaces', p.organizationId, {
         name: 'Sync job',
         github: { installation_id: '123', repository_id: '1', target_branch: 'main',
           auto_sync: false,
@@ -120,14 +120,15 @@ it('executes a queued sync against real Git HTTP, persists history and denies a 
           sync_mode: 'push',
         },
       });
-      const op = await createWorkspace(tx, p, project.id, { name: 'main' });
-      return resources.get(tx, 'workspaces', String((op.result as Record<string, unknown>).workspace_id));
+      const op = await createWorktree(tx, p, workspace.id, { name: 'main' });
+      return resources.get(tx, 'worktrees', String((op.result as Record<string, unknown>).worktree_id));
     });
     const operation = await transaction(p.organizationId, (tx) => queueGitSync(tx, p, ws.id, 'pull'));
     await executeGitJob(p.organizationId, operation.id, host);
     const imported = await transaction(p.organizationId, async (tx) => {
-      expect((await resources.get(tx, 'operations', operation.id)).status).toBe('succeeded');
-      const result = await resources.get(tx, 'workspaces', ws.id);
+      const completed = await resources.get(tx, 'operations', operation.id);
+      expect(completed.status, JSON.stringify(completed.error)).toBe('succeeded');
+      const result = await resources.get(tx, 'worktrees', ws.id);
       expect(result.git_status).toBe('ready');
       expect(result.git_commit).toMatch(/^[0-9a-f]{40}$/);
       expect((result.files as { path: string }[]).map((f) => f.path)).toContain('README.md');
@@ -170,15 +171,15 @@ it('queues automatic synchronization only after run persistence and reports its 
   try {
     const ws = await transaction(p.organizationId, async (tx) => {
       await credit(tx, p.organizationId, 10000000n, 'git-auto-fixture-' + id());
-      const project = await resources.create(tx, 'projects', p.organizationId, {
+      const workspace = await resources.create(tx, 'workspaces', p.organizationId, {
         name: 'Automatic synchronization',
         github: { installation_id: '123', repository_id: '1', target_branch: 'main', auto_sync: true,
           auto_pull: false,
           sync_mode: 'push',
         },
       });
-      const op = await createWorkspace(tx, p, project.id, { name: 'main' });
-      return resources.get(tx, 'workspaces', String((op.result as Record<string, unknown>).workspace_id));
+      const op = await createWorktree(tx, p, workspace.id, { name: 'main' });
+      return resources.get(tx, 'worktrees', String((op.result as Record<string, unknown>).worktree_id));
     });
     const initial = await transaction(p.organizationId, (tx) => queueGitSync(tx, p, ws.id, 'pull'));
     await executeGitJob(p.organizationId, initial.id, host);
@@ -194,7 +195,7 @@ it('queues automatic synchronization only after run persistence and reports its 
           'idempotency-key': id(),
         },
         body: JSON.stringify({
-          workspace_id: ws.id,
+          worktree_id: ws.id,
           prompt: 'Save a progress note',
           harness: 'codex',
           model: 'fixture-model',

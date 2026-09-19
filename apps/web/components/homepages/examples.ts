@@ -5,7 +5,7 @@ export const examples = {
 
 const macrofold = new Macrofold();
 const run = await macrofold.runs.create({
-    project_id,
+    workspace_id,
     harness: 'codex',
     model: 'gpt-5.4-mini',
     billing_mode: 'managed',
@@ -24,7 +24,7 @@ const run = await macrofold.runs.create({
 
 macrofold = Macrofold()
 run = macrofold.runs.create(
-    project_id=project_id,
+    workspace_id=workspace_id,
     harness='codex',
     model='gpt-5.4-mini',
     billing_mode='managed',
@@ -51,7 +51,7 @@ curl -sS "https://app.macrofold.ai/v1/runs" \\
   -H "Idempotency-Key: $REQUEST_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-    "project_id": "<project-id>",
+    "workspace_id": "<workspace-id>",
     "harness": "codex",
     "model": "gpt-5.4-mini",
     "billing_mode": "managed",
@@ -68,7 +68,7 @@ curl -sS "https://app.macrofold.ai/v1/runs" \\
        "prompt":"Add tests for the prototype."}'`,
   },
   CLI: {
-    Run: `# After login and linking your project.
+    Run: `# After login and linking your workspace.
 macrofold run "Build a working prototype." \\
   --harness codex \\
   --model gpt-5.4-mini`,

@@ -14,16 +14,16 @@ export type SyncMode = 'push' | 'pull' | 'pull_request';
 export async function queueGitSync(
   tx: Tx,
   p: Principal,
-  workspaceId: string,
+  worktreeId: string,
   mode: SyncMode = 'push',
   sourceRunId?: string,
 ) {
   requireScopes(p, ['files:write']);
-  const ws = await resources.get(tx, 'workspaces', workspaceId, p);
-  const project = await resources.get(tx, 'projects', String(ws.project_id), p);
-  assert(project.github, 409, 'git_not_connected', 'Connect a GitHub repository to enable sync.');
-  await ensureWritable(tx, workspaceId);
-  const op = await resources.operation(tx, p, 'git_sync', { workspace_id: workspaceId }, 'queued');
+  const ws = await resources.get(tx, 'worktrees', worktreeId, p);
+  const workspace = await resources.get(tx, 'workspaces', String(ws.workspace_id), p);
+  assert(workspace.github, 409, 'git_not_connected', 'Connect a GitHub repository to enable sync.');
+  await ensureWritable(tx, worktreeId);
+  const op = await resources.operation(tx, p, 'git_sync', { worktree_id: worktreeId }, 'queued');
   await resources.update(tx, 'operations', op.id, {
     mode,
     source_run_id: sourceRunId,
@@ -32,12 +32,12 @@ export async function queueGitSync(
       userId: p.userId,
       kind: p.kind,
       oauthTokenId: p.oauthTokenId,
-      projectIds: p.projectIds,
+      workspaceIds: p.workspaceIds,
     },
     expires_at: new Date(Date.now() + 3600000).toISOString(),
   });
-  await resources.update(tx, 'workspaces', workspaceId, {
-    sync: { workspace_id: workspaceId, status: 'pending', updated_at: new Date().toISOString() },
+  await resources.update(tx, 'worktrees', worktreeId, {
+    sync: { worktree_id: worktreeId, status: 'pending', updated_at: new Date().toISOString() },
   });
   await tx.query(
     "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'operation',$3)",
@@ -69,20 +69,20 @@ export async function executeGitJob(
       "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds' WHERE kind='operation' AND resource_id=$1",
       [operationId],
     );
-    const workspaceId = String((op.result as Record<string, unknown>).workspace_id);
+    const worktreeId = String((op.result as Record<string, unknown>).worktree_id);
     const writable = await tx.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1,0)) AS locked', [
-      `workspace:${workspaceId}`,
+      `worktree:${worktreeId}`,
     ]);
     if (!writable.rows[0].locked) return;
-    const actor = op.actor as Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'projectIds'>;
-    const ws = await resources.get(tx, 'workspaces', workspaceId),
-      project = await resources.get(tx, 'projects', String(ws.project_id));
+    const actor = op.actor as Pick<Principal, 'id' | 'userId' | 'kind' | 'oauthTokenId' | 'workspaceIds'>;
+    const ws = await resources.get(tx, 'worktrees', worktreeId),
+      workspace = await resources.get(tx, 'workspaces', String(ws.workspace_id));
     const p: Principal = {
       ...actor,
       organizationId: org,
       role: 'member',
       operator: false,
-      scopes: ['files:write', 'files:read', 'projects:read'],
+      scopes: ['files:write', 'files:read', 'workspaces:read'],
     };
     try {
       assert(
@@ -96,7 +96,7 @@ export async function executeGitJob(
           tx,
           {
             organization_id: org,
-            project_id: String(ws.project_id),
+            workspace_id: String(ws.workspace_id),
             config: {
               user_id: actor.userId!,
               principal_id: actor.id,
@@ -111,26 +111,26 @@ export async function executeGitJob(
         'The initiating credential is no longer authorized.',
       );
       const active = await tx.query(
-        "SELECT 1 FROM runs WHERE workspace_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
-        [workspaceId],
+        "SELECT 1 FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
+        [worktreeId],
       );
       if (active.rowCount) return; // Keep the job queued; the next sweep follows the agent's persistence commit.
-      const target = project.github as
+      const target = workspace.github as
         { installation_id: string; repository_id: string; target_branch: string } | undefined;
-      assert(target && !project.archived, 409, 'git_not_connected', 'The project is no longer connected.');
+      assert(target && !workspace.archived, 409, 'git_not_connected', 'The workspace is no longer connected.');
       const installed = await tx.query(
         'SELECT 1 FROM github_installations i JOIN github_repository_grants g ON g.organization_id=i.organization_id AND g.installation_id=i.installation_id WHERE i.organization_id=$1 AND i.installation_id=$2 AND i.active AND g.repository_id=$3',
         [org, target.installation_id, target.repository_id],
       );
       assert(installed.rowCount, 403, 'github_installation_revoked', 'Reconnect this GitHub installation.');
       assert(
-        !op.github_notification || (project.github as { auto_pull?: boolean }).auto_pull,
+        !op.github_notification || (workspace.github as { auto_pull?: boolean }).auto_pull,
         409,
         'automatic_pull_disabled',
         'Automatic Git pull has been disabled.',
       );
       assert(
-        !op.source_run_id || (project.github as { auto_sync?: boolean }).auto_sync,
+        !op.source_run_id || (workspace.github as { auto_sync?: boolean }).auto_sync,
         409,
         'automatic_sync_disabled',
         'Automatic Git sync has been disabled.',
@@ -139,7 +139,7 @@ export async function executeGitJob(
         op.mode !== 'pull_request' || String(ws.branch) !== target.target_branch,
         409,
         'pull_request_branch_required',
-        'Use an independent workspace branch to open a pull request.',
+        'Use an independent worktree branch to open a pull request.',
       );
       const remote = await host.remote(target.installation_id, target.repository_id);
       const result = await synchronizeGit(
@@ -151,8 +151,8 @@ export async function executeGitJob(
         (ws.git_files || []) as FileRecord[],
         remote,
       );
-      const state: import('./resource-models').ResourceModels['workspaces']['sync'] = {
-        workspace_id: workspaceId,
+      const state: import('./resource-models').ResourceModels['worktrees']['sync'] = {
+        worktree_id: worktreeId,
         status: result.status,
         source_commit: result.source_commit,
         target_commit: result.target_commit,
@@ -160,8 +160,8 @@ export async function executeGitJob(
         error_code: result.error_code,
         updated_at: new Date().toISOString(),
       };
-      const cp = await checkpoint(tx, p, workspaceId, 'Git synchronization', result.files, result.git_files);
-      await resources.update(tx, 'workspaces', workspaceId, { ...checkpointState(cp), sync: state });
+      const cp = await checkpoint(tx, p, worktreeId, 'Git synchronization', result.files, result.git_files);
+      await resources.update(tx, 'worktrees', worktreeId, { ...checkpointState(cp), sync: state });
       if (
         result.status === 'synced' &&
         op.mode === 'pull_request' &&
@@ -173,12 +173,12 @@ export async function executeGitJob(
           String(ws.branch),
           target.target_branch,
         );
-      await resources.update(tx, 'workspaces', workspaceId, { sync: state });
+      await resources.update(tx, 'worktrees', worktreeId, { sync: state });
       if (op.mode === 'pull' && result.status === 'synced')
-        await resources.update(tx, 'workspaces', workspaceId, { remote_change: null });
+        await resources.update(tx, 'worktrees', worktreeId, { remote_change: null });
       await resources.update(tx, 'operations', operationId, {
         status: 'succeeded',
-        result: { workspace_id: workspaceId, checkpoint_id: cp.id, sync: state },
+        result: { worktree_id: worktreeId, checkpoint_id: cp.id, sync: state },
       });
     } catch (error) {
       // Provider messages may contain repository URLs or auth details. Persist stable codes only.
@@ -186,9 +186,9 @@ export async function executeGitJob(
         typeof error === 'object' && error && 'code' in error
           ? String(error.code).slice(0, 100)
           : 'git_provider_error';
-      await resources.update(tx, 'workspaces', workspaceId, {
+      await resources.update(tx, 'worktrees', worktreeId, {
         sync: {
-          workspace_id: workspaceId,
+          worktree_id: worktreeId,
           status: 'blocked',
           error_code: code,
           updated_at: new Date().toISOString(),
@@ -206,19 +206,19 @@ export async function executeGitJob(
       });
     }
     if (op.source_run_id) {
-      const current = await resources.get(tx, 'workspaces', workspaceId);
+      const current = await resources.get(tx, 'worktrees', worktreeId);
       await tx.query("UPDATE runs SET result=jsonb_set(result,'{sync_status}',$2::jsonb) WHERE id=$1", [
         op.source_run_id,
         JSON.stringify((current.sync as { status: string }).status),
       ]);
     }
-    const completed = await resources.get(tx, 'workspaces', workspaceId);
+    const completed = await resources.get(tx, 'worktrees', worktreeId);
     await enqueueWebhook(
       tx,
       org,
       'git_sync.updated',
-      { workspace_id: workspaceId, project_id: ws.project_id, sync: completed.sync },
-      { projectId: String(ws.project_id) },
+      { worktree_id: worktreeId, workspace_id: ws.workspace_id, sync: completed.sync },
+      { workspaceId: String(ws.workspace_id) },
     );
     await tx.query(
       "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='operation' AND resource_id=$1",
@@ -242,7 +242,9 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
     }
   }
   const tasks: [string, () => Promise<Record<string, number>>][] = [
+    ['sandboxes', async () => (await import('./sandboxes')).dispatchSandboxes()],
     ['runs', async () => (await import('./engine')).maintainRuns()],
+    ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],
     ['triggers', async () => (await import('./trigger-dispatch')).dispatchTriggers()],
     ['webhooks', dispatchWebhooks],
     ['analytics', async () => (await import('./analytics-export')).forwardProductEvents()],
@@ -274,12 +276,12 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
   return result;
 }
 
-export async function queueAutomaticSync(tx: Tx, p: Principal, workspaceId: string, runId: string) {
-  const ws = await resources.get(tx, 'workspaces', workspaceId),
-    project = await resources.get(tx, 'projects', String(ws.project_id));
-  const settings = project.github as { auto_sync?: boolean; sync_mode?: SyncMode } | undefined;
+export async function queueAutomaticSync(tx: Tx, p: Principal, worktreeId: string, runId: string) {
+  const ws = await resources.get(tx, 'worktrees', worktreeId),
+    workspace = await resources.get(tx, 'workspaces', String(ws.workspace_id));
+  const settings = workspace.github as { auto_sync?: boolean; sync_mode?: SyncMode } | undefined;
   if (!settings?.auto_sync) return false;
-  await queueGitSync(tx, p, workspaceId, settings.sync_mode || 'push', runId);
+  await queueGitSync(tx, p, worktreeId, settings.sync_mode || 'push', runId);
   await tx.query(
     "UPDATE runs SET result=jsonb_set(result,'{sync_status}','\"pending\"'::jsonb) WHERE id=$1",
     [runId],

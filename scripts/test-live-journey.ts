@@ -71,7 +71,7 @@ try {
           ceiling: '0',
           runId: run.run_id,
           sessionId: run.session_id,
-          workspaceId: run.workspace_id,
+          worktreeId: run.worktree_id,
         }) + '\n',
       );
       await journal.sync();

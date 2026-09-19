@@ -5,7 +5,7 @@ import { AgentStore, AppError, agentRecord, type AgentRecord } from './store';
 
 const memory = fileMemory();
 const runIdentity = z.object({ run_id: z.uuid(), session_id: z.uuid() });
-const projectIdentity = z.object({ id: z.uuid(), default_workspace_id: z.uuid() });
+const workspaceIdentity = z.object({ id: z.uuid(), default_worktree_id: z.uuid() });
 const done = z.literal(true);
 export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('setup'), name: z.string().trim().min(1).max(80) }),
@@ -74,8 +74,8 @@ export class PersonalAgents {
           execute: (options: { idempotencyKey: string; revision: string | null }) => Promise<T>,
           revision?: () => Promise<string>,
         ) => this.store.step(record.id, `${requestId}/${name}`, action, schema, execute, revision);
-        const workspaceId = requireId(record.workspaceId),
-          projectId = requireId(record.projectId),
+        const worktreeId = requireId(record.worktreeId),
+          workspaceId = requireId(record.workspaceId),
           presetId = requireId(record.presetId);
         if (action.action === 'chat') {
           if (action.conversationId && !record.conversations.includes(action.conversationId))
@@ -85,7 +85,7 @@ export class PersonalAgents {
               {
                 ...(action.conversationId
                   ? { session_id: action.conversationId }
-                  : { workspace_id: workspaceId, agent_id: presetId }),
+                  : { worktree_id: worktreeId, agent_id: presetId }),
                 prompt: action.prompt,
               },
               options,
@@ -138,8 +138,8 @@ export class PersonalAgents {
               await this.client.connections.createAccessRule(
                 connectionId,
                 {
-                  scope: 'project_agent',
-                  project_id: projectId,
+                  scope: 'workspace_agent',
+                  workspace_id: workspaceId,
                   agent_id: presetId,
                   ifMatch: requireRevision(options.revision),
                 },
@@ -178,7 +178,7 @@ export class PersonalAgents {
                   {
                     name: `${record.name} weekly review`,
                     kind: 'schedule',
-                    project_id: projectId,
+                    workspace_id: workspaceId,
                     agent_id: presetId,
                     cron: '0 9 * * 1',
                     timezone: action.timezone,
@@ -202,8 +202,8 @@ export class PersonalAgents {
           }
           await step('file', done, async (options) => {
             if (action.action === 'write')
-              await this.client.workspaces.writeFile(
-                workspaceId,
+              await this.client.worktrees.writeFile(
+                worktreeId,
                 {
                   path: action.path,
                   ifMatch: action.revision,
@@ -212,8 +212,8 @@ export class PersonalAgents {
                 options,
               );
             else
-              await this.client.workspaces.deleteFile(
-                workspaceId,
+              await this.client.worktrees.deleteFile(
+                worktreeId,
                 { path: action.path, ifMatch: action.revision },
                 options,
               );
@@ -225,9 +225,9 @@ export class PersonalAgents {
           // Set paused first: retries cannot admit app work during partial cleanup.
           record.status = 'paused';
           this.store.save(record);
-          await step('project-deletion', done, async (options) => {
-            const project = await this.client.projects.get(projectId);
-            await this.client.projects.scheduleDeletion(projectId, { confirmation: project.name }, options);
+          await step('workspace-deletion', done, async (options) => {
+            const workspace = await this.client.workspaces.get(workspaceId);
+            await this.client.workspaces.scheduleDeletion(workspaceId, { confirmation: workspace.name }, options);
             return true;
           });
           if (record.connectionId)
@@ -252,7 +252,7 @@ export class PersonalAgents {
           if (action.action === 'pause') {
             let cursor: string | undefined;
             do {
-              const page = await this.client.runs.list({ project_id: projectId, cursor, limit: 100 });
+              const page = await this.client.runs.list({ workspace_id: workspaceId, cursor, limit: 100 });
               for (const run of page.data)
                 if (['queued', 'provisioning', 'running', 'waiting_for_input'].includes(run.status))
                   await step(`cancel-${run.id}`, done, async (options) => {
@@ -280,13 +280,13 @@ export class PersonalAgents {
       call: (options: { idempotencyKey: string; revision: string | null }) => Promise<T>,
       revision?: () => Promise<string>,
     ) => this.store.step(record.id, `setup/${name}`, input, schema, call, revision);
-    const project = await step('project', { name: record.name }, projectIdentity, async (options) =>
-      projectIdentity.parse(
-        await this.client.projects.create({ name: `${record.name} · ${record.id}` }, options),
+    const workspace = await step('workspace', { name: record.name }, workspaceIdentity, async (options) =>
+      workspaceIdentity.parse(
+        await this.client.workspaces.create({ name: `${record.name} · ${record.id}` }, options),
       ),
     );
-    record.projectId = project.id;
-    record.workspaceId = project.default_workspace_id;
+    record.workspaceId = workspace.id;
+    record.worktreeId = workspace.default_worktree_id;
     this.store.save(record);
     const { budgetMicroUsd, ...route } = this.configuration;
     record.presetId = await step(
@@ -314,8 +314,8 @@ export class PersonalAgents {
         { path, content },
         done,
         async (options) => {
-          await this.client.workspaces.writeFile(
-            project.default_workspace_id,
+          await this.client.worktrees.writeFile(
+            workspace.default_worktree_id,
             {
               path,
               content: new TextEncoder().encode(content),
@@ -326,7 +326,7 @@ export class PersonalAgents {
           );
           return true;
         },
-        async () => (await this.client.workspaces.get(project.default_workspace_id)).revision,
+        async () => (await this.client.worktrees.get(workspace.default_worktree_id)).revision,
       );
     record.status = 'active';
     this.store.save(record);
@@ -344,14 +344,14 @@ export class PersonalAgents {
     this.memoryPath(path);
     // ReadFile's ETag and body refer to the same published revision. A later write must use it.
     const response = await this.client.raw('readFile', {
-      params: { path: { workspace_id: requireId(agent.workspaceId) }, query: { path } },
+      params: { path: { worktree_id: requireId(agent.worktreeId) }, query: { path } },
     });
     return { content: await response.text(), revision: z.string().parse(response.headers.get('etag')) };
   }
   async activity(customerId: string, agentId: string) {
     const agent = this.store.get(customerId, agentId);
-    if (agent.status === 'deleted' || !agent.projectId) return { runs: [], files: [], schedule: null };
-    const runs = await this.client.runs.list({ project_id: agent.projectId, limit: 30 });
+    if (agent.status === 'deleted' || !agent.workspaceId) return { runs: [], files: [], schedule: null };
+    const runs = await this.client.runs.list({ workspace_id: agent.workspaceId, limit: 30 });
     return {
       runs: await Promise.all(
         runs.data.map(async (run) => ({
@@ -362,7 +362,7 @@ export class PersonalAgents {
         })),
       ),
       files: (
-        await this.client.workspaces.listFiles(requireId(agent.workspaceId), { recursive: true, limit: 100 })
+        await this.client.worktrees.listFiles(requireId(agent.worktreeId), { recursive: true, limit: 100 })
       ).entries,
       schedule: agent.triggerId ? await this.client.triggers.get(agent.triggerId) : null,
     };

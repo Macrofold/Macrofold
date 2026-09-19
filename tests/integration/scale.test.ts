@@ -72,7 +72,7 @@ it('shares global execution capacity across simultaneous tenants and keeps uncla
   const { admitRun } = await import('../../packages/core/src/runs');
   const { claimRun } = await import('../../packages/core/src/engine');
   const resources = await import('../../packages/core/src/resources');
-  const { createWorkspace } = await import('../../packages/core/src/files');
+  const { createWorktree } = await import('../../packages/core/src/files');
   const accounts = await Promise.all(
     Array.from({ length: 4 }, (_, i) => fixtureAccount('Global capacity ' + i)),
   );
@@ -89,10 +89,10 @@ it('shares global execution capacity across simultaneous tenants and keeps uncla
     const admitted = await Promise.all(
       accounts.map((a) =>
         transaction(a.p.organizationId, async (tx) => {
-          const project = await resources.create(tx, 'projects', a.p.organizationId, { name: 'Capacity' });
-          const ws = await createWorkspace(tx, a.p, project.id, { name: 'main', branch: 'main' });
+          const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, { name: 'Capacity' });
+          const ws = await createWorktree(tx, a.p, workspace.id, { name: 'main', branch: 'main' });
           return admitRun(tx, a.p, {
-            workspace_id: String((ws.result as any).workspace_id),
+            worktree_id: String((ws.result as any).worktree_id),
             harness: 'codex',
             model: 'fixture-model',
             billing_mode: 'managed',

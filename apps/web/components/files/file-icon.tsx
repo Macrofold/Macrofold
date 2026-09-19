@@ -57,5 +57,5 @@ export function FileIcon({
   else if (/^(zip|gz|tar|tgz|7z|rar)$/.test(extension)) Icon = Archive;
   else if (/^(yaml|yml|toml|ini|conf|env)$/.test(extension) || name.startsWith('.env')) Icon = Settings;
   else if (/^(xml|graphql)$/.test(extension)) Icon = Braces;
-  return <Icon size={size} aria-hidden="true" className={`workspace-file-icon file-icon-${tone}`} />;
+  return <Icon size={size} aria-hidden="true" className={`worktree-file-icon file-icon-${tone}`} />;
 }

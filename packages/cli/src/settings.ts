@@ -10,8 +10,8 @@ export const release = {
 export const defaultScopes = [
   'identity:read',
   'offline_access',
-  'projects:read',
-  'projects:write',
+  'workspaces:read',
+  'workspaces:write',
   'files:read',
   'files:write',
   'runs:read',

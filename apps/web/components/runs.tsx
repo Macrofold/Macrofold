@@ -1,4 +1,7 @@
 'use client';
+import { TaskLineage } from './task-lineage';
+import { InferenceResult } from './inference-result';
+import { RunArtifacts } from './run-artifacts';
 import { harnessLabel } from '../../../packages/contracts/harnesses';
 import { CopyButton } from './copy-button';
 import Link from 'next/link';
@@ -109,6 +112,7 @@ export function RunDetail({ runId }: { runId: string }) {
   if (query.isPending) return <Loading />;
   if (query.error) return <ErrorState error={query.error} />;
   const run = query.data!;
+  const timeoutSeconds = run.limits?.timeout_seconds ?? 900;
   const live = !isFinal(run.status);
   const output = result.data?.content_expired
     ? ''
@@ -135,12 +139,14 @@ export function RunDetail({ runId }: { runId: string }) {
           run.status === 'queued'
             ? 'Your task is queued.'
             : live
-              ? 'Your agent is on it.'
+              ? run.kind === 'inference'
+                ? 'Decision in progress.'
+                : 'Your agent is on it.'
               : run.status === 'succeeded'
                 ? 'Work, completed.'
                 : 'Run stopped.'
         }
-        description={`${harnessLabel(run.harness)} · ${run.model === 'fixture-model' ? 'Local simulation' : run.model} · ${relative(run.created_at)}`}
+        description={`${run.harness ? harnessLabel(run.harness) : run.kind === 'inference' ? 'Inference' : 'Bounded agent'} · ${run.model === 'fixture-model' ? 'Local simulation' : run.model} · ${relative(run.created_at)}`}
         action={
           <div className="button-row">
             {live ? (
@@ -159,12 +165,12 @@ export function RunDetail({ runId }: { runId: string }) {
                 <Square size={14} />
                 Cancel run
               </Button>
-            ) : (
+            ) : run.session_id ? (
               <Button onClick={() => setCompose(true)}>
                 <MessageSquare size={16} />
                 Continue conversation
               </Button>
-            )}
+            ) : null}
           </div>
         }
       />
@@ -228,7 +234,14 @@ export function RunDetail({ runId }: { runId: string }) {
               className={tab === 'tools' ? 'selected' : ''}
               onClick={() => setTab('tools')}
             >
-              Tool calls <span>{tools.filter((t) => t.type === 'tool.started').length}</span>
+              Tool calls{' '}
+              <span>
+                {
+                  tools.filter(
+                    (t) => t.type === (run.kind === 'bounded_agent' ? 'tool.completed' : 'tool.started'),
+                  ).length
+                }
+              </span>
             </button>
             <button
               role="tab"
@@ -241,13 +254,18 @@ export function RunDetail({ runId }: { runId: string }) {
           </div>
           {tab === 'output' ? (
             <div className="output-area">
+              {!live && run.kind === 'native_agent' && !result.data?.content_expired && (
+                <RunArtifacts runId={runId} />
+              )}
               {summaries.map((e) => (
                 <details className="reasoning-summary" key={e.id}>
                   <summary>Reasoning summary</summary>
                   <p>{String(e.data.text || '')}</p>
                 </details>
               ))}
-              {output ? (
+              {result.data?.inference ? (
+                <InferenceResult receipt={result.data.inference} />
+              ) : output ? (
                 <MarkdownOutput text={output} streaming={live} />
               ) : (
                 <div className="run-waiting">
@@ -276,7 +294,11 @@ export function RunDetail({ runId }: { runId: string }) {
                       ? 'Worktree checkpoint verified'
                       : 'Run history saved'}
                   </span>
-                  <CopyButton variant="ghost" text={output} label="Copy output" />
+                  <CopyButton
+                    variant="ghost"
+                    text={result.data?.inference ? JSON.stringify(result.data.inference, null, 2) : output}
+                    label="Copy output"
+                  />
                 </div>
               )}
             </div>
@@ -322,6 +344,7 @@ export function RunDetail({ runId }: { runId: string }) {
           )}
         </section>
         <aside className="run-aside">
+          {run.task_id && <TaskLineage taskId={run.task_id} />}
           <div className="panel compact-panel">
             <h3>Run details</h3>
             <dl>
@@ -331,32 +354,40 @@ export function RunDetail({ runId }: { runId: string }) {
               <dd>{run.scheduling_class || 'background'}</dd>
               <dt>Queue deadline</dt>
               <dd>{run.queue_expires_at ? new Date(run.queue_expires_at).toLocaleString() : '—'}</dd>
-              <dt>Harness</dt>
-              <dd>{run.harness}</dd>
+              <dt>Execution</dt>
+              <dd>{run.harness || run.kind.replaceAll('_', ' ')}</dd>
               <dt>Model</dt>
               <dd>{run.model}</dd>
               <dt>Persistence</dt>
               <dd>
                 <Badge status={run.persistence_status || 'pending'} />
               </dd>
-              <dt>Git sync</dt>
-              <dd>{run.sync_status || 'disabled'}</dd>
+              {run.kind === 'native_agent' && (
+                <>
+                  <dt>Git sync</dt>
+                  <dd>{run.sync_status || 'disabled'}</dd>
+                </>
+              )}
               <dt>Budget</dt>
               <dd>{money(run.limits?.max_cost_micro_usd)}</dd>
               <dt>Timeout</dt>
-              <dd>{(run.limits?.timeout_seconds || 900) / 60} minutes</dd>
+              <dd>
+                {timeoutSeconds % 60 === 0 ? `${timeoutSeconds / 60} minutes` : `${timeoutSeconds} seconds`}
+              </dd>
             </dl>
             <CopyButton variant="plain" className="text-link" text={runId} label="Copy run ID" />
           </div>
-          <div className="panel compact-panel">
-            <h3>Worktree</h3>
-            <p>
-              {run.persistence_status === 'verified'
-                ? 'Changes are saved to this run’s persistent worktree.'
-                : 'Browse the latest verified files. Run changes are available after persistence succeeds.'}
-            </p>
-            <WorkspaceLink workspaceId={run.workspace_id} />
-          </div>
+          {run.worktree_id && (
+            <div className="panel compact-panel">
+              <h3>Worktree</h3>
+              <p>
+                {run.persistence_status === 'verified'
+                  ? 'Changes are saved to this run’s persistent worktree.'
+                  : 'Browse the latest verified files. Run changes are available after persistence succeeds.'}
+              </p>
+              <WorktreeLink worktreeId={run.worktree_id} />
+            </div>
+          )}
           <div className="run-api-tip">
             <Terminal size={18} />
             <strong>Pick it up in your terminal</strong>
@@ -364,18 +395,18 @@ export function RunDetail({ runId }: { runId: string }) {
           </div>
         </aside>
       </div>
-      <RunComposer open={compose} onOpenChange={setCompose} sessionId={run.session_id} />
+      {run.session_id && <RunComposer open={compose} onOpenChange={setCompose} sessionId={run.session_id} />}
     </div>
   );
 }
 function ClockIcon() {
   return <span aria-hidden="true">◷</span>;
 }
-function WorkspaceLink({ workspaceId }: { workspaceId: string }) {
-  const workspace = useApi<Schema['Workspace']>(`/v1/workspaces/${workspaceId}`);
-  return workspace.data ? (
-    <Link className="text-link" href={`/projects/${workspace.data.project_id}/workspaces/${workspaceId}`}>
-      {workspace.data.name ?? 'Untitled worktree'}
+function WorktreeLink({ worktreeId }: { worktreeId: string }) {
+  const worktree = useApi<Schema['Worktree']>(`/v1/worktrees/${worktreeId}`);
+  return worktree.data ? (
+    <Link className="text-link" href={`/workspaces/${worktree.data.workspace_id}/worktrees/${worktreeId}`}>
+      {worktree.data.name ?? 'Untitled worktree'}
       <ArrowUpRight size={14} />
     </Link>
   ) : null;

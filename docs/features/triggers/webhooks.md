@@ -1,11 +1,11 @@
 # Start an agent with a webhook
 
-Give another service a secure URL that starts work in a particular project. The trigger’s saved agent preset determines execution and billing; the caller cannot override those settings.
+Give another service a secure URL that starts work in a particular workspace. The trigger’s saved agent preset determines execution and billing; the caller cannot override those settings.
 
 ## Create and call a trigger
 
 1. Open **Triggers → Create trigger → Incoming webhook**.
-2. Choose a project and agent preset, add a name and instructions, and set an intake limit.
+2. Choose a workspace and agent preset, add a name and instructions, and set an intake limit.
 3. Create the trigger. Copy its URL and one-time secret to the sending service.
 4. Configure the service to send JSON with an `Authorization: Bearer` header and a unique `Idempotency-Key` for each event.
 

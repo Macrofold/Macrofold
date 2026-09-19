@@ -1,8 +1,8 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 144 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 165 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
-Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.projects().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
+Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.workspaces().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
 Path identifiers are positional. Required request values stay typed; optional transport settings expose idempotency, cancellation, and organization selection where supported. Methods retain each SDK's documented transport behavior. The run `events` method delegates to resumable incremental streaming; `stream` remains available. Closing a stream leaves the remote run active; call `runs.cancel` to stop it.
 
@@ -17,43 +17,43 @@ These compose existing operations and add no backend endpoints.
 
 Text streams handle SSE, cursors and duplicate suppression internally, excluding tool payloads and status events. Both convenience helpers report unsuccessful execution or persistence as a typed run error carrying the run ID. A wait timeout stops local waiting without cancelling execution. The language guides describe timeout options, callbacks/iterators, and advanced replay.
 
-## Projects
-
-| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
-| --- | --- | --- | --- |
-| `listProjects` | `projects.list` | `projects.list` | `Projects.List` |
-| `createProject` | `projects.create` | `projects.create` | `Projects.Create` |
-| `getProject` | `projects.get` | `projects.get` | `Projects.Get` |
-| `updateProject` | `projects.update` | `projects.update` | `Projects.Update` |
-| `deleteProject` | `projects.delete` | `projects.delete` | `Projects.Delete` |
-| `listWorkspaces` | `projects.listWorkspaces` | `projects.list_workspaces` | `Projects.ListWorkspaces` |
-| `createWorkspace` | `projects.createWorkspace` | `projects.create_workspace` | `Projects.CreateWorkspace` |
-| `scheduleProjectDeletion` | `projects.scheduleDeletion` | `projects.schedule_deletion` | `Projects.ScheduleDeletion` |
-| `cancelProjectDeletion` | `projects.cancelDeletion` | `projects.cancel_deletion` | `Projects.CancelDeletion` |
-| `getWorktreeOptions` | `projects.getWorktreeOptions` | `projects.get_worktree_options` | `Projects.GetWorktreeOptions` |
-
 ## Workspaces
 
 | OpenAPI operation | TypeScript / Java | Python / Rust | Go |
 | --- | --- | --- | --- |
+| `listWorkspaces` | `workspaces.list` | `workspaces.list` | `Workspaces.List` |
+| `createWorkspace` | `workspaces.create` | `workspaces.create` | `Workspaces.Create` |
 | `getWorkspace` | `workspaces.get` | `workspaces.get` | `Workspaces.Get` |
-| `deleteWorkspace` | `workspaces.delete` | `workspaces.delete` | `Workspaces.Delete` |
 | `updateWorkspace` | `workspaces.update` | `workspaces.update` | `Workspaces.Update` |
-| `listFiles` | `workspaces.listFiles` | `workspaces.list_files` | `Workspaces.ListFiles` |
-| `readFile` | `workspaces.readFile` | `workspaces.read_file` | `Workspaces.ReadFile` |
-| `writeFile` | `workspaces.writeFile` | `workspaces.write_file` | `Workspaces.WriteFile` |
-| `deleteFile` | `workspaces.deleteFile` | `workspaces.delete_file` | `Workspaces.DeleteFile` |
-| `renameFile` | `workspaces.renameFile` | `workspaces.rename_file` | `Workspaces.RenameFile` |
-| `listCheckpoints` | `workspaces.listCheckpoints` | `workspaces.list_checkpoints` | `Workspaces.ListCheckpoints` |
-| `createCheckpoint` | `workspaces.createCheckpoint` | `workspaces.create_checkpoint` | `Workspaces.CreateCheckpoint` |
-| `restoreWorkspace` | `workspaces.restore` | `workspaces.restore` | `Workspaces.Restore` |
-| `getSync` | `workspaces.getSync` | `workspaces.get_sync` | `Workspaces.GetSync` |
-| `syncWorkspace` | `workspaces.sync` | `workspaces.sync` | `Workspaces.Sync` |
-| `getWorkspaceDiff` | `workspaces.getDiff` | `workspaces.get_diff` | `Workspaces.GetDiff` |
-| `createTransfer` | `workspaces.createTransfer` | `workspaces.create_transfer` | `Workspaces.CreateTransfer` |
-| `listTransfers` | `workspaces.listTransfers` | `workspaces.list_transfers` | `Workspaces.ListTransfers` |
-| `createFolder` | `workspaces.createFolder` | `workspaces.create_folder` | `Workspaces.CreateFolder` |
-| `duplicateFile` | `workspaces.duplicateFile` | `workspaces.duplicate_file` | `Workspaces.DuplicateFile` |
+| `deleteWorkspace` | `workspaces.delete` | `workspaces.delete` | `Workspaces.Delete` |
+| `listWorktrees` | `workspaces.listWorktrees` | `workspaces.list_worktrees` | `Workspaces.ListWorktrees` |
+| `createWorktree` | `workspaces.createWorktree` | `workspaces.create_worktree` | `Workspaces.CreateWorktree` |
+| `scheduleWorkspaceDeletion` | `workspaces.scheduleDeletion` | `workspaces.schedule_deletion` | `Workspaces.ScheduleDeletion` |
+| `cancelWorkspaceDeletion` | `workspaces.cancelDeletion` | `workspaces.cancel_deletion` | `Workspaces.CancelDeletion` |
+| `getWorktreeOptions` | `workspaces.getWorktreeOptions` | `workspaces.get_worktree_options` | `Workspaces.GetWorktreeOptions` |
+
+## Worktrees
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `getWorktree` | `worktrees.get` | `worktrees.get` | `Worktrees.Get` |
+| `deleteWorktree` | `worktrees.delete` | `worktrees.delete` | `Worktrees.Delete` |
+| `updateWorktree` | `worktrees.update` | `worktrees.update` | `Worktrees.Update` |
+| `listFiles` | `worktrees.listFiles` | `worktrees.list_files` | `Worktrees.ListFiles` |
+| `readFile` | `worktrees.readFile` | `worktrees.read_file` | `Worktrees.ReadFile` |
+| `writeFile` | `worktrees.writeFile` | `worktrees.write_file` | `Worktrees.WriteFile` |
+| `deleteFile` | `worktrees.deleteFile` | `worktrees.delete_file` | `Worktrees.DeleteFile` |
+| `renameFile` | `worktrees.renameFile` | `worktrees.rename_file` | `Worktrees.RenameFile` |
+| `listCheckpoints` | `worktrees.listCheckpoints` | `worktrees.list_checkpoints` | `Worktrees.ListCheckpoints` |
+| `createCheckpoint` | `worktrees.createCheckpoint` | `worktrees.create_checkpoint` | `Worktrees.CreateCheckpoint` |
+| `restoreWorktree` | `worktrees.restore` | `worktrees.restore` | `Worktrees.Restore` |
+| `getSync` | `worktrees.getSync` | `worktrees.get_sync` | `Worktrees.GetSync` |
+| `syncWorktree` | `worktrees.sync` | `worktrees.sync` | `Worktrees.Sync` |
+| `getWorktreeDiff` | `worktrees.getDiff` | `worktrees.get_diff` | `Worktrees.GetDiff` |
+| `createTransfer` | `worktrees.createTransfer` | `worktrees.create_transfer` | `Worktrees.CreateTransfer` |
+| `listTransfers` | `worktrees.listTransfers` | `worktrees.list_transfers` | `Worktrees.ListTransfers` |
+| `createFolder` | `worktrees.createFolder` | `worktrees.create_folder` | `Worktrees.CreateFolder` |
+| `duplicateFile` | `worktrees.duplicateFile` | `worktrees.duplicate_file` | `Worktrees.DuplicateFile` |
 
 ## Agents
 
@@ -93,6 +93,7 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | OpenAPI operation | TypeScript / Java | Python / Rust | Go |
 | --- | --- | --- | --- |
 | `downloadArtifact` | `artifacts.download` | `artifacts.download` | `Artifacts.Download` |
+| `deleteArtifact` | `artifacts.delete` | `artifacts.delete` | `Artifacts.Delete` |
 
 ## Connections
 
@@ -162,6 +163,7 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `createBillingPortal` | `billing.createPortal` | `billing.create_portal` | `Billing.CreatePortal` |
 | `getStorage` | `billing.getStorage` | `billing.get_storage` | `Billing.GetStorage` |
 | `updateStoragePolicy` | `billing.updateStoragePolicy` | `billing.update_storage_policy` | `Billing.UpdateStoragePolicy` |
+| `listBillingUsage` | `billing.listUsage` | `billing.list_usage` | `Billing.ListUsage` |
 
 ## Harnesses
 
@@ -285,3 +287,37 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `updateCustomerAgentConnectionPermissions` | `customerAgents.updateConnectionPermissions` | `customer_agents.update_connection_permissions` | `CustomerAgents.UpdateConnectionPermissions` |
 | `authorizeCustomerAgentConnection` | `customerAgents.authorizeConnection` | `customer_agents.authorize_connection` | `CustomerAgents.AuthorizeConnection` |
 | `completeCustomerAgentConnection` | `customerAgents.completeConnection` | `customer_agents.complete_connection` | `CustomerAgents.CompleteConnection` |
+
+## Inferences
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `createInference` | `inferences.create` | `inferences.create` | `Inferences.Create` |
+| `createDecisionDefinition` | `inferences.createDecisionDefinition` | `inferences.create_decision_definition` | `Inferences.CreateDecisionDefinition` |
+| `getDecisionDefinition` | `inferences.getDecisionDefinition` | `inferences.get_decision_definition` | `Inferences.GetDecisionDefinition` |
+| `deleteDecisionDefinition` | `inferences.deleteDecisionDefinition` | `inferences.delete_decision_definition` | `Inferences.DeleteDecisionDefinition` |
+| `createContextArtifact` | `inferences.createContextArtifact` | `inferences.create_context_artifact` | `Inferences.CreateContextArtifact` |
+| `getContextArtifact` | `inferences.getContextArtifact` | `inferences.get_context_artifact` | `Inferences.GetContextArtifact` |
+| `deleteContextArtifact` | `inferences.deleteContextArtifact` | `inferences.delete_context_artifact` | `Inferences.DeleteContextArtifact` |
+| `createBoundedAgentRun` | `inferences.createBoundedAgentRun` | `inferences.create_bounded_agent_run` | `Inferences.CreateBoundedAgentRun` |
+
+## Tasks
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `createDecisionTask` | `tasks.createDecision` | `tasks.create_decision` | `Tasks.CreateDecision` |
+| `getDecisionTask` | `tasks.getDecision` | `tasks.get_decision` | `Tasks.GetDecision` |
+| `wakeDecisionTask` | `tasks.wakeDecision` | `tasks.wake_decision` | `Tasks.WakeDecision` |
+| `recordTaskOutcome` | `tasks.recordOutcome` | `tasks.record_outcome` | `Tasks.RecordOutcome` |
+| `closeDecisionTask` | `tasks.closeDecision` | `tasks.close_decision` | `Tasks.CloseDecision` |
+
+## Sandboxes
+
+| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
+| --- | --- | --- | --- |
+| `createSandbox` | `sandboxes.create` | `sandboxes.create` | `Sandboxes.Create` |
+| `listSandboxes` | `sandboxes.list` | `sandboxes.list` | `Sandboxes.List` |
+| `getSandbox` | `sandboxes.get` | `sandboxes.get` | `Sandboxes.Get` |
+| `pauseSandbox` | `sandboxes.pause` | `sandboxes.pause` | `Sandboxes.Pause` |
+| `resumeSandbox` | `sandboxes.resume` | `sandboxes.resume` | `Sandboxes.Resume` |
+| `destroySandbox` | `sandboxes.destroy` | `sandboxes.destroy` | `Sandboxes.Destroy` |

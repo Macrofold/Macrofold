@@ -23,7 +23,7 @@ export function FileMenu({
   return (
     <Menu.Root>
       <Menu.Trigger
-        className="icon-button workspace-tree-menu"
+        className="icon-button worktree-tree-menu"
         aria-label={`Actions for ${name}`}
         onClick={(event) => event.stopPropagation()}
       >

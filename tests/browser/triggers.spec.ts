@@ -22,14 +22,14 @@ async function choose(page: Page, label: string, option: string) {
 }
 async function targets(page: Page) {
   const suffix = randomUUID().slice(0, 8);
-  const project = await post(page, '/v1/projects', { name: `Trigger project ${suffix}` });
+  const workspace = await post(page, '/v1/workspaces', { name: `Trigger workspace ${suffix}` });
   const agent = await post(page, '/v1/agents', {
     name: `Trigger preset ${suffix}`,
     harness: 'codex',
     model: 'fixture-model',
     billing_mode: 'managed',
   });
-  return { project, agent };
+  return { workspace, agent };
 }
 test('dashboard webhook setup → external delivery → persistent simulated run → historical replay', async ({
   page,
@@ -37,12 +37,12 @@ test('dashboard webhook setup → external delivery → persistent simulated run
 }) => {
   test.setTimeout(120000);
   await signIn(page);
-  const { project, agent } = await targets(page);
+  const { workspace, agent } = await targets(page);
   await page.getByRole('link', { name: 'Triggers', exact: true }).click();
   await page.getByRole('button', { name: 'Create trigger', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Webhook research inbox');
-  await choose(page, 'Project', project.name);
+  await choose(page, 'Workspace', workspace.name);
   await choose(page, 'Agent preset', agent.name);
   await dialog
     .getByRole('textbox', { name: 'Prompt', exact: true })
@@ -76,7 +76,7 @@ test('dashboard webhook setup → external delivery → persistent simulated run
   await page.reload();
   await page.getByRole('tab', { name: /Events/ }).click();
   await expect(page.getByText('run.succeeded', { exact: true })).toBeVisible();
-  const checkpoints = await page.request.get(`/v1/workspaces/${project.default_workspace_id}/checkpoints`);
+  const checkpoints = await page.request.get(`/v1/worktrees/${workspace.default_worktree_id}/checkpoints`);
   expect(checkpoints.ok()).toBeTruthy();
   expect((await checkpoints.json()).data.length).toBeGreaterThan(0);
 });
@@ -84,12 +84,12 @@ test('dashboard webhook setup → external delivery → persistent simulated run
 test('scheduled task creation, editing, pause/resume, run now and accessible history', async ({ page }) => {
   test.setTimeout(120000);
   await signIn(page);
-  const { project, agent } = await targets(page);
+  const { workspace, agent } = await targets(page);
   await page.getByRole('link', { name: 'Scheduled tasks', exact: true }).click();
   await page.getByRole('button', { name: 'New task', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Morning briefing');
-  await choose(page, 'Project', project.name);
+  await choose(page, 'Workspace', workspace.name);
   await choose(page, 'Agent preset', agent.name);
   await dialog.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Prepare the morning report.');
   await choose(page, 'Cadence', 'Weekdays at 9:00');
@@ -127,7 +127,7 @@ test('Slack trigger form selects a connected channel and handles channel discove
   page,
 }) => {
   await signIn(page);
-  const { project, agent } = await targets(page);
+  const { workspace, agent } = await targets(page);
   const connection = randomUUID();
   await page.route('**/v1/slack-connections', (route) =>
     route.fulfill({
@@ -163,7 +163,7 @@ test('Slack trigger form selects a connected channel and handles channel discove
   broken = false;
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await choose(page, 'Slack channel', '#agent-inbox');
-  await choose(page, 'Project', project.name);
+  await choose(page, 'Workspace', workspace.name);
   await choose(page, 'Agent preset', agent.name);
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Slack agent inbox');
   await page.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Help with the request.');
@@ -180,7 +180,7 @@ test('Slack trigger form selects a connected channel and handles channel discove
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Fixture captured');
   expect(submitted).toMatchObject({
     kind: 'slack',
-    project_id: project.id,
+    workspace_id: workspace.id,
     agent_id: agent.id,
     slack_connection_id: connection,
     channel_id: 'C123',
@@ -189,9 +189,9 @@ test('Slack trigger form selects a connected channel and handles channel discove
 
 test('a template hands its saved preset and budget to a progressive schedule review', async ({ page }) => {
   await signIn(page);
-  const { project } = await targets(page);
+  const { workspace } = await targets(page);
   await page.goto('/templates');
-  await page.getByRole('button', { name: /Weekly project digest/ }).click();
+  await page.getByRole('button', { name: /Weekly workspace digest/ }).click();
   await page.getByRole('dialog').getByRole('link', { name: 'Use and schedule', exact: true }).click();
   const preset = page.getByRole('dialog', { name: 'Create an agent preset', exact: true });
   await preset.getByRole('textbox', { name: 'Name', exact: true }).fill(`Weekly schedule ${randomUUID()}`);
@@ -199,7 +199,7 @@ test('a template hands its saved preset and budget to a progressive schedule rev
   await preset.getByRole('button', { name: 'Save and choose schedule', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'New scheduled task', exact: true });
   await expect(dialog).toBeVisible();
-  await choose(page, 'Project', project.name);
+  await choose(page, 'Workspace', workspace.name);
   await expect(dialog.getByRole('region', { name: 'Review schedule' })).toContainText('$1.50');
   await expect(dialog.getByRole('combobox', { name: 'Cadence', exact: true })).toContainText('Monday');
   await expect(dialog.getByRole('textbox', { name: 'Cron expression', exact: true })).toHaveCount(0);

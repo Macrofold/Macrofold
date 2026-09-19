@@ -1,6 +1,6 @@
 # Customer agents: an optional integration path
 
-Give each authenticated customer a persistent assistant with separate conversations and connected accounts. **Integration paths are use-case-specific shortcuts over Macrofold’s core capabilities.** They are optional: projects, worktrees, presets, runs and connections work independently, and remain accessible when you use this path.
+Give each authenticated customer a persistent assistant with separate conversations and connected accounts. **Integration paths are use-case-specific shortcuts over Macrofold’s core capabilities.** They are optional: workspaces, worktrees, presets, runs and connections work independently, and remain accessible when you use this path.
 
 The Customer agents path stores your customer-to-resource mapping and checks it on every path operation. Your application authenticates customers; Macrofold does not introduce a new customer identity provider. The SDK group is `customerAgents` (language-specific casing); every endpoint lives under `/v1/integration-paths/customer-agents`, with the OpenAPI tag `customerAgents` and `x-platform-layer: integration-path`.
 
@@ -18,16 +18,16 @@ Both approaches use the same execution engine, budgets, durable events, checkpoi
 | --------------------------- | ------------------------------------------------------------- | ------------------------------- |
 | Customer ID                 | Stable opaque subject from your app’s verified authentication | Your app; passed by its backend |
 | Binding                     | Maps customer + your agent key to existing resources          | Integration path                |
-| Project                     | Dedicated home for this customer’s assistant                  | Core platform                   |
-| Worktree (`workspace_id`)   | Persistent files across conversations                         | Core platform                   |
+| Workspace                     | Dedicated home for this customer’s assistant                  | Core platform                   |
+| Worktree (`worktree_id`)   | Persistent files across conversations                         | Core platform                   |
 | Agent preset (`agent_id`)   | Harness, model, instructions and per-run budget               | Core platform                   |
 | Conversation (`session_id`) | One compatible native conversation                            | Core platform                   |
 | Run (`run_id`)              | One accepted execution and persistence outcome                | Core platform                   |
 | Connection                  | Named account and exact allowed tools                         | Core platform                   |
 
-`ensure` creates a project, its default worktree, a preset, and a binding in one transaction. The same customer/key returns the existing binding, including during concurrent setup. Configuration and display name are creation-only; use the returned core IDs to edit presets or project settings. Multiple keys let a customer have several assistants. Deleting an underlying resource makes the binding unavailable; `ensure` does not silently recreate it.
+`ensure` creates a workspace, its default worktree, a preset, and a binding in one transaction. The same customer/key returns the existing binding, including during concurrent setup. Configuration and display name are creation-only; use the returned core IDs to edit presets or workspace settings. Multiple keys let a customer have several assistants. Deleting an underlying resource makes the binding unavailable; `ensure` does not silently recreate it.
 
-The API retains `workspace_id`; the UI calls it a **worktree**. A customer-agent binding is an ownership convenience, not another core agent primitive: the core Agent API remains a saved configuration preset.
+The API retains `worktree_id`; the UI calls it a **worktree**. A customer-agent binding is an ownership convenience, not another core agent primitive: the core Agent API remains a saved configuration preset.
 
 ## Ownership and limits
 
@@ -43,9 +43,9 @@ The worktree has one writer. Wait for persistence before another conversation mo
 
 ## Schedule ongoing work
 
-Save the intended preset and project. In the dashboard, choose **Templates → Use and schedule**, or **Agent presets → Schedule this preset**. Review cadence, timezone, tool access and per-run budget before enabling. A weekly digest defaults to Monday at 09:00 in the selected timezone.
+Save the intended preset and workspace. In the dashboard, choose **Templates → Use and schedule**, or **Agent presets → Schedule this preset**. Review cadence, timezone, tool access and per-run budget before enabling. A weekly digest defaults to Monday at 09:00 in the selected timezone.
 
-Schedules use the project's main worktree and start new conversations. They read the latest persisted files and resolve current permissions for each occurrence. If you need independent schedules over different contexts, give those contexts separate projects. An agent task list alone does not create schedules.
+Schedules use the workspace's main worktree and start new conversations. They read the latest persisted files and resolve current permissions for each occurrence. If you need independent schedules over different contexts, give those contexts separate workspaces. An agent task list alone does not create schedules.
 
 Budget is per run, not per month. Saved-trigger capacity, rolling delivery limits, queue capacity, and account spending caps are distinct. Pausing blocks future occurrences; it does not cancel a run already accepted. See [scheduled tasks](../triggers/scheduled-tasks.md).
 
@@ -58,9 +58,9 @@ Budget is per run, not per month. Saved-trigger capacity, rolling delivery limit
 | Run failed or persistence failed | Show the run and recovery status; preserve the last verified files and let the user choose a new attempt                                                         |
 | Customer corrects memory         | Read the current file and revision, apply the correction with conditional write; reconcile a 412 conflict                                                        |
 | Customer pauses the agent        | Block app-initiated runs and pause its schedules; show any already-running work separately                                                                       |
-| Customer deletes the agent       | Stop new work, disable schedules, handle active runs explicitly, remove that agent's connection grants, then request project deletion through supported controls |
+| Customer deletes the agent       | Stop new work, disable schedules, handle active runs explicitly, remove that agent's connection grants, then request workspace deletion through supported controls |
 
-Deleting a named-agent application record alone does not delete platform resources. Project deletion has a seven-day undo window, requires appropriate authorization, and does not erase accounting or provider backups. File forgetting edits current context; checkpoint and transcript retention are separate. See [retention](../workspaces/README.md#retention-and-deletion).
+Deleting a named-agent application record alone does not delete platform resources. Workspace deletion has a seven-day undo window, requires appropriate authorization, and does not erase accounting or provider backups. File forgetting edits current context; checkpoint and transcript retention are separate. See [retention](../workspaces/README.md#retention-and-deletion).
 
 ## For coding agents
 
@@ -72,7 +72,7 @@ Copy this brief, replacing the experience sentence:
 Build a customer-agent feature using Macrofold’s optional Customer agents integration path.
 Experience: each authenticated customer creates an assistant and returns to its conversations, files and connected accounts.
 Read /docs/customer-agents, /docs/customer-agents/quickstart, /docs/customer-agents/connections, /docs/api/conventions and /docs/sdk/reference on our Macrofold deployment. Fetch their Markdown sources and /openapi.json.
-Use the customerAgents SDK group and /v1/integration-paths/customer-agents routes. These compose core projects, worktrees, presets, sessions, runs and connections; do not invent a second runtime or customer auth system.
+Use the customerAgents SDK group and /v1/integration-paths/customer-agents routes. These compose core workspaces, worktrees, presets, sessions, runs and connections; do not invent a second runtime or customer auth system.
 Derive customer IDs from verified server sessions, keep platform keys server-side, persist binding/run IDs and action idempotency keys, and test Alice/Bob separation.
 For connections, review exact tool names into understandable capability choices, bind the return state to the authenticated customer and connection, and complete consent only from the authenticated backend. Start with No access, and handle reconnect, permission conflicts and disconnect explicitly.
 Begin with local simulation. Paid runs and external side effects require explicit configuration and budgets. Show execution, persistence and per-run costs separately; wait/stream timeouts must not resubmit work.

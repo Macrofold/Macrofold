@@ -25,7 +25,7 @@ export class FaultMachine implements MachineProvider {
   async restore() {
     return 'restore-command';
   }
-  async restored() {
+  async restored(): ReturnType<MachineProvider['restored']> {
     return 'success' as const;
   }
   async launch() {

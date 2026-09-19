@@ -19,7 +19,7 @@ From the repository root, after the [local development prerequisites](../../docs
 
 ```sh
 pnpm test:domain tests/unit/integration-recipes.test.ts tests/integration/supabase-recipe.test.ts
-pnpm --dir examples/integrations/prisma --ignore-workspace install --frozen-lockfile
+pnpm --dir examples/integrations/prisma --ignore-worktree install --frozen-lockfile
 pnpm --dir examples/integrations/prisma test
 ```
 
@@ -27,10 +27,10 @@ The first command uses an isolated PostgreSQL database and actual MCP HTTP trans
 
 ## Supabase
 
-1. In a disposable Supabase project, run [supabase.sql](supabase.sql). It creates `customer_notes`, indexes customer identity, enables RLS, revokes anonymous access and grants authenticated customers only selected read columns.
+1. In a disposable Supabase workspace, run [supabase.sql](supabase.sql). It creates `customer_notes`, indexes customer identity, enables RLS, revokes anonymous access and grants authenticated customers only selected read columns.
 2. Create two disposable Supabase Auth users and seed one synthetic note for each using a trusted administrative migration. Set each row's `customer_id` to its Auth user UUID. Keep administrative credentials outside the runtime recipe.
 3. In your app, resolve the authenticated customer's current Supabase access token. Token refresh belongs to your server's normal Supabase Auth integration. The token subject must match the customer ID passed to the reader.
-4. Configure the reader with a server-owned project URL and publishable key, then call it after authentication:
+4. Configure the reader with a server-owned workspace URL and publishable key, then call it after authentication:
 
    ```ts
    import { supabaseNotes } from './examples/integrations/data';
@@ -44,7 +44,7 @@ The first command uses an isolated PostgreSQL database and actual MCP HTTP trans
 
    `customerSessions` and `authenticatedCustomer` are your app's existing verified session components, not globals supplied by this recipe. The adapter takes that boundary as a function so it does not couple authentication to a specific framework.
 
-5. Verify Alice sees only Alice's note, Bob sees only Bob's, an expired/missing token is denied, anonymous reads return no customer data, and insert/update/delete are denied. Test this on a disposable hosted project before production.
+5. Verify Alice sees only Alice's note, Bob sees only Bob's, an expired/missing token is denied, anonymous reads return no customer data, and insert/update/delete are denied. Test this on a disposable hosted workspace before production.
 
 The request selects only `id,title,body`, uses an encoded customer filter and caps results at 20. RLS remains the authority if the application filter is removed. The adapter refuses redirects, uses a ten-second timeout, limits responses to 1 MiB and does not retry failures. Never replace a failing customer JWT with `service_role`, which bypasses the intended isolation. See [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security) and [API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
@@ -53,7 +53,7 @@ The request selects only `id,title,body`, uses an encoded customer filter and ca
 The standalone [Prisma package](prisma/package.json) keeps its generated client and dependencies out of the platform runtime. It pins Prisma and its SQLite driver adapter together; its [schema](prisma/schema.prisma) defines an indexed `customerId` on every note. [recipe.test.mjs](prisma/recipe.test.mjs) generates the client, creates a disposable database, seeds Alice/Bob and exercises the real query.
 
 ```sh
-pnpm --dir examples/integrations/prisma --ignore-workspace install --frozen-lockfile
+pnpm --dir examples/integrations/prisma --ignore-worktree install --frozen-lockfile
 pnpm --dir examples/integrations/prisma test
 ```
 
@@ -122,10 +122,10 @@ Use `fixture-bob-token` to see Bob's different note. Omit the token to receive 4
 1. Replace fixture token lookup with your verified JWT signature/issuer/audience/expiry validation or a lookup of an opaque token hash. Return the stable customer ID. Support rotation/revocation in your normal account service. Bind a short-lived credential to one customer and this service's audience.
 2. Supply a `CustomerNotes` function backed by one of the adapters above. Do not retrieve another customer's data based on tool arguments. Deploy behind your normal HTTPS origin, request limits and authentication controls.
 3. In **Connections → Add connection → Remote MCP**, enter the public HTTPS `/mcp` URL, select bearer authentication, and enter that customer's token. The platform intentionally rejects loopback/private URLs; do not disable network validation to connect the fixture directly.
-4. Load the tool list, approve only **read_customer_notes**, and choose **Access → Add rule → Project + agent preset** for the intended customer-agent. Save that exact tool selection in the preset. Start a new conversation after the selection changes.
+4. Load the tool list, approve only **read_customer_notes**, and choose **Access → Add rule → Workspace + agent preset** for the intended customer-agent. Save that exact tool selection in the preset. Start a new conversation after the selection changes.
 5. Review resolved access and run one authorized test with an explicit run budget. Confirm another customer's preset has no access. A 401 requires reauthentication, not fallback to an administrative credential.
 
-The equivalent server-side SDK setup, after authenticating the customer and resolving their owned project/preset, is:
+The equivalent server-side SDK setup, after authenticating the customer and resolving their owned workspace/preset, is:
 
 ```ts
 const connection = await client.connections.create(
@@ -151,8 +151,8 @@ const approved = await client.connections.updateAccess(
 await client.connections.createAccessRule(
   connection.id,
   {
-    scope: 'project_agent',
-    project_id: agent.projectId,
+    scope: 'workspace_agent',
+    workspace_id: agent.workspaceId,
     agent_id: agent.presetId,
     ifMatch: `"${approved.version}"`,
   },

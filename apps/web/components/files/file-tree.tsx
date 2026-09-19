@@ -25,7 +25,7 @@ export function FileTree({
   onRetry,
   onLoadMore,
   label = 'Worktree files',
-  workspaceId,
+  worktreeId,
   writesBlocked = false,
   renamePath,
   onRenameStart,
@@ -45,7 +45,7 @@ export function FileTree({
   onRetry?: (path: string) => void;
   onLoadMore?: (path: string) => void;
   label?: string;
-  workspaceId?: string;
+  worktreeId?: string;
   writesBlocked?: boolean;
   renamePath?: string | null;
   onRenameStart?: (path: string | null) => void;
@@ -74,7 +74,7 @@ export function FileTree({
   };
 
   return (
-    <div className="workspace-file-tree" role="tree" aria-label={label} aria-disabled={disabled || undefined}>
+    <div className="worktree-file-tree" role="tree" aria-label={label} aria-disabled={disabled || undefined}>
       {rows.map((row, index) => {
         const { node, depth } = row;
         const directory = node.kind === 'directory';
@@ -113,7 +113,7 @@ export function FileTree({
             aria-expanded={directory ? expanded : undefined}
             aria-busy={loading || undefined}
             aria-disabled={action ? loading || undefined : disabled || undefined}
-            className={`workspace-tree-row${action ? ' workspace-tree-status' : ''}`}
+            className={`worktree-tree-row${action ? ' worktree-tree-status' : ''}`}
             style={{ paddingLeft: (depth - 1) * 16 + 8 }}
             title={action?.path ?? node.path}
             onFocus={() => setFocusedPath(node.path)}
@@ -121,7 +121,7 @@ export function FileTree({
             onDragStart={(event) => {
               event.dataTransfer.setData(
                 'application/x-macrofold-file',
-                JSON.stringify({ workspaceId, path: node.path }),
+                JSON.stringify({ worktreeId, path: node.path }),
               );
               event.dataTransfer.effectAllowed = 'move';
             }}
@@ -145,7 +145,7 @@ export function FileTree({
               event.preventDefault();
               try {
                 const file = JSON.parse(event.dataTransfer.getData('application/x-macrofold-file'));
-                if (file.workspaceId === workspaceId && typeof file.path === 'string')
+                if (file.worktreeId === worktreeId && typeof file.path === 'string')
                   onMove?.(file.path, node.path);
               } catch {
                 /* Ignore unrelated drag payloads. */
@@ -189,14 +189,14 @@ export function FileTree({
             {action ? (
               <>
                 {action.kind === 'retry' && <span role="alert">{errors?.get(action.path)}</span>}
-                <span className="workspace-tree-action">
+                <span className="worktree-tree-action">
                   {loading ? <WaitingText>Loading…</WaitingText> : node.name}
                 </span>
               </>
             ) : directory ? (
               <button
                 type="button"
-                className="workspace-tree-chevron"
+                className="worktree-tree-chevron"
                 tabIndex={-1}
                 aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.name}`}
                 onClick={(event) => {
@@ -209,7 +209,7 @@ export function FileTree({
                 <ChevronRight size={13} aria-hidden="true" data-expanded={expanded} />
               </button>
             ) : (
-              <span className="workspace-tree-chevron" aria-hidden="true" />
+              <span className="worktree-tree-chevron" aria-hidden="true" />
             )}
             {!action && (
               <>
@@ -225,7 +225,7 @@ export function FileTree({
                     }}
                   />
                 ) : (
-                  <span className="workspace-tree-name">
+                  <span className="worktree-tree-name">
                     <WaitingText active={Boolean(loading)}>{node.name}</WaitingText>
                   </span>
                 )}
@@ -260,7 +260,7 @@ function InlineFileName({
   const [value, setValue] = useState(name);
   return (
     <input
-      className="workspace-tree-rename"
+      className="worktree-tree-rename"
       aria-label={`Rename ${name}`}
       autoFocus
       value={value}

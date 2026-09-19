@@ -23,18 +23,18 @@ const apiClient = (key: string) =>
     fetch: (url, init) => handleApi(new Request(url, init)),
   });
 async function fixture() {
-  const project = await client.projects.create({ name: 'File mutation fixture' });
-  assert(project.default_workspace_id);
-  const workspaceId = project.default_workspace_id;
-  const revision = async () => (await client.workspaces.get(workspaceId)).revision;
+  const workspace = await client.workspaces.create({ name: 'File mutation fixture' });
+  assert(workspace.default_worktree_id);
+  const worktreeId = workspace.default_worktree_id;
+  const revision = async () => (await client.worktrees.get(worktreeId)).revision;
   const write = async (path: string, text = 'durable bytes') =>
-    client.workspaces.writeFile(workspaceId, {
+    client.worktrees.writeFile(worktreeId, {
       path,
       content: Buffer.from(text),
       ifMatch: await revision(),
       create_only: true,
     });
-  return { projectId: project.id, workspaceId, revision, write };
+  return { workspaceId: workspace.id, worktreeId, revision, write };
 }
 beforeAll(async () => {
   account = await fixtureAccount('File mutations');
@@ -47,8 +47,8 @@ afterAll(async () => {
 });
 
 it('persists folders through Git and restore, with lazy children, stable pagination and flat search', async () => {
-  const { workspaceId, revision, write } = await fixture();
-  const folder = await client.workspaces.createFolder(workspaceId, {
+  const { worktreeId, revision, write } = await fixture();
+  const folder = await client.worktrees.createFolder(worktreeId, {
     path: 'research',
     ifMatch: await revision(),
   });
@@ -63,27 +63,27 @@ it('persists folders through Git and restore, with lazy children, stable paginat
   expect(folder.result?.entry).not.toHaveProperty('size_bytes');
   expect(folder.result?.entry).not.toHaveProperty('sha256');
   assert(folder.result?.checkpoint_id);
-  await client.workspaces.createFolder(workspaceId, { path: 'research/assets', ifMatch: await revision() });
+  await client.worktrees.createFolder(worktreeId, { path: 'research/assets', ifMatch: await revision() });
   await write('research/brief.md');
   await write('top.txt');
-  const root = await client.workspaces.listFiles(workspaceId, { recursive: false, limit: 1 });
+  const root = await client.worktrees.listFiles(worktreeId, { recursive: false, limit: 1 });
   expect(root.entries.map((entry) => [entry.path, entry.type])).toEqual([['research', 'directory']]);
   expect(root.next_cursor).toBe('research');
-  const next = await client.workspaces.listFiles(workspaceId, {
+  const next = await client.worktrees.listFiles(worktreeId, {
     recursive: false,
     limit: 1,
     cursor: root.next_cursor!,
   });
   expect(next.entries.map((entry) => entry.path)).toEqual(['top.txt']);
   expect(next.next_cursor).toBeNull();
-  const children = await client.workspaces.listFiles(workspaceId, { path: 'research', recursive: false });
+  const children = await client.worktrees.listFiles(worktreeId, { path: 'research', recursive: false });
   expect(children.entries.map((entry) => [entry.path, entry.type])).toEqual([
     ['research/.gitkeep', 'file'],
     ['research/assets', 'directory'],
     ['research/brief.md', 'file'],
   ]);
   expect(
-    (await client.workspaces.listFiles(workspaceId, { query: 'assets' })).entries.map((entry) => [
+    (await client.worktrees.listFiles(worktreeId, { query: 'assets' })).entries.map((entry) => [
       entry.path,
       entry.type,
     ]),
@@ -94,25 +94,25 @@ it('persists folders through Git and restore, with lazy children, stable paginat
   await withRepository(checkpoint.git_files as FileRecord[], async (repo) => {
     expect([...(await repo.tree())].map(([path]) => path)).toEqual(['research/.gitkeep']);
   });
-  await client.workspaces.restore(workspaceId, { checkpoint_id: folder.result.checkpoint_id });
+  await client.worktrees.restore(worktreeId, { checkpoint_id: folder.result.checkpoint_id });
   expect(
-    (await client.workspaces.listFiles(workspaceId, { recursive: false })).entries.map((entry) => [
+    (await client.worktrees.listFiles(worktreeId, { recursive: false })).entries.map((entry) => [
       entry.path,
       entry.type,
     ]),
   ).toEqual([['research', 'directory']]);
-  expect(await client.workspaces.readFile(workspaceId, { path: 'research/.gitkeep' })).toEqual(
+  expect(await client.worktrees.readFile(worktreeId, { path: 'research/.gitkeep' })).toEqual(
     new Uint8Array(),
   );
 });
 
 it('renames bytes and executable or symlink metadata atomically, with idempotent authoritative results', async () => {
-  const { workspaceId, revision } = await fixture();
+  const { worktreeId, revision } = await fixture();
   const path = 'scripts/日本語 + #?.sh';
   const bytes = Buffer.from('#!/bin/sh\necho preserved\n');
   await transaction(account.p.organizationId, async (tx) => {
     const base = { modified_at: new Date().toISOString(), git_ignored: false };
-    await resources.update(tx, 'workspaces', workspaceId, {
+    await resources.update(tx, 'worktrees', worktreeId, {
       files: [
         { ...base, ...(await saveContent(account.p.organizationId, bytes)), path, type: 'file', mode: 0o755 },
         {
@@ -126,7 +126,7 @@ it('renames bytes and executable or symlink metadata atomically, with idempotent
   });
   const options = { path, new_path: 'bin/renamed.sh', ifMatch: await revision() };
   const requestOptions = { idempotencyKey: crypto.randomUUID() };
-  const renamed = await client.workspaces.renameFile(workspaceId, options, requestOptions);
+  const renamed = await client.worktrees.renameFile(worktreeId, options, requestOptions);
   expect(renamed.result).toMatchObject({
     path: 'bin/renamed.sh',
     previous_path: path,
@@ -139,29 +139,29 @@ it('renames bytes and executable or symlink metadata atomically, with idempotent
   });
   expect(renamed.result?.entry).not.toHaveProperty('key');
   expect(renamed.result?.entry).not.toHaveProperty('mode');
-  expect(await client.workspaces.renameFile(workspaceId, options, requestOptions)).toEqual(renamed);
-  await expect(client.workspaces.readFile(workspaceId, { path })).rejects.toMatchObject({ status: 404 });
-  expect(Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'bin/renamed.sh' }))).toEqual(
+  expect(await client.worktrees.renameFile(worktreeId, options, requestOptions)).toEqual(renamed);
+  await expect(client.worktrees.readFile(worktreeId, { path })).rejects.toMatchObject({ status: 404 });
+  expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'bin/renamed.sh' }))).toEqual(
     bytes,
   );
-  const workspace = await transaction(account.p.organizationId, (tx) =>
-    resources.get(tx, 'workspaces', workspaceId, account.p),
+  const worktree = await transaction(account.p.organizationId, (tx) =>
+    resources.get(tx, 'worktrees', worktreeId, account.p),
   );
-  expect((workspace.files as FileRecord[]).find((file) => file.path === 'bin/renamed.sh')?.mode).toBe(0o755);
-  await withRepository(workspace.git_files as FileRecord[], async (repo) => {
+  expect((worktree.files as FileRecord[]).find((file) => file.path === 'bin/renamed.sh')?.mode).toBe(0o755);
+  await withRepository(worktree.git_files as FileRecord[], async (repo) => {
     expect((await repo.tree()).get('bin/renamed.sh')?.mode).toBe('100755');
   });
-  const link = await client.workspaces.renameFile(workspaceId, {
+  const link = await client.worktrees.renameFile(worktreeId, {
     path: 'script-link',
     new_path: 'renamed-link',
     ifMatch: await revision(),
   });
   expect(link.result?.entry?.type).toBe('symlink');
-  await expect(client.workspaces.readFile(workspaceId, { path: 'renamed-link' })).rejects.toMatchObject({
+  await expect(client.worktrees.readFile(worktreeId, { path: 'renamed-link' })).rejects.toMatchObject({
     status: 409,
     code: 'unsupported_file',
   });
-  const deleted = await client.workspaces.deleteFile(workspaceId, {
+  const deleted = await client.worktrees.deleteFile(worktreeId, {
     path: 'bin/renamed.sh',
     ifMatch: await revision(),
   });
@@ -170,13 +170,13 @@ it('renames bytes and executable or symlink metadata atomically, with idempotent
 });
 
 it('keeps the old name visible until rename verification commits, and rolls back a failed verification', async () => {
-  const { workspaceId, revision, write } = await fixture();
+  const { worktreeId, revision, write } = await fixture();
   const written = await write('source.txt', 'preserved');
   const originalRevision = await revision();
-  const workspace = await transaction(account.p.organizationId, (tx) =>
-    resources.get(tx, 'workspaces', workspaceId, account.p),
+  const worktree = await transaction(account.p.organizationId, (tx) =>
+    resources.get(tx, 'worktrees', worktreeId, account.p),
   );
-  const original = (workspace.files as FileRecord[]).find((file) => file.path === 'source.txt')!;
+  const original = (worktree.files as FileRecord[]).find((file) => file.path === 'source.txt')!;
   const get = storage.get.bind(storage);
   let entered!: () => void, release!: () => void;
   const blocked = new Promise<void>((resolve) => {
@@ -195,7 +195,7 @@ it('keeps the old name visible until rename verification commits, and rolls back
     }
     return get(key);
   });
-  const rename = client.workspaces.renameFile(workspaceId, {
+  const rename = client.worktrees.renameFile(worktreeId, {
     path: 'source.txt',
     new_path: 'renamed.txt',
     ifMatch: originalRevision,
@@ -203,39 +203,39 @@ it('keeps the old name visible until rename verification commits, and rolls back
   const failure = expect(rename).rejects.toMatchObject({ status: 500 });
   try {
     await blocked;
-    expect((await client.workspaces.listFiles(workspaceId)).entries.map((entry) => entry.path)).toEqual([
+    expect((await client.worktrees.listFiles(worktreeId)).entries.map((entry) => entry.path)).toEqual([
       'source.txt',
     ]);
     expect(
-      Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'source.txt' })).toString(),
+      Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'source.txt' })).toString(),
     ).toBe('preserved');
   } finally {
     release();
     await failure;
     read.mockRestore();
   }
-  expect(await client.workspaces.get(workspaceId)).toMatchObject({
+  expect(await client.worktrees.get(worktreeId)).toMatchObject({
     revision: originalRevision,
     latest_checkpoint_id: written.result?.checkpoint_id,
   });
-  expect((await client.workspaces.listFiles(workspaceId)).entries.map((entry) => entry.path)).toEqual([
+  expect((await client.worktrees.listFiles(worktreeId)).entries.map((entry) => entry.path)).toEqual([
     'source.txt',
   ]);
 });
 
 it('rejects collisions before replacing content, including files used as parent directories', async () => {
-  const { workspaceId, revision, write } = await fixture();
+  const { worktreeId, revision, write } = await fixture();
   await write('source.txt', 'original');
   await write('folder/child.txt');
-  const original = await client.workspaces.get(workspaceId);
+  const original = await client.worktrees.get(worktreeId);
   const ifMatch = await revision();
   const conflict = { status: 409, code: 'file_path_conflict' };
   for (const path of ['source.txt', 'folder', 'source.txt/child']) {
-    await expect(client.workspaces.createFolder(workspaceId, { path, ifMatch })).rejects.toMatchObject(
+    await expect(client.worktrees.createFolder(worktreeId, { path, ifMatch })).rejects.toMatchObject(
       conflict,
     );
     await expect(
-      client.workspaces.writeFile(workspaceId, {
+      client.worktrees.writeFile(worktreeId, {
         path,
         content: Buffer.from('replacement'),
         create_only: true,
@@ -245,16 +245,16 @@ it('rejects collisions before replacing content, including files used as parent 
   }
   for (const new_path of ['source.txt', 'source.txt/child', 'folder', 'folder/child.txt'])
     await expect(
-      client.workspaces.renameFile(workspaceId, { path: 'source.txt', new_path, ifMatch }),
+      client.worktrees.renameFile(worktreeId, { path: 'source.txt', new_path, ifMatch }),
     ).rejects.toMatchObject(conflict);
   await expect(
-    client.workspaces.renameFile(workspaceId, { path: 'missing.txt', new_path: 'new.txt', ifMatch }),
+    client.worktrees.renameFile(worktreeId, { path: 'missing.txt', new_path: 'new.txt', ifMatch }),
   ).rejects.toMatchObject({ status: 404 });
-  expect(await client.workspaces.get(workspaceId)).toMatchObject({
+  expect(await client.worktrees.get(worktreeId)).toMatchObject({
     revision: original.revision,
     latest_checkpoint_id: original.latest_checkpoint_id,
   });
-  expect(Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'source.txt' })).toString()).toBe(
+  expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'source.txt' })).toString()).toBe(
     'original',
   );
 });
@@ -262,26 +262,26 @@ it('rejects collisions before replacing content, including files used as parent 
 it.each(['../outside', '/etc/passwd', '.git/config', '.agent/state', 'a//b', 'a\\b', 'a/./b'])(
   'rejects unsafe folder and rename paths %j',
   async (path) => {
-    const { workspaceId, revision, write } = await fixture();
+    const { worktreeId, revision, write } = await fixture();
     await write('source.txt');
     const ifMatch = await revision();
-    await expect(client.workspaces.createFolder(workspaceId, { path, ifMatch })).rejects.toMatchObject({
+    await expect(client.worktrees.createFolder(worktreeId, { path, ifMatch })).rejects.toMatchObject({
       status: 400,
       code: 'invalid_path',
     });
     await expect(
-      client.workspaces.renameFile(workspaceId, { path: 'source.txt', new_path: path, ifMatch }),
+      client.worktrees.renameFile(worktreeId, { path: 'source.txt', new_path: path, ifMatch }),
     ).rejects.toMatchObject({ status: 400, code: 'invalid_path' });
     expect(await revision()).toBe(ifMatch);
   },
 );
 
 it('serializes competing creates and rejects stale folder or rename requests', async () => {
-  const { workspaceId, revision } = await fixture();
+  const { worktreeId, revision } = await fixture();
   const ifMatch = await revision();
   const outcomes = await Promise.allSettled(
     ['one', 'two'].map((text) =>
-      client.workspaces.writeFile(workspaceId, {
+      client.worktrees.writeFile(worktreeId, {
         path: 'race.txt',
         content: Buffer.from(text),
         create_only: true,
@@ -293,62 +293,62 @@ it('serializes competing creates and rejects stale folder or rename requests', a
   expect(outcomes.find((result) => result.status === 'rejected')).toMatchObject({
     reason: { status: 412, code: 'stale_revision' },
   });
-  await expect(client.workspaces.createFolder(workspaceId, { path: 'stale', ifMatch })).rejects.toMatchObject(
+  await expect(client.worktrees.createFolder(worktreeId, { path: 'stale', ifMatch })).rejects.toMatchObject(
     { status: 412 },
   );
   await expect(
-    client.workspaces.renameFile(workspaceId, { path: 'race.txt', new_path: 'stale.txt', ifMatch }),
+    client.worktrees.renameFile(worktreeId, { path: 'race.txt', new_path: 'stale.txt', ifMatch }),
   ).rejects.toMatchObject({ status: 412 });
-  expect((await client.workspaces.listFiles(workspaceId)).entries.map((entry) => entry.path)).toEqual([
+  expect((await client.worktrees.listFiles(worktreeId)).entries.map((entry) => entry.path)).toEqual([
     'race.txt',
   ]);
 });
 
-it('honors tenant, project and scope authorization for both new mutations and operation lookup', async () => {
-  const { workspaceId, projectId, revision, write } = await fixture();
+it('honors tenant, workspace and scope authorization for both new mutations and operation lookup', async () => {
+  const { worktreeId, workspaceId, revision, write } = await fixture();
   await write('source.txt');
-  const otherProject = await client.projects.create({ name: 'Other project' });
+  const otherWorkspace = await client.workspaces.create({ name: 'Other workspace' });
   const keys = await transaction(account.p.organizationId, async (tx) => ({
     readOnly: await createKey(tx, account.p, {
       name: 'Read only',
       scopes: ['files:read'],
-      project_id: projectId,
+      workspace_id: workspaceId,
     }),
-    wrongProject: await createKey(tx, account.p, {
-      name: 'Other project',
+    wrongWorkspace: await createKey(tx, account.p, {
+      name: 'Other workspace',
       scopes: ['files:read', 'files:write'],
-      project_id: otherProject.id,
+      workspace_id: otherWorkspace.id,
     }),
   }));
   const ifMatch = await revision();
   for (const [key, status] of [
     [foreign.key, 404],
     [keys.readOnly.secret, 403],
-    [keys.wrongProject.secret, 404],
+    [keys.wrongWorkspace.secret, 404],
   ] as const) {
     const denied = apiClient(key);
     await expect(
-      denied.workspaces.createFolder(workspaceId, { path: 'private', ifMatch }),
+      denied.worktrees.createFolder(worktreeId, { path: 'private', ifMatch }),
     ).rejects.toMatchObject({ status });
     await expect(
-      denied.workspaces.renameFile(workspaceId, { path: 'source.txt', new_path: 'private.txt', ifMatch }),
+      denied.worktrees.renameFile(worktreeId, { path: 'source.txt', new_path: 'private.txt', ifMatch }),
     ).rejects.toMatchObject({ status });
   }
-  const allowed = await client.workspaces.createFolder(workspaceId, { path: 'private', ifMatch });
+  const allowed = await client.worktrees.createFolder(worktreeId, { path: 'private', ifMatch });
   await expect(apiClient(foreign.key).operations.get(allowed.id)).rejects.toMatchObject({ status: 404 });
-  await expect(apiClient(keys.wrongProject.secret).operations.get(allowed.id)).rejects.toMatchObject({
+  await expect(apiClient(keys.wrongWorkspace.secret).operations.get(allowed.id)).rejects.toMatchObject({
     status: 404,
   });
   expect((await apiClient(keys.readOnly.secret).operations.get(allowed.id)).id).toBe(allowed.id);
 });
 
-it('refuses folder creation and renaming while the workspace writer is active', async () => {
-  const { workspaceId, revision, write } = await fixture();
+it('refuses folder creation and renaming while the worktree writer is active', async () => {
+  const { worktreeId, revision, write } = await fixture();
   await write('source.txt');
-  await client.workspaces.createFolder(workspaceId, { path: 'retained-folder', ifMatch: await revision() });
+  await client.worktrees.createFolder(worktreeId, { path: 'retained-folder', ifMatch: await revision() });
   const ifMatch = await revision();
   const run = await client.runs.create({
-    workspace_id: workspaceId,
+    worktree_id: worktreeId,
     harness: 'codex',
     model: 'fixture-model',
     billing_mode: 'managed',
@@ -358,11 +358,11 @@ it('refuses folder creation and renaming while the workspace writer is active', 
     async execute(request) {
       expect(request.files.map((file) => file.path)).toContain('retained-folder/.gitkeep');
       await expect(
-        client.workspaces.createFolder(workspaceId, { path: 'busy', ifMatch }),
-      ).rejects.toMatchObject({ status: 409, code: 'workspace_busy' });
+        client.worktrees.createFolder(worktreeId, { path: 'busy', ifMatch }),
+      ).rejects.toMatchObject({ status: 409, code: 'worktree_busy' });
       await expect(
-        client.workspaces.renameFile(workspaceId, { path: 'source.txt', new_path: 'busy.txt', ifMatch }),
-      ).rejects.toMatchObject({ status: 409, code: 'workspace_busy' });
+        client.worktrees.renameFile(worktreeId, { path: 'source.txt', new_path: 'busy.txt', ifMatch }),
+      ).rejects.toMatchObject({ status: 409, code: 'worktree_busy' });
       return {
         output: 'Preserved.',
         files: request.files,
@@ -372,17 +372,17 @@ it('refuses folder creation and renaming while the workspace writer is active', 
       };
     },
   });
-  expect((await client.workspaces.listFiles(workspaceId)).entries.map((entry) => entry.path)).toEqual([
+  expect((await client.worktrees.listFiles(worktreeId)).entries.map((entry) => entry.path)).toEqual([
     'retained-folder/.gitkeep',
     'source.txt',
   ]);
 });
 
 it('duplicates without downloading or changing the source, with CAS, authorization and restore protection', async () => {
-  const { workspaceId, revision, write } = await fixture();
+  const { worktreeId, revision, write } = await fixture();
   await write('report.md', '# Original');
   const before = await revision();
-  const duplicated = await client.workspaces.duplicateFile(workspaceId, {
+  const duplicated = await client.worktrees.duplicateFile(worktreeId, {
     path: 'report.md',
     new_path: 'notes/report copy.md',
     ifMatch: before,
@@ -393,55 +393,55 @@ it('duplicates without downloading or changing the source, with CAS, authorizati
     result: { path: 'notes/report copy.md' },
   });
   expect(duplicated.result).not.toHaveProperty('previous_path');
-  expect(Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'report.md' })).toString()).toBe(
+  expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'report.md' })).toString()).toBe(
     '# Original',
   );
   expect(
-    Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'notes/report copy.md' })).toString(),
+    Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'notes/report copy.md' })).toString(),
   ).toBe('# Original');
   await expect(
-    client.workspaces.duplicateFile(workspaceId, {
+    client.worktrees.duplicateFile(worktreeId, {
       path: 'report.md',
       new_path: 'stale.md',
       ifMatch: before,
     }),
   ).rejects.toMatchObject({ status: 412 });
   await expect(
-    client.workspaces.duplicateFile(workspaceId, {
+    client.worktrees.duplicateFile(worktreeId, {
       path: 'report.md',
       new_path: 'notes/report copy.md',
       ifMatch: await revision(),
     }),
   ).rejects.toMatchObject({ status: 409 });
   await expect(
-    client.workspaces.duplicateFile(workspaceId, {
+    client.worktrees.duplicateFile(worktreeId, {
       path: 'report.md',
       new_path: '../escape',
       ifMatch: await revision(),
     }),
   ).rejects.toMatchObject({ status: 400 });
   await expect(
-    apiClient(foreign.key).workspaces.duplicateFile(workspaceId, {
+    apiClient(foreign.key).worktrees.duplicateFile(worktreeId, {
       path: 'report.md',
       new_path: 'foreign.md',
       ifMatch: await revision(),
     }),
   ).rejects.toMatchObject({ status: 404 });
-  await client.workspaces.deleteFile(workspaceId, {
+  await client.worktrees.deleteFile(worktreeId, {
     path: 'notes/report copy.md',
     ifMatch: await revision(),
   });
-  await client.workspaces.restore(workspaceId, { checkpoint_id: duplicated.result!.checkpoint_id! });
+  await client.worktrees.restore(worktreeId, { checkpoint_id: duplicated.result!.checkpoint_id! });
   expect(
-    Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'notes/report copy.md' })).toString(),
+    Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'notes/report copy.md' })).toString(),
   ).toBe('# Original');
 });
 
 it('reuses verified unchanged payloads and leaves the SQL pool idle during immutable preparation', async () => {
-  const { workspaceId, write, revision } = await fixture();
+  const { worktreeId, write, revision } = await fixture();
   await write('large-kept.txt', 'unchanged '.repeat(10000));
   const ws = await transaction(account.p.organizationId, (tx) =>
-    resources.get(tx, 'workspaces', workspaceId, account.p),
+    resources.get(tx, 'worktrees', worktreeId, account.p),
   );
   const kept = ws.files!.find((file) => file.path === 'large-kept.txt')!;
   const get = storage.get.bind(storage);
@@ -452,7 +452,7 @@ it('reuses verified unchanged payloads and leaves the SQL pool idle during immut
     return get(key);
   });
   try {
-    await client.workspaces.writeFile(workspaceId, {
+    await client.worktrees.writeFile(worktreeId, {
       path: 'small.txt',
       content: Buffer.from('small change'),
       ifMatch: await revision(),
@@ -462,21 +462,21 @@ it('reuses verified unchanged payloads and leaves the SQL pool idle during immut
     read.mockRestore();
   }
   expect(
-    Buffer.from(await client.workspaces.readFile(workspaceId, { path: 'large-kept.txt' })).toString(),
+    Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'large-kept.txt' })).toString(),
   ).toBe('unchanged '.repeat(10000));
 });
 
 it('expires an abandoned preparation and reauthorizes the final publication', async () => {
   const { prepareFileMutation } = await import('../../packages/core/src/files');
-  const { workspaceId, revision } = await fixture();
-  const prepared = await prepareFileMutation(account.p, workspaceId, await revision(), {
+  const { worktreeId, revision } = await fixture();
+  const prepared = await prepareFileMutation(account.p, worktreeId, await revision(), {
     kind: 'file_write',
     path: 'pending.txt',
     bytes: Buffer.from('staged'),
     createOnly: true,
   });
   try {
-    const restricted = { ...account.p, projectIds: [crypto.randomUUID()] };
+    const restricted = { ...account.p, workspaceIds: [crypto.randomUUID()] };
     await expect(
       transaction(account.p.organizationId, (tx) => prepared.commit(tx, restricted)),
     ).rejects.toMatchObject({ status: 404 });
@@ -486,7 +486,7 @@ it('expires an abandoned preparation and reauthorizes the final publication', as
     await expect(
       transaction(account.p.organizationId, (tx) => prepared.commit(tx, account.p)),
     ).rejects.toMatchObject({ code: 'preparation_expired' });
-    expect((await client.workspaces.listFiles(workspaceId)).entries).toEqual([]);
+    expect((await client.worktrees.listFiles(worktreeId)).entries).toEqual([]);
   } finally {
     await prepared.dispose();
   }

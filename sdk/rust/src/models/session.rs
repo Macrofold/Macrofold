@@ -37,6 +37,8 @@ pub struct Session {
     pub agent_id: Option<Option<uuid::Uuid>>,
     #[serde(rename = "agent_version", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub agent_version: Option<Option<i32>>,
+    #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<Box<models::ModelParameters>>,
 }
 
 impl Session {
@@ -53,6 +55,7 @@ impl Session {
             limits: None,
             agent_id: None,
             agent_version: None,
+            model_parameters: None,
         }
     }
 }

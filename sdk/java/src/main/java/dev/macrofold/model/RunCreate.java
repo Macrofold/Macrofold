@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dev.macrofold.model.AgentPermissions;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
+import dev.macrofold.model.ModelParameters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -66,7 +67,9 @@ import dev.macrofold.ApiClient;
   RunCreate.JSON_PROPERTY_ATTACHMENTS,
   RunCreate.JSON_PROPERTY_SANDBOX_ID,
   RunCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
-  RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD
+  RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
+  RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
+  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunCreate {
@@ -267,6 +270,49 @@ public class RunCreate {
   public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
   @javax.annotation.Nullable
   private String sandboxMaxCostMicroUsd;
+
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
+
+  /**
+   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+   */
+  public enum HarnessPromptModeEnum {
+    REPLACE(String.valueOf("replace")),
+
+    EXTEND(String.valueOf("extend"));
+
+    private String value;
+
+    HarnessPromptModeEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static HarnessPromptModeEnum fromValue(String value) {
+      for (HarnessPromptModeEnum b : HarnessPromptModeEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_HARNESS_PROMPT_MODE = "harness_prompt_mode";
+  @javax.annotation.Nullable
+  private HarnessPromptModeEnum harnessPromptMode;
 
   public RunCreate() { 
   }
@@ -820,6 +866,54 @@ public class RunCreate {
   }
 
 
+  public RunCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+    return this;
+  }
+
+  /**
+   * Get modelParameters
+   * @return modelParameters
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelParameters getModelParameters() {
+    return modelParameters;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+  }
+
+
+  public RunCreate harnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
+    this.harnessPromptMode = harnessPromptMode;
+    return this;
+  }
+
+  /**
+   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+   * @return harnessPromptMode
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public HarnessPromptModeEnum getHarnessPromptMode() {
+    return harnessPromptMode;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setHarnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
+    this.harnessPromptMode = harnessPromptMode;
+  }
+
+
   /**
    * Return true if this RunCreate object is equal to o.
    */
@@ -852,7 +946,9 @@ public class RunCreate {
         Objects.equals(this.attachments, runCreate.attachments) &&
         Objects.equals(this.sandboxId, runCreate.sandboxId) &&
         equalsNullable(this.keepWarmSeconds, runCreate.keepWarmSeconds) &&
-        Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd);
+        Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd) &&
+        Objects.equals(this.modelParameters, runCreate.modelParameters) &&
+        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -861,7 +957,7 @@ public class RunCreate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd);
+    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -896,6 +992,8 @@ public class RunCreate {
     sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
     sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
+    sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
+    sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
     sb.append("}");
     return sb.toString();
   }

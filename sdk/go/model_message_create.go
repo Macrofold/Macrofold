@@ -43,6 +43,7 @@ type MessageCreate struct {
 	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
 	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
 	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
+	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 }
 
 type _MessageCreate MessageCreate
@@ -519,6 +520,38 @@ func (o *MessageCreate) SetSandboxMaxCostMicroUsd(v string) {
 	o.SandboxMaxCostMicroUsd = &v
 }
 
+// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
+func (o *MessageCreate) GetModelParameters() ModelParameters {
+	if o == nil || IsNil(o.ModelParameters) {
+		var ret ModelParameters
+		return ret
+	}
+	return *o.ModelParameters
+}
+
+// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetModelParametersOk() (*ModelParameters, bool) {
+	if o == nil || IsNil(o.ModelParameters) {
+		return nil, false
+	}
+	return o.ModelParameters, true
+}
+
+// HasModelParameters returns a boolean if a field has been set.
+func (o *MessageCreate) HasModelParameters() bool {
+	if o != nil && !IsNil(o.ModelParameters) {
+		return true
+	}
+
+	return false
+}
+
+// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
+func (o *MessageCreate) SetModelParameters(v ModelParameters) {
+	o.ModelParameters = &v
+}
+
 func (o MessageCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -568,6 +601,9 @@ func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SandboxMaxCostMicroUsd) {
 		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
+	}
+	if !IsNil(o.ModelParameters) {
+		toSerialize["model_parameters"] = o.ModelParameters
 	}
 	return toSerialize, nil
 }

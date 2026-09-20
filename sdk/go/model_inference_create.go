@@ -21,13 +21,14 @@ var _ MappedNullable = &InferenceCreate{}
 
 // InferenceCreate struct for InferenceCreate
 type InferenceCreate struct {
-	WorkspaceId string `json:"workspace_id"`
-	Definition InferenceCreateDefinition `json:"definition"`
+	WorkspaceId *string `json:"workspace_id,omitempty"`
+	Definition *InferenceCreateDefinition `json:"definition,omitempty"`
 	Input interface{} `json:"input"`
-	Context InferenceCreateContext `json:"context"`
+	Context *InferenceCreateContext `json:"context,omitempty"`
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
+	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 }
 
 type _InferenceCreate InferenceCreate
@@ -36,12 +37,9 @@ type _InferenceCreate InferenceCreate
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewInferenceCreate(workspaceId string, definition InferenceCreateDefinition, input interface{}, context InferenceCreateContext, modelBinding DecisionBinding) *InferenceCreate {
+func NewInferenceCreate(input interface{}, modelBinding DecisionBinding) *InferenceCreate {
 	this := InferenceCreate{}
-	this.WorkspaceId = workspaceId
-	this.Definition = definition
 	this.Input = input
-	this.Context = context
 	this.ModelBinding = modelBinding
 	return &this
 }
@@ -54,52 +52,68 @@ func NewInferenceCreateWithDefaults() *InferenceCreate {
 	return &this
 }
 
-// GetWorkspaceId returns the WorkspaceId field value
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
 func (o *InferenceCreate) GetWorkspaceId() string {
-	if o == nil {
+	if o == nil || IsNil(o.WorkspaceId) {
 		var ret string
 		return ret
 	}
-
-	return o.WorkspaceId
+	return *o.WorkspaceId
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *InferenceCreate) GetWorkspaceIdOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.WorkspaceId) {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return o.WorkspaceId, true
 }
 
-// SetWorkspaceId sets field value
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *InferenceCreate) HasWorkspaceId() bool {
+	if o != nil && !IsNil(o.WorkspaceId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
 func (o *InferenceCreate) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+	o.WorkspaceId = &v
 }
 
-// GetDefinition returns the Definition field value
+// GetDefinition returns the Definition field value if set, zero value otherwise.
 func (o *InferenceCreate) GetDefinition() InferenceCreateDefinition {
-	if o == nil {
+	if o == nil || IsNil(o.Definition) {
 		var ret InferenceCreateDefinition
 		return ret
 	}
-
-	return o.Definition
+	return *o.Definition
 }
 
-// GetDefinitionOk returns a tuple with the Definition field value
+// GetDefinitionOk returns a tuple with the Definition field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *InferenceCreate) GetDefinitionOk() (*InferenceCreateDefinition, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Definition) {
 		return nil, false
 	}
-	return &o.Definition, true
+	return o.Definition, true
 }
 
-// SetDefinition sets field value
+// HasDefinition returns a boolean if a field has been set.
+func (o *InferenceCreate) HasDefinition() bool {
+	if o != nil && !IsNil(o.Definition) {
+		return true
+	}
+
+	return false
+}
+
+// SetDefinition gets a reference to the given InferenceCreateDefinition and assigns it to the Definition field.
 func (o *InferenceCreate) SetDefinition(v InferenceCreateDefinition) {
-	o.Definition = v
+	o.Definition = &v
 }
 
 // GetInput returns the Input field value
@@ -128,28 +142,36 @@ func (o *InferenceCreate) SetInput(v interface{}) {
 	o.Input = v
 }
 
-// GetContext returns the Context field value
+// GetContext returns the Context field value if set, zero value otherwise.
 func (o *InferenceCreate) GetContext() InferenceCreateContext {
-	if o == nil {
+	if o == nil || IsNil(o.Context) {
 		var ret InferenceCreateContext
 		return ret
 	}
-
-	return o.Context
+	return *o.Context
 }
 
-// GetContextOk returns a tuple with the Context field value
+// GetContextOk returns a tuple with the Context field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *InferenceCreate) GetContextOk() (*InferenceCreateContext, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Context) {
 		return nil, false
 	}
-	return &o.Context, true
+	return o.Context, true
 }
 
-// SetContext sets field value
+// HasContext returns a boolean if a field has been set.
+func (o *InferenceCreate) HasContext() bool {
+	if o != nil && !IsNil(o.Context) {
+		return true
+	}
+
+	return false
+}
+
+// SetContext gets a reference to the given InferenceCreateContext and assigns it to the Context field.
 func (o *InferenceCreate) SetContext(v InferenceCreateContext) {
-	o.Context = v
+	o.Context = &v
 }
 
 // GetModelBinding returns the ModelBinding field value
@@ -240,6 +262,38 @@ func (o *InferenceCreate) SetQueueTimeoutSeconds(v int32) {
 	o.QueueTimeoutSeconds = &v
 }
 
+// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
+func (o *InferenceCreate) GetModelParameters() ModelParameters {
+	if o == nil || IsNil(o.ModelParameters) {
+		var ret ModelParameters
+		return ret
+	}
+	return *o.ModelParameters
+}
+
+// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceCreate) GetModelParametersOk() (*ModelParameters, bool) {
+	if o == nil || IsNil(o.ModelParameters) {
+		return nil, false
+	}
+	return o.ModelParameters, true
+}
+
+// HasModelParameters returns a boolean if a field has been set.
+func (o *InferenceCreate) HasModelParameters() bool {
+	if o != nil && !IsNil(o.ModelParameters) {
+		return true
+	}
+
+	return false
+}
+
+// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
+func (o *InferenceCreate) SetModelParameters(v ModelParameters) {
+	o.ModelParameters = &v
+}
+
 func (o InferenceCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -250,18 +304,27 @@ func (o InferenceCreate) MarshalJSON() ([]byte, error) {
 
 func (o InferenceCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["workspace_id"] = o.WorkspaceId
-	toSerialize["definition"] = o.Definition
+	if !IsNil(o.WorkspaceId) {
+		toSerialize["workspace_id"] = o.WorkspaceId
+	}
+	if !IsNil(o.Definition) {
+		toSerialize["definition"] = o.Definition
+	}
 	if o.Input != nil {
 		toSerialize["input"] = o.Input
 	}
-	toSerialize["context"] = o.Context
+	if !IsNil(o.Context) {
+		toSerialize["context"] = o.Context
+	}
 	toSerialize["model_binding"] = o.ModelBinding
 	if !IsNil(o.Limits) {
 		toSerialize["limits"] = o.Limits
 	}
 	if !IsNil(o.QueueTimeoutSeconds) {
 		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
+	}
+	if !IsNil(o.ModelParameters) {
+		toSerialize["model_parameters"] = o.ModelParameters
 	}
 	return toSerialize, nil
 }
@@ -271,10 +334,7 @@ func (o *InferenceCreate) UnmarshalJSON(data []byte) (err error) {
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
-		"workspace_id",
-		"definition",
 		"input",
-		"context",
 		"model_binding",
 	}
 

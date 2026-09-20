@@ -16,7 +16,7 @@ Use [bounded agents and tasks](tasks.md) only when one decision is insufficient.
 
 ## Before submitting
 
-1. Use a deployment with decision execution enabled. A disabled deployment returns `inference_disabled`; credentials alone do not enable it.
+1. Decision execution is supported by default. Your deployment needs provider credentials and paid-execution authorization. An explicit admission pause (`RUN_ADMISSION_ENABLED=false`) returns `inference_disabled`.
 2. Create a backend API key bound to **exactly one workspace**, with `runs:write` and `runs:read`. Add `files:write`/`files:read` to publish/read context artifacts. Keep the key in your application's backend.
 3. Choose a supported, configured model and managed or exact BYOK credentials. Request limits may lower a definition's ceilings, never raise them.
 4. Authenticate your own end user or actor. The workspace-bound key establishes the application namespace; the backend asserts the audience. An actor ID is not independent authorization.

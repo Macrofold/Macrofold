@@ -1689,6 +1689,11 @@ public CustomerAgentConnection updateConnectionPermissions(String customerId,UUI
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
+public static final class CreateInferenceParams {
+        private String prefer;
+        public CreateInferenceParams(){}
+        public CreateInferenceParams prefer(String value){this.prefer=value;return this;}
+      }
 public static final class InferencesResource {
       private final Resources client; private final RequestOptions options;
       private InferencesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
@@ -1711,10 +1716,13 @@ public DecisionDefinition createDecisionDefinition(DecisionDefinitionCreate inpu
         try {return new InferencesApi(client).createDecisionDefinition(key,input);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public RunAccepted create(InferenceCreate input) throws ApiException {
+public InferenceResponse create(InferenceCreate input) throws ApiException {
+        return create(input,new CreateInferenceParams());
+      }
+public InferenceResponse create(InferenceCreate input,CreateInferenceParams params) throws ApiException {
         String key=options.identity();
-
-        try {return new InferencesApi(client).createInference(key,input,options.organization());}
+        Objects.requireNonNull(params,"params");
+        try {return new InferencesApi(client).createInference(key,input,options.organization(),params.prefer);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public ContextArtifact deleteContextArtifact(UUID artifactId) throws ApiException {

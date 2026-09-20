@@ -1,3 +1,4 @@
+import { respondAsync } from './direct-inference';
 import * as sandboxes from './sandboxes';
 import * as decisionTasks from './decision-tasks';
 import { prepareInference } from './inferences';
@@ -818,7 +819,7 @@ const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
 export const preparations: PreparationMap = {
   wakeDecisionTask: c=>decisionTasks.prepareTaskWake(c.p,c.params.task_id,input<'DecisionTaskWake'>(c)),
   createBoundedAgentRun: c=>prepareInference(c.p,input<'BoundedAgentCreate'>(c),'bounded_agent'),
-  createInference: c=>prepareInference(c.p,input<'InferenceCreate'>(c)),
+  createInference: c=>prepareInference(c.p,input<'InferenceCreate'>(c), 'inference', !respondAsync(c.request)),
   createContextArtifact: c=>contextArtifacts.prepareContextArtifact(c.p,input<'ContextArtifactCreate'>(c)),
   ...customerAgentPreparations(composioCustomerConsent),
   writeFile: (c) =>

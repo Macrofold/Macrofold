@@ -17,7 +17,6 @@ import {
   type TaskRow,
 } from './decision-tasks';
 import * as resources from './resources';
-import { decisionsEnabled } from './decision-capability';
 
 async function load(tx: Tx, taskId: string) {
   const row = (await tx.query<TaskRow>('SELECT * FROM decision_tasks WHERE id=$1 FOR UPDATE', [taskId]))
@@ -217,7 +216,6 @@ export async function advanceTask(org: string, taskId: string) {
   });
 }
 export async function dispatchDecisionTasks() {
-  if (!decisionsEnabled()) return { tasks_advanced: 0 };
   const jobs =
     await pool.query(`WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='decision_task' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT 10 FOR UPDATE SKIP LOCKED)
     UPDATE dispatch_jobs j SET available_at=now()+interval '2 minutes' FROM due WHERE j.id=due.id RETURNING j.organization_id,j.resource_id`);

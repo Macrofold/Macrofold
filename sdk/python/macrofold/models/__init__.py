@@ -90,6 +90,7 @@ from macrofold.models.decision_question import DecisionQuestion
 from macrofold.models.decision_question_one_of import DecisionQuestionOneOf
 from macrofold.models.decision_question_one_of1 import DecisionQuestionOneOf1
 from macrofold.models.decision_question_one_of2 import DecisionQuestionOneOf2
+from macrofold.models.decision_question_one_of3 import DecisionQuestionOneOf3
 from macrofold.models.decision_task import DecisionTask
 from macrofold.models.decision_task_create import DecisionTaskCreate
 from macrofold.models.decision_task_wake import DecisionTaskWake
@@ -129,6 +130,7 @@ from macrofold.models.inference_limits import InferenceLimits
 from macrofold.models.inference_receipt import InferenceReceipt
 from macrofold.models.inference_receipt_provider_evidence import InferenceReceiptProviderEvidence
 from macrofold.models.inference_receipt_validation import InferenceReceiptValidation
+from macrofold.models.inference_response import InferenceResponse
 from macrofold.models.invitation import Invitation
 from macrofold.models.invitation_create import InvitationCreate
 from macrofold.models.key_create import KeyCreate
@@ -164,6 +166,9 @@ from macrofold.models.message_create import MessageCreate
 from macrofold.models.metric import Metric
 from macrofold.models.metric_value import MetricValue
 from macrofold.models.model import Model
+from macrofold.models.model_parameters import ModelParameters
+from macrofold.models.model_parameters_provider import ModelParametersProvider
+from macrofold.models.model_parameters_reasoning import ModelParametersReasoning
 from macrofold.models.native_run_accepted import NativeRunAccepted
 from macrofold.models.new_api_key import NewApiKey
 from macrofold.models.new_trigger import NewTrigger

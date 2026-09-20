@@ -38,7 +38,6 @@ afterAll(async () => {
 it('preserves account caps while reserving one slot for lightweight work; never constructs its machine provider', async () => {
   const { p } = await fixtureAccount('Mixed execution fixture');
   accounts.push(p.organizationId);
-  vi.stubEnv('DECISION_EXECUTOR_VERSION', '1');
   vi.stubEnv('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', '1');
   vi.stubEnv('LIGHTWEIGHT_CONCURRENT_RUN_LIMIT', '1');
   // Other domain suites share this disposable database. Test this account's
@@ -109,9 +108,7 @@ it('preserves account caps while reserving one slot for lightweight work; never 
   expect(
     (await transaction(p.organizationId, (tx) => queueObservations(tx, [second.run_id]))).get(second.run_id),
   ).toBe('reserved_lightweight_capacity');
-  vi.stubEnv('DECISION_EXECUTOR_VERSION', '');
-  const before = await transaction(p.organizationId, (tx) => getRun(tx, light2.run_id));
   expect(await advanceCloudRun(p.organizationId, light2.run_id, machines)).toMatchObject({ done: false });
-  expect((await transaction(p.organizationId, (tx) => getRun(tx, light2.run_id))).status).toBe(before.status);
+  expect((await transaction(p.organizationId, (tx) => getRun(tx, light2.run_id))).status).toBe('running');
   expect(machines).not.toHaveBeenCalled();
 });

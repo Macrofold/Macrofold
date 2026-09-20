@@ -13,6 +13,7 @@ import { id, seal, unseal, sha256, canonical } from './crypto';
 import * as resources from './resources';
 import { connectionTools, composio, withMcp } from './connections';
 import { computeMaximum } from './catalog';
+import { reserve } from './ledger';
 import { emit } from './events';
 import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
@@ -166,6 +167,15 @@ export async function executeGrantedTool(
       'The connector action would exceed the remaining budget.',
     );
     const invocation = id();
+    // Local BYOK runs need no upfront credits. Fund actual platform tool liability
+    // before dispatch, under the same run lock as the budget and invocation writes.
+    const additional = BigInt(current.cost_micro_usd) + fee - BigInt(current.reservation_micro_usd);
+    if (additional > 0n) {
+      await reserve(tx, cap.organization, additional);
+      await tx.query('UPDATE runs SET reservation_micro_usd=reservation_micro_usd+$2::bigint WHERE id=$1', [
+        cap.run, additional.toString(),
+      ]);
+    }
     // Tool action costs are fixed retail fees, charged at dispatch, including ambiguous outcomes.
     await tx.query(
       'UPDATE runs SET budget_used_micro_usd=budget_used_micro_usd+$2::bigint,cost_micro_usd=cost_micro_usd+$2::bigint WHERE id=$1',

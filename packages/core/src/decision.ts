@@ -1,3 +1,4 @@
+import { modelInputBound } from './model-content';
 import type { components } from '../../contracts/api';
 import type { ModelRequestBounds, ModelUsage } from './model-protocol';
 
@@ -15,6 +16,7 @@ export type ResolvedContext = ExplicitContext & {
 };
 export type DecisionRequest = {
   model: string;
+  modelParameters?: import('./model-parameters').ModelParameters;
   definition: InferenceDefinition;
   input: unknown;
   context: ResolvedContext;
@@ -49,5 +51,13 @@ export interface DecisionProtocol {
     secret: string,
     signal: AbortSignal,
     observeResponse?: (response: unknown) => void,
+    nativeResponse?: boolean,
   ): Promise<DecisionResponse>;
+}
+
+/** Share native media bounds with the gateway instead of pricing remote content as URL text. */
+export function inferenceInputBound(body: Record<string, unknown>, provider: string, model: string, native: boolean) {
+  return native && provider !== 'typesafe' && model !== 'typesafe/jev-1.13'
+    ? modelInputBound(body, { provider, model, harness: provider === 'anthropic' ? 'claude-code' : 'opencode' })
+    : Buffer.byteLength(JSON.stringify(body)) + 1024;
 }

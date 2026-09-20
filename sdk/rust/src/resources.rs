@@ -910,6 +910,7 @@ pub async fn update_connection_permissions(&self, customer_id: &str, customer_ag
           .map_err(|error|crate::request_error(error,None))
       }
     }
+#[derive(Debug,Clone,Default)] pub struct CreateInferenceParams {pub prefer: Option<String>}
 pub struct InferencesResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> InferencesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -928,9 +929,9 @@ pub async fn create_decision_definition(&self, input: models::DecisionDefinition
         crate::apis::inferences_api::create_decision_definition(self.client.configuration(), &key, input).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn create(&self, input: models::InferenceCreate) -> Result<models::RunAccepted,ClientError> {
+pub async fn create(&self, input: models::InferenceCreate, params: CreateInferenceParams) -> Result<models::InferenceResponse,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::inferences_api::create_inference(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+        crate::apis::inferences_api::create_inference(self.client.configuration(), &key, Some(input), self.options.organization.as_deref(), params.prefer.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn delete_context_artifact(&self, artifact_id: &str) -> Result<models::ContextArtifact,ClientError> {

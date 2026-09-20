@@ -30,6 +30,8 @@ pub struct SessionCreate {
     pub connection_grants: Option<Vec<models::Grant>>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
     pub limits: Option<Box<models::Limits>>,
+    #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<Box<models::ModelParameters>>,
 }
 
 impl SessionCreate {
@@ -43,6 +45,7 @@ impl SessionCreate {
             provider_connection_id: None,
             connection_grants: None,
             limits: None,
+            model_parameters: None,
         }
     }
 }

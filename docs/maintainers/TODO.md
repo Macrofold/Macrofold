@@ -1,8 +1,69 @@
-# Release TODO
+# Engineering TODO
 
-This is the central list of unresolved release work. It is not part of the published documentation site's navigation, search index, or Markdown export. A checked-in adapter or a local simulation pass does not close a live deployment check.
+## Native harness tool permissions
+
+- [ ] Expose native harness tool selection through the existing API permissions model and permission adapters, including disabling OpenCode’s built-in `question` tool. Map supported restrictions to each harness’s native configuration so disabled tools and their descriptions are omitted from model requests, not merely discouraged by instructions. Preserve connector and file-access restrictions; report unsupported mappings explicitly. Cover run-level overrides and inherited policy, add focused adapter/API tests, and document copyable request examples.
+
+## Harness prompt mode follow-up
+
+- [ ] Test OpenCode default empty replacement and explicit `harness_prompt_mode: extend`, preserving configured instructions, permissions, tools and warm-session mode changes. Verify outgoing provider messages contain no default coding persona in replacement mode. OpenCode requires a nonempty blank agent prompt to bypass its truthiness fallback. Tests deferred by request.
+- [ ] Document the per-run `harness_prompt_mode` API option (replace by default, extend opt-in), its current OpenCode-only support, and remaining harness context/tool/repository messages. Other harness adapters still need individually verified replacement mappings. Update generated public docs and SDK references; documentation deferred by request.
+
+## Shared local environment follow-up
+
+- [ ] Test shared `.env` loading for API, worker and Docker command aliases, including exported-variable precedence and unchanged paid-execution opt-in. Local Docker overrides were merged into `.env`; `.env.docker` and its example were retired. No tests were run at the operator's request.
+- [ ] Update local setup/development guides and remove `.env.docker` references. Explain switching `EXECUTION_PROVIDER` in one file, `ORCHESTRATION_BACKEND=poller` for Docker, and restarting both API and worker after configuration changes. Review the simulator-only setup guard for an already-configured Docker developer.
+- [ ] Revisit the local single-run global ceiling: retained checkpoint work occupied the sole slot and queued Jev until caller cancellation. Decide an appropriate local capacity explicitly; merging configuration does not change that ceiling or spending authorization.
+
+## Worker stall diagnostics follow-up
+
+- [ ] Test/document the operator-requested dot-path exclusion for new native checkpoints: omit any dot-prefixed path component in both worktree and home, prune hidden directories before capture, and filter at control-plane indexing too. This deliberately excludes `.git` and hidden native conversation state; validate cold-resume behavior and communicate its limitations. Rebuild/publish the runtime image and restart the intended worker to activate both boundaries. Existing checkpoint bytes and already-indexed in-flight uploads are unchanged. Tests and documentation deferred by request.
+
+- [ ] Verify bounded parallel checkpoint upload (four chunks / eight manifests): successful items remain durable, hash/size verification remains enforced, failures drain all in-flight work before lease release, and recovery resumes only unfinished objects. Tests deferred by request. Inspect native home cache/dependency capture separately before excluding any files needed for conversation restoration.
+
+- [ ] Test `WORKER_DIAGNOSTICS=1`: correlated start/wait/complete/failure events, five-second pending progress, timer cleanup, disabled mode, unchanged results/errors, and no secret/content disclosure. Tests and documentation were deferred at the operator's request; this logging change has not been run or typechecked.
+- [ ] Exercise the Docker poller with a slow native persistence step plus newly queued inference. Its batch-wide `Promise.allSettled` and awaited maintenance can delay subsequent claims; establish the blocking phase before changing scheduling/cleanup. Preserve leases, capacity and checkpoint guarantees.
+- [ ] Diagnose the observed cancelled native run remaining in checkpoint `upload`: use `worker.checkpoint_read.*` versus `worker.checkpoint_store.*` to separate sandbox chunk retrieval from encrypted content storage. The two affected inference runs had no `started_at`, confirming cancellation before provider execution; the exact reason for the upload stall remains unverified. Do not discard recoverable checkpoints or blindly replay provider requests.
+- [ ] Document retry/triage: restart the intended local worker with `WORKER_DIAGNOSTICS=1 pnpm worker:docker`, retain its stdout/stderr separately from `pnpm dev:docker`, and correlate `run_id` with `worker.*` events. `worker.inference_provider.started` establishes provider dispatch; `worker.advance.waiting` without it locates pre-provider work, while maintenance/candidates/claim/reschedule waiting events locate other stalls. Existing run API `waiting_reason` and `started_at` distinguish queueing from execution. These diagnostics are independent of Langfuse and do not retry, cancel, or reset work.
+
+This is the central list of unfinished implementation, testing, documentation, and deployment work. Add follow-ups here under the relevant feature instead of creating separate TODO documents. It is not part of the published documentation site's navigation, search index, or Markdown export. A checked-in adapter or a local simulation pass does not close a live deployment check.
 
 Product and architecture proposals are tracked separately in [ranked improvements](../product/improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
+
+
+## Stateless inference simplification
+
+### Implementation in this change
+
+- Direct `/v1/inferences` requests may omit `workspace_id` and use an account-level API key with `runs:write`.
+- No workspace, worktree, or session is created for that request. Billing and execution authority remain account-scoped.
+- A supplied workspace is still authorized. Workspace-restricted keys cannot submit or inspect account-scoped runs.
+- Migration `042_account_inferences.sql` permits a null inference workspace and includes those runs in scheduling. Native-agent runs still require a workspace.
+- Inline definition/context remain part of the current request envelope. Saved references and bounded-agent endpoints retain their existing workspace requirements pending simplification.
+- OpenAPI and TypeScript schema declarations were regenerated. No tests, builds, migration application, or user-guide updates were performed at the user's request.
+
+### Implementation TODOs
+
+- [ ] Remove unnecessary saved-input/context-artifact and versioned-definition APIs, persistence, reference resolution, SDK/MCP methods, and UI surfaces. Inventory callers before removal; preserve ordinary uploaded files, generated outputs, billing records, and historical run results.
+- [ ] Review the decision-task coordinator for removal separately from basic inference execution. Do not remove native runs, scheduling, cancellation, or accounting safeguards.
+- [ ] Simplify the inline request envelope around caller-supplied model, input, instructions/schema, and limits; remove application-namespace/audience conventions that are unnecessary for stateless calls.
+- [ ] Regenerate remaining language clients and rebuild distributed TypeScript packages from the updated contract.
+- [ ] Apply migration 042 through the normal migration workflow after the parent task's terminology migration 041. Coordinate deployment; do not run new admission code against the old NOT NULL constraint.
+
+### Testing TODOs — not run
+
+- [ ] Unrestricted API key + inline inference without workspace: submit, schedule, execute, retrieve/stream/cancel, and inspect itemized billing and tracing.
+- [ ] Explicit authorized workspace still works with an unrestricted key.
+- [ ] Wrong scopes, revoked/expired keys, foreign accounts, and workspace-restricted keys attempting account-level runs are denied at admission and subsequent reads/dispatch.
+- [ ] Confirm budgets, reservations, settlement, idempotency, and uncertain-provider handling remain unchanged.
+- [ ] Rehearse migration with existing native/inference records; ensure native workspace constraints and reporting views remain correct.
+- [ ] Check types, API response validation, SDKs, MCP, and dashboard handling of null workspace IDs. Test saved-reference rejection when no workspace is provided until that feature is removed.
+
+### Documentation TODOs
+
+- [ ] Update inference quickstart and examples to use the account API key without a workspace.
+- [ ] Remove mandatory single-workspace-key instructions from public guides, MCP instructions, and agent onboarding prompts.
+- [ ] Explain optional workspace attribution and account-scoped billing; update migration/deployment guidance and generated documentation after removal scope is settled.
 
 ## Reusable sandbox acceptance
 
@@ -174,3 +235,38 @@ Apply additive migration 039 before deploying the itemized billing API; indexes 
 
 - Coordinate migration 041 with the matching API, SDK, CLI, dashboard and runtime image. Drain old writers; back up database/object storage; do not run mixed contracts. See [terminology rollout](../architecture/resource-terminology.md). Local disposable migration and regression checks pass. The inactive local development database was backed up and migrated through 041; hosted databases still require coordinated rollout. The matching local Docker image has been built.
 - Publish the new runtime image and verify same-session live reuse, cancellation, idle expiry and a cold checkpoint miss on hosted Vercel/Render. Offline Docker acceptance covers all six pinned harnesses with current run credentials and connector calls; it does not establish hosted acceptance or zero model-response latency.
+
+## Local compute and BYOK funding follow-up
+
+- [ ] Add and run billing regression tests for zero-balance local Docker sandbox create/resume, temporary and long-running lifecycle, zero-rate idle behavior, native BYOK runs, and direct/bounded BYOK inference. Verify model budgets still stop overspending, cancellation/settlement reconcile zero reservations, and concurrent/duplicate paid connector calls reserve credits before dispatch. Managed models and hosted compute must retain funding requirements; BYOK credential failures must not fall back to platform keys. Tests were explicitly deferred for this change.
+- [ ] Update billing and local Docker/sandbox guides: local Docker compute is always zero-rated; BYOK model usage consumes the request budget without reserving platform model credits; billable tools still require credits at dispatch. Explain that budget ceilings and prepaid reservations differ, restart API/worker processes for deployment, and document hosted funding behavior. Regenerate/check published documentation after updating these guides. Documentation updates were explicitly deferred.
+
+## OpenRouter model parameters and Muse inference
+
+- [ ] Add and run API/gateway/inference regressions for `model_parameters.reasoning.effort` (`none`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max`) and `provider.require_parameters`: strict unknown-field/value rejection, unsupported provider/Jev rejection, explicit Muse Contributor rejection of `none` and `max`, conflicting session overrides, omission inheritance, changed-body idempotency conflicts, persisted queue/recovery parameters, and enforcement on every native call and warm/cold continuation. Tests were not written or run at the user's request.
+- [ ] Verify exact Muse Contributor BYOK chat routing and structured JSON output, refusal/malformed/truncated responses, model mismatch, missing usage, 2,048/16,384 output ceilings including reasoning, frozen price ceilings and budget exhaustion. Preserve Jev Decisions routing and prove no model or platform-credential fallback. Live provider acceptance remains unverified; Meta currently documents `max` as unavailable on Contributor tiers (https://dev.meta.ai/docs/reasoning). Admission rejects `none` and `max` for this exact Contributor slug; verify `xhigh` as its highest supported effort and never substitute effort/model silently.
+- [x] Regenerate all five SDKs using the existing generator and the local JDK 21 toolchain. Generation and TypeScript checking pass; SDK execution suites remain deferred as requested.
+- [ ] Update API, model, decision and continuation guides for supported parameters, exact `meta/muse-spark-1.3-contributor` selection, BYOK connection requirements, strict provider support, session parameter immutability and the 16,384 inference output-token ceiling. Update the generated method reference and published documentation, then run documentation checks. Guide updates and documentation checks were explicitly deferred.
+
+## Direct inference latency follow-up
+
+Implemented the synchronous single-call API path; tests and feature documentation were explicitly deferred by the operator. TypeScript checking is not runtime or performance acceptance.
+
+- [ ] Add and run API/provider regression tests for direct Jev and generative LLM calls without a worker: HTTP 200 with result, explicit `Prefer: respond-async` / HTTP 202, capacity rejection without durable admission or charges, the 240-second direct timeout limit, and bounded agents remaining queued.
+- [ ] Verify simultaneous idempotency replays make exactly one upstream request; retained run/result access obeys current authorization; API process loss and ambiguous provider responses recover without automatic replay. Exercise cancellation, timeout, crash before/after dispatch, response persistence failure, ledger settlement failure, and worker/Workflow fencing until the direct recovery deadline.
+- [ ] Measure p50/p95 request latency and SQL/lock time with inline Jev and LLM fixtures, concurrency, slow maintenance, and slow/unavailable tracing. Verify background request accounting and optional timing writes cannot delay the response, while financial reservations, provider evidence and settlement remain durable. Native model gateways already call providers directly and retain their existing accounting.
+- [ ] Update public/internal inference guides and examples for synchronous default, `result.inference`, async preference, 429 capacity handling, 202 in-flight replay/recovery, retained run URLs and the 240-second limit. Explain that request-summary analytics now complete after the HTTP response; optional response-persistence timing may be absent from the immediate receipt.
+- [ ] Run regenerated five-language SDK acceptance and MCP integration against the new 200/202 response contract, including caller timeouts and preserved mutation identities. Deploy the matching API/SDK version and verify the request-host background hooks; no latency SLA or hosted acceptance has been established.
+
+## Provider-native inference follow-up
+
+- [ ] Add and run formal API/SDK/provider regressions for `definition.question: { kind: "provider" }`: `input` is the native request body and `result.inference.value` retains the complete provider response. Cover multiple named Jev choice/score/noul questions, all answer metadata, plain-text and tool-call LLM outputs, multiple completions, native parameters/JSON schemas, and enabled OpenRouter models beyond Muse. Tests are deferred at the operator's request; ad hoc execution of the adapter paths with synthetic upstream responses passed, without paid calls.
+- [ ] Exercise admission, recovery and billing end to end for native requests: current authorization, model binding, preserved parameters, aggregate output allowance across `n`, media bounds, Anthropic cache-write liability, missing usage, cancellation and ambiguous dispatch. Run all five regenerated SDK suites. Static checking and adapter execution do not establish full API or hosted acceptance.
+- [ ] Update internal/public inference guides and copyable examples for provider-native mode versus optional typed decisions; explain that native input is passed without injecting the definition prompt/context, and provider response fields are retained. Regenerate published docs afterward. Documentation work is deferred at the operator's request.
+- [ ] Extend separately metered capabilities before removing their financial/transport guards: native inference streaming/background delivery, provider-hosted paid tools, non-default service tiers, unpriced models/fallbacks and broader media. These remain explicit unsupported capabilities, not a one-question or JSON-only restriction. The existing catalog, byte/context/response limits and spending boundaries still apply; do not describe this as unrestricted parity with every provider endpoint.
+
+### Default native inference request
+
+- [ ] Add/run API and regenerated SDK regression coverage for the simplified default `POST /v1/inferences` body: only `model_binding`, native `input`, and `limits` are required. `definition`, `context`, and `question.kind` are no longer required for ordinary inference. Verify optional typed definitions still require their context, bounded agents still require definitions, missing limits fail before admission, and both synchronous/async paths retain billing and idempotency. Ad hoc execution through the actual request validator, internal normalization and provider adapter passed with a synthetic multi-question Jev response; TypeScript checking passed. Formal suites remain deferred by request.
+- [ ] Update the public/internal guides and calling-agent examples to make the simplified body the primary interface. Present definitions/context only as optional higher-level decision features. The server creates its executor envelope internally; callers need no provider-mode flag. Regenerate published docs after this deferred documentation update.
+- [ ] Add a Jev pass-through regression asserting caller state, arbitrary named questions, extra endpoint parameters and routing preferences survive serialization unchanged. Keep chat-only tool/output/service-tier validation off the Decisions path. Only the bound model and Macrofold routing/spending controls are platform-owned. Ad hoc adapter execution verified the OpenRouter Decisions URL, forwarded parameters and complete returned answers; formal tests/documentation remain deferred.

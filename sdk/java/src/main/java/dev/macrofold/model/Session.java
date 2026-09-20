@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
+import dev.macrofold.model.ModelParameters;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,7 +54,8 @@ import dev.macrofold.ApiClient;
   Session.JSON_PROPERTY_CONNECTION_GRANTS,
   Session.JSON_PROPERTY_LIMITS,
   Session.JSON_PROPERTY_AGENT_ID,
-  Session.JSON_PROPERTY_AGENT_VERSION
+  Session.JSON_PROPERTY_AGENT_VERSION,
+  Session.JSON_PROPERTY_MODEL_PARAMETERS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Session {
@@ -178,6 +180,10 @@ public class Session {
 
   public static final String JSON_PROPERTY_AGENT_VERSION = "agent_version";
   private JsonNullable<Integer> agentVersion = JsonNullable.<Integer>undefined();
+
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
 
   public Session() { 
   }
@@ -471,6 +477,30 @@ public class Session {
   }
 
 
+  public Session modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+    return this;
+  }
+
+  /**
+   * Get modelParameters
+   * @return modelParameters
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelParameters getModelParameters() {
+    return modelParameters;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+  }
+
+
   /**
    * Return true if this Session object is equal to o.
    */
@@ -493,7 +523,8 @@ public class Session {
         Objects.equals(this.connectionGrants, session.connectionGrants) &&
         Objects.equals(this.limits, session.limits) &&
         equalsNullable(this.agentId, session.agentId) &&
-        equalsNullable(this.agentVersion, session.agentVersion);
+        equalsNullable(this.agentVersion, session.agentVersion) &&
+        Objects.equals(this.modelParameters, session.modelParameters);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -502,7 +533,7 @@ public class Session {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, worktreeId, harness, model, createdAt, billingMode, providerConnectionId, connectionGrants, limits, hashCodeNullable(agentId), hashCodeNullable(agentVersion));
+    return Objects.hash(id, worktreeId, harness, model, createdAt, billingMode, providerConnectionId, connectionGrants, limits, hashCodeNullable(agentId), hashCodeNullable(agentVersion), modelParameters);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -527,6 +558,7 @@ public class Session {
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
     sb.append("    agentVersion: ").append(toIndentedString(agentVersion)).append("\n");
+    sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -629,6 +661,11 @@ public class Session {
     // add `agent_version` to the URL query string
     if (getAgentVersion() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sagent_version%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getAgentVersion()))));
+    }
+
+    // add `model_parameters` to the URL query string
+    if (getModelParameters() != null) {
+      joiner.add(getModelParameters().toUrlQueryString(prefix + "model_parameters" + suffix));
     }
 
     return joiner.toString();

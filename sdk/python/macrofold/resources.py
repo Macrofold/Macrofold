@@ -424,7 +424,7 @@ class SessionsResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def continue_run(self, session_id: str | UUID, *, prompt: str, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, model: str | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, sandbox_id: str | UUID | Omit = OMIT, keep_warm_seconds: int | None | Omit = OMIT, sandbox_max_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
+    def continue_run(self, session_id: str | UUID, *, prompt: str, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, model: str | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, sandbox_id: str | UUID | Omit = OMIT, keep_warm_seconds: int | None | Omit = OMIT, sandbox_max_cost_micro_usd: str | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("continueSession",
@@ -432,11 +432,11 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"prompt": prompt,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_if_busy": queue_if_busy,"model": model,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"permissions": permissions,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"sandbox_id": sandbox_id,"keep_warm_seconds": keep_warm_seconds,"sandbox_max_cost_micro_usd": sandbox_max_cost_micro_usd}),
+            body=payload({"prompt": prompt,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_if_busy": queue_if_busy,"model": model,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"permissions": permissions,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"sandbox_id": sandbox_id,"keep_warm_seconds": keep_warm_seconds,"sandbox_max_cost_micro_usd": sandbox_max_cost_micro_usd,"model_parameters": model_parameters}),
         )
         return decode(models.NativeRunAccepted, result, identity)
 
-    def create(self, *, worktree_id: str | UUID, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
+    def create(self, *, worktree_id: str | UUID, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createSession",
@@ -444,7 +444,7 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"worktree_id": worktree_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
+            body=payload({"worktree_id": worktree_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"model_parameters": model_parameters}),
         )
         return decode(models.Session, result, identity)
 
@@ -488,7 +488,7 @@ class RunsResource:
         )
         return decode(models.Run, result, identity)
 
-    def create(self, *, prompt: str, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, sandbox_id: str | UUID | Omit = OMIT, keep_warm_seconds: int | None | Omit = OMIT, sandbox_max_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
+    def create(self, *, prompt: str, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, sandbox_id: str | UUID | Omit = OMIT, keep_warm_seconds: int | None | Omit = OMIT, sandbox_max_cost_micro_usd: str | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, harness_prompt_mode: Literal["replace", "extend"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createRun",
@@ -496,7 +496,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"prompt": prompt,"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"queue_if_busy": queue_if_busy,"permissions": permissions,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"sandbox_id": sandbox_id,"keep_warm_seconds": keep_warm_seconds,"sandbox_max_cost_micro_usd": sandbox_max_cost_micro_usd}),
+            body=payload({"prompt": prompt,"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"queue_if_busy": queue_if_busy,"permissions": permissions,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"sandbox_id": sandbox_id,"keep_warm_seconds": keep_warm_seconds,"sandbox_max_cost_micro_usd": sandbox_max_cost_micro_usd,"model_parameters": model_parameters,"harness_prompt_mode": harness_prompt_mode}),
         )
         return decode(models.NativeRunAccepted, result, identity)
 
@@ -1905,17 +1905,17 @@ class InferencesResource:
         )
         return decode(models.DecisionDefinition, result, identity)
 
-    def create(self, *, workspace_id: str | UUID, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
+    def create(self, *, prefer: Literal["respond-async"] | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createInference",
             path=parameters({}),
             query=parameters({}),
-            headers={**options.headers, **parameters({})},
+            headers={**options.headers, **parameters({"Prefer": prefer})},
             idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds}),
+            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters}),
         )
-        return decode(models.RunAccepted, result, identity)
+        return decode(models.InferenceResponse, result, identity)
 
     def delete_context_artifact(self, artifact_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ContextArtifact:
         options = request_options or RequestOptions()

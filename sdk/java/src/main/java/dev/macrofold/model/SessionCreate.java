@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
+import dev.macrofold.model.ModelParameters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -44,7 +45,8 @@ import dev.macrofold.ApiClient;
   SessionCreate.JSON_PROPERTY_BILLING_MODE,
   SessionCreate.JSON_PROPERTY_PROVIDER_CONNECTION_ID,
   SessionCreate.JSON_PROPERTY_CONNECTION_GRANTS,
-  SessionCreate.JSON_PROPERTY_LIMITS
+  SessionCreate.JSON_PROPERTY_LIMITS,
+  SessionCreate.JSON_PROPERTY_MODEL_PARAMETERS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class SessionCreate {
@@ -155,6 +157,10 @@ public class SessionCreate {
   public static final String JSON_PROPERTY_LIMITS = "limits";
   @javax.annotation.Nullable
   private Limits limits;
+
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
 
   public SessionCreate() { 
   }
@@ -335,6 +341,30 @@ public class SessionCreate {
   }
 
 
+  public SessionCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+    return this;
+  }
+
+  /**
+   * Get modelParameters
+   * @return modelParameters
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelParameters getModelParameters() {
+    return modelParameters;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+  }
+
+
   /**
    * Return true if this SessionCreate object is equal to o.
    */
@@ -353,12 +383,13 @@ public class SessionCreate {
         Objects.equals(this.billingMode, sessionCreate.billingMode) &&
         Objects.equals(this.providerConnectionId, sessionCreate.providerConnectionId) &&
         Objects.equals(this.connectionGrants, sessionCreate.connectionGrants) &&
-        Objects.equals(this.limits, sessionCreate.limits);
+        Objects.equals(this.limits, sessionCreate.limits) &&
+        Objects.equals(this.modelParameters, sessionCreate.modelParameters);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(worktreeId, harness, model, billingMode, providerConnectionId, connectionGrants, limits);
+    return Objects.hash(worktreeId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, modelParameters);
   }
 
   @Override
@@ -372,6 +403,7 @@ public class SessionCreate {
     sb.append("    providerConnectionId: ").append(toIndentedString(providerConnectionId)).append("\n");
     sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
+    sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -454,6 +486,11 @@ public class SessionCreate {
     // add `limits` to the URL query string
     if (getLimits() != null) {
       joiner.add(getLimits().toUrlQueryString(prefix + "limits" + suffix));
+    }
+
+    // add `model_parameters` to the URL query string
+    if (getModelParameters() != null) {
+      joiner.add(getModelParameters().toUrlQueryString(prefix + "model_parameters" + suffix));
     }
 
     return joiner.toString();

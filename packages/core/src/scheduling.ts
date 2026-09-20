@@ -2,7 +2,6 @@ export type WaitingReason = NonNullable<components['schemas']['Run']['waiting_re
 import type { components } from '../../contracts/api';
 import { pool, type Tx } from '../../db';
 import { globalRunLimit } from './config';
-import { decisionsEnabled } from './decision-capability';
 import { plans } from './plans';
 
 // Weighted virtual service counts starts, not runtime. Idle tenants join at the
@@ -10,13 +9,13 @@ import { plans } from './plans';
 // Waiting earns a bounded age bonus: one quarter of a virtual turn after four minutes.
 // Interactive priority remains first; aging never moves work past its worktree writer.
 export const schedulingSQL = `WITH plan_limits AS (
- SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer,decisions_enabled boolean)
+ SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer)
 ), active AS (
  SELECT organization_id,count(*)::integer AS n,count(*) FILTER(WHERE kind='native_agent')::integer AS native_n,count(*) FILTER(WHERE kind<>'native_agent')::integer AS lightweight_n FROM reporting.scheduling_runs
  WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id
 ), queue AS (
  SELECT r.*,coalesce(a.n,0) AS account_active,coalesce(a.native_n,0) AS native_active,coalesce(a.lightweight_n,0) AS lightweight_active,
- p.lightweight_reserved,p.lightweight_limit,p.decisions_enabled,
+ p.lightweight_reserved,p.lightweight_limit,
  least(coalesce(o.run_concurrency_limit,p.concurrency_limit),p.concurrency_limit) AS account_limit,
  p.scheduler_weight,greatest(o.scheduler_finish,c.virtual_time) AS service,
  least(floor(extract(epoch FROM now()-r.created_at)/60),4)/16 AS age_bonus,
@@ -30,16 +29,14 @@ export const schedulingSQL = `WITH plan_limits AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY
  CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,created_at,id) AS account_order
  FROM queue WHERE NOT worktree_blocked AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
- AND (kind='native_agent' OR decisions_enabled)
  AND (kind<>'native_agent' OR native_active<greatest(0,account_limit-lightweight_reserved))
  AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
 )`;
 export const schedulingParameters = () => {
-  const enabled = decisionsEnabled();
-  const reserved = enabled ? capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG',0) : 0;
+  const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG',0);
   const ceiling = capacitySetting('LIGHTWEIGHT_CONCURRENT_RUN_LIMIT',globalRunLimit());
   return [JSON.stringify(plans().map(plan=>({...plan,
-    decisions_enabled:enabled,lightweight_reserved:Math.min(plan.concurrency_limit,reserved),
+    lightweight_reserved:Math.min(plan.concurrency_limit,reserved),
     lightweight_limit:Math.min(globalRunLimit(),ceiling),
   })))];
 };
@@ -102,7 +99,7 @@ export async function queueObservations(tx: Tx, ids: string[]) {
       WHEN worktree_blocked THEN 'earlier_worktree_work'
       WHEN account_active>=account_limit THEN 'account_concurrency'
       WHEN kind='native_agent' AND native_active>=greatest(0,account_limit-lightweight_reserved) THEN 'reserved_lightweight_capacity'
-      WHEN kind<>'native_agent' AND (NOT decisions_enabled OR (SELECT coalesce(sum(lightweight_n),0) FROM active)>=lightweight_limit) THEN 'lightweight_capacity'
+      WHEN kind<>'native_agent' AND (SELECT coalesce(sum(lightweight_n),0) FROM active)>=lightweight_limit THEN 'lightweight_capacity'
       WHEN (SELECT coalesce(sum(n),0) FROM active)>=$3 THEN 'global_capacity'
       ELSE 'scheduler_turn' END AS reason FROM queue WHERE id=ANY($2::uuid[])`,
       [...schedulingParameters(), ids, globalRunLimit()],

@@ -1,6 +1,7 @@
 import { assert } from '../../core/src/errors';
 import type { ModelProtocol, ModelUsage } from '../../core/src/model-protocol';
 import { openRouterPriceCeiling } from './openrouter-pricing';
+import { validateModelParameters } from '../../core/src/model-parameters';
 
 function usageFromEvent(provider: string, event: Record<string, unknown>, previous: ModelUsage): ModelUsage {
   const next = { ...previous };
@@ -36,7 +37,7 @@ function usageFromEvent(provider: string, event: Record<string, unknown>, previo
 /** Model-side tools can create separately billed containers, searches or connector actions.
  * Only reviewed client-executed forms belong on this text-token-metered route. Unknown
  * future tool types fail closed rather than bypassing the platform tool broker. */
-function requireClientTools(payload: Record<string, unknown>, provider: string, path: string) {
+export function requireClientTools(payload: Record<string, unknown>, provider: string, path: string) {
   for (const field of ['mcp_servers', 'plugins', 'web_search_options', 'container']) {
     const value = payload[field];
     assert(
@@ -95,6 +96,7 @@ function protocol(
     paths,
     cacheWrites: provider === 'anthropic',
     prepare(payload, path, bounds) {
+      validateModelParameters(bounds.modelParameters, provider, String(payload.model));
       requireClientTools(payload, provider, path);
       delete payload.background;
       delete payload.service_tier;
@@ -123,8 +125,15 @@ function protocol(
         // dollars/million tokens; reservations and settlement stay in integer micro-USD.
         payload.provider = {
           ...(payload.provider as Record<string, unknown> | undefined),
+          ...bounds.modelParameters?.provider,
+          ...(bounds.modelParameters?.reasoning ? { require_parameters: true } : {}),
           max_price: openRouterPriceCeiling(bounds),
         };
+        if (bounds.modelParameters?.reasoning) {
+          // The admitted effort governs every native call, including compaction.
+          delete payload.reasoning_effort;
+          payload.reasoning = { ...bounds.modelParameters.reasoning };
+        }
       }
       if (path.endsWith('count_tokens')) return;
       if (path.endsWith('responses')) payload.max_output_tokens = bounds.maxOutput;

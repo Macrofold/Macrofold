@@ -50,6 +50,8 @@ pub struct MessageCreate {
     /// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
     #[serde(rename = "sandbox_max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
     pub sandbox_max_cost_micro_usd: Option<String>,
+    #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<Box<models::ModelParameters>>,
 }
 
 impl MessageCreate {
@@ -70,6 +72,7 @@ impl MessageCreate {
             sandbox_id: None,
             keep_warm_seconds: None,
             sandbox_max_cost_micro_usd: None,
+            model_parameters: None,
         }
     }
 }

@@ -529,7 +529,7 @@ public class Run {
   private KindEnum kind;
 
   public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private UUID workspaceId;
 
   public static final String JSON_PROPERTY_TASK_ID = "task_id";
@@ -1255,7 +1255,7 @@ public class Run {
   }
 
 
-  public Run workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+  public Run workspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
     return this;
   }
@@ -1264,17 +1264,17 @@ public class Run {
    * Get workspaceId
    * @return workspaceId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public UUID getWorkspaceId() {
     return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
   }
 

@@ -441,6 +441,7 @@ type ApiCreateInferenceRequest struct {
 	idempotencyKey *string
 	inferenceCreate *InferenceCreate
 	xOrganizationId *string
+	prefer *string
 }
 
 func (r ApiCreateInferenceRequest) IdempotencyKey(idempotencyKey string) ApiCreateInferenceRequest {
@@ -459,14 +460,20 @@ func (r ApiCreateInferenceRequest) XOrganizationId(xOrganizationId string) ApiCr
 	return r
 }
 
-func (r ApiCreateInferenceRequest) Execute() (*RunAccepted, *http.Response, error) {
+// Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds.
+func (r ApiCreateInferenceRequest) Prefer(prefer string) ApiCreateInferenceRequest {
+	r.prefer = &prefer
+	return r
+}
+
+func (r ApiCreateInferenceRequest) Execute() (*InferenceResponse, *http.Response, error) {
 	return r.ApiService.CreateInferenceExecute(r)
 }
 
 /*
 CreateInference Request a typed decision with explicit context
 
-One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiCreateInferenceRequest
@@ -479,13 +486,13 @@ func (a *InferencesAPIService) CreateInference(ctx context.Context) ApiCreateInf
 }
 
 // Execute executes the request
-//  @return RunAccepted
-func (a *InferencesAPIService) CreateInferenceExecute(r ApiCreateInferenceRequest) (*RunAccepted, *http.Response, error) {
+//  @return InferenceResponse
+func (a *InferencesAPIService) CreateInferenceExecute(r ApiCreateInferenceRequest) (*InferenceResponse, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *RunAccepted
+		localVarReturnValue  *InferenceResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "InferencesAPIService.CreateInference")
@@ -531,6 +538,9 @@ func (a *InferencesAPIService) CreateInferenceExecute(r ApiCreateInferenceReques
 	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
+	}
+	if r.prefer != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "Prefer", r.prefer, "simple", "")
 	}
 	// body params
 	localVarPostBody = r.inferenceCreate

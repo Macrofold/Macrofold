@@ -24,6 +24,7 @@ from typing_extensions import Annotated
 from uuid import UUID
 from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
+from macrofold.models.model_parameters import ModelParameters
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -43,7 +44,8 @@ class Session(BaseModel):
     limits: Optional[Limits] = None
     agent_id: Optional[UUID] = None
     agent_version: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
-    __properties: ClassVar[List[str]] = ["id", "worktree_id", "harness", "model", "created_at", "billing_mode", "provider_connection_id", "connection_grants", "limits", "agent_id", "agent_version"]
+    model_parameters: Optional[ModelParameters] = None
+    __properties: ClassVar[List[str]] = ["id", "worktree_id", "harness", "model", "created_at", "billing_mode", "provider_connection_id", "connection_grants", "limits", "agent_id", "agent_version", "model_parameters"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -111,6 +113,9 @@ class Session(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of model_parameters
+        if self.model_parameters:
+            _dict['model_parameters'] = self.model_parameters.to_dict()
         # set to None if agent_id (nullable) is None
         # and model_fields_set contains the field
         if self.agent_id is None and "agent_id" in self.model_fields_set:
@@ -143,7 +148,8 @@ class Session(BaseModel):
             "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
             "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
             "agent_id": obj.get("agent_id"),
-            "agent_version": obj.get("agent_version")
+            "agent_version": obj.get("agent_version"),
+            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None
         })
         return _obj
 

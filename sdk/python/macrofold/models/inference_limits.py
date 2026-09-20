@@ -29,7 +29,7 @@ class InferenceLimits(BaseModel):
     InferenceLimits
     """ # noqa: E501
     max_cost_micro_usd: Annotated[str, Field(strict=True)]
-    max_output_tokens: Annotated[int, Field(le=8192, strict=True, ge=1)]
+    max_output_tokens: Annotated[int, Field(le=16384, strict=True, ge=1)]
     timeout_seconds: Annotated[int, Field(le=300, strict=True, ge=1)]
     __properties: ClassVar[List[str]] = ["max_cost_micro_usd", "max_output_tokens", "timeout_seconds"]
 

@@ -74,8 +74,8 @@ pub struct Run {
     pub agent_version: Option<Option<i32>>,
     #[serde(rename = "kind")]
     pub kind: Kind,
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
+    #[serde(rename = "workspace_id", deserialize_with = "Option::deserialize")]
+    pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "task_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub task_id: Option<Option<uuid::Uuid>>,
     /// Reusable compute ID, when selected or created by keep_warm_seconds.
@@ -84,7 +84,7 @@ pub struct Run {
 }
 
 impl Run {
-    pub fn new(id: uuid::Uuid, organization_id: uuid::Uuid, session_id: Option<uuid::Uuid>, worktree_id: Option<uuid::Uuid>, harness: Option<String>, model: String, status: Status, created_at: chrono::DateTime<chrono::FixedOffset>, kind: Kind, workspace_id: uuid::Uuid) -> Run {
+    pub fn new(id: uuid::Uuid, organization_id: uuid::Uuid, session_id: Option<uuid::Uuid>, worktree_id: Option<uuid::Uuid>, harness: Option<String>, model: String, status: Status, created_at: chrono::DateTime<chrono::FixedOffset>, kind: Kind, workspace_id: Option<uuid::Uuid>) -> Run {
         Run {
             id,
             organization_id,

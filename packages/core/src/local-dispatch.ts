@@ -1,6 +1,5 @@
 import { executeRun, pendingRuns } from './engine';
 import { pool } from '../../db';
-import { decisionsEnabled } from './decision-capability';
 import type { ExecutionProvider } from '../../providers/src/execution';
 
 /** Poll independently of execution duration. A slow simulator must not hold every
@@ -16,9 +15,9 @@ export class LocalDispatcher {
   async tick() {
     // Active lightweight requests need durable advancement after a restart, too.
     // Native simulator runs retain their existing single-process lifecycle.
-    const active = decisionsEnabled() ? (await pool.query<{ organization_id: string; resource_id: string }>(
-      "SELECT organization_id,id AS resource_id FROM reporting.scheduling_runs WHERE kind IN ('inference','bounded_agent') AND status IN ('provisioning','running') ORDER BY started_at LIMIT 20",
-    )).rows : [];
+    const active = (await pool.query<{ organization_id: string; resource_id: string }>(
+      "SELECT r.organization_id,r.id AS resource_id FROM reporting.scheduling_runs r JOIN dispatch_jobs j ON j.resource_id=r.id AND j.kind='run' WHERE r.kind IN ('inference','bounded_agent') AND r.status IN ('provisioning','running') AND j.available_at<=now() ORDER BY r.started_at LIMIT 20",
+    )).rows;
     for (const job of [...active, ...await pendingRuns()]) {
       if (this.active.has(job.resource_id) || this.active.size >= 20) continue;
       const task = executeRun(job.organization_id, job.resource_id, this.provider)

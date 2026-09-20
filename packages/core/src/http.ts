@@ -1,3 +1,4 @@
+import { completeDirectInference, respondAsync } from './direct-inference';
 import { getCustomerBinding, customerRun } from './customer-agents';
 import { pool, transaction, lock } from '../../db';
 import { config } from './config';
@@ -12,7 +13,7 @@ import { adminReport } from './reports';
 import { organizationManager } from './organizations';
 import { boundedBody } from './body';
 
-export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'rest') {
+export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'rest', background?: (task: () => Promise<void>) => void) {
   const requestId = id(),
     start = Date.now();
   let principal: Principal | undefined;
@@ -23,7 +24,7 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
   });
-  await pool
+  if (!background) await pool
     .query('INSERT INTO api_requests(request_id,method,route) VALUES($1,$2,$3)', [
       requestId,
       request.method,
@@ -40,7 +41,7 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     const audience = `${config.origin}${admin ? '/admin/v1' : surface === 'mcp' ? '/mcp' : '/v1'}`;
     principal = await identify(request, audience);
     const p = principal;
-    await pool.query(
+    if (!background) await pool.query(
       'UPDATE api_requests SET organization_id=$2,principal_id=$3,principal_type=$4,user_id=$5,route=$6 WHERE request_id=$1',
       [
         requestId,
@@ -147,7 +148,7 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     const advisory = matched.operation.operationId === 'resolveConnectionAccess';
     const idempotencyKey = advisory ? '' : request.headers.get('idempotency-key') || '';
     const fingerprint = sha256(
-      `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
+      `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}${matched.operation.operationId === 'createInference' ? `\nasync:${respondAsync(request)}` : ''}\n${binary ? sha256(bytes) : canonical(body)}`,
     );
     const cachedResponse = async (tx: import('../../db').Tx) => {
       if (idempotencyKey) {
@@ -189,7 +190,8 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     const replay =
       prepare && idempotencyKey ? await transaction(p.organizationId, cachedResponse) : undefined;
     const prepared = prepare && !replay ? await prepare(context) : undefined;
-    let outcome;
+    let outcome: Response | { status: number; body: unknown };
+    let committed = false;
     try {
       const current = prepared ? await identify(request, audience) : p;
       assert(
@@ -210,7 +212,8 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
             assert(handler, 503, 'not_implemented', 'This operation is not available.');
             value = await handler({ ...context, tx });
           }
-          const response = value instanceof Response ? value : responseFor(matched.operation, value);
+          committed = true;
+          const response = value instanceof Response ? value : responseFor(matched.operation, value, matched.operation.operationId === 'createInference' ? 202 : undefined);
           if (idempotencyKey && !(response instanceof Response))
             await tx.query(
               'INSERT INTO idempotency(organization_id,principal_id,route,key,fingerprint,response_ciphertext,status) VALUES($1,$2,$3,$4,$5,$6,$7)',
@@ -256,8 +259,16 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     }
     if (outcome instanceof Response) {
       status = outcome.status;
-      headers.forEach((value, key) => outcome.headers.set(key, value));
-      return outcome;
+      const response = outcome;
+      headers.forEach((value, key) => response.headers.set(key, value));
+      return response;
+    }
+    if (matched.operation.operationId === 'createInference') {
+      if (respondAsync(request)) headers.set('Preference-Applied', 'respond-async');
+      else {
+        const completed = await completeDirectInference(p, outcome.body, committed, background);
+        outcome = responseFor(matched.operation, completed.body, completed.status);
+      }
     }
     status = outcome.status;
     if (
@@ -308,7 +319,8 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
           : principal
             ? 'human'
             : 'anonymous';
-    await pool
+    const duration = Date.now() - start;
+    const recordRequest = async () => { await pool
       .query(
         'INSERT INTO api_requests(request_id,organization_id,principal_id,principal_type,user_id,method,route,status,duration_ms,client_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id) DO UPDATE SET organization_id=excluded.organization_id,principal_id=excluded.principal_id,principal_type=excluded.principal_type,user_id=excluded.user_id,route=excluded.route,status=excluded.status,duration_ms=excluded.duration_ms,client_type=excluded.client_type',
         [
@@ -320,7 +332,7 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
           request.method,
           route,
           status,
-          Date.now() - start,
+          duration,
           ['dashboard', 'cli', 'sdk', 'api', 'internal'].includes(request.headers.get('x-client-type') || '')
             ? request.headers.get('x-client-type')
             : 'api',
@@ -328,6 +340,8 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
       )
       .catch(() => {
         console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_failed' }));
-      });
+      }); };
+    if (background) background(recordRequest);
+    else await recordRequest();
   }
 }

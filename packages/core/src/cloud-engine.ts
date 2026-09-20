@@ -6,6 +6,7 @@ import { queueAutomaticSync } from './git-jobs';
 import { transaction, afterCommit, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
+import { observeWorkerStep } from './worker-diagnostics';
 import { id, sha256 } from './crypto';
 import { assert, AppError } from './errors';
 import { config } from './config';
@@ -22,6 +23,7 @@ import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { isNativeAuthPath } from '../../runtime/src/auth-paths';
+import { isHiddenSnapshotPath } from '../../runtime/src/snapshot-paths';
 import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
 import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
@@ -241,6 +243,7 @@ export async function advanceCloudRun(
         prompt: run.config.prompt,
         attachments: run.config.attachments,
         instructions: run.config.instructions,
+        harnessPromptMode: run.config.harness_prompt_mode,
         workspace: '/workspace',
         stateHome: '/agent-home',
         gatewayURL: `${config.origin}/runtime/runs/${runId}/model`,
@@ -358,7 +361,7 @@ export async function advanceCloudRun(
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
-          if (isNativeAuthPath(entry.namespace, entry.path)) continue;
+          if (isHiddenSnapshotPath(entry.path) || isNativeAuthPath(entry.namespace, entry.path)) continue;
           await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
           for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
         }
@@ -367,20 +370,24 @@ export async function advanceCloudRun(
       if (state.indexOffset >= page.total) state.phase = 'upload';
     } else if (state.phase === 'upload') {
       const chunks = await pending(org, runId, ['output_chunk']);
-      for (const item of chunks) {
-        const bytes = await provider.chunk(state.machine!, item.name);
+      // Drain bounded concurrent transfers before releasing the phase lease, even on failure.
+      const transfers = await Promise.allSettled(chunks.map(async (item) => {
+        const bytes = await observeWorkerStep('checkpoint_read', { organization_id: org, run_id: runId },
+          () => provider.chunk(state.machine!, item.name));
         assert(
           sha256(bytes) === item.name && bytes.length === Number(item.data.size),
           502,
           'checkpoint_corrupt',
           'A runtime checkpoint chunk failed integrity verification.',
         );
-        await saveContent(org, bytes);
+        await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId },
+          () => saveContent(org, bytes));
         await processed(org, [item]);
-      }
+      }));
+      for (const result of transfers) if (result.status === 'rejected') throw result.reason;
       if (!chunks.length) {
         const entries = await pending(org, runId, ['output_entry'], 8);
-        for (const item of entries) {
+        const manifests = await Promise.allSettled(entries.map(async (item) => {
           const entry = item.data as unknown as SnapshotEntry;
           const saved = await saveChunkManifest(
             org,
@@ -403,7 +410,8 @@ export async function advanceCloudRun(
               }),
             ]),
           );
-        }
+        }));
+        for (const result of manifests) if (result.status === 'rejected') throw result.reason;
         if (!entries.length) state.phase = 'publish';
       }
     } else if (state.phase === 'publish') {

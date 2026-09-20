@@ -11,7 +11,8 @@ import type { components } from '../../contracts/api';
 import type { Tx } from '../../db';
 import { lock } from '../../db';
 import { assert } from './errors';
-import { id } from './crypto';
+import { id, canonical } from './crypto';
+import { validateModelParameters, type ModelParameters } from './model-parameters';
 import { config, isLocal, isSimulated, realExecutionEnabled } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
 import { queueObservations, type WaitingReason } from './scheduling';
@@ -34,6 +35,7 @@ export type RunConfig = Schema['SessionCreate'] & {
   connection_access: ConnectionAccessSnapshot[];
   prompt: string;
   instructions?: string;
+  harness_prompt_mode?: 'replace' | 'extend';
   user_id: string;
   principal_id: string;
   principal_kind: Principal['kind'];
@@ -85,6 +87,7 @@ export type InferenceConfig = Pick<RunConfig,
   context_resolution_ms?: number;
   provider_cost_rate_card: Model;
   model: string;
+  model_parameters?: ModelParameters;
   billing_mode: 'managed' | 'byok';
   provider_connection_id?: string;
   rate_card: Model;
@@ -188,6 +191,7 @@ export async function validateConfiguration(
     (m) => m.id === configuration.model && m.enabled && m.harnesses.includes(configuration.harness),
   );
   assert(model, 400, 'model_unavailable', 'Choose an enabled model compatible with the harness.');
+  validateModelParameters(configuration.model_parameters, model.provider, model.id);
   assert(
     ['byok', 'managed', 'subscription'].includes(configuration.billing_mode),
     400,
@@ -331,6 +335,11 @@ export async function admitRun(
   if (input.session_id) {
     session = await resources.get(tx, 'sessions', input.session_id, p);
     assert(
+      input.model_parameters === undefined ||
+        canonical(input.model_parameters) === canonical(session.model_parameters ?? {}),
+      409, 'session_configuration_immutable', 'Start a new session to change model parameters.',
+    );
+    assert(
       !input.harness || input.harness === session.harness,
       409,
       'session_harness_immutable',
@@ -360,6 +369,7 @@ export async function admitRun(
     const configuration = {
       harness: input.harness ?? preset.harness,
       model: input.model ?? preset.model,
+      model_parameters: input.model_parameters,
       billing_mode: input.billing_mode ?? preset.billing_mode,
       provider_connection_id: input.provider_connection_id ?? preset.provider_connection_id,
       limits: { ...preset.limits, ...input.limits },
@@ -422,6 +432,8 @@ export async function admitRun(
     ...(input.model ? { model: input.model } : {}),
     limits: { ...(session.limits as Schema['Limits']), ...input.limits },
   } as unknown as Schema['SessionCreate']);
+  assert(input.harness_prompt_mode === undefined || configured.harness === 'opencode',
+    400, 'unsupported_prompt_mode', 'Harness prompt mode is currently supported by OpenCode only.');
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);
   const permissionLayers = await admitPermissions(
     tx,
@@ -479,7 +491,11 @@ export async function admitRun(
     'Increase the run budget or shorten its timeout to cover the compute window.',
     { minimum_micro_usd: minimum.toString() },
   );
-  const reservation = simulated ? 0n : BigInt(configured.limits.max_cost_micro_usd);
+  // BYOK usage still consumes the run budget, but local compute has no prepaid liability.
+  // Billable connector fees are reserved atomically at dispatch by the tool broker.
+  const reservation = simulated || (isLocal() && config.execution === 'docker' && configured.billing_mode === 'byok')
+    ? 0n
+    : BigInt(configured.limits.max_cost_micro_usd);
   await reserve(tx, p.organizationId, reservation);
   await nameWorktreeForRun(tx, p, worktree.id, input.prompt);
   const runId = id();
@@ -487,6 +503,7 @@ export async function admitRun(
     ...configured,
     worktree_id: worktree.id,
     instructions: session.instructions,
+    ...(configured.harness === 'opencode' ? { harness_prompt_mode: input.harness_prompt_mode ?? 'replace' } : {}),
     agent_id: session.agent_id || null,
     agent_version: session.agent_version || null,
     connection_grants: resolved.grants,

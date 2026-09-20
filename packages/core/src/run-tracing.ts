@@ -8,7 +8,7 @@ import { recordTrace, tracingEnabled } from './tracing';
 export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext | undefined> {
   if (!tracingEnabled()) return;
   const native = run.kind === 'native_agent';
-  const row = (
+  const row = run.workspace_id ? (
     await tx.query<{
       workspace_name: string;
       worktree_name: string | null;
@@ -23,7 +23,7 @@ export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext
      WHERE p.id=$1`,
       [run.workspace_id, run.worktree_id, native ? run.config.agent_id : null, run.config.user_id],
     )
-  ).rows[0];
+  ).rows[0] : undefined;
   return {
     organization_id: run.organization_id,
     run_id: run.id,

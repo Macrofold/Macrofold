@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dev.macrofold.model.AgentPermissions;
 import dev.macrofold.model.Grant;
 import dev.macrofold.model.Limits;
+import dev.macrofold.model.ModelParameters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -59,7 +60,8 @@ import dev.macrofold.ApiClient;
   MessageCreate.JSON_PROPERTY_ATTACHMENTS,
   MessageCreate.JSON_PROPERTY_SANDBOX_ID,
   MessageCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
-  MessageCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD
+  MessageCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
+  MessageCreate.JSON_PROPERTY_MODEL_PARAMETERS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class MessageCreate {
@@ -152,6 +154,10 @@ public class MessageCreate {
   public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
   @javax.annotation.Nullable
   private String sandboxMaxCostMicroUsd;
+
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
 
   public MessageCreate() { 
   }
@@ -537,6 +543,30 @@ public class MessageCreate {
   }
 
 
+  public MessageCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+    return this;
+  }
+
+  /**
+   * Get modelParameters
+   * @return modelParameters
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelParameters getModelParameters() {
+    return modelParameters;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+  }
+
+
   /**
    * Return true if this MessageCreate object is equal to o.
    */
@@ -562,7 +592,8 @@ public class MessageCreate {
         Objects.equals(this.attachments, messageCreate.attachments) &&
         Objects.equals(this.sandboxId, messageCreate.sandboxId) &&
         equalsNullable(this.keepWarmSeconds, messageCreate.keepWarmSeconds) &&
-        Objects.equals(this.sandboxMaxCostMicroUsd, messageCreate.sandboxMaxCostMicroUsd);
+        Objects.equals(this.sandboxMaxCostMicroUsd, messageCreate.sandboxMaxCostMicroUsd) &&
+        Objects.equals(this.modelParameters, messageCreate.modelParameters);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -571,7 +602,7 @@ public class MessageCreate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd);
+    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -599,6 +630,7 @@ public class MessageCreate {
     sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
     sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
+    sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -733,6 +765,11 @@ public class MessageCreate {
     // add `sandbox_max_cost_micro_usd` to the URL query string
     if (getSandboxMaxCostMicroUsd() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_max_cost_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxMaxCostMicroUsd()))));
+    }
+
+    // add `model_parameters` to the URL query string
+    if (getModelParameters() != null) {
+      joiner.add(getModelParameters().toUrlQueryString(prefix + "model_parameters" + suffix));
     }
 
     return joiner.toString();

@@ -154,8 +154,8 @@ export function workspaceResponse(value: unknown, schema: JSONSchema): unknown {
   }
   return value;
 }
-export function responseFor(operation: Operation, value: unknown) {
-  const [code, result] = Object.entries(operation.responses).find(([code]) => code.startsWith('2'))!;
+export function responseFor(operation: Operation, value: unknown, status?: number) {
+  const [code, result] = Object.entries(operation.responses).find(([code]) => status === undefined ? code.startsWith('2') : code === String(status))!;
   const schema = result.content?.['application/json']?.schema;
   return { status: Number(code), body: schema ? workspaceResponse(value, schema) : value };
 }

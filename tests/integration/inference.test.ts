@@ -133,9 +133,21 @@ function input(): ResolvedInferenceCreate {
 }
 function enable() {
   config.allowPaid = true;
-  vi.stubEnv('DECISION_EXECUTOR_VERSION', '1');
   vi.stubEnv('ANTHROPIC_API_KEY', 'synthetic-inference-key');
 }
+it.each(['admission', 'spending'] as const)('preserves the explicit %s pause without admitting a run', async (pause) => {
+  enable();
+  if (pause === 'admission') vi.stubEnv('RUN_ADMISSION_ENABLED', 'false');
+  else config.allowPaid = false;
+  const countRuns = () => transaction(owner.organizationId, async (tx) =>
+    (await tx.query('SELECT count(*)::integer AS count FROM runs')).rows[0].count,
+  );
+  const before = await countRuns();
+  const response = await api('inferences', 'POST', input());
+  expect(response.status).toBe(503);
+  expect(await response.json()).toMatchObject({ error: { code: pause === 'admission' ? 'inference_disabled' : 'execution_disabled' } });
+  expect(await countRuns()).toBe(before);
+});
 async function api(path: string, method = 'GET', body?: unknown, identity = id()) {
   return handleApi(
     new Request(`${config.origin}/v1/${path}`, {
@@ -801,7 +813,7 @@ async function killAt(runId: string, boundary: 'dispatch' | 'receipt') {
   const child = fork('tests/fixtures/inference-worker.ts', [owner.organizationId, runId, boundary], {
     execArgv: ['--import', 'tsx'],
     stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-    env: { ...process.env, DECISION_EXECUTOR_VERSION: '1', ANTHROPIC_API_KEY: 'synthetic-inference-key' },
+    env: { ...process.env, ANTHROPIC_API_KEY: 'synthetic-inference-key' },
   });
   try {
     const [phase] = await once(child, 'message', { signal: AbortSignal.timeout(10000) });

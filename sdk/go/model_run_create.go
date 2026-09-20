@@ -51,6 +51,9 @@ type RunCreate struct {
 	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
 	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
 	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
+	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
+	// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+	HarnessPromptMode *string `json:"harness_prompt_mode,omitempty"`
 }
 
 type _RunCreate RunCreate
@@ -747,6 +750,70 @@ func (o *RunCreate) SetSandboxMaxCostMicroUsd(v string) {
 	o.SandboxMaxCostMicroUsd = &v
 }
 
+// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
+func (o *RunCreate) GetModelParameters() ModelParameters {
+	if o == nil || IsNil(o.ModelParameters) {
+		var ret ModelParameters
+		return ret
+	}
+	return *o.ModelParameters
+}
+
+// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetModelParametersOk() (*ModelParameters, bool) {
+	if o == nil || IsNil(o.ModelParameters) {
+		return nil, false
+	}
+	return o.ModelParameters, true
+}
+
+// HasModelParameters returns a boolean if a field has been set.
+func (o *RunCreate) HasModelParameters() bool {
+	if o != nil && !IsNil(o.ModelParameters) {
+		return true
+	}
+
+	return false
+}
+
+// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
+func (o *RunCreate) SetModelParameters(v ModelParameters) {
+	o.ModelParameters = &v
+}
+
+// GetHarnessPromptMode returns the HarnessPromptMode field value if set, zero value otherwise.
+func (o *RunCreate) GetHarnessPromptMode() string {
+	if o == nil || IsNil(o.HarnessPromptMode) {
+		var ret string
+		return ret
+	}
+	return *o.HarnessPromptMode
+}
+
+// GetHarnessPromptModeOk returns a tuple with the HarnessPromptMode field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetHarnessPromptModeOk() (*string, bool) {
+	if o == nil || IsNil(o.HarnessPromptMode) {
+		return nil, false
+	}
+	return o.HarnessPromptMode, true
+}
+
+// HasHarnessPromptMode returns a boolean if a field has been set.
+func (o *RunCreate) HasHarnessPromptMode() bool {
+	if o != nil && !IsNil(o.HarnessPromptMode) {
+		return true
+	}
+
+	return false
+}
+
+// SetHarnessPromptMode gets a reference to the given string and assigns it to the HarnessPromptMode field.
+func (o *RunCreate) SetHarnessPromptMode(v string) {
+	o.HarnessPromptMode = &v
+}
+
 func (o RunCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -817,6 +884,12 @@ func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SandboxMaxCostMicroUsd) {
 		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
+	}
+	if !IsNil(o.ModelParameters) {
+		toSerialize["model_parameters"] = o.ModelParameters
+	}
+	if !IsNil(o.HarnessPromptMode) {
+		toSerialize["harness_prompt_mode"] = o.HarnessPromptMode
 	}
 	return toSerialize, nil
 }

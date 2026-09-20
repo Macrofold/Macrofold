@@ -1,10 +1,10 @@
+import { inferenceInputBound } from './decision';
 import { boundedRequest, evidenceSteps, applyBoundedResponse } from './bounded-decisions';
 import { transaction, type Tx } from '../../db';
 import { id, seal, unseal } from './crypto';
 import { assert, AppError } from './errors';
 import { emit } from './events';
 import { getRun, terminal, type InferenceRunRow } from './runs';
-import { decisionsEnabled } from './decision-capability';
 import { initialReceipt } from './inference-receipt';
 import { claimRun, principalFor } from './engine';
 import { authorizeContext } from './context-artifacts';
@@ -18,6 +18,8 @@ import { settle } from './ledger';
 import type { DecisionResponse, InferenceReceipt } from './decision';
 import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingEnabled } from './tracing';
+import { providerErrorDetails } from './provider-diagnostics';
+import { observeWorkerStep } from './worker-diagnostics';
 
 type Invocation = {
   id: string;
@@ -158,8 +160,7 @@ function checkedReceipt(
 /** One request, persisted intent and response, no automatic provider replay.
  * A competing worker waits until the accepted deadline before classifying a
  * lost dispatch as uncertain. No connection/transaction is held during HTTP. */
-export async function advanceInference(org: string, runId: string): Promise<Advance> {
-  if (!decisionsEnabled()) return { done: false, delaySeconds: 60 };
+export async function advanceInference(org: string, runId: string, background?: (task: () => Promise<void>) => void): Promise<Advance> {
   let run = await transaction(org, (tx) => getRun(tx, runId));
   assert(
     run.kind !== 'native_agent',
@@ -315,7 +316,7 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
           'The initiating credential is no longer authorized.',
         );
         const provider = run.config.rate_card.provider;
-        const protocol = decisionProtocol(provider);
+        const protocol = decisionProtocol(provider, run.config.model);
         const steps = await evidenceSteps(tx, runId);
         const history = (
           await tx.query<{ count: string; output: string }>(
@@ -370,6 +371,7 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
         const body = protocol.prepare(
           boundedRequest({
             model: run.config.model,
+            modelParameters: run.config.model_parameters,
             definition: run.config.definition,
             input: run.config.input,
             context: run.config.context,
@@ -381,15 +383,17 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
             ...(run.kind === 'bounded_agent' ? { steps } : {}),
           }),
         );
+        const inputTokenBound = inferenceInputBound(body, provider, run.config.model, run.config.definition.question.kind === 'provider');
         assert(
-          Buffer.byteLength(JSON.stringify(body)) + 1024 + maxOutputTokens <= protocol.maxInputTokens,
+          inputTokenBound + maxOutputTokens <= protocol.maxInputTokens,
           413,
           'model_context_exceeded',
           'The accumulated evidence exceeds the model context limit.',
         );
         const bound = costForUsage(run.config.rate_card, {
           ...emptyUsage(),
-          input: Buffer.byteLength(JSON.stringify(body)) + 1024,
+          input: inputTokenBound,
+          cacheWrite: provider === 'anthropic' && run.config.definition.question.kind === 'provider' ? inputTokenBound : 0,
           output: maxOutputTokens,
         });
         assert(
@@ -530,12 +534,18 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
         })
         .catch(() => controller.abort());
     }, 500);
+    const attemptStarted = performance.now();
+    let failureStage = 'provider_request';
     try {
-      const protocol = decisionProtocol(run.config.rate_card.provider);
+      const protocol = decisionProtocol(run.config.rate_card.provider, run.config.model);
       const providerStarted = performance.now();
       const startedAt = new Date();
-      const response = await protocol.invoke(
-        unseal<Record<string, unknown>>(call.body_ciphertext),
+      const requestBody = unseal<Record<string, unknown>>(call.body_ciphertext);
+      const response = await observeWorkerStep('inference_provider', {
+        organization_id: org, run_id: runId, request_id: call.id,
+        model: run.config.model, provider: run.config.rate_card.provider,
+      }, () => protocol.invoke(
+        requestBody,
         authorization.secret,
         controller.signal,
         authorization.traceContext
@@ -551,8 +561,10 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
                 metadata: { invocation_id: call!.id, step: call!.step },
               })
           : undefined,
-      );
+        run.config.definition.question.kind === 'provider',
+      ));
       const providerMs = performance.now() - providerStarted;
+      failureStage = 'response_persistence';
       // Commit evidence before attempting financial settlement or publication.
       const persistenceStarted = performance.now();
       await transaction(org, (tx) =>
@@ -564,15 +576,31 @@ export async function advanceInference(org: string, runId: string): Promise<Adva
         ),
       );
       const persistenceMs = performance.now() - persistenceStarted;
-      // Optional measurement follows the authoritative receipt commit. A crash
-      // here leaves recoverable evidence; it never causes provider replay.
-      await transaction(org, (tx) =>
-        tx.query('UPDATE decision_invocations SET timings_ms=timings_ms||$2::jsonb WHERE id=$1', [
-          prepared.id,
-          JSON.stringify({ response_persistence: persistenceMs }),
-        ]),
-      );
-    } catch {
+      // Measurement is non-authoritative. The request host owns it after the
+      // response; worker callers retain the existing awaited behavior.
+      const recordPersistenceTiming = async () => {
+        await transaction(org, (tx) =>
+          tx.query('UPDATE decision_invocations SET timings_ms=timings_ms||$2::jsonb WHERE id=$1', [
+            prepared.id, JSON.stringify({ response_persistence: persistenceMs }),
+          ]),
+        ).catch(() => {}); // Never turn a durable provider response into an uncertain call.
+      };
+      if (background) background(recordPersistenceTiming);
+      else await recordPersistenceTiming();
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'inference.execution_failed',
+        run_id: runId,
+        invocation_id: prepared.id,
+        organization_id: org,
+        workspace_id: run.workspace_id,
+        provider: run.config.rate_card.provider,
+        model: run.config.model,
+        stage: failureStage,
+        elapsed_ms: Math.round(performance.now() - attemptStarted),
+        aborted: controller.signal.aborted,
+        error: providerErrorDetails(error, authorization.secret),
+      }));
       await transaction(org, (tx) =>
         tx.query(
           "UPDATE decision_invocations SET state='uncertain' WHERE id=$1 AND state='dispatch_started'",

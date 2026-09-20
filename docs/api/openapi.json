@@ -11846,7 +11846,7 @@
         "tags": [
           "inferences"
         ],
-        "description": "One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.",
+        "description": "Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -11865,15 +11865,27 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "Prefer",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "respond-async"
+              ]
+            },
+            "description": "Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds."
           }
         ],
         "responses": {
           "202": {
-            "description": "Accepted asynchronous operation",
+            "description": "Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunAccepted"
+                  "$ref": "#/components/schemas/InferenceResponse"
                 }
               }
             }
@@ -11884,6 +11896,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Completed single-call inference; inspect result.inference.outcome before applying its value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferenceResponse"
                 }
               }
             }
@@ -14321,6 +14343,9 @@
           },
           "limits": {
             "$ref": "#/components/schemas/Limits"
+          },
+          "model_parameters": {
+            "$ref": "#/components/schemas/ModelParameters"
           }
         },
         "required": [
@@ -14397,6 +14422,9 @@
               "null"
             ],
             "minimum": 1
+          },
+          "model_parameters": {
+            "$ref": "#/components/schemas/ModelParameters"
           }
         },
         "required": [
@@ -14532,6 +14560,17 @@
             "type": "string",
             "pattern": "^[0-9]{1,12}$",
             "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
+          },
+          "model_parameters": {
+            "$ref": "#/components/schemas/ModelParameters"
+          },
+          "harness_prompt_mode": {
+            "type": "string",
+            "enum": [
+              "replace",
+              "extend"
+            ],
+            "description": "OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value."
           }
         },
         "required": [
@@ -14684,6 +14723,9 @@
             "type": "string",
             "pattern": "^[0-9]{1,12}$",
             "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
+          },
+          "model_parameters": {
+            "$ref": "#/components/schemas/ModelParameters"
           }
         },
         "required": [
@@ -19768,7 +19810,7 @@
           "max_output_tokens": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 8192
+            "maximum": 16384
           },
           "timeout_seconds": {
             "type": "integer",
@@ -19886,6 +19928,22 @@
               "criteria"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "provider"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false,
+            "description": "Send input as the native provider request body and return the complete provider response as value. No prompt or JSON-output transformation. Model binding and financial limits remain authoritative."
           }
         ]
       },
@@ -20172,15 +20230,34 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 86400
+          },
+          "model_parameters": {
+            "$ref": "#/components/schemas/ModelParameters"
           }
         },
         "required": [
-          "definition",
           "input",
-          "context",
           "model_binding"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "definition",
+              "context"
+            ]
+          },
+          {
+            "required": [
+              "limits"
+            ],
+            "not": {
+              "required": [
+                "definition"
+              ]
+            }
+          }
+        ]
       },
       "InferenceReceipt": {
         "type": "object",
@@ -21494,6 +21571,180 @@
         "required": [
           "data",
           "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ModelParameters": {
+        "type": "object",
+        "properties": {
+          "reasoning": {
+            "type": "object",
+            "properties": {
+              "effort": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "minimal",
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max"
+                ]
+              }
+            },
+            "required": [
+              "effort"
+            ],
+            "additionalProperties": false
+          },
+          "provider": {
+            "type": "object",
+            "properties": {
+              "require_parameters": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "require_parameters"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "InferenceResponse": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "provisioning",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "timed_out"
+            ]
+          },
+          "urls": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "format": "uri"
+              },
+              "events": {
+                "type": "string",
+                "format": "uri"
+              },
+              "stream": {
+                "type": "string",
+                "format": "uri"
+              },
+              "result": {
+                "type": "string",
+                "format": "uri"
+              },
+              "cancel": {
+                "type": "string",
+                "format": "uri",
+                "description": "POST to request cancellation."
+              }
+            },
+            "required": [
+              "status",
+              "events",
+              "stream",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "queue_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Submission to execution start, or elapsed wait through now/completion if never started."
+          },
+          "waiting_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "global_capacity",
+              "account_concurrency",
+              "earlier_worktree_work",
+              "scheduler_turn",
+              "cancellation_requested",
+              "deadline_expired",
+              "worktree_unavailable",
+              null,
+              "lightweight_capacity",
+              "reserved_lightweight_capacity"
+            ],
+            "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Funds still held and unavailable for other jobs; released on settlement."
+          },
+          "scheduling_class": {
+            "type": "string",
+            "enum": [
+              "background",
+              "interactive"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent",
+              "inference",
+              "bounded_agent"
+            ]
+          },
+          "sandbox_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
+          },
+          "result": {
+            "$ref": "#/components/schemas/RunResult"
+          }
+        },
+        "required": [
+          "run_id",
+          "session_id",
+          "worktree_id",
+          "status",
+          "urls"
         ],
         "additionalProperties": false
       }

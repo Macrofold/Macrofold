@@ -25,6 +25,7 @@ from macrofold.models.decision_binding import DecisionBinding
 from macrofold.models.inference_create_context import InferenceCreateContext
 from macrofold.models.inference_create_definition import InferenceCreateDefinition
 from macrofold.models.inference_limits import InferenceLimits
+from macrofold.models.model_parameters import ModelParameters
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -33,14 +34,15 @@ class InferenceCreate(BaseModel):
     """
     InferenceCreate
     """ # noqa: E501
-    workspace_id: UUID
-    definition: InferenceCreateDefinition
+    workspace_id: Optional[UUID] = None
+    definition: Optional[InferenceCreateDefinition] = None
     input: Optional[Any]
-    context: InferenceCreateContext
+    context: Optional[InferenceCreateContext] = None
     model_binding: DecisionBinding
     limits: Optional[InferenceLimits] = None
     queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = None
-    __properties: ClassVar[List[str]] = ["workspace_id", "definition", "input", "context", "model_binding", "limits", "queue_timeout_seconds"]
+    model_parameters: Optional[ModelParameters] = None
+    __properties: ClassVar[List[str]] = ["workspace_id", "definition", "input", "context", "model_binding", "limits", "queue_timeout_seconds", "model_parameters"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -93,6 +95,9 @@ class InferenceCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of model_parameters
+        if self.model_parameters:
+            _dict['model_parameters'] = self.model_parameters.to_dict()
         # set to None if input (nullable) is None
         # and model_fields_set contains the field
         if self.input is None and "input" in self.model_fields_set:
@@ -116,7 +121,8 @@ class InferenceCreate(BaseModel):
             "context": InferenceCreateContext.from_dict(obj["context"]) if obj.get("context") is not None else None,
             "model_binding": DecisionBinding.from_dict(obj["model_binding"]) if obj.get("model_binding") is not None else None,
             "limits": InferenceLimits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
-            "queue_timeout_seconds": obj.get("queue_timeout_seconds")
+            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
+            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None
         })
         return _obj
 

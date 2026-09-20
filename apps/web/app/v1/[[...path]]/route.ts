@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 async function route(request: Request) {
   scheduleTraceFlush();
-  const response = await handleApi(request);
+  const response = await handleApi(request, 'rest', (task) => after(task));
   if (request.method !== 'GET' && response.ok) after(dispatchRuns);
   return response;
 }

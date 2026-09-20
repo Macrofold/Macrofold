@@ -89,6 +89,7 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     assert(Number.isInteger(maxOutput), 400, 'invalid_request', 'Maximum output tokens must be an integer.');
     protocol.prepare(payload, path, {
       maxOutput,
+      modelParameters: run.config.model_parameters,
       inputMicroUsdPerMillion: model.input_micro_usd_per_million,
       outputMicroUsdPerMillion: model.output_micro_usd_per_million,
     });

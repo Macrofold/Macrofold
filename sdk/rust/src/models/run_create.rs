@@ -65,6 +65,11 @@ pub struct RunCreate {
     /// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
     #[serde(rename = "sandbox_max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
     pub sandbox_max_cost_micro_usd: Option<String>,
+    #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<Box<models::ModelParameters>>,
+    /// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+    #[serde(rename = "harness_prompt_mode", skip_serializing_if = "Option::is_none")]
+    pub harness_prompt_mode: Option<HarnessPromptMode>,
 }
 
 impl RunCreate {
@@ -92,6 +97,8 @@ impl RunCreate {
             sandbox_id: None,
             keep_warm_seconds: None,
             sandbox_max_cost_micro_usd: None,
+            model_parameters: None,
+            harness_prompt_mode: None,
         }
     }
 }
@@ -145,6 +152,20 @@ pub enum SchedulingClass {
 impl Default for SchedulingClass {
     fn default() -> SchedulingClass {
         Self::Background
+    }
+}
+/// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum HarnessPromptMode {
+    #[serde(rename = "replace")]
+    Replace,
+    #[serde(rename = "extend")]
+    Extend,
+}
+
+impl Default for HarnessPromptMode {
+    fn default() -> HarnessPromptMode {
+        Self::Replace
     }
 }
 

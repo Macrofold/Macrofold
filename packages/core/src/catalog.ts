@@ -1,8 +1,8 @@
 import { config, isLocal } from './config';
 import { assert } from './errors';
 export function computeRate() {
-  const rate =
-    process.env.COMPUTE_MICRO_USD_PER_MINUTE || (isLocal() && config.execution === 'docker' ? '0' : '8000');
+  if (isLocal() && config.execution === 'docker') return '0';
+  const rate = process.env.COMPUTE_MICRO_USD_PER_MINUTE || '8000';
   assert(
     /^\d{1,12}$/.test(rate),
     503,

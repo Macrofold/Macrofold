@@ -60,7 +60,7 @@ class Run(BaseModel):
     agent_id: Optional[UUID] = None
     agent_version: Optional[Annotated[int, Field(strict=True, ge=1)]] = None
     kind: StrictStr
-    workspace_id: UUID
+    workspace_id: Optional[UUID]
     task_id: Optional[UUID] = None
     sandbox_id: Optional[UUID] = Field(default=None, description="Reusable compute ID, when selected or created by keep_warm_seconds.")
     __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "worktree_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version", "kind", "workspace_id", "task_id", "sandbox_id"]
@@ -242,6 +242,11 @@ class Run(BaseModel):
         # and model_fields_set contains the field
         if self.agent_version is None and "agent_version" in self.model_fields_set:
             _dict['agent_version'] = None
+
+        # set to None if workspace_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.workspace_id is None and "workspace_id" in self.model_fields_set:
+            _dict['workspace_id'] = None
 
         # set to None if task_id (nullable) is None
         # and model_fields_set contains the field

@@ -86,7 +86,7 @@ public class InferenceLimits {
   /**
    * Get maxOutputTokens
    * minimum: 1
-   * maximum: 8192
+   * maximum: 16384
    * @return maxOutputTokens
    */
   @javax.annotation.Nonnull

@@ -21,6 +21,7 @@ type DecisionQuestion struct {
 	DecisionQuestionOneOf *DecisionQuestionOneOf
 	DecisionQuestionOneOf1 *DecisionQuestionOneOf1
 	DecisionQuestionOneOf2 *DecisionQuestionOneOf2
+	DecisionQuestionOneOf3 *DecisionQuestionOneOf3
 }
 
 // DecisionQuestionOneOfAsDecisionQuestion is a convenience function that returns DecisionQuestionOneOf wrapped in DecisionQuestion
@@ -41,6 +42,13 @@ func DecisionQuestionOneOf1AsDecisionQuestion(v *DecisionQuestionOneOf1) Decisio
 func DecisionQuestionOneOf2AsDecisionQuestion(v *DecisionQuestionOneOf2) DecisionQuestion {
 	return DecisionQuestion{
 		DecisionQuestionOneOf2: v,
+	}
+}
+
+// DecisionQuestionOneOf3AsDecisionQuestion is a convenience function that returns DecisionQuestionOneOf3 wrapped in DecisionQuestion
+func DecisionQuestionOneOf3AsDecisionQuestion(v *DecisionQuestionOneOf3) DecisionQuestion {
+	return DecisionQuestion{
+		DecisionQuestionOneOf3: v,
 	}
 }
 
@@ -100,16 +108,39 @@ func (dst *DecisionQuestion) UnmarshalJSON(data []byte) error {
 		dst.DecisionQuestionOneOf2 = nil
 	}
 
+	// try to unmarshal data into DecisionQuestionOneOf3
+	err = newStrictDecoder(data).Decode(&dst.DecisionQuestionOneOf3)
+	if err == nil {
+		jsonDecisionQuestionOneOf3, _ := json.Marshal(dst.DecisionQuestionOneOf3)
+		if string(jsonDecisionQuestionOneOf3) == "{}" { // empty struct
+			dst.DecisionQuestionOneOf3 = nil
+		} else {
+			if err = validator.Validate(dst.DecisionQuestionOneOf3); err != nil {
+				dst.DecisionQuestionOneOf3 = nil
+			} else {
+				match++
+			}
+		}
+	} else {
+		dst.DecisionQuestionOneOf3 = nil
+	}
+
 	if match > 1 { // more than 1 match
 		// reset to nil
 		dst.DecisionQuestionOneOf = nil
 		dst.DecisionQuestionOneOf1 = nil
 		dst.DecisionQuestionOneOf2 = nil
+		dst.DecisionQuestionOneOf3 = nil
 
 		return fmt.Errorf("data matches more than one schema in oneOf(DecisionQuestion)")
 	} else if match == 1 {
 		return nil // exactly one match
 	} else { // no match
+        if err != nil {
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionQuestion): %v", err)
+        } else {
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionQuestion)")
+        }
         if err != nil {
             return fmt.Errorf("data failed to match schemas in oneOf(DecisionQuestion): %v", err)
         } else {
@@ -142,6 +173,10 @@ func (src DecisionQuestion) MarshalJSON() ([]byte, error) {
 		return json.Marshal(&src.DecisionQuestionOneOf2)
 	}
 
+	if src.DecisionQuestionOneOf3 != nil {
+		return json.Marshal(&src.DecisionQuestionOneOf3)
+	}
+
 	return nil, nil // no data in oneOf schemas
 }
 
@@ -162,6 +197,10 @@ func (obj *DecisionQuestion) GetActualInstance() (interface{}) {
 		return obj.DecisionQuestionOneOf2
 	}
 
+	if obj.DecisionQuestionOneOf3 != nil {
+		return obj.DecisionQuestionOneOf3
+	}
+
 	// all schemas are nil
 	return nil
 }
@@ -178,6 +217,10 @@ func (obj DecisionQuestion) GetActualInstanceValue() (interface{}) {
 
 	if obj.DecisionQuestionOneOf2 != nil {
 		return *obj.DecisionQuestionOneOf2
+	}
+
+	if obj.DecisionQuestionOneOf3 != nil {
+		return *obj.DecisionQuestionOneOf3
 	}
 
 	// all schemas are nil

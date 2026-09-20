@@ -55,7 +55,7 @@ type Run struct {
 	AgentId NullableString `json:"agent_id,omitempty"`
 	AgentVersion NullableInt32 `json:"agent_version,omitempty"`
 	Kind string `json:"kind"`
-	WorkspaceId string `json:"workspace_id"`
+	WorkspaceId NullableString `json:"workspace_id"`
 	TaskId NullableString `json:"task_id,omitempty"`
 	// Reusable compute ID, when selected or created by keep_warm_seconds.
 	SandboxId NullableString `json:"sandbox_id,omitempty"`
@@ -67,7 +67,7 @@ type _Run Run
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRun(id string, organizationId string, sessionId NullableString, worktreeId NullableString, harness NullableString, model string, status string, createdAt time.Time, kind string, workspaceId string) *Run {
+func NewRun(id string, organizationId string, sessionId NullableString, worktreeId NullableString, harness NullableString, model string, status string, createdAt time.Time, kind string, workspaceId NullableString) *Run {
 	this := Run{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -961,27 +961,29 @@ func (o *Run) SetKind(v string) {
 }
 
 // GetWorkspaceId returns the WorkspaceId field value
+// If the value is explicit nil, the zero value for string will be returned
 func (o *Run) GetWorkspaceId() string {
-	if o == nil {
+	if o == nil || o.WorkspaceId.Get() == nil {
 		var ret string
 		return ret
 	}
 
-	return o.WorkspaceId
+	return *o.WorkspaceId.Get()
 }
 
 // GetWorkspaceIdOk returns a tuple with the WorkspaceId field value
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *Run) GetWorkspaceIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkspaceId, true
+	return o.WorkspaceId.Get(), o.WorkspaceId.IsSet()
 }
 
 // SetWorkspaceId sets field value
 func (o *Run) SetWorkspaceId(v string) {
-	o.WorkspaceId = v
+	o.WorkspaceId.Set(&v)
 }
 
 // GetTaskId returns the TaskId field value if set, zero value otherwise (both if not set or set to explicit null).
@@ -1144,7 +1146,7 @@ func (o Run) ToMap() (map[string]interface{}, error) {
 		toSerialize["agent_version"] = o.AgentVersion.Get()
 	}
 	toSerialize["kind"] = o.Kind
-	toSerialize["workspace_id"] = o.WorkspaceId
+	toSerialize["workspace_id"] = o.WorkspaceId.Get()
 	if o.TaskId.IsSet() {
 		toSerialize["task_id"] = o.TaskId.Get()
 	}

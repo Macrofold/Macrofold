@@ -3,6 +3,7 @@ import { constants } from 'node:fs';
 import { lstat, mkdir, open, readdir, readFile, readlink, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isNativeAuthPath } from './auth-paths';
+import { isHiddenSnapshotPath } from './snapshot-paths';
 
 export const CHUNK_BYTES = 4 * 1024 * 1024;
 export type SnapshotEntry = {
@@ -58,7 +59,7 @@ export async function captureSnapshot(
       for (const name of (await readdir(directory)).sort()) {
         const absolute = path.join(directory, name),
           relative = relativePath(path.relative(root, absolute));
-        if (isNativeAuthPath(namespace, relative)) continue;
+        if (isHiddenSnapshotPath(relative) || isNativeAuthPath(namespace, relative)) continue;
         const stat = await lstat(absolute);
         if (stat.isDirectory()) {
           await walk(absolute);

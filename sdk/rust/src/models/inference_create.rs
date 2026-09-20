@@ -13,32 +13,35 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InferenceCreate {
-    #[serde(rename = "workspace_id")]
-    pub workspace_id: uuid::Uuid,
-    #[serde(rename = "definition")]
-    pub definition: Box<models::InferenceCreateDefinition>,
+    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<uuid::Uuid>,
+    #[serde(rename = "definition", skip_serializing_if = "Option::is_none")]
+    pub definition: Option<Box<models::InferenceCreateDefinition>>,
     #[serde(rename = "input", deserialize_with = "Option::deserialize")]
     pub input: Option<serde_json::Value>,
-    #[serde(rename = "context")]
-    pub context: Box<models::InferenceCreateContext>,
+    #[serde(rename = "context", skip_serializing_if = "Option::is_none")]
+    pub context: Option<Box<models::InferenceCreateContext>>,
     #[serde(rename = "model_binding")]
     pub model_binding: Box<models::DecisionBinding>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
     pub limits: Option<Box<models::InferenceLimits>>,
     #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
     pub queue_timeout_seconds: Option<i32>,
+    #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<Box<models::ModelParameters>>,
 }
 
 impl InferenceCreate {
-    pub fn new(workspace_id: uuid::Uuid, definition: models::InferenceCreateDefinition, input: Option<serde_json::Value>, context: models::InferenceCreateContext, model_binding: models::DecisionBinding) -> InferenceCreate {
+    pub fn new(input: Option<serde_json::Value>, model_binding: models::DecisionBinding) -> InferenceCreate {
         InferenceCreate {
-            workspace_id,
-            definition: Box::new(definition),
+            workspace_id: None,
+            definition: None,
             input,
-            context: Box::new(context),
+            context: None,
             model_binding: Box::new(model_binding),
             limits: None,
             queue_timeout_seconds: None,
+            model_parameters: None,
         }
     }
 }

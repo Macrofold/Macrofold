@@ -28,6 +28,7 @@ import dev.macrofold.model.DecisionBinding;
 import dev.macrofold.model.InferenceCreateContext;
 import dev.macrofold.model.InferenceCreateDefinition;
 import dev.macrofold.model.InferenceLimits;
+import dev.macrofold.model.ModelParameters;
 import java.util.Arrays;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -44,16 +45,17 @@ import dev.macrofold.ApiClient;
   InferenceCreate.JSON_PROPERTY_CONTEXT,
   InferenceCreate.JSON_PROPERTY_MODEL_BINDING,
   InferenceCreate.JSON_PROPERTY_LIMITS,
-  InferenceCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS
+  InferenceCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
+  InferenceCreate.JSON_PROPERTY_MODEL_PARAMETERS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class InferenceCreate {
   public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private UUID workspaceId;
 
   public static final String JSON_PROPERTY_DEFINITION = "definition";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private InferenceCreateDefinition definition;
 
   public static final String JSON_PROPERTY_INPUT = "input";
@@ -61,7 +63,7 @@ public class InferenceCreate {
   private Object input = null;
 
   public static final String JSON_PROPERTY_CONTEXT = "context";
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private InferenceCreateContext context;
 
   public static final String JSON_PROPERTY_MODEL_BINDING = "model_binding";
@@ -76,10 +78,14 @@ public class InferenceCreate {
   @javax.annotation.Nullable
   private Integer queueTimeoutSeconds;
 
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
+
   public InferenceCreate() { 
   }
 
-  public InferenceCreate workspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+  public InferenceCreate workspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
     return this;
   }
@@ -88,22 +94,22 @@ public class InferenceCreate {
    * Get workspaceId
    * @return workspaceId
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public UUID getWorkspaceId() {
     return workspaceId;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkspaceId(@javax.annotation.Nonnull UUID workspaceId) {
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
     this.workspaceId = workspaceId;
   }
 
 
-  public InferenceCreate definition(@javax.annotation.Nonnull InferenceCreateDefinition definition) {
+  public InferenceCreate definition(@javax.annotation.Nullable InferenceCreateDefinition definition) {
     this.definition = definition;
     return this;
   }
@@ -112,17 +118,17 @@ public class InferenceCreate {
    * Get definition
    * @return definition
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_DEFINITION, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_DEFINITION, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public InferenceCreateDefinition getDefinition() {
     return definition;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_DEFINITION, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setDefinition(@javax.annotation.Nonnull InferenceCreateDefinition definition) {
+  @JsonProperty(value = JSON_PROPERTY_DEFINITION, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setDefinition(@javax.annotation.Nullable InferenceCreateDefinition definition) {
     this.definition = definition;
   }
 
@@ -151,7 +157,7 @@ public class InferenceCreate {
   }
 
 
-  public InferenceCreate context(@javax.annotation.Nonnull InferenceCreateContext context) {
+  public InferenceCreate context(@javax.annotation.Nullable InferenceCreateContext context) {
     this.context = context;
     return this;
   }
@@ -160,17 +166,17 @@ public class InferenceCreate {
    * Get context
    * @return context
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public InferenceCreateContext getContext() {
     return context;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setContext(@javax.annotation.Nonnull InferenceCreateContext context) {
+  @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setContext(@javax.annotation.Nullable InferenceCreateContext context) {
     this.context = context;
   }
 
@@ -249,6 +255,30 @@ public class InferenceCreate {
   }
 
 
+  public InferenceCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+    return this;
+  }
+
+  /**
+   * Get modelParameters
+   * @return modelParameters
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ModelParameters getModelParameters() {
+    return modelParameters;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL_PARAMETERS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
+    this.modelParameters = modelParameters;
+  }
+
+
   /**
    * Return true if this InferenceCreate object is equal to o.
    */
@@ -267,12 +297,13 @@ public class InferenceCreate {
         Objects.equals(this.context, inferenceCreate.context) &&
         Objects.equals(this.modelBinding, inferenceCreate.modelBinding) &&
         Objects.equals(this.limits, inferenceCreate.limits) &&
-        Objects.equals(this.queueTimeoutSeconds, inferenceCreate.queueTimeoutSeconds);
+        Objects.equals(this.queueTimeoutSeconds, inferenceCreate.queueTimeoutSeconds) &&
+        Objects.equals(this.modelParameters, inferenceCreate.modelParameters);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, queueTimeoutSeconds);
+    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, queueTimeoutSeconds, modelParameters);
   }
 
   @Override
@@ -286,6 +317,7 @@ public class InferenceCreate {
     sb.append("    modelBinding: ").append(toIndentedString(modelBinding)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
+    sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -329,41 +361,6 @@ public class InferenceCreate {
     }
 
     StringJoiner joiner = new StringJoiner("&");
-
-    // add `workspace_id` to the URL query string
-    if (getWorkspaceId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworkspace_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkspaceId()))));
-    }
-
-    // add `definition` to the URL query string
-    if (getDefinition() != null) {
-      joiner.add(getDefinition().toUrlQueryString(prefix + "definition" + suffix));
-    }
-
-    // add `input` to the URL query string
-    if (getInput() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sinput%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getInput()))));
-    }
-
-    // add `context` to the URL query string
-    if (getContext() != null) {
-      joiner.add(getContext().toUrlQueryString(prefix + "context" + suffix));
-    }
-
-    // add `model_binding` to the URL query string
-    if (getModelBinding() != null) {
-      joiner.add(getModelBinding().toUrlQueryString(prefix + "model_binding" + suffix));
-    }
-
-    // add `limits` to the URL query string
-    if (getLimits() != null) {
-      joiner.add(getLimits().toUrlQueryString(prefix + "limits" + suffix));
-    }
-
-    // add `queue_timeout_seconds` to the URL query string
-    if (getQueueTimeoutSeconds() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_timeout_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueTimeoutSeconds()))));
-    }
 
     return joiner.toString();
   }

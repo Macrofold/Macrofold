@@ -216,12 +216,13 @@ pub async fn create_decision_definition(configuration: &configuration::Configura
     }
 }
 
-/// One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
-pub async fn create_inference(configuration: &configuration::Configuration, idempotency_key: &str, inference_create: models::InferenceCreate, x_organization_id: Option<&str>) -> Result<models::RunAccepted, Error<CreateInferenceError>> {
+/// Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+pub async fn create_inference(configuration: &configuration::Configuration, idempotency_key: &str, inference_create: Option<models::InferenceCreate>, x_organization_id: Option<&str>, prefer: Option<&str>) -> Result<models::InferenceResponse, Error<CreateInferenceError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
     let p_body_inference_create = inference_create;
     let p_header_x_organization_id = x_organization_id;
+    let p_header_prefer = prefer;
 
     let uri_str = format!("{}/v1/inferences", configuration.base_path);
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
@@ -232,6 +233,9 @@ pub async fn create_inference(configuration: &configuration::Configuration, idem
     req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
     if let Some(param_value) = p_header_x_organization_id {
         req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
+    }
+    if let Some(param_value) = p_header_prefer {
+        req_builder = req_builder.header("Prefer", param_value.to_string());
     }
     if let Some(ref token) = configuration.bearer_access_token {
         req_builder = req_builder.bearer_auth(token.to_owned());
@@ -253,8 +257,8 @@ pub async fn create_inference(configuration: &configuration::Configuration, idem
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::RunAccepted`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::RunAccepted`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::InferenceResponse`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::InferenceResponse`")))),
         }
     } else {
         let content = resp.text().await?;

@@ -23,6 +23,7 @@ export const runtimeConfiguration = z.object({
   provider: z.enum(['openai', 'anthropic', 'openrouter']),
   prompt: z.string(),
   instructions: z.string().optional(),
+  harnessPromptMode: z.enum(['replace', 'extend']).optional(),
   attachments: z
     .array(
       z.object({

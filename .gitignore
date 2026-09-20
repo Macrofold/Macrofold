@@ -5,7 +5,6 @@ node_modules/
 .env.*
 !.env.example
 !.env.test.example
-!.env.docker.example
 .data/
 /output/
 /coverage/

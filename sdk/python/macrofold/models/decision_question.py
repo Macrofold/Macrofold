@@ -20,11 +20,12 @@ from typing import Any, List, Optional
 from macrofold.models.decision_question_one_of import DecisionQuestionOneOf
 from macrofold.models.decision_question_one_of1 import DecisionQuestionOneOf1
 from macrofold.models.decision_question_one_of2 import DecisionQuestionOneOf2
+from macrofold.models.decision_question_one_of3 import DecisionQuestionOneOf3
 from pydantic import StrictStr, Field
 from typing import Union, List, Set, Optional, Dict
 from typing_extensions import Literal, Self
 
-DECISIONQUESTION_ONE_OF_SCHEMAS = ["DecisionQuestionOneOf", "DecisionQuestionOneOf1", "DecisionQuestionOneOf2"]
+DECISIONQUESTION_ONE_OF_SCHEMAS = ["DecisionQuestionOneOf", "DecisionQuestionOneOf1", "DecisionQuestionOneOf2", "DecisionQuestionOneOf3"]
 
 class DecisionQuestion(BaseModel):
     """
@@ -36,8 +37,10 @@ class DecisionQuestion(BaseModel):
     oneof_schema_2_validator: Optional[DecisionQuestionOneOf1] = None
     # data type: DecisionQuestionOneOf2
     oneof_schema_3_validator: Optional[DecisionQuestionOneOf2] = None
-    actual_instance: Optional[Union[DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2]] = None
-    one_of_schemas: Set[str] = { "DecisionQuestionOneOf", "DecisionQuestionOneOf1", "DecisionQuestionOneOf2" }
+    # data type: DecisionQuestionOneOf3
+    oneof_schema_4_validator: Optional[DecisionQuestionOneOf3] = None
+    actual_instance: Optional[Union[DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3]] = None
+    one_of_schemas: Set[str] = { "DecisionQuestionOneOf", "DecisionQuestionOneOf1", "DecisionQuestionOneOf2", "DecisionQuestionOneOf3" }
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -75,12 +78,17 @@ class DecisionQuestion(BaseModel):
             error_messages.append(f"Error! Input type `{type(v)}` is not `DecisionQuestionOneOf2`")
         else:
             match += 1
+        # validate data type: DecisionQuestionOneOf3
+        if not isinstance(v, DecisionQuestionOneOf3):
+            error_messages.append(f"Error! Input type `{type(v)}` is not `DecisionQuestionOneOf3`")
+        else:
+            match += 1
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when setting `actual_instance` in DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when setting `actual_instance` in DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when setting `actual_instance` in DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when setting `actual_instance` in DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3. Details: " + ", ".join(error_messages))
         else:
             return v
 
@@ -113,13 +121,19 @@ class DecisionQuestion(BaseModel):
             match += 1
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
+        # deserialize data into DecisionQuestionOneOf3
+        try:
+            instance.actual_instance = DecisionQuestionOneOf3.from_json(json_str)
+            match += 1
+        except (ValidationError, ValueError) as e:
+            error_messages.append(str(e))
 
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when deserializing the JSON string into DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when deserializing the JSON string into DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when deserializing the JSON string into DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when deserializing the JSON string into DecisionQuestion with oneOf schemas: DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3. Details: " + ", ".join(error_messages))
         else:
             return instance
 
@@ -133,7 +147,7 @@ class DecisionQuestion(BaseModel):
         else:
             return json.dumps(self.actual_instance)
 
-    def to_dict(self) -> Optional[Union[Dict[str, Any], DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2]]:
+    def to_dict(self) -> Optional[Union[Dict[str, Any], DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3]]:
         """Returns the dict representation of the actual instance"""
         if self.actual_instance is None:
             return None

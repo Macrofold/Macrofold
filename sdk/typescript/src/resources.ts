@@ -2113,7 +2113,9 @@ export class CustomerAgentsResource {
 }
 export type CreateInferenceOptions = NonNullable<
   operations['createInference']['requestBody']
->['content']['application/json'];
+>['content']['application/json'] & {
+  prefer?: NonNullable<operations['createInference']['parameters']['header']>['Prefer'];
+};
 export type CreateDecisionDefinitionOptions = NonNullable<
   operations['createDecisionDefinition']['requestBody']
 >['content']['application/json'];
@@ -2129,10 +2131,11 @@ export class InferencesResource {
     options: CreateInferenceOptions,
     requestOptions: RequestSettings = {},
   ): Promise<Result<'createInference'>> {
+    const { prefer, ...body } = options;
     return this.client.request('createInference', {
       ...requestOptions,
-
-      body: options,
+      params: { header: { Prefer: prefer } },
+      body: body,
     });
   }
   createDecisionDefinition(

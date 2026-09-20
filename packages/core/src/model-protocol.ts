@@ -16,6 +16,7 @@ export const emptyUsage = (): ModelUsage => ({
 });
 
 export type ModelRequestBounds = {
+  modelParameters?: import('./model-parameters').ModelParameters;
   maxOutput: number;
   inputMicroUsdPerMillion: string;
   outputMicroUsdPerMillion: string;

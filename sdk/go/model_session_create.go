@@ -30,6 +30,7 @@ type SessionCreate struct {
 	// Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.
 	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	Limits *Limits `json:"limits,omitempty"`
+	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 }
 
 type _SessionCreate SessionCreate
@@ -247,6 +248,38 @@ func (o *SessionCreate) SetLimits(v Limits) {
 	o.Limits = &v
 }
 
+// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
+func (o *SessionCreate) GetModelParameters() ModelParameters {
+	if o == nil || IsNil(o.ModelParameters) {
+		var ret ModelParameters
+		return ret
+	}
+	return *o.ModelParameters
+}
+
+// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SessionCreate) GetModelParametersOk() (*ModelParameters, bool) {
+	if o == nil || IsNil(o.ModelParameters) {
+		return nil, false
+	}
+	return o.ModelParameters, true
+}
+
+// HasModelParameters returns a boolean if a field has been set.
+func (o *SessionCreate) HasModelParameters() bool {
+	if o != nil && !IsNil(o.ModelParameters) {
+		return true
+	}
+
+	return false
+}
+
+// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
+func (o *SessionCreate) SetModelParameters(v ModelParameters) {
+	o.ModelParameters = &v
+}
+
 func (o SessionCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -269,6 +302,9 @@ func (o SessionCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Limits) {
 		toSerialize["limits"] = o.Limits
+	}
+	if !IsNil(o.ModelParameters) {
+		toSerialize["model_parameters"] = o.ModelParameters
 	}
 	return toSerialize, nil
 }

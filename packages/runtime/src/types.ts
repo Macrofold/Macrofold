@@ -15,6 +15,7 @@ export type NativeConfiguration = {
   provider: string;
   prompt: string;
   instructions?: string;
+  harnessPromptMode?: 'replace' | 'extend';
   attachments?: RunAttachment[];
   workspace: string;
   stateHome: string;

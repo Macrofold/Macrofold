@@ -1969,15 +1969,16 @@ func (r *InferencesResource) CreateDecisionDefinition(ctx context.Context, input
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
-func (r *InferencesResource) Create(ctx context.Context, input *InferenceCreate, options ...RequestOption) (*RunAccepted, error) {
+type CreateInferenceParams struct {Prefer *string}
+func (r *InferencesResource) Create(ctx context.Context, input *InferenceCreate, params *CreateInferenceParams, options ...RequestOption) (*InferenceResponse, error) {
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
-
+        if params == nil {params = &CreateInferenceParams{}}
         call := r.client.InferencesAPI.CreateInference(ctx)
         if input != nil {call = call.InferenceCreate(*input)}
         call = call.IdempotencyKey(settings.idempotencyKey)
         if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
+        if params.Prefer != nil {call = call.Prefer(*params.Prefer)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }

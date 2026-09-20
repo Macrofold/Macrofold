@@ -17,6 +17,7 @@ pub enum DecisionQuestion {
     DecisionQuestionOneOf(Box<models::DecisionQuestionOneOf>),
     DecisionQuestionOneOf1(Box<models::DecisionQuestionOneOf1>),
     DecisionQuestionOneOf2(Box<models::DecisionQuestionOneOf2>),
+    DecisionQuestionOneOf3(Box<models::DecisionQuestionOneOf3>),
 }
 
 impl Default for DecisionQuestion {
@@ -27,13 +28,13 @@ impl Default for DecisionQuestion {
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Kind {
-    #[serde(rename = "score")]
-    Score,
+    #[serde(rename = "provider")]
+    Provider,
 }
 
 impl Default for Kind {
     fn default() -> Kind {
-        Self::Score
+        Self::Provider
     }
 }
 

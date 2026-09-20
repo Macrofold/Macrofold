@@ -51,11 +51,11 @@ Run diagnostics, independently published artifacts/definitions and active-task e
 
 Migrations 035–038 add run kinds/shape constraints, mode-aware scheduling projection, RLS-protected invocation/definition/tool/task records, and ownership links. Existing runs default to `native_agent`. Do not alter an applied migration or discard an environment based on the old pre-launch note.
 
-1. Keep `DECISION_EXECUTOR_VERSION` unset and deploy the compatible schema and all readers/workers first.
+1. Deploy the compatible schema and all readers/workers together; decision execution is supported without an opt-in flag.
 2. Drain or fence old native-only pollers and durable Workflow invocations. Verify the deployed web, poller and Workflow code all route lightweight kinds before worktree access.
 3. Rehearse mixed queues, cancellation, provisional settlement, retention/restore, and the two contract fixtures on staging.
-4. Configure provider credentials and paid-execution authorization, then set `DECISION_EXECUTOR_VERSION=1` consistently on the web and every dispatcher.
-5. To stop new work while draining, set `RUN_ADMISSION_ENABLED=false` and keep compatible dispatchers enabled. Unsetting the executor capability also pauses its dispatch; reconcile/drain before disabling it. Never roll back to a native-only reader while lightweight rows remain.
+4. Configure provider credentials and paid-execution authorization. Admission, scheduling and dispatch support lightweight runs by default.
+5. To stop new work while draining, set `RUN_ADMISSION_ENABLED=false` and keep compatible dispatchers running to finish already admitted work. Never roll back to a native-only reader while lightweight rows remain.
 
 Optional lower bounds: `DECISION_INPUT_MAX_BYTES` (262144), `DECISION_CONTEXT_MAX_BYTES` (2097152), `DECISION_CONTEXT_MAX_ITEMS` (64). Invalid or expanded values fail configuration checks. `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` adds a class ceiling under the existing global cap; `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` defaults to zero and withholds that many account slots from native claims. It never expands account/global capacity or preempts an active run. Reserving all account slots prevents new native claims, so choose this deliberately.
 

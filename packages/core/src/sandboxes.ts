@@ -140,10 +140,11 @@ export async function createSandbox(tx: Tx, p: Principal, input: Schema['Sandbox
   const warm =
     input.keep_warm_seconds === undefined ? (input.long_running ? null : 0) : input.keep_warm_seconds;
   const sandboxId = id();
-  await reserve(tx, p.organizationId, BigInt(budget));
+  const reservation = BigInt(rate) === 0n ? '0' : budget;
+  await reserve(tx, p.organizationId, BigInt(reservation));
   await tx.query(
     `INSERT INTO sandboxes(id,organization_id,workspace_id,worktree_id,name,provider,long_running,keep_warm_seconds,secret_ciphertext,budget_micro_usd,reserved_micro_usd,rate_micro_usd_per_minute)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11)`,
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11)`,
     [
       sandboxId,
       p.organizationId,
@@ -156,6 +157,7 @@ export async function createSandbox(tx: Tx, p: Principal, input: Schema['Sandbox
       seal(token('control')),
       budget,
       rate,
+      reservation,
     ],
   );
   return presentSandbox(await getSandbox(tx, sandboxId));
@@ -209,11 +211,12 @@ export async function changeSandbox(
       'This worktree is unavailable.',
     );
     await checkCapacity(tx, p.organizationId);
-    await reserve(tx, p.organizationId, BigInt(row.budget_micro_usd));
+    const reservation = BigInt(row.rate_micro_usd_per_minute) === 0n ? '0' : row.budget_micro_usd;
+    await reserve(tx, p.organizationId, BigInt(reservation));
     await tx.query(
       `UPDATE sandboxes SET status='creating',generation=generation+1,binding=NULL,started_at=NULL,provisioning_at=now(),
-      reserved_micro_usd=budget_micro_usd,idle_expires_at=NULL,expires_at=NULL,failure_code=NULL,next_check_at=now(),updated_at=now() WHERE id=$1`,
-      [sandboxId],
+      reserved_micro_usd=$2,idle_expires_at=NULL,expires_at=NULL,failure_code=NULL,next_check_at=now(),updated_at=now() WHERE id=$1`,
+      [sandboxId, reservation],
     );
   } else
     await tx.query('UPDATE sandboxes SET status=$2,next_check_at=now(),updated_at=now() WHERE id=$1', [
@@ -344,7 +347,7 @@ export async function advanceSandbox(org: string, sandboxId: string, provider: S
       ((!waiting &&
         ((row.idle_expires_at && row.idle_expires_at.getTime() <= Date.now()) ||
           (row.expires_at && row.expires_at.getTime() <= Date.now()))) ||
-        sandboxCost(row) >= BigInt(row.reserved_micro_usd))
+        (BigInt(row.rate_micro_usd_per_minute) > 0n && sandboxCost(row) >= BigInt(row.reserved_micro_usd)))
     )
       status = 'pausing';
     if (status === 'pausing' || status === 'destroying') {

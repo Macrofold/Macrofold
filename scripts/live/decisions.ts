@@ -77,7 +77,6 @@ try {
   });
   const client = new Client({ baseURL: api.origin, apiKey: setup.key.secret });
   config.allowPaid = true;
-  process.env.DECISION_EXECUTOR_VERSION = '1';
   for (const kind of ['choice', 'score'] as const) {
     await check('openrouter', `jev-${kind}`, async () => {
       const byok = kind === 'score';

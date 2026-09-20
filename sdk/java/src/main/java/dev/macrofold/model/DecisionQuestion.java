@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.DecisionQuestionOneOf;
 import dev.macrofold.model.DecisionQuestionOneOf1;
 import dev.macrofold.model.DecisionQuestionOneOf2;
+import dev.macrofold.model.DecisionQuestionOneOf3;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -172,6 +173,32 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
                 log.log(Level.FINER, "Input data does not match schema 'DecisionQuestionOneOf2'", e);
             }
 
+            // deserialize DecisionQuestionOneOf3
+            try {
+                boolean attemptParsing = true;
+                // ensure that we respect type coercion as set on the client ObjectMapper
+                if (DecisionQuestionOneOf3.class.equals(Integer.class) || DecisionQuestionOneOf3.class.equals(Long.class) || DecisionQuestionOneOf3.class.equals(Float.class) || DecisionQuestionOneOf3.class.equals(Double.class) || DecisionQuestionOneOf3.class.equals(Boolean.class) || DecisionQuestionOneOf3.class.equals(String.class)) {
+                    attemptParsing = typeCoercion;
+                    if (!attemptParsing) {
+                        attemptParsing |= ((DecisionQuestionOneOf3.class.equals(Integer.class) || DecisionQuestionOneOf3.class.equals(Long.class)) && token == JsonToken.VALUE_NUMBER_INT);
+                        attemptParsing |= ((DecisionQuestionOneOf3.class.equals(Float.class) || DecisionQuestionOneOf3.class.equals(Double.class)) && token == JsonToken.VALUE_NUMBER_FLOAT);
+                        attemptParsing |= (DecisionQuestionOneOf3.class.equals(Boolean.class) && (token == JsonToken.VALUE_FALSE || token == JsonToken.VALUE_TRUE));
+                        attemptParsing |= (DecisionQuestionOneOf3.class.equals(String.class) && token == JsonToken.VALUE_STRING);
+                    }
+                }
+                if (attemptParsing) {
+                    deserialized = tree.traverse(jp.getCodec()).readValueAs(DecisionQuestionOneOf3.class);
+                    // TODO: there is no validation against JSON schema constraints
+                    // (min, max, enum, pattern...), this does not perform a strict JSON
+                    // validation, which means the 'match' count may be higher than it should be.
+                    match++;
+                    log.log(Level.FINER, "Input data matches schema 'DecisionQuestionOneOf3'");
+                }
+            } catch (Exception e) {
+                // deserialization failed, continue
+                log.log(Level.FINER, "Input data does not match schema 'DecisionQuestionOneOf3'", e);
+            }
+
             if (match == 1) {
                 DecisionQuestion ret = new DecisionQuestion();
                 ret.setActualInstance(deserialized);
@@ -211,10 +238,16 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
         setActualInstance(o);
     }
 
+    public DecisionQuestion(DecisionQuestionOneOf3 o) {
+        super("oneOf", Boolean.FALSE);
+        setActualInstance(o);
+    }
+
     static {
         schemas.put("DecisionQuestionOneOf", DecisionQuestionOneOf.class);
         schemas.put("DecisionQuestionOneOf1", DecisionQuestionOneOf1.class);
         schemas.put("DecisionQuestionOneOf2", DecisionQuestionOneOf2.class);
+        schemas.put("DecisionQuestionOneOf3", DecisionQuestionOneOf3.class);
         JSON.registerDescendants(DecisionQuestion.class, Collections.unmodifiableMap(schemas));
     }
 
@@ -226,7 +259,7 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
     /**
      * Set the instance that matches the oneOf child schema, check
      * the instance parameter is valid against the oneOf child schemas:
-     * DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2
+     * DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3
      *
      * It could be an instance of the 'oneOf' schemas.
      * The oneOf child schemas may themselves be a composed schema (allOf, anyOf, oneOf).
@@ -248,14 +281,19 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
             return;
         }
 
-        throw new RuntimeException("Invalid instance type. Must be DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2");
+        if (JSON.isInstanceOf(DecisionQuestionOneOf3.class, instance, new HashSet<Class<?>>())) {
+            super.setActualInstance(instance);
+            return;
+        }
+
+        throw new RuntimeException("Invalid instance type. Must be DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3");
     }
 
     /**
      * Get the actual instance, which can be the following:
-     * DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2
+     * DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3
      *
-     * @return The actual instance (DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2)
+     * @return The actual instance (DecisionQuestionOneOf, DecisionQuestionOneOf1, DecisionQuestionOneOf2, DecisionQuestionOneOf3)
      */
     @Override
     public Object getActualInstance() {
@@ -293,6 +331,17 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
      */
     public DecisionQuestionOneOf2 getDecisionQuestionOneOf2() throws ClassCastException {
         return (DecisionQuestionOneOf2)super.getActualInstance();
+    }
+
+    /**
+     * Get the actual instance of `DecisionQuestionOneOf3`. If the actual instance is not `DecisionQuestionOneOf3`,
+     * the ClassCastException will be thrown.
+     *
+     * @return The actual instance of `DecisionQuestionOneOf3`
+     * @throws ClassCastException if the instance is not `DecisionQuestionOneOf3`
+     */
+    public DecisionQuestionOneOf3 getDecisionQuestionOneOf3() throws ClassCastException {
+        return (DecisionQuestionOneOf3)super.getActualInstance();
     }
 
 
@@ -344,6 +393,12 @@ public class DecisionQuestion extends AbstractOpenApiSchema {
     if (getActualInstance() instanceof DecisionQuestionOneOf2) {
         if (getActualInstance() != null) {
           joiner.add(((DecisionQuestionOneOf2)getActualInstance()).toUrlQueryString(prefix + "one_of_2" + suffix));
+        }
+        return joiner.toString();
+    }
+    if (getActualInstance() instanceof DecisionQuestionOneOf3) {
+        if (getActualInstance() != null) {
+          joiner.add(((DecisionQuestionOneOf3)getActualInstance()).toUrlQueryString(prefix + "one_of_3" + suffix));
         }
         return joiner.toString();
     }

@@ -22,6 +22,7 @@ from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 from macrofold.models.grant import Grant
 from macrofold.models.limits import Limits
+from macrofold.models.model_parameters import ModelParameters
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -37,7 +38,8 @@ class SessionCreate(BaseModel):
     provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
     connection_grants: Optional[List[Grant]] = Field(default=None, description="Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none.")
     limits: Optional[Limits] = None
-    __properties: ClassVar[List[str]] = ["worktree_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits"]
+    model_parameters: Optional[ModelParameters] = None
+    __properties: ClassVar[List[str]] = ["worktree_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "model_parameters"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -102,6 +104,9 @@ class SessionCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of limits
         if self.limits:
             _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of model_parameters
+        if self.model_parameters:
+            _dict['model_parameters'] = self.model_parameters.to_dict()
         return _dict
 
     @classmethod
@@ -120,7 +125,8 @@ class SessionCreate(BaseModel):
             "billing_mode": obj.get("billing_mode"),
             "provider_connection_id": obj.get("provider_connection_id"),
             "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
-            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None
+            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
+            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None
         })
         return _obj
 

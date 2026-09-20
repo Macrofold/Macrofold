@@ -5,7 +5,7 @@ import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { pool, transaction, lock } from '../../db';
+import { pool, transaction, lock, type Tx } from '../../db';
 import { config, isLocal } from './config';
 import { id } from './crypto';
 import { AppError, assert } from './errors';
@@ -21,7 +21,6 @@ import { getExecutionPolicy } from './plans';
 import { schedulerTurn, recordTurn, pendingRunCandidates } from './scheduling';
 import { actorAuthorized } from './actor-authorization';
 import { queueRetryAt } from './queue-wait';
-import { decisionsEnabled } from './decision-capability';
 import { initialReceipt } from './inference-receipt';
 
 export function principalFor(row: RunRow): Principal {
@@ -38,9 +37,12 @@ export function principalFor(row: RunRow): Principal {
   };
 }
 export async function claimRun(org: string, runId: string) {
-  return transaction(org, async (tx) => {
+  return transaction(org, (tx) => claimRunInTransaction(tx, org, runId));
+}
+
+/** Direct inference claims capacity in its admission transaction: no queued worker hop. */
+export async function claimRunInTransaction(tx: Tx, org: string, runId: string, direct = false) {
     let run = await getRun(tx, runId);
-    if (run.kind !== 'native_agent' && !decisionsEnabled()) return null;
     await lock(tx, `organization:${org}`);
     await lock(tx, run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`);
     run = await getRun(tx, runId);
@@ -146,8 +148,12 @@ export async function claimRun(org: string, runId: string) {
       "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
       [runId],
     );
+    if (direct)
+      await tx.query(
+        "UPDATE dispatch_jobs SET available_at=(SELECT deadline + interval '5 seconds' FROM runs WHERE id=$1) WHERE kind='run' AND resource_id=$1",
+        [runId],
+      );
     return getRun(tx, runId);
-  });
 }
 
 /** Claims serialize writers. A crashed execution is never silently re-run. */

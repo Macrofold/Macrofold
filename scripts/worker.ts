@@ -5,6 +5,7 @@ import { machines } from '../packages/providers/src/machines';
 import { config, isLocal, isSimulated, assertSecurityConfiguration } from '../packages/core/src/config';
 import { pool, authPool, credentialPool } from '../packages/db';
 import { shutdownTracing } from '../packages/core/src/tracing';
+import { observeWorkerStep } from '../packages/core/src/worker-diagnostics';
 assertSecurityConfiguration();
 if (!isLocal() && (config.execution !== 'vercel' || config.orchestration !== 'poller'))
   throw new Error(
@@ -28,7 +29,7 @@ while (!closing) {
   let ready = false;
   if (Date.now() >= maintenanceAt) {
     try {
-      await dispatchMaintenance();
+      await observeWorkerStep('maintenance', {}, () => dispatchMaintenance());
     } catch {
       console.error('Maintenance sweep failed; pending work remains durable.');
     }
@@ -36,9 +37,10 @@ while (!closing) {
   }
   try {
     if (isSimulated()) {
-      await local.tick();
+      await observeWorkerStep('simulator_dispatch', {}, () => local.tick());
     } else {
-      const result = await dispatchCloudPoller(machines, Number(process.env.WORKER_CONCURRENCY || 4));
+      const result = await observeWorkerStep('dispatch', {}, () =>
+        dispatchCloudPoller(machines, Number(process.env.WORKER_CONCURRENCY || 4)));
       ready = result.ready;
       if (result.failed) console.error('A cloud step failed; durable retry is scheduled.');
     }

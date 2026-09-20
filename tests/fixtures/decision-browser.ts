@@ -18,7 +18,6 @@ export async function decisionBrowserFixture() {
   const account = await fixtureAccount('Decision browser fixture');
   const p = account.p;
   const originalFetch = globalThis.fetch,
-    originalGate = process.env.DECISION_EXECUTOR_VERSION,
     originalKey = process.env.ANTHROPIC_API_KEY;
   globalThis.fetch = async (url) => {
     if (String(url) !== 'https://api.anthropic.com/v1/messages')
@@ -29,7 +28,6 @@ export async function decisionBrowserFixture() {
     });
   };
   config.allowPaid = true;
-  process.env.DECISION_EXECUTOR_VERSION = '1';
   process.env.ANTHROPIC_API_KEY = 'synthetic-browser';
   try {
     const { app, body, task } = await transaction(p.organizationId, async (tx) => {
@@ -74,8 +72,6 @@ export async function decisionBrowserFixture() {
   } finally {
     globalThis.fetch = originalFetch;
     config.allowPaid = false;
-    if (originalGate === undefined) delete process.env.DECISION_EXECUTOR_VERSION;
-    else process.env.DECISION_EXECUTOR_VERSION = originalGate;
     if (originalKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = originalKey;
   }

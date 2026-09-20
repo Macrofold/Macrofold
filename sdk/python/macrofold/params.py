@@ -23,6 +23,12 @@ GrantParams = TypedDict('GrantParams', {"connection_id": "str | UUID", "tools": 
 
 LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]"})
 
+ModelParametersParams = TypedDict('ModelParametersParams', {"reasoning": "NotRequired[ModelParametersReasoningParams]", "provider": "NotRequired[ModelParametersProviderParams]"})
+
+ModelParametersReasoningParams = TypedDict('ModelParametersReasoningParams', {"effort": "Literal[\"none\", \"minimal\", \"low\", \"medium\", \"high\", \"xhigh\", \"max\"]"})
+
+ModelParametersProviderParams = TypedDict('ModelParametersProviderParams', {"require_parameters": "bool"})
+
 ClaudeApiFallbackParams = TypedDict('ClaudeApiFallbackParams', {"connection_id": "NotRequired[str | UUID]", "max_cost_micro_usd": "NotRequired[str]", "enabled": "bool"})
 
 ConnectionAccessRuleInputChoice1Params = TypedDict('ConnectionAccessRuleInputChoice1Params', {"scope": "Literal[\"workspace\"]", "workspace_id": "str | UUID"})
@@ -42,6 +48,8 @@ DecisionQuestionChoice1Params = TypedDict('DecisionQuestionChoice1Params', {"kin
 DecisionQuestionChoice2Params = TypedDict('DecisionQuestionChoice2Params', {"kind": "Literal[\"choice\"]", "criteria": "dict[str, str]"})
 
 DecisionQuestionChoice3Params = TypedDict('DecisionQuestionChoice3Params', {"kind": "Literal[\"score\"]", "criteria": "list[str]"})
+
+DecisionQuestionChoice4Params = TypedDict('DecisionQuestionChoice4Params', {"kind": "Literal[\"provider\"]"})
 
 InferenceDefinitionAllowedModelsItemParams = TypedDict('InferenceDefinitionAllowedModelsItemParams', {"provider": "Literal[\"anthropic\", \"typesafe\", \"openrouter\"]", "model": "str"})
 
@@ -67,4 +75,4 @@ WorktreeSourceParams = WorktreeSourceChoice1Params | WorktreeSourceChoice2Params
 
 ConnectionAccessRuleInputParams = ConnectionAccessRuleInputChoice1Params | ConnectionAccessRuleInputChoice2Params | ConnectionAccessRuleInputChoice3Params
 
-DecisionQuestionParams = DecisionQuestionChoice1Params | DecisionQuestionChoice2Params | DecisionQuestionChoice3Params
+DecisionQuestionParams = DecisionQuestionChoice1Params | DecisionQuestionChoice2Params | DecisionQuestionChoice3Params | DecisionQuestionChoice4Params

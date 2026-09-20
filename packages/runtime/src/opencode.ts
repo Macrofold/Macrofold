@@ -32,6 +32,9 @@ export class OpenCodeAdapter implements HarnessAdapter {
         config: {
           model: `platform/${c.model}`,
           small_model: `platform/${c.model}`,
+          // OpenCode treats an empty string as 'use the provider persona'. A blank
+          // nonempty prompt suppresses that fallback without adding instructions.
+          agent: { macrofold: { mode: 'primary', prompt: ' ' } },
           autoupdate: false,
           share: 'disabled',
           enabled_providers: ['platform'],
@@ -166,6 +169,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
           client.session.prompt({
             path: { id: sessionId },
             body: {
+              agent: c.harnessPromptMode === 'extend' ? 'build' : 'macrofold',
               model: { providerID: 'platform', modelID: c.model },
               ...(c.instructions ? { system: c.instructions } : {}),
               parts: [{ type: 'text', text: c.prompt }],

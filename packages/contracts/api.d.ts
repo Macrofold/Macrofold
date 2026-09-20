@@ -2018,7 +2018,7 @@ export interface paths {
         put?: never;
         /**
          * Request a typed decision with explicit context
-         * @description One bounded model invocation without a worktree, conversation, or sandbox. Requires a backend API key bound to exactly this workspace. Results are proposals: validate dependency tokens and application policy before committing any effect. Use the returned run URLs to wait, stream, or cancel. No automatic provider retries. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         * @description Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
          */
         post: operations["createInference"];
         delete?: never;
@@ -2713,6 +2713,7 @@ export interface components {
             /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
             connection_grants?: components["schemas"]["Grant"][];
             limits?: components["schemas"]["Limits"];
+            model_parameters?: components["schemas"]["ModelParameters"];
         };
         Session: {
             /** Format: uuid */
@@ -2737,6 +2738,7 @@ export interface components {
             /** Format: uuid */
             agent_id?: string | null;
             agent_version?: number | null;
+            model_parameters?: components["schemas"]["ModelParameters"];
         };
         /** @description Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
         RunCreate: {
@@ -2783,6 +2785,12 @@ export interface components {
             keep_warm_seconds?: number | null;
             /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
             sandbox_max_cost_micro_usd?: string;
+            model_parameters?: components["schemas"]["ModelParameters"];
+            /**
+             * @description OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+             * @enum {string}
+             */
+            harness_prompt_mode?: "replace" | "extend";
         } & (unknown | unknown | unknown);
         /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
         MessageCreate: {
@@ -2813,6 +2821,7 @@ export interface components {
             keep_warm_seconds?: number | null;
             /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
             sandbox_max_cost_micro_usd?: string;
+            model_parameters?: components["schemas"]["ModelParameters"];
         };
         RunAccepted: {
             /** Format: uuid */
@@ -4216,6 +4225,9 @@ export interface components {
             /** @enum {string} */
             kind: "score";
             criteria: string[];
+        } | {
+            /** @enum {string} */
+            kind: "provider";
         };
         InferenceDefinition: {
             revision: string;
@@ -4281,13 +4293,14 @@ export interface components {
         InferenceCreate: {
             /** Format: uuid */
             workspace_id?: string;
-            definition: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
+            definition?: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
             input: unknown;
-            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+            context?: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
             model_binding: components["schemas"]["DecisionBinding"];
             limits?: components["schemas"]["InferenceLimits"];
             queue_timeout_seconds?: number;
-        };
+            model_parameters?: components["schemas"]["ModelParameters"];
+        } & (unknown | unknown);
         InferenceReceipt: {
             /** Format: uuid */
             invocation_id: string;
@@ -4634,6 +4647,61 @@ export interface components {
         SandboxPage: {
             data: components["schemas"]["Sandbox"][];
             next_cursor: string | null;
+        };
+        ModelParameters: {
+            reasoning?: {
+                /** @enum {string} */
+                effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+            };
+            provider?: {
+                require_parameters: boolean;
+            };
+        };
+        InferenceResponse: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            session_id: string | null;
+            /** Format: uuid */
+            worktree_id: string | null;
+            /** @enum {string} */
+            status: "queued" | "provisioning" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+            urls: {
+                /** Format: uri */
+                status: string;
+                /** Format: uri */
+                events: string;
+                /** Format: uri */
+                stream: string;
+                /** Format: uri */
+                result: string;
+                /**
+                 * Format: uri
+                 * @description POST to request cancellation.
+                 */
+                cancel?: string;
+            };
+            /** Format: date-time */
+            queue_expires_at?: string;
+            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+            wait_seconds?: number;
+            /**
+             * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
+             * @enum {string|null}
+             */
+            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity";
+            /** @description Funds still held and unavailable for other jobs; released on settlement. */
+            reserved_micro_usd?: string;
+            /** @enum {string} */
+            scheduling_class?: "background" | "interactive";
+            /** @enum {string} */
+            kind?: "native_agent" | "inference" | "bounded_agent";
+            /**
+             * Format: uuid
+             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
+             */
+            sandbox_id?: string | null;
+            result?: components["schemas"]["RunResult"];
         };
     };
     responses: never;
@@ -10125,6 +10193,8 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
+                /** @description Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. */
+                Prefer?: "respond-async";
             };
             path?: never;
             cookie?: never;
@@ -10135,13 +10205,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted asynchronous operation */
+            /** @description Completed single-call inference; inspect result.inference.outcome before applying its value. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceResponse"];
+                };
+            };
+            /** @description Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery. */
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunAccepted"];
+                    "application/json": components["schemas"]["InferenceResponse"];
                 };
             };
             /** @description Error */

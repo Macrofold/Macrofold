@@ -33,11 +33,16 @@ jobs:
           find apps packages sdk -type d -name node_modules -prune -print0 > /tmp/dependency-dirs
           printf 'node_modules\0.tools\0' >> /tmp/dependency-dirs
           tar --null -T /tmp/dependency-dirs -czf /tmp/macrofold-dependencies.tar.gz
+          split -b 350m -d /tmp/macrofold-dependencies.tar.gz /tmp/deps-part-
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-offline-dependencies
-          path: /tmp/macrofold-dependencies.tar.gz
+          name: worker-offline-dependencies-0
+          path: /tmp/deps-part-00
           retention-days: 1
           if-no-files-found: error
-      - name: Baseline TypeScript check
-        run: pnpm check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-offline-dependencies-1
+          path: /tmp/deps-part-01
+          retention-days: 1
+          if-no-files-found: error

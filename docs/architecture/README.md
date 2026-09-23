@@ -4,7 +4,7 @@ See [workspace/worktree terminology and migration](resource-terminology.md) for 
 
 This is the current design; [decision log](decisions.md) explains changes from the initial proposal. [Verification](../status/README.md) distinguishes local acceptance from live-provider checks.
 
-[Ranked improvements](../product/improvements.md) owns proposed work and status. The [Workflow and Temporal evaluation](orchestration-evaluation.md) provides supporting research and criteria for revisiting the current scheduler.
+[Ranked improvements](../product/improvements.md) owns proposed work and status. The [Worker and shared-host execution target architecture](worker-execution.md) is the accepted migration target for reusable compute; it is explicitly not the current runtime contract until that migration lands. The [Workflow and Temporal evaluation](orchestration-evaluation.md) provides supporting research and criteria for revisiting the current scheduler.
 
 ## Technology decisions
 

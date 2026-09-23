@@ -101,6 +101,9 @@ describe('portable filesystem checkpoints', () => {
     expect((await stat(path.join(restored.workspace, 'large.bin'))).mode & 0o777).toBe(0o755);
     expect(await readlink(path.join(restored.workspace, 'external-link'))).toBe('/does/not/exist');
     expect(await readFile(path.join(restored.home, 'session.json'), 'utf8')).toBe('native history');
+    expect(await readFile(path.join(restored.workspace, '.git', 'HEAD'), 'utf8')).toBe(
+      'ref: refs/heads/main\n',
+    );
   });
   it('does not consume a partial JSONL frame or split a multibyte character at a stream cursor', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-probe-'));

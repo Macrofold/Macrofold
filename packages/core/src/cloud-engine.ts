@@ -23,7 +23,6 @@ import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { isNativeAuthPath } from '../../runtime/src/auth-paths';
-import { isHiddenSnapshotPath } from '../../runtime/src/snapshot-paths';
 import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
 import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
@@ -362,7 +361,7 @@ export async function advanceCloudRun(
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
-          if (isHiddenSnapshotPath(entry.path) || isNativeAuthPath(entry.namespace, entry.path)) continue;
+          if (isNativeAuthPath(entry.namespace, entry.path)) continue;
           await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
           for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
         }

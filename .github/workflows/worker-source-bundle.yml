@@ -1,0 +1,24 @@
+name: Worker source bundle
+on:
+  push:
+    branches: [feat/worker-compute-platform]
+    paths: [.github/workflows/worker-source-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    if: github.repository == 'Macrofold/Macrofold'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: git archive --format=tar.gz -o /tmp/macrofold-source.tar.gz HEAD
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-source-bundle
+          path: /tmp/macrofold-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error

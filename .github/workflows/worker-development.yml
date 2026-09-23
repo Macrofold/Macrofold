@@ -1,0 +1,54 @@
+name: Worker branch verification
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+permissions:
+  contents: read
+concurrency:
+  group: worker-development-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Export tracked source for offline review
+        run: |
+          python3 - <<'PY'
+          import subprocess, tarfile
+          from pathlib import Path
+          names = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          with tarfile.open('/tmp/worker-source.tar.gz', 'w:gz') as archive:
+              for name in names:
+                  if not name or name.startswith(('apps/web/public/', 'docs/branding/', 'output/')):
+                      continue
+                  path = Path(name)
+                  if path.is_file() and path.suffix.lower() not in {'.woff', '.woff2', '.ttf', '.otf'}:
+                      archive.add(path, arcname=name, recursive=False)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-source
+          path: /tmp/worker-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check

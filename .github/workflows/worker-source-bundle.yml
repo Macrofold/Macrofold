@@ -14,8 +14,16 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Archive tracked source only
-        run: git archive --format=tar.gz -o /tmp/macrofold-source.tar.gz HEAD
+      - name: Archive tracked source without large binary assets
+        run: |
+          git ls-files -z > /tmp/source-files
+          python3 - <<'PY'
+          import pathlib
+          names = pathlib.Path('/tmp/source-files').read_bytes().split(b'\0')
+          selected = [name for name in names if name and pathlib.Path(name.decode()).is_file() and pathlib.Path(name.decode()).stat().st_size < 2000000]
+          pathlib.Path('/tmp/source-files').write_bytes(b'\0'.join(selected) + b'\0')
+          PY
+          tar --null -T /tmp/source-files -czf /tmp/macrofold-source.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: worker-source-bundle

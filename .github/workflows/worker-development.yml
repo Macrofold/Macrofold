@@ -8,6 +8,24 @@ concurrency:
   group: worker-development-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  source:
+    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Export tracked source without credentials or runtime data
+        run: |
+          mkdir -p /tmp/worker-source
+          git archive --format=tar.gz HEAD -o /tmp/worker-source/source.tar.gz
+          git rev-parse HEAD > /tmp/worker-source/commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-source
+          path: /tmp/worker-source/
+          retention-days: 1
   implementation:
     if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
     runs-on: ubuntu-24.04

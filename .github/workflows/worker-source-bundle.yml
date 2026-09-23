@@ -1,4 +1,4 @@
-name: Worker source bundle
+name: Worker test tooling
 on:
   push:
     branches: [feat/worker-compute-platform]
@@ -6,43 +6,22 @@ on:
 permissions:
   contents: read
 jobs:
-  source:
-    if: github.repository == 'Macrofold/Macrofold'
+  postgres:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      PLATFORM_MODE: local
-      EXECUTION_PROVIDER: simulator
-      ALLOW_PAID_EXECUTION: 'false'
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 24.13.0
-      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
-      - run: pnpm install --frozen-lockfile
-      - name: Prepare offline dependency and toolchain bundle
+      - name: Export PostgreSQL tooling without data or credentials
         run: |
-          mkdir -p .tools
-          cp "$(command -v node)" .tools/node
-          PNPMPATH="$(find "$HOME/.cache/node/corepack" -path '*/10.33.0/bin/pnpm.cjs' -print -quit)"
-          test -n "$PNPMPATH"
-          cp -a "$(dirname "$(dirname "$PNPMPATH")")" .tools/pnpm
-          find apps packages sdk -type d -name node_modules -prune -print0 > /tmp/dependency-dirs
-          printf 'node_modules\0.tools\0' >> /tmp/dependency-dirs
-          tar --null -T /tmp/dependency-dirs -czf /tmp/macrofold-dependencies.tar.gz
-          split -b 350m -d /tmp/macrofold-dependencies.tar.gz /tmp/deps-part-
+          mkdir -p /tmp/pg-tools
+          docker run --rm -v /tmp/pg-tools:/bundle postgres:17-bookworm bash -ec '
+            mkdir -p /bundle/root
+            cp -a --parents /usr/lib/postgresql/17 /usr/share/postgresql/17 /bundle/root
+            ldd /usr/lib/postgresql/17/bin/* /usr/lib/postgresql/17/lib/*.so 2>/dev/null | awk "/=> \\// {print \$3}" | sort -u | xargs -r cp -L --parents -t /bundle/root
+            tar -C /bundle/root -czf /bundle/pg-tools.tar.gz .
+          '
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-offline-dependencies-0
-          path: /tmp/deps-part-00
-          retention-days: 1
-          if-no-files-found: error
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: worker-offline-dependencies-1
-          path: /tmp/deps-part-01
+          name: worker-postgres-tools
+          path: /tmp/pg-tools/pg-tools.tar.gz
           retention-days: 1
           if-no-files-found: error

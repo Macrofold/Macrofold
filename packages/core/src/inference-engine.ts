@@ -536,10 +536,11 @@ export async function advanceInference(org: string, runId: string, background?: 
     }, 500);
     const attemptStarted = performance.now();
     let failureStage = 'provider_request';
+    const startedAt = new Date();
+    let rawResponse: unknown;
     try {
       const protocol = decisionProtocol(run.config.rate_card.provider, run.config.model);
       const providerStarted = performance.now();
-      const startedAt = new Date();
       const requestBody = unseal<Record<string, unknown>>(call.body_ciphertext);
       const response = await observeWorkerStep('inference_provider', {
         organization_id: org, run_id: runId, request_id: call.id,
@@ -548,19 +549,9 @@ export async function advanceInference(org: string, runId: string, background?: 
         requestBody,
         authorization.secret,
         controller.signal,
-        authorization.traceContext
-          ? (output) =>
-              recordTrace({
-                context: authorization.traceContext!,
-                id: `response:${call!.id}`,
-                name: 'decision.response',
-                type: 'event',
-                startedAt,
-                endedAt: new Date(),
-                output,
-                metadata: { invocation_id: call!.id, step: call!.step },
-              })
-          : undefined,
+        (output) => {
+          rawResponse = output;
+        },
         run.config.definition.question.kind === 'provider',
       ));
       const providerMs = performance.now() - providerStarted;
@@ -588,6 +579,22 @@ export async function advanceInference(org: string, runId: string, background?: 
       if (background) background(recordPersistenceTiming);
       else await recordPersistenceTiming();
     } catch (error) {
+      if (
+        rawResponse !== undefined &&
+        failureStage === 'provider_request' &&
+        authorization.traceContext
+      )
+        recordTrace({
+          context: authorization.traceContext,
+          id: `response:${call.id}`,
+          name: 'decision.response',
+          type: 'event',
+          startedAt,
+          endedAt: new Date(),
+          output: rawResponse,
+          metadata: { invocation_id: call.id, step: call.step, diagnostic: 'normalization_failed' },
+          level: 'ERROR',
+        });
       console.error(JSON.stringify({
         event: 'inference.execution_failed',
         run_id: runId,

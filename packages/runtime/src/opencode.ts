@@ -12,12 +12,20 @@ export class OpenCodeAdapter implements HarnessAdapter {
     this.server = undefined;
     this.sessionId = undefined;
   }
-  async run({ configuration: c, signal, emit, ask, fileTools }: HarnessContext): Promise<NativeResult> {
+  async run({
+    configuration: c,
+    signal,
+    emit,
+    ask,
+    fileTools,
+    setStage,
+  }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
     if (guarded && !fileTools) throw new Error('Checked file service unavailable.');
     const npm = c.provider === 'anthropic' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible';
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
     const reused = Boolean(this.server);
+    setStage?.('server_start');
     const server =
       this.server ||
       (await createOpencodeServer({
@@ -86,6 +94,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     const questions = createOpencodeClient({ baseUrl: 'http://127.0.0.1:4096' });
     try {
       if (!sessionId) {
+        setStage?.('session_create');
         const session = await client.session.create({ body: { title: c.prompt.slice(0, 80) } });
         if (!session.data) throw new Error('OpenCode could not create a session');
         sessionId = session.data.id;
@@ -95,6 +104,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
         type: 'runtime.started',
         data: { harness: 'opencode', native_session_id: sessionId, reused },
       });
+      setStage?.('event_subscribe');
       const subscription = await client.event.subscribe({ signal: controller.signal });
       const consume = (async () => {
         for await (const event of subscription.stream) {
@@ -161,10 +171,13 @@ export class OpenCodeAdapter implements HarnessAdapter {
         if (!done && !controller.signal.aborted) throw error;
       });
       const abort = () => {
-        void client.session.abort({ path: { id: sessionId! } });
+        // The server may already have exited; cancellation must not create an
+        // unhandled rejection that hides the original failure.
+        void client.session.abort({ path: { id: sessionId! } }).catch(() => {});
       };
       signal.addEventListener('abort', abort, { once: true });
       try {
+        setStage?.('turn_execute');
         const response = await Promise.race([
           client.session.prompt({
             path: { id: sessionId },

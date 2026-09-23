@@ -22,7 +22,7 @@ SQL marks a batch processed only after the provider acknowledges the entire uplo
 
 `runs.execution_binding.phaseTimings` stores bounded, internal per-phase measurements: epoch-millisecond `startedAt`/`completedAt`, accumulated `activeMs`, and `attempts`. Active time covers phase work and caught failures, excluding phase-lease acquisition and the final state write. Wall time includes waits between attempts; killed attempts that never persist their final state are not counted. Existing run `created_at`/`started_at` measure queue-to-claim time. Provision includes sandbox creation and preparation; launch measures dispatch acknowledgement, not the first model token. These measurements contain no prompts, paths or credentials and do not add public API fields or analytics events.
 
-Runs use disposable compute by default. Opt-in [reusable sandboxes](sandboxes.md) retain machines and compatible native harness sessions between runs. A live hit skips hydration and harness initialization while refreshing run credentials; a cold miss restores verified files and session state. Model processing and network time remain, so compare phase timings and real first-response latency.
+Runs use disposable compute by default. Opt-in [reusable sandboxes](sandboxes.md) retain machines and compatible native harness sessions between runs. A live hit skips hydration and harness initialization while refreshing run credentials; a cold miss restores verified files. **Current limitation:** the dot-path checkpoint filter also excludes hidden native conversation state, so cold continuation can fail even though a live warm continuation succeeds. See the [recovery follow-up](../../maintainers/TODO.md#native-startup-failure-diagnostics). Model processing and network time remain, so compare phase timings and real first-response latency.
 
 ## Reusable sandbox lifecycle
 
@@ -66,13 +66,13 @@ Pi uses `createAgentSession`, the official `SessionManager`, in-memory runtime c
 
 Hermes and DeepSeek share only their private process framing/cleanup helper. The existing supervisor still owns cancellation, deadlines, execution identity, process-tree shutdown and capture for every harness. No scheduler, hosting provider or public streaming system was added.
 
-Native session files persist in `.hermes`, `.dsh/sessions` and `.pi/agent/sessions`. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from workspace files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
+Native session files live in `.hermes`, `.dsh/sessions` and `.pi/agent/sessions`. The current dot-path checkpoint filter excludes these directories, as well as OpenCode, Claude and Codex hidden session storage; native conversation IDs alone cannot restore that history. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from workspace files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
 
 Pinned versions, image cost and release checks are recorded in [dependency review](../../engineering/dependencies.md) and [harness acceptance](../../engineering/testing/harnesses.md).
 
 ## Portable persistence
 
-The portable checkpoint includes regular files and symbolic links, including ignored files, Git's internal state and native session files. Symlinks are recorded without traversing them. Runtime sockets and FIFOs are excluded because they are process resources. Empty directories are not represented. Hard links restore as independent files with identical content. Restore creates ordinary files before links and rejects any entry that descends through a symlink, preventing a checkpoint from redirecting writes outside its restore root.
+The current portable checkpoint includes regular files and symbolic links except paths containing a dot-prefixed component. This excludes `.git` and hidden native session storage in addition to hidden worktree files; recognized authentication paths are independently excluded. The same filter runs during capture and control-plane indexing. Symlinks are recorded without traversing them. Runtime sockets and FIFOs are excluded because they are process resources. Empty directories are not represented. Hard links restore as independent files with identical content. Restore creates ordinary files before links and rejects any entry that descends through a symlink, preventing a checkpoint from redirecting writes outside its restore root.
 
 Files are split into 4 MiB content-addressed chunks. Each chunk is encrypted before object storage. An encrypted manifest records chunk hashes, complete file hash, size, mode and timestamp. The control plane verifies chunks and the complete file hash before atomically publishing a checkpoint. Large file verification streams chunks, bounding memory use. Public file transfer and editor limits remain separate from the internal checkpoint format.
 
@@ -113,6 +113,22 @@ Native adapters share a per-worker loopback bridge in `packages/runtime/src/mode
 Runs are discriminated as `native_agent`, `inference` or `bounded_agent`. The lifecycle in this guide describes native execution. Lightweight dispatch happens before constructing a machine provider and never acquires a worktree writer or restores a conversation. It uses the same financial reservation, run observation and scheduler; [decision execution](../decisions/implementation.md) owns its invocation receipts and recovery. Capability gating must cover every dispatcher before admission is enabled.
 
 ## Execution tracing
+
+Native worker exceptions emit a `runtime.failed` event before the terminal result.
+The existing run Events tab, event API and Langfuse export include the harness,
+last initialization/execution stage, allowlisted error category and safe message.
+OpenCode distinguishes server startup, session creation, event subscription and
+turn execution; other adapters share the worker's preparation/initialization and
+ready-turn stages. Returned harness failures are marked `harness_reported_failure`.
+The terminal `failure_code` remains unchanged. No new log store or per-stage
+network call is introduced.
+
+The shared diagnostic classifier permits known operating-system codes, bounded
+cause inspection and recognized SDK errors. Unknown messages, stack traces and
+raw stderr remain withheld because they can contain credentials and customer
+content. Unknown errors still identify the failing stage; classification is not
+a promise to preserve arbitrary SDK text. Diagnostics do not retry execution or
+extend deadlines. Existing images need rebuilding to activate this behavior, and long-lived poller processes need restarting to load the corresponding event-ingestion code. Restart only an idle poller; a web preview or Docker-daemon restart is not required for this activation.
 
 The [observability integration](../observability/README.md) captures model calls at the gateway, surfaced harness/tool events, lifecycle timings and final run results. Its independent exporter receives shared tenant/workspace/worktree/customer attribution and separate compute charges; no tracing credentials enter a sandbox. See [ownership and lifecycle](../observability/implementation.md).
 

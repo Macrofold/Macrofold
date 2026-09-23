@@ -34,6 +34,8 @@ export type NativeResult = {
   failureCode?: string;
 };
 export type HarnessContext = {
+  /** In-process progress only; the worker publishes the last stage on failure. */
+  setStage?: (stage: import('./failure-diagnostic').RuntimeStage) => void;
   configuration: NativeConfiguration;
   signal: AbortSignal;
   emit: (event: NativeEvent) => Promise<void>;

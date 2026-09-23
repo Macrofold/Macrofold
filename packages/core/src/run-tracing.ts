@@ -57,8 +57,9 @@ export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext
 }
 export function tracedRunEvent(type: string) {
   return (
-    type.startsWith('run.') ||
+    ['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(type) ||
     type === 'runtime.started' ||
+    type === 'runtime.failed' ||
     type.startsWith('tool.') ||
     type === 'input.requested' ||
     type === 'input.received' ||
@@ -140,6 +141,7 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
         level: run.status === 'failed' || run.status === 'timed_out' ? 'ERROR' : 'DEFAULT',
       }),
     );
+    return;
   }
   // Deltas remain in the existing replay stream. Generations contain complete
   // model responses; sending each token as an observation would obscure them.
@@ -148,6 +150,7 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
       context,
       id: event.id,
       name: event.type,
+      level: event.type === 'runtime.failed' ? 'ERROR' : 'DEFAULT',
       type: 'event',
       startedAt: event.occurred_at,
       endedAt: event.occurred_at,

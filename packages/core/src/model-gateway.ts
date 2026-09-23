@@ -1,9 +1,9 @@
 import { modelInputBound } from './model-content';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
-import { transaction, afterCommit } from '../../db';
+import { transaction } from '../../db';
 import { runTraceContext } from './run-tracing';
-import { recordTrace, tracingEnabled } from './tracing';
+import { recordTrace } from './tracing';
 import { ModelOutputCapture } from '../../providers/src/model-output-capture';
 import type { TraceObservation } from './trace';
 import { realExecutionEnabled } from './config';
@@ -290,19 +290,6 @@ export async function settleModelRequest(
       input_micro_usd_per_million: model.input_micro_usd_per_million,
       output_micro_usd_per_million: model.output_micro_usd_per_million,
     };
-    const context = tracingEnabled() ? await runTraceContext(tx, await getRun(tx, cap.run)) : undefined;
-    if (context)
-      afterCommit(tx, () =>
-        recordTrace({
-          context,
-          id: `billing:${requestId}`,
-          name: 'billing.model',
-          type: 'event',
-          startedAt: new Date(),
-          endedAt: new Date(),
-          metadata: { request_id: requestId, ...billing },
-        }),
-      );
     return billing;
   });
 }

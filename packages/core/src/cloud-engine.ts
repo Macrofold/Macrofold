@@ -318,6 +318,7 @@ export async function advanceCloudRun(
               'tool.started',
               'tool.completed',
               'runtime.started',
+              'runtime.failed',
               'runtime.trace_truncated',
             ].includes(e.type)
           )

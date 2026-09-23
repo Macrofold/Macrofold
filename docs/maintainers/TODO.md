@@ -1,5 +1,15 @@
 # Engineering TODO
 
+## Native startup failure diagnostics
+
+- Local manual acceptance: the activated diagnostic image and restarted Docker poller export `runtime.failed` through the event API and as an ERROR observation in Langfuse. Fresh OpenCode/OpenRouter requests succeed. A fresh warm session successfully recalls a synthetic marker on its second turn with `reused: true`. These checks used `meta/muse-spark-1.3-contributor`, BYOK, no tools and a $0.24 cap per run. No automated tests were written or run.
+- Cold continuation fails reproducibly at `turn_execute / turn_failed`: the session retains its native ID but has zero saved home-state files. The current dot-path filter discards native conversation storage. Warm in-process reuse does not establish cold recovery. The earlier three pre-ready failures remain unexplained; their discarded exceptions cannot be recovered.
+- [ ] Resolve the operator-requested hidden-file policy: preserve native conversation state separately from hidden worktree files and authentication exclusions, or explicitly disable cold continuation. An operator decision is pending because the earlier request deliberately excluded hidden home state too. Do not silently start a fresh conversation in place of a requested continuation. After a fix, manually verify a fresh run, physical worker replacement, context recall and warm reuse.
+- Local capacity: eight inactive logical sandboxes were configured `long_running: true` with no idle expiry; seven physical containers consumed approximately 3.3 GiB of a 3.8 GiB Docker VM. With operator authorization, all eight were paused through the public API after verifying worktree checkpoints. Physical containers were removed and about 3 GiB became available. These were always-on workers, not failed idle cleanup. Separately, a 60-second idle sandbox automatically paused. The web preview and Docker daemon were not restarted.
+- Local activation used a code-only native-worker overlay on installed dependencies, tagged `platform-runtime:0.1.0`; `platform-runtime:before-opencode-diagnostic` retains the previous image. This is not a full release-image acceptance result. The full Dockerfile build was stopped under measured memory pressure; no timeout or blind prompt retry was added. Resource contention during investigation does not prove the original failure's cause.
+- [ ] Add automated coverage for safe diagnostic classification, per-turn stage reset, OpenCode startup/session/stream failures, cancellation after server shutdown, event ingestion and ERROR-level Langfuse export. Include cold history restoration, warm history recall and idle cleanup. Deferred at the operator's request.
+- [ ] Publish a complete runtime image and verify the same paths on intended hosted providers. Local successful calls and trace readback do not establish hosted acceptance.
+
 ## Native harness tool permissions
 
 - [ ] Expose native harness tool selection through the existing API permissions model and permission adapters, including disabling OpenCode’s built-in `question` tool. Map supported restrictions to each harness’s native configuration so disabled tools and their descriptions are omitted from model requests, not merely discouraged by instructions. Preserve connector and file-access restrictions; report unsupported mappings explicitly. Cover run-level overrides and inherited policy, add focused adapter/API tests, and document copyable request examples.
@@ -17,7 +27,7 @@
 
 ## Worker stall diagnostics follow-up
 
-- [ ] Test/document the operator-requested dot-path exclusion for new native checkpoints: omit any dot-prefixed path component in both worktree and home, prune hidden directories before capture, and filter at control-plane indexing too. This deliberately excludes `.git` and hidden native conversation state; validate cold-resume behavior and communicate its limitations. Rebuild/publish the runtime image and restart the intended worker to activate both boundaries. Existing checkpoint bytes and already-indexed in-flight uploads are unchanged. Tests and documentation deferred by request.
+- [ ] Reconcile dot-path checkpoint exclusion with native history restoration; see [native startup failure diagnostics](#native-startup-failure-diagnostics). Capture and control-plane indexing must agree, and recognized authentication files must remain excluded. Existing checkpoint bytes are unchanged.
 
 - [ ] Verify bounded parallel checkpoint upload (four chunks / eight manifests): successful items remain durable, hash/size verification remains enforced, failures drain all in-flight work before lease release, and recovery resumes only unfinished objects. Tests deferred by request. Inspect native home cache/dependency capture separately before excluding any files needed for conversation restoration.
 
@@ -73,6 +83,9 @@ Product and architecture proposals are tracked separately in [ranked improvement
 
 ## Execution tracing acceptance
 
+- [ ] Add focused tracing regressions proving queued/provisioning/terminal lifecycle events remain in Macrofold's replay stream but are not separate Langfuse observations; terminal events should produce exactly one canonical `run.<kind>` root.
+- [ ] Add gateway and decision regressions proving model billing appears once on `model.generate` or `decision.generate`, successful decisions omit `decision.response`, and normalization failures retain one error-level raw-response diagnostic.
+- [ ] Update the observability implementation, verification record, and operator guidance to describe the reduced trace tree and remove `billing.model` plus successful `decision.response` from documented stable observation names. Run generated-document checks afterward.
 - [ ] Configure private Langfuse project keys and the matching HTTPS region URL on the deployed web application and every worker; set environment/release labels and restart them. Verify real native model requests and conversation continuation, post-stream `after()` flushing, Workflow step export, and graceful worker drain. Local live Jev/API readback does not establish hosted lifecycle behavior.
 - [ ] Accept backend access/retention and the separate external deletion policy. Exercise exporter outage/overload without affecting execution or settlement; verify costs once per billable observation and customer/worktree metadata on all children. See [tracing verification](../features/observability/verification.md).
 

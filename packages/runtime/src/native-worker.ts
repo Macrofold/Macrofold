@@ -13,6 +13,7 @@ import { OpenCodeAdapter } from './opencode';
 import type { NativeConfiguration, NativeEvent } from './types';
 import { startPermissionFileServer } from './permission-server';
 import { startModelTransport } from './model-transport';
+import { failureDiagnostic, type RuntimeStage } from './failure-diagnostic';
 
 let configuration = JSON.parse(await readFile(process.argv[2], 'utf8')) as NativeConfiguration;
 // OpenCode's SDK inherits its parent's environment. Remove it before starting any harness.
@@ -66,14 +67,34 @@ const adapter = new adapters[configuration.harness]();
 let files: Awaited<ReturnType<typeof startPermissionFileServer>> | undefined;
 const localToken = randomUUID();
 let active: { gatewayURL: string; toolURL?: string; token: string; signal: AbortSignal } | undefined;
-const models = await startModelTransport(
-  configuration.gatewayURL,
-  localToken,
-  controller.signal,
-  fetch,
-  () => active,
-);
+let stage: RuntimeStage = 'transport_start';
+let models: Awaited<ReturnType<typeof startModelTransport>> | undefined;
+const reportFailure = async (error: unknown) => {
+  await send({
+    type: 'event',
+    event: {
+      type: 'runtime.failed',
+      data: { harness: configuration.harness, ...failureDiagnostic(error, stage) },
+    },
+  });
+  await send({
+    type: 'result',
+    result: {
+      outcome: 'failure',
+      output: '',
+      failureCode: error instanceof AttachmentError ? error.code : 'harness_error',
+    },
+  });
+};
 try {
+  models = await startModelTransport(
+    configuration.gatewayURL,
+    localToken,
+    controller.signal,
+    fetch,
+    () => active,
+  );
+  stage = 'permissions_prepare';
   const permissions = permissionAdapters[configuration.harness];
   const guarded = permissions.translate(configuration.permissions || []).mode === 'guarded';
   if (guarded) process.env.OPENCODE_DISABLE_PROJECT_CONFIG = 'true';
@@ -90,6 +111,7 @@ try {
     const c = { ...configuration, gatewayURL: models.url, toolURL: `${models.url}/mcp`, token: localToken };
 
     try {
+      stage = 'attachments_prepare';
       const prepared = await prepareAttachments(c, controller.signal);
       c.prompt = prepared.prompt;
       c.instructions = [
@@ -98,12 +120,19 @@ try {
       ]
         .filter(Boolean)
         .join('\n\n');
+      stage = 'harness_initialize';
       const result = await adapter.run({
+        setStage: (value) => {
+          stage = value;
+        },
         configuration: c,
         images: prepared.images,
         fileTools: files,
         signal: controller.signal,
-        emit: (event: NativeEvent) => send({ type: 'event', event }),
+        emit: (event: NativeEvent) => {
+          if (event.type === 'runtime.started') stage = 'turn_execute';
+          return send({ type: 'event', event });
+        },
         ask: async (id, question, details) => {
           const answer = new Promise<Record<string, unknown>>((resolve) => answers.set(id, resolve));
           await send({ type: 'input', id, question, details });
@@ -111,6 +140,19 @@ try {
         },
       });
       const successful = result.outcome === 'success';
+      if (result.outcome === 'failure')
+        await send({
+          type: 'event',
+          event: {
+            type: 'runtime.failed',
+            data: {
+              harness: configuration.harness,
+              stage,
+              code: 'harness_reported_failure',
+              message: 'The harness reported an unsuccessful turn.',
+            },
+          },
+        });
       // Disable and abort outgoing requests before publishing the turn boundary.
       active = undefined;
       controller.abort();
@@ -126,22 +168,17 @@ try {
     } catch (error) {
       active = undefined;
       controller.abort();
-      await send({
-        type: 'result',
-        result: {
-          outcome: 'failure',
-          output: '',
-          failureCode: error instanceof AttachmentError ? error.code : 'harness_error',
-        },
-      });
+      await reportFailure(error);
       break;
     }
   }
+} catch (error) {
+  await reportFailure(error);
 } finally {
   active = undefined;
   controller.abort();
   await adapter.close?.();
-  await models.close();
+  await models?.close();
   await files?.close();
   lines.close();
   process.stdin.destroy();

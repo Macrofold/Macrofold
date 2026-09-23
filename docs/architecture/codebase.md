@@ -88,3 +88,7 @@ The pure connection-access-policy module defines exact matching and selection pr
 ## Reusable execution environments
 
 `packages/core/src/sandboxes.ts` owns lifecycle, idle policy, worktree affinity and compute allocations; `sandbox-machines.ts` bridges it to the existing native execution port. `packages/contracts/sandbox-control.ts` owns the provider/control contracts. `packages/providers/src/sandboxes.ts` composes Vercel, Docker and Render adapters, while `packages/runtime/src/sandbox-control.ts` serializes authenticated operations on a reusable machine. See [runtime lifecycle](../features/execution/runtime.md#reusable-sandbox-lifecycle).
+
+## Worker target and uncommitted groundwork
+
+The [Worker architecture](worker-execution.md) and [draft user guide](../features/execution/workers.md) define the accepted replacement. Worker policy, pricing, placement, internal types, and snapshot/test changes were prepared in a separate downloadable bundle; those new source modules are not committed to this branch. Do not treat their proposed paths as the current implementation map. The [implementation record](../features/execution/workers/implementation.md) distinguishes bundle evidence from repository code. The [feature TODO](../features/execution/workers/TODO.md) maps the remaining API, database, runtime, provider, client, and documentation cutover. Public HTTP types continue to come from OpenAPI; no parallel handwritten public schema is introduced by the design.

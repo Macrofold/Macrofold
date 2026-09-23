@@ -1,46 +1,56 @@
-# Workers, compute economics, and autoscaling
+# Cost-aware Workers and execution infrastructure
 
-This is the accepted implementation target. [Implementation status and remaining work](../features/execution/workers/TODO.md) distinguishes working code from the complete target; this document is not evidence of hosted availability. The existing [sandbox guide](../features/execution/sandboxes.md) remains the released API until the Worker cutover is complete.
+**Decision status:** Accepted target.  
+**Repository status:** Documentation updated; Worker API/runtime cutover remains unimplemented. The earlier downloadable code bundle is separate, uncommitted work, not code in this branch. See [implementation and evidence](../features/execution/workers/implementation.md).
 
-## Decisions
+This document supersedes the earlier one-serving-Host-per-Worker and short-lived/long-lived resource designs. A **Worker is a stable, autoscaling execution target with an explicit economic contract**. The user chooses cost, tenancy, isolation, and availability requirements; Macrofold sizes and places execution within those requirements. It does not predict future traffic or silently change the purchased offering.
 
-A **Worker** is a stable, optionally user-managed execution target with an economic offering, scaling policy, runtime specification, isolation guarantees, and spending controls. It is not an agent, conversation, directory, machine, or single execution slot. A Worker may have zero, one, or many serving **Hosts**. Reactive scaling changes Hosts without creating new Worker IDs.
+[Worker guide](../features/execution/workers.md) owns the intended user experience. [Feature TODO](../features/execution/workers/TODO.md) owns unfinished implementation and deployment gates. Existing [sandbox documentation](../features/execution/sandboxes.md) describes the still-implemented API until the coordinated switchover. Do not publish examples from this target as working endpoints before their handlers, schemas, SDKs, and acceptance tests land.
 
-A **Host** is an internal provisioned compute allocation. A **HostRun** is one historical assignment of a Run to a Host generation. There may be multiple pre-launch assignments but at most one live assignment for a Run; uncertain execution is never silently replayed. A Host-local **harness handle** owns a retained process tree across turns. A HostRun temporarily acquires that handle and supplies the turn's authority, budget, and deadline.
+## 1. Resource model and decisions
 
-Workspaces, Worktrees, Agents, Sessions, and Runs remain logical resources independent of compute. Worktree files and harness-specific Session continuation state are durable only after verified publication. Clean local materializations and idle harnesses are caches; unpublished active writes may exist only on a Host and are not losslessly disposable.
-
-The two public entry paths remain:
-
-```text
-POST /v1/runs                         automatic compute
-POST /v1/workers                     optional economic/scaling control
-POST /v1/runs { worker_id: ... }      use that Worker
-```
-
-Host, HostRun, harness handles, and cache entries are not additional public resources. No public ExecutionLease, ResidentSession, or generic Session filesystem is added. Worker is the external name even where internal pollers are also called workers.
-
-## Economic control without machine management
-
-Callers select the economic arrangement; Macrofold sizes, places, and scales within it. It does not predict tomorrow's traffic or silently substitute an expensive backend in response to load.
-
-| Offering | Allocation and billing | Intended use |
+| Concept | Visibility | Owns |
 | --- | --- | --- |
-| Server, pooled | Published resource rates; customer pays allocated memory-time and measured active CPU-time, not the bill of the particular occupied Host | Short or continuous workloads sharing an economical server fleet |
-| Server, dedicated | Exclusive capacity allocated to this Worker; all running capacity, including its unused share, is billable | Sustained trusted concurrent agents or customers requiring exclusive allocation |
-| Sandbox | Published sandbox allocation rates and the documented execution boundary | On-demand strongly isolated workloads |
+| Worker | Public, optional | Execution target, economic offering, desired state, scaling and spending limits, access policy |
+| Host | Internal | One provider compute generation, actual resources, control channel, accepted quote, lifecycle |
+| HostRun | Internal | One placement attempt, generation fence, resource reservation, launch identity, cleanup |
+| Worktree | Public | Durable user filesystem identity and verified revisions; not a machine directory |
+| Session | Public | Stable conversation identity and harness-specific continuation; not a process |
+| Live harness handle | Internal | A reusable process boundary that can accept successive authorized turns |
+| Run | Public | One requested invocation, inputs, authority, outcomes, usage, events |
+| Materialization cache | Internal | An authorized, clean filesystem view already available on a Host |
 
-These are product offerings, not claims that any named provider is universally cheaper. A deployment exposes only implemented and accepted combinations. Pooled cross-customer execution requires a proven customer boundary and reliable metering; an unavailable offering fails before reserving funds or provisioning. No placeholder implementation may present pooled or isolated execution as working.
+A Worker may have zero, one, or several Hosts. Adding Host B for more traffic does not create a new public Worker or require callers to implement routing. A fixed single-machine allocation remains expressible with `max_instances: 1` on a dedicated Worker. A pooled Worker instead acquires resource allocations from a compatible fleet; its users do not own fleet instance counts.
 
-Published, versioned rate cards are authoritative. Freeze the accepted resource shape, billing basis, currency, rates, and rate version before allocating. Infrastructure replacement cannot raise that accepted rate or change offering, region constraints, or isolation without a new authorized configuration. Changes apply prospectively, with old and new allocations separately accounted. Provider invoices inform future prices; they never retroactively determine a customer's per-Host occupancy price.
+A Worktree and Session never belong to a Worker. Runs may select different Workers over time without changing their durable identities. A Worker does not grant access to resident data. A Host is replaceable, but replacement can interrupt active execution and lose unpublished changes. **Published materializations are caches; unpublished writes are not yet durable copies.**
 
-For pooled compute, idle fleet overhead is reflected in prospective published rates. Do not divide one underoccupied Host's bill among its occupants. Do not make all customers subsidize an unrelated resource class or region. Retrospective at-cost settlement, credits, and a global cost-sharing formula are separate future products, not the default bill. Do not invent commercial prices while implementing infrastructure.
+## 2. User control: economics first, machines second
 
-For dedicated compute, bill each allocated Host interval once, not once per concurrent Run. Model/tool usage and subscriptions remain independent. Plan concurrency caps remain legitimate product policy; validate configurations against effective limits and expose the limiting reason rather than selling capacity the plan cannot use.
+The ordinary path stays `POST /v1/runs`. Users who want control create a Worker and send the same Run requests with a top-level `worker_id`.
 
-## Public configuration
+The economic choices are:
 
-Use top-level fields and the repository's existing exact micro-USD decimal-string convention. The UI/SDK may format dollars, but internal arithmetic never uses floating point money. IDs remain the project's opaque UUIDs; the following placeholders are explanatory, not a new ID format.
+| Compute arrangement | Allocation | Billing contract |
+| --- | --- | --- |
+| Pooled server | Metered resources in an economical server fleet | Published allocated-memory and active-CPU rates; no per-machine occupancy lottery |
+| Dedicated server | Whole allocations exclusively backing this Worker | Allocated Host time, including idle capacity, at accepted rates |
+| On-demand sandbox | Compatible managed sandbox allocations | The published sandbox resource/allocation meter, explicitly disclosed |
+
+These are supported combinations of the same small settings, not a family of incompatible resource APIs. The deployment advertises only tested offerings. A missing pooled executor, isolation primitive, region, or runtime is an explicit unavailable configuration, not permission to substitute something else.
+
+`compute: "server"` must never silently become `compute: "sandbox"`, even if the latter is available. Host replacement cannot silently change the customer's rates or runtime version. Provider brand is not a public scheduling requirement by default; the economic class, price authorization, region, runtime, and isolation guarantees are.
+
+There is no universal assertion that one provider is cheapest. Reviewed offerings supply actual rates and capabilities. Examples and test prices are not retail prices. Automatic selection means cheapest compatible candidate that fits the present placement decision, not a globally optimal cost forecast.
+
+## 3. Worker API contract
+
+This section defines the **target** request/response contract. The earlier uncommitted policy bundle uses internal types; it does not replace the authoritative OpenAPI schema or add HTTP routes by itself.
+
+### Creation and common controls
+
+```http
+POST /v1/workers
+```
 
 ```json
 {
@@ -49,139 +59,262 @@ Use top-level fields and the repository's existing exact micro-USD decimal-strin
   "dedicated": true,
   "isolate_runs": false,
   "min_instances": 1,
-  "max_instances": 8,
-  "max_hourly_compute_cost_micro_usd": "1000000",
-  "idle_timeout_seconds": 300
+  "max_instances": 4,
+  "max_concurrency": 64,
+  "max_hourly_compute_cost_micro_usd": "1000000"
 }
 ```
 
-This requests server economics, exclusive Worker capacity, trusted sharing among that Worker's Runs, one running baseline Host, bounded horizontal scale, and a one-dollar maximum authorized allocation rate. The amount is illustrative, not a cost estimate. Size is automatic unless an advanced caller selects a supported `size`; runtime and region can likewise have deployment defaults returned in the accepted configuration.
+The one-dollar amount (`"1000000"` micro-USD) is a **caller-chosen illustrative ceiling**, not an estimate that this workload or baseline fits it. Admission must verify that at least one advertised configuration satisfies the baseline and ceiling. No size is required. Setting `size` opts out of automatic shape choice while retaining scaling across that shape.
 
-Core fields:
-
-| Field | Semantics |
+| Field | Rule |
 | --- | --- |
-| `compute` | `server` or `sandbox`; an economic and capability constraint, not a hint |
-| `dedicated` | Exclusive backing allocation for the Worker, not exclusive physical hardware or one machine per Run |
-| `isolate_runs` | Whether sibling Runs require the advertised execution boundary; false permits sharing within an explicitly trusted Worker |
-| `min_instances` | Baseline running capacity for dedicated/server allocations; zero permits idle sleep; not meaningful as ownership of a pooled fleet |
-| `max_instances` | Advanced finite scale bound where Host counts describe the selected offering |
-| `max_hourly_compute_cost_micro_usd` | Exact maximum aggregate authorized compute allocation rate, including provisioning/draining allocations until release is confirmed |
-| `idle_timeout_seconds` | Grace period after active assignments release before surplus capacity may stop |
-| `size` | Optional explicit catalog resource shape; otherwise automatic sizing from compatible published shapes |
-| `runtime` | Versioned managed runtime/environment identifier, resolved to an immutable implementation at allocation |
-| `region` | Required placement constraint when explicit; never silently fail over outside it |
-| `expires_at` | Optional customer-requested retirement time for the logical Worker, independent of provider machine lifetime |
+| `name` | Optional organization-scoped display label; UUID remains identity |
+| `compute` | `server` or `sandbox`; omission resolves to the deployment's advertised default sandbox offering |
+| `dedicated` | Default false; true buys exclusive Worker capacity, not permanent physical hardware |
+| `isolate_runs` | Default true; false explicitly permits the advertised trusted-sharing boundary among this Worker's Runs |
+| `size` | Optional supported shape identifier; omission means choose a compatible fitting shape |
+| `runtime` | Optional managed runtime version; omission is resolved and pinned at creation |
+| `region` | Optional advertised default; resolved region is a hard constraint, never a silent cross-region move |
+| `min_instances` | Dedicated only; nonnegative baseline, default zero |
+| `max_instances` | Dedicated only; positive, bounded by entitlement; never an unlimited default |
+| `max_concurrency` | Worker-wide active execution/cleanup admission ceiling; explicit requests above entitlement fail |
+| `idle_timeout_seconds` | Default 300, zero releases removable idle capacity immediately; null retains dedicated idle capacity while funded |
+| `expires_at` | Optional valid future UTC timestamp for the Worker itself; omitted/null means no customer expiration |
+| `max_hourly_compute_cost_micro_usd` | Nonnegative integer micro-USD string, matching existing budgets; resolved finite default is disclosed |
 
-Do not make `short_lived` versus `long_lived` fundamental types. They can be UX presets for these controls. A stable Worker can scale to zero every night without losing identity. A customer's explicit expiration can retire it; a provider Host timeout cannot.
+Do not treat numeric zero as missing. Public money follows the existing integer micro-USD string convention: `"1000000"` means one dollar. UI helpers can format dollars without floating-point arithmetic. Hosted positive-cost capabilities require configured published rates; an unknown rate is not free compute.
 
-A cost rate ceiling is not a lifetime budget. It limits ongoing allocation, not tokens, tools, storage, total daily spend, or an instantaneous invoice. Keep finite prepaid reservations and periodic renewal through the existing ledger. If a new allocation or renewal is unaffordable, queue/reject new work and drain safely; do not erase debt, grant free infrastructure, or terminate neighboring Runs casually. Pending provider releases still count. Lowering a ceiling below current running commitments stops growth and drains excess; return current committed rate and a transitional status instead of pretending costs dropped instantly.
+`min_instances`/`max_instances` are rejected for pooled Workers, where they have no ownership meaning. Pooled retention must be finite. Baseline capacity remains subject to spending, entitlement, and actual provider availability; it is not an unlimited uptime guarantee.
 
-For pooled compute, reserve a conservative maximum CPU/memory allocation rate before admitting work even when active CPU is billed afterward. This keeps a strict ceiling meaningful. Required baseline capacity above the ceiling is a validation error. Zero-cost local fixtures are explicit and cannot accidentally select paid providers.
+A read-only `GET /v1/worker-offerings` catalog should expose enabled combinations, shape/resource bounds, runtime versions, accepted meter/rate revisions, and current account limits. It is discovery, not a second mutable product resource. Catalog entries are not evidence of real-time spare capacity.
 
-## Public lifecycle and UX
+### Response and observability
 
-Worker endpoints are `GET/POST /v1/workers`, `GET/PATCH /v1/workers/{id}`, and `POST .../pause`, `.../resume`, `.../destroy`. Use the existing idempotency, pagination, asynchronous operation, and error conventions. Public operations return the accepted configuration, effective limits, desired state, observed state, and useful progress. No separate public drain endpoint is needed.
+Return UUIDv7 IDs consistent with the rest of Macrofold; do not invent `wrk_` IDs that the current validators reject. Include resolved settings, a configuration revision, desired state, observed status, effective limits, allocated/starting instance counts where meaningful, active Runs, occupied slots, queued Runs, accepted rate information, committed hourly exposure, and reason for waiting/degradation.
 
-Separate desired state (`enabled`, `paused`, `destroyed`) from observed progress (`idle`, `provisioning`, `ready`, `scaling`, `draining`, `paused`, `error`, `destroyed`). Idle means enabled without allocated capacity; it may wake on authorized work. Manually paused means disabled by its owner and cannot be woken by traffic. A transient provider failure is not evidence that capacity was released.
+Separate an execution's terminal result from slot occupancy: completed Runs may still occupy cleanup reservations. Report current cost observations with timestamps and completeness. Worker use authority does not grant access to other Runs' prompts, files, native identifiers, or detailed usage.
 
-Pause acknowledges asynchronously, disables admissions, lets current Runs complete within their deadlines, and then releases compute. Destroy performs the same drain before terminal retirement. An explicit force option requests cancellation of affected active Runs; it does not skip durable cleanup, accounting, or confirmed provider release. Resume enables admissions and starts required baseline capacity or wakes lazily. No operation deletes Worktrees or Sessions.
+### Endpoints and updates
 
-New submissions to a manually paused/destroyed Worker fail with actionable errors. Previously accepted queued Runs remain subject to their original queue deadline and can be cancelled; pause does not silently spend their reservation or move them elsewhere. Expiration stops admissions early enough for the configured run window, drains, and retires; unavoidable provider interruption is recorded honestly.
+```text
+GET    /v1/workers
+POST   /v1/workers
+GET    /v1/workers/{worker_id}
+PATCH  /v1/workers/{worker_id}
+POST   /v1/workers/{worker_id}/pause
+POST   /v1/workers/{worker_id}/resume
+POST   /v1/workers/{worker_id}/destroy
+GET    /v1/worker-offerings
+```
 
-Patch uses a revision precondition for competing configuration edits. Names/idle settings can change without replacing processes. Runtime/shape/isolation changes roll to compatible Hosts at safe boundaries. An immutable authorization/rate snapshot remains attached to every active allocation.
+Use existing idempotency, cursor pagination, request IDs, error envelopes, and asynchronous operation conventions. Lifecycle actions acknowledge intent with HTTP 202; inspect the Worker for current status. Repeated identical intent is idempotent.
 
-UI: most users see an optional Worker selector and a compute estimate/limit, not Host fields. Advanced settings show offering, isolation, baseline/max capacity, shape, region, runtime, and accepted prices. Distinguish queued-for-capacity, paused, unaffordable, unsupported, and provider-starting states. Aggregate Worker read access does not imply visibility into all Run prompts or files.
+PATCH uses the existing optimistic revision convention. Name and bounded scaling policies can change without changing identity. Lowering concurrency drains naturally rather than killing active work. Reject a requested rate ceiling below existing committed exposure with a clear conflict and a pause/drain path; do not promise instantaneous termination of already accepted obligations. Changes to compute economics, tenancy, isolation, region, size, or runtime require paused/no-live-allocation state and explicit acceptance of the new quote. Never mutate an active Run's frozen configuration.
 
-## Runs and state
+## 4. Lifecycle, sleep, and expiration
 
-`worker_id` is optional and orthogonal to execution context. Preserve convenient context shorthand: a continuing `session_id` resolves its Worktree; callers do not redundantly send both. A Worktree-only native invocation creates a new conversation under current defaults. Do not silently reinterpret omission as stateless.
+Persist desired state separately from observed state:
 
-The domain should permit durable files without retained conversation and temporary files with or without continuation. A native process needing a working directory does not automatically require a public durable Worktree. Introduce explicit stateless/session-retention behavior with matching schemas and tests, rather than accidentally changing existing omission semantics. Direct inference and bounded decisions do not acquire native Host capacity merely because they share the Run observation model.
+```text
+desired_state: enabled | paused | destroyed
+observed: sleeping | starting | ready | draining | paused | destroyed | expired
+```
 
-Explicit Worker selection is a hard target. Full/unavailable Worker capacity does not spill onto another economic offering. An omitted Worker uses a safe automatic offering; later, an explicitly configured default may authorize a particular Worker. Automatic placement never discovers a customer's idle Worker and uses it without that policy.
+Provider errors or a requested-but-unavailable baseline need an explicit failure/wait reason and observation timestamp, not a fabricated ready status. Status is a projection of durable intent and confirmed allocations, not a second conflicting state machine.
 
-Queue eligibility includes compatible capacity or permitted provisioning before fair winner selection. A head targeting a full Worker must not block an unrelated eligible head. Preserve Worktree ordering, organization fairness, plan caps, and the current global transaction lock until measurement justifies changing it. Placement ranks warm compatible handles, exact authorized file views, other eligible capacity, then new capacity; cache preference never overrides resource, authority, cost, or isolation constraints.
+**Create:** enabled by default. Provision the authorized minimum when nonzero; otherwise sleep until work needs capacity. Do not charge merely for an inert Worker record.
 
-## Reactive scaling
+**Automatic sleep:** preserve `desired_state=enabled`; release removable idle allocations after the idle policy. New admitted traffic may wake capacity. Host/cache loss does not expire the Worker.
 
-Use bounded periodic reconciliation through the existing durable dispatcher, not one process or timer per Worker and not a new prediction service. Observe runnable demand, reserved resources, headroom, warm-cache pressure, and serving/provisioning/draining Hosts. Provisioning allocations count toward limits to avoid duplicate scale-out. Resource reservations and scale decisions are claimed transactionally; provider I/O happens outside the transaction under durable operation identity.
+**Manual pause:** atomically set paused intent, stop new admissions, allow already executing Runs to finish within their existing deadlines, finish capture/cleanup, then release allocations. New submissions fail with a specific paused error. Already accepted queued Runs retain queue deadlines and wait for explicit resume or cancellation; they do not wake a manually paused Worker. Reads/polls do not keep capacity alive.
 
-Automatically select a compatible catalog size from per-Run resource estimates and observed requirements, then bin-pack within documented headroom. Add Hosts when runnable demand cannot safely fit and funds/limits permit. A new Host helps concurrent Runs; it does not resize a currently running process. An oversized individual Run needs a larger admitted shape or an explicit resource-limit outcome. Never replay it blindly to resize after ambiguous side effects.
+**Resume:** explicitly enable an unexpired, non-destroyed Worker; provision its minimum or wake lazily. Resuming never replays interrupted Runs or implicitly extends a customer's expiration.
 
-Scale-down drains idle excess Hosts after hysteresis/idle grace, preserves `min_instances`, and removes optional warm-process caches before buying capacity solely for cache memory. Handle retention never becomes an unlimited RAM obligation. If retained warmth is explicitly billable, its rate and expiry must be visible; default opportunistic caching is evictable platform overhead on pooled compute.
+**Destroy:** retire the Worker without deleting Worktrees, Sessions, Agent definitions, Run history, or durable financial references. Stop admissions; terminate queued work explicitly; drain accepted active work. A separately authorized force option may cancel active Runs and report lost unpublished state. Force is never the default and cannot reverse upstream side effects.
 
-Dedicated Host capacity is exclusive to its Worker. Pooled Hosts may serve multiple Workers only across supported tenant isolation boundaries. Releasing pooled allocations need not destroy the Host; releasing the last allocations can trigger fleet scale-down. A Worker does not own a pooled Host. Pooled billing is per authorized resource use and independent of accidental Host occupancy.
+**Expiration:** bounds this customer's Worker resource, not one provider machine. Stop accepting work that cannot finish its execution and cleanup window before expiration. Drain/stop at the documented deadline; no automatic renewal. A provider Host TTL instead triggers an eligible generation replacement while the Worker remains enabled and funded.
 
-No autoscaler guarantees immediate capacity, fixed latency, or unlimited throughput at a fixed rate. Expose queue reasons and honor deadlines under load.
+Idle countdown starts only after the last relevant allocation is safely released. `min_instances` retains the paid baseline; excess allocations may still scale down. Idle timers do not terminate active Runs. One Run cannot override a shared Worker's lifetime or shut down its neighbors.
 
-## Authorization and isolation
+## 5. Run UX, durable state, and authorization
 
-Worker authorization is independent of Workspace ownership: `workers:read`, `workers:use`, and `workers:write` distinguish viewing aggregate compute, using capacity, and controlling lifecycle/spend. A run needs Worker use AND its own context/tool authorization. Organization RLS and resource grants are checked server-side; a Worker UUID is a selector, not permission. Scoped keys must not pause other workloads just because they can run an agent. Worker listing and metrics cannot leak unauthorized run IDs/content.
+`worker_id` is orthogonal to the current execution-context selectors. Continue a Session without redundantly specifying its Worktree:
 
-`dedicated` and `isolate_runs` answer different questions. Dedicated true plus isolate false is the OpenLegend configuration; dedicated true plus isolate true supports mutually untrusted agents on exclusive capacity. Shared tenant identity is not proof of shared trust. False sibling isolation is never permission to expose credentials or files to another organization/Worker trust domain.
+```json
+{
+  "session_id": "019e1700-0000-7000-8000-000000000001",
+  "prompt": "Take the next turn.",
+  "worker_id": "019e1700-0000-7000-8000-000000000002"
+}
+```
 
-Containment capabilities are explicit provider/runtime requirements. A cgroup gives process/resource ownership, not a complete security boundary. Use supported user/mount/PID/network boundaries for the advertised isolation mode. If a provider cannot enforce the requested mode, reject before allocation. Do not enable all Linux privileges merely to claim portable nested containers. Prove cleanup of daemonized descendants on each provider before multi-Run activation.
+Existing `workspace_id`, `worktree_id`, and `session_id` context resolution remains convenient and mutually consistent. A different Worker does not change conversation ownership. Explicitly targeted work does not spill onto other Workers or a different offering when full or too expensive. Queue limits and timeouts remain real.
 
-Runtime roots are controller-generated, never accepted from a caller. Unique protected Host paths may be mounted as stable `/workspace` or harness-specific paths inside isolated executions; the requirement is no shared mutable global roots, not gratuitously different visible paths. Protect supervisor state, provider/control secrets, and sibling process access.
+Without `worker_id`, use the advertised automatic offering; do not consume customer-managed Workers unless the customer explicitly configures that selection. The first automatic backend can remain the existing isolated execution path. Future managed pooling must preserve the same advertised security and pricing contract.
 
-## HostRun, harness handles, and fencing
+Keep files, retained conversation, and execution independent in the internal model. A native harness needs a working directory, not necessarily a durable Worktree. Permit temporary working files for one-shot native work and optional Session retention. Preserve current retained-session defaults; a future explicit `retain_session: false` request must not create a retained conversation or accept an existing `session_id`. Do not interpret omission of `session_id` as proof of statelessness: it currently creates a Session. This extension requires a coordinated Run schema/admission change, not just nullable columns.
 
-HostRun has its own ID, `run_id`, assignment generation, Host/boot identity, Worker ID, resource allocation, rate snapshot, resolved input revisions, state, and release timestamps. Keep historical assignments; enforce at most one live assignment per Run. Pre-launch re-placement retires the prior assignment before creating another. Transport retries use the same assignment and non-removable launch marker.
+Define Worker scopes separately: `workers:use`, `workers:read`, `workers:write`. Execution requires Worker-use permission **and** the existing data/harness/tool/funding permissions. Worker administration does not imply reading every resident customer's data. Workspace-restricted keys can use granted compute without becoming compute administrators. Scope defaults, principal resource restrictions, MCP catalogs, and SDK key interfaces must change together.
 
-A live harness handle owns a stable contained process tree and compatibility fingerprint, optional local continuation root, memory estimate, and active HostRun reference. It can outlive one HostRun. Ownership handoff revokes the old turn authority, quiesces/cleans tool descendants, publishes state, then permits a new turn. Do not migrate only a root PID and assume descendants moved. Idle handles have no model/tool authorization. Caches may be in memory; authoritative assignments, spending, and writer fences cannot.
+All new tenant tables use organization-scoped foreign keys and FORCE RLS under the existing database roles. Platform fleet maintenance uses existing operator/reporting boundaries; never expose provider credentials or shared-fleet metadata through tenant APIs.
 
-HostRun states only describe assignment/cleanup, not a competing public Run state machine. Run completion, persistence, Git sync, Host cleanup, and compute release have distinct outcomes. Hold physical capacity until cleanup. Hold writer authority until all possible old writers are fenced and publication is resolved. Expiring a database lease is not proof that the old process stopped; reject stale publication and tool calls and require positive containment/loss evidence before conflicting writers proceed.
+## 6. Reactive scaling and placement
 
-## Filesystem and continuation recovery
+No traffic prediction service is required. React to queued runnable work, safe resource allocations, observed memory/CPU pressure, and minimum availability. Do not wait for OOM. No orchestration service, Redis queue, or Kubernetes cluster is required simply to express this policy.
 
-A cache key must include Host generation, Worktree revision, authorized view/permission fingerprint, and relevant runtime compatibility. Same revision does not imply equal file visibility. Full protected caches may back restricted views, but an unrestricted prior Run must never broaden a restricted later Run's access.
+For a dedicated Worker:
 
-Local cache states distinguish clean, active, stale, recovery-required, and evicting. Only inactive, verified published state is freely evictable. External edits advance the authoritative revision; validate on acquisition, so invalidation broadcasts are optional. Dirty failed state is quarantined and never advertised as a matching clean cache. Cache reuse is separate from harness reuse.
+1. Authorize the Run, resolve required runtime/resources/state, and identify its eligible economic offering.
+2. Exclude draining, expired, wrong-generation, wrong-region, incompatible-runtime or insufficient-isolation Hosts.
+3. Check Worker/account/deployment limits, resource headroom, held cleanup slots, and committed cost.
+4. Prefer a compatible warm harness, then an exact authorized file materialization, then a cold placement on existing capacity.
+5. If none fits, select a compatible fitting Host shape whose accepted aggregate rate is within the ceiling; reserve its cost and identity before the provider call.
+6. Queue with a meaningful reason while capacity starts, or when limits prevent scaling. No expensive or insecure fallback.
+7. Drain excess idle allocations above the minimum with cooldown to avoid thrashing.
 
-Session continuation is adapter-specific: native/resume ID, local required files, or both. No universal `/sessions/S` directory or public SessionCheckpoint is required. Adapters declare persistence/restore and warm-reuse capabilities and format/runtime compatibility. Persist required hidden native history while excluding auth/runtime secrets; a blanket dot-path exclusion is not a correct continuation policy. Avoid collecting caches or arbitrary HOME credentials.
+A warm match is a preference, not permission to overload memory, bypass fairness, or wait forever when another compatible Host is available. Single-Run peak resources must fit one allocation; adding more machines does not enlarge a process already running. Auto-sizing starts with conservative runtime/harness defaults and bounded observations, not unvalidated claims about memory needs. Advanced resource overrides remain possible within the offering's bounds.
 
-The recoverability invariant is: a successfully persisted continuing Run can resume on compatible fresh compute from published state without the old process. Exercise cold restart, not just warm recall. For remote provider-managed state, do not claim a SQL transaction rolls back upstream side effects; record reconciliation/unknown outcomes where needed.
+The proposed pure dedicated-placement helper, prototyped as `chooseDedicatedWorkerPlacement` in the uncommitted bundle, chooses one placement/provisioning hint. It is **not** an autoscaler service or transactional admission grant. Baseline reconciliation, scale-down, provider create recovery, pending demand accounting, and eventual activation still require integration.
 
-Publish Worktree and Session references coherently with Run persistence. Object bytes are verified before pointers commit. Preserve a previous checkpoint on upload failure. Resuming from a different Worktree revision invalidates a warm handle unless its adapter explicitly handles that change. Credential exclusions and scoped authorization remain mandatory even in trusted sharing mode.
+### Atomic admission and avoiding head-of-line blocking
 
-A versioned runtime specification resolves managed binaries, dependencies, harness versions, and configuration separately from data. Initial managed runtime identifiers can reuse immutable image configuration; a user-defined image must not replace the trusted supervisor. Custom images and network environments require their own capability validation, not an arbitrary privileged container command.
+Placement feasibility is part of scheduler eligibility before selecting the next organization/run. Do not repeatedly select a Run pinned to a full Worker and prevent a later independent eligible Run from starting. Preserve FIFO and one writer for each Worktree.
 
-## Failure and billing rules
+Under a documented consistent lock order, claim Worker revision, Host generation, slot/resources, Worktree writer and Session turn, and funding obligations in one short transaction. Release database locks before provider, storage, or model I/O. PostgreSQL ownership remains authoritative across processes and Hosts. Recheck a pure placement hint under locks; stale snapshots are never authority.
 
-Confirmed absence before launch may permit re-placement; ambiguous launch never silently replays. Host failure interrupts active work, loses uncheckpointed writes, and removes caches; durable logical resources remain. A replacement Host does not duplicate successful Runs or settlements.
+Count reserved/provisioning allocations toward the spending ceiling before provider billing starts. Count uncertain or draining allocations until provider-confirmed release. A late/failed provider call cannot erase an authorized financial obligation. Retry provisioning by persisted provider identity/receipt, not by blindly issuing another create.
 
-One Run's capture failure quarantines its state and leaves independent Runs running. Whole-Host drain is reserved for lost containment, compromised health, exhausted Host funding, explicit owner action, or provider lifecycle limits. An unreachable provider is not proof of release, and a failed health request is not proof of absence.
+Keep slots through capture, persistence, quiescence, and cleanup. An active-run-status count alone does not express these obligations. Existing product-tier concurrency limits remain legitimate; expose effective limits and reject unusable requests rather than silently selling capacity above a hidden ceiling.
 
-Metering reports have durable deduplication identities and monotonic intervals. Missing CPU telemetry is unknown, not zero. Dedicated Host billing covers confirmed allocation intervals and uses accepted rates. Pooled memory reservations and CPU usage use their own accepted meter units; do not charge both per-Host and per-Run compute for the same offering. Keep exact integer arithmetic, financial journals, escrow/reservation, refund, and reconciliation in existing accounting owners.
+## 7. Host, HostRun, and live harness ownership
 
-Cost ceilings include in-flight creates and draining instances. A provider operation with an unknown result retains its reservation and identity for reconciliation; retries first inspect that identity. Only confirmed release frees the corresponding committed rate. Worker configuration does not replace finite wallet funding or run model/tool budgets.
+**Host** owns provider binding, unique immutable generation/boot identity, actual resource shape, accepted offering/rate revision, observed lifecycle, control capability, and allocation accounting. Worker owns desired policy, not a copy of runtime state.
 
-## Minimal implementation and migration
+A dedicated Host belongs to one Worker. A pooled Host belongs to an internal compatible pool, not one tenant Worker. Its resource allocations reference Workers and Runs. Initial dedicated-only execution does not imply pooled safety. Keep public organization data separate from platform fleet state; supporting pooled Hosts requires real allocation/containment integration, not merely allowing a nullable `worker_id`.
 
-Use the existing modular application, PostgreSQL/outbox, provider ports, runtime, SDK generator, and docs generator. Do not introduce Kubernetes, a second queue, prediction, Redis, or a generic fleet framework for this change.
+**HostRun** records each placement attempt and its immutable Host generation. Allow multiple historical assignments for a Run, with a partial unique active-Run claim. A transport retry reuses the same assignment. Replacement after confirmed pre-launch failure creates a new fenced assignment. Ambiguous native execution is never automatically replayed.
 
-The repository is pre-launch. Do not create hypothetical customer compatibility aliases. Add forward migrations that preserve local developer files/history, coordinate old-writer drain, and replace sandbox routes/types/SDKs atomically when the native path is ready. Historical migration SQL stays historical; current code and published docs should not retain competing Sandbox and Worker resource models after cutover. A work-in-progress branch must identify any not-yet-switched paths honestly.
+**Live harness handle** owns a retained process containment boundary across turns. A HostRun temporarily acquires it and supplies the current Run credentials, deadline, tools, and tracing. Between turns it has no valid Run authority. Release may leave a quiesced handle cached, but the previous HostRun has no residual right to send commands. Use assignment and turn fences on late control messages.
 
-Implementation order:
+The handle may initially live in Host-controller memory with advisory generation-keyed cache metadata. A controller restart that cannot safely adopt the existing process population must fence or terminate it; loss of metadata does not make orphan writers harmless. Do not add a public resident-session resource or a second durable execution scheduler.
 
-1. Freeze this design, public contract, offering/rate shape, and feature TODO; update architecture links.
-2. Implement pure validation, exact cost limits, allocation/scaling decisions, and deterministic tests.
-3. Add tenant-owned Workers, Hosts, historical HostRuns, runtime snapshots, and safe lifecycle/grant services with real transaction tests.
-4. Implement per-Run paths and containment, optional harness continuation, authorization-view caches, and a bounded multi-Run controller; prove two concurrent actual native processes.
-5. Integrate placement/capacity with existing scheduler and durable phase engine; use current providers only for capability combinations they actually support.
-6. Add dedicated/server autoscaling and lifecycle reconciliation with exact reservation/release; add pooled metering only when its tenant boundary and meters are proven.
-7. Switch API/SDK/CLI/dashboard/MCP and published documentation together; remove obsolete tests and update relevant retained tests, not weaken their assertions.
-8. Verify code, generated contracts/docs, PostgreSQL migrations/claims/ledger, subprocess cancellation and cold restore, SDK transports, and load behavior. Leave hosted tests explicitly unverified without credentials/authorization.
+## 8. Isolation and containment
 
-## Acceptance and open work
+`dedicated=true` reserves capacity exclusively for one Worker. It does not promise immutable physical hardware. `isolate_runs=false` allows the documented trusted-sharing boundary **within that Worker**, not access to other organizations or other untrusted customer applications.
 
-[Feature TODO](../features/execution/workers/TODO.md) is the single implementation/triage record. It must track demonstrable incomplete work and consequential decisions, not speculative edge cases. The operator release checklist remains separate from feature implementation.
+A single organization may represent many mutually untrusted customers. Organization membership alone is not sufficient evidence that arbitrary sibling processes may share credentials, writable folders, or introspect one another.
 
-Required failure tests include cost exact-limit and roundoff, rate changes, duplicate creates/releases/usage, pending creates counted in limits, paused versus idle wake behavior, graceful pause with active and queued Runs, force cancellation, stale assignment/boot/writer fences, different-authority cache reuse, same Worktree across Hosts, warm-process handoff, descendant containment, cold continuation, provider uncertainty, missing meters, insufficient credit, and scale-down with live assignments.
+Per-Run/handle process ownership must cover descendants and daemonized tools. Cgroups/resource controls, process groups, UID/user namespaces, mount boundaries, and syscall/provider constraints each solve different parts of the problem. A root PID or shared UID enumeration is insufficient. Root inside a provider container does not prove delegated cgroup/mount support. Probe and acceptance-test the selected backend; refuse unsupported advertised guarantees.
 
-Performance acceptance measures runnable queue delay, memory/CPU reservations, warm-cache footprint, restore/capture/upload throughput, database/lock pressure, and gateway load under hundreds of concurrent characters. Set measured limits; no untested claim that a small Host supports hundreds of native harnesses.
+Even trusted shared execution needs scoped cancellation, temp files, control records, gateway credentials, memory/CPU/PID limits, and safe cleanup. Shared failures can still affect a Host; do not promise microVM-equivalent isolation when unavailable.
+
+For pooled cross-customer execution, independent tenant containment and accounting are release gates. Until verified, `dedicated=false` server requests must fail explicitly; never silently allocate dedicated resources at a pooled price or launch multiple tenants under one agent UID.
+
+## 9. Runtime environment and persistence
+
+Pin a managed runtime specification: trusted supervisor version, native harness adapters/formats, base environment, and supported capabilities. Customer dependency customization is separate from privileged supervisor code; do not allow arbitrary customer images to replace the trusted controller. Adding custom environment builds is an extension, not required for the initial managed runtime.
+
+The execution environment is:
+
+```text
+versioned runtime
++ authorized Worktree materialization or temporary working directory
++ harness-specific continuation resources
++ temporary Run credentials and scratch files
+```
+
+Host-side paths are collision-free and controller assigned. A namespace-isolated Run may see stable mount paths such as `/workspace`; it need not see globally unique absolute paths. Stable paths can simplify continuation. No untrusted arbitrary absolute directory from an API request is accepted.
+
+### Durable continuation
+
+A Session may need a native identifier, local files, or both. A native ID is not proof that an upstream service stores the entire conversation remotely. The adapter owns prepare/resume/export compatibility, authentication exclusions, and whether warm reuse is supported. Generic `run()`/`close()` remains usable for a cold-only adapter; capabilities can be added without forcing every provider to retain a process.
+
+A successful persistence contract means continuation is possible on compatible fresh compute using the last verified state. It is not a guarantee of portable live RAM, arbitrary cross-harness continuation, or exactly-once upstream effects. Local quiescence/snapshot publication and a remote provider's own state mutation cannot be made one distributed atomic transaction; unknown remote outcomes remain explicit.
+
+The existing publication transaction already stores Worktree state and Session continuation together. Keep that coherent boundary. Do not build another public filesystem or SessionCheckpoint product. Preserve ignored/hidden customer files and required native history; **blanket dotfile exclusion is incorrect**. Continue excluding injected credentials and transient runtime configuration, and rejecting those entries on restore. This is a known-auth exclusion, not a generic scanner promising to find every customer secret.
+
+A Run may fail while successfully persisting files, or return model output while persistence fails. Keep execution, persistence, and external Git sync outcomes distinct. Failed capture/persistence quarantines that Run's unpublished state; do not pause all unrelated execution as a normal recovery action. Reuse only the last verified state unless the user explicitly undertakes recovery.
+
+## 10. Caches and correctness
+
+Treat three optimizations independently:
+
+| Cache | Saved work | Identity |
+| --- | --- | --- |
+| Worktree materialization | Downloading/restoring files | Host generation + Worktree revision + authorized view + compatible runtime |
+| Native continuation files | Reload/download of native state | Session continuation revision + adapter compatibility + authorized view |
+| Warm harness process | Native initialization and conversation load | Session revision + runtime/harness/config/tools/permissions + expected filesystem view |
+
+Neither cached files nor a suspended process is authoritative. External edits simply advance the durable revision; on prepare, compare the requested revision under the writer claim. No correctness-critical invalidation broadcast is necessary.
+
+Do not present an unrestricted cache to a restricted Run just because the Worktree revision matches. Either cache authorized projections or protect the full cache and build restricted execution views. Namespace/filesystem enforcement, not merely a model prompt, must uphold the actual guarantee.
+
+Record `clean`, `active`, or `recovery_required` state. A dirty cache is never a cache hit. Eviction can remove only idle, durably published content; pinned active materializations and retained handles need coordinated eviction. Replace stale trees atomically or rebuild in an unused path, rather than deleting data beneath another process.
+
+Check warm feasibility before building large restore manifests; on a cache hit do not enumerate/upload every unchanged chunk first. Full verification on initial materialization and publication remains mandatory. Rehashing every byte before every trusted clean-cache hit should not be the default unless integrity cannot otherwise be maintained.
+
+## 11. Metering, prices, and spending controls
+
+### Predictable rates
+
+Pooled pricing uses published resource rates based on fleet economics and margin. Do not charge a quarter-memory customer an entire otherwise empty Host solely because of placement, and do not retroactively change their rate as other tenants leave. Fleet utilization is platform overhead/rate-setting input, not customer placement-based billing.
+
+Dedicated pricing charges the accepted whole-allocation rate while it is billable, including idle time. Model and tool usage remain per Run. No concurrent Run receives the entire shared Host bill again. A subscription buys access/limits; compute and upstream usage are separate disclosed meters. Do not assume pass-through model pricing without checking the existing accepted product rate rules.
+
+Resource meters are allocated memory-time and measured active CPU-time where supported, using **MiB and core-milliseconds** internally. Missing CPU measurements are unknown, not measured zero. A reserved-CPU offering may have a different explicitly advertised meter; do not label it active CPU. Explicitly retained warm memory is either a disclosed allocation charge or platform-paid opportunistic cache; never an unexplained idle bill.
+
+Use immutable price revision and billing epochs, cumulative monotonic counters, integer micro-USD, and durable last-settled samples. Charge the difference between rounded cumulative totals so polling frequency cannot increase the bill. Duplicates produce zero new charge; regressing samples fail and require reconciliation. Provider resets create a new fenced epoch rather than silently resetting counters. Corrections/refunds use existing financial journals.
+
+### Hourly ceiling
+
+`max_hourly_compute_cost_micro_usd` bounds the **aggregate committed compute rate**, not a monthly budget and not LLM/tool spend. At any new allocation, sum accepted obligations across ready, provisioning, draining, and unconfirmed-stop allocations. Reserve the liability atomically before calling the provider. For resource pricing, use the maximum authorized CPU allocation plus memory to compute a conservative peak rate.
+
+A cap does not guarantee that unlimited demand runs immediately. When a compatible new allocation would exceed it, queue with `worker_cost_limit` or fail bounded admission. A single Run too large to fit an affordable allocation cannot be split across Hosts without a separate distributed execution model.
+
+Existing obligations may continue through graceful shutdown; disclose whether provider startup/termination minimums or other charges apply. Do not promise an absolute invoice cap if the meter can impose costs outside it. Capped admission and prepaid funding remain separate checks. Provider price changes, replacements, and rate updates require the defined acceptance policy; no surprise upgrade.
+
+## 12. Internal data model
+
+Follow existing UUIDv7, bigint micro-USD, typed domain ports, short SQL transactions, and encrypted storage conventions. Do not add a second ORM/schema source.
+
+| Relation | Main ownership and constraints |
+| --- | --- |
+| `workers` | Tenant identity; typed desired-state/config revision; resolved economic/runtime/isolation/scaling settings; expiry; accepted funding policy |
+| `hosts` | Provider identity/generation, pool or dedicated Worker association, actual shape, quote epoch, lifetime, lifecycle observation |
+| `host_allocations` | Required for pooled resources: Worker/tenant resource/time reservation on a platform Host; dedicated case may use whole allocation |
+| `host_runs` | Own ID, Run ID, attempt ordinal, Host/allocation/generation, resource/slot claim, native launch/cleanup; at most one live assignment per Run |
+| materialization metadata | Generation, Worktree revision, permission-view identity, clean-state and resource footprint; hint plus local verification |
+| usage receipts | Accepted quote/meter epoch, cumulative observation, durable settled cursor and ledger reference; reuse existing ledger/journal mechanisms |
+
+Do not duplicate frozen Run inputs in competing state stores. Use `runs.execution_binding` for its existing durable orchestration phase and reference HostRun assignment identity. Make fields required for indexed admission/fencing relational; keep provider-specific bindings behind typed provider ports.
+
+Runtime handles need not be durable public entities. Historical HostRun retention and billing records follow existing retention controls. Worktree/Session references are nullable only for invocation modes that actually support temporary/omitted state; make admission, presentation, and tests agree before changing schema nullability.
+
+## 13. Implementation and migration order
+
+The repository is prelaunch. Replace old public Sandbox semantics in one coordinated release after implementation is verified, rather than carrying a permanent compatibility API. Preserve real file/session/accounting history. Do not rewrite historical migrations or reinterpret old financial receipts as new billing.
+
+1. **Policy and recovery groundwork:** establish the revised design, deterministic economic/lifecycle/placement/meter functions, and regression coverage for required hidden continuation state. The prior uncommitted implementation bundle covers this limited slice; repository integration is still required.
+2. **Durable Worker/Host/HostRun ownership:** forward migration; tenant authorization; unique live claims; desired-state operations; rate/funding receipts and provisioning identity. Apply only to disposable fixtures until accepted.
+3. **Provider/runtime containment:** verify backend capabilities; scoped paths/identities; run-indexed controller; stable live-harness boundary; cancel/capture A without affecting B. Keep concurrency one until this is proven.
+4. **Scheduler and scaling integration:** placement-aware eligibility; atomic claims; min-capacity reconciliation; incremental provisioning; idle drain; generation replacement; quotas and cost ceilings. No paid calls during default tests.
+5. **Authorized file and warm caches:** clean revision/view checks, cold-resume acceptance, bounded memory/count/TTL, per-turn credentials. Avoid a full download/manifest pass on a confirmed hit.
+6. **REST/SDK/CLI/MCP/UI cutover:** replace endpoints, update authoritative OpenAPI first, regenerate contracts and all SDKs with the existing tools, use effective limits and async lifecycle UX, update all current public guides/examples. Do not hand-edit generated files.
+7. **Pooled offering activation:** implement allocation/metering and tenant containment with explicit acceptance. Publishing a pure metering function does not enable this product. Keep unsupported combinations rejected.
+8. **Complete acceptance and clean removal:** real PostgreSQL concurrency/failure tests, native Docker, API journeys, SDKs, browser/CLI, docs generation, and measured scaling. Remove superseded Sandbox code/tests only after replacements protect their useful invariants. Do not delete tests just to hide failures.
+
+Documentation commits do not enable the target endpoints or move uncommitted implementation into the repository. See the implementation record for the code, verification, and publication boundaries. Keep this work on the unmerged feature branch until the coordinated cutover and acceptance are complete.
+
+## 14. Required verification and deferred work
+
+The release evidence must include: duplicate provision/claim races; paused-but-busy lifecycle; late callbacks from old Host/assignment generations; limited-credit and failed-stop accounting; exact price ceilings; cache view revocation; cold resume without original Host; process grandchildren and daemon cleanup; wrong-tenant isolation; no replay on ambiguous launch; capture/persistence failure local to one Run; endpoint/SDK consistency; and sustained queued/concurrent traffic with memory, storage, gateway and database observations.
+
+Keep speculative features out of this refactor: demand prediction, arbitrary cross-harness session conversion, collaborative multiple writers, customer-defined schedulers, public Host/process/cache CRUD, automatic cross-region failover without authorization, and arbitrary image builds that replace the trusted supervisor.
+
+The unresolved deployment work is not evidence that the architectural primitives need reopening. The material decisions still requiring real inputs are the offered regions/runtime/capability matrix, published production rate cards/default spending limits, and the hosted isolation backend. Do not guess them. [TODO](../features/execution/workers/TODO.md) records owners, verification boundaries, and the implementation sequence.
+
 
 ## Changelog
 
-The original target used short/long-lived Worker types, one Host per Worker, and worktree-bound Sandbox compatibility. The accepted revision separates stable Worker identity from Host lifetime, makes Worker a bounded autoscaling target, exposes economic offerings and independent tenancy/sibling isolation, retains predictable resource rates, and removes pre-launch compatibility work. Reactive scaling replaces the earlier fixed-one-Host assumption; it does not introduce traffic forecasting.
+[Worker architecture evolution](changelog/workers.md) preserves the previous sandbox model, the intermediate single-Host proposal, and why the accepted design became a cost-controlled autoscaling target. It is decision history, not release evidence.

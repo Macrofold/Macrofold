@@ -27,7 +27,7 @@ Model availability comes from bounded provider discovery cached in PostgreSQL, f
 
 A worktree-scoped sandbox owns its compute identity, idle policy and independent financial reservation. The existing native execution port can borrow it for one run at a time; fresh credentials, checkpoint hydration and quiescent capture remain per-run. Ordinary pause/resume replaces disposable compute; explicit long-running mode uses an unbounded-lifetime Docker container locally or a Render service without a persistent disk in hosted deployments. Lifecycle intent does not force local development onto a cloud provider. Destroy removes compute, never verified files. This saves machine startup without introducing a second run scheduler or promising native process reuse. [Lifecycle and tradeoffs](../features/execution/sandboxes.md).
 
-This remains the **implemented** contract. The accepted target architecture is to replace worktree-bound Sandboxes with optional public Workers backed by internal Hosts, allowing many independent Worktrees/Sessions to execute concurrently while durable state remains separate from compute. See [Worker and shared-host execution target architecture](worker-execution.md). Do not treat that target document as shipped behavior until its migration phases land.
+This remains the **implemented** contract until cutover. The accepted [Worker target](worker-execution.md) makes a Worker a stable autoscaling execution target with explicit compute economics, independent capacity tenancy and sibling isolation, spending limits, and graceful lifecycle control. Zero or many internal Hosts serve it without owning Worktrees or Sessions. Published resource rates, not accidental fleet occupancy, determine pooled customer charges. The [implementation record](../features/execution/workers/implementation.md) distinguishes committed target documentation from the uncommitted policy/snapshot bundle and unfinished end-to-end migration. Do not treat the target as shipped Worker support.
 
 ## Separate connector selection from authority
 
@@ -46,6 +46,8 @@ OpenRouter discovery can admit new text/tool models under verified pricing and p
 Direct inference and bounded read-only agents share run identity, authorization, ledger, events and capacity with native agents while keeping distinct payloads and mode dispatch. Decision-model eligibility does not weaken native harness floors. An immutable context snapshot is explicit evidence, never application authority. A small task coordinator composes admitted runs; its allocations constrain the same wallet rather than reserve funds twice. Provider and context ports remain typed, with no general workflow engine or customer-code execution in the service process. See [implementation and rollout](../features/decisions/implementation.md).
 
 ## Changelog
+
+- [Worker architecture evolution](changelog/workers.md) records why the worktree-bound Sandbox implementation and intermediate single-Host Worker proposal gave way to the accepted cost-aware autoscaling target. This is decision history, not an implementation-release claim.
 
 - Hermes, DeepSeek Harness and Pi reuse the existing supervised runtime, gateway and checkpoints. DeepSeek embeds its official agent registry because the convenience SDK cannot resume persisted sessions across processes; [runtime architecture](../features/execution/runtime.md#harness-adapters) records that boundary.
 

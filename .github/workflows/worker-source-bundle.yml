@@ -9,24 +9,35 @@ jobs:
   source:
     if: github.repository == 'Macrofold/Macrofold'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Archive tracked source without large binary assets
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare offline dependency and toolchain bundle
         run: |
-          git ls-files -z > /tmp/source-files
-          python3 - <<'PY'
-          import pathlib
-          names = pathlib.Path('/tmp/source-files').read_bytes().split(b'\0')
-          selected = [name for name in names if name and pathlib.Path(name.decode()).is_file() and pathlib.Path(name.decode()).stat().st_size < 2000000]
-          pathlib.Path('/tmp/source-files').write_bytes(b'\0'.join(selected) + b'\0')
-          PY
-          tar --null -T /tmp/source-files -czf /tmp/macrofold-source.tar.gz
+          mkdir -p .tools
+          cp "$(command -v node)" .tools/node
+          PNPMPATH="$(find "$HOME/.cache/node/corepack" -path '*/10.33.0/bin/pnpm.cjs' -print -quit)"
+          test -n "$PNPMPATH"
+          cp -a "$(dirname "$(dirname "$PNPMPATH")")" .tools/pnpm
+          find apps packages sdk -type d -name node_modules -prune -print0 > /tmp/dependency-dirs
+          printf 'node_modules\0.tools\0' >> /tmp/dependency-dirs
+          tar --null -T /tmp/dependency-dirs -czf /tmp/macrofold-dependencies.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-source-bundle
-          path: /tmp/macrofold-source.tar.gz
+          name: worker-offline-dependencies
+          path: /tmp/macrofold-dependencies.tar.gz
           retention-days: 1
           if-no-files-found: error
+      - name: Baseline TypeScript check
+        run: pnpm check

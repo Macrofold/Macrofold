@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/worker-development.yml
       - scripts/workers/resume-edit.py
+      - scripts/workers/receipt-edit.py
       - scripts/workers/verify.marker
 permissions:
   contents: read
@@ -35,10 +36,12 @@ jobs:
       - run: pnpm install --frozen-lockfile --reporter=append-only
       - name: Apply reviewed source change
         run: |
-          if test -f scripts/workers/resume-edit.py; then
-            python3 scripts/workers/resume-edit.py
-            rm scripts/workers/resume-edit.py
-          fi
+          for script in scripts/workers/resume-edit.py scripts/workers/receipt-edit.py; do
+            if test -f "$script"; then
+              python3 "$script"
+              rm "$script"
+            fi
+          done
           git diff --exit-code -- .github/workflows
       - name: Regenerate owned contracts and public documentation
         run: |
@@ -56,6 +59,7 @@ jobs:
             git -c 'credential.helper=!gh auth git-credential' push origin HEAD:refs/heads/feat/worker-economics-autoscaling
           fi
           echo "VERIFIED_SOURCE_COMMIT=$(git rev-parse HEAD)"
+          echo "WORKER_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Compile application and runtime
         run: |
           pnpm check

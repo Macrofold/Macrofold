@@ -1,0 +1,38 @@
+name: Connector runtime diagnostic
+on:
+  push:
+    branches: [diagnostic/github-runtime-probe-2bfedf5]
+    paths: [.github/workflows/connector-runtime-probe.yml]
+permissions: {}
+concurrency:
+  group: connector-runtime-diagnostic
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/diagnostic/github-runtime-probe-2bfedf5'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Shell, Python, filesystem, and Node probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          /bin/true
+          printf 'SHELL_PROBE_OK\n'
+          python3 - <<'PY'
+          import pathlib
+          import tempfile
+          with tempfile.TemporaryDirectory(prefix='connector-probe-') as directory:
+              target = pathlib.Path(directory) / 'probe.txt'
+              target.write_text('synthetic probe only', encoding='utf-8')
+              assert target.read_text(encoding='utf-8') == 'synthetic probe only'
+          assert 1 + 1 == 2
+          print('PYTHON_FILESYSTEM_PROBE_OK')
+          PY
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          assert.equal(1 + 1, 2);
+          assert.equal(1_000_000n / 4n, 250_000n);
+          console.log('NODE_ASSERTION_PROBE_OK', process.version);
+          JS
+          printf 'ALL_RUNTIME_PROBES_PASSED\n'

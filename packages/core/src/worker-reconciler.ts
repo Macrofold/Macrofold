@@ -112,7 +112,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
           'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
         meters = host.billing_cursor || { kind: 'resource', cpu_core_ms: '0', memory_mib_ms: '0' };
       }
-      if (meters) await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, meters));
+      if (meters) { const sample = meters; await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, sample)); }
     }
     host = await transaction(org, tx => getHost(tx, hostId));
     if (host.status === 'ready' && host.funded_until.getTime() < Date.now() + 600000) {

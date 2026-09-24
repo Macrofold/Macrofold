@@ -33,9 +33,9 @@ export function relativePath(value: string) {
   return value;
 }
 
-/** The supervisor calls this only after every process belonging to the agent UID has exited.
+/** The supervisor calls this only after the current handle's writers are stopped or safely suspended.
  * Symlinks are recorded as links, never traversed. Chunks bound control-plane memory use. */
-export async function captureSnapshot(
+async function captureSnapshotOwned(
   roots: { workspace: string; home: string },
   output: string,
   limits = { bytes: 10 * 1024 ** 3, entries: 100_000 },
@@ -107,6 +107,22 @@ export async function captureSnapshot(
   }
   await atomicJSON(path.join(output, 'index.json'), index);
   return index;
+}
+
+let captures = 0;
+const captureWaiters: (() => void)[] = [];
+export async function captureSnapshot(
+  roots: { workspace: string; home: string }, output: string,
+  limits = { bytes: 10 * 1024 ** 3, entries: 100_000 },
+): Promise<SnapshotIndex> {
+  if (captures >= 2) await new Promise<void>(resolve => captureWaiters.push(resolve));
+  else captures++;
+  try { return await captureSnapshotOwned(roots, output, limits); }
+  finally {
+    const next = captureWaiters.shift();
+    if (next) next();
+    else captures--;
+  }
 }
 
 /** A bounded probe avoids replaying the entire event log on each Workflow poll. */

@@ -1,3 +1,4 @@
+import type { HostRunContext } from './host-paths';
 import type { RunAttachment } from '../../contracts/media';
 import type { PermissionLayers } from '../../contracts/permissions';
 import type { HarnessName } from '../../contracts/harnesses';
@@ -9,6 +10,7 @@ export interface PermissionFileEndpoint {
 export type NativeEvent = { type: string; data: Record<string, unknown> };
 export type NativeConfiguration = {
   runId: string;
+  hostRun?: HostRunContext;
   warm?: { sessionId: string; checkpointId: string | null; toolFingerprint: string };
   harness: HarnessName;
   model: string;

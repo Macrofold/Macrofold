@@ -1,3 +1,4 @@
+import type { HostBinding, HostControlRequest } from '../../contracts/host-control';
 import { runtimeConfiguration } from '../../runtime/src/supervisor';
 import { randomUUID } from 'node:crypto';
 import type { SandboxBinding, SandboxControlRequest } from '../../contracts/sandbox-control';
@@ -107,7 +108,7 @@ export class DockerMachines implements MachineProvider, SandboxTools {
     );
     return current.Id;
   }
-  async provision(name: string, timeoutSeconds: number | null): Promise<MachineBinding> {
+  async provision(name: string, timeoutSeconds: number | null, resources?: { memory_mib: number; cpu_millis: number }): Promise<MachineBinding> {
     let current = await this.lookup(name);
     if (!current) {
       assert(
@@ -144,10 +145,10 @@ export class DockerMachines implements MachineProvider, SandboxTools {
         `${executionLabel}=${name}`,
         '--init',
         '--restart=no',
-        '--cpus=2',
-        '--memory=4g',
-        '--memory-swap=4g',
-        '--pids-limit=512',
+        `--cpus=${resources ? resources.cpu_millis / 1000 : 2}`,
+        `--memory=${resources ? `${resources.memory_mib}m` : '4g'}`,
+        `--memory-swap=${resources ? `${resources.memory_mib}m` : '4g'}`,
+        `--pids-limit=${resources ? 4096 : 512}`,
         '--security-opt=no-new-privileges',
         '--cap-drop=ALL',
         ...['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID', 'KILL'].map((cap) => `--cap-add=${cap}`),
@@ -213,11 +214,14 @@ export class DockerMachines implements MachineProvider, SandboxTools {
       ),
     );
   }
-  async startControl(binding: MachineBinding, secret: string) {
+  async startControl(binding: MachineBinding, secret: string, entry: 'sandbox-control' | 'host-control' = 'sandbox-control') {
     await this.write(binding, [{ path: '/platform-control/control-secret', content: Buffer.from(secret) }]);
-    await this.exec(binding, ['node', '-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/sandbox-control.mjs'],{detached:true,stdio:'ignore'}).unref()"]);
+    await this.exec(binding, ['node', '-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/" + entry + ".mjs'],{detached:true,stdio:'ignore'}).unref()"]);
   }
-  async control(binding: SandboxBinding, _secret: string, request: SandboxControlRequest) {
+  startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
+  hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
+  control(binding: SandboxBinding, secret: string, request: SandboxControlRequest) { return this.controlRequest(binding, secret, request, 'sandbox-control-cli'); }
+  private async controlRequest(binding: SandboxBinding | HostBinding, _secret: string, request: SandboxControlRequest | HostControlRequest, entry: 'sandbox-control-cli' | 'host-control-cli') {
     if (request.action === 'prepare') {
       const configuration = runtimeConfiguration.parse(request.configuration);
       for (const key of ['gatewayURL', 'toolURL'] as const) {
@@ -229,7 +233,7 @@ export class DockerMachines implements MachineProvider, SandboxTools {
     }
     const path = `/platform-control/request-${randomUUID()}.json`;
     await this.write(binding, [{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })) }], 8 * 1024 * 1024);
-    const result = await this.exec(binding, ['node', '/opt/platform/sandbox-control-cli.mjs', path]);
+    const result = await this.exec(binding, ['node', `/opt/platform/${entry}.mjs`, path]);
     return z.object({ value: z.unknown() }).parse(JSON.parse(result.toString())).value;
   }
   async environmentRunning(binding: MachineBinding) {

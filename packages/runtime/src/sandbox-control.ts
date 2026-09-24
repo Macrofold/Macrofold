@@ -3,7 +3,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile, chown, readdir } from 'node:fs/promises';
 import { sandboxControlRequest, type SandboxControlRequest } from '../../contracts/sandbox-control';
-import { runtimeConfiguration, supervise, discardResident, type ResidentWorker } from './supervisor';
+import { runtimeConfiguration, supervise, discardHarness, type LiveHarness } from './supervisor';
 import { agentProcesses } from './agent-processes';
 import { warmSessionKey } from './warm-session';
 import { atomicJSON, probeRuntime } from './manifest';
@@ -13,7 +13,7 @@ const root = '/platform-control';
 const boot = randomUUID();
 const children = new Map<string, number>();
 let active: string | undefined;
-const resident: ResidentWorker = { processes: new Set() };
+const resident: LiveHarness = { processes: new Set() };
 let reused = false;
 // Serialize control mutations in one root process; subprocesses never receive this credential.
 let queue = Promise.resolve();
@@ -69,7 +69,7 @@ export async function control(request: SandboxControlRequest): Promise<unknown> 
         configuration.warm?.checkpointId === resident.checkpointId &&
         configuration.resumeId === resident.resumeId,
       );
-      if (!reused) await discardResident(resident);
+      if (!reused) await discardHarness(resident);
       // Restore from the authoritative checkpoint, including deletions and session changes.
       // A working directory alone is not a filesystem isolation boundary.
       if (!reused) {
@@ -115,7 +115,7 @@ export async function control(request: SandboxControlRequest): Promise<unknown> 
       children.set(run, 1);
       void supervise(`${dir}/config.json`, '/opt/platform/native-worker.mjs', resident)
         .catch(async () => {
-          await discardResident(resident);
+          await discardHarness(resident);
           await atomicJSON(`${dir}/result.json`, {
             output: '',
             outcome: 'failure',

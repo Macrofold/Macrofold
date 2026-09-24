@@ -1,8 +1,7 @@
 import { createServer } from 'node:http';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { appendFile, chmod, chown, lstat, mkdir, readFile, readdir, rm, statfs, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { appendFile, chmod, chown, lstat, mkdir, readFile, rm, statfs, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { hostControlRequest, type HostControlRequest } from '../../contracts/host-control';
 import { runtimeConfiguration, supervise, discardHarness, type LiveHarness } from './supervisor';
@@ -152,6 +151,7 @@ export class HostController {
         runtime:{uid,processes:new Set()},active:null,lastUsed:Date.now(),memoryMiB:0};
       this.handles.set(handleId,handle);
     }
+    const owner = handle;
     const context: HostRunContext={assignmentId:request.assignment_id,handleId:handle.id,worktreeId:request.worktree_id,
       uid:handle.uid,memoryMiB:request.resources.memory_mib};
     const paths=hostRunPaths(context);
@@ -167,7 +167,7 @@ export class HostController {
     value.preparation=(async()=>{
       if (this.metered) await this.meter.claim(value.id,request.resources.memory_mib);
       if (!filesReused) await rm(paths.workspace,{recursive:true,force:true});
-      await this.own([paths.workspace,paths.handle,paths.home,paths.temp],handle.uid);
+      await this.own([paths.workspace,paths.handle,paths.home,paths.temp],owner.uid);
       await mkdir(`${paths.control}/restore/chunks`,{recursive:true,mode:0o700});
       await atomicJSON(`${paths.control}/config.json`,configuration);
       await writeFile(`${paths.control}/prepared`,'',{mode:0o600});
@@ -260,7 +260,7 @@ export class HostController {
           if(request.invocation.runId!==value.run || !value.supervision || value.finished)throw new Error('invalid_invocation');
           await atomicJSON(`${value.directory}/stdio-${request.invocation.id}.json`,request.invocation);
           return JSON.parse(await this.command(value,'stdio-call',[request.invocation.id]).result);
-        case 'release': {
+        case 'release': return this.commands.run('allocation', async () => {
           if(value.released)return {};
           if(value.children.size || (value.supervision && !value.finished))throw new Error('runtime_not_quiescent');
           await value.preparation?.catch(()=>{});
@@ -287,9 +287,9 @@ export class HostController {
             this.assignments.delete(value.id);
           }
           // Recovery snapshots remain read-only for the lifetime of this Host; no released assignment may execute again.
-          await this.commands.run('allocation',()=>this.trimCaches());
+          await this.trimCaches();
           return {};
-        }
+        });
       }
     });
   }

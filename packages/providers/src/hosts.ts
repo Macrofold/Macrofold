@@ -106,10 +106,7 @@ export class RenderHosts implements HostProvider {
     if (!service.serviceDetails.url) return null;
     const binding: HostBinding = { name: spec.name, sessionId: '', providerId: service.id,
       createdAt: service.createdAt, url: service.serviceDetails.url };
-    try {
-      const health = hostHealth.parse(await this.control(binding, spec.secret, { action: 'health' }));
-      return { ...binding, sessionId: health.boot_id, controlBootId: health.boot_id };
-    } catch { return null; }
+    return binding;
   }
   async exists(binding: HostBinding, secret: string) {
     const service = await this.find(binding.name);

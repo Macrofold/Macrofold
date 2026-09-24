@@ -1,6 +1,7 @@
+import { hostRunContextSchema, hostRunPaths } from './host-paths';
 import { controlDirectory } from './control-directory';
 import { permissionLayersSchema } from '../../contracts/permissions';
-import { agentProcesses, freezeAgent, stopAgent, signalAgent } from './agent-processes';
+import { agentProcesses, agentMemoryMiB, freezeAgent, stopAgent, signalAgents } from './agent-processes';
 import { warmSessionKey } from './warm-session';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -12,9 +13,9 @@ import { mediaLimits } from '../../contracts/media';
 import { atomicJSON, captureSnapshot } from './manifest';
 import type { NativeConfiguration, NativeResult } from './types';
 
-const UID = 10001;
 export const runtimeConfiguration = z.object({
   runId: z.uuid(),
+  hostRun: hostRunContextSchema.optional(),
   warm: z
     .object({ sessionId: z.uuid(), checkpointId: z.string().nullable(), toolFingerprint: z.string() })
     .optional(),
@@ -45,31 +46,35 @@ export const runtimeConfiguration = z.object({
   toolGrants: z.boolean(),
   permissions: permissionLayersSchema.optional(),
 });
-export type ResidentWorker = {
+export type LiveHarness = {
+  uid?: number;
   child?: ChildProcessWithoutNullStreams;
   key?: string;
   checkpointId?: string | null;
   resumeId?: string;
   processes: Set<number>;
 };
-export async function discardResident(resident: ResidentWorker) {
-  await stopAgent();
+export async function discardHarness(resident: LiveHarness) {
+  await stopAgent(resident.uid ?? 10001);
   resident.child?.stdin.destroy();
   resident.child = undefined;
   resident.key = undefined;
   resident.processes.clear();
 }
-export async function supervise(configurationPath: string, workerPath: string, resident?: ResidentWorker) {
+export async function supervise(configurationPath: string, workerPath: string, resident?: LiveHarness) {
   if (process.platform !== 'linux' || process.getuid?.() !== 0)
     throw new Error('Supervisor requires an isolated Linux sandbox and its root user.');
   const c: NativeConfiguration = runtimeConfiguration.parse(
     JSON.parse(await readFile(configurationPath, 'utf8')),
   );
+  const UID = c.hostRun?.uid ?? resident?.uid ?? 10001;
   const directory = path.dirname(configurationPath);
+  const hostPaths = c.hostRun ? hostRunPaths(c.hostRun) : undefined;
+  if (c.hostRun && (!resident || resident.uid !== UID)) throw new Error('Invalid handle ownership');
   if (
-    c.workspace !== '/workspace' ||
-    c.stateHome !== '/agent-home' ||
-    (directory !== controlDirectory() &&
+    c.workspace !== (hostPaths?.workspace ?? '/workspace') ||
+    c.stateHome !== (hostPaths?.home ?? '/agent-home') ||
+    (directory !== (hostPaths?.control ?? controlDirectory()) &&
       !(resident && /^\/platform-control\/runs\/[a-f0-9-]+$/.test(directory)))
   )
     throw new Error('Unexpected runtime directories');
@@ -110,7 +115,10 @@ export async function supervise(configurationPath: string, workerPath: string, r
     await chown(root, UID, UID);
   }
   // The capability is scoped to this run. The supervisor's state and checkpoint staging are inaccessible to the agent.
-  const workerConfig = '/agent-home/.runtime-config.json';
+  const workerConfig = path.join(c.stateHome, '.runtime-config.json');
+  const temporary = hostPaths?.temp ?? path.join(c.stateHome, '.runtime-transient/tmp');
+  await mkdir(temporary, { recursive: true, mode: 0o700 });
+  await chown(temporary, UID, UID);
   await writeFile(workerConfig, JSON.stringify(c), { mode: 0o600 });
   await chown(workerConfig, UID, UID);
   await chmod(directory, 0o2770);
@@ -121,6 +129,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
   let result: NativeResult | undefined,
     pendingInput: string | undefined,
     failure: 'cancelled' | 'timed_out' | undefined;
+  let resourceFailure: string | undefined;
   const reused = Boolean(resident?.child);
   const child =
     resident?.child ||
@@ -128,7 +137,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
       cwd: c.workspace,
       uid: UID,
       gid: UID,
-      env: { PATH: process.env.PATH, NODE_ENV: 'production', HOME: c.stateHome, LANG: 'C.UTF-8' },
+      env: { PATH: process.env.PATH, NODE_ENV: 'production', HOME: c.stateHome, TMPDIR: temporary, USER: `agent${UID}`, LOGNAME: `agent${UID}`, LANG: 'C.UTF-8' },
       detached: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -154,7 +163,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
         }
         if (message.type === 'event') {
           if (resident && !reused && message.event.type === 'runtime.started')
-            resident.processes = new Set((await agentProcesses()).keys());
+            resident.processes = new Set((await agentProcesses(UID)).keys());
           await event(message.event.type, message.event.data);
         }
         if (message.type === 'result') {
@@ -176,7 +185,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
   });
   if (reused && resident) {
     child.stdin.write(`${JSON.stringify({ type: 'turn', configuration: c })}\n`);
-    for (const pid of resident.processes) signalAgent(pid, 'SIGCONT');
+    await signalAgents(resident.processes, 'SIGCONT', UID);
   }
   let stopAt: number | undefined,
     checking = false;
@@ -192,12 +201,16 @@ export async function supervise(configurationPath: string, workerPath: string, r
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         if (Date.now() >= Date.parse(c.deadline)) failure = 'timed_out';
+        if (!failure && c.hostRun && await agentMemoryMiB(UID) > c.hostRun.memoryMiB) {
+          resourceFailure = 'memory_limit';
+          failure = 'cancelled';
+        }
         if (failure) {
           stopAt = Date.now();
           child.kill('SIGTERM');
         }
       }
-      if (stopAt && Date.now() - stopAt > 4000) await stopAgent();
+      if (stopAt && Date.now() - stopAt > 4000) await stopAgent(UID);
       if (pendingInput && !failure) {
         try {
           const response = JSON.parse(await readFile(path.join(directory, 'answer.json'), 'utf8'));
@@ -227,7 +240,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
       await finished;
       await dispatch;
       if (!failure && result?.outcome === 'success' && child.exitCode === null && !child.killed) {
-        await freezeAgent(resident.processes);
+        await freezeAgent(resident.processes, UID);
         resident.child = child;
         resident.key = warmSessionKey(c);
         resident.resumeId = result.resumeId;
@@ -241,7 +254,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
           child.once('error', resolve);
         }
       });
-      await stopAgent();
+      await stopAgent(UID);
       if (!child.stdout.destroyed) await new Promise<void>((resolve) => child.once('close', resolve));
       await dispatch;
     }
@@ -251,8 +264,8 @@ export async function supervise(configurationPath: string, workerPath: string, r
     child.removeListener('exit', finish);
     child.removeListener('error', finish);
     if (!retained) {
-      await stopAgent();
-      if (resident) await discardResident(resident);
+      await stopAgent(UID);
+      if (resident) await discardHarness(resident);
     }
   }
   await unlink(workerConfig).catch(() => {});
@@ -260,16 +273,18 @@ export async function supervise(configurationPath: string, workerPath: string, r
     state: 'capturing',
     finishedAt: new Date().toISOString(),
   });
+  let snapshotBytes = 0;
   let persistence: 'captured' | 'failed' = 'captured',
     persistenceError: string | undefined;
   try {
-    const live = await agentProcesses();
+    const live = await agentProcesses(UID);
     if ([...live.values()].some((state) => !retained || state !== 'T'))
       throw new Error('checkpoint_writers_remain');
-    await captureSnapshot({ workspace: c.workspace, home: c.stateHome }, path.join(directory, 'snapshot'));
+    const snapshot = await captureSnapshot({ workspace: c.workspace, home: c.stateHome }, path.join(directory, 'snapshot'));
+    snapshotBytes = snapshot.totalBytes;
   } catch (error) {
     persistence = 'failed';
-    if (resident) await discardResident(resident);
+    if (resident) await discardHarness(resident);
     persistenceError =
       error instanceof Error && error.message.startsWith('checkpoint_')
         ? error.message
@@ -277,7 +292,8 @@ export async function supervise(configurationPath: string, workerPath: string, r
   }
   const final = {
     ...(result || { output: '', outcome: 'failure', failureCode: 'native_process_exited' }),
-    ...(failure ? { outcome: failure, failureCode: failure } : {}),
+    ...(failure ? { outcome: resourceFailure ? 'failure' : failure, failureCode: resourceFailure || failure } : {}),
+    snapshotBytes,
     persistence,
     persistenceError,
     completedAt: new Date().toISOString(),

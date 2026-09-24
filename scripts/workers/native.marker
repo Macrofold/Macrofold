@@ -1,1 +1,1 @@
-Run the reviewed network-isolated native performance workload against the Worker cutover, including fresh-container continuation. External model traffic is stubbed on loopback; no paid provider keys are used.
+Run the reviewed network-isolated native performance workload against the current Worker cutover, including fresh-container continuation. External model traffic is stubbed on loopback; no paid provider keys are used. This run accompanies the local PostgreSQL/HTTP stress review of source 7c320da2aeb8fe30fc5ba541ca7f27be239473c7.

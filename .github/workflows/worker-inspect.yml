@@ -1,0 +1,37 @@
+name: Worker source inspection
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths: [.github/workflows/worker-inspect.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Inspect tracked source and contracts only
+        run: |
+          python3 - <<'PY'
+          import pathlib, subprocess, json
+          paths = subprocess.check_output(['git','ls-files'], text=True).splitlines()
+          print('INSTRUCTION_PATHS', '\n'.join(p for p in paths if p.endswith('AGENTS.md') or p.startswith('.agents/rules/')))
+          print('MIGRATIONS', '\n'.join(p for p in paths if p.startswith('packages/db/') and p.endswith('.sql')))
+          contract = json.loads(pathlib.Path('docs/api/openapi.json').read_text())
+          for p, v in contract['paths'].items():
+              if 'sandbox' in p: print('API_PATH', p, json.dumps(v))
+          for k in ['Sandbox', 'SandboxCreate', 'SandboxList', 'RunCreate', 'RunAccepted']:
+              print('SCHEMA', k, json.dumps(contract['components']['schemas'].get(k)))
+          print('SCOPES', json.dumps(contract['components']['securitySchemes']))
+          for p in paths:
+              if not p.startswith(('packages/','apps/web/','scripts/')) or p.endswith('api.d.ts'): continue
+              if not p.endswith(('.ts','.tsx','.sql')): continue
+              lines = pathlib.Path(p).read_text().splitlines()
+              hits = [i for i,line in enumerate(lines) if ('sandbox' in line.lower() or 'scheduling_runs' in line) and not p.endswith(('sandboxes.ts','sandbox-machines.ts','sandbox-control.ts'))]
+              if hits:
+                  print('FILE',p)
+                  for i in hits: print(str(i+1)+': '+lines[i])
+          PY

@@ -55,8 +55,8 @@ jobs:
       - run: pnpm check
       - run: pnpm build:runtime
       - run: pnpm run setup
-      - name: Focused Worker and persistence acceptance
-        run: pnpm test:domain tests/unit/worker-policy.test.ts tests/unit/host-control.test.ts tests/unit/manifest.test.ts tests/unit/snapshot-failures.test.ts tests/integration/workers.test.ts --reporter=default --reporter=json --outputFile=/tmp/worker-tests.json
+      - name: Worker policy, HTTP and persistence acceptance
+        run: pnpm test:domain tests/unit/worker-policy.test.ts tests/unit/host-control.test.ts tests/unit/manifest.test.ts tests/unit/snapshot-failures.test.ts tests/integration/workers --reporter=default --reporter=json --outputFile=/tmp/worker-tests.json
       - run: pnpm docs:check
       - name: Compact test evidence
         if: always()

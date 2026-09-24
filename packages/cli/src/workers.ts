@@ -47,6 +47,7 @@ function input(flags: Options): Schema['WorkerCreate'] {
   for(const field of ['region','runtime','size'] as const) {
     const selected=stringOption(flags,field);if(selected!==undefined)value[field]=selected;
   }
+  if(flags['no-expiry'])value.expires_at=null;
   const expiration=stringOption(flags,'expires-at');if(expiration!==undefined)value.expires_at=expiration;
   const cost=stringOption(flags,'max-hourly-cost');if(cost!==undefined)value.max_hourly_compute_cost_micro_usd=decimalMicroUsd(cost);
   return value;

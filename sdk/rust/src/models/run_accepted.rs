@@ -41,6 +41,7 @@ pub struct RunAccepted {
     /// Reusable compute ID, when selected or created by keep_warm_seconds.
     #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub sandbox_id: Option<Option<uuid::Uuid>>,
+    /// Explicit reusable compute target, independent of the Run context.
     #[serde(rename = "worker_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub worker_id: Option<Option<uuid::Uuid>>,
 }

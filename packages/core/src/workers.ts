@@ -56,28 +56,56 @@ async function resolve(tx: Tx, organizationId: string, input: WorkerCreateInput)
     400, 'worker_cost_limit', 'The spending ceiling cannot fund one matching allocation and the requested baseline.');
   return { settings, offerings };
 }
-export async function workerObservation(tx: Tx, row: WorkerRow) {
-  const hosts = (await tx.query<{ status: 'ready' | 'provisioning' | 'draining'; offering: HostOffering; reserved_micro_usd: string; charged_micro_usd: string }>(
-    "SELECT status,offering,reserved_micro_usd,charged_micro_usd FROM hosts WHERE worker_id=$1 AND status<>'stopped'", [row.id],
+type WorkerObservation = {
+  counts: { ready: number; provisioning: number; draining: number; occupied_slots: number };
+  active_runs: number; queued_runs: number; charged_micro_usd: string;
+  reserved_micro_usd: string; committed_hourly_compute_cost_micro_usd: string;
+};
+/** One bounded batch per resource kind; listing 100 Workers must not issue 200 extra queries. */
+async function workerObservations(tx: Tx, rows: readonly WorkerRow[]): Promise<Map<string, WorkerObservation>> {
+  const observations = new Map<string, WorkerObservation>(rows.map(row => [row.id, {
+    counts: { ready: 0, provisioning: 0, draining: 0, occupied_slots: 0 },
+    active_runs: 0, queued_runs: 0, charged_micro_usd: '0', reserved_micro_usd: '0',
+    committed_hourly_compute_cost_micro_usd: '0',
+  }]));
+  if (!rows.length) return observations;
+  const ids = rows.map(row => row.id);
+  const hosts = (await tx.query<{ worker_id: string; status: 'ready' | 'provisioning' | 'draining'; offering: HostOffering; reserved_micro_usd: string }>(
+    "SELECT worker_id,status,offering,reserved_micro_usd FROM hosts WHERE worker_id=ANY($1::uuid[]) AND status<>'stopped'", [ids],
   )).rows;
-  const counts = { ready: 0, provisioning: 0, draining: 0, occupied_slots: 0 };
-  for (const host of hosts) counts[host.status]++;
-  const usage = (await tx.query<{ occupied: number; active: number; queued: number; total_charged: string }>(
-    `SELECT (SELECT count(*)::integer FROM host_runs WHERE worker_id=$1 AND released_at IS NULL) AS occupied,
-      (SELECT count(*)::integer FROM host_runs a JOIN runs r ON r.id=a.run_id WHERE a.worker_id=$1 AND a.released_at IS NULL
-        AND r.status IN ('provisioning','running','waiting_for_input','persisting')) AS active,
-      (SELECT count(*)::integer FROM runs WHERE config->>'worker_id'=$1::text AND status='queued') AS queued,
-      (SELECT coalesce(sum(charged_micro_usd),0)::text FROM hosts WHERE worker_id=$1) AS total_charged`, [row.id],
-  )).rows[0];
-  counts.occupied_slots = usage.occupied;
-  return {
-    counts, active_runs: usage.active, queued_runs: usage.queued, charged_micro_usd: usage.total_charged,
-    reserved_micro_usd: hosts.reduce((sum, host) => sum + BigInt(host.reserved_micro_usd), 0n).toString(),
-    committed_hourly_compute_cost_micro_usd: hosts.reduce((sum, host) => sum + workerHourlyExposure(host.offering.price, host.offering.resources), 0n).toString(),
-  };
+  for (const host of hosts) {
+    const observation = observations.get(host.worker_id)!;
+    observation.counts[host.status]++;
+    observation.reserved_micro_usd = (BigInt(observation.reserved_micro_usd) + BigInt(host.reserved_micro_usd)).toString();
+    observation.committed_hourly_compute_cost_micro_usd = (BigInt(observation.committed_hourly_compute_cost_micro_usd) + workerHourlyExposure(host.offering.price, host.offering.resources)).toString();
+  }
+  const occupied = (await tx.query<{ worker_id: string; occupied: number; active: number }>(
+    `SELECT a.worker_id,count(*)::integer AS occupied,
+      count(*) FILTER(WHERE r.status IN ('provisioning','running','waiting_for_input','persisting'))::integer AS active
+      FROM host_runs a JOIN runs r ON r.id=a.run_id
+      WHERE a.worker_id=ANY($1::uuid[]) AND a.released_at IS NULL GROUP BY a.worker_id`, [ids],
+  )).rows;
+  for (const row of occupied) {
+    const observation = observations.get(row.worker_id)!;
+    observation.counts.occupied_slots = row.occupied;
+    observation.active_runs = row.active;
+  }
+  const queued = (await tx.query<{ worker_id: string; queued: number }>(
+    `SELECT config->>'worker_id' AS worker_id,count(*)::integer AS queued FROM runs
+      WHERE config->>'worker_id'=ANY($1::text[]) AND status='queued' GROUP BY config->>'worker_id'`, [ids],
+  )).rows;
+  for (const row of queued) observations.get(row.worker_id)!.queued_runs = row.queued;
+  const costs = (await tx.query<{ worker_id: string; total: string }>(
+    'SELECT worker_id,coalesce(sum(charged_micro_usd),0)::text AS total FROM hosts WHERE worker_id=ANY($1::uuid[]) GROUP BY worker_id', [ids],
+  )).rows;
+  for (const row of costs) observations.get(row.worker_id)!.charged_micro_usd = row.total;
+  return observations;
 }
-export async function presentWorker(tx: Tx, row: WorkerRow) {
-  const observation = await workerObservation(tx, row);
+export async function workerObservation(tx: Tx, row: WorkerRow): Promise<WorkerObservation> {
+  return (await workerObservations(tx, [row])).get(row.id)!;
+}
+export async function presentWorker(tx: Tx, row: WorkerRow, observed?: WorkerObservation) {
+  const observation = observed ?? await workerObservation(tx, row);
   const { expires_at_ms: _expiration, ...settings } = row.settings;
   return {
     id: row.id, organization_id: row.organization_id, name: row.name, revision: row.revision,
@@ -160,8 +188,9 @@ export async function listWorkers(tx: Tx, p: Principal, query: URLSearchParams) 
   const limit = Math.min(100, Math.max(1, Number(query.get('limit') || 25)));
   const rows = (await tx.query<WorkerRow>('SELECT * FROM workers WHERE ($1::uuid IS NULL OR id<$1) AND (cardinality($3::uuid[])=0 OR id=ANY($3::uuid[])) ORDER BY id DESC LIMIT $2',
     [query.get('cursor'), limit + 1,p.workerIds || []])).rows;
-  const data = [];
-  for (const row of rows.slice(0, limit)) data.push(await presentWorker(tx,row));
+  const selected = rows.slice(0, limit);
+  const observations = await workerObservations(tx, selected);
+  const data = await Promise.all(selected.map(row => presentWorker(tx, row, observations.get(row.id))));
   return { data, next_cursor: rows.length > limit ? rows[limit - 1].id : null };
 }
 export async function workerForRun(tx: Tx, p: Principal, workerId: string) {

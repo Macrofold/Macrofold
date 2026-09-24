@@ -43,7 +43,7 @@ class RunAccepted(BaseModel):
     scheduling_class: Optional[StrictStr] = None
     kind: Optional[StrictStr] = None
     sandbox_id: Optional[UUID] = Field(default=None, description="Reusable compute ID, when selected or created by keep_warm_seconds.")
-    worker_id: Optional[UUID] = None
+    worker_id: Optional[UUID] = Field(default=None, description="Explicit reusable compute target, independent of the Run context.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "queue_expires_at", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "kind", "sandbox_id", "worker_id"]
 

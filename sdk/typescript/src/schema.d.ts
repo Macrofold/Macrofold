@@ -3007,7 +3007,10 @@ export interface components {
              * @description Reusable compute ID, when selected or created by keep_warm_seconds.
              */
             sandbox_id?: string | null;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Explicit reusable compute target, independent of the Run context.
+             */
             worker_id?: string | null;
         };
         Run: {
@@ -3075,7 +3078,10 @@ export interface components {
              * @description Reusable compute ID, when selected or created by keep_warm_seconds.
              */
             sandbox_id?: string | null;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Explicit reusable compute target, independent of the Run context.
+             */
             worker_id?: string | null;
         };
         RunInput: {

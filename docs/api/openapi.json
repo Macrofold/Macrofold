@@ -15494,7 +15494,8 @@
               "string",
               "null"
             ],
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Explicit reusable compute target, independent of the Run context."
           }
         },
         "required": [
@@ -15738,7 +15739,8 @@
               "string",
               "null"
             ],
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Explicit reusable compute target, independent of the Run context."
           }
         },
         "required": [

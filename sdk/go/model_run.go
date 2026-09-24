@@ -59,6 +59,7 @@ type Run struct {
 	TaskId NullableString `json:"task_id,omitempty"`
 	// Reusable compute ID, when selected or created by keep_warm_seconds.
 	SandboxId NullableString `json:"sandbox_id,omitempty"`
+	// Explicit reusable compute target, independent of the Run context.
 	WorkerId NullableString `json:"worker_id,omitempty"`
 }
 

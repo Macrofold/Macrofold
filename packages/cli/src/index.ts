@@ -22,6 +22,9 @@ const globalFlags = {
   help: Flags.boolean({ char: 'h' }),
 };
 const executionFlags = {
+  worker: Flags.string({ description: 'Reusable Worker ID or exact name; omitted for automatic compute' }),
+  'memory-mib': Flags.integer({ min: 1, max: 1048576, description: 'Per-Run memory allocation on the selected Worker' }),
+  'cpu-millis': Flags.integer({ min: 1, max: 1024000, description: 'Per-Run CPU allocation in thousandths of a core' }),
   harness: Flags.string({ options: harnessNames }),
   model: Flags.string(),
   'billing-mode': Flags.string({ options: ['managed', 'byok', 'subscription'] }),
@@ -60,7 +63,27 @@ const transferFlags = {
   'include-ignored': Flags.boolean(),
   delete: Flags.boolean(),
 };
+const workerFlags = {
+  compute: Flags.string({ options: ['server', 'sandbox'], description: 'Compute economics; not a provider override' }),
+  dedicated: Flags.boolean({ exclusive: ['pooled'], description: 'Exclusive compute allocation' }),
+  pooled: Flags.boolean({ exclusive: ['dedicated'], description: 'Resource-priced managed capacity where available' }),
+  'shared-runs': Flags.boolean({ exclusive: ['isolated-runs'], description: 'Allow this Worker’s trusted Runs to share an execution environment' }),
+  'isolated-runs': Flags.boolean({ exclusive: ['shared-runs'] }),
+  'min-instances': Flags.integer({ min: 0 }),
+  'max-instances': Flags.integer({ min: 1 }),
+  'max-concurrency': Flags.integer({ min: 1 }),
+  'idle-timeout': Flags.integer({ min: 0, exclusive: ['keep-alive'] }),
+  'keep-alive': Flags.boolean({ exclusive: ['idle-timeout'] }),
+  'max-hourly-cost': Flags.string({ description: 'Aggregate compute ceiling in USD/hour, e.g. 1.00' }),
+  'expires-at': Flags.string({ exclusive: ['no-expiry'] }),
+  'no-expiry': Flags.boolean({ exclusive: ['expires-at'] }),
+  region: Flags.string(), runtime: Flags.string(), size: Flags.string(),
+};
 const specialFlags: Record<string, Interfaces.FlagInput> = {
+  'worker create': workerFlags,
+  'worker update': { ...workerFlags, name: Flags.string(), revision: Flags.integer({ min: 1 }) },
+  'worker pause': { force: Flags.boolean(), yes: Flags.boolean() },
+  'worker destroy': { force: Flags.boolean(), yes: Flags.boolean() },
   login: {
     host: Flags.string(),
     scope: Flags.string({ multiple: true }),
@@ -94,6 +117,7 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
+  'worker list',
   'workspace list',
   'worktree list',
   'run list',
@@ -106,6 +130,7 @@ const listCommands = new Set([
 ]);
 const unlimitedArgs = new Set(['run', 'workspace create', 'files push', 'files pull', 'files diff']);
 const noArgs = new Set([
+  'worker list', 'worker offerings',
   'login',
   'logout',
   'whoami',
@@ -127,6 +152,9 @@ const noArgs = new Set([
   'version',
 ]);
 const examples: Record<string, string> = {
+  'worker create': 'macrofold worker create openlegend --compute server --dedicated --shared-runs --min-instances 1 --max-hourly-cost 1.00',
+  'worker update': 'macrofold worker update WORKER_ID --max-hourly-cost 2.00 --revision 3',
+  'worker pause': 'macrofold worker pause WORKER_ID',
   run: 'macrofold run "Update the report" --harness codex --model MODEL\nmacrofold run --prompt-file - --session SESSION_ID --json',
   login:
     'macrofold login --host https://agents.example.com\nmacrofold login --host http://localhost:3210 --api-key-stdin',

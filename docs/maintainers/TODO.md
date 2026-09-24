@@ -1,5 +1,16 @@
 # Engineering TODO
 
+## Worker cutover regression obligations
+
+No unit or integration suites are written or run for this continuation, as requested. Runtime execution and bounded performance exercises are recorded separately.
+
+- [ ] Cover Worker response projection (`worker_id` on accepted and retrieved Runs), independent Worker/Workspace restrictions, non-escalating child keys, and the actual `/v1/api-keys` route.
+- [ ] Cover CLI create/update/pause/resume/destroy, human USD conversion, mutually exclusive flags, name-versus-ID permissions, resource overrides, and both chat modes. Session creation must not acquire or inherit compute implicitly.
+- [ ] Cover batched Worker observations with multiple tenants, pagination, active-versus-cleaning assignments, empty lists, historical charges, and no observation-query growth proportional to page length.
+- [ ] Cover cold native continuation and hidden Git/session files while excluding credentials; repeat from a fresh Host rather than relying on warm-process reuse.
+- [ ] Cover spending ceilings during provisioning and draining, same-Worker concurrent writers, late generation callbacks, graceful pause, and pool/instance resource exhaustion.
+
+
 ## Native startup failure diagnostics
 
 - Local manual acceptance: the activated diagnostic image and restarted Docker poller export `runtime.failed` through the event API and as an ERROR observation in Langfuse. Fresh OpenCode/OpenRouter requests succeed. A fresh warm session successfully recalls a synthetic marker on its second turn with `reused: true`. These checks used `meta/muse-spark-1.3-contributor`, BYOK, no tools and a $0.24 cap per run. No automated tests were written or run.

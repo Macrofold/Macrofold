@@ -600,7 +600,7 @@ public class RunAccepted {
   }
 
   /**
-   * Get workerId
+   * Explicit reusable compute target, independent of the Run context.
    * @return workerId
    */
   @javax.annotation.Nullable

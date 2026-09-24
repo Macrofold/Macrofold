@@ -21,8 +21,8 @@ type Handle = {
 };
 type Assignment = {
   id: string; run: string; fingerprint: string; request: Prepare; handle: Handle;
-  configuration: NativeConfiguration; directory: string; filesReused: boolean;
-  preparation?: Promise<{ reused: boolean }>; supervision?: Promise<void>; finished: boolean;
+  configuration: NativeConfiguration; directory: string; filesReused: boolean; sessionReused: boolean;
+  preparation?: Promise<{ reused: boolean; restoreNamespaces: ('workspace'|'home')[] }>; supervision?: Promise<void>; finished: boolean;
   children: Set<ChildProcess>; released: boolean; recovery: boolean;
 };
 type CachedFiles = { checkpoint: string | null; permission: string; bytes: number; lastUsed: number };
@@ -133,7 +133,7 @@ export class HostController {
       }
     }
     // A Worktree has one local writer/view. An old frozen conversation cannot keep a stale filesystem incarnation alive.
-    for (const old of this.handles.values()) if (old.worktree===request.worktree_id && old!==handle) await this.evict(old);
+    for (const old of this.handles.values()) if (old!==handle && (old.worktree===request.worktree_id || config.isolate_runs)) await this.evict(old);
     await this.trimCaches(handle?0:request.resources.memory_mib,handle);
     const cached=this.files.get(request.worktree_id);
     const filesReused=!!cached && cached.checkpoint===request.checkpoint_id && cached.permission===request.permission_view;
@@ -159,7 +159,7 @@ export class HostController {
       warm:request.session_id && config.warm_memory_mib>0 ? {sessionId:request.session_id,checkpointId:request.checkpoint_id,
         toolFingerprint:request.compatibility_key}:undefined};
     const value: Assignment={id:request.assignment_id,run:request.run_id,fingerprint,request,handle,configuration,
-      directory:paths.control,filesReused,finished:false,children:new Set(),released:false,recovery:false};
+      directory:paths.control,filesReused,sessionReused:!!handle.runtime.child,finished:false,children:new Set(),released:false,recovery:false};
     handle.active=value.id;
     this.writers.set(request.worktree_id,value.id);
     this.assignments.set(value.id,value);
@@ -171,7 +171,8 @@ export class HostController {
       await mkdir(`${paths.control}/restore/chunks`,{recursive:true,mode:0o700});
       await atomicJSON(`${paths.control}/config.json`,configuration);
       await writeFile(`${paths.control}/prepared`,'',{mode:0o600});
-      return {reused:filesReused};
+      const restoreNamespaces: ('workspace'|'home')[] = value.sessionReused ? [] : filesReused ? ['home'] : ['workspace','home'];
+      return {reused:value.sessionReused,restoreNamespaces};
     })();
     // The caller observes failure; attach a handler immediately so a rejected preparation cannot become an unhandled rejection.
     void value.preparation.catch(()=>{});
@@ -233,20 +234,26 @@ export class HostController {
           return {};
         case 'restore': {
           await value.preparation;
-          if(value.filesReused)return 'started';
+          if(value.sessionReused)return 'started';
           if(value.supervision)throw new Error('assignment_already_launched');
           const task=this.command(value,'restore');
           void task.result.catch(()=>{});
           return 'started';
         }
         case 'restored':
-          if(value.filesReused)return 'success';
+          if(value.sessionReused)return 'success';
           try{return JSON.parse(await readFile(`${value.directory}/restore-result.json`,'utf8')).ok?'success':'failure';}
           catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return 'pending';throw error;}
         case 'launch':
           await value.preparation;
           if(value.supervision)return 'started';
           if(value.children.size)throw new Error('assignment_preparing');
+          try { await readFile(`${value.directory}/cancel`); throw new Error('run_stopped'); }
+          catch(error) { if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error; }
+          if(!value.sessionReused) {
+            const restored=JSON.parse(await readFile(`${value.directory}/restore-result.json`,'utf8'));
+            if(!restored.ok)throw new Error('restore_failed');
+          }
           value.supervision=supervise(`${value.directory}/config.json`,'/opt/platform/native-worker.mjs',value.handle.runtime)
             .catch(async()=>{
               await discardHarness(value.handle.runtime);
@@ -319,6 +326,6 @@ async function main() {
     }
   });
   server.requestTimeout=60000;server.headersTimeout=10000;
-  server.listen(Number(process.env.PORT||8080),'0.0.0.0');
+  server.listen(Number(process.env.PORT||10000),'0.0.0.0');
 }
 if(process.argv[1]?.endsWith('/host-control.mjs'))await main();

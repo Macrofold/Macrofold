@@ -46,6 +46,8 @@ export type ExecutionState = {
   phase: Phase;
   machine?: MachineBinding;
   inputOffset?: number;
+  workerPrepared?: boolean;
+  restoreNamespaces?: ('workspace' | 'home')[];
   indexOffset?: number;
   eventOffset?: number;
   result?: NonNullable<RuntimeProbe['result']>;
@@ -124,7 +126,7 @@ export async function advanceCloudRun(
   }
   let state = (run.execution_binding || {
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
-    phase: 'input',
+    phase: run.config.worker_id ? 'provision' : 'input',
   }) as ExecutionState;
   if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
@@ -174,7 +176,8 @@ export async function advanceCloudRun(
               : ws.git_files || []) as FileRecord[]
           ).map((f) => ({ ...f, namespace: 'workspace' as const })),
           ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ].filter((file) => !isNativeAuthPath(file.namespace, file.path));
+        ].filter((file) => !isNativeAuthPath(file.namespace, file.path) &&
+          (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)));
       });
       const offset = state.inputOffset || 0;
       const entries: SnapshotEntry[] = [];
@@ -196,7 +199,7 @@ export async function advanceCloudRun(
       if (entries.length)
         await transaction(org, (tx) => object(tx, org, runId, 'input_page', String(offset), { entries }));
       state.inputOffset = offset + entries.length;
-      if (state.inputOffset >= source.length) state.phase = 'provision';
+      if (state.inputOffset >= source.length) state.phase = state.workerPrepared ? 'hydrate' : 'provision';
     } else if (state.phase === 'provision') {
       assert(
         !run.cancel_requested && run.deadline!.getTime() > Date.now(),
@@ -259,7 +262,9 @@ export async function advanceCloudRun(
         permissions: run.config.permission_layers,
       };
       const prepared = await provider.prepare(state.machine, configuration);
-      state.phase = prepared?.reused ? 'launch' : 'hydrate';
+      state.restoreNamespaces = prepared?.restoreNamespaces;
+      state.workerPrepared = Boolean(run.config.worker_id);
+      state.phase = prepared?.reused ? 'launch' : state.workerPrepared ? 'input' : 'hydrate';
     } else if (state.phase === 'hydrate') {
       const objects = await pending<RestoreObject>(
         org,

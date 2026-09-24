@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { KeyedCommands } from './host-paths';
 
-export type HostResourceMeters = { kind: 'resource'; cpu_core_ms: string; memory_mib_ms: string };
+export type HostResourceMeters = { kind: 'resource'; cpu_ms: string; memory_mib_ms: string };
 export async function cgroupCPUTime(): Promise<bigint> {
   const contents = await readFile('/sys/fs/cgroup/cpu.stat', 'utf8');
   const value = /^usage_usec\s+(\d+)$/m.exec(contents)?.[1];
@@ -29,7 +29,7 @@ export class HostMeter {
     }
     this.cpuAt = usage;
     this.sampledAt = now;
-    return { kind: 'resource', cpu_core_ms: (this.cpuMicroseconds / 1000n).toString(),
+    return { kind: 'resource', cpu_ms: (this.cpuMicroseconds / 1000n).toString(),
       memory_mib_ms: this.memoryMiBMilliseconds.toString() };
   }
   sample(): Promise<HostResourceMeters> { return this.lock.run('meter', () => this.sampleUnlocked()); }

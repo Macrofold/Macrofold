@@ -110,7 +110,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
         // Last acknowledged usage is not evidence that the missing tail consumed nothing.
         if (workerHourlyExposure(host.offering.price,host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
           'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
-        meters = host.billing_cursor || { kind: 'resource', cpu_core_ms: '0', memory_mib_ms: '0' };
+        meters = host.billing_cursor || { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' };
       }
       if (meters) { const sample = meters; await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, sample)); }
     }

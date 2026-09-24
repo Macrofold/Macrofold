@@ -30,7 +30,7 @@ export type HostControlRequest = z.infer<typeof hostControlRequest>;
 export const hostHealth = z.object({
   boot_id: z.uuid(), started_at: z.string(), configured: z.boolean(), rotation_requested: z.boolean().optional(), active_assignments: z.number().int().nonnegative(),
   capabilities: z.object({ scoped_processes: z.boolean(), sibling_isolation: z.boolean(), resource_meter: z.boolean() }),
-  meters: z.object({ kind: z.literal('resource'), cpu_core_ms: z.string().regex(/^\d+$/), memory_mib_ms: z.string().regex(/^\d+$/) }).nullable(),
+  meters: z.object({ kind: z.literal('resource'), cpu_ms: z.string().regex(/^\d+$/), memory_mib_ms: z.string().regex(/^\d+$/) }).nullable(),
 });
 export type HostHealth = z.infer<typeof hostHealth>;
 export type HostBinding = {

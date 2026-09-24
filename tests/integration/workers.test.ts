@@ -106,9 +106,8 @@ describe('Worker authority and desired lifecycle',()=>{
     await ensureBaseline(created.id);
     await tx(t=>changeWorker(t,principal,created.id,'destroy'));
     await reconcileWorker(principal.organizationId,created.id,()=>provider);
-    const after=await tx(t=>presentWorker(t,getWorkerPlaceholder()));
-    function getWorkerPlaceholder():never{throw new Error('unreachable');}
-    expect(after).toBeDefined();
+    const after=await tx(async t=>presentWorker(t,await getWorker(t,created.id)));
+    expect(after.status).toBe('destroyed');
     expect((await tx(t=>resources.get(t,'worktrees',run.worktree_id))).revision).toBe(before.revision);
   });
 });

@@ -16,7 +16,7 @@ export class SimulatedHosts implements HostProvider {
     if (request.action === 'health') return {
       boot_id: binding.sessionId, started_at: binding.createdAt, configured: true, active_assignments: 0,
       capabilities: { scoped_processes: true, sibling_isolation: true, resource_meter: true },
-      meters: { kind: 'resource', cpu_core_ms: '0', memory_mib_ms: '0' },
+      meters: { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' },
     };
     assert(request.action === 'configure', 409, 'simulation_native_control', 'The simulator does not execute a native Host control command.');
     return {};

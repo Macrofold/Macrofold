@@ -45,7 +45,7 @@ export async function signalAgents(pids: Iterable<number>, signal: 'SIGSTOP' | '
   if (targets.some(pid => !Number.isSafeInteger(pid) || pid <= 1)) throw new Error('invalid_agent_process');
   for (let offset = 0; offset < targets.length; offset += 128) await new Promise<void>((resolve,reject) => {
     const child = spawn('/bin/kill', ['-s', signal, '--', ...targets.slice(offset,offset+128).map(String)], {
-      uid, gid: uid, stdio: 'ignore', env: { PATH: '/usr/bin:/bin' },
+      uid, gid: uid, stdio: 'ignore', env: { PATH: '/usr/bin:/bin', NODE_ENV: 'production' },
     });
     child.once('error', reject);
     // A disappeared/reused PID may return EPERM/ESRCH. The following inventory, not an exit-code guess, proves quiescence.

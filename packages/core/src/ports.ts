@@ -26,7 +26,7 @@ export type RuntimeProbe = {
 /** Durable orchestration owns retries, leases and checkpoints. A compute adapter owns only VM I/O. */
 export interface MachineProvider {
   provision(name: string, timeoutSeconds: number): Promise<MachineBinding>;
-  prepare(binding: MachineBinding, configuration: NativeConfiguration): Promise<void | { reused: boolean }>;
+  prepare(binding: MachineBinding, configuration: NativeConfiguration): Promise<void | { reused: boolean; restoreNamespaces?: ('workspace' | 'home')[] }>;
   stage(binding: MachineBinding, files: { path: string; content: Buffer }[]): Promise<void>;
   restore(binding: MachineBinding): Promise<string>;
   restored(binding: MachineBinding): Promise<'pending' | 'success' | 'failure'>;

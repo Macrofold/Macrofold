@@ -3,6 +3,8 @@ import { build } from 'esbuild';
 await build({
   entryPoints: [
     'packages/runtime/src/entry.ts',
+    'packages/runtime/src/host-control.ts',
+    'packages/runtime/src/host-control-cli.ts',
     'packages/runtime/src/sandbox-control.ts',
     'packages/runtime/src/sandbox-control-cli.ts',
     'packages/runtime/src/native-worker.ts',

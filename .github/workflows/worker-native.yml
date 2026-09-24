@@ -1,0 +1,33 @@
+name: Worker native acceptance
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths:
+      - .github/workflows/worker-native.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          show-progress: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile --reporter=append-only
+      - run: docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
+      - name: Concurrent native processes and cold recovery
+        run: pnpm test:workers:native
+      - name: Preserve final container diagnostics
+        if: failure()
+        run: docker ps -a --filter name=worker-acceptance

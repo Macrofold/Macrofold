@@ -4,6 +4,7 @@ on:
     branches: [feat/worker-economics-autoscaling]
     paths:
       - .github/workflows/worker-native.yml
+      - scripts/workers/native.marker
   workflow_dispatch:
 permissions:
   contents: read

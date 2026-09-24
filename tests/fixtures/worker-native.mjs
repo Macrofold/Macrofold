@@ -4,7 +4,7 @@ import { nativeBroker } from './native-broker.mjs';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 const harness=process.argv[2] || 'codex';

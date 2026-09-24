@@ -1,6 +1,7 @@
 // Shared deterministic native protocol fixture. Never forwards a request to a provider.
 export function nativeModelFixture({
   journey = false,
+  workspace = '/workspace',
   questionMode = false,
   toolMode = false,
   failureMode = false,
@@ -24,7 +25,7 @@ export function nativeModelFixture({
     { action: 'read', path: filename },
     { action: 'delete', path: 'readonly.txt' },
   ];
-  const bypassCommand = 'cat /workspace/private.env; printf escaped > /workspace/bypass.txt';
+  const bypassCommand = `cat ${workspace}/private.env; printf escaped > ${workspace}/bypass.txt`;
   const brokerTurn = (turn) =>
     (permissionMode && turn === permissionActions.length + 2) || (toolMode && [2, 4].includes(turn));
   const permissionTurn = (turn) =>
@@ -67,7 +68,7 @@ export function nativeModelFixture({
       model: body.model,
       hasPriorPrompt: JSON.stringify(body).includes('Create native.txt with a short note'),
       hasAnswer: JSON.stringify(body).includes('Continue with the saved note'),
-      hasWorkspaceContext: system.includes('/workspace'),
+      hasWorkspaceContext: system.includes(workspace),
       hasPersistenceGuidance: system.includes('/tmp') && /checkpoint/i.test(system),
       hasRunInstructions: system.includes('Keep the fixture note unchanged.'),
       permissionDenied: JSON.stringify(body).includes('File permission denied'),
@@ -124,7 +125,7 @@ export function nativeModelFixture({
                 : permissionAction(calls)
             : journey && calls !== 1
               ? { command: action(calls), description: 'Read persisted fixture' }
-              : { file_path: '/workspace/' + filename, content };
+              : { file_path: workspace + '/' + filename, content };
         send('content_block_start', {
           index: 0,
           content_block: { type: 'tool_use', id: `toolu_fixture_${calls}`, name, input: {} },

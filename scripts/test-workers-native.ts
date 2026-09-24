@@ -1,4 +1,5 @@
 import './build-runtime';
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -11,18 +12,24 @@ if(harnesses.some(value=>!harnessNames.includes(value as typeof harnessNames[num
 const fixtures=path.resolve(import.meta.dirname,'../tests/fixtures');
 const image=process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0';
 async function run(harness:string,mode:'concurrent'|'export'|'import',directory:string) {
-  const args=['run','--rm','--network','none','--init','--cpus=2','--memory=4g','--memory-swap=4g','--pids-limit=4096',
+  const name=`worker-acceptance-${randomUUID()}`;
+  const args=['run','--rm','--name',name,'--network','none','--init','--cpus=2','--memory=4g','--memory-swap=4g','--pids-limit=4096',
     '--security-opt=no-new-privileges','--cap-drop=ALL',
     ...['CHOWN','DAC_OVERRIDE','FOWNER','SETGID','SETUID','KILL'].map(value=>`--cap-add=${value}`),
     '--mount',`type=bind,src=${fixtures},dst=/tests,readonly`,
     '--mount',`type=bind,src=${directory},dst=/worker-exchange${mode==='import'?',readonly':''}`,
     image,'node','/tests/worker-native.mjs',harness,mode];
-  await new Promise<void>((resolve,reject)=>{
+  try { await new Promise<void>((resolve,reject)=>{
     const child=spawn('docker',args,{stdio:'inherit'});
     const timer=setTimeout(()=>child.kill('SIGTERM'),300000);
     child.once('error',error=>{clearTimeout(timer);reject(error);});
     child.once('exit',code=>{clearTimeout(timer);code===0?resolve():reject(new Error(`${harness} ${mode} acceptance failed (${code}).`));});
-  });
+  }); } finally {
+    await new Promise<void>(resolve=>{
+      const cleanup=spawn('docker',['rm','-f',name],{stdio:'ignore'});
+      cleanup.once('error',()=>resolve());cleanup.once('close',()=>resolve());
+    });
+  }
 }
 for(const harness of harnesses) {
   const directory=await mkdtemp(path.join(tmpdir(),'macrofold-worker-native-'));

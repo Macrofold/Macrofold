@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { fixtureAccount } from '../fixtures/account';
 import { authPool, lock, pool, transaction, type Tx } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
@@ -40,6 +40,9 @@ beforeAll(async()=>{
     await credit(t,account.p.organizationId,1000000000n,`worker-test:${id()}`);
     await t.query("UPDATE organizations SET plan='scale' WHERE id=$1",[account.p.organizationId]);
   });
+});
+afterEach(async()=>{
+  await tx(t=>t.query("UPDATE runs SET cancel_requested=true WHERE config ? 'worker_id' AND status='queued'").then(()=>{}));
 });
 afterAll(async()=>{await pool.end();await authPool.end();});
 async function worker(input:Parameters<typeof createWorker>[2]={}){

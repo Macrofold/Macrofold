@@ -41,7 +41,8 @@ try {
   );
   await client.query(`REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON trigger_policy,connector_enablement FROM ${role}`);
   await client.query('REVOKE CREATE ON SCHEMA reporting FROM platform_reporting');
-  await client.query('COMMIT');
+  await client.query('REVOKE INSERT, UPDATE, DELETE ON worker_offerings FROM platform_app');
+    await client.query('COMMIT');
   console.log('Database migrations applied.');
 } catch (error) {
   await client.query('ROLLBACK');

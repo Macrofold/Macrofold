@@ -4,6 +4,7 @@ CREATE TABLE workers (
  organization_id uuid NOT NULL REFERENCES organizations(id),
  name text CHECK(name IS NULL OR length(name) BETWEEN 1 AND 100),
  settings jsonb NOT NULL CHECK(jsonb_typeof(settings)='object'),
+ offerings jsonb NOT NULL CHECK(jsonb_typeof(offerings)='array'),
  desired_state text NOT NULL DEFAULT 'enabled' CHECK(desired_state IN ('enabled','paused','destroyed')),
  revision integer NOT NULL DEFAULT 1 CHECK(revision>0),
  expires_at timestamptz,

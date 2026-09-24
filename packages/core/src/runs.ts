@@ -48,6 +48,8 @@ export type RunConfig = Schema['SessionCreate'] & {
   oauth_token_id?: string;
   oauth_audience?: string;
   execution_provider?: string;
+  worker_id?: string;
+  worker_resources?: { memory_mib: number; cpu_millis: number };
   sandbox_id?: string;
   sandbox_provider?: SandboxProviderKind;
   keep_warm_seconds?: number | null;

@@ -2,6 +2,8 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover dashboard Worker lifecycle confirmation, revision-conflict preservation, exact USD conversion, paginated selectors, disabled unsupported offerings, and placement on both new and continuing Runs. A Run's budget label must not imply it pays for the entire explicit Worker.
+
 - [ ] Cover automatic native execution on the Host protocol, encrypted control-secret recovery, pre-launch allocation cleanup without a received binding, and Session continuation when switching between automatic and explicit Worker placement.
 - [ ] Cover a Worktree advancing via Git/editor publication before Host cleanup: local cache metadata must name the Run's own verified checkpoint, never the newer Worktree checkpoint.
 

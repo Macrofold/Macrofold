@@ -54,7 +54,7 @@ function WorkerForm({ initial, offerings, defaults, onSaved }: {
     } catch (failure) { setError((failure as Error).message); }
     finally { setBusy(false); }
   }}>
-    <Field label="Name"><input value={name} maxLength={160} required onChange={event => setName(event.target.value)} /></Field>
+    <Field label="Name"><input value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></Field>
     <Field label="Compute offering" hint={disruptiveAllowed ? 'Macrofold sizes and places work within this economic and isolation contract.' : 'Pause and finish draining before changing compute or isolation.'}>
       <Select value={selection} disabled={!disruptiveAllowed} onValueChange={setSelection}
         options={choices.map(item => ({ value: profile(item), label: profileLabel(item) }))} />
@@ -104,8 +104,8 @@ export function WorkersView() {
     <p className="form-hint">Most Runs need no Worker selection. Create a reusable target when you need explicit cost, sharing, or availability controls.</p>
     {workers.isPending ? <Loading /> : workers.error ? <ErrorState error={workers.error} retry={() => void workers.refetch()} /> : !workers.data?.data.length ?
       <Empty icon={<Cpu />} title="No Workers yet" description="Automatic execution is still available. A Worker adds a reusable, cost-controlled compute target." /> : <>
-        {workers.data.data.map(worker => <section className="panel" key={worker.id} aria-label={worker.name}>
-          <div className="section-heading"><h2>{worker.name}</h2><Badge status={worker.status} /></div>
+        {workers.data.data.map(worker => <section className="panel" key={worker.id} aria-label={worker.name || worker.id}>
+          <div className="section-heading"><h2>{worker.name || worker.id}</h2><Badge status={worker.status} /></div>
           <p>{profileLabel(worker)}</p>
           <p><code>{worker.id}</code> <CopyButton text={worker.id} variant="ghost" /></p>
           <div className="form-grid">

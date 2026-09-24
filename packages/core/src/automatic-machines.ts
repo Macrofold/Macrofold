@@ -60,7 +60,7 @@ export class AutomaticMachines extends HostRuntime {
     const demand = await transaction(this.run.organization_id, tx => runDemand(tx, this.run));
     const response = await this.call(binding, { action: 'prepare', run_id: this.run.id, assignment_id: this.run.id,
       configuration, worktree_id: this.run.worktree_id, session_id: this.run.session_id,
-      checkpoint_id: demand.worktree?.revision || null, permission_view: demand.permission_view,
+      checkpoint_id: demand.worktree?.revision === 'empty' ? null : demand.worktree?.revision || null, permission_view: demand.permission_view,
       session_revision: demand.session?.revision || '0', compatibility_key: demand.compatibility_key,
       resources: { memory_mib: allocation.memory_mib - hostMemoryHeadroom(allocation.memory_mib), cpu_millis: allocation.cpu_millis } });
     return z.object({ reused: z.boolean(), restoreNamespaces: z.array(z.enum(['workspace', 'home'])).optional() }).parse(response);

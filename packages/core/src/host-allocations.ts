@@ -146,7 +146,8 @@ export async function releaseHostRun(tx: Tx, assignment: HostRunRow, clean: bool
      DO UPDATE SET checkpoint_id=excluded.checkpoint_id,state=excluded.state,last_used_at=now()`,
     [assignment.organization_id, assignment.host_id, assignment.host_generation, assignment.worktree_id,
       assignment.configuration.permission_view, checkpointId, clean ? 'clean' : 'recovery_required']);
-  await tx.query(`UPDATE hosts SET idle_since=CASE WHEN NOT EXISTS(SELECT 1 FROM host_runs WHERE host_id=$1 AND released_at IS NULL)
+  await tx.query(`UPDATE hosts SET status=CASE WHEN (offering->>'isolate_runs')::boolean THEN 'draining' ELSE status END,
+    idle_since=CASE WHEN NOT EXISTS(SELECT 1 FROM host_runs WHERE host_id=$1 AND released_at IS NULL)
       THEN coalesce(idle_since,now()) ELSE NULL END,next_check_at=now() WHERE id=$1`, [assignment.host_id]);
   await tx.query('UPDATE workers SET next_check_at=now() WHERE id=$1', [assignment.worker_id]);
 }

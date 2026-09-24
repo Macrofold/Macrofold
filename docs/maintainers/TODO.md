@@ -2,6 +2,9 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover a live provider allocation whose container/session/controller generation changes: stop confirmed compute before releasing the hold, recover old Run claims without replay, and retain unknown metering tails for reconciliation.
+- [ ] Cover isolated allocation retirement after one Run, restore acknowledgement loss, staging after restore starts, and warm ownership handoff without recursive filesystem traversal.
+
 No unit or integration suites are written or run for this continuation, as requested. Runtime execution and bounded performance exercises are recorded separately.
 
 - [ ] Cover Worker response projection (`worker_id` on accepted and retrieved Runs), independent Worker/Workspace restrictions, non-escalating child keys, and the actual `/v1/api-keys` route.

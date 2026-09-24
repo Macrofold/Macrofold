@@ -23,7 +23,7 @@ type Assignment = {
   id: string; run: string; fingerprint: string; request: Prepare; handle: Handle;
   configuration: NativeConfiguration; directory: string; filesReused: boolean; sessionReused: boolean;
   preparation?: Promise<{ reused: boolean; restoreNamespaces: ('workspace'|'home')[] }>; supervision?: Promise<void>; finished: boolean;
-  children: Set<ChildProcess>; released: boolean; recovery: boolean;
+  children: Set<ChildProcess>; restoration?: Promise<string>; released: boolean; recovery: boolean;
 };
 type CachedFiles = { checkpoint: string | null; permission: string; bytes: number; lastUsed: number };
 
@@ -48,7 +48,7 @@ export class HostController {
     catch { this.metered = false; }
     return { boot_id: this.boot, started_at: this.startedAt, configured: !!this.configuration,
       active_assignments: [...this.assignments.values()].filter(value => !value.released).length,
-      rotation_requested: this.tombstones.size >= 90000,
+      rotation_requested: this.tombstones.size >= 90000 || !!(this.configuration?.isolate_runs && this.tombstones.size),
       capabilities: { scoped_processes: process.platform === 'linux' && process.getuid?.() === 0,
         sibling_isolation: !this.configuration || this.configuration.isolate_runs, resource_meter: this.metered }, meters };
   }
@@ -70,8 +70,9 @@ export class HostController {
     const idle = [...this.handles.values()].filter(handle => !handle.active && handle !== keep).sort((a,b) => a.lastUsed-b.lastUsed);
     let memory = [...this.handles.values()].filter(handle => !handle.active).reduce((sum,handle) => sum+handle.memoryMiB,0);
     const active = [...this.assignments.values()].filter(item=>!item.released).reduce((sum,item)=>sum+item.request.resources.memory_mib,0);
+    const headroom = Math.min(512, Math.ceil(config.resources.memory_mib / 8));
     for (const handle of idle) {
-      if (memory > config.warm_memory_mib || active + memory + requiredMiB > config.resources.memory_mib - 512 ||
+      if (memory > config.warm_memory_mib || active + memory + requiredMiB > config.resources.memory_mib - headroom ||
         handle.lastUsed + config.warm_idle_seconds * 1000 < Date.now() || this.handles.size > 128) {
         await this.evict(handle); memory -= handle.memoryMiB;
       }
@@ -91,8 +92,11 @@ export class HostController {
   private async own(paths: string[], uid: number) {
     for (const value of paths) {
       await mkdir(value,{recursive:true,mode:0o700});
-      if (!(await lstat(value)).isDirectory()) throw new Error('unsafe_runtime_root');
-      await new Promise<void>((resolve,reject)=>{
+      const current = await lstat(value);
+      if (!current.isDirectory()) throw new Error('unsafe_runtime_root');
+      // A warm handle already owns its tree. Avoid recursively visiting a large
+      // unchanged Worktree on every turn; cold identity handoff still repairs it.
+      if (current.uid !== uid || current.gid !== uid) await new Promise<void>((resolve,reject)=>{
         const child=spawn('/bin/chown',['-hR',`${uid}:${uid}`,value],{stdio:'ignore'});
         child.once('error',reject); child.once('close',code=>code===0?resolve():reject(new Error('runtime_ownership_failed')));
       });
@@ -101,7 +105,8 @@ export class HostController {
   }
   private async allocate(request: Prepare): Promise<Assignment> {
     const config=this.configuration;
-    if (!config || this.tombstones.size >= 100000) throw new Error('host_rotation_required');
+    if (!config || this.tombstones.size >= 100000 || (config.isolate_runs && this.tombstones.size > 0))
+      throw new Error('host_rotation_required');
     if (this.tombstones.has(request.assignment_id)) throw new Error('assignment_released');
     const parsed=runtimeConfiguration.parse(request.configuration);
     if (parsed.runId!==request.run_id || Date.parse(parsed.deadline)<=Date.now()) throw new Error('invalid_configuration');
@@ -229,15 +234,19 @@ export class HostController {
       switch(request.action) {
         case 'stage':
           await value.preparation;
-          if (value.supervision) throw new Error('assignment_already_launched');
+          if (value.supervision || value.restoration) throw new Error('assignment_already_restoring');
           for(const file of request.files) await writeFile(`${value.directory}/restore/${file.path}`,Buffer.from(file.content,'base64'),{mode:0o600});
           return {};
         case 'restore': {
           await value.preparation;
           if(value.sessionReused)return 'started';
           if(value.supervision)throw new Error('assignment_already_launched');
-          const task=this.command(value,'restore');
-          void task.result.catch(()=>{});
+          // An acknowledgement may be lost. Retrying restore must never create a
+          // second writer or truncate files while the original restore is active.
+          if (!value.restoration) {
+            value.restoration = this.command(value,'restore').result;
+            void value.restoration.catch(()=>{});
+          }
           return 'started';
         }
         case 'restored':

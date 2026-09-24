@@ -32,7 +32,13 @@ export class DockerHosts implements HostProvider {
     const health = hostHealth.parse(await this.machines.hostControl(binding, spec.secret, { action: 'health' }));
     return { ...binding, controlBootId: health.boot_id };
   }
-  exists(binding: HostBinding, _secret: string) { return this.machines.environmentRunning(binding); }
+  async exists(binding: HostBinding, secret: string) {
+    if (!await this.machines.generationRunning(binding)) return false;
+    const health = hostHealth.parse(await this.machines.hostControl({ ...binding, controlBootId: undefined }, secret, { action: 'health' }));
+    assert(!binding.controlBootId || health.boot_id === binding.controlBootId, 409, 'host_generation_changed',
+      'The Host controller restarted; running compute must be stopped before releasing its financial reservation.');
+    return true;
+  }
   control(binding: HostBinding, secret: string, request: HostControlRequest) { return this.machines.hostControl(binding, secret, request); }
   async destroy(name: string, binding: HostBinding | null) {
     await this.machines.destroyEnvironment(name);
@@ -52,7 +58,13 @@ export class VercelHosts implements HostProvider {
     const health = hostHealth.parse(await this.machines.hostControl(binding, spec.secret, { action: 'health' }));
     return { ...binding, controlBootId: health.boot_id };
   }
-  exists(binding: HostBinding, _secret: string) { return this.machines.environmentRunning(binding); }
+  async exists(binding: HostBinding, secret: string) {
+    if (!await this.machines.generationRunning(binding)) return false;
+    const health = hostHealth.parse(await this.machines.hostControl({ ...binding, controlBootId: undefined }, secret, { action: 'health' }));
+    assert(!binding.controlBootId || health.boot_id === binding.controlBootId, 409, 'host_generation_changed',
+      'The Host controller restarted; running compute must be stopped before releasing its financial reservation.');
+    return true;
+  }
   control(binding: HostBinding, secret: string, request: HostControlRequest) { return this.machines.hostControl(binding, secret, request); }
   async destroy(name: string, binding: HostBinding | null) {
     await this.machines.destroyEnvironment(name);
@@ -112,7 +124,9 @@ export class RenderHosts implements HostProvider {
     const service = await this.find(binding.name);
     if (!service || service.suspended === 'suspended') return false;
     const health = hostHealth.parse(await this.control({ ...binding, controlBootId: undefined }, secret, { action: 'health' }));
-    return health.boot_id === binding.controlBootId;
+    assert(health.boot_id === binding.controlBootId, 409, 'host_generation_changed',
+      'The Host controller restarted; the provider allocation is not confirmed stopped.');
+    return true;
   }
   async control(binding: HostBinding, secret: string, request: HostControlRequest) {
     const url = new URL(binding.url || 'https://invalid.invalid');

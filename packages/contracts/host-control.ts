@@ -44,6 +44,7 @@ export type HostProvisionSpec = {
 /** All lifecycle operations are reconciled by durable identity. Unknown provider results throw, never mean absence. */
 export interface HostProvider {
   provision(spec: HostProvisionSpec): Promise<HostBinding | null>;
+  /** False means confirmed stopped/absent. A changed live generation throws instead of releasing liability. */
   exists(binding: HostBinding, secret: string): Promise<boolean>;
   control(binding: HostBinding, secret: string, request: HostControlRequest): Promise<unknown>;
   /** Returns true only after the provider confirms that this allocation is stopped/absent. */

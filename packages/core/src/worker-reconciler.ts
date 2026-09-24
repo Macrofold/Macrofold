@@ -77,7 +77,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
         503, 'host_meter_unavailable', 'This resource-priced offering requires an available cumulative usage meter.');
       await provider.control(fencedBinding, secret, { action: 'configure', host_id: host.id, generation: host.generation,
         concurrency: host.capacity, isolate_runs: host.offering.isolate_runs, resources: host.offering.resources,
-        warm_memory_mib: Math.floor(host.memory_mib / 4), warm_idle_seconds: 300 });
+        warm_memory_mib: host.offering.isolate_runs ? 0 : Math.floor(host.memory_mib / 4), warm_idle_seconds: 300 });
       await mutateHost(org, hostId, leaseId, async (tx, current) => {
         const latestWorker = await getWorker(tx, current.worker_id);
         await tx.query(`UPDATE hosts SET binding=$2,status=$3,idle_since=now(),failure_code=NULL,last_observed_at=now(),updated_at=now()
@@ -86,6 +86,17 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       host = await transaction(org, tx => getHost(tx,hostId));
     }
 
+    // A restarted controller cannot prove ownership of its old process trees. Stop the
+    // allocation, not just its DB lease; Run recovery then releases the fenced claims.
+    if (host.failure_code === 'host_generation_changed' && !host.stopped_at) {
+      if (!await provider.destroy(host.provider_name, host.binding)) return;
+      await mutateHost(org, hostId, leaseId, async tx => {
+        await tx.query("UPDATE hosts SET status='draining',stopped_at=now(),updated_at=now() WHERE id=$1", [hostId]);
+        await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
+          (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
+      });
+      host = await transaction(org, tx => getHost(tx, hostId));
+    }
     let meters: ComputeMeters | undefined;
     if (host.binding && !host.stopped_at) {
       const running = await provider.exists(host.binding, secret);
@@ -148,7 +159,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
     await mutateHost(org, hostId, leaseId, async tx => {
       await tx.query('UPDATE hosts SET failure_code=$2,updated_at=now() WHERE id=$1', [hostId,code]);
       await tx.query('UPDATE workers SET failure_code=$2,updated_at=now() WHERE id=$1', [host.worker_id,code]);
-      if (['host_isolation_unavailable','host_meter_unavailable','host_stopped','host_funding_exhausted'].includes(code))
+      if (['host_isolation_unavailable','host_meter_unavailable','host_stopped','host_funding_exhausted','host_generation_changed'].includes(code))
         await tx.query("UPDATE hosts SET status='draining' WHERE id=$1", [hostId]);
     });
   } finally {

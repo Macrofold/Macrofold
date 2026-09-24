@@ -160,6 +160,17 @@ export class VercelMachines implements MachineProvider, SandboxTools {
     assert(result.exitCode === 0, 502, 'sandbox_control_failed', 'The runtime did not confirm this operation.');
     return z.object({ value: z.unknown() }).parse(JSON.parse(await result.stdout())).value;
   }
+  async generationRunning(binding: MachineBinding) {
+    paid();
+    let sandbox: Sandbox;
+    try { sandbox = await Sandbox.get({ name: binding.name, resume: false }); }
+    catch (error) { if (providerCode(error) === 404) return false; throw error; }
+    const session = sandbox.currentSession();
+    if (session.status !== 'running') return false;
+    assert(session.sessionId === binding.sessionId, 409, 'host_generation_changed',
+      'The allocation is still running but its original execution generation was replaced.');
+    return true;
+  }
   async environmentRunning(binding: MachineBinding) {
     paid();
     let sandbox: Sandbox;

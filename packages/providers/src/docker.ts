@@ -236,6 +236,13 @@ export class DockerMachines implements MachineProvider, SandboxTools {
     const result = await this.exec(binding, ['node', `/opt/platform/${entry}.mjs`, path]);
     return z.object({ value: z.unknown() }).parse(JSON.parse(result.toString())).value;
   }
+  async generationRunning(binding: MachineBinding) {
+    const current = await this.lookup(binding.name);
+    if (!current || !current.State.Running) return false;
+    assert(current.Id === binding.sessionId && current.State.StartedAt === binding.createdAt,
+      409, 'host_generation_changed', 'The allocation is still running but its original execution generation was replaced.');
+    return true;
+  }
   async environmentRunning(binding: MachineBinding) {
     const current = await this.lookup(binding.name);
     return !!current && current.State.Running && current.Id === binding.sessionId && current.State.StartedAt === binding.createdAt;

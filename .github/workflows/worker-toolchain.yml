@@ -24,9 +24,24 @@ jobs:
           mkdir -p /tmp/worker-toolchain
           find . -name node_modules -type d -prune -print0 | tar --null -T - -czf /tmp/worker-toolchain/dependencies.tar.gz
           cp "$(command -v node)" /tmp/worker-toolchain/node
+          split -b 300m /tmp/worker-toolchain/dependencies.tar.gz /tmp/worker-toolchain/packages-
           git rev-parse HEAD > /tmp/worker-toolchain/commit.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-toolchain
-          path: /tmp/worker-toolchain/
+          name: worker-packages-a
+          path: /tmp/worker-toolchain/packages-aa
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-packages-b
+          path: /tmp/worker-toolchain/packages-ab
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-node
+          path: |
+            /tmp/worker-toolchain/node
+            /tmp/worker-toolchain/commit.txt
           retention-days: 1

@@ -14,7 +14,8 @@ import { emit } from './events';
 import { getRun, terminal, requireNativeRun, type RunRow } from './runs';
 import { settle } from './ledger';
 import * as resources from './resources';
-import { checkpointState, checkpoint, normalizePath, type FileRecord } from './files';
+import { checkpointState, prepareCheckpoint, saveCheckpoint, normalizePath, type FileRecord } from './files';
+import { storagePreparation } from './storage-preparation';
 import { readContent, saveContent } from '../../providers/src/storage';
 import { Simulator, type ExecutionProvider } from '../../providers/src/execution';
 import { customerScopes, type Principal } from './auth';
@@ -276,7 +277,20 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         mode: file.mode,
       });
     }
-    await transaction(org, async (tx) => {
+    const publication = await storagePreparation(org, async tx => {
+      const current = await getRun(tx, runId);
+      assert(current.lease_generation === run.lease_generation && !terminal(current.status),
+        409, 'lease_lost', 'Execution no longer owns its publication.');
+      return resources.get(tx, 'worktrees', run.worktree_id);
+    });
+    try {
+      const baseline = publication.value;
+      const output = guardedToolsRequired(run.config.permission_layers || [])
+        ? permissionOutput(run.config.permission_layers || [], baseline.files || [], saved) : saved;
+      // Hash verification and Git export may be expensive. Keep them outside the
+      // five-connection domain pool and recheck ownership at the small commit boundary.
+      const preparedCheckpoint = await prepareCheckpoint(org, baseline, output, 'Run completed', undefined, baseline.files || []);
+      await transaction(org, async (tx) => {
       await lock(tx, `worktree:${run.worktree_id}`);
       if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
@@ -286,20 +300,12 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         'lease_lost',
         'Execution lease was lost before publication.',
       );
-      const previousFiles = (await resources.get(tx, 'worktrees', run.worktree_id)).files || [];
-      const cp = await checkpoint(
-        tx,
-        p,
-        run.worktree_id,
-        'Run completed',
-        guardedToolsRequired(run.config.permission_layers || [])
-          ? permissionOutput(
-              run.config.permission_layers || [],
-              (await resources.get(tx, 'worktrees', run.worktree_id)).files || [],
-              saved,
-            )
-          : saved,
-      );
+      await publication.assertActive(tx);
+      const currentWorktree = await resources.get(tx, 'worktrees', run.worktree_id);
+      assert(currentWorktree.revision === baseline.revision, 409, 'publication_revision_changed',
+        'Worktree state changed while preparing execution output.');
+      const previousFiles = baseline.files || [];
+      const cp = await saveCheckpoint(tx, p, preparedCheckpoint);
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       await resources.update(tx, 'worktrees', run.worktree_id, {
         ...checkpointState(cp),
@@ -344,6 +350,9 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         [id(), org, run.config.user_id],
       );
     });
+    } finally {
+      await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+    }
     stopped = true;
     return true;
   } catch (error) {

@@ -324,3 +324,5 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 - [ ] Replace the removed legacy reusable-control chunk test with Host assignment/boot-scoped transport coverage for a full 4 MiB decoded checkpoint chunk, bounded encoded envelope, and stopped/replaced-generation rejection. The old method no longer exists; new tests remain deferred by request.
 
 - [ ] Exercise nonblocking background organization/worktree/global admission under a pool smaller than the queued burst. Verify that contended work defers without losing durable jobs, deadline cleanup still progresses, active persistence/heartbeats retain database access, and direct inference preserves its transaction boundary.
+
+- [ ] Cover Run publication read/prepare/commit: large object and Git work holds no database connection, GC guard expiry prevents commit, a changed Worktree revision or execution-step/lease fence cannot publish, and duplicate terminal publication is idempotent. Exercise simulator and native cold paths and retain Worktree/Session atomicity.

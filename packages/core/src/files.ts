@@ -178,7 +178,9 @@ export async function prepareCheckpoint(
   };
 }
 
-async function saveCheckpoint(tx: Tx, p: Principal, data: Awaited<ReturnType<typeof prepareCheckpoint>>) {
+/** Publish already-prepared immutable bytes. The caller owns the storage guard,
+ * authorization, writer/lease fence and source-revision check. No object I/O here. */
+export async function saveCheckpoint(tx: Tx, p: Principal, data: Awaited<ReturnType<typeof prepareCheckpoint>>) {
   const snapshot = await resources.create(tx, 'checkpoints', p.organizationId, { ...data, created_by: p.id });
   await tx.query('UPDATE organizations SET storage_due_at=least(storage_due_at,now()) WHERE id=$1', [
     p.organizationId,

@@ -2,7 +2,7 @@ import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { transaction, afterCommit, type Tx } from '../../db';
+import { transaction, afterCommit, lock, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
 import { observeWorkerStep } from './worker-diagnostics';
@@ -17,7 +17,8 @@ import { settle } from './ledger';
 import { computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
 import * as resources from './resources';
-import { checkpoint, checkpointState, type FileRecord } from './files';
+import { prepareCheckpoint, saveCheckpoint, checkpointState, type FileRecord } from './files';
+import { storagePreparation } from './storage-preparation';
 import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
@@ -462,47 +463,49 @@ export async function advanceCloudRun(
 }
 
 async function publishCloudRun(org: string, runId: string, state: ExecutionState) {
-  await transaction(org, (tx) =>
-    tx.query(
-      "UPDATE runs SET status='persisting' WHERE id=$1 AND status NOT IN ('succeeded','failed','cancelled','timed_out')",
-      [runId],
-    ),
-  );
-  // Requests without a final usage frame are conservatively settled from their held reservation.
-  await settleOrphanModelRequests(org, runId);
-  await transaction(org, async (tx) => {
+  const verified = !state.error && state.result?.persistence === 'captured';
+  const publication = await storagePreparation(org, async tx => {
+    const run = await getNativeRun(tx, runId);
+    if (terminal(run.status)) return null;
+    assert((run.execution_binding as ExecutionState | null)?.lock === state.lock,
+      409, 'lease_lost', 'Execution publication is owned by another controller step.');
+    const worktree = await resources.get(tx, 'worktrees', run.worktree_id);
+    const objects = verified ? (await tx.query<{ data: SnapshotEntry & { record: FileRecord } }>(
+      "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' AND processed", [runId])).rows : [];
+    await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
+    return { run, worktree, objects };
+  });
+  try {
+    if (!publication.value) return;
+    const { run: expectedRun, worktree: baseline, objects } = publication.value;
+    let files = objects.filter(o => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git')).map(o => o.data.record);
+    const gitFiles = objects.filter(o => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git')).map(o => o.data.record);
+    const home = objects.filter(o => o.data.namespace === 'home').map(o => o.data.record);
+    const guarded = guardedToolsRequired(expectedRun.config.permission_layers || []);
+    if (guarded) files = permissionOutput(expectedRun.config.permission_layers || [], baseline.files || [], files);
+    // Verified object bytes and Git preparation are independent from the short SQL
+    // publication. The storage guard protects them while no connection is held.
+    const preparedCheckpoint = verified ? await prepareCheckpoint(org, baseline, files, 'Agent run',
+      guarded ? baseline.git_files : gitFiles) : null;
+    await settleOrphanModelRequests(org, runId);
+    await transaction(org, async (tx) => {
+      await lock(tx, `worktree:${expectedRun.worktree_id}`);
+      if (expectedRun.config.worker_id) await lock(tx, `worker:${expectedRun.config.worker_id}`);
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
     const run = await getNativeRun(tx, runId);
     if (terminal(run.status)) return;
+    assert(run.lease_generation === expectedRun.lease_generation &&
+      (run.execution_binding as ExecutionState | null)?.lock === state.lock,
+      409, 'lease_lost', 'Execution ownership changed before publication.');
+    await publication.assertActive(tx);
     const ws = await resources.get(tx, 'worktrees', run.worktree_id);
-    const verified = !state.error && state.result?.persistence === 'captured';
+    assert(ws.revision === baseline.revision, 409, 'publication_revision_changed',
+      'Worktree state changed while preparing execution output.');
     let checkpointId: string | undefined;
     let artifactIds: string[] = [];
     if (verified) {
-      const objects = (
-        await tx.query('SELECT data FROM execution_objects WHERE run_id=$1 AND kind=$2 AND processed', [
-          runId,
-          'output_entry',
-        ])
-      ).rows as { data: SnapshotEntry & { record: FileRecord } }[];
-      let files = objects
-        .filter((o) => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git'))
-        .map((o) => o.data.record);
-      const gitFiles = objects
-        .filter((o) => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git'))
-        .map((o) => o.data.record);
-      const home = objects.filter((o) => o.data.namespace === 'home').map((o) => o.data.record);
-      if (guardedToolsRequired(run.config.permission_layers || []))
-        files = permissionOutput(run.config.permission_layers || [], ws.files || [], files);
-      // Every object was read back and hash-verified before reaching this transaction.
-      const cp = await checkpoint(
-        tx,
-        principalFor(run),
-        run.worktree_id,
-        'Agent run',
-        files,
-        guardedToolsRequired(run.config.permission_layers || []) ? ws.git_files : gitFiles,
-      );
+      assert(preparedCheckpoint, 500, 'checkpoint_missing', 'Verified execution requires prepared durable state.');
+      const cp = await saveCheckpoint(tx, principalFor(run), preparedCheckpoint);
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       checkpointId = cp.id;
       artifactIds = await publishArtifacts(tx, run, ws.files || [], files);
@@ -588,5 +591,8 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
       "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
       [id(), org, run.config.user_id],
     );
-  });
+    });
+  } finally {
+    await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+  }
 }

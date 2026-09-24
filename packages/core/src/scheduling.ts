@@ -35,17 +35,22 @@ export const schedulingSQL = `WITH plan_limits AS (
  AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
 )`;
 export const schedulingParameters = () => {
-  const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG',0);
-  const ceiling = capacitySetting('LIGHTWEIGHT_CONCURRENT_RUN_LIMIT',globalRunLimit());
-  return [JSON.stringify(plans().map(plan=>({...plan,
-    lightweight_reserved:Math.min(plan.concurrency_limit,reserved),
-    lightweight_limit:Math.min(globalRunLimit(),ceiling),
-  })))];
+  const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', 0);
+  const ceiling = capacitySetting('LIGHTWEIGHT_CONCURRENT_RUN_LIMIT', globalRunLimit());
+  return [
+    JSON.stringify(
+      plans().map((plan) => ({
+        ...plan,
+        lightweight_reserved: Math.min(plan.concurrency_limit, reserved),
+        lightweight_limit: Math.min(globalRunLimit(), ceiling),
+      })),
+    ),
+  ];
 };
-function capacitySetting(name: string,fallback: number) {
+function capacitySetting(name: string, fallback: number) {
   const value = process.env[name];
-  if(value === undefined) return fallback;
-  if(!/^\d{1,5}$/.test(value)) throw new Error(`Invalid ${name} capacity configuration.`);
+  if (value === undefined) return fallback;
+  if (!/^\d{1,5}$/.test(value)) throw new Error(`Invalid ${name} capacity configuration.`);
   return Number(value);
 }
 
@@ -73,19 +78,25 @@ export async function recordTurn(tx: Tx, org: string, turn: { service: number; s
 
 /** Candidate hints improve dispatch efficiency; only schedulerTurn grants capacity.
  * Cleanup is considered before eligibility so expiry/cancellation cannot get stuck
- * behind a busy worktree or a full global ceiling. */
+ * behind a busy worktree or a full global ceiling. Runnable hints are capped by
+ * observed free slots; a full deployment should not repeatedly claim doomed work. */
 export async function pendingRunCandidates(limit = 20) {
   return (
     await pool.query(
-      `${schedulingSQL}
+      `${schedulingSQL}, runnable AS (
+      SELECT organization_id,id,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END AS class,
+        service-age_bonus+(account_order-1)::double precision/scheduler_weight AS score,created_at
+      FROM eligible WHERE account_order<=greatest(0,account_limit-account_active)
+      ORDER BY class,score,created_at,id
+      LIMIT greatest(0,least($2::integer,$3::integer-(SELECT coalesce(sum(n),0)::integer FROM active)))
+    )
     SELECT organization_id,id AS resource_id FROM (
       SELECT q.organization_id,q.id,0 AS class,0::double precision AS score,q.created_at FROM queue q
       WHERE q.cancel_requested OR q.queue_expires_at<=now() OR q.unavailable OR q.worker_waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime')
       UNION ALL
-      SELECT organization_id,id,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END,
-        service-age_bonus+(account_order-1)::double precision/scheduler_weight,created_at FROM eligible
+      SELECT organization_id,id,class,score,created_at FROM runnable
     ) candidates ORDER BY class,score,created_at,id LIMIT $2`,
-      [...schedulingParameters(), limit],
+      [...schedulingParameters(), limit, globalRunLimit()],
     )
   ).rows as { organization_id: string; resource_id: string }[];
 }

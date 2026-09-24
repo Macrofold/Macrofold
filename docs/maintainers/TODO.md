@@ -333,3 +333,8 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 - [ ] Exercise nonblocking background organization/worktree/global admission under a pool smaller than the queued burst. Verify that contended work defers without losing durable jobs, deadline cleanup still progresses, active persistence/heartbeats retain database access, and direct inference preserves its transaction boundary.
 
 - [ ] Cover Run publication read/prepare/commit: large object and Git work holds no database connection, GC guard expiry prevents commit, a changed Worktree revision or execution-step/lease fence cannot publish, and duplicate terminal publication is idempotent. Exercise simulator and native cold paths and retain Worktree/Session atomicity.
+
+- [ ] Add candidate-hint regressions for full global/account capacity: return only actionable free-slot starts while cancellation/expiry/deletion cleanup remains discoverable. Prove successive capacity release refills fairly across organizations and that stale hints still cannot exceed SQL-authoritative caps.
+
+- [ ] Exercise financial reconciliation after the Worker-only cutover: expected reservations are active Run budgets plus live Host holds, without querying retired compute tables; confirmed stop and repeated settlement preserve exact wallet/journal totals.
+- [ ] Cover storage maintenance while a publicly terminal Run still owns an unreleased HostRun: no Workspace/Session purge, history pruning, or object collection until cleanup releases its writer. Resume normal collection after release, including failed/uncertain cleanup.

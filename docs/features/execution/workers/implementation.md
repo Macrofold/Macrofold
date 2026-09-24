@@ -14,7 +14,7 @@ The branch's public contract is Workers; the controller and provider allocation 
 | Transactional resource claims, materialization hints, financial cursors | `host-allocations.ts`, forward database migrations |
 | Lifecycle reconciliation and provider receipts | `worker-reconciler.ts` |
 | Provider lifecycle and exact machine I/O | `packages/providers/src/hosts.ts`, Docker/Vercel adapters |
-| Automatic execution and explicit Worker execution adapters | `automatic-machines.ts`, `host-machines.ts` |
+| Automatic execution and explicit Worker execution adapters | `automatic-machines.ts`, `worker-machines.ts` |
 | Multi-Run controller and cumulative meters | `packages/runtime/src/host-control.ts`, `host-meter.ts` |
 | Native process ownership, capture and adapter continuation | runtime supervisor, process helpers, snapshot code and harness adapters |
 | Existing execution and persistence orchestration | `engine.ts`, `cloud-engine.ts` |
@@ -28,7 +28,9 @@ Reconciliation reads bounded queued requirements, projects consumption of existi
 
 Publication verifies durable Worktree and native continuation state. Only then may a local materialization become a clean cache hit. Cancellation, failed publication, and uncertain cleanup do not authorize replay of a potentially executed prompt. Dedicated compute is accounted once per Host; metered offers use monotonic cumulative receipts and a sealed final usage boundary.
 
-Background Run admission uses nonblocking SQL advisory claims when another claimant owns the organization, Worktree, or global boundary. It defers durable work rather than occupying every connection while active Runs need to persist and heartbeat. Direct inference retains its in-transaction admission semantics.
+Background Run admission uses nonblocking SQL advisory claims when another claimant owns the organization, Worktree, or global boundary. It defers durable work rather than occupying every connection while active Runs need to persist and heartbeat. Direct inference retains its in-transaction admission semantics. Runnable dispatch hints are limited by observed free global/account slots; cancellation and expiry cleanup remain discoverable at full capacity.
+
+Financial reconciliation derives outstanding liability from active Runs and Host reservations. Storage maintenance treats unreleased HostRuns as active writers even after the public Run is terminal, so it cannot delete Session or Worktree state still needed by cleanup.
 
 ## Verification and remaining scope
 

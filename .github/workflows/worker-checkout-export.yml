@@ -21,8 +21,9 @@ jobs:
           git diff --binary 2bfedf54644212277e0940a6d4b3694cab60c556 HEAD > /tmp/worker-checkout/source.patch
           git rev-parse HEAD > /tmp/worker-checkout/commit.txt
           git ls-files -s > /tmp/worker-checkout/manifest.txt
+          sha256sum /tmp/worker-checkout/source.patch > /tmp/worker-checkout/source.sha256
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: worker-checkout
           path: /tmp/worker-checkout/
-          retention-days: 3
+          retention-days: 7

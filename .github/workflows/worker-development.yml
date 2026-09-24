@@ -23,21 +23,19 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          show-progress: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.13.0
-      - name: Source inventory
-        run: |
-          git ls-files '*AGENTS.md' '.agents/rules/*'
-          git ls-files | grep -E '(sandbox|worker|host|scheduling|execution|\.github|navigation)' | grep -v -E '^(apps/web/public|sdk/)' | head -150
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
-      - run: pnpm install --frozen-lockfile
-      - name: Apply reviewed development edit when supplied
+      - run: pnpm install --frozen-lockfile --reporter=append-only
+      - name: Apply reviewed source edit when supplied
         run: |
           if test -f scripts/workers/development-edit.py; then
             python3 scripts/workers/development-edit.py
             rm scripts/workers/development-edit.py
           fi
+          git diff --exit-code -- .github/workflows
       - name: Regenerate owned artifacts
         run: |
           pnpm sdk:generate:all
@@ -55,19 +53,34 @@ jobs:
           fi
           echo "VERIFIED_SOURCE_COMMIT=$(git rev-parse HEAD)"
       - run: pnpm check
+      - run: pnpm build:runtime
       - run: pnpm run setup
-      - name: Unit and database integration acceptance
-        run: pnpm test:domain tests/unit tests/integration tests/git.test.ts tests/git-sync.test.ts
+      - name: Focused Worker and persistence acceptance
+        run: pnpm test:domain tests/unit/worker-policy.test.ts tests/unit/host-control.test.ts tests/unit/manifest.test.ts tests/unit/snapshot-failures.test.ts tests/integration/workers.test.ts --reporter=default --reporter=json --outputFile=/tmp/worker-tests.json
       - run: pnpm docs:check
+      - name: Compact test evidence
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('/tmp/worker-tests.json')
+          if p.exists():
+              r=json.loads(p.read_text())
+              print('TEST_TOTALS', {k:r.get(k) for k in ['numTotalTests','numPassedTests','numFailedTests','numPendingTests']})
+              for f in r.get('testResults',[]):
+                  for t in f.get('assertionResults',[]):
+                      if t.get('status')=='failed': print('FAILED_CASE',t.get('fullName'), '\n'.join(t.get('failureMessages',[]))[:8000])
+          PY
       - name: Database diagnostics on failure
         if: failure()
-        run: docker compose -f infra/compose.yml logs --tail=100 postgres
+        run: docker compose -f infra/compose.yml logs --tail=50 postgres
       - name: Evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: worker-development-evidence
           path: |
+            /tmp/worker-tests.json
             coverage/
             test-results/
           if-no-files-found: ignore

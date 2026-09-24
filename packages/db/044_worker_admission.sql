@@ -19,6 +19,7 @@ CREATE VIEW reporting.worker_placement WITH(security_barrier=true) AS
      coalesce((SELECT sum(o.slots) FROM occupied o WHERE o.worker_id=r.worker_id),0) AS occupied_slots,
      EXISTS(SELECT 1 FROM hosts h LEFT JOIN occupied o ON o.host_id=h.id
        WHERE h.worker_id=r.worker_id AND h.organization_id=r.organization_id AND h.status='ready' AND h.binding IS NOT NULL
+       AND h.funded_until>=now()+(r.window_seconds+60)*interval '1 second'
        AND h.stopped_at IS NULL AND (h.expires_at IS NULL OR h.expires_at>=now()+r.window_seconds*interval '1 second')
        AND h.capacity>coalesce(o.slots,0)
        AND h.memory_mib-least(512,ceil(h.memory_mib::numeric/8))>=coalesce(o.memory_mib,0)+r.memory_mib
@@ -34,7 +35,8 @@ CREATE VIEW reporting.worker_placement WITH(security_barrier=true) AS
    (desired_state='enabled' AND (expires_at IS NULL OR expires_at>=now()+window_seconds*interval '1 second')
      AND occupied_slots<(settings->>'max_concurrency')::integer AND fits) IS TRUE AS eligible,
    CASE WHEN desired_state IS NULL OR desired_state='destroyed' THEN 'worker_destroyed'
-     WHEN expires_at IS NOT NULL AND expires_at<now()+window_seconds*interval '1 second' THEN 'worker_expired'
+     WHEN expires_at IS NOT NULL AND expires_at<=now() THEN 'worker_expired'
+     WHEN expires_at IS NOT NULL AND expires_at<now()+window_seconds*interval '1 second' THEN 'worker_lifetime'
      WHEN desired_state='paused' THEN 'worker_paused'
      WHEN occupied_slots>=(settings->>'max_concurrency')::integer THEN 'worker_concurrency'
      WHEN fits THEN NULL

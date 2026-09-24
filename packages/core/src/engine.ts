@@ -1,3 +1,6 @@
+import { getWorker } from './workers';
+import { workerAdmissionBlock } from './worker-policy';
+import { claimHostRun, activeHostRun, releaseHostRun } from './host-allocations';
 import { acquireSandbox, changeSandbox, getSandbox, sandboxCost } from './sandboxes';
 import { computeMaximum } from './catalog';
 import { createHash } from 'node:crypto';
@@ -83,6 +86,10 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       }
     }
     const sandboxUnavailable = sandbox && (!['ready','creating','pausing'].includes(sandbox.status) || BigInt(sandbox.reserved_micro_usd) - sandboxCost(sandbox) < computeMaximum(run.config.limits?.timeout_seconds || 900, sandbox.rate_micro_usd_per_minute));
+    const worker = run.kind === 'native_agent' && run.config.worker_id ? await getWorker(tx,run.config.worker_id) : null;
+    const workerState = worker ? workerAdmissionBlock(worker,Date.now()) : null;
+    const workerUnavailable = workerState === 'worker_destroyed' || workerState === 'worker_expired' ||
+      (worker && worker.settings.expires_at_ms !== null && worker.settings.expires_at_ms < Date.now()+((run.config.limits?.timeout_seconds || 900)+180)*1000);
     const subscriptionUnavailable = run.kind === 'native_agent' && run.config.billing_mode === 'subscription';
     if (
       run.cancel_requested ||
@@ -90,7 +97,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       denied ||
       unavailable ||
       timeoutUnavailable ||
-      subscriptionUnavailable || sandboxUnavailable
+      subscriptionUnavailable || sandboxUnavailable || workerUnavailable
     ) {
       // Deletion and billing controls cancel queued rows without invoking the public
       // cancel handler. Honor that flag before provisioning or any native side effect.
@@ -103,6 +110,8 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
             ? 'worktree_unavailable'
             : timeoutUnavailable
               ? 'execution_limit_changed'
+              : workerUnavailable
+                ? workerState || 'worker_lifetime'
               : sandboxUnavailable
                 ? 'sandbox_unavailable'
                 : subscriptionUnavailable
@@ -129,6 +138,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     // A simulator left running must never impersonate a newly admitted native execution.
     // Cancellation and queue expiry above still settle work even under the wrong local profile.
     if (run.kind === 'native_agent' && run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
+    if (workerState === 'worker_paused') return null;
     if (sandbox?.status === 'pausing') return null;
     if (sandbox && ((sandbox.active_run_id && sandbox.active_run_id !== runId) || (sandbox.lease_until && sandbox.lease_until.getTime() > Date.now()))) return null;
     // Capacity and weighted turns commit together under the existing global lock.
@@ -137,6 +147,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     const turn = await schedulerTurn(tx);
     if (!turn || turn.id !== runId) return null;
     if (sandbox && run.kind === 'native_agent') await acquireSandbox(tx, sandbox.id, runId, run.worktree_id);
+    if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx,run))) return null;
     await recordTurn(tx, org, turn);
     await tx.query(
       "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
@@ -280,6 +291,7 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     }
     await transaction(org, async (tx) => {
       await lock(tx, `worktree:${run.worktree_id}`);
+      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
       assert(
         current.lease_generation === run.lease_generation && !terminal(current.status),
@@ -349,6 +361,8 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     return true;
   } catch (error) {
     await transaction(org, async (tx) => {
+      await lock(tx,`worktree:${run.worktree_id}`);
+      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
       if (terminal(current.status) || current.lease_generation !== run.lease_generation) return;
       const reason = abort.signal.reason instanceof Error ? abort.signal.reason.message : '';
@@ -388,6 +402,15 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     return true;
   } finally {
     clearInterval(heartbeat);
+    if (run.config.worker_id) await transaction(org,async tx=>{
+      await lock(tx,`worktree:${run.worktree_id}`);
+      const assignment=await activeHostRun(tx,run.id);
+      if(assignment) {
+        const current=await getRun(tx,run.id);
+        const worktree=await resources.get(tx,'worktrees',run.worktree_id);
+        await releaseHostRun(tx,assignment,current.result.persistence_status==='verified',worktree.latest_checkpoint_id ?? null);
+      }
+    });
     if (!stopped) abort.abort();
   }
 }
@@ -398,7 +421,8 @@ export const pendingRuns = pendingRunCandidates;
  * Cloud executions recover through their durable machine state instead. */
 export async function maintainRuns() {
   const expired = await pool.query(`SELECT organization_id,id FROM reporting.scheduling_runs
-    WHERE status='queued' AND (queue_expires_at<=now() OR cancel_requested OR unavailable)
+    WHERE status='queued' AND (queue_expires_at<=now() OR cancel_requested OR unavailable OR id IN
+      (SELECT id FROM reporting.worker_placement WHERE waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime')))
     ORDER BY queue_expires_at,id LIMIT 100`);
   for (const row of expired.rows) await claimRun(row.organization_id, row.id);
   let abandoned = 0;
@@ -411,6 +435,7 @@ export async function maintainRuns() {
         let run = await getRun(tx, row.id);
         if (run.kind !== 'native_agent') return;
         await lock(tx, `worktree:${run.worktree_id}`);
+        if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
         await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [row.id]);
         run = await getRun(tx, row.id);
         requireNativeRun(run);
@@ -442,6 +467,8 @@ export async function maintainRuns() {
           "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
           [row.id],
         );
+        const assignment=await activeHostRun(tx,run.id);
+        if(assignment)await releaseHostRun(tx,assignment,false,null);
         abandoned++;
       });
   }

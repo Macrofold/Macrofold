@@ -183,7 +183,7 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
     } else {
       const quotes = worker.offerings.filter(quote=>workerOfferingCompatible(worker.settings,quote)).sort((a,b)=>{
         const difference = workerHourlyExposure(a.price,a.resources)-workerHourlyExposure(b.price,b.resources);
-        return difference<0n ? -1 : difference>0n ? 1 : a.resources.memory_mib-b.resources.memory_mib;
+        return difference<0n ? -1 : difference>0n ? 1 : a.resources.memory_mib-b.resources.memory_mib || b.concurrency-a.concurrency;
       });
       const serving = snapshots.filter(host=>host.status==='ready' || host.status==='provisioning');
       const readyDemand = await queuedDemand(tx,worker);
@@ -204,7 +204,16 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
             if (!(error instanceof AppError) || ![402,409].includes(error.status)) throw error;
             await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,error.code]);
           }
-        } else await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,choice.action==='wait' ? choice.reason : null]);
+        } else if(choice.action==='place') {
+          const selected=await getHost(tx,choice.host_id);
+          try {
+            await extendHostFunding(tx,selected,new Date(Date.now()+(demand.execution_seconds+HOST_CLEANUP_SECONDS+120)*1000));
+            await tx.query('UPDATE workers SET failure_code=NULL WHERE id=$1',[workerId]);
+          } catch(error) {
+            if(!(error instanceof AppError) || error.status!==402)throw error;
+            await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,error.code]);
+          }
+        } else await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,choice.reason]);
       }
       let remaining = serving.length;
       for (const host of hosts) {

@@ -15,6 +15,9 @@ export const keyPermissions = {
   'files:write': { label: 'Edit files, restore checkpoints and sync Git', preset: 'read-write' },
   'runs:read': { label: 'View presets, sessions and runs', preset: 'read-only' },
   'runs:write': { label: 'Manage presets and run agents', preset: 'read-write' },
+  'workers:read': { label: 'View Worker configuration and compute usage', preset: 'read-only' },
+  'workers:use': { label: 'Run agents on authorized Workers', preset: 'read-write' },
+  'workers:write': { label: 'Manage Worker capacity, spending and lifecycle', preset: 'full-access' },
   'connections:read': { label: 'View connections and tools', preset: 'read-only' },
   'connections:write': { label: 'Manage connections and access rules', preset: 'read-write' },
   'usage:read': { label: 'View usage and billing', preset: 'read-only' },
@@ -39,7 +42,7 @@ export const keyPermissionPresets = [
     value: 'read-write',
     label: 'Read & write',
     description:
-      'Run agents and manage workspaces, files, connections and automation. Excludes billing, API-key and team administration, and permanent workspace deletion.',
+      'Run agents and manage workspaces, files, connections and automation. Excludes Worker spending/lifecycle, billing, API-key and team administration, and permanent workspace deletion.',
   },
   {
     value: 'full-access',

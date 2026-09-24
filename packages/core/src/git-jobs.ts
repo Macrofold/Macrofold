@@ -22,7 +22,7 @@ export async function queueGitSync(
   const ws = await resources.get(tx, 'worktrees', worktreeId, p);
   const workspace = await resources.get(tx, 'workspaces', String(ws.workspace_id), p);
   assert(workspace.github, 409, 'git_not_connected', 'Connect a GitHub repository to enable sync.');
-  await ensureWritable(tx, worktreeId);
+  await ensureWritable(tx, worktreeId, sourceRunId);
   const op = await resources.operation(tx, p, 'git_sync', { worktree_id: worktreeId }, 'queued');
   await resources.update(tx, 'operations', op.id, {
     mode,
@@ -242,6 +242,7 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
     }
   }
   const tasks: [string, () => Promise<Record<string, number>>][] = [
+    ['workers', async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() })],
     ['sandboxes', async () => (await import('./sandboxes')).dispatchSandboxes()],
     ['runs', async () => (await import('./engine')).maintainRuns()],
     ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],

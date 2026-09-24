@@ -96,11 +96,11 @@ function assertPathAvailable(files: FileRecord[], path: string) {
   );
   assertFileTree([...files, { path }]);
 }
-export async function ensureWritable(tx: Tx, worktreeId: string) {
+export async function ensureWritable(tx: Tx, worktreeId: string, completedRunId?: string) {
   await lock(tx, `worktree:${worktreeId}`);
   const active = await tx.query(
-    "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
-    [worktreeId],
+    "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting') UNION ALL SELECT run_id AS id FROM host_runs WHERE worktree_id=$1 AND released_at IS NULL AND ($2::uuid IS NULL OR run_id<>$2)",
+    [worktreeId,completedRunId || null],
   );
   assert(
     !active.rowCount,

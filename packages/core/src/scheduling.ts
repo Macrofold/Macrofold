@@ -21,14 +21,16 @@ export const schedulingSQL = `WITH plan_limits AS (
  least(floor(extract(epoch FROM now()-r.created_at)/60),4)/16 AS age_bonus,
  EXISTS(SELECT 1 FROM reporting.scheduling_runs earlier WHERE earlier.worktree_id=r.worktree_id AND
  (earlier.status IN ('provisioning','running','waiting_for_input','persisting') OR
- (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id)))) AS worktree_blocked
+ (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id)))) AS worktree_blocked,
+ EXISTS(SELECT 1 FROM reporting.host_writers hw WHERE hw.worktree_id=r.worktree_id AND hw.run_id<>r.id) AS cleanup_blocked,
+ coalesce(wp.eligible,true) AS worker_eligible,wp.waiting_reason AS worker_waiting_reason
  FROM reporting.scheduling_runs r JOIN organizations o ON o.id=r.organization_id
- JOIN plan_limits p ON p.id=o.plan CROSS JOIN scheduler_clock c LEFT JOIN active a ON a.organization_id=r.organization_id
+ JOIN plan_limits p ON p.id=o.plan CROSS JOIN scheduler_clock c LEFT JOIN reporting.worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
  WHERE r.status='queued'
 ), eligible AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY
  CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,created_at,id) AS account_order
- FROM queue WHERE NOT worktree_blocked AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
+ FROM queue WHERE NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
  AND (kind<>'native_agent' OR native_active<greatest(0,account_limit-lightweight_reserved))
  AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
 )`;
@@ -78,7 +80,7 @@ export async function pendingRunCandidates(limit = 20) {
       `${schedulingSQL}
     SELECT organization_id,id AS resource_id FROM (
       SELECT q.organization_id,q.id,0 AS class,0::double precision AS score,q.created_at FROM queue q
-      WHERE q.cancel_requested OR q.queue_expires_at<=now() OR q.unavailable
+      WHERE q.cancel_requested OR q.queue_expires_at<=now() OR q.unavailable OR q.worker_waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime')
       UNION ALL
       SELECT organization_id,id,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END,
         service-age_bonus+(account_order-1)::double precision/scheduler_weight,created_at FROM eligible
@@ -96,7 +98,8 @@ export async function queueObservations(tx: Tx, ids: string[]) {
     SELECT id,CASE WHEN cancel_requested THEN 'cancellation_requested'
       WHEN queue_expires_at<=now() THEN 'deadline_expired'
       WHEN unavailable THEN 'worktree_unavailable'
-      WHEN worktree_blocked THEN 'earlier_worktree_work'
+      WHEN worktree_blocked OR cleanup_blocked THEN 'earlier_worktree_work'
+      WHEN NOT worker_eligible THEN worker_waiting_reason
       WHEN account_active>=account_limit THEN 'account_concurrency'
       WHEN kind='native_agent' AND native_active>=greatest(0,account_limit-lightweight_reserved) THEN 'reserved_lightweight_capacity'
       WHEN kind<>'native_agent' AND (SELECT coalesce(sum(lightweight_n),0) FROM active)>=lightweight_limit THEN 'lightweight_capacity'

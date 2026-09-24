@@ -54,7 +54,7 @@ export function chooseWorkerPlacement(worker: WorkerIdentity, demand: RunDemand,
   const fitting = offerings.filter(offering => workerOfferingCompatible(worker.settings, offering) && offeringFits(offering, demand));
   fitting.sort((a,b) => {
     const difference = workerHourlyExposure(a.price,a.resources) - workerHourlyExposure(b.price,b.resources);
-    return difference < 0n ? -1 : difference > 0n ? 1 : a.resources.memory_mib - b.resources.memory_mib || a.id.localeCompare(b.id);
+    return difference < 0n ? -1 : difference > 0n ? 1 : a.resources.memory_mib - b.resources.memory_mib || b.concurrency-a.concurrency || a.id.localeCompare(b.id);
   });
   const chosen = fitting[0];
   if (!chosen) return { action: 'wait', reason: 'compute_unavailable' };

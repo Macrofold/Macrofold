@@ -38,6 +38,9 @@ pub struct NativeRunAccepted {
     pub scheduling_class: Option<SchedulingClass>,
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
+    /// Explicit reusable compute target, independent of conversation and files.
+    #[serde(rename = "worker_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<Option<uuid::Uuid>>,
 }
 
 impl NativeRunAccepted {
@@ -54,6 +57,7 @@ impl NativeRunAccepted {
             reserved_micro_usd: None,
             scheduling_class: None,
             kind: None,
+            worker_id: None,
         }
     }
 }

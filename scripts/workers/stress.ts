@@ -155,7 +155,7 @@ async function workload() {
       if (page.data.length !== 21) throw new Error('Worker listing lost an authorized target.');
       timings.listing.push(performance.now() - at);
     });
-    await client.request('getBillingUsage', { params: { query: { worker_id: worker.id } } });
+    await client.request('listBillingUsage', { params: { query: { worker_id: worker.id } } });
     await client.request('pauseWorker', { params: { path: { worker_id: worker.id } } });
     await reconcileWorker(org, worker.id);
     const paused = await client.request('getWorker', { params: { path: { worker_id: worker.id } } });

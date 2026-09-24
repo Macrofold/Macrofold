@@ -564,7 +564,7 @@ public class RunAccepted {
   }
 
   /**
-   * Explicit reusable compute target, independent of the Run context.
+   * Explicit reusable compute target, independent of conversation and files.
    * @return workerId
    */
   @javax.annotation.Nullable

@@ -1072,7 +1072,7 @@ func (r *BillingResource) GetStorage(ctx context.Context, options ...RequestOpti
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListBillingUsageParams struct {From time.Time;To time.Time;WorkspaceId *string;WorktreeId *string;RunId *string;SessionId *string;CustomerId *string;AgentKey *string;Provider *string;Model *string;Kind *string;BillingMode *string;Cursor *string;Limit *int32}
+type ListBillingUsageParams struct {From time.Time;To time.Time;WorkspaceId *string;WorktreeId *string;RunId *string;SessionId *string;CustomerId *string;AgentKey *string;Provider *string;Model *string;Kind *string;BillingMode *string;Cursor *string;Limit *int32;WorkerId *string}
 func (r *BillingResource) ListUsage(ctx context.Context, params *ListBillingUsageParams, options ...RequestOption) (*BillingUsagePage, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -1095,6 +1095,7 @@ if params.Kind != nil {call = call.Kind(*params.Kind)}
 if params.BillingMode != nil {call = call.BillingMode(*params.BillingMode)}
 if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
+if params.WorkerId != nil {call = call.WorkerId(*params.WorkerId)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }

@@ -1170,6 +1170,7 @@ export type ListBillingUsageOptions = {
   billing_mode?: NonNullable<operations['listBillingUsage']['parameters']['query']>['billing_mode'];
   cursor?: NonNullable<operations['listBillingUsage']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listBillingUsage']['parameters']['query']>['limit'];
+  worker_id?: NonNullable<operations['listBillingUsage']['parameters']['query']>['worker_id'];
 };
 export class BillingResource {
   constructor(private client: Transport) {}
@@ -1231,6 +1232,7 @@ export class BillingResource {
           billing_mode: options.billing_mode,
           cursor: options.cursor,
           limit: options.limit,
+          worker_id: options.worker_id,
         },
       },
     });

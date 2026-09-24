@@ -35,7 +35,7 @@ type RunAccepted struct {
 	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
 	Kind *string `json:"kind,omitempty"`
-	// Explicit reusable compute target, independent of the Run context.
+	// Explicit reusable compute target, independent of conversation and files.
 	WorkerId NullableString `json:"worker_id,omitempty"`
 	AdditionalProperties map[string]interface{}
 }

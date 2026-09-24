@@ -1041,12 +1041,12 @@ class BillingResource:
         )
         return decode(models.Storage, result, identity)
 
-    def list_usage(self, *, from_: str | datetime, to: str | datetime, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, run_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, customer_id: str | Omit = OMIT, agent_key: str | Omit = OMIT, provider: str | Omit = OMIT, model: str | Omit = OMIT, kind: Literal["model", "tool", "compute", "storage"] | Omit = OMIT, billing_mode: Literal["managed", "byok"] | Omit = OMIT, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.BillingUsagePage:
+    def list_usage(self, *, from_: str | datetime, to: str | datetime, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, run_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, customer_id: str | Omit = OMIT, agent_key: str | Omit = OMIT, provider: str | Omit = OMIT, model: str | Omit = OMIT, kind: Literal["model", "tool", "compute", "storage"] | Omit = OMIT, billing_mode: Literal["managed", "byok"] | Omit = OMIT, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.BillingUsagePage:
         options = request_options or RequestOptions()
         identity = options.identity(False)
         result = self._client.request("listBillingUsage",
             path=parameters({}),
-            query=parameters({"from": from_,"to": to,"workspace_id": workspace_id,"worktree_id": worktree_id,"run_id": run_id,"session_id": session_id,"customer_id": customer_id,"agent_key": agent_key,"provider": provider,"model": model,"kind": kind,"billing_mode": billing_mode,"cursor": cursor,"limit": limit}),
+            query=parameters({"from": from_,"to": to,"workspace_id": workspace_id,"worktree_id": worktree_id,"run_id": run_id,"session_id": session_id,"customer_id": customer_id,"agent_key": agent_key,"provider": provider,"model": model,"kind": kind,"billing_mode": billing_mode,"cursor": cursor,"limit": limit,"worker_id": worker_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 

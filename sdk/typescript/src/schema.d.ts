@@ -2888,7 +2888,7 @@ export interface components {
             kind?: "native_agent" | "inference" | "bounded_agent";
             /**
              * Format: uuid
-             * @description Explicit reusable compute target, independent of the Run context.
+             * @description Explicit reusable compute target, independent of conversation and files.
              */
             worker_id?: string | null;
         };
@@ -4405,6 +4405,11 @@ export interface components {
             scheduling_class?: "background" | "interactive";
             /** @enum {string} */
             kind?: "native_agent";
+            /**
+             * Format: uuid
+             * @description Explicit reusable compute target, independent of conversation and files.
+             */
+            worker_id?: string | null;
         };
         DefinitionReference: {
             /** Format: uuid */
@@ -10828,6 +10833,8 @@ export interface operations {
                 /** @description Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. */
                 cursor?: string;
                 limit?: components["parameters"]["Limit"];
+                /** @description Filter by the Worker charged for compute. Organization usage authority is still required. */
+                worker_id?: string;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */

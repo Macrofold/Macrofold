@@ -493,7 +493,7 @@ pub struct RequestsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,None))
       }
     }
-#[derive(Debug,Clone)] pub struct ListBillingUsageParams {pub from: chrono::DateTime<chrono::FixedOffset>,pub to: chrono::DateTime<chrono::FixedOffset>,pub workspace_id: Option<String>,pub worktree_id: Option<String>,pub run_id: Option<String>,pub session_id: Option<String>,pub customer_id: Option<String>,pub agent_key: Option<String>,pub provider: Option<String>,pub model: Option<String>,pub kind: Option<String>,pub billing_mode: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct ListBillingUsageParams {pub from: chrono::DateTime<chrono::FixedOffset>,pub to: chrono::DateTime<chrono::FixedOffset>,pub workspace_id: Option<String>,pub worktree_id: Option<String>,pub run_id: Option<String>,pub session_id: Option<String>,pub customer_id: Option<String>,pub agent_key: Option<String>,pub provider: Option<String>,pub model: Option<String>,pub kind: Option<String>,pub billing_mode: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub worker_id: Option<String>}
 pub struct BillingResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> BillingResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -519,7 +519,7 @@ pub async fn get_storage(&self) -> Result<models::Storage,ClientError> {
       }
 pub async fn list_usage(&self, params: ListBillingUsageParams) -> Result<models::BillingUsagePage,ClientError> {
 
-        crate::apis::billing_api::list_billing_usage(self.client.configuration(), params.from, params.to, params.workspace_id.as_deref(), params.worktree_id.as_deref(), params.run_id.as_deref(), params.session_id.as_deref(), params.customer_id.as_deref(), params.agent_key.as_deref(), params.provider.as_deref(), params.model.as_deref(), params.kind.as_deref(), params.billing_mode.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+        crate::apis::billing_api::list_billing_usage(self.client.configuration(), params.from, params.to, params.workspace_id.as_deref(), params.worktree_id.as_deref(), params.run_id.as_deref(), params.session_id.as_deref(), params.customer_id.as_deref(), params.agent_key.as_deref(), params.provider.as_deref(), params.model.as_deref(), params.kind.as_deref(), params.billing_mode.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.worker_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn update_storage_policy(&self, input: models::StoragePolicy) -> Result<models::Storage,ClientError> {

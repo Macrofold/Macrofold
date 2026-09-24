@@ -940,6 +940,7 @@ private String kind;
 private String billingMode;
 private UUID cursor;
 private Integer limit;
+private UUID workerId;
         public ListBillingUsageParams(OffsetDateTime from,OffsetDateTime to){this.from=Objects.requireNonNull(from,"from");this.to=Objects.requireNonNull(to,"to");}
         public ListBillingUsageParams from(OffsetDateTime value){this.from=value;return this;}
 public ListBillingUsageParams to(OffsetDateTime value){this.to=value;return this;}
@@ -955,6 +956,7 @@ public ListBillingUsageParams kind(String value){this.kind=value;return this;}
 public ListBillingUsageParams billingMode(String value){this.billingMode=value;return this;}
 public ListBillingUsageParams cursor(UUID value){this.cursor=value;return this;}
 public ListBillingUsageParams limit(Integer value){this.limit=value;return this;}
+public ListBillingUsageParams workerId(UUID value){this.workerId=value;return this;}
       }
 public static final class BillingResource {
       private final Resources client; private final RequestOptions options;
@@ -987,7 +989,7 @@ public Storage getStorage() throws ApiException {
 public BillingUsagePage listUsage(ListBillingUsageParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new BillingApi(client).listBillingUsage(params.from,params.to,params.workspaceId,params.worktreeId,params.runId,params.sessionId,params.customerId,params.agentKey,params.provider,params.model,params.kind,params.billingMode,params.cursor,params.limit,options.organization());}
+        try {return new BillingApi(client).listBillingUsage(params.from,params.to,params.workspaceId,params.worktreeId,params.runId,params.sessionId,params.customerId,params.agentKey,params.provider,params.model,params.kind,params.billingMode,params.cursor,params.limit,options.organization(),params.workerId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Storage updateStoragePolicy(StoragePolicy input) throws ApiException {

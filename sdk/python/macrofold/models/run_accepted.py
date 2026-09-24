@@ -42,7 +42,7 @@ class RunAccepted(BaseModel):
     reserved_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Funds still held and unavailable for other jobs; released on settlement.")
     scheduling_class: Optional[StrictStr] = None
     kind: Optional[StrictStr] = None
-    worker_id: Optional[UUID] = Field(default=None, description="Explicit reusable compute target, independent of the Run context.")
+    worker_id: Optional[UUID] = Field(default=None, description="Explicit reusable compute target, independent of conversation and files.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "queue_expires_at", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "kind", "worker_id"]
 

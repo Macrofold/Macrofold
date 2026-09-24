@@ -12877,6 +12877,16 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by the Worker charged for compute. Organization usage authority is still required."
           }
         ],
         "responses": {
@@ -15019,7 +15029,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Explicit reusable compute target, independent of the Run context."
+            "description": "Explicit reusable compute target, independent of conversation and files."
           }
         },
         "required": [
@@ -20724,6 +20734,14 @@
             "enum": [
               "native_agent"
             ]
+          },
+          "worker_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Explicit reusable compute target, independent of conversation and files."
           }
         },
         "required": [

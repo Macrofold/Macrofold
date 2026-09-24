@@ -1,6 +1,5 @@
-"""Reviewed integration edits applied once by the isolated branch runner."""
+"""Reviewed source-only integration applied once by the isolated branch runner."""
 from pathlib import Path
-import json
 
 def edit(file,old,new):
     p=Path(file);s=p.read_text()
@@ -35,20 +34,4 @@ s=s.replace("          if(value.children.size)throw new Error('assignment_prepar
           }""")
 s=s.replace("for (const old of this.handles.values()) if (old.worktree===request.worktree_id && old!==handle) await this.evict(old);", "for (const old of this.handles.values()) if (old!==handle && (old.worktree===request.worktree_id || config.isolate_runs)) await this.evict(old);")
 p.write_text(s)
-
-# Narrow current iteration to actual changed policy, runtime, and storage boundaries; full acceptance remains required.
-p=Path('.github/workflows/worker-development.yml');s=p.read_text()
-s=s.replace('run: pnpm test:domain tests/unit tests/integration tests/git.test.ts tests/git-sync.test.ts', 'run: pnpm test:domain tests/unit/worker-policy.test.ts tests/unit/host-control.test.ts tests/unit/manifest.test.ts tests/unit/snapshot-failures.test.ts')
-s=s.replace('      - run: pnpm check\n', '      - run: pnpm check\n      - run: pnpm build:runtime\n')
-p.write_text(s)
-
-# Read the actual authoritative schema before the coordinated endpoint/client cutover.
-c=json.loads(Path('docs/api/openapi.json').read_text())
-for name in ['Sandbox','SandboxCreate','SandboxList','RunAccepted','RunCreate']:
-    print('CONTRACT_SCHEMA',name,json.dumps(c['components']['schemas'].get(name)))
-for route,value in c['paths'].items():
-    if 'sandbox' in route:print('CONTRACT_ROUTE',route,json.dumps(value))
-for scheme,value in c['components']['securitySchemes'].items():
-    if scheme=='CustomerOAuth':print('OAUTH_SCOPES',json.dumps(value))
-for file in ['packages/providers/src/machines.ts','packages/core/src/http-contract.ts','packages/core/src/actor-authorization.ts']:
-    print('SOURCE',file,Path(file).read_text())
+edit('tests/integration/workers.test.ts', "    const after=await tx(t=>presentWorker(t,getWorkerPlaceholder()));\n    function getWorkerPlaceholder():never{throw new Error('unreachable');}\n    expect(after).toBeDefined();", "    const after=await tx(async t=>presentWorker(t,await getWorker(t,created.id)));\n    expect(after.status).toBe('destroyed');")

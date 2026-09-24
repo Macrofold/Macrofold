@@ -6,6 +6,8 @@ on:
       - .github/workflows/worker-development.yml
       - scripts/workers/resume-edit.py
       - scripts/workers/receipt-edit.py
+      - scripts/workers/stability-edit.py
+      - scripts/workers/docs-edit.py
       - scripts/workers/verify.marker
 permissions:
   contents: read
@@ -36,7 +38,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --reporter=append-only
       - name: Apply reviewed source change
         run: |
-          for script in scripts/workers/resume-edit.py scripts/workers/receipt-edit.py; do
+          for script in scripts/workers/resume-edit.py scripts/workers/receipt-edit.py scripts/workers/stability-edit.py scripts/workers/docs-edit.py; do
             if test -f "$script"; then
               python3 "$script"
               rm "$script"

@@ -137,6 +137,7 @@ pub mod triggers_api;
 pub mod usage_api;
 pub mod webhook_deliveries_api;
 pub mod webhook_endpoints_api;
+pub mod workers_api;
 pub mod workspaces_api;
 pub mod worktrees_api;
 

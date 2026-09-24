@@ -20,7 +20,10 @@ export function authorizeWorker(p: Principal, scope: 'workers:read' | 'workers:u
     403, 'worker_management_forbidden', 'Worker lifecycle and spending changes require an unrestricted organization owner or administrator.');
 }
 export async function getWorker(tx: Tx, workerId: string, p?: Principal, scope: 'workers:read' | 'workers:use' | 'workers:write' = 'workers:read'): Promise<WorkerRow> {
-  if (p) authorizeWorker(p, scope);
+  if (p) {
+    authorizeWorker(p, scope);
+    assert(!p.workerIds?.length || p.workerIds.includes(workerId),404,'not_found','Worker not found.');
+  }
   const row = (await tx.query<WorkerRow>('SELECT * FROM workers WHERE id=$1', [workerId])).rows[0];
   assert(row && (!p || row.organization_id === p.organizationId), 404, 'not_found', 'Worker not found.');
   return row;
@@ -155,13 +158,14 @@ export async function changeWorker(tx: Tx, p: Principal, workerId: string, actio
 export async function listWorkers(tx: Tx, p: Principal, query: URLSearchParams) {
   authorizeWorker(p, 'workers:read');
   const limit = Math.min(100, Math.max(1, Number(query.get('limit') || 25)));
-  const rows = (await tx.query<WorkerRow>('SELECT * FROM workers WHERE ($1::uuid IS NULL OR id<$1) ORDER BY id DESC LIMIT $2',
-    [query.get('cursor'), limit + 1])).rows;
+  const rows = (await tx.query<WorkerRow>('SELECT * FROM workers WHERE ($1::uuid IS NULL OR id<$1) AND (cardinality($3::uuid[])=0 OR id=ANY($3::uuid[])) ORDER BY id DESC LIMIT $2',
+    [query.get('cursor'), limit + 1,p.workerIds || []])).rows;
   const data = [];
   for (const row of rows.slice(0, limit)) data.push(await presentWorker(tx,row));
   return { data, next_cursor: rows.length > limit ? rows[limit - 1].id : null };
 }
 export async function workerForRun(tx: Tx, p: Principal, workerId: string) {
+  await lock(tx, `worker:${workerId}`);
   const worker = await getWorker(tx, workerId, p, 'workers:use');
   const reason = workerAdmissionBlock(worker, Date.now());
   assert(!reason, 409, reason || 'worker_unavailable', 'Resume an enabled, unexpired Worker or choose another Worker.');

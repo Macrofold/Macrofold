@@ -56,7 +56,10 @@ class RunCreate(BaseModel):
     sandbox_max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.")
     model_parameters: Optional[ModelParameters] = None
     harness_prompt_mode: Optional[StrictStr] = Field(default=None, description="OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.")
-    __properties: ClassVar[List[str]] = ["prompt", "workspace_id", "worktree_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "harness_prompt_mode"]
+    worker_id: Optional[UUID] = None
+    memory_mib: Optional[Annotated[int, Field(le=1048576, strict=True, ge=128)]] = Field(default=None, description="Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.")
+    cpu_millis: Optional[Annotated[int, Field(le=1024000, strict=True, ge=1)]] = Field(default=None, description="Advanced per-Run CPU allocation in millicores on an explicit Worker.")
+    __properties: ClassVar[List[str]] = ["prompt", "workspace_id", "worktree_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "harness_prompt_mode", "worker_id", "memory_mib", "cpu_millis"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -209,7 +212,10 @@ class RunCreate(BaseModel):
             "keep_warm_seconds": obj.get("keep_warm_seconds"),
             "sandbox_max_cost_micro_usd": obj.get("sandbox_max_cost_micro_usd"),
             "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
-            "harness_prompt_mode": obj.get("harness_prompt_mode")
+            "harness_prompt_mode": obj.get("harness_prompt_mode"),
+            "worker_id": obj.get("worker_id"),
+            "memory_mib": obj.get("memory_mib"),
+            "cpu_millis": obj.get("cpu_millis")
         })
         return _obj
 

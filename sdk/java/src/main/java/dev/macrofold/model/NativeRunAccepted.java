@@ -141,7 +141,29 @@ public class NativeRunAccepted {
 
     LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
 
-    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity"));
+    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity")),
+
+    WORKER_PAUSED(String.valueOf("worker_paused")),
+
+    WORKER_DESTROYED(String.valueOf("worker_destroyed")),
+
+    WORKER_EXPIRED(String.valueOf("worker_expired")),
+
+    WORKER_CONCURRENCY(String.valueOf("worker_concurrency")),
+
+    WORKER_COST_LIMIT(String.valueOf("worker_cost_limit")),
+
+    WORKER_INSTANCE_LIMIT(String.valueOf("worker_instance_limit")),
+
+    WORKER_STARTING(String.valueOf("worker_starting")),
+
+    WORKER_CAPACITY(String.valueOf("worker_capacity")),
+
+    WORKER_LIFETIME(String.valueOf("worker_lifetime")),
+
+    COMPUTE_UNAVAILABLE(String.valueOf("compute_unavailable")),
+
+    INSUFFICIENT_CREDITS(String.valueOf("insufficient_credits"));
 
     private String value;
 

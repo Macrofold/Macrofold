@@ -43,4 +43,3 @@ CREATE VIEW reporting.worker_placement WITH(security_barrier=true) AS
      ELSE 'worker_capacity' END AS waiting_reason
    FROM candidates;
 ALTER VIEW reporting.worker_placement OWNER TO platform_reporting;
-GRANT SELECT ON reporting.worker_placement TO platform_app;

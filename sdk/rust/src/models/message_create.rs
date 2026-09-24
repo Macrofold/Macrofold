@@ -52,6 +52,14 @@ pub struct MessageCreate {
     pub sandbox_max_cost_micro_usd: Option<String>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
+    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<uuid::Uuid>,
+    /// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+    #[serde(rename = "memory_mib", skip_serializing_if = "Option::is_none")]
+    pub memory_mib: Option<i32>,
+    /// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+    #[serde(rename = "cpu_millis", skip_serializing_if = "Option::is_none")]
+    pub cpu_millis: Option<i32>,
 }
 
 impl MessageCreate {
@@ -73,6 +81,9 @@ impl MessageCreate {
             keep_warm_seconds: None,
             sandbox_max_cost_micro_usd: None,
             model_parameters: None,
+            worker_id: None,
+            memory_mib: None,
+            cpu_millis: None,
         }
     }
 }

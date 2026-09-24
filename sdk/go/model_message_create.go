@@ -44,6 +44,11 @@ type MessageCreate struct {
 	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
 	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
+	WorkerId *string `json:"worker_id,omitempty"`
+	// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+	MemoryMib *int32 `json:"memory_mib,omitempty"`
+	// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+	CpuMillis *int32 `json:"cpu_millis,omitempty"`
 }
 
 type _MessageCreate MessageCreate
@@ -552,6 +557,102 @@ func (o *MessageCreate) SetModelParameters(v ModelParameters) {
 	o.ModelParameters = &v
 }
 
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise.
+func (o *MessageCreate) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId) {
+		var ret string
+		return ret
+	}
+	return *o.WorkerId
+}
+
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetWorkerIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkerId) {
+		return nil, false
+	}
+	return o.WorkerId, true
+}
+
+// HasWorkerId returns a boolean if a field has been set.
+func (o *MessageCreate) HasWorkerId() bool {
+	if o != nil && !IsNil(o.WorkerId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerId gets a reference to the given string and assigns it to the WorkerId field.
+func (o *MessageCreate) SetWorkerId(v string) {
+	o.WorkerId = &v
+}
+
+// GetMemoryMib returns the MemoryMib field value if set, zero value otherwise.
+func (o *MessageCreate) GetMemoryMib() int32 {
+	if o == nil || IsNil(o.MemoryMib) {
+		var ret int32
+		return ret
+	}
+	return *o.MemoryMib
+}
+
+// GetMemoryMibOk returns a tuple with the MemoryMib field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetMemoryMibOk() (*int32, bool) {
+	if o == nil || IsNil(o.MemoryMib) {
+		return nil, false
+	}
+	return o.MemoryMib, true
+}
+
+// HasMemoryMib returns a boolean if a field has been set.
+func (o *MessageCreate) HasMemoryMib() bool {
+	if o != nil && !IsNil(o.MemoryMib) {
+		return true
+	}
+
+	return false
+}
+
+// SetMemoryMib gets a reference to the given int32 and assigns it to the MemoryMib field.
+func (o *MessageCreate) SetMemoryMib(v int32) {
+	o.MemoryMib = &v
+}
+
+// GetCpuMillis returns the CpuMillis field value if set, zero value otherwise.
+func (o *MessageCreate) GetCpuMillis() int32 {
+	if o == nil || IsNil(o.CpuMillis) {
+		var ret int32
+		return ret
+	}
+	return *o.CpuMillis
+}
+
+// GetCpuMillisOk returns a tuple with the CpuMillis field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetCpuMillisOk() (*int32, bool) {
+	if o == nil || IsNil(o.CpuMillis) {
+		return nil, false
+	}
+	return o.CpuMillis, true
+}
+
+// HasCpuMillis returns a boolean if a field has been set.
+func (o *MessageCreate) HasCpuMillis() bool {
+	if o != nil && !IsNil(o.CpuMillis) {
+		return true
+	}
+
+	return false
+}
+
+// SetCpuMillis gets a reference to the given int32 and assigns it to the CpuMillis field.
+func (o *MessageCreate) SetCpuMillis(v int32) {
+	o.CpuMillis = &v
+}
+
 func (o MessageCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -604,6 +705,15 @@ func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters
+	}
+	if !IsNil(o.WorkerId) {
+		toSerialize["worker_id"] = o.WorkerId
+	}
+	if !IsNil(o.MemoryMib) {
+		toSerialize["memory_mib"] = o.MemoryMib
+	}
+	if !IsNil(o.CpuMillis) {
+		toSerialize["cpu_millis"] = o.CpuMillis
 	}
 	return toSerialize, nil
 }

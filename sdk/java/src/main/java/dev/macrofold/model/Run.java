@@ -74,7 +74,8 @@ import dev.macrofold.ApiClient;
   Run.JSON_PROPERTY_KIND,
   Run.JSON_PROPERTY_WORKSPACE_ID,
   Run.JSON_PROPERTY_TASK_ID,
-  Run.JSON_PROPERTY_SANDBOX_ID
+  Run.JSON_PROPERTY_SANDBOX_ID,
+  Run.JSON_PROPERTY_WORKER_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Run {
@@ -399,7 +400,29 @@ public class Run {
 
     LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
 
-    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity"));
+    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity")),
+
+    WORKER_PAUSED(String.valueOf("worker_paused")),
+
+    WORKER_DESTROYED(String.valueOf("worker_destroyed")),
+
+    WORKER_EXPIRED(String.valueOf("worker_expired")),
+
+    WORKER_CONCURRENCY(String.valueOf("worker_concurrency")),
+
+    WORKER_COST_LIMIT(String.valueOf("worker_cost_limit")),
+
+    WORKER_INSTANCE_LIMIT(String.valueOf("worker_instance_limit")),
+
+    WORKER_STARTING(String.valueOf("worker_starting")),
+
+    WORKER_CAPACITY(String.valueOf("worker_capacity")),
+
+    WORKER_LIFETIME(String.valueOf("worker_lifetime")),
+
+    COMPUTE_UNAVAILABLE(String.valueOf("compute_unavailable")),
+
+    INSUFFICIENT_CREDITS(String.valueOf("insufficient_credits"));
 
     private String value;
 
@@ -537,6 +560,9 @@ public class Run {
 
   public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
   private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
+
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  private JsonNullable<UUID> workerId = JsonNullable.<UUID>undefined();
 
   public Run() { 
   }
@@ -1343,6 +1369,38 @@ public class Run {
   }
 
 
+  public Run workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
+    return this;
+  }
+
+  /**
+   * Get workerId
+   * @return workerId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getWorkerId() {
+        return workerId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getWorkerId_JsonNullable() {
+    return workerId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_WORKER_ID)
+  public void setWorkerId_JsonNullable(JsonNullable<UUID> workerId) {
+    this.workerId = workerId;
+  }
+
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
+  }
+
+
   /**
    * Return true if this Run object is equal to o.
    */
@@ -1385,7 +1443,8 @@ public class Run {
         Objects.equals(this.kind, run.kind) &&
         Objects.equals(this.workspaceId, run.workspaceId) &&
         equalsNullable(this.taskId, run.taskId) &&
-        equalsNullable(this.sandboxId, run.sandboxId);
+        equalsNullable(this.sandboxId, run.sandboxId) &&
+        equalsNullable(this.workerId, run.workerId);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -1394,7 +1453,7 @@ public class Run {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, sessionId, worktreeId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion), kind, workspaceId, hashCodeNullable(taskId), hashCodeNullable(sandboxId));
+    return Objects.hash(id, organizationId, sessionId, worktreeId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion), kind, workspaceId, hashCodeNullable(taskId), hashCodeNullable(sandboxId), hashCodeNullable(workerId));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -1439,6 +1498,7 @@ public class Run {
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    taskId: ").append(toIndentedString(taskId)).append("\n");
     sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -1641,6 +1701,11 @@ public class Run {
     // add `sandbox_id` to the URL query string
     if (getSandboxId() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
+    }
+
+    // add `worker_id` to the URL query string
+    if (getWorkerId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworker_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkerId()))));
     }
 
     return joiner.toString();

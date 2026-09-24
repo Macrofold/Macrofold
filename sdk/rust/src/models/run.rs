@@ -81,6 +81,8 @@ pub struct Run {
     /// Reusable compute ID, when selected or created by keep_warm_seconds.
     #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub sandbox_id: Option<Option<uuid::Uuid>>,
+    #[serde(rename = "worker_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<Option<uuid::Uuid>>,
 }
 
 impl Run {
@@ -117,6 +119,7 @@ impl Run {
             workspace_id,
             task_id: None,
             sandbox_id: None,
+            worker_id: None,
         }
     }
 }
@@ -257,6 +260,28 @@ pub enum WaitingReason {
     LightweightCapacity,
     #[serde(rename = "reserved_lightweight_capacity")]
     ReservedLightweightCapacity,
+    #[serde(rename = "worker_paused")]
+    WorkerPaused,
+    #[serde(rename = "worker_destroyed")]
+    WorkerDestroyed,
+    #[serde(rename = "worker_expired")]
+    WorkerExpired,
+    #[serde(rename = "worker_concurrency")]
+    WorkerConcurrency,
+    #[serde(rename = "worker_cost_limit")]
+    WorkerCostLimit,
+    #[serde(rename = "worker_instance_limit")]
+    WorkerInstanceLimit,
+    #[serde(rename = "worker_starting")]
+    WorkerStarting,
+    #[serde(rename = "worker_capacity")]
+    WorkerCapacity,
+    #[serde(rename = "worker_lifetime")]
+    WorkerLifetime,
+    #[serde(rename = "compute_unavailable")]
+    ComputeUnavailable,
+    #[serde(rename = "insufficient_credits")]
+    InsufficientCredits,
 }
 
 impl Default for WaitingReason {

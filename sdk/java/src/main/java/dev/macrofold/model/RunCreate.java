@@ -69,7 +69,10 @@ import dev.macrofold.ApiClient;
   RunCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
   RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
   RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
-  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE
+  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE,
+  RunCreate.JSON_PROPERTY_WORKER_ID,
+  RunCreate.JSON_PROPERTY_MEMORY_MIB,
+  RunCreate.JSON_PROPERTY_CPU_MILLIS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunCreate {
@@ -313,6 +316,18 @@ public class RunCreate {
   public static final String JSON_PROPERTY_HARNESS_PROMPT_MODE = "harness_prompt_mode";
   @javax.annotation.Nullable
   private HarnessPromptModeEnum harnessPromptMode;
+
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  @javax.annotation.Nullable
+  private UUID workerId;
+
+  public static final String JSON_PROPERTY_MEMORY_MIB = "memory_mib";
+  @javax.annotation.Nullable
+  private Integer memoryMib;
+
+  public static final String JSON_PROPERTY_CPU_MILLIS = "cpu_millis";
+  @javax.annotation.Nullable
+  private Integer cpuMillis;
 
   public RunCreate() { 
   }
@@ -914,6 +929,82 @@ public class RunCreate {
   }
 
 
+  public RunCreate workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+    return this;
+  }
+
+  /**
+   * Get workerId
+   * @return workerId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorkerId() {
+    return workerId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+  }
+
+
+  public RunCreate memoryMib(@javax.annotation.Nullable Integer memoryMib) {
+    this.memoryMib = memoryMib;
+    return this;
+  }
+
+  /**
+   * Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+   * minimum: 128
+   * maximum: 1048576
+   * @return memoryMib
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MEMORY_MIB, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getMemoryMib() {
+    return memoryMib;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MEMORY_MIB, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setMemoryMib(@javax.annotation.Nullable Integer memoryMib) {
+    this.memoryMib = memoryMib;
+  }
+
+
+  public RunCreate cpuMillis(@javax.annotation.Nullable Integer cpuMillis) {
+    this.cpuMillis = cpuMillis;
+    return this;
+  }
+
+  /**
+   * Advanced per-Run CPU allocation in millicores on an explicit Worker.
+   * minimum: 1
+   * maximum: 1024000
+   * @return cpuMillis
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CPU_MILLIS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getCpuMillis() {
+    return cpuMillis;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CPU_MILLIS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setCpuMillis(@javax.annotation.Nullable Integer cpuMillis) {
+    this.cpuMillis = cpuMillis;
+  }
+
+
   /**
    * Return true if this RunCreate object is equal to o.
    */
@@ -948,7 +1039,10 @@ public class RunCreate {
         equalsNullable(this.keepWarmSeconds, runCreate.keepWarmSeconds) &&
         Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd) &&
         Objects.equals(this.modelParameters, runCreate.modelParameters) &&
-        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode);
+        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode) &&
+        Objects.equals(this.workerId, runCreate.workerId) &&
+        Objects.equals(this.memoryMib, runCreate.memoryMib) &&
+        Objects.equals(this.cpuMillis, runCreate.cpuMillis);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -957,7 +1051,7 @@ public class RunCreate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode);
+    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode, workerId, memoryMib, cpuMillis);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -994,6 +1088,9 @@ public class RunCreate {
     sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
+    sb.append("    memoryMib: ").append(toIndentedString(memoryMib)).append("\n");
+    sb.append("    cpuMillis: ").append(toIndentedString(cpuMillis)).append("\n");
     sb.append("}");
     return sb.toString();
   }

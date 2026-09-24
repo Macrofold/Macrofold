@@ -102,6 +102,8 @@ type APIClient struct {
 
 	WebhookEndpointsAPI *WebhookEndpointsAPIService
 
+	WorkersAPI *WorkersAPIService
+
 	WorkspacesAPI *WorkspacesAPIService
 
 	WorktreesAPI *WorktreesAPIService
@@ -149,6 +151,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.UsageAPI = (*UsageAPIService)(&c.common)
 	c.WebhookDeliveriesAPI = (*WebhookDeliveriesAPIService)(&c.common)
 	c.WebhookEndpointsAPI = (*WebhookEndpointsAPIService)(&c.common)
+	c.WorkersAPI = (*WorkersAPIService)(&c.common)
 	c.WorkspacesAPI = (*WorkspacesAPIService)(&c.common)
 	c.WorktreesAPI = (*WorktreesAPIService)(&c.common)
 

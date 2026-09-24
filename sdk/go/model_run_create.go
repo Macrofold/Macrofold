@@ -54,6 +54,11 @@ type RunCreate struct {
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 	// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
 	HarnessPromptMode *string `json:"harness_prompt_mode,omitempty"`
+	WorkerId *string `json:"worker_id,omitempty"`
+	// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+	MemoryMib *int32 `json:"memory_mib,omitempty"`
+	// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+	CpuMillis *int32 `json:"cpu_millis,omitempty"`
 }
 
 type _RunCreate RunCreate
@@ -814,6 +819,102 @@ func (o *RunCreate) SetHarnessPromptMode(v string) {
 	o.HarnessPromptMode = &v
 }
 
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise.
+func (o *RunCreate) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId) {
+		var ret string
+		return ret
+	}
+	return *o.WorkerId
+}
+
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetWorkerIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkerId) {
+		return nil, false
+	}
+	return o.WorkerId, true
+}
+
+// HasWorkerId returns a boolean if a field has been set.
+func (o *RunCreate) HasWorkerId() bool {
+	if o != nil && !IsNil(o.WorkerId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerId gets a reference to the given string and assigns it to the WorkerId field.
+func (o *RunCreate) SetWorkerId(v string) {
+	o.WorkerId = &v
+}
+
+// GetMemoryMib returns the MemoryMib field value if set, zero value otherwise.
+func (o *RunCreate) GetMemoryMib() int32 {
+	if o == nil || IsNil(o.MemoryMib) {
+		var ret int32
+		return ret
+	}
+	return *o.MemoryMib
+}
+
+// GetMemoryMibOk returns a tuple with the MemoryMib field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetMemoryMibOk() (*int32, bool) {
+	if o == nil || IsNil(o.MemoryMib) {
+		return nil, false
+	}
+	return o.MemoryMib, true
+}
+
+// HasMemoryMib returns a boolean if a field has been set.
+func (o *RunCreate) HasMemoryMib() bool {
+	if o != nil && !IsNil(o.MemoryMib) {
+		return true
+	}
+
+	return false
+}
+
+// SetMemoryMib gets a reference to the given int32 and assigns it to the MemoryMib field.
+func (o *RunCreate) SetMemoryMib(v int32) {
+	o.MemoryMib = &v
+}
+
+// GetCpuMillis returns the CpuMillis field value if set, zero value otherwise.
+func (o *RunCreate) GetCpuMillis() int32 {
+	if o == nil || IsNil(o.CpuMillis) {
+		var ret int32
+		return ret
+	}
+	return *o.CpuMillis
+}
+
+// GetCpuMillisOk returns a tuple with the CpuMillis field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetCpuMillisOk() (*int32, bool) {
+	if o == nil || IsNil(o.CpuMillis) {
+		return nil, false
+	}
+	return o.CpuMillis, true
+}
+
+// HasCpuMillis returns a boolean if a field has been set.
+func (o *RunCreate) HasCpuMillis() bool {
+	if o != nil && !IsNil(o.CpuMillis) {
+		return true
+	}
+
+	return false
+}
+
+// SetCpuMillis gets a reference to the given int32 and assigns it to the CpuMillis field.
+func (o *RunCreate) SetCpuMillis(v int32) {
+	o.CpuMillis = &v
+}
+
 func (o RunCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -890,6 +991,15 @@ func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.HarnessPromptMode) {
 		toSerialize["harness_prompt_mode"] = o.HarnessPromptMode
+	}
+	if !IsNil(o.WorkerId) {
+		toSerialize["worker_id"] = o.WorkerId
+	}
+	if !IsNil(o.MemoryMib) {
+		toSerialize["memory_mib"] = o.MemoryMib
+	}
+	if !IsNil(o.CpuMillis) {
+		toSerialize["cpu_millis"] = o.CpuMillis
 	}
 	return toSerialize, nil
 }

@@ -63,7 +63,8 @@ class Run(BaseModel):
     workspace_id: Optional[UUID]
     task_id: Optional[UUID] = None
     sandbox_id: Optional[UUID] = Field(default=None, description="Reusable compute ID, when selected or created by keep_warm_seconds.")
-    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "worktree_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version", "kind", "workspace_id", "task_id", "sandbox_id"]
+    worker_id: Optional[UUID] = None
+    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "worktree_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version", "kind", "workspace_id", "task_id", "sandbox_id", "worker_id"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -128,8 +129,8 @@ class Run(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity']):
-            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity')")
+        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits']):
+            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits')")
         return value
 
     @field_validator('reserved_micro_usd', mode="before")
@@ -258,6 +259,11 @@ class Run(BaseModel):
         if self.sandbox_id is None and "sandbox_id" in self.model_fields_set:
             _dict['sandbox_id'] = None
 
+        # set to None if worker_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.worker_id is None and "worker_id" in self.model_fields_set:
+            _dict['worker_id'] = None
+
         return _dict
 
     @classmethod
@@ -300,7 +306,8 @@ class Run(BaseModel):
             "kind": obj.get("kind"),
             "workspace_id": obj.get("workspace_id"),
             "task_id": obj.get("task_id"),
-            "sandbox_id": obj.get("sandbox_id")
+            "sandbox_id": obj.get("sandbox_id"),
+            "worker_id": obj.get("worker_id")
         })
         return _obj
 

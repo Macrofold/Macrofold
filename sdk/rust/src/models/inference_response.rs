@@ -109,6 +109,28 @@ pub enum WaitingReason {
     LightweightCapacity,
     #[serde(rename = "reserved_lightweight_capacity")]
     ReservedLightweightCapacity,
+    #[serde(rename = "worker_paused")]
+    WorkerPaused,
+    #[serde(rename = "worker_destroyed")]
+    WorkerDestroyed,
+    #[serde(rename = "worker_expired")]
+    WorkerExpired,
+    #[serde(rename = "worker_concurrency")]
+    WorkerConcurrency,
+    #[serde(rename = "worker_cost_limit")]
+    WorkerCostLimit,
+    #[serde(rename = "worker_instance_limit")]
+    WorkerInstanceLimit,
+    #[serde(rename = "worker_starting")]
+    WorkerStarting,
+    #[serde(rename = "worker_capacity")]
+    WorkerCapacity,
+    #[serde(rename = "worker_lifetime")]
+    WorkerLifetime,
+    #[serde(rename = "compute_unavailable")]
+    ComputeUnavailable,
+    #[serde(rename = "insufficient_credits")]
+    InsufficientCredits,
 }
 
 impl Default for WaitingReason {

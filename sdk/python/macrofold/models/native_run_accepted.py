@@ -59,8 +59,8 @@ class NativeRunAccepted(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity']):
-            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity')")
+        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits']):
+            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits')")
         return value
 
     @field_validator('reserved_micro_usd', mode="before")

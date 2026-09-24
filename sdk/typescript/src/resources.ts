@@ -2315,6 +2315,89 @@ export class SandboxesResource {
     });
   }
 }
+export type ListWorkersOptions = {
+  cursor?: NonNullable<operations['listWorkers']['parameters']['query']>['cursor'];
+  limit?: NonNullable<operations['listWorkers']['parameters']['query']>['limit'];
+};
+export type CreateWorkerOptions = NonNullable<
+  operations['createWorker']['requestBody']
+>['content']['application/json'];
+export type PatchWorkerOptions = NonNullable<
+  operations['patchWorker']['requestBody']
+>['content']['application/json'];
+export type PauseWorkerOptions = NonNullable<
+  operations['pauseWorker']['requestBody']
+>['content']['application/json'];
+export type DestroyWorkerOptions = NonNullable<
+  operations['destroyWorker']['requestBody']
+>['content']['application/json'];
+export class WorkersResource {
+  constructor(private client: Transport) {}
+  list(
+    options: ListWorkersOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'listWorkers'>> {
+    return this.client.request('listWorkers', {
+      ...requestOptions,
+      params: { query: { cursor: options.cursor, limit: options.limit } },
+    });
+  }
+  create(
+    options: CreateWorkerOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'createWorker'>> {
+    return this.client.request('createWorker', {
+      ...requestOptions,
+
+      body: options,
+    });
+  }
+  get(workerId: string, requestOptions: RequestSettings = {}): Promise<Result<'getWorker'>> {
+    return this.client.request('getWorker', { ...requestOptions, params: { path: { worker_id: workerId } } });
+  }
+  patch(
+    workerId: string,
+    options: PatchWorkerOptions,
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'patchWorker'>> {
+    return this.client.request('patchWorker', {
+      ...requestOptions,
+      params: { path: { worker_id: workerId } },
+      body: options,
+    });
+  }
+  pause(
+    workerId: string,
+    options: PauseWorkerOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'pauseWorker'>> {
+    return this.client.request('pauseWorker', {
+      ...requestOptions,
+      params: { path: { worker_id: workerId } },
+      body: options,
+    });
+  }
+  resume(workerId: string, requestOptions: RequestSettings = {}): Promise<Result<'resumeWorker'>> {
+    return this.client.request('resumeWorker', {
+      ...requestOptions,
+      params: { path: { worker_id: workerId } },
+    });
+  }
+  destroy(
+    workerId: string,
+    options: DestroyWorkerOptions = {},
+    requestOptions: RequestSettings = {},
+  ): Promise<Result<'destroyWorker'>> {
+    return this.client.request('destroyWorker', {
+      ...requestOptions,
+      params: { path: { worker_id: workerId } },
+      body: options,
+    });
+  }
+  listOfferings(requestOptions: RequestSettings = {}): Promise<Result<'listWorkerOfferings'>> {
+    return this.client.request('listWorkerOfferings', { ...requestOptions });
+  }
+}
 export abstract class Resources {
   abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
   abstract stream(
@@ -2355,4 +2438,5 @@ export abstract class Resources {
   readonly inferences = new InferencesResource(this);
   readonly tasks = new TasksResource(this);
   readonly sandboxes = new SandboxesResource(this);
+  readonly workers = new WorkersResource(this);
 }

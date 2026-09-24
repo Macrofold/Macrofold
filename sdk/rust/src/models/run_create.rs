@@ -70,6 +70,14 @@ pub struct RunCreate {
     /// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
     #[serde(rename = "harness_prompt_mode", skip_serializing_if = "Option::is_none")]
     pub harness_prompt_mode: Option<HarnessPromptMode>,
+    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<uuid::Uuid>,
+    /// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+    #[serde(rename = "memory_mib", skip_serializing_if = "Option::is_none")]
+    pub memory_mib: Option<i32>,
+    /// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+    #[serde(rename = "cpu_millis", skip_serializing_if = "Option::is_none")]
+    pub cpu_millis: Option<i32>,
 }
 
 impl RunCreate {
@@ -99,6 +107,9 @@ impl RunCreate {
             sandbox_max_cost_micro_usd: None,
             model_parameters: None,
             harness_prompt_mode: None,
+            worker_id: None,
+            memory_mib: None,
+            cpu_millis: None,
         }
     }
 }

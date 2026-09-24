@@ -658,5 +658,37 @@
   "destroySandbox": {
     "method": "POST",
     "path": "/v1/sandboxes/{sandbox_id}/destroy"
+  },
+  "listWorkers": {
+    "method": "GET",
+    "path": "/v1/workers"
+  },
+  "createWorker": {
+    "method": "POST",
+    "path": "/v1/workers"
+  },
+  "getWorker": {
+    "method": "GET",
+    "path": "/v1/workers/{worker_id}"
+  },
+  "patchWorker": {
+    "method": "PATCH",
+    "path": "/v1/workers/{worker_id}"
+  },
+  "pauseWorker": {
+    "method": "POST",
+    "path": "/v1/workers/{worker_id}/pause"
+  },
+  "resumeWorker": {
+    "method": "POST",
+    "path": "/v1/workers/{worker_id}/resume"
+  },
+  "destroyWorker": {
+    "method": "POST",
+    "path": "/v1/workers/{worker_id}/destroy"
+  },
+  "listWorkerOfferings": {
+    "method": "GET",
+    "path": "/v1/worker-offerings"
   }
 }

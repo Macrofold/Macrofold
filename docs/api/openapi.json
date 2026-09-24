@@ -13334,6 +13334,600 @@
           }
         }
       }
+    },
+    "/v1/workers": {
+      "get": {
+        "operationId": "listWorkers",
+        "summary": "List authorized compute Workers",
+        "description": "List authorized compute Workers. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorker",
+        "summary": "Create a cost-controlled Worker",
+        "description": "Create a cost-controlled Worker. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:write"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workers/{worker_id}": {
+      "get": {
+        "operationId": "getWorker",
+        "summary": "Read Worker configuration and capacity",
+        "description": "Read Worker configuration and capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:read"
+        ],
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchWorker",
+        "summary": "Change a Worker configuration revision",
+        "description": "Change a Worker configuration revision. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:write"
+        ],
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workers/{worker_id}/pause": {
+      "post": {
+        "operationId": "pauseWorker",
+        "summary": "Pause Worker execution capacity",
+        "description": "Pause Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:write"
+        ],
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workers/{worker_id}/resume": {
+      "post": {
+        "operationId": "resumeWorker",
+        "summary": "Resume Worker execution capacity",
+        "description": "Resume Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:write"
+        ],
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workers/{worker_id}/destroy": {
+      "post": {
+        "operationId": "destroyWorker",
+        "summary": "Destroy Worker execution capacity",
+        "description": "Destroy Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:write"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:write"
+        ],
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/worker-offerings": {
+      "get": {
+        "operationId": "listWorkerOfferings",
+        "summary": "Inspect enabled economic offerings and effective limits",
+        "description": "Inspect enabled economic offerings and effective limits. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.",
+        "tags": [
+          "Workers"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "DashboardSession": []
+          },
+          {
+            "CustomerOAuth": [
+              "workers:read"
+            ]
+          }
+        ],
+        "x-required-scopes": [
+          "workers:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerOfferings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14571,6 +15165,22 @@
               "extend"
             ],
             "description": "OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value."
+          },
+          "worker_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memory_mib": {
+            "type": "integer",
+            "minimum": 128,
+            "maximum": 1048576,
+            "description": "Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate."
+          },
+          "cpu_millis": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024000,
+            "description": "Advanced per-Run CPU allocation in millicores on an explicit Worker."
           }
         },
         "required": [
@@ -14726,6 +15336,22 @@
           },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
+          },
+          "worker_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memory_mib": {
+            "type": "integer",
+            "minimum": 128,
+            "maximum": 1048576,
+            "description": "Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate."
+          },
+          "cpu_millis": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024000,
+            "description": "Advanced per-Run CPU allocation in millicores on an explicit Worker."
           }
         },
         "required": [
@@ -14820,7 +15446,18 @@
               "worktree_unavailable",
               null,
               "lightweight_capacity",
-              "reserved_lightweight_capacity"
+              "reserved_lightweight_capacity",
+              "worker_paused",
+              "worker_destroyed",
+              "worker_expired",
+              "worker_concurrency",
+              "worker_cost_limit",
+              "worker_instance_limit",
+              "worker_starting",
+              "worker_capacity",
+              "worker_lifetime",
+              "compute_unavailable",
+              "insufficient_credits"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -14851,6 +15488,13 @@
             ],
             "format": "uuid",
             "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
+          },
+          "worker_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           }
         },
         "required": [
@@ -15004,7 +15648,18 @@
               "worktree_unavailable",
               null,
               "lightweight_capacity",
-              "reserved_lightweight_capacity"
+              "reserved_lightweight_capacity",
+              "worker_paused",
+              "worker_destroyed",
+              "worker_expired",
+              "worker_concurrency",
+              "worker_cost_limit",
+              "worker_instance_limit",
+              "worker_starting",
+              "worker_capacity",
+              "worker_lifetime",
+              "compute_unavailable",
+              "insufficient_credits"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -15077,6 +15732,13 @@
             ],
             "format": "uuid",
             "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
+          },
+          "worker_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           }
         },
         "required": [
@@ -15632,6 +16294,16 @@
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "worker_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "uniqueItems": true,
+            "maxItems": 100,
+            "description": "Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access."
           }
         },
         "required": [
@@ -20502,7 +21174,18 @@
               "worktree_unavailable",
               null,
               "lightweight_capacity",
-              "reserved_lightweight_capacity"
+              "reserved_lightweight_capacity",
+              "worker_paused",
+              "worker_destroyed",
+              "worker_expired",
+              "worker_concurrency",
+              "worker_cost_limit",
+              "worker_instance_limit",
+              "worker_starting",
+              "worker_capacity",
+              "worker_lifetime",
+              "compute_unavailable",
+              "insufficient_credits"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -21703,7 +22386,18 @@
               "worktree_unavailable",
               null,
               "lightweight_capacity",
-              "reserved_lightweight_capacity"
+              "reserved_lightweight_capacity",
+              "worker_paused",
+              "worker_destroyed",
+              "worker_expired",
+              "worker_concurrency",
+              "worker_cost_limit",
+              "worker_instance_limit",
+              "worker_starting",
+              "worker_capacity",
+              "worker_lifetime",
+              "compute_unavailable",
+              "insufficient_credits"
             ],
             "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
           },
@@ -21745,6 +22439,608 @@
           "worktree_id",
           "status",
           "urls"
+        ],
+        "additionalProperties": false
+      },
+      "WorkerCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "compute": {
+            "type": "string",
+            "enum": [
+              "server",
+              "sandbox"
+            ],
+            "description": "Economic offering, not a placement hint. Macrofold never silently switches this choice."
+          },
+          "dedicated": {
+            "type": "boolean",
+            "description": "Exclusive capacity for this Worker. Independent of sibling Run isolation."
+          },
+          "isolate_runs": {
+            "type": "boolean",
+            "description": "Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker."
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "runtime": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "size": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional fixed shape. Omitted uses a fitting accepted catalog shape."
+          },
+          "min_instances": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "max_instances": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "max_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "idle_timeout_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "max_hourly_compute_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,14})$",
+            "description": "Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget."
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "description": "Create an autoscaling execution target independent of Worktrees and Sessions. Defaults resolve from enabled offerings. Instance counts apply only to dedicated capacity."
+      },
+      "WorkerPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "compute": {
+            "type": "string",
+            "enum": [
+              "server",
+              "sandbox"
+            ],
+            "description": "Economic offering, not a placement hint. Macrofold never silently switches this choice."
+          },
+          "dedicated": {
+            "type": "boolean",
+            "description": "Exclusive capacity for this Worker. Independent of sibling Run isolation."
+          },
+          "isolate_runs": {
+            "type": "boolean",
+            "description": "Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker."
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "runtime": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "size": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional fixed shape. Omitted uses a fitting accepted catalog shape."
+          },
+          "min_instances": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "max_instances": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "max_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "idle_timeout_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "max_hourly_compute_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,14})$",
+            "description": "Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget."
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "additionalProperties": false,
+        "description": "Revision-checked configuration edit. Changing compute, isolation, runtime, shape or region requires a fully paused Worker."
+      },
+      "WorkerResources": {
+        "type": "object",
+        "properties": {
+          "memory_mib": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1048576
+          },
+          "cpu_millis": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024000
+          }
+        },
+        "required": [
+          "memory_mib",
+          "cpu_millis"
+        ],
+        "additionalProperties": false
+      },
+      "WorkerPrice": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "allocation"
+              },
+              "hourly_micro_usd": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,14})$"
+              }
+            },
+            "required": [
+              "kind",
+              "hourly_micro_usd"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "resource"
+              },
+              "cpu_hour_micro_usd": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,14})$"
+              },
+              "gib_hour_micro_usd": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,14})$"
+              }
+            },
+            "required": [
+              "kind",
+              "cpu_hour_micro_usd",
+              "gib_hour_micro_usd"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "WorkerOffering": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "compute": {
+            "type": "string",
+            "enum": [
+              "server",
+              "sandbox"
+            ],
+            "description": "Economic offering, not a placement hint. Macrofold never silently switches this choice."
+          },
+          "dedicated": {
+            "type": "boolean"
+          },
+          "isolate_runs": {
+            "type": "boolean"
+          },
+          "region": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/WorkerResources"
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "max_host_lifetime_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "price": {
+            "$ref": "#/components/schemas/WorkerPrice"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "compute",
+          "dedicated",
+          "isolate_runs",
+          "region",
+          "runtime",
+          "size",
+          "resources",
+          "concurrency",
+          "max_host_lifetime_seconds",
+          "price"
+        ],
+        "additionalProperties": false
+      },
+      "Worker": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compute": {
+            "type": "string",
+            "enum": [
+              "server",
+              "sandbox"
+            ],
+            "description": "Economic offering, not a placement hint. Macrofold never silently switches this choice."
+          },
+          "dedicated": {
+            "type": "boolean",
+            "description": "Exclusive capacity for this Worker. Independent of sibling Run isolation."
+          },
+          "isolate_runs": {
+            "type": "boolean",
+            "description": "Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker."
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "runtime": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "min_instances": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "max_instances": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "max_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "idle_timeout_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 86400,
+            "description": "Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "max_hourly_compute_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,14})$",
+            "description": "Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "paused",
+              "destroyed"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "sleeping",
+              "starting",
+              "ready",
+              "draining",
+              "paused",
+              "destroyed",
+              "expired"
+            ]
+          },
+          "active_runs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "occupied_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "queued_runs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ready_instances": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "starting_instances": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draining_instances": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "committed_hourly_compute_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,14})$"
+          },
+          "cost_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "accepted_offerings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerOffering"
+            }
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "compute",
+          "dedicated",
+          "isolate_runs",
+          "region",
+          "runtime",
+          "size",
+          "min_instances",
+          "max_instances",
+          "max_concurrency",
+          "idle_timeout_seconds",
+          "expires_at",
+          "max_hourly_compute_cost_micro_usd",
+          "id",
+          "organization_id",
+          "revision",
+          "desired_state",
+          "status",
+          "active_runs",
+          "occupied_slots",
+          "queued_runs",
+          "ready_instances",
+          "starting_instances",
+          "draining_instances",
+          "committed_hourly_compute_cost_micro_usd",
+          "cost_micro_usd",
+          "reserved_micro_usd",
+          "accepted_offerings",
+          "failure_code",
+          "created_at",
+          "updated_at",
+          "observed_at"
+        ],
+        "additionalProperties": false
+      },
+      "WorkerAction": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "description": "Explicitly cancel active Runs. Cleanup and accounting still complete before release."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "WorkerPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Worker"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "WorkerPolicyLimits": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "default_hourly_compute_cost_micro_usd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,14})$"
+          },
+          "default_max_instances": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_instances": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "default_max_concurrency": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_concurrency": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "region",
+          "runtime",
+          "default_hourly_compute_cost_micro_usd",
+          "default_max_instances",
+          "max_instances",
+          "default_max_concurrency",
+          "max_concurrency"
+        ],
+        "additionalProperties": false
+      },
+      "WorkerOfferings": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerOffering"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/WorkerPolicyLimits"
+          }
+        },
+        "required": [
+          "data",
+          "limits"
         ],
         "additionalProperties": false
       }
@@ -21897,7 +23193,10 @@
               "organizations:write": "Manage organizations, roles and invitations",
               "workspaces:delete": "Schedule or cancel permanent workspace deletion (owner/admin only)",
               "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
-              "triggers:write": "Manage incoming triggers and scheduled tasks"
+              "triggers:write": "Manage incoming triggers and scheduled tasks",
+              "workers:read": "Read authorized Worker configuration and aggregate compute usage",
+              "workers:use": "Execute authorized Runs using granted Worker capacity",
+              "workers:write": "Manage Worker lifecycle, economic contracts and spending limits"
             }
           }
         }
@@ -21909,6 +23208,10 @@
     {
       "name": "customerAgents",
       "description": "Integration path \u00b7 Customer agents. Optional use-case-specific composition of core workspaces, presets, worktrees, sessions, runs and connections. Customer identity is asserted by your authenticated backend; core platform primitives do not depend on this path."
+    },
+    {
+      "name": "Workers",
+      "description": "Optional reusable compute, spending and scaling controls."
     }
   ]
 }

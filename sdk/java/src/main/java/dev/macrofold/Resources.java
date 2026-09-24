@@ -40,6 +40,7 @@ public CustomerAgentsResource customerAgents(){return new CustomerAgentsResource
 public InferencesResource inferences(){return new InferencesResource(this,RequestOptions.defaults());}
 public TasksResource tasks(){return new TasksResource(this,RequestOptions.defaults());}
 public SandboxesResource sandboxes(){return new SandboxesResource(this,RequestOptions.defaults());}
+public WorkersResource workers(){return new WorkersResource(this,RequestOptions.defaults());}
 
 public static final class GetWorkspaceParams {
         private Boolean includeConnections;
@@ -1835,6 +1836,69 @@ public Sandbox resume(UUID sandboxId) throws ApiException {
         String key=options.identity();
 
         try {return new SandboxesApi(client).resumeSandbox(sandboxId,key,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+    }
+public static final class ListWorkersParams {
+        private UUID cursor;
+private Integer limit;
+        public ListWorkersParams(){}
+        public ListWorkersParams cursor(UUID value){this.cursor=value;return this;}
+public ListWorkersParams limit(Integer value){this.limit=value;return this;}
+      }
+public static final class WorkersResource {
+      private final Resources client; private final RequestOptions options;
+      private WorkersResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public WorkersResource withOptions(RequestOptions options){return new WorkersResource(client,Objects.requireNonNull(options));}
+      public Worker create(WorkerCreate input) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).createWorker(key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Worker destroy(UUID workerId,WorkerAction input) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).destroyWorker(workerId,key,options.organization(),input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Worker get(UUID workerId) throws ApiException {
+
+
+        try {return new WorkersApi(client).getWorker(workerId,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public WorkerOfferings listOfferings() throws ApiException {
+
+
+        try {return new WorkersApi(client).listWorkerOfferings(options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public WorkerPage list() throws ApiException {
+        return list(new ListWorkersParams());
+      }
+public WorkerPage list(ListWorkersParams params) throws ApiException {
+
+        Objects.requireNonNull(params,"params");
+        try {return new WorkersApi(client).listWorkers(options.organization(),params.cursor,params.limit);}
+        catch(ApiException error) {throw new RequestException(error,null);}
+      }
+public Worker patch(UUID workerId,WorkerPatch input) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).patchWorker(workerId,key,input,options.organization());}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Worker pause(UUID workerId,WorkerAction input) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).pauseWorker(workerId,key,options.organization(),input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Worker resume(UUID workerId) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).resumeWorker(workerId,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }

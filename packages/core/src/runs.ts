@@ -1,4 +1,6 @@
 import * as sandboxes from './sandboxes';
+import { workerForRun } from './workers';
+import { validateWorkerResources } from './worker-pricing';
 import type { SandboxProviderKind } from '../../contracts/sandbox-control';
 import { initialReceipt } from './inference-receipt';
 import { defaultRunBudgetMicroUsd } from '../../contracts/run-defaults';
@@ -136,6 +138,7 @@ export function presentRun(row: RunRow, waitingReason: WaitingReason | null = nu
     organization_id: row.organization_id,
     session_id: row.session_id,
     worktree_id: row.worktree_id,
+    worker_id: row.kind === 'native_agent' ? row.config.worker_id || null : null,
     sandbox_id: row.kind === 'native_agent' ? row.config.sandbox_id || null : null,
     harness: row.kind === 'native_agent' ? row.config.harness : null,
     model: row.config.model,
@@ -468,6 +471,16 @@ export async function admitRun(
     input.connection_access_overrides,
   );
   const simulated = isLocal() && config.execution === 'simulator';
+  const worker = input.worker_id ? await workerForRun(tx,p,input.worker_id) : undefined;
+  assert(!worker || (!input.sandbox_id && input.keep_warm_seconds === undefined),400,'conflicting_compute',
+    'Select one explicit Worker without a per-Run compute lifetime override.');
+  assert(worker || (input.memory_mib === undefined && input.cpu_millis === undefined),400,'worker_required',
+    'Per-Run compute allocations require an explicit worker_id.');
+  const workerResources = worker ? {memory_mib:input.memory_mib ?? 1024,cpu_millis:input.cpu_millis ?? 250} : undefined;
+  if(workerResources) validateWorkerResources(workerResources);
+  if(worker && worker.settings.expires_at_ms !== null) assert(
+    worker.settings.expires_at_ms >= Date.now() + (configured.limits.timeout_seconds + 180) * 1000,
+    409,'worker_lifetime','This Run cannot finish inside the Worker expiration window.');
   let sandbox = input.sandbox_id ? await sandboxes.getSandbox(tx, input.sandbox_id, p) : undefined;
   if (!sandbox && (input.keep_warm_seconds || 0) > 0) {
     const created = await sandboxes.createSandbox(tx, p, { worktree_id: worktree.id, keep_warm_seconds: input.keep_warm_seconds,
@@ -484,7 +497,7 @@ export async function admitRun(
     assert(BigInt(sandbox.reserved_micro_usd) - sandboxes.sandboxCost(sandbox) >= computeMaximum(configured.limits.timeout_seconds, sandbox.rate_micro_usd_per_minute),
       402, 'sandbox_budget_too_small', 'Pause and resume with a fresh allocation, or shorten this run.');
   }
-  const rate = sandbox ? '0' : computeRate();
+  const rate = worker || sandbox ? '0' : computeRate();
   const minimum = computeMaximum(configured.limits.timeout_seconds, rate);
   assert(
     simulated || BigInt(configured.limits.max_cost_micro_usd) >= minimum,
@@ -525,6 +538,8 @@ export async function admitRun(
     rate_card: configured.rate_card,
     compute_rate_micro_usd_per_minute: rate,
     execution_provider: config.execution,
+    worker_id: worker?.id,
+    worker_resources: workerResources,
     sandbox_id: sandbox?.id,
     sandbox_provider: sandbox?.provider,
     keep_warm_seconds: input.keep_warm_seconds,
@@ -563,6 +578,7 @@ export async function admitRun(
   const reasons = await queueObservations(tx, [runId]);
   return {
     run_id: runId,
+    worker_id: worker?.id || null,
     sandbox_id: sandbox?.id || null,
     session_id: session.id,
     worktree_id: worktree.id,

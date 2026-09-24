@@ -37,6 +37,7 @@ type RunAccepted struct {
 	Kind *string `json:"kind,omitempty"`
 	// Reusable compute ID, when selected or created by keep_warm_seconds.
 	SandboxId NullableString `json:"sandbox_id,omitempty"`
+	WorkerId NullableString `json:"worker_id,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -432,6 +433,48 @@ func (o *RunAccepted) UnsetSandboxId() {
 	o.SandboxId.Unset()
 }
 
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *RunAccepted) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.WorkerId.Get()
+}
+
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *RunAccepted) GetWorkerIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.WorkerId.Get(), o.WorkerId.IsSet()
+}
+
+// HasWorkerId returns a boolean if a field has been set.
+func (o *RunAccepted) HasWorkerId() bool {
+	if o != nil && o.WorkerId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerId gets a reference to the given NullableString and assigns it to the WorkerId field.
+func (o *RunAccepted) SetWorkerId(v string) {
+	o.WorkerId.Set(&v)
+}
+// SetWorkerIdNil sets the value for WorkerId to be an explicit nil
+func (o *RunAccepted) SetWorkerIdNil() {
+	o.WorkerId.Set(nil)
+}
+
+// UnsetWorkerId ensures that no value is present for WorkerId, not even an explicit nil
+func (o *RunAccepted) UnsetWorkerId() {
+	o.WorkerId.Unset()
+}
+
 func (o RunAccepted) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -467,6 +510,9 @@ func (o RunAccepted) ToMap() (map[string]interface{}, error) {
 	}
 	if o.SandboxId.IsSet() {
 		toSerialize["sandbox_id"] = o.SandboxId.Get()
+	}
+	if o.WorkerId.IsSet() {
+		toSerialize["worker_id"] = o.WorkerId.Get()
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -527,6 +573,7 @@ func (o *RunAccepted) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "scheduling_class")
 		delete(additionalProperties, "kind")
 		delete(additionalProperties, "sandbox_id")
+		delete(additionalProperties, "worker_id")
 		o.AdditionalProperties = additionalProperties
 	}
 

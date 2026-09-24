@@ -28,7 +28,8 @@ pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnection
 pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}}
 pub fn inferences(&self) -> InferencesResource<'_> {InferencesResource {client:self, options:RequestOptions::default()}}
 pub fn tasks(&self) -> TasksResource<'_> {TasksResource {client:self, options:RequestOptions::default()}}
-pub fn sandboxes(&self) -> SandboxesResource<'_> {SandboxesResource {client:self, options:RequestOptions::default()}} }
+pub fn sandboxes(&self) -> SandboxesResource<'_> {SandboxesResource {client:self, options:RequestOptions::default()}}
+pub fn workers(&self) -> WorkersResource<'_> {WorkersResource {client:self, options:RequestOptions::default()}} }
 
 #[derive(Debug,Clone,Default)] pub struct GetWorkspaceParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct GetWorktreeOptionsParams {pub name: Option<String>,pub branch: Option<String>}
@@ -1016,6 +1017,51 @@ pub async fn pause(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientErro
 pub async fn resume(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::sandboxes_api::resume_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+    }
+#[derive(Debug,Clone,Default)] pub struct ListWorkersParams {pub cursor: Option<String>,pub limit: Option<i32>}
+pub struct WorkersResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> WorkersResource<'a> {
+      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
+      pub async fn create(&self, input: models::WorkerCreate) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::create_worker(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn destroy(&self, worker_id: &str, input: Option<models::WorkerAction>) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::destroy_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref(), input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn get(&self, worker_id: &str) -> Result<models::Worker,ClientError> {
+
+        crate::apis::workers_api::get_worker(self.client.configuration(), worker_id, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list_offerings(&self) -> Result<models::WorkerOfferings,ClientError> {
+
+        crate::apis::workers_api::list_worker_offerings(self.client.configuration(), self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn list(&self, params: ListWorkersParams) -> Result<models::WorkerPage,ClientError> {
+
+        crate::apis::workers_api::list_workers(self.client.configuration(), self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn patch(&self, worker_id: &str, input: models::WorkerPatch) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::patch_worker(self.client.configuration(), worker_id, &key, input, self.options.organization.as_deref()).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn pause(&self, worker_id: &str, input: Option<models::WorkerAction>) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::pause_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref(), input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn resume(&self, worker_id: &str) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::resume_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

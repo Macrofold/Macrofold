@@ -74,7 +74,7 @@ These narrower tests run real harnesses with networking disabled and a model fix
 
 Both sandbox modes run locally in Docker. Create a sandbox with `long_running: true` to keep its container available without a fixed lifetime cutoff or default idle timeout. No Render credentials are needed. An ordinary sandbox (`long_running: false`) retains its bounded lifetime and keep-warm policy; runs without a reusable sandbox still clean up their containers normally.
 
-Use the same [sandbox API](../../features/execution/sandboxes.md) for create, pause, resume and destroy. Pause removes local compute; resume creates a fresh container, restoring verified files and conversation state on the next run. Destroy never deletes checkpoints. Docker and the SQL worker must remain running. The container can stay warm, but each run still starts its own native harness process.
+Use the same [sandbox API](../../features/execution/workers.md) for create, pause, resume and destroy. Pause removes local compute; resume creates a fresh container, restoring verified files and conversation state on the next run. Destroy never deletes checkpoints. Docker and the SQL worker must remain running. The container can stay warm, but each run still starts its own native harness process.
 
 ## Stop and resume
 

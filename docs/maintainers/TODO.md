@@ -105,7 +105,7 @@ Product and architecture proposals are tracked separately in [ranked improvement
 ## Reusable sandbox acceptance
 
 - [ ] Apply migration 040, publish the matching runtime image with the control service and current parser dependencies, then deploy API/worker together. Configure Render owner/key, immutable registry image, plan, explicit compute price and enablement; ensure maintenance runs continuously. Do not treat adapter tests as hosted enablement.
-- [ ] Verify bounded Render create, same-server follow-up, asynchronous suspend confirmation, resume/rehydration, destroy/new-disk behavior, process restart fencing and provider invoice reconciliation. Verify no persistent disk, no platform credentials in agent processes, and reviewed network access. Repeat Vercel reuse/expiry recovery on a plan supporting the configured lifetime. See [sandbox acceptance](../features/execution/sandboxes/verification.md).
+- [ ] Verify bounded Render create, same-server follow-up, asynchronous suspend confirmation, resume/rehydration, destroy/new-disk behavior, process restart fencing and provider invoice reconciliation. Verify no persistent disk, no platform credentials in agent processes, and reviewed network access. Repeat Vercel reuse/expiry recovery on a plan supporting the configured lifetime. See [sandbox acceptance](../features/execution/workers/verification.md).
 - [ ] Exercise provider outage and maintenance backlog; confirm active servers do not starve idle cleanup, uncertain deletion retains reservations, and separate compute holds reconcile. Reusable servers currently stop without a provider disk-recovery snapshot when capture fails; accept this limitation before offering that route for valuable uncheckpointed work.
 
 ## Execution tracing acceptance
@@ -119,7 +119,7 @@ Product and architecture proposals are tracked separately in [ranked improvement
 ## Startup latency acceptance
 
 - [ ] Accept immediate phase advancement and batched hydration on deployed Workflow and Linux AMD64 compute. Exercise a fresh run and conversation continuation with many small files and multi-chunk files; verify exact restored bytes/session history, one native launch, checkpoint publication and released reservations. Local tests use PostgreSQL 14 and provider fixtures; repeat the configured PostgreSQL 17 CI checks. Docker was unavailable during this change's local verification.
-- [ ] Compare queue-to-claim time, internal [phase timings](../features/execution/runtime.md#startup-latency-and-measurement), orchestration gaps, first model response and browser delivery on representative workloads. Check upload/control API counts and failure retries as well as latency. No deployed speedup is established by local fixture timings. Compare the separate [warm sandbox implementation](../features/execution/sandboxes.md) using the same measurements.
+- [ ] Compare queue-to-claim time, internal [phase timings](../features/execution/runtime.md#startup-latency-and-measurement), orchestration gaps, first model response and browser delivery on representative workloads. Check upload/control API counts and failure retries as well as latency. No deployed speedup is established by local fixture timings. Compare the separate [warm sandbox implementation](../features/execution/workers.md) using the same measurements.
 
 ## Multimedia release acceptance
 

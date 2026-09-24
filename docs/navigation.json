@@ -175,9 +175,9 @@
     "description": "Select a harness, follow progress, continue work, and cancel safely."
   },
   {
-    "slug": "sandboxes",
-    "source": "docs/features/execution/sandboxes.md",
-    "title": "Warm sandboxes and servers",
+    "slug": "workers",
+    "source": "docs/features/execution/workers.md",
+    "title": "Workers",
     "section": "Guides",
     "description": "Reuse compute across runs, or create, pause, resume and destroy long-running servers."
   },
@@ -442,7 +442,7 @@
   },
   {
     "slug": "self-hosting/sandboxes",
-    "source": "docs/features/execution/sandboxes/operations.md",
+    "source": "docs/features/execution/workers/operations.md",
     "title": "Host long-running servers",
     "section": "Deploy and operate",
     "description": "Configure disposable Render services and operate their lifecycle and compute budgets."

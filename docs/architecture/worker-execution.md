@@ -5,7 +5,7 @@
 
 This document supersedes the earlier one-serving-Host-per-Worker and short-lived/long-lived resource designs. A **Worker is a stable, autoscaling execution target with an explicit economic contract**. The user chooses cost, tenancy, isolation, and availability requirements; Macrofold sizes and places execution within those requirements. It does not predict future traffic or silently change the purchased offering.
 
-[Worker guide](../features/execution/workers.md) owns the intended user experience. [Feature TODO](../features/execution/workers/TODO.md) owns unfinished implementation and deployment gates. Existing [sandbox documentation](../features/execution/sandboxes.md) describes the still-implemented API until the coordinated switchover. Do not publish examples from this target as working endpoints before their handlers, schemas, SDKs, and acceptance tests land.
+[Worker guide](../features/execution/workers.md) owns the intended user experience. [Feature TODO](../features/execution/workers/TODO.md) owns unfinished implementation and deployment gates. Existing [sandbox documentation](../features/execution/workers.md) describes the still-implemented API until the coordinated switchover. Do not publish examples from this target as working endpoints before their handlers, schemas, SDKs, and acceptance tests land.
 
 ## 1. Resource model and decisions
 

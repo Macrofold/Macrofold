@@ -2,6 +2,9 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover restore-marker-before-process-exit handoff: launch waits for the restore child, without touching another Run or spuriously failing an acknowledged restoration.
+- [ ] Cover warm harness incompatibility when model parameters or harness prompt mode change; old scoped runtime-control operations must not remain discoverable.
+
 - [ ] Cover dashboard Worker lifecycle confirmation, revision-conflict preservation, exact USD conversion, paginated selectors, disabled unsupported offerings, and placement on both new and continuing Runs. A Run's budget label must not imply it pays for the entire explicit Worker.
 
 - [ ] Cover automatic native execution on the Host protocol, encrypted control-secret recovery, pre-launch allocation cleanup without a received binding, and Session continuation when switching between automatic and explicit Worker placement.
@@ -305,3 +308,13 @@ Implemented the synchronous single-call API path; tests and feature documentatio
 - [ ] Add/run API and regenerated SDK regression coverage for the simplified default `POST /v1/inferences` body: only `model_binding`, native `input`, and `limits` are required. `definition`, `context`, and `question.kind` are no longer required for ordinary inference. Verify optional typed definitions still require their context, bounded agents still require definitions, missing limits fail before admission, and both synchronous/async paths retain billing and idempotency. Ad hoc execution through the actual request validator, internal normalization and provider adapter passed with a synthetic multi-question Jev response; TypeScript checking passed. Formal suites remain deferred by request.
 - [ ] Update the public/internal guides and calling-agent examples to make the simplified body the primary interface. Present definitions/context only as optional higher-level decision features. The server creates its executor envelope internally; callers need no provider-mode flag. Regenerate published docs after this deferred documentation update.
 - [ ] Add a Jev pass-through regression asserting caller state, arbitrary named questions, extra endpoint parameters and routing preferences survive serialization unchanged. Keep chat-only tool/output/service-tier validation off the Decisions path. Only the bound model and Macrofold routing/spending controls are platform-owned. Ad hoc adapter execution verified the OpenRouter Decisions URL, forwarded parameters and complete returned answers; formal tests/documentation remain deferred.
+
+
+### Worker allocation receipt and metering regressions
+
+Formal test additions remain deferred at the user's request; runtime/load checks are separate.
+
+- [ ] Verify controller startup failure after physical provisioning retains the accepted provider identity/start time and permits idempotent cleanup without double provisioning or released liability.
+- [ ] Cover runtime-requested rotation, provider-observation pacing, idle and manually paused Workers, and capacity handoff while old Hosts drain.
+- [ ] Cover metered graceful shutdown with a lost quiesce acknowledgement, crash after the final receipt but before provider deletion, duplicate finalization, and confirmation of the same controller generation. No missing usage tail may silently settle as zero.
+- [ ] Cover one-query queued-demand hydration and authorized materialization grouping at the configured Worker/Host limits.

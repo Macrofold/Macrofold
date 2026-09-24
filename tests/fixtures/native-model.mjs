@@ -393,9 +393,9 @@ export function nativeModelFixture({
           : name === 'shell'
             ? {
                 command: ['bash', '-lc', action(calls)],
-                workdir: '/workspace',
+                workdir: workspace,
               }
-            : { cmd: action(calls), workdir: '/workspace' };
+            : { cmd: action(calls), workdir: workspace };
       const item = {
         type: 'function_call',
         id: `fc_fixture_${calls}`,

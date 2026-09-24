@@ -8,7 +8,7 @@ import { runtimeConfiguration, supervise, discardHarness, type LiveHarness } fro
 import { agentProcesses, agentMemoryMiB } from './agent-processes';
 import { atomicJSON, probeRuntime } from './manifest';
 import { hostRunPaths, KeyedCommands, type HostRunContext } from './host-paths';
-import { HostMeter } from './host-meter';
+import { HostMeter, type HostResourceMeters } from './host-meter';
 import type { NativeConfiguration } from './types';
 
 const root = '/platform-control';
@@ -40,13 +40,17 @@ export class HostController {
   private readonly tombstones = new Set<string>();
   private readonly meter = new HostMeter();
   private metered: boolean | undefined;
+  private quiesced = false;
+  private finalMeters: HostResourceMeters | null = null;
   private nextUID = 20000;
 
   private async health() {
-    let meters = null;
-    try { meters = await this.meter.sample(); this.metered = true; }
-    catch { this.metered = false; }
-    return { boot_id: this.boot, started_at: this.startedAt, configured: !!this.configuration,
+    let meters = this.finalMeters;
+    if (!this.quiesced) {
+      try { meters = await this.meter.sample(); this.metered = true; }
+      catch { this.metered = false; }
+    }
+    return { boot_id: this.boot, started_at: this.startedAt, configured: !!this.configuration, quiesced: this.quiesced,
       active_assignments: [...this.assignments.values()].filter(value => !value.released).length,
       rotation_requested: this.tombstones.size >= 90000 || !!(this.configuration?.isolate_runs && this.tombstones.size),
       capabilities: { scoped_processes: process.platform === 'linux' && process.getuid?.() === 0,
@@ -105,7 +109,7 @@ export class HostController {
   }
   private async allocate(request: Prepare): Promise<Assignment> {
     const config=this.configuration;
-    if (!config || this.tombstones.size >= 100000 || (config.isolate_runs && this.tombstones.size > 0))
+    if (!config || this.quiesced || this.tombstones.size >= 100000 || (config.isolate_runs && this.tombstones.size > 0))
       throw new Error('host_rotation_required');
     if (this.tombstones.has(request.assignment_id)) throw new Error('assignment_released');
     const parsed=runtimeConfiguration.parse(request.configuration);
@@ -199,7 +203,19 @@ export class HostController {
   }
   async control(request: HostControlRequest): Promise<unknown> {
     if (request.action==='health') return this.health();
+    if (request.action==='quiesce') return this.commands.run('allocation',async()=>{
+      if (this.quiesced) return this.health();
+      if ([...this.assignments.values()].some(value => !value.released)) throw new Error('runtime_not_quiescent');
+      for (const handle of [...this.handles.values()]) await this.evict(handle);
+      // This immutable receipt survives lost acknowledgements. Once sealed, this
+      // generation cannot admit another assignment or accrue customer workload usage.
+      const health = await this.health();
+      this.finalMeters = health.meters;
+      this.quiesced = true;
+      return { ...health, quiesced: true };
+    });
     if (request.action==='configure') return this.commands.run('allocation',async()=>{
+      if (this.quiesced) throw new Error('host_rotation_required');
       if (request.isolate_runs && request.concurrency!==1) throw new Error('isolation_requires_exclusive_host');
       if (this.configuration && JSON.stringify(this.configuration)!==JSON.stringify(request)) throw new Error('host_configuration_immutable');
       this.configuration=request;
@@ -256,6 +272,7 @@ export class HostController {
         case 'launch':
           await value.preparation;
           if(value.supervision)return 'started';
+          await value.restoration;
           if(value.children.size)throw new Error('assignment_preparing');
           try { await readFile(`${value.directory}/cancel`); throw new Error('run_stopped'); }
           catch(error) { if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error; }

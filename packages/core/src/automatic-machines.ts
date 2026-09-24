@@ -43,7 +43,9 @@ export class AutomaticMachines extends HostRuntime {
       resources: allocation, region: 'iad1', size: '2cpu-4g', runtime: process.env.WORKER_RUNTIME_VERSION || 'managed-1',
       concurrency: 1, isolate_runs: true });
     if (!binding) throw new AppError(503, 'worker_starting', 'Isolated execution capacity is starting.');
-    return binding;
+    await this.provider.start?.(binding, await this.secret());
+    const health = hostHealth.parse(await this.provider.control(binding, await this.secret(), { action: 'health' }));
+    return { ...binding, controlBootId: health.boot_id };
   }
   protected async call(binding: MachineBinding, request: HostControlRequest): Promise<unknown> {
     assert(binding.name === this.name() && binding.controlBootId, 409, 'host_assignment_changed', 'The execution binding does not match this Run.');

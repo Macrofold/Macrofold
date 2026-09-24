@@ -7,7 +7,7 @@ import { getHost, hostSnapshots, reserveHost, extendHostFunding, settleHostSampl
 import { chooseWorkerPlacement } from './worker-placement';
 import { workerAdmissionBlock, workerOfferingCompatible } from './worker-policy';
 import { workerHourlyExposure, type ComputeMeters } from './worker-pricing';
-import { getNativeRun, type NativeRunRow } from './runs';
+import type { NativeRunRow } from './runs';
 import { hostProvider } from '../../providers/src/hosts';
 import { hostHealth, type HostProvider } from '../../contracts/host-control';
 
@@ -36,7 +36,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
     await lock(tx, `worker:${before.worker_id}`);
     await lock(tx, `host:${hostId}`);
     const host = await getHost(tx, hostId);
-    if (host.status === 'stopped' || (host.lease_until && host.lease_until.getTime() > Date.now())) return null;
+    if (host.status === 'stopped' || host.next_check_at.getTime() > Date.now() || (host.lease_until && host.lease_until.getTime() > Date.now())) return null;
     await tx.query('UPDATE hosts SET lease_id=$2,lease_until=$3 WHERE id=$1', [hostId, leaseId, new Date(Date.now() + providerLeaseMs)]);
     return { host, worker: await getWorker(tx, host.worker_id) };
   });
@@ -69,6 +69,7 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
           [hostId, JSON.stringify(binding), start, host.offering.max_host_lifetime_seconds === null ? null :
             new Date(start.getTime() + host.offering.max_host_lifetime_seconds * 1000)]);
       });
+      await provider.start?.(binding, secret);
       const health = hostHealth.parse(await provider.control(binding, secret, { action: 'health' }));
       const fencedBinding = { ...binding, controlBootId: health.boot_id, ...(host.provider === 'render' ? { sessionId: health.boot_id } : {}) };
       assert(health.capabilities.scoped_processes && (!host.offering.isolate_runs || health.capabilities.sibling_isolation),
@@ -108,18 +109,25 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
             (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
         });
         host = await transaction(org, tx => getHost(tx, hostId));
-      } else if (host.offering.price.kind === 'resource') {
+      } else {
         const health = hostHealth.parse(await provider.control(host.binding, secret, { action: 'health' }));
-        assert(health.boot_id === host.binding.controlBootId && health.meters, 503, 'host_usage_unknown',
-          'The current generation did not provide its required resource meter. Funding is retained for reconciliation.');
-        meters = health.meters;
+        assert(health.boot_id === host.binding.controlBootId, 409, 'host_generation_changed',
+          'The Host controller changed; stop the old allocation before releasing claims.');
+        if (health.rotation_requested || health.quiesced) await mutateHost(org, hostId, leaseId, async tx => {
+          await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1", [hostId]);
+        });
+        if (host.offering.price.kind === 'resource') {
+          assert(health.meters, 503, 'host_usage_unknown',
+            'The current generation did not provide its required resource meter. Funding is retained for reconciliation.');
+          meters = health.meters;
+        }
       }
     }
     if (host.started_at) {
       if (host.offering.price.kind === 'allocation') meters = allocationMeters(host, Date.now());
       if (host.offering.price.kind === 'resource' && host.stopped_at && !meters) {
         // Last acknowledged usage is not evidence that the missing tail consumed nothing.
-        if (workerHourlyExposure(host.offering.price,host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
+        if (!host.usage_finalized_at && workerHourlyExposure(host.offering.price,host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
           'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
         meters = host.billing_cursor || { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' };
       }
@@ -142,6 +150,17 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       const count = await transaction(org, async tx => (await tx.query<{ n: number }>(
         'SELECT count(*)::integer AS n FROM host_runs WHERE host_id=$1 AND released_at IS NULL', [hostId])).rows[0].n);
       if (count) return;
+      if (host.binding && !host.stopped_at && host.offering.price.kind === 'resource' && !host.usage_finalized_at) {
+        const receipt = hostHealth.parse(await provider.control(host.binding, secret, { action: 'quiesce' }));
+        assert(receipt.boot_id === host.binding.controlBootId && receipt.quiesced && receipt.active_assignments === 0 && receipt.meters,
+          503, 'host_usage_unknown', 'A stopped workload and final cumulative meter must be confirmed before deallocation.');
+        const finalMeters = receipt.meters;
+        await mutateHost(org, hostId, leaseId, async (tx, current) => {
+          await settleHostSample(tx, current, finalMeters);
+          await tx.query('UPDATE hosts SET usage_finalized_at=now() WHERE id=$1', [hostId]);
+        });
+        host = await transaction(org, tx => getHost(tx, hostId));
+      }
       const released = host.stopped_at !== null || await provider.destroy(host.provider_name,host.binding);
       if (!released) return;
       await mutateHost(org, hostId, leaseId, async (tx, current) => {
@@ -171,15 +190,12 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
 }
 
 async function queuedDemand(tx: Tx, worker: WorkerRow): Promise<NativeRunRow[]> {
-  const rows = (await tx.query<{ id: string }>(`SELECT r.id FROM runs r WHERE r.config->>'worker_id'=$1 AND r.status='queued'
+  return (await tx.query<NativeRunRow>(`SELECT r.* FROM runs r WHERE r.config->>'worker_id'=$1 AND r.status='queued'
     AND NOT r.cancel_requested AND r.queue_expires_at>now() AND r.kind='native_agent'
     AND NOT EXISTS(SELECT 1 FROM runs earlier WHERE earlier.worktree_id=r.worktree_id AND earlier.id<>r.id AND
       (earlier.status IN ('provisioning','running','waiting_for_input','persisting') OR
       (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id))))
     ORDER BY CASE r.config->>'scheduling_class' WHEN 'interactive' THEN 0 ELSE 1 END,r.created_at,r.id LIMIT 32`, [worker.id])).rows;
-  const runs: NativeRunRow[] = [];
-  for (const row of rows) runs.push(await getNativeRun(tx,row.id));
-  return runs;
 }
 
 export async function reconcileWorker(org: string, workerId: string, providerFactory: HostProviderFactory = hostProvider): Promise<void> {

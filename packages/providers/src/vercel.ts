@@ -1,7 +1,6 @@
 import type { HostBinding, HostControlRequest } from '../../contracts/host-control';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { SandboxBinding, SandboxControlRequest } from '../../contracts/sandbox-control';
 import { Sandbox } from '@vercel/sandbox';
 import type {
   MachineProvider,
@@ -136,7 +135,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
     // Session methods do not silently resume a stopped VM; Sandbox methods can.
     return session;
   }
-  async startControl(binding: MachineBinding, secret: string, entry: 'sandbox-control' | 'host-control' = 'sandbox-control') {
+  async startControl(binding: MachineBinding, secret: string, entry: 'host-control' = 'host-control') {
     const session = await this.session(binding);
     const setup = await session.runCommand({ cmd: 'node', args: ['-e', "const fs=require('fs');fs.mkdirSync('/platform-control',{recursive:true});fs.chmodSync('/platform-control',0o2770)"], sudo: true });
     assert(setup.exitCode === 0, 502, 'runtime_setup_failed', 'Unable to initialize control.');
@@ -151,13 +150,12 @@ export class VercelMachines implements MachineProvider, MachineTools {
   }
   startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
   hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
-  control(binding: SandboxBinding, secret: string, request: SandboxControlRequest) { return this.controlRequest(binding, secret, request, 'sandbox-control-cli'); }
-  private async controlRequest(binding: SandboxBinding | HostBinding, _secret: string, request: SandboxControlRequest | HostControlRequest, entry: 'sandbox-control-cli' | 'host-control-cli') {
+  private async controlRequest(binding: HostBinding, _secret: string, request: HostControlRequest, entry: 'host-control-cli') {
     const session = await this.session(binding);
     const path = `/platform-control/request-${randomUUID()}.json`;
     await session.writeFiles([{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })), mode: 0o600 }]);
     const result = await session.runCommand({ cmd: 'node', args: [`/opt/platform/${entry}.mjs`, path], sudo: true, timeoutMs: 60_000 });
-    assert(result.exitCode === 0, 502, 'sandbox_control_failed', 'The runtime did not confirm this operation.');
+    assert(result.exitCode === 0, 502, 'host_control_failed', 'The runtime did not confirm this operation.');
     return z.object({ value: z.unknown() }).parse(JSON.parse(await result.stdout())).value;
   }
   async generationRunning(binding: MachineBinding) {

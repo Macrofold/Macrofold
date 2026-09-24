@@ -54,7 +54,8 @@
     "example:personal-agent": "tsx examples/personal-agent/start.ts",
     "example:mcp": "tsx examples/integrations/start-mcp.ts",
     "recovery": "tsx scripts/recovery.ts",
-    "test:workers:native": "tsx scripts/test-workers-native.ts"
+    "test:workers:native": "tsx scripts/test-workers-native.ts",
+    "perf:workers": "tsx scripts/workers/stress.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.261",

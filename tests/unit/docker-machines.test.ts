@@ -55,7 +55,6 @@ function fixture() {
       container!.State.Status = 'exited';
     }
     if (args[0] === 'rm') container = undefined;
-    if (args.includes('/opt/platform/sandbox-control-cli.mjs')) return Buffer.from('{"value":{}}');
     return Buffer.from('{}');
   });
   const provider = new DockerMachines(command);

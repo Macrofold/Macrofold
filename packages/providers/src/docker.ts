@@ -1,7 +1,6 @@
 import type { HostBinding, HostControlRequest } from '../../contracts/host-control';
 import { runtimeConfiguration } from '../../runtime/src/supervisor';
 import { randomUUID } from 'node:crypto';
-import type { SandboxBinding, SandboxControlRequest } from '../../contracts/sandbox-control';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -214,14 +213,13 @@ export class DockerMachines implements MachineProvider, MachineTools {
       ),
     );
   }
-  async startControl(binding: MachineBinding, secret: string, entry: 'sandbox-control' | 'host-control' = 'sandbox-control') {
+  async startControl(binding: MachineBinding, secret: string, entry: 'host-control' = 'host-control') {
     await this.write(binding, [{ path: '/platform-control/control-secret', content: Buffer.from(secret) }]);
     await this.exec(binding, ['node', '-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/" + entry + ".mjs'],{detached:true,stdio:'ignore'}).unref()"]);
   }
   startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
   hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
-  control(binding: SandboxBinding, secret: string, request: SandboxControlRequest) { return this.controlRequest(binding, secret, request, 'sandbox-control-cli'); }
-  private async controlRequest(binding: SandboxBinding | HostBinding, _secret: string, request: SandboxControlRequest | HostControlRequest, entry: 'sandbox-control-cli' | 'host-control-cli') {
+  private async controlRequest(binding: HostBinding, _secret: string, request: HostControlRequest, entry: 'host-control-cli') {
     if (request.action === 'prepare') {
       const configuration = runtimeConfiguration.parse(request.configuration);
       for (const key of ['gatewayURL', 'toolURL'] as const) {

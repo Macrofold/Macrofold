@@ -48,7 +48,7 @@ function builtins(): HostOffering[] {
         max_host_lifetime_seconds: null,
         price: dedicated ? { kind: 'allocation', hourly_micro_usd: '0' } : { kind: 'resource', cpu_hour_micro_usd: '0', gib_hour_micro_usd: '0' } }));
     }
-  } else if (process.env.RENDER_SANDBOX_ENABLED === 'true') {
+  } else if (process.env.RENDER_WORKER_ENABLED === 'true') {
     const rate = process.env.RENDER_COMPUTE_MICRO_USD_PER_MINUTE;
     if (rate && /^(0|[1-9]\d{0,12})$/.test(rate) && BigInt(rate) > 0n) {
       for (const isolated of [false, true]) entries.push(quoted({ ...base,

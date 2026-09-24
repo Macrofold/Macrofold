@@ -13,7 +13,8 @@ export class SimulatedHosts implements HostProvider {
   }
   async exists(_binding: HostBinding, _secret: string) { return true; }
   async control(binding: HostBinding, _secret: string, request: HostControlRequest) {
-    if (request.action === 'health') return {
+    if (request.action === 'health' || request.action === 'quiesce') return {
+      quiesced: request.action === 'quiesce',
       boot_id: binding.sessionId, started_at: binding.createdAt, configured: true, active_assignments: 0,
       capabilities: { scoped_processes: true, sibling_isolation: true, resource_meter: true },
       meters: { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' },
@@ -28,10 +29,9 @@ export class DockerHosts implements HostProvider {
   constructor(private readonly machines = new DockerMachines()) {}
   async provision(spec: HostProvisionSpec) {
     const binding = await this.machines.provision(spec.name, spec.lifetime_seconds, spec.resources);
-    await this.machines.startHostControl(binding, spec.secret);
-    const health = hostHealth.parse(await this.machines.hostControl(binding, spec.secret, { action: 'health' }));
-    return { ...binding, controlBootId: health.boot_id };
+    return binding;
   }
+  start(binding: HostBinding, secret: string) { return this.machines.startHostControl(binding, secret); }
   async exists(binding: HostBinding, secret: string) {
     if (!await this.machines.generationRunning(binding)) return false;
     const health = hostHealth.parse(await this.machines.hostControl({ ...binding, controlBootId: undefined }, secret, { action: 'health' }));
@@ -54,10 +54,9 @@ export class VercelHosts implements HostProvider {
     assert(spec.resources.cpu_millis % 1000 === 0 && spec.resources.memory_mib === spec.resources.cpu_millis * 2048 / 1000,
       400, 'host_shape_unavailable', 'This sandbox offering must use the supported CPU-to-memory ratio.');
     const binding = await this.machines.provision(spec.name, spec.lifetime_seconds, spec.resources);
-    await this.machines.startHostControl(binding, spec.secret);
-    const health = hostHealth.parse(await this.machines.hostControl(binding, spec.secret, { action: 'health' }));
-    return { ...binding, controlBootId: health.boot_id };
+    return binding;
   }
+  start(binding: HostBinding, secret: string) { return this.machines.startHostControl(binding, secret); }
   async exists(binding: HostBinding, secret: string) {
     if (!await this.machines.generationRunning(binding)) return false;
     const health = hostHealth.parse(await this.machines.hostControl({ ...binding, controlBootId: undefined }, secret, { action: 'health' }));
@@ -81,7 +80,7 @@ type Service = z.infer<typeof serviceSchema>;
 export class RenderHosts implements HostProvider {
   constructor(private readonly request: typeof fetch = fetch) {}
   private async api(path: string, method = 'GET', body?: unknown): Promise<unknown | null> {
-    assert(!isLocal() && config.allowPaid && process.env.RENDER_SANDBOX_ENABLED === 'true' &&
+    assert(!isLocal() && config.allowPaid && process.env.RENDER_WORKER_ENABLED === 'true' &&
       process.env.RENDER_API_KEY && process.env.RENDER_OWNER_ID, 503, 'render_unavailable', 'Render Host execution is not configured.');
     const response = await this.request(`https://api.render.com/v1${path}`, {
       method, redirect: 'error', headers: { authorization: `Bearer ${process.env.RENDER_API_KEY}`, 'content-type': 'application/json' },

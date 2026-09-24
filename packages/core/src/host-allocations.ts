@@ -19,6 +19,7 @@ export type HostRow = {
   binding: HostBinding | null; secret_ciphertext: string; offering: HostOffering;
   capacity: number; memory_mib: number; cpu_millis: number;
   reserved_micro_usd: string; charged_micro_usd: string; billing_cursor: ComputeMeters | null; billing_sequence: string;
+  usage_finalized_at: Date | null;
   funded_until: Date; started_at: Date | null; stopped_at: Date | null; expires_at: Date | null; idle_since: Date | null;
   last_observed_at: Date | null; lease_id: string | null; lease_until: Date | null; next_check_at: Date;
   failure_code: string | null; created_at: Date; updated_at: Date;
@@ -51,13 +52,19 @@ export async function hostSnapshots(tx: Tx, workerId: string): Promise<HostSnaps
     `SELECT m.* FROM host_materializations m JOIN hosts h ON h.id=m.host_id AND h.generation=m.host_generation
       WHERE h.worker_id=$1 AND h.status='ready' ORDER BY m.last_used_at DESC LIMIT 256`, [workerId],
   )).rows;
+  const byHost = new Map<string, HostSnapshot['worktrees']>();
+  for (const cache of caches) {
+    const entries = byHost.get(cache.host_id) || [];
+    entries.push({ worktree_id: cache.worktree_id, revision: cache.checkpoint_id || 'empty',
+      permission_view: cache.permission_view, state: cache.state });
+    byHost.set(cache.host_id, entries);
+  }
   return rows.map(row => ({
     id: row.id, worker_id: row.worker_id, organization_id: row.organization_id, generation: row.generation,
     status: row.status, billable: row.started_at !== null, offering: row.offering,
     occupied_slots: row.occupied_slots, allocated: { memory_mib: row.allocated_memory, cpu_millis: row.allocated_cpu },
     retained_memory_mib: 0, expires_at_ms: row.expires_at?.getTime() ?? null,
-    worktrees: caches.filter(cache => cache.host_id === row.id).map(cache => ({ worktree_id: cache.worktree_id,
-      revision: cache.checkpoint_id || 'empty', permission_view: cache.permission_view, state: cache.state })), warm_harnesses: [],
+    worktrees: byHost.get(row.id) || [], warm_harnesses: [],
   }));
 }
 export async function runDemand(tx: Tx, run: NativeRunRow): Promise<RunDemand> {
@@ -166,5 +173,5 @@ export async function settleHostSample(tx: Tx, host: HostRow, meters: ComputeMet
 export async function releaseHostFunding(tx: Tx, host: HostRow) {
   assert(host.status === 'draining', 409, 'host_not_draining', 'Only a confirmed stopped allocation may release its funding.');
   await settleReservation(tx, host.organization_id, `host:${host.id}:release`, BigInt(host.reserved_micro_usd), 0n);
-  await tx.query("UPDATE hosts SET status='stopped',stopped_at=now(),reserved_micro_usd=0,binding=NULL,lease_id=NULL,lease_until=NULL,updated_at=now() WHERE id=$1", [host.id]);
+  await tx.query("UPDATE hosts SET status='stopped',stopped_at=coalesce(stopped_at,now()),reserved_micro_usd=0,binding=NULL,lease_id=NULL,lease_until=NULL,updated_at=now() WHERE id=$1", [host.id]);
 }

@@ -2,6 +2,8 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover native continuation databases with absolute paths: Session-scoped HOME stays stable across different handle IDs and fresh Hosts; permission changes, handle eviction and failed preparation remove only the owning continuation directory. Preserve credential exclusions and the separate per-handle temporary directory.
+
 - [ ] Cover release failures during process discard, filesystem cleanup and final resource metering: keep Worktree and capacity ownership until cleanup succeeds, retry idempotently, and never advertise an unpublished cache. A transient health-meter failure must not skip releasing an already-metered assignment.
 - [ ] Cover a pending supervisor timer at the native result boundary and ensure it cannot cancel a later turn reusing the same UID. Cover bounded idle-cache maintenance without subsequent traffic and no unhandled supervisor-cleanup rejection.
 

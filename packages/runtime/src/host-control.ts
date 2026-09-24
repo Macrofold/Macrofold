@@ -97,6 +97,8 @@ export class HostController {
     await discardHarness(handle.runtime);
     const base = `/host-data/handles/${handle.id}`;
     await rm(base, { recursive: true, force: true });
+    if (handle.session)
+      await rm(`/host-data/continuations/${handle.session}`, { recursive: true, force: true });
     if (!this.writers.has(handle.worktree) || this.writers.get(handle.worktree) === releasingAssignment) {
       const workspace = `/host-data/worktrees/${handle.worktree}`;
       await chown(workspace, 0, 0).catch((error) => {
@@ -262,7 +264,14 @@ export class HostController {
       const handleId = randomUUID();
       // Never recycle UIDs within a generation: unknown tool scratch files cannot become accessible to a later authority.
       if (uid >= 2147483646) throw new Error('host_rotation_required');
-      const home = `/host-data/handles/${handleId}/home`;
+      const home = hostRunPaths({
+        assignmentId: request.assignment_id,
+        handleId,
+        worktreeId: request.worktree_id,
+        sessionId: request.session_id,
+        uid,
+        memoryMiB: request.resources.memory_mib,
+      }).home;
       await appendFile('/etc/group', `agent${uid}:x:${uid}:\n`);
       await appendFile(
         '/etc/passwd',
@@ -289,6 +298,7 @@ export class HostController {
       assignmentId: request.assignment_id,
       handleId: handle.id,
       worktreeId: request.worktree_id,
+      sessionId: request.session_id,
       uid: handle.uid,
       memoryMiB: request.resources.memory_mib,
     };
@@ -400,7 +410,12 @@ export class HostController {
         if (this.configuration && JSON.stringify(this.configuration) !== JSON.stringify(request))
           throw new Error('host_configuration_immutable');
         this.configuration = request;
-        for (const directory of ['/host-data', '/host-data/worktrees', '/host-data/handles']) {
+        for (const directory of [
+          '/host-data',
+          '/host-data/worktrees',
+          '/host-data/handles',
+          '/host-data/continuations',
+        ]) {
           await mkdir(directory, { recursive: true, mode: 0o711 });
           await chmod(directory, 0o711);
         }

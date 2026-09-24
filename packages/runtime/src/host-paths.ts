@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 export const hostRunContextSchema = z.object({
-  assignmentId: z.uuid(), handleId: z.uuid(), worktreeId: z.uuid(),
+  assignmentId: z.uuid(),
+  handleId: z.uuid(),
+  worktreeId: z.uuid(),
+  sessionId: z.uuid().nullable().optional(),
   uid: z.number().int().min(20000).max(2147483646),
   memoryMiB: z.number().int().positive().max(1048576),
 });
@@ -12,7 +15,11 @@ export function hostRunPaths(context: HostRunContext) {
     control: `/platform-control/assignments/${value.assignmentId}`,
     workspace: `/host-data/worktrees/${value.worktreeId}`,
     handle: `/host-data/handles/${value.handleId}`,
-    home: `/host-data/handles/${value.handleId}/home`,
+    // Native continuation databases can contain absolute paths. Keep HOME stable
+    // for a Session across cold handles/Hosts without making it a public resource.
+    home: value.sessionId
+      ? `/host-data/continuations/${value.sessionId}`
+      : `/host-data/handles/${value.handleId}/home`,
     temp: `/host-data/handles/${value.handleId}/tmp`,
   };
 }
@@ -23,7 +30,11 @@ export class KeyedCommands {
     const previous = this.tails.get(key) || Promise.resolve();
     const task = previous.catch(() => {}).then(action);
     this.tails.set(key, task);
-    void task.finally(() => { if (this.tails.get(key) === task) this.tails.delete(key); }).catch(() => {});
+    void task
+      .finally(() => {
+        if (this.tails.get(key) === task) this.tails.delete(key);
+      })
+      .catch(() => {});
     return task;
   }
 }

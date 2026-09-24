@@ -5,6 +5,7 @@ on:
     paths: [.github/workflows/worker-inspect.yml]
 permissions:
   contents: read
+  actions: read
 jobs:
   inspect:
     runs-on: ubuntu-24.04
@@ -13,25 +14,32 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Inspect tracked source and contracts only
+          show-progress: false
+      - name: Compact native failure evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
-          import pathlib, subprocess, json
-          paths = subprocess.check_output(['git','ls-files'], text=True).splitlines()
-          print('INSTRUCTION_PATHS', '\n'.join(p for p in paths if p.endswith('AGENTS.md') or p.startswith('.agents/rules/')))
-          print('MIGRATIONS', '\n'.join(p for p in paths if p.startswith('packages/db/') and p.endswith('.sql')))
-          contract = json.loads(pathlib.Path('docs/api/openapi.json').read_text())
-          for p, v in contract['paths'].items():
-              if 'sandbox' in p: print('API_PATH', p, json.dumps(v))
-          for k in ['Sandbox', 'SandboxCreate', 'SandboxList', 'RunCreate', 'RunAccepted']:
-              print('SCHEMA', k, json.dumps(contract['components']['schemas'].get(k)))
-          print('SCOPES', json.dumps(contract['components']['securitySchemes']))
+          import os,urllib.request,json
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          url='https://api.github.com/repos/Macrofold/Macrofold/actions/jobs/107488171462/logs'
+          with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as r:
+              lines=r.read().decode().splitlines()
+          print('NATIVE_LOG_LAST_LINES\n'+'\n'.join(lines[-100:]))
+          PY
+      - name: Source integration inventory
+        run: |
+          python3 - <<'PY'
+          import pathlib,subprocess,json
+          paths=subprocess.check_output(['git','ls-files'],text=True).splitlines()
           for p in paths:
-              if not p.startswith(('packages/','apps/web/','scripts/')) or p.endswith('api.d.ts'): continue
-              if not p.endswith(('.ts','.tsx','.sql')): continue
-              lines = pathlib.Path(p).read_text().splitlines()
-              hits = [i for i,line in enumerate(lines) if ('sandbox' in line.lower() or 'scheduling_runs' in line) and not p.endswith(('sandboxes.ts','sandbox-machines.ts','sandbox-control.ts'))]
-              if hits:
-                  print('FILE',p)
-                  for i in hits: print(str(i+1)+': '+lines[i])
+              if not p.startswith(('packages/','apps/web/','scripts/','docs/api/','tests/')) or not p.endswith(('.ts','.tsx','.sql','.json','.mjs')):continue
+              if p.endswith('api.d.ts') or p.startswith(('apps/web/public/','docs/api/openapi')):continue
+              s=pathlib.Path(p).read_text()
+              if any(term in s for term in ['sandbox_id','createSandbox','getSandbox','keep_warm_seconds','active_run_id','SandboxMachines']):
+                  print('CUTOVER_FILE',p)
+                  for i,line in enumerate(s.splitlines()):
+                      if any(term in line for term in ['sandbox_id','createSandbox','keep_warm_seconds','SandboxMachines']):print(str(i+1)+': '+line[:250])
+          for p in ['infra/runtime.Dockerfile','infra/runtime/package.json','packages/cli/src/index.ts']:
+              print('SOURCE_BEGIN',p,'\n'+pathlib.Path(p).read_text(),'SOURCE_END')
           PY

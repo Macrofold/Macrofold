@@ -81,7 +81,8 @@ async function turn(state, index, restored = false) {
   try {
     const prepared = await control({ action: 'prepare', ...run,
       worktree_id: state.worktree, session_id: state.session, checkpoint_id: state.checkpoint,
-      session_revision: String(index), permission_view: 'native-load-authorized-view', compatibility_key: `native-load-${harness}`,
+      session_revision: String(index), permission_view: createHash('sha256').update('native-load-authorized-view').digest('hex'),
+      compatibility_key: createHash('sha256').update(`native-load-${harness}`).digest('hex'),
       resources: { memory_mib: 1024, cpu_millis: 500 },
       configuration: { runId: run.run_id, harness, provider: harness === 'claude-code' ? 'anthropic' : 'openai',
         model: harness === 'claude-code' ? 'claude-sonnet-4-6' : 'gpt-5.4',

@@ -330,7 +330,13 @@ async function main() {
       const value=await controller.control(envelope.request);
       res.setHeader('Content-Type','application/json');res.end(JSON.stringify({value}));
     }catch(error){
-      const code=error instanceof Error&&/^[a-z_]+$/.test(error.message)?error.message:'host_control_failed';
+      const code=error instanceof z.ZodError ? 'invalid_host_request' :
+        error instanceof Error&&/^[a-z_]+$/.test(error.message)?error.message:'host_control_failed';
+      // Never log request bodies, credentials, prompts, file contents, or exception
+      // messages containing user data. Codes and schema paths are enough to triage.
+      const systemCode = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^E[A-Z_]+$/.test(error.code) ? error.code : undefined;
+      console.error(JSON.stringify({ event: 'host.control_failed', code, system_code: systemCode,
+        issues: error instanceof z.ZodError ? error.issues.slice(0, 8).map(issue => ({ path: issue.path.join('.'), code: issue.code })) : undefined }));
       res.writeHead(409,{'Content-Type':'application/json'}).end(JSON.stringify({error:code}));
     }
   });

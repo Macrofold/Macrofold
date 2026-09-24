@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import type { Result } from 'macrofold';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { Cpu, Plus } from 'lucide-react';
@@ -21,7 +22,7 @@ function usd(value: string): string {
 const dollars = (value: string) => `${BigInt(value) / 1000000n}.${(BigInt(value) % 1000000n).toString().padStart(6, '0')}`;
 
 function WorkerForm({ initial, offerings, defaults, onSaved }: {
-  initial: Worker | null; offerings: Offering[]; defaults: Schema['WorkerOfferingList']['limits']; onSaved: () => void;
+  initial: Worker | null; offerings: Offering[]; defaults: Result<'listWorkerOfferings'>['limits']; onSaved: () => void;
 }) {
   const preferred = initial ?? offerings.find(item => item.compute === 'server' && item.dedicated && !item.isolate_runs) ?? offerings[0];
   const [selection, setSelection] = useState(preferred ? profile(preferred) : '');

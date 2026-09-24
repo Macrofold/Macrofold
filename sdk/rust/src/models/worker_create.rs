@@ -29,9 +29,9 @@ pub struct WorkerCreate {
     pub region: Option<String>,
     #[serde(rename = "runtime", skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
-    /// Optional fixed shape. Omitted uses a fitting accepted catalog shape.
-    #[serde(rename = "size", skip_serializing_if = "Option::is_none")]
-    pub size: Option<String>,
+    /// Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH.
+    #[serde(rename = "size", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub size: Option<Option<String>>,
     #[serde(rename = "min_instances", skip_serializing_if = "Option::is_none")]
     pub min_instances: Option<i32>,
     #[serde(rename = "max_instances", skip_serializing_if = "Option::is_none")]

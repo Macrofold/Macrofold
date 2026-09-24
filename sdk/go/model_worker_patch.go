@@ -31,8 +31,8 @@ type WorkerPatch struct {
 	IsolateRuns *bool `json:"isolate_runs,omitempty"`
 	Region *string `json:"region,omitempty"`
 	Runtime *string `json:"runtime,omitempty"`
-	// Optional fixed shape. Omitted uses a fitting accepted catalog shape.
-	Size *string `json:"size,omitempty"`
+	// Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH.
+	Size NullableString `json:"size,omitempty"`
 	MinInstances *int32 `json:"min_instances,omitempty"`
 	MaxInstances *int32 `json:"max_instances,omitempty"`
 	MaxConcurrency *int32 `json:"max_concurrency,omitempty"`
@@ -256,36 +256,46 @@ func (o *WorkerPatch) SetRuntime(v string) {
 	o.Runtime = &v
 }
 
-// GetSize returns the Size field value if set, zero value otherwise.
+// GetSize returns the Size field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *WorkerPatch) GetSize() string {
-	if o == nil || IsNil(o.Size) {
+	if o == nil || IsNil(o.Size.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.Size
+	return *o.Size.Get()
 }
 
 // GetSizeOk returns a tuple with the Size field value if set, nil otherwise
 // and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *WorkerPatch) GetSizeOk() (*string, bool) {
-	if o == nil || IsNil(o.Size) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Size, true
+	return o.Size.Get(), o.Size.IsSet()
 }
 
 // HasSize returns a boolean if a field has been set.
 func (o *WorkerPatch) HasSize() bool {
-	if o != nil && !IsNil(o.Size) {
+	if o != nil && o.Size.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetSize gets a reference to the given string and assigns it to the Size field.
+// SetSize gets a reference to the given NullableString and assigns it to the Size field.
 func (o *WorkerPatch) SetSize(v string) {
-	o.Size = &v
+	o.Size.Set(&v)
+}
+// SetSizeNil sets the value for Size to be an explicit nil
+func (o *WorkerPatch) SetSizeNil() {
+	o.Size.Set(nil)
+}
+
+// UnsetSize ensures that no value is present for Size, not even an explicit nil
+func (o *WorkerPatch) UnsetSize() {
+	o.Size.Unset()
 }
 
 // GetMinInstances returns the MinInstances field value if set, zero value otherwise.
@@ -552,8 +562,8 @@ func (o WorkerPatch) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Runtime) {
 		toSerialize["runtime"] = o.Runtime
 	}
-	if !IsNil(o.Size) {
-		toSerialize["size"] = o.Size
+	if o.Size.IsSet() {
+		toSerialize["size"] = o.Size.Get()
 	}
 	if !IsNil(o.MinInstances) {
 		toSerialize["min_instances"] = o.MinInstances

@@ -21839,10 +21839,13 @@
             "maxLength": 160
           },
           "size": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "minLength": 1,
             "maxLength": 160,
-            "description": "Optional fixed shape. Omitted uses a fitting accepted catalog shape."
+            "description": "Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH."
           },
           "min_instances": {
             "type": "integer",
@@ -21920,10 +21923,13 @@
             "maxLength": 160
           },
           "size": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "minLength": 1,
             "maxLength": 160,
-            "description": "Optional fixed shape. Omitted uses a fitting accepted catalog shape."
+            "description": "Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH."
           },
           "min_instances": {
             "type": "integer",

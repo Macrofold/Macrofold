@@ -4700,8 +4700,8 @@ export interface components {
             isolate_runs?: boolean;
             region?: string;
             runtime?: string;
-            /** @description Optional fixed shape. Omitted uses a fitting accepted catalog shape. */
-            size?: string;
+            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
+            size?: string | null;
             min_instances?: number;
             max_instances?: number;
             max_concurrency?: number;
@@ -4726,8 +4726,8 @@ export interface components {
             isolate_runs?: boolean;
             region?: string;
             runtime?: string;
-            /** @description Optional fixed shape. Omitted uses a fitting accepted catalog shape. */
-            size?: string;
+            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
+            size?: string | null;
             min_instances?: number;
             max_instances?: number;
             max_concurrency?: number;

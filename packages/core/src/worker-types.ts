@@ -7,7 +7,7 @@ export type WorkerInput = {
   isolate_runs?: boolean;
   region?: string;
   runtime?: string;
-  size?: string;
+  size?: string | null;
   min_instances?: number;
   max_instances?: number;
   max_concurrency?: number;
@@ -106,8 +106,14 @@ export type RunDemand = Readonly<{
   compatibility_key: string;
 }>;
 export type WorkerWaitReason =
-  | 'worker_paused' | 'worker_destroyed' | 'worker_expired' | 'worker_concurrency'
-  | 'worker_starting' | 'worker_instance_limit' | 'worker_cost_limit' | 'worker_lifetime'
+  | 'worker_paused'
+  | 'worker_destroyed'
+  | 'worker_expired'
+  | 'worker_concurrency'
+  | 'worker_starting'
+  | 'worker_instance_limit'
+  | 'worker_cost_limit'
+  | 'worker_lifetime'
   | 'compute_unavailable';
 export type WorkerPlacement =
   | Readonly<{ action: 'place'; host_id: string; host_generation: number; reuse: 'warm' | 'files' | 'cold' }>

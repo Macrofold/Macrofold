@@ -35,7 +35,7 @@ class WorkerPatch(BaseModel):
     isolate_runs: Optional[StrictBool] = Field(default=None, description="Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker.")
     region: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=160)]] = None
     runtime: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=160)]] = None
-    size: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=160)]] = Field(default=None, description="Optional fixed shape. Omitted uses a fitting accepted catalog shape.")
+    size: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=160)]] = Field(default=None, description="Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH.")
     min_instances: Optional[Annotated[int, Field(le=64, strict=True, ge=0)]] = None
     max_instances: Optional[Annotated[int, Field(le=64, strict=True, ge=1)]] = None
     max_concurrency: Optional[Annotated[int, Field(le=1024, strict=True, ge=1)]] = None
@@ -104,6 +104,11 @@ class WorkerPatch(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # set to None if size (nullable) is None
+        # and model_fields_set contains the field
+        if self.size is None and "size" in self.model_fields_set:
+            _dict['size'] = None
+
         # set to None if idle_timeout_seconds (nullable) is None
         # and model_fields_set contains the field
         if self.idle_timeout_seconds is None and "idle_timeout_seconds" in self.model_fields_set:

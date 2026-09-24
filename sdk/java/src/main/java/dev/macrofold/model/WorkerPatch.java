@@ -115,8 +115,7 @@ public class WorkerPatch {
   private String runtime;
 
   public static final String JSON_PROPERTY_SIZE = "size";
-  @javax.annotation.Nullable
-  private String size;
+  private JsonNullable<String> size = JsonNullable.<String>undefined();
 
   public static final String JSON_PROPERTY_MIN_INSTANCES = "min_instances";
   @javax.annotation.Nullable
@@ -292,26 +291,34 @@ public class WorkerPatch {
 
 
   public WorkerPatch size(@javax.annotation.Nullable String size) {
-    this.size = size;
+    this.size = JsonNullable.<String>of(size);
     return this;
   }
 
   /**
-   * Optional fixed shape. Omitted uses a fitting accepted catalog shape.
+   * Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH.
    * @return size
    */
   @javax.annotation.Nullable
+  @JsonIgnore
+  public String getSize() {
+        return size.orElse(null);
+  }
+
   @JsonProperty(value = JSON_PROPERTY_SIZE, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getSize() {
+
+  public JsonNullable<String> getSize_JsonNullable() {
     return size;
   }
 
-
-  @JsonProperty(value = JSON_PROPERTY_SIZE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSize(@javax.annotation.Nullable String size) {
+  @JsonProperty(JSON_PROPERTY_SIZE)
+  public void setSize_JsonNullable(JsonNullable<String> size) {
     this.size = size;
+  }
+
+  public void setSize(@javax.annotation.Nullable String size) {
+    this.size = JsonNullable.<String>of(size);
   }
 
 
@@ -526,7 +533,7 @@ public class WorkerPatch {
         Objects.equals(this.isolateRuns, workerPatch.isolateRuns) &&
         Objects.equals(this.region, workerPatch.region) &&
         Objects.equals(this.runtime, workerPatch.runtime) &&
-        Objects.equals(this.size, workerPatch.size) &&
+        equalsNullable(this.size, workerPatch.size) &&
         Objects.equals(this.minInstances, workerPatch.minInstances) &&
         Objects.equals(this.maxInstances, workerPatch.maxInstances) &&
         Objects.equals(this.maxConcurrency, workerPatch.maxConcurrency) &&
@@ -542,7 +549,7 @@ public class WorkerPatch {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, compute, dedicated, isolateRuns, region, runtime, size, minInstances, maxInstances, maxConcurrency, hashCodeNullable(idleTimeoutSeconds), hashCodeNullable(expiresAt), maxHourlyComputeCostMicroUsd, expectedRevision);
+    return Objects.hash(name, compute, dedicated, isolateRuns, region, runtime, hashCodeNullable(size), minInstances, maxInstances, maxConcurrency, hashCodeNullable(idleTimeoutSeconds), hashCodeNullable(expiresAt), maxHourlyComputeCostMicroUsd, expectedRevision);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {

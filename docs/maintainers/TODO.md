@@ -2,6 +2,8 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover Worker creation with an otherwise administrative Worker-restricted key, immutable expired targets, explicit pooled instance settings on PATCH, and baseline affordability after raising `min_instances`. Default resolution must honor requested runtime/size before choosing region and rates. Cover `size: null` and CLI `--auto-size` returning to automatic sizing without weakening revision or pause requirements.
+
 - [ ] Cover native continuation databases with absolute paths: Session-scoped HOME stays stable across different handle IDs and fresh Hosts; permission changes, handle eviction and failed preparation remove only the owning continuation directory. Preserve credential exclusions and the separate per-handle temporary directory.
 
 - [ ] Cover release failures during process discard, filesystem cleanup and final resource metering: keep Worktree and capacity ownership until cleanup succeeds, retry idempotently, and never advertise an unpublished cache. A transient health-meter failure must not skip releasing an already-metered assignment.

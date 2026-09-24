@@ -81,13 +81,13 @@ For a game world or continuously busy agent service, keep baseline server capaci
 
 The ceiling above is **an illustrative $1/hour**, not a quoted price or an estimate for this workload. Creation validates that the available rates can fund the requested baseline. Plan limits still apply. `min_instances: 1` retains baseline capacity while enabled; `idle_timeout_seconds` releases excess idle capacity, not the baseline. `null` disables idle shutdown where the selected offering permits it.
 
-For bursts, use `min_instances: 0` with an idle timeout. The Worker remains addressable after its Hosts stop and wakes when new work arrives. A provider's maximum machine lifetime does not change the Worker ID. Use `expires_at` only when you want the Worker itself to expire.
+For bursts, use `min_instances: 0` with an idle timeout. The Worker remains addressable after its Hosts stop and wakes when new work arrives. A provider's maximum machine lifetime does not change the Worker ID. Use `expires_at` only when you want the Worker itself to expire. Extend or remove that expiration before it passes; an already expired Worker cannot be resumed or reconfigured.
 
 `min_instances` and `max_instances` are dedicated-capacity controls. Non-dedicated callers use resource/concurrency/spending limits without choosing how many machines the pool owns.
 
 ## Resource sizing and scaling
 
-Omit `size` to let Macrofold choose among the accepted compatible sizes. Advanced callers can select an advertised `size`, `region`, or `runtime`. A Worker may have several backing Hosts, but callers submit to one `worker_id` and never route to machine IDs.
+Omit `size` on creation, or set `size: null`, to let Macrofold choose among the accepted compatible sizes. A PATCH with `size: null` restores automatic sizing; omitting it preserves the existing choice. The CLI equivalent is `--auto-size`. Advanced callers can select an advertised `size`, `region`, or `runtime`. A Worker may have several backing Hosts, but callers submit to one `worker_id` and never route to machine IDs.
 
 Native Runs reserve 1,024 MiB and 250 CPU millicores by default. Override top-level `memory_mib` and `cpu_millis` for known heavier or lighter workloads. These are allocation requirements, not a prediction of future memory use. Macrofold packs compatible Runs within Host headroom and capacity, then adds capacity for queued demand. A single oversized Run requires a large enough allocation; another Host does not enlarge an already-running process.
 
@@ -129,7 +129,7 @@ Use `macrofold worker --help` or the individual Worker command help for configur
 
 ## Permissions and isolation
 
-`workers:use` permits targeting an authorized Worker. `workers:read` permits inspection. `workers:write` permits compute/lifecycle management and requires organization administrative authority. Worker-ID restrictions on API keys are independent from Workspace restrictions. Permission to use a Worker does not grant access to any resident Worktree, Session, or another Run's tools.
+`workers:use` permits targeting an authorized Worker. `workers:read` permits inspection. `workers:write` permits compute/lifecycle management and requires organization administrative authority. Worker-ID restrictions on API keys are independent from Workspace restrictions. Creating a new Worker requires a key without Worker restrictions; restricted administrative keys can manage only their authorized existing Workers. Permission to use a Worker does not grant access to any resident Worktree, Session, or another Run's tools.
 
 `isolate_runs: true` requires the advertised isolated execution boundary. Current dedicated/shared providers may satisfy this by using one execution environment per active Run, which reduces density. `false` explicitly permits trusted sharing between your Runs; separate directories and process identities are not a promise of hostile-code isolation. Cancellation and cleanup remain Run-scoped in either mode.
 

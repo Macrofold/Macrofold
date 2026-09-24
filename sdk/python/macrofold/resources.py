@@ -2033,7 +2033,7 @@ class WorkersResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create(self, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
+    def create(self, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createWorker",
@@ -2093,7 +2093,7 @@ class WorkersResource:
         )
         return decode(models.WorkerPage, result, identity)
 
-    def patch(self, worker_id: str | UUID, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, expected_revision: int, request_options: RequestOptions | None = None) -> models.Worker:
+    def patch(self, worker_id: str | UUID, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, expected_revision: int, request_options: RequestOptions | None = None) -> models.Worker:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("patchWorker",

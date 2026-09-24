@@ -3,9 +3,10 @@ import { AppError, assert } from './errors';
 import { id, unseal } from './crypto';
 import { getWorker, type WorkerRow } from './workers';
 import { getHost, hostSnapshots, reserveHost, extendHostFunding, settleHostSample, releaseHostFunding,
-  runDemand, type HostRow, HOST_CLEANUP_SECONDS } from './host-allocations';
-import { chooseWorkerPlacement } from './worker-placement';
-import { workerAdmissionBlock, workerOfferingCompatible } from './worker-policy';
+  defaultRunResources, type HostRow, HOST_CLEANUP_SECONDS } from './host-allocations';
+import { planWorkerCapacity } from './worker-scaling';
+import type { RunDemand } from './worker-types';
+import { workerAdmissionBlock } from './worker-policy';
 import { workerHourlyExposure, type ComputeMeters } from './worker-pricing';
 import type { NativeRunRow } from './runs';
 import { hostProvider } from '../../providers/src/hosts';
@@ -208,39 +209,33 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
     if (blocked) {
       await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE worker_id=$1 AND status<>'stopped'",[workerId]);
     } else {
-      const quotes = worker.offerings.filter(quote=>workerOfferingCompatible(worker.settings,quote)).sort((a,b)=>{
-        const difference = workerHourlyExposure(a.price,a.resources)-workerHourlyExposure(b.price,b.resources);
-        return difference<0n ? -1 : difference>0n ? 1 : a.resources.memory_mib-b.resources.memory_mib || b.concurrency-a.concurrency;
-      });
-      const serving = snapshots.filter(host=>host.status==='ready' || host.status==='provisioning');
-      const readyDemand = await queuedDemand(tx,worker);
-      if (serving.length < worker.settings.min_instances && quotes[0]) {
-        try { hosts.push(await reserveHost(tx,worker,quotes[0])); }
+      const serving = snapshots.filter(host => host.status === 'ready' || host.status === 'provisioning');
+      const readyDemand = await queuedDemand(tx, worker);
+      // Scaling needs frozen resource needs, not full filesystem manifests or native
+      // continuation data. Actual admission builds and rechecks the authorized view.
+      const demands: RunDemand[] = readyDemand.map(run => ({ run_id: run.id,
+        resources: run.config.worker_resources || defaultRunResources,
+        execution_seconds: run.config.limits?.timeout_seconds || 900, cleanup_seconds: HOST_CLEANUP_SECONDS,
+        worktree: null, session: null, permission_view: '', compatibility_key: '' }));
+      const plan = planWorkerCapacity(worker, demands, snapshots, worker.offerings, Date.now());
+      for (const item of plan.provision) {
+        const quote = worker.offerings.find(offer => offer.id === item.offering.id && offer.revision === item.offering.revision);
+        assert(quote, 500, 'worker_quote_missing', 'The accepted compute quote is unavailable.');
+        try { hosts.push(await reserveHost(tx, worker, quote, item.execution_seconds)); }
         catch (error) {
           if (!(error instanceof AppError) || ![402,409].includes(error.status)) throw error;
-          await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,error.code]);
+          await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1', [workerId,error.code]);
+          break;
         }
-      } else if (readyDemand[0]) {
-        const demand = await runDemand(tx,readyDemand[0]);
-        const choice = chooseWorkerPlacement(worker,demand,snapshots,worker.offerings,Date.now());
-        if (choice.action==='provision') {
-          const quote = worker.offerings.find(item=>item.id===choice.offering.id && item.revision===choice.offering.revision);
-          assert(quote,500,'worker_quote_missing','The selected quote is unavailable.');
-          try { hosts.push(await reserveHost(tx,worker,quote,demand.execution_seconds)); }
-          catch (error) {
-            if (!(error instanceof AppError) || ![402,409].includes(error.status)) throw error;
-            await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,error.code]);
-          }
-        } else if(choice.action==='place') {
-          const selected=await getHost(tx,choice.host_id);
-          try {
-            await extendHostFunding(tx,selected,new Date(Date.now()+(demand.execution_seconds+HOST_CLEANUP_SECONDS+120)*1000));
-            await tx.query('UPDATE workers SET failure_code=NULL WHERE id=$1',[workerId]);
-          } catch(error) {
-            if(!(error instanceof AppError) || error.status!==402)throw error;
-            await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,error.code]);
-          }
-        } else await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1',[workerId,choice.reason]);
+      }
+      for (const [hostId, seconds] of plan.fund) {
+        const selected = hosts.find(host => host.id === hostId);
+        if (!selected) continue;
+        try { await extendHostFunding(tx, selected, new Date(Date.now() + (seconds + HOST_CLEANUP_SECONDS + 120) * 1000)); }
+        catch (error) {
+          if (!(error instanceof AppError) || error.status !== 402) throw error;
+          await tx.query('UPDATE workers SET failure_code=$2 WHERE id=$1', [workerId,error.code]);
+        }
       }
       let remaining = serving.length;
       for (const host of hosts) {

@@ -168,23 +168,6 @@ describe('local Docker execution boundary', () => {
     await f.provider.close(binding, false);
     await expect(f.provider.close(binding, false)).resolves.toEqual({});
   });
-  it('transfers a full checkpoint chunk through reusable control without exceeding the encoded envelope limit', async () => {
-    const f = fixture();
-    const binding = await f.provider.provision(`env-${f.name.slice(4)}-1`, 3600);
-    await f.provider.control(binding, 'unused-root-file-secret', {
-      action: 'stage',
-      run_id: f.name.slice(4),
-      files: [
-        { path: `chunks/${'a'.repeat(64)}`, content: Buffer.alloc(4 * 1024 * 1024).toString('base64') },
-      ],
-    });
-    const file = JSON.parse(f.inputs[0].toString())[0];
-    const envelope = JSON.parse(Buffer.from(file.content, 'base64').toString());
-    expect(Buffer.from(envelope.request.files[0].content, 'base64')).toHaveLength(4 * 1024 * 1024);
-    expect(await f.provider.environmentRunning(binding)).toBe(true);
-    f.current().State.Running = false;
-    expect(await f.provider.environmentRunning(binding)).toBe(false);
-  });
   it('passes only run capabilities through stdin and confines host networking to its gateway', async () => {
     const f = fixture();
     const binding = await f.provider.provision(f.name, 120);

@@ -2,6 +2,8 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover aggregate queued-demand scaling, existing provisioning as projected supply, mixed resource sizes, bounded four-allocation expansion, Worker caps, financial reservation rechecks, and no repeated provisioning for the same pending pressure.
+
 - [ ] Cover restore-marker-before-process-exit handoff: launch waits for the restore child, without touching another Run or spuriously failing an acknowledged restoration.
 - [ ] Cover warm harness incompatibility when model parameters or harness prompt mode change; old scoped runtime-control operations must not remain discoverable.
 
@@ -318,3 +320,5 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 - [ ] Cover runtime-requested rotation, provider-observation pacing, idle and manually paused Workers, and capacity handoff while old Hosts drain.
 - [ ] Cover metered graceful shutdown with a lost quiesce acknowledgement, crash after the final receipt but before provider deletion, duplicate finalization, and confirmation of the same controller generation. No missing usage tail may silently settle as zero.
 - [ ] Cover one-query queued-demand hydration and authorized materialization grouping at the configured Worker/Host limits.
+
+- [ ] Replace the removed legacy reusable-control chunk test with Host assignment/boot-scoped transport coverage for a full 4 MiB decoded checkpoint chunk, bounded encoded envelope, and stopped/replaced-generation rejection. The old method no longer exists; new tests remain deferred by request.

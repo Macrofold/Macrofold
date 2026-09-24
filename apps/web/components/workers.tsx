@@ -66,7 +66,7 @@ function WorkerForm({ initial, offerings, defaults, onSaved }: {
     {selected && <p className="form-hint">{selected.price.kind === 'allocation'
       ? `Allocated capacity starts at ${money(selected.price.hourly_micro_usd)}/hour and is billed while running, including idle time.`
       : `Resource rates: ${money(selected.price.cpu_hour_micro_usd)}/active CPU-hour and ${money(selected.price.gib_hour_micro_usd)}/allocated GiB-hour.`}
-      {' '}Accepted resource shapes and rates remain visible after creation. <Link href="/docs/execution/workers">Compute and billing guide</Link>.
+      {' '}Accepted resource shapes and rates remain visible after creation. <Link href="/docs/workers">Compute and billing guide</Link>.
     </p>}
     <details>
       <summary>Scaling and lifecycle</summary>

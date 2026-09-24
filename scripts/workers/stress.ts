@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { writeFile } from 'node:fs/promises';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
@@ -101,7 +101,7 @@ async function workload() {
         try {
           await emit({ type: 'runtime.started', data: { simulated: true, harness: input.harness } });
           // This delay represents model/tool waiting, not real model/provider capacity.
-          await sleep(500);
+          await sleep(2000);
           if (input.signal.aborted) throw input.signal.reason;
           return { output: 'Synthetic character turn complete', files: [...input.files, {
             path: 'notes/turn.txt', bytes: Buffer.from('verified character output\n'.repeat(128)),
@@ -125,27 +125,31 @@ async function workload() {
         }
       }
     }
-    while (remaining.size) {
-      if (Date.now() > deadline || stats.rounds++ > 500) throw new Error(`Workload did not drain: ${remaining.size} Runs remain.`);
-      await reconcileWorker(org, worker.id);
-      let batchDone = false;
-      const batch = Promise.allSettled([...remaining].slice(0, 32).map(async runId => {
-        if (await executeRun(org, runId, syntheticExecution)) { remaining.delete(runId); stats.completed_runs++; }
-        else stats.scheduling_deferrals++;
-      })).then(results => {
-        batchDone = true;
-        const failure = results.find(result => result.status === 'rejected');
-        if (failure?.status === 'rejected') throw failure.reason;
-      });
-      try {
-        while (!batchDone) {
-          await Promise.race([batch, sleep(100)]);
-          await observe();
-          if (!batchDone) await reconcileWorker(org, worker.id);
+    const inFlight = new Map<string, Promise<void>>();
+    const retryAt = new Map<string, number>();
+    let executionError: unknown;
+    let reconcileAt = 0;
+    try {
+      while (remaining.size) {
+        if (executionError) throw executionError;
+        if (Date.now() > deadline || stats.rounds++ > 2400) throw new Error(`Workload did not drain: ${remaining.size} Runs remain.`);
+        if (Date.now() >= reconcileAt) { await reconcileWorker(org, worker.id); reconcileAt = Date.now() + 500; }
+        // Refill as soon as a task finishes or defers. A batch barrier would make
+        // scheduler fairness, rather than resource capacity, determine the offered load.
+        for (const runId of remaining) {
+          if (inFlight.size >= 32) break;
+          if (inFlight.has(runId) || (retryAt.get(runId) || 0) > Date.now()) continue;
+          const task = executeRun(org, runId, syntheticExecution).then(done => {
+            if (done) { remaining.delete(runId); stats.completed_runs++; }
+            else { stats.scheduling_deferrals++; retryAt.set(runId, Date.now() + 150); }
+          }).catch(error => { executionError ??= error; }).finally(() => { inFlight.delete(runId); });
+          inFlight.set(runId, task);
         }
-        await batch;
-      } finally { await batch.catch(() => {}); }
-    }
+        await sleep(100);
+        await observe();
+      }
+      if (executionError) throw executionError;
+    } finally { await Promise.allSettled(inFlight.values()); }
     const terminal = await transaction(org, tx => tx.query<{ status: string; persistence: string; n: number }>(
       "SELECT status,result->>'persistence_status' AS persistence,count(*)::integer AS n FROM runs WHERE id=ANY($1::uuid[]) GROUP BY status,result->>'persistence_status'", [accepted.map(run => run.run_id)]));
     if (terminal.rows.some(row => row.status !== 'succeeded' || row.persistence !== 'verified')) throw new Error('A synthetic Run did not publish verified state.');
@@ -166,7 +170,7 @@ async function workload() {
   } catch (error) { failure = error instanceof Error ? error.message : String(error); throw error; }
   finally {
     lag.disable();
-    const result = { status, failure, source_commit: process.env.GITHUB_SHA || null, node: process.version,
+    const result = { status, failure, source_commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), node: process.version,
       scope: 'Real loopback HTTP, generated TypeScript SDK, admission, scheduler, PostgreSQL, persistence and ledger; external compute and model execution are explicit simulator boundaries.',
       ...stats, elapsed_ms: Math.round(performance.now() - started), admission: distribution(timings.admission),
       worker_listing: distribution(timings.listing), synthetic_execution: distribution(timings.execution),

@@ -52,7 +52,7 @@ export async function hostSnapshots(tx: Tx, workerId: string): Promise<HostSnaps
     `SELECT m.* FROM host_materializations m JOIN hosts h ON h.id=m.host_id AND h.generation=m.host_generation
       WHERE h.worker_id=$1 AND h.status='ready' ORDER BY m.last_used_at DESC LIMIT 256`, [workerId],
   )).rows;
-  const byHost = new Map<string, HostSnapshot['worktrees']>();
+  const byHost = new Map<string, Array<HostSnapshot['worktrees'][number]>>();
   for (const cache of caches) {
     const entries = byHost.get(cache.host_id) || [];
     entries.push({ worktree_id: cache.worktree_id, revision: cache.checkpoint_id || 'empty',
@@ -78,6 +78,7 @@ export async function runDemand(tx: Tx, run: NativeRunRow): Promise<RunDemand> {
     worktree: { id: run.worktree_id, revision: worktree.data.latest_checkpoint_id || 'empty' },
     session: { id: run.session_id, revision: String(session.revision) }, permission_view: permissionView,
     compatibility_key: sha256(JSON.stringify({ harness: run.config.harness, model: run.config.model, instructions: run.config.instructions,
+      model_parameters: run.config.model_parameters, harness_prompt_mode: run.config.harness_prompt_mode,
       permissions: run.config.permission_layers, connections: run.config.connection_access, grants: run.config.connection_grants })),
   };
 }

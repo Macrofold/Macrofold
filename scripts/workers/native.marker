@@ -1,0 +1,1 @@
+Run the reviewed network-isolated native performance workload against the Worker cutover, including fresh-container continuation. External model traffic is stubbed on loopback; no paid provider keys are used.

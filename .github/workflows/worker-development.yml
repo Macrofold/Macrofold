@@ -8,28 +8,10 @@ concurrency:
   group: worker-development-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  source:
-    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Export tracked source without credentials or runtime data
-        run: |
-          mkdir -p /tmp/worker-source
-          git archive --format=tar.gz HEAD -o /tmp/worker-source/source.tar.gz
-          git rev-parse HEAD > /tmp/worker-source/commit.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: worker-source
-          path: /tmp/worker-source/
-          retention-days: 1
   implementation:
     if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
@@ -44,6 +26,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.13.0
+      - name: Source inventory
+        run: |
+          git ls-files '*AGENTS.md' '.agents/rules/*'
+          git ls-files | grep -E '(sandbox|worker|host|scheduling|execution|\.github|navigation)' | grep -v -E '^(apps/web/public|sdk/)' | head -150
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
       - name: Apply reviewed development edit when supplied
@@ -52,11 +38,11 @@ jobs:
             python3 scripts/workers/development-edit.py
             rm scripts/workers/development-edit.py
           fi
-      - name: Regenerate public contracts and documentation
+      - name: Regenerate owned artifacts
         run: |
           pnpm sdk:generate:all
           pnpm docs:generate
-      - name: Publish generated changes to this feature branch only
+      - name: Publish reviewed generated changes to this branch only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -73,8 +59,11 @@ jobs:
       - name: Unit and database integration acceptance
         run: pnpm test:domain tests/unit tests/integration tests/git.test.ts tests/git-sync.test.ts
       - run: pnpm docs:check
-      - name: Failure evidence
+      - name: Database diagnostics on failure
         if: failure()
+        run: docker compose -f infra/compose.yml logs --tail=100 postgres
+      - name: Evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: worker-development-evidence

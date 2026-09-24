@@ -38,9 +38,6 @@ pub struct NativeRunAccepted {
     pub scheduling_class: Option<SchedulingClass>,
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
-    /// Reusable compute ID, when selected or created by keep_warm_seconds.
-    #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub sandbox_id: Option<Option<uuid::Uuid>>,
 }
 
 impl NativeRunAccepted {
@@ -57,7 +54,6 @@ impl NativeRunAccepted {
             reserved_micro_usd: None,
             scheduling_class: None,
             kind: None,
-            sandbox_id: None,
         }
     }
 }

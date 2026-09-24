@@ -74,7 +74,6 @@ import dev.macrofold.ApiClient;
   Run.JSON_PROPERTY_KIND,
   Run.JSON_PROPERTY_WORKSPACE_ID,
   Run.JSON_PROPERTY_TASK_ID,
-  Run.JSON_PROPERTY_SANDBOX_ID,
   Run.JSON_PROPERTY_WORKER_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
@@ -557,9 +556,6 @@ public class Run {
 
   public static final String JSON_PROPERTY_TASK_ID = "task_id";
   private JsonNullable<UUID> taskId = JsonNullable.<UUID>undefined();
-
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
 
   public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
   private JsonNullable<UUID> workerId = JsonNullable.<UUID>undefined();
@@ -1337,38 +1333,6 @@ public class Run {
   }
 
 
-  public Run sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
-    return this;
-  }
-
-  /**
-   * Reusable compute ID, when selected or created by keep_warm_seconds.
-   * @return sandboxId
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public UUID getSandboxId() {
-        return sandboxId.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<UUID> getSandboxId_JsonNullable() {
-    return sandboxId;
-  }
-
-  @JsonProperty(JSON_PROPERTY_SANDBOX_ID)
-  public void setSandboxId_JsonNullable(JsonNullable<UUID> sandboxId) {
-    this.sandboxId = sandboxId;
-  }
-
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
-  }
-
-
   public Run workerId(@javax.annotation.Nullable UUID workerId) {
     this.workerId = JsonNullable.<UUID>of(workerId);
     return this;
@@ -1443,7 +1407,6 @@ public class Run {
         Objects.equals(this.kind, run.kind) &&
         Objects.equals(this.workspaceId, run.workspaceId) &&
         equalsNullable(this.taskId, run.taskId) &&
-        equalsNullable(this.sandboxId, run.sandboxId) &&
         equalsNullable(this.workerId, run.workerId);
   }
 
@@ -1453,7 +1416,7 @@ public class Run {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, sessionId, worktreeId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion), kind, workspaceId, hashCodeNullable(taskId), hashCodeNullable(sandboxId), hashCodeNullable(workerId));
+    return Objects.hash(id, organizationId, sessionId, worktreeId, harness, model, status, executionOutcome, persistenceStatus, syncStatus, createdAt, startedAt, completedAt, limits, costMicroUsd, queueExpiresAt, failureCode, clientType, clientVersion, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, hashCodeNullable(executionDeadline), permissionLayers, hashCodeNullable(agentId), hashCodeNullable(agentVersion), kind, workspaceId, hashCodeNullable(taskId), hashCodeNullable(workerId));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -1497,7 +1460,6 @@ public class Run {
     sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    taskId: ").append(toIndentedString(taskId)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -1696,11 +1658,6 @@ public class Run {
     // add `task_id` to the URL query string
     if (getTaskId() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%stask_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getTaskId()))));
-    }
-
-    // add `sandbox_id` to the URL query string
-    if (getSandboxId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
     }
 
     // add `worker_id` to the URL query string

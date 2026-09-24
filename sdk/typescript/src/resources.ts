@@ -562,6 +562,7 @@ export type ListRunsOptions = {
   limit?: NonNullable<operations['listRuns']['parameters']['query']>['limit'];
   worktree_id?: NonNullable<operations['listRuns']['parameters']['query']>['worktree_id'];
   session_id?: NonNullable<operations['listRuns']['parameters']['query']>['session_id'];
+  worker_id?: NonNullable<operations['listRuns']['parameters']['query']>['worker_id'];
 };
 export type CreateRunOptions = NonNullable<
   operations['createRun']['requestBody']
@@ -619,6 +620,7 @@ export class RunsResource {
           limit: options.limit,
           worktree_id: options.worktree_id,
           session_id: options.session_id,
+          worker_id: options.worker_id,
         },
       },
     });
@@ -2261,60 +2263,6 @@ export class TasksResource {
     });
   }
 }
-export type CreateSandboxOptions = NonNullable<
-  operations['createSandbox']['requestBody']
->['content']['application/json'];
-export type ListSandboxesOptions = {
-  worktree_id?: NonNullable<operations['listSandboxes']['parameters']['query']>['worktree_id'];
-  cursor?: NonNullable<operations['listSandboxes']['parameters']['query']>['cursor'];
-  limit?: NonNullable<operations['listSandboxes']['parameters']['query']>['limit'];
-};
-export class SandboxesResource {
-  constructor(private client: Transport) {}
-  create(
-    options: CreateSandboxOptions,
-    requestOptions: RequestSettings = {},
-  ): Promise<Result<'createSandbox'>> {
-    return this.client.request('createSandbox', {
-      ...requestOptions,
-
-      body: options,
-    });
-  }
-  list(
-    options: ListSandboxesOptions = {},
-    requestOptions: RequestSettings = {},
-  ): Promise<Result<'listSandboxes'>> {
-    return this.client.request('listSandboxes', {
-      ...requestOptions,
-      params: { query: { worktree_id: options.worktree_id, cursor: options.cursor, limit: options.limit } },
-    });
-  }
-  get(sandboxId: string, requestOptions: RequestSettings = {}): Promise<Result<'getSandbox'>> {
-    return this.client.request('getSandbox', {
-      ...requestOptions,
-      params: { path: { sandbox_id: sandboxId } },
-    });
-  }
-  pause(sandboxId: string, requestOptions: RequestSettings = {}): Promise<Result<'pauseSandbox'>> {
-    return this.client.request('pauseSandbox', {
-      ...requestOptions,
-      params: { path: { sandbox_id: sandboxId } },
-    });
-  }
-  resume(sandboxId: string, requestOptions: RequestSettings = {}): Promise<Result<'resumeSandbox'>> {
-    return this.client.request('resumeSandbox', {
-      ...requestOptions,
-      params: { path: { sandbox_id: sandboxId } },
-    });
-  }
-  destroy(sandboxId: string, requestOptions: RequestSettings = {}): Promise<Result<'destroySandbox'>> {
-    return this.client.request('destroySandbox', {
-      ...requestOptions,
-      params: { path: { sandbox_id: sandboxId } },
-    });
-  }
-}
 export type ListWorkersOptions = {
   cursor?: NonNullable<operations['listWorkers']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listWorkers']['parameters']['query']>['limit'];
@@ -2437,6 +2385,5 @@ export abstract class Resources {
   readonly customerAgents = new CustomerAgentsResource(this);
   readonly inferences = new InferencesResource(this);
   readonly tasks = new TasksResource(this);
-  readonly sandboxes = new SandboxesResource(this);
   readonly workers = new WorkersResource(this);
 }

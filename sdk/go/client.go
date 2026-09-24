@@ -84,8 +84,6 @@ type APIClient struct {
 
 	RunsAPI *RunsAPIService
 
-	SandboxesAPI *SandboxesAPIService
-
 	SessionsAPI *SessionsAPIService
 
 	SlackConnectionsAPI *SlackConnectionsAPIService
@@ -142,7 +140,6 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.OrganizationsAPI = (*OrganizationsAPIService)(&c.common)
 	c.RequestsAPI = (*RequestsAPIService)(&c.common)
 	c.RunsAPI = (*RunsAPIService)(&c.common)
-	c.SandboxesAPI = (*SandboxesAPIService)(&c.common)
 	c.SessionsAPI = (*SessionsAPIService)(&c.common)
 	c.SlackConnectionsAPI = (*SlackConnectionsAPIService)(&c.common)
 	c.TasksAPI = (*TasksAPIService)(&c.common)

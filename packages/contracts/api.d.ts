@@ -2257,110 +2257,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/sandboxes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List authorized sandboxes
-         * @description List authorized sandboxes Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        get: operations["listSandboxes"];
-        put?: never;
-        /**
-         * Create a sandbox or long-running server
-         * @description Create a sandbox or long-running server Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        post: operations["createSandbox"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sandboxes/{sandbox_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get sandbox state and compute allocation
-         * @description Get sandbox state and compute allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        get: operations["getSandbox"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sandboxes/{sandbox_id}/pause": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Pause compute after verified run persistence
-         * @description Pause compute after verified run persistence Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        post: operations["pauseSandbox"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sandboxes/{sandbox_id}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume compute with a new prepaid allocation
-         * @description Resume compute with a new prepaid allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        post: operations["resumeSandbox"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sandboxes/{sandbox_id}/destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Destroy disposable compute and retire this sandbox ID
-         * @description Destroy disposable compute and retire this sandbox ID Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.
-         */
-        post: operations["destroySandbox"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/workers": {
         parameters: {
             query?: never;
@@ -2907,12 +2803,6 @@ export interface components {
             connection_access_overrides?: components["schemas"]["Grant"][];
             /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
             attachments?: string[];
-            /** Format: uuid */
-            sandbox_id?: string;
-            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
-            keep_warm_seconds?: number | null;
-            /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
-            sandbox_max_cost_micro_usd?: string;
             model_parameters?: components["schemas"]["ModelParameters"];
             /**
              * @description OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
@@ -2949,12 +2839,6 @@ export interface components {
             connection_access_overrides?: components["schemas"]["Grant"][];
             /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
             attachments?: string[];
-            /** Format: uuid */
-            sandbox_id?: string;
-            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
-            keep_warm_seconds?: number | null;
-            /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
-            sandbox_max_cost_micro_usd?: string;
             model_parameters?: components["schemas"]["ModelParameters"];
             /** Format: uuid */
             worker_id?: string;
@@ -3002,11 +2886,6 @@ export interface components {
             scheduling_class?: "background" | "interactive";
             /** @enum {string} */
             kind?: "native_agent" | "inference" | "bounded_agent";
-            /**
-             * Format: uuid
-             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
-             */
-            sandbox_id?: string | null;
             /**
              * Format: uuid
              * @description Explicit reusable compute target, independent of the Run context.
@@ -3073,11 +2952,6 @@ export interface components {
             workspace_id: string | null;
             /** Format: uuid */
             task_id?: string | null;
-            /**
-             * Format: uuid
-             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
-             */
-            sandbox_id?: string | null;
             /**
              * Format: uuid
              * @description Explicit reusable compute target, independent of the Run context.
@@ -4531,11 +4405,6 @@ export interface components {
             scheduling_class?: "background" | "interactive";
             /** @enum {string} */
             kind?: "native_agent";
-            /**
-             * Format: uuid
-             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
-             */
-            sandbox_id?: string | null;
         };
         DefinitionReference: {
             /** Format: uuid */
@@ -4743,9 +4612,14 @@ export interface components {
             };
             /**
              * Format: uuid
-             * @description Compute allocation charged independently of individual runs, when present.
+             * @description Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run.
              */
-            sandbox_id?: string;
+            worker_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Financial allocation identifier; not a controllable physical-machine API resource.
+             */
+            compute_allocation_id?: string | null;
         };
         BillingUsagePage: {
             /** Format: date-time */
@@ -4755,49 +4629,6 @@ export interface components {
             /** @enum {string} */
             currency: "USD";
             data: components["schemas"]["BillingUsageEntry"][];
-            next_cursor: string | null;
-        };
-        /** @description Disposable compute attached to one worktree. A long-running sandbox with omitted keep_warm_seconds stays ready until paused, destroyed, or its compute allocation is exhausted. Poll its status before starting latency-sensitive work. */
-        SandboxCreate: {
-            /** Format: uuid */
-            worktree_id: string;
-            name?: string;
-            /** @description Keep compute running between agents without a default idle timeout: Docker locally, Render in hosted deployments. The filesystem is disposable; successive agents reuse the same compute environment. Ordinary sandboxes retain bounded lifetimes. */
-            long_running?: boolean;
-            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
-            keep_warm_seconds?: number | null;
-            /** @description Separate prepaid compute allocation, covering ready and idle time until pause/destroy or exhaustion. Each explicit resume authorizes another allocation of this size. Model/tool costs retain the run budget. */
-            max_cost_micro_usd?: string;
-        };
-        Sandbox: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            worktree_id: string;
-            name: string | null;
-            long_running: boolean;
-            /** @description Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy. */
-            keep_warm_seconds: number | null;
-            /** @enum {string} */
-            status: "creating" | "ready" | "pausing" | "paused" | "destroying" | "destroyed" | "error";
-            /** Format: uuid */
-            active_run_id: string | null;
-            /** Format: date-time */
-            idle_expires_at: string | null;
-            cost_micro_usd: string;
-            max_cost_micro_usd: string;
-            reserved_micro_usd: string;
-            rate_micro_usd_per_minute: string;
-            failure_code: string | null;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        SandboxPage: {
-            data: components["schemas"]["Sandbox"][];
             next_cursor: string | null;
         };
         ModelParameters: {
@@ -4848,11 +4679,6 @@ export interface components {
             scheduling_class?: "background" | "interactive";
             /** @enum {string} */
             kind?: "native_agent" | "inference" | "bounded_agent";
-            /**
-             * Format: uuid
-             * @description Reusable compute ID, when selected or created by keep_warm_seconds.
-             */
-            sandbox_id?: string | null;
             result?: components["schemas"]["RunResult"];
         };
         /** @description Create an autoscaling execution target independent of Worktrees and Sessions. Defaults resolve from enabled offerings. Instance counts apply only to dedicated capacity. */
@@ -6166,6 +5992,8 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 worktree_id?: string;
                 session_id?: string;
+                /** @description Only Runs or compute usage associated with this Worker. Normal context permissions still apply. */
+                worker_id?: string;
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -11017,218 +10845,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BillingUsagePage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listSandboxes: {
-        parameters: {
-            query?: {
-                worktree_id?: string;
-                cursor?: string;
-                limit?: number;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SandboxPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createSandbox: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SandboxCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Sandbox"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getSandbox: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                sandbox_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Sandbox"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    pauseSandbox: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                sandbox_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Sandbox"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    resumeSandbox: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                sandbox_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Sandbox"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    destroySandbox: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                sandbox_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Sandbox"];
                 };
             };
             /** @description Error */

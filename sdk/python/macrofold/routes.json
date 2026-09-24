@@ -635,30 +635,6 @@
     "method": "GET",
     "path": "/v1/billing/usage"
   },
-  "createSandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes"
-  },
-  "listSandboxes": {
-    "method": "GET",
-    "path": "/v1/sandboxes"
-  },
-  "getSandbox": {
-    "method": "GET",
-    "path": "/v1/sandboxes/{sandbox_id}"
-  },
-  "pauseSandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/pause"
-  },
-  "resumeSandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/resume"
-  },
-  "destroySandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/destroy"
-  },
   "listWorkers": {
     "method": "GET",
     "path": "/v1/workers"

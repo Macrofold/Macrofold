@@ -39,7 +39,6 @@ public SlackConnectionsResource slackConnections(){return new SlackConnectionsRe
 public CustomerAgentsResource customerAgents(){return new CustomerAgentsResource(this,RequestOptions.defaults());}
 public InferencesResource inferences(){return new InferencesResource(this,RequestOptions.defaults());}
 public TasksResource tasks(){return new TasksResource(this,RequestOptions.defaults());}
-public SandboxesResource sandboxes(){return new SandboxesResource(this,RequestOptions.defaults());}
 public WorkersResource workers(){return new WorkersResource(this,RequestOptions.defaults());}
 
 public static final class GetWorkspaceParams {
@@ -485,6 +484,7 @@ private String cursor;
 private Integer limit;
 private UUID worktreeId;
 private UUID sessionId;
+private UUID workerId;
         public ListRunsParams(){}
         public ListRunsParams status(String value){this.status=value;return this;}
 public ListRunsParams workspaceId(UUID value){this.workspaceId=value;return this;}
@@ -494,6 +494,7 @@ public ListRunsParams cursor(String value){this.cursor=value;return this;}
 public ListRunsParams limit(Integer value){this.limit=value;return this;}
 public ListRunsParams worktreeId(UUID value){this.worktreeId=value;return this;}
 public ListRunsParams sessionId(UUID value){this.sessionId=value;return this;}
+public ListRunsParams workerId(UUID value){this.workerId=value;return this;}
       }
 public static final class RunsResource {
       private final Resources client; private final RequestOptions options;
@@ -547,7 +548,7 @@ public ListRuns200Response list() throws ApiException {
 public ListRuns200Response list(ListRunsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new RunsApi(client).listRuns(params.status,params.workspaceId,params.from,params.to,params.cursor,params.limit,params.worktreeId,params.sessionId,options.organization());}
+        try {return new RunsApi(client).listRuns(params.status,params.workspaceId,params.from,params.to,params.cursor,params.limit,params.worktreeId,params.sessionId,options.organization(),params.workerId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public void stream(UUID runId,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {stream(runId,"0",receive);}
@@ -1783,59 +1784,6 @@ public DecisionTask wakeDecision(UUID taskId,DecisionTaskWake input) throws ApiE
         String key=options.identity();
 
         try {return new TasksApi(client).wakeDecisionTask(key,taskId,input);}
-        catch(ApiException error) {throw new RequestException(error,key);}
-      }
-    }
-public static final class ListSandboxesParams {
-        private UUID worktreeId;
-private UUID cursor;
-private Integer limit;
-        public ListSandboxesParams(){}
-        public ListSandboxesParams worktreeId(UUID value){this.worktreeId=value;return this;}
-public ListSandboxesParams cursor(UUID value){this.cursor=value;return this;}
-public ListSandboxesParams limit(Integer value){this.limit=value;return this;}
-      }
-public static final class SandboxesResource {
-      private final Resources client; private final RequestOptions options;
-      private SandboxesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
-      public SandboxesResource withOptions(RequestOptions options){return new SandboxesResource(client,Objects.requireNonNull(options));}
-      public Sandbox create(SandboxCreate input) throws ApiException {
-        String key=options.identity();
-
-        try {return new SandboxesApi(client).createSandbox(key,input,options.organization());}
-        catch(ApiException error) {throw new RequestException(error,key);}
-      }
-public Sandbox destroy(UUID sandboxId) throws ApiException {
-        String key=options.identity();
-
-        try {return new SandboxesApi(client).destroySandbox(sandboxId,key,options.organization());}
-        catch(ApiException error) {throw new RequestException(error,key);}
-      }
-public Sandbox get(UUID sandboxId) throws ApiException {
-
-
-        try {return new SandboxesApi(client).getSandbox(sandboxId,options.organization());}
-        catch(ApiException error) {throw new RequestException(error,null);}
-      }
-public SandboxPage list() throws ApiException {
-        return list(new ListSandboxesParams());
-      }
-public SandboxPage list(ListSandboxesParams params) throws ApiException {
-
-        Objects.requireNonNull(params,"params");
-        try {return new SandboxesApi(client).listSandboxes(options.organization(),params.worktreeId,params.cursor,params.limit);}
-        catch(ApiException error) {throw new RequestException(error,null);}
-      }
-public Sandbox pause(UUID sandboxId) throws ApiException {
-        String key=options.identity();
-
-        try {return new SandboxesApi(client).pauseSandbox(sandboxId,key,options.organization());}
-        catch(ApiException error) {throw new RequestException(error,key);}
-      }
-public Sandbox resume(UUID sandboxId) throws ApiException {
-        String key=options.identity();
-
-        try {return new SandboxesApi(client).resumeSandbox(sandboxId,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }

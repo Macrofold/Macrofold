@@ -128,7 +128,6 @@ pub mod operator_api;
 pub mod organizations_api;
 pub mod requests_api;
 pub mod runs_api;
-pub mod sandboxes_api;
 pub mod sessions_api;
 pub mod slack_connections_api;
 pub mod tasks_api;

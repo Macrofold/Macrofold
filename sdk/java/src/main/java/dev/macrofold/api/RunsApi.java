@@ -1031,11 +1031,12 @@ public class RunsApi {
    * @param worktreeId  (optional)
    * @param sessionId  (optional)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Only Runs or compute usage associated with this Worker. Normal context permissions still apply. (optional)
    * @return ListRuns200Response
    * @throws ApiException if fails to make API call
    */
-  public ListRuns200Response listRuns(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listRuns(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, null);
+  public ListRuns200Response listRuns(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId) throws ApiException {
+    return listRuns(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, workerId, null);
   }
 
   /**
@@ -1050,12 +1051,13 @@ public class RunsApi {
    * @param worktreeId  (optional)
    * @param sessionId  (optional)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Only Runs or compute usage associated with this Worker. Normal context permissions still apply. (optional)
    * @param headers Optional headers to include in the request
    * @return ListRuns200Response
    * @throws ApiException if fails to make API call
    */
-  public ListRuns200Response listRuns(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<ListRuns200Response> localVarResponse = listRunsWithHttpInfo(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, headers);
+  public ListRuns200Response listRuns(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
+    ApiResponse<ListRuns200Response> localVarResponse = listRunsWithHttpInfo(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, workerId, headers);
     return localVarResponse.getData();
   }
 
@@ -1071,11 +1073,12 @@ public class RunsApi {
    * @param worktreeId  (optional)
    * @param sessionId  (optional)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Only Runs or compute usage associated with this Worker. Normal context permissions still apply. (optional)
    * @return ApiResponse&lt;ListRuns200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListRuns200Response> listRunsWithHttpInfo(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listRunsWithHttpInfo(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, null);
+  public ApiResponse<ListRuns200Response> listRunsWithHttpInfo(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId) throws ApiException {
+    return listRunsWithHttpInfo(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, workerId, null);
   }
 
   /**
@@ -1090,12 +1093,13 @@ public class RunsApi {
    * @param worktreeId  (optional)
    * @param sessionId  (optional)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Only Runs or compute usage associated with this Worker. Normal context permissions still apply. (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;ListRuns200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListRuns200Response> listRunsWithHttpInfo(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listRunsRequestBuilder(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, headers);
+  public ApiResponse<ListRuns200Response> listRunsWithHttpInfo(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listRunsRequestBuilder(status, workspaceId, from, to, cursor, limit, worktreeId, sessionId, xOrganizationId, workerId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1142,7 +1146,7 @@ public class RunsApi {
     }
   }
 
-  private HttpRequest.Builder listRunsRequestBuilder(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder listRunsRequestBuilder(@javax.annotation.Nullable String status, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
 
@@ -1167,6 +1171,8 @@ public class RunsApi {
     localVarQueryParams.addAll(ApiClient.parameterToPairs("worktree_id", worktreeId));
     localVarQueryParameterBaseName = "session_id";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("session_id", sessionId));
+    localVarQueryParameterBaseName = "worker_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("worker_id", workerId));
 
     if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");

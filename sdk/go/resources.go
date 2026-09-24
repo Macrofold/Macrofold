@@ -2,8 +2,8 @@
 package macrofold
 import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
-type Client struct { *APIClient; Workspaces *WorkspacesResource;Worktrees *WorktreesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource;Inferences *InferencesResource;Tasks *TasksResource;Sandboxes *SandboxesResource;Workers *WorkersResource }
-func resources(api *APIClient) *Client { return &Client{APIClient:api, Workspaces:&WorkspacesResource{api},Worktrees:&WorktreesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},Inferences:&InferencesResource{api},Tasks:&TasksResource{api},Sandboxes:&SandboxesResource{api},Workers:&WorkersResource{api},} }
+type Client struct { *APIClient; Workspaces *WorkspacesResource;Worktrees *WorktreesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource;Inferences *InferencesResource;Tasks *TasksResource;Workers *WorkersResource }
+func resources(api *APIClient) *Client { return &Client{APIClient:api, Workspaces:&WorkspacesResource{api},Worktrees:&WorktreesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},Inferences:&InferencesResource{api},Tasks:&TasksResource{api},Workers:&WorkersResource{api},} }
 
 type WorkspacesResource struct {client *APIClient}
 func (r *WorkspacesResource) CancelDeletion(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
@@ -577,7 +577,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
-type ListRunsParams struct {Status *string;WorkspaceId *string;From *time.Time;To *time.Time;Cursor *string;Limit *int32;WorktreeId *string;SessionId *string}
+type ListRunsParams struct {Status *string;WorkspaceId *string;From *time.Time;To *time.Time;Cursor *string;Limit *int32;WorktreeId *string;SessionId *string;WorkerId *string}
 func (r *RunsResource) List(ctx context.Context, params *ListRunsParams, options ...RequestOption) (*ListRuns200Response, error) {
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
@@ -594,6 +594,7 @@ if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
 if params.Limit != nil {call = call.Limit(*params.Limit)}
 if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
 if params.SessionId != nil {call = call.SessionId(*params.SessionId)}
+if params.WorkerId != nil {call = call.WorkerId(*params.WorkerId)}
         result, response, callError := call.Execute()
         return result, requestError(callError, response, "")
       }
@@ -2087,82 +2088,6 @@ func (r *TasksResource) WakeDecision(ctx context.Context, taskId string, input *
         if input != nil {call = call.DecisionTaskWake(*input)}
         call = call.IdempotencyKey(settings.idempotencyKey)
 
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-type SandboxesResource struct {client *APIClient}
-func (r *SandboxesResource) Create(ctx context.Context, input *SandboxCreate, options ...RequestOption) (*Sandbox, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-
-        call := r.client.SandboxesAPI.CreateSandbox(ctx)
-        if input != nil {call = call.SandboxCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *SandboxesResource) Destroy(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-
-
-        call := r.client.SandboxesAPI.DestroySandbox(ctx, sandboxId)
-
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *SandboxesResource) Get(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-
-        call := r.client.SandboxesAPI.GetSandbox(ctx, sandboxId)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-type ListSandboxesParams struct {WorktreeId *string;Cursor *string;Limit *int32}
-func (r *SandboxesResource) List(ctx context.Context, params *ListSandboxesParams, options ...RequestOption) (*SandboxPage, error) {
-        settings, err := requestOptions(options, false); if err != nil {return nil, err}
-
-        if params == nil {params = &ListSandboxesParams{}}
-        call := r.client.SandboxesAPI.ListSandboxes(ctx)
-
-
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
-if params.Cursor != nil {call = call.Cursor(*params.Cursor)}
-if params.Limit != nil {call = call.Limit(*params.Limit)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, "")
-      }
-func (r *SandboxesResource) Pause(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-
-
-        call := r.client.SandboxesAPI.PauseSandbox(ctx, sandboxId)
-
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
-func (r *SandboxesResource) Resume(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-
-
-        call := r.client.SandboxesAPI.ResumeSandbox(ctx, sandboxId)
-
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
 
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)

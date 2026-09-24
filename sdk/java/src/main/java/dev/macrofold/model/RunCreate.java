@@ -35,10 +35,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.openapitools.jackson.nullable.JsonNullable;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.openapitools.jackson.nullable.JsonNullable;
-import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -65,9 +61,6 @@ import dev.macrofold.ApiClient;
   RunCreate.JSON_PROPERTY_PERMISSIONS,
   RunCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
   RunCreate.JSON_PROPERTY_ATTACHMENTS,
-  RunCreate.JSON_PROPERTY_SANDBOX_ID,
-  RunCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
-  RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
   RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
   RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE,
   RunCreate.JSON_PROPERTY_WORKER_ID,
@@ -262,17 +255,6 @@ public class RunCreate {
   public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
   @javax.annotation.Nullable
   private Set<String> attachments = new LinkedHashSet<>();
-
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  @javax.annotation.Nullable
-  private UUID sandboxId;
-
-  public static final String JSON_PROPERTY_KEEP_WARM_SECONDS = "keep_warm_seconds";
-  private JsonNullable<Integer> keepWarmSeconds = JsonNullable.<Integer>undefined();
-
-  public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
-  @javax.annotation.Nullable
-  private String sandboxMaxCostMicroUsd;
 
   public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
   @javax.annotation.Nullable
@@ -799,88 +781,6 @@ public class RunCreate {
   }
 
 
-  public RunCreate sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
-    return this;
-  }
-
-  /**
-   * Get sandboxId
-   * @return sandboxId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getSandboxId() {
-    return sandboxId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
-  }
-
-
-  public RunCreate keepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
-    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
-    return this;
-  }
-
-  /**
-   * Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
-   * minimum: 0
-   * maximum: 86400
-   * @return keepWarmSeconds
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public Integer getKeepWarmSeconds() {
-        return keepWarmSeconds.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_KEEP_WARM_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<Integer> getKeepWarmSeconds_JsonNullable() {
-    return keepWarmSeconds;
-  }
-
-  @JsonProperty(JSON_PROPERTY_KEEP_WARM_SECONDS)
-  public void setKeepWarmSeconds_JsonNullable(JsonNullable<Integer> keepWarmSeconds) {
-    this.keepWarmSeconds = keepWarmSeconds;
-  }
-
-  public void setKeepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
-    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
-  }
-
-
-  public RunCreate sandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
-    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
-    return this;
-  }
-
-  /**
-   * Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
-   * @return sandboxMaxCostMicroUsd
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getSandboxMaxCostMicroUsd() {
-    return sandboxMaxCostMicroUsd;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
-    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
-  }
-
-
   public RunCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
     this.modelParameters = modelParameters;
     return this;
@@ -1035,9 +935,6 @@ public class RunCreate {
         Objects.equals(this.permissions, runCreate.permissions) &&
         Objects.equals(this.connectionAccessOverrides, runCreate.connectionAccessOverrides) &&
         Objects.equals(this.attachments, runCreate.attachments) &&
-        Objects.equals(this.sandboxId, runCreate.sandboxId) &&
-        equalsNullable(this.keepWarmSeconds, runCreate.keepWarmSeconds) &&
-        Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd) &&
         Objects.equals(this.modelParameters, runCreate.modelParameters) &&
         Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode) &&
         Objects.equals(this.workerId, runCreate.workerId) &&
@@ -1045,20 +942,9 @@ public class RunCreate {
         Objects.equals(this.cpuMillis, runCreate.cpuMillis);
   }
 
-  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
-    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
-  }
-
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode, workerId, memoryMib, cpuMillis);
-  }
-
-  private static <T> int hashCodeNullable(JsonNullable<T> a) {
-    if (a == null) {
-      return 1;
-    }
-    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
+    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, modelParameters, harnessPromptMode, workerId, memoryMib, cpuMillis);
   }
 
   @Override
@@ -1083,9 +969,6 @@ public class RunCreate {
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
     sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
-    sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
-    sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
     sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");

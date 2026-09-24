@@ -62,9 +62,8 @@ class Run(BaseModel):
     kind: StrictStr
     workspace_id: Optional[UUID]
     task_id: Optional[UUID] = None
-    sandbox_id: Optional[UUID] = Field(default=None, description="Reusable compute ID, when selected or created by keep_warm_seconds.")
     worker_id: Optional[UUID] = Field(default=None, description="Explicit reusable compute target, independent of the Run context.")
-    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "worktree_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version", "kind", "workspace_id", "task_id", "sandbox_id", "worker_id"]
+    __properties: ClassVar[List[str]] = ["id", "organization_id", "session_id", "worktree_id", "harness", "model", "status", "execution_outcome", "persistence_status", "sync_status", "created_at", "started_at", "completed_at", "limits", "cost_micro_usd", "queue_expires_at", "failure_code", "client_type", "client_version", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "execution_deadline", "permission_layers", "agent_id", "agent_version", "kind", "workspace_id", "task_id", "worker_id"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -254,11 +253,6 @@ class Run(BaseModel):
         if self.task_id is None and "task_id" in self.model_fields_set:
             _dict['task_id'] = None
 
-        # set to None if sandbox_id (nullable) is None
-        # and model_fields_set contains the field
-        if self.sandbox_id is None and "sandbox_id" in self.model_fields_set:
-            _dict['sandbox_id'] = None
-
         # set to None if worker_id (nullable) is None
         # and model_fields_set contains the field
         if self.worker_id is None and "worker_id" in self.model_fields_set:
@@ -306,7 +300,6 @@ class Run(BaseModel):
             "kind": obj.get("kind"),
             "workspace_id": obj.get("workspace_id"),
             "task_id": obj.get("task_id"),
-            "sandbox_id": obj.get("sandbox_id"),
             "worker_id": obj.get("worker_id")
         })
         return _obj

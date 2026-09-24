@@ -2,6 +2,9 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover the forward-only cutover with closed historical charges and refusal when old compute or reserved funds remain. Verify the financial archive retains itemized journal attribution without credentials or operational state.
+- [ ] Cover Worker-filtered Run/usage pagination and ensure individual Worktree/Session filters do not attribute the full shared allocation to a single Run.
+
 - [ ] Cover a live provider allocation whose container/session/controller generation changes: stop confirmed compute before releasing the hold, recover old Run claims without replay, and retain unknown metering tails for reconciliation.
 - [ ] Cover isolated allocation retirement after one Run, restore acknowledgement loss, staging after restore starts, and warm ownership handoff without recursive filesystem traversal.
 

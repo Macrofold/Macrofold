@@ -51,8 +51,7 @@ import dev.macrofold.ApiClient;
   NativeRunAccepted.JSON_PROPERTY_WAITING_REASON,
   NativeRunAccepted.JSON_PROPERTY_RESERVED_MICRO_USD,
   NativeRunAccepted.JSON_PROPERTY_SCHEDULING_CLASS,
-  NativeRunAccepted.JSON_PROPERTY_KIND,
-  NativeRunAccepted.JSON_PROPERTY_SANDBOX_ID
+  NativeRunAccepted.JSON_PROPERTY_KIND
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class NativeRunAccepted {
@@ -274,9 +273,6 @@ public class NativeRunAccepted {
   public static final String JSON_PROPERTY_KIND = "kind";
   @javax.annotation.Nullable
   private KindEnum kind;
-
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
 
   public NativeRunAccepted() { 
   }
@@ -554,38 +550,6 @@ public class NativeRunAccepted {
   }
 
 
-  public NativeRunAccepted sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
-    return this;
-  }
-
-  /**
-   * Reusable compute ID, when selected or created by keep_warm_seconds.
-   * @return sandboxId
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public UUID getSandboxId() {
-        return sandboxId.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<UUID> getSandboxId_JsonNullable() {
-    return sandboxId;
-  }
-
-  @JsonProperty(JSON_PROPERTY_SANDBOX_ID)
-  public void setSandboxId_JsonNullable(JsonNullable<UUID> sandboxId) {
-    this.sandboxId = sandboxId;
-  }
-
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
-  }
-
-
   /**
    * Return true if this NativeRunAccepted object is equal to o.
    */
@@ -608,8 +572,7 @@ public class NativeRunAccepted {
         equalsNullable(this.waitingReason, nativeRunAccepted.waitingReason) &&
         Objects.equals(this.reservedMicroUsd, nativeRunAccepted.reservedMicroUsd) &&
         Objects.equals(this.schedulingClass, nativeRunAccepted.schedulingClass) &&
-        Objects.equals(this.kind, nativeRunAccepted.kind) &&
-        equalsNullable(this.sandboxId, nativeRunAccepted.sandboxId);
+        Objects.equals(this.kind, nativeRunAccepted.kind);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -618,7 +581,7 @@ public class NativeRunAccepted {
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind, hashCodeNullable(sandboxId));
+    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -643,7 +606,6 @@ public class NativeRunAccepted {
     sb.append("    reservedMicroUsd: ").append(toIndentedString(reservedMicroUsd)).append("\n");
     sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
     sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -741,11 +703,6 @@ public class NativeRunAccepted {
     // add `kind` to the URL query string
     if (getKind() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%skind%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKind()))));
-    }
-
-    // add `sandbox_id` to the URL query string
-    if (getSandboxId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
     }
 
     return joiner.toString();

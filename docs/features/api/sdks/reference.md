@@ -1,6 +1,6 @@
 # SDK resource reference
 
-Generated from the [OpenAPI contract](../../../api/openapi.json). All 173 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
+Generated from the [OpenAPI contract](../../../api/openapi.json). All 167 public operations have a resource method. Start with the [language guides](README.md) for installation, authentication, and runnable examples.
 
 Names below follow each language's casing. TypeScript, Python, and Go use resource properties; Java and Rust use resource accessors, such as `client.workspaces().create(...)`. Rust network methods are async. Signatures and response types are available in editor completion and checked-in generated sources; query/header options use typed parameter classes in Go, Rust, and Java. Python uses keyword arguments; TypeScript uses typed options.
 
@@ -310,17 +310,6 @@ Text streams handle SSE, cursors and duplicate suppression internally, excluding
 | `wakeDecisionTask` | `tasks.wakeDecision` | `tasks.wake_decision` | `Tasks.WakeDecision` |
 | `recordTaskOutcome` | `tasks.recordOutcome` | `tasks.record_outcome` | `Tasks.RecordOutcome` |
 | `closeDecisionTask` | `tasks.closeDecision` | `tasks.close_decision` | `Tasks.CloseDecision` |
-
-## Sandboxes
-
-| OpenAPI operation | TypeScript / Java | Python / Rust | Go |
-| --- | --- | --- | --- |
-| `createSandbox` | `sandboxes.create` | `sandboxes.create` | `Sandboxes.Create` |
-| `listSandboxes` | `sandboxes.list` | `sandboxes.list` | `Sandboxes.List` |
-| `getSandbox` | `sandboxes.get` | `sandboxes.get` | `Sandboxes.Get` |
-| `pauseSandbox` | `sandboxes.pause` | `sandboxes.pause` | `Sandboxes.Pause` |
-| `resumeSandbox` | `sandboxes.resume` | `sandboxes.resume` | `Sandboxes.Resume` |
-| `destroySandbox` | `sandboxes.destroy` | `sandboxes.destroy` | `Sandboxes.Destroy` |
 
 ## Workers
 

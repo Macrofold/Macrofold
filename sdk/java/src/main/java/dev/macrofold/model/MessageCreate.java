@@ -35,10 +35,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.openapitools.jackson.nullable.JsonNullable;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.openapitools.jackson.nullable.JsonNullable;
-import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -58,9 +54,6 @@ import dev.macrofold.ApiClient;
   MessageCreate.JSON_PROPERTY_CONNECTION_GRANTS,
   MessageCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
   MessageCreate.JSON_PROPERTY_ATTACHMENTS,
-  MessageCreate.JSON_PROPERTY_SANDBOX_ID,
-  MessageCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
-  MessageCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
   MessageCreate.JSON_PROPERTY_MODEL_PARAMETERS,
   MessageCreate.JSON_PROPERTY_WORKER_ID,
   MessageCreate.JSON_PROPERTY_MEMORY_MIB,
@@ -146,17 +139,6 @@ public class MessageCreate {
   public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
   @javax.annotation.Nullable
   private Set<String> attachments = new LinkedHashSet<>();
-
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  @javax.annotation.Nullable
-  private UUID sandboxId;
-
-  public static final String JSON_PROPERTY_KEEP_WARM_SECONDS = "keep_warm_seconds";
-  private JsonNullable<Integer> keepWarmSeconds = JsonNullable.<Integer>undefined();
-
-  public static final String JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD = "sandbox_max_cost_micro_usd";
-  @javax.annotation.Nullable
-  private String sandboxMaxCostMicroUsd;
 
   public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
   @javax.annotation.Nullable
@@ -476,88 +458,6 @@ public class MessageCreate {
   }
 
 
-  public MessageCreate sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
-    return this;
-  }
-
-  /**
-   * Get sandboxId
-   * @return sandboxId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getSandboxId() {
-    return sandboxId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
-  }
-
-
-  public MessageCreate keepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
-    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
-    return this;
-  }
-
-  /**
-   * Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
-   * minimum: 0
-   * maximum: 86400
-   * @return keepWarmSeconds
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public Integer getKeepWarmSeconds() {
-        return keepWarmSeconds.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_KEEP_WARM_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<Integer> getKeepWarmSeconds_JsonNullable() {
-    return keepWarmSeconds;
-  }
-
-  @JsonProperty(JSON_PROPERTY_KEEP_WARM_SECONDS)
-  public void setKeepWarmSeconds_JsonNullable(JsonNullable<Integer> keepWarmSeconds) {
-    this.keepWarmSeconds = keepWarmSeconds;
-  }
-
-  public void setKeepWarmSeconds(@javax.annotation.Nullable Integer keepWarmSeconds) {
-    this.keepWarmSeconds = JsonNullable.<Integer>of(keepWarmSeconds);
-  }
-
-
-  public MessageCreate sandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
-    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
-    return this;
-  }
-
-  /**
-   * Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
-   * @return sandboxMaxCostMicroUsd
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getSandboxMaxCostMicroUsd() {
-    return sandboxMaxCostMicroUsd;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSandboxMaxCostMicroUsd(@javax.annotation.Nullable String sandboxMaxCostMicroUsd) {
-    this.sandboxMaxCostMicroUsd = sandboxMaxCostMicroUsd;
-  }
-
-
   public MessageCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
     this.modelParameters = modelParameters;
     return this;
@@ -681,29 +581,15 @@ public class MessageCreate {
         Objects.equals(this.connectionGrants, messageCreate.connectionGrants) &&
         Objects.equals(this.connectionAccessOverrides, messageCreate.connectionAccessOverrides) &&
         Objects.equals(this.attachments, messageCreate.attachments) &&
-        Objects.equals(this.sandboxId, messageCreate.sandboxId) &&
-        equalsNullable(this.keepWarmSeconds, messageCreate.keepWarmSeconds) &&
-        Objects.equals(this.sandboxMaxCostMicroUsd, messageCreate.sandboxMaxCostMicroUsd) &&
         Objects.equals(this.modelParameters, messageCreate.modelParameters) &&
         Objects.equals(this.workerId, messageCreate.workerId) &&
         Objects.equals(this.memoryMib, messageCreate.memoryMib) &&
         Objects.equals(this.cpuMillis, messageCreate.cpuMillis);
   }
 
-  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
-    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
-  }
-
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, workerId, memoryMib, cpuMillis);
-  }
-
-  private static <T> int hashCodeNullable(JsonNullable<T> a) {
-    if (a == null) {
-      return 1;
-    }
-    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
+    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, modelParameters, workerId, memoryMib, cpuMillis);
   }
 
   @Override
@@ -721,9 +607,6 @@ public class MessageCreate {
     sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
     sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
-    sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
-    sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("    memoryMib: ").append(toIndentedString(memoryMib)).append("\n");
@@ -847,21 +730,6 @@ public class MessageCreate {
             ApiClient.urlEncode(ApiClient.valueToString(_item))));
       }
       i++;
-    }
-
-    // add `sandbox_id` to the URL query string
-    if (getSandboxId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
-    }
-
-    // add `keep_warm_seconds` to the URL query string
-    if (getKeepWarmSeconds() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%skeep_warm_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKeepWarmSeconds()))));
-    }
-
-    // add `sandbox_max_cost_micro_usd` to the URL query string
-    if (getSandboxMaxCostMicroUsd() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_max_cost_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxMaxCostMicroUsd()))));
     }
 
     // add `model_parameters` to the URL query string

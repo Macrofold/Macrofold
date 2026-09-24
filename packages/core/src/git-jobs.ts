@@ -243,7 +243,6 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
   }
   const tasks: [string, () => Promise<Record<string, number>>][] = [
     ['workers', async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() })],
-    ['sandboxes', async () => (await import('./sandboxes')).dispatchSandboxes()],
     ['runs', async () => (await import('./engine')).maintainRuns()],
     ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],
     ['triggers', async () => (await import('./trigger-dispatch')).dispatchTriggers()],

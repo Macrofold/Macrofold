@@ -2504,6 +2504,16 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Only Runs or compute usage associated with this Worker. Normal context permissions still apply."
           }
         ],
         "responses": {
@@ -12893,448 +12903,6 @@
         }
       }
     },
-    "/v1/sandboxes": {
-      "post": {
-        "operationId": "createSandbox",
-        "summary": "Create a sandbox or long-running server",
-        "description": "Create a sandbox or long-running server Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:write"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:write"
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SandboxCreate"
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "operationId": "listSandboxes",
-        "summary": "List authorized sandboxes",
-        "description": "List authorized sandboxes Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:read"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:read"
-        ],
-        "parameters": [
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          },
-          {
-            "name": "worktree_id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 25
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SandboxPage"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sandboxes/{sandbox_id}": {
-      "get": {
-        "operationId": "getSandbox",
-        "summary": "Get sandbox state and compute allocation",
-        "description": "Get sandbox state and compute allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:read"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:read"
-        ],
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sandboxes/{sandbox_id}/pause": {
-      "post": {
-        "operationId": "pauseSandbox",
-        "summary": "Pause compute after verified run persistence",
-        "description": "Pause compute after verified run persistence Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:write"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:write"
-        ],
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sandboxes/{sandbox_id}/resume": {
-      "post": {
-        "operationId": "resumeSandbox",
-        "summary": "Resume compute with a new prepaid allocation",
-        "description": "Resume compute with a new prepaid allocation Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:write"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:write"
-        ],
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sandboxes/{sandbox_id}/destroy": {
-      "post": {
-        "operationId": "destroySandbox",
-        "summary": "Destroy disposable compute and retire this sandbox ID",
-        "description": "Destroy disposable compute and retire this sandbox ID Lifecycle changes are asynchronous: poll GET /v1/sandboxes/{sandbox_id}. Checkpoints are never deleted by these actions. One active run per sandbox/worktree.",
-        "tags": [
-          "Sandboxes"
-        ],
-        "security": [
-          {
-            "ApiKeyAuth": []
-          },
-          {
-            "DashboardSession": []
-          },
-          {
-            "CustomerOAuth": [
-              "runs:write"
-            ]
-          }
-        ],
-        "x-required-scopes": [
-          "runs:write"
-        ],
-        "parameters": [
-          {
-            "name": "sandbox_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          },
-          {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/workers": {
       "get": {
         "operationId": "listWorkers",
@@ -15137,24 +14705,6 @@
             },
             "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
           },
-          "sandbox_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "keep_warm_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 86400,
-            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
-          },
-          "sandbox_max_cost_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$",
-            "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
-          },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
           },
@@ -15316,24 +14866,6 @@
             },
             "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
           },
-          "sandbox_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "keep_warm_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 86400,
-            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
-          },
-          "sandbox_max_cost_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$",
-            "description": "Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget."
-          },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
           },
@@ -15480,14 +15012,6 @@
               "inference",
               "bounded_agent"
             ]
-          },
-          "sandbox_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid",
-            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           },
           "worker_id": {
             "type": [
@@ -15725,14 +15249,6 @@
               "null"
             ],
             "format": "uuid"
-          },
-          "sandbox_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid",
-            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           },
           "worker_id": {
             "type": [
@@ -21208,14 +20724,6 @@
             "enum": [
               "native_agent"
             ]
-          },
-          "sandbox_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid",
-            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           }
         },
         "required": [
@@ -22028,10 +21536,21 @@
             ],
             "additionalProperties": false
           },
-          "sandbox_id": {
-            "type": "string",
+          "worker_id": {
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid",
-            "description": "Compute allocation charged independently of individual runs, when present."
+            "description": "Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run."
+          },
+          "compute_allocation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Financial allocation identifier; not a controllable physical-machine API resource."
           }
         },
         "required": [
@@ -22085,175 +21604,6 @@
           "from",
           "to",
           "currency",
-          "data",
-          "next_cursor"
-        ],
-        "additionalProperties": false
-      },
-      "SandboxCreate": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "worktree_id"
-        ],
-        "properties": {
-          "worktree_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "long_running": {
-            "type": "boolean",
-            "description": "Keep compute running between agents without a default idle timeout: Docker locally, Render in hosted deployments. The filesystem is disposable; successive agents reuse the same compute environment. Ordinary sandboxes retain bounded lifetimes."
-          },
-          "keep_warm_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 86400,
-            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
-          },
-          "max_cost_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$",
-            "description": "Separate prepaid compute allocation, covering ready and idle time until pause/destroy or exhaustion. Each explicit resume authorizes another allocation of this size. Model/tool costs retain the run budget."
-          }
-        },
-        "description": "Disposable compute attached to one worktree. A long-running sandbox with omitted keep_warm_seconds stays ready until paused, destroyed, or its compute allocation is exhausted. Poll its status before starting latency-sensitive work."
-      },
-      "Sandbox": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "workspace_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "worktree_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "long_running": {
-            "type": "boolean"
-          },
-          "keep_warm_seconds": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "maximum": 86400,
-            "description": "Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy."
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "creating",
-              "ready",
-              "pausing",
-              "paused",
-              "destroying",
-              "destroyed",
-              "error"
-            ]
-          },
-          "active_run_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid"
-          },
-          "idle_expires_at": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
-          },
-          "cost_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$"
-          },
-          "max_cost_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$"
-          },
-          "reserved_micro_usd": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$"
-          },
-          "rate_micro_usd_per_minute": {
-            "type": "string",
-            "pattern": "^[0-9]{1,12}$"
-          },
-          "failure_code": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "workspace_id",
-          "worktree_id",
-          "name",
-          "long_running",
-          "keep_warm_seconds",
-          "status",
-          "active_run_id",
-          "idle_expires_at",
-          "cost_micro_usd",
-          "max_cost_micro_usd",
-          "reserved_micro_usd",
-          "rate_micro_usd_per_minute",
-          "failure_code",
-          "created_at",
-          "updated_at"
-        ],
-        "additionalProperties": false
-      },
-      "SandboxPage": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Sandbox"
-            }
-          },
-          "next_cursor": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
           "data",
           "next_cursor"
         ],
@@ -22422,14 +21772,6 @@
               "inference",
               "bounded_agent"
             ]
-          },
-          "sandbox_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid",
-            "description": "Reusable compute ID, when selected or created by keep_warm_seconds."
           },
           "result": {
             "$ref": "#/components/schemas/RunResult"

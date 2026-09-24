@@ -51,15 +51,12 @@ class RunCreate(BaseModel):
     permissions: Optional[AgentPermissions] = None
     connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
     attachments: Optional[Annotated[List[Annotated[str, Field(min_length=1, strict=True, max_length=4096)]], Field(max_length=5)]] = Field(default=None, description="Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.")
-    sandbox_id: Optional[UUID] = None
-    keep_warm_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=0)]] = Field(default=None, description="Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.")
-    sandbox_max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.")
     model_parameters: Optional[ModelParameters] = None
     harness_prompt_mode: Optional[StrictStr] = Field(default=None, description="OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.")
     worker_id: Optional[UUID] = None
     memory_mib: Optional[Annotated[int, Field(le=1048576, strict=True, ge=128)]] = Field(default=None, description="Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.")
     cpu_millis: Optional[Annotated[int, Field(le=1024000, strict=True, ge=1)]] = Field(default=None, description="Advanced per-Run CPU allocation in millicores on an explicit Worker.")
-    __properties: ClassVar[List[str]] = ["prompt", "workspace_id", "worktree_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "harness_prompt_mode", "worker_id", "memory_mib", "cpu_millis"]
+    __properties: ClassVar[List[str]] = ["prompt", "workspace_id", "worktree_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides", "attachments", "model_parameters", "harness_prompt_mode", "worker_id", "memory_mib", "cpu_millis"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -89,16 +86,6 @@ class RunCreate(BaseModel):
 
         if value not in set(['background', 'interactive']):
             raise ValueError("must be one of enum values ('background', 'interactive')")
-        return value
-
-    @field_validator('sandbox_max_cost_micro_usd', mode="before")
-    def sandbox_max_cost_micro_usd_validate_regular_expression(cls, value):
-        """Validates the regular expression"""
-        if value is None:
-            return value
-
-        if isinstance(value, str) and not re.match(r"^[0-9]{1,12}$", value):
-            raise ValueError(r"must validate the regular expression /^[0-9]{1,12}$/")
         return value
 
     @field_validator('harness_prompt_mode')
@@ -173,11 +160,6 @@ class RunCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of model_parameters
         if self.model_parameters:
             _dict['model_parameters'] = self.model_parameters.to_dict()
-        # set to None if keep_warm_seconds (nullable) is None
-        # and model_fields_set contains the field
-        if self.keep_warm_seconds is None and "keep_warm_seconds" in self.model_fields_set:
-            _dict['keep_warm_seconds'] = None
-
         return _dict
 
     @classmethod
@@ -208,9 +190,6 @@ class RunCreate(BaseModel):
             "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
             "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None,
             "attachments": obj.get("attachments"),
-            "sandbox_id": obj.get("sandbox_id"),
-            "keep_warm_seconds": obj.get("keep_warm_seconds"),
-            "sandbox_max_cost_micro_usd": obj.get("sandbox_max_cost_micro_usd"),
             "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
             "harness_prompt_mode": obj.get("harness_prompt_mode"),
             "worker_id": obj.get("worker_id"),

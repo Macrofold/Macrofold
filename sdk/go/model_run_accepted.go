@@ -35,8 +35,6 @@ type RunAccepted struct {
 	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
 	Kind *string `json:"kind,omitempty"`
-	// Reusable compute ID, when selected or created by keep_warm_seconds.
-	SandboxId NullableString `json:"sandbox_id,omitempty"`
 	// Explicit reusable compute target, independent of the Run context.
 	WorkerId NullableString `json:"worker_id,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -392,48 +390,6 @@ func (o *RunAccepted) SetKind(v string) {
 	o.Kind = &v
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *RunAccepted) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId.Get()) {
-		var ret string
-		return ret
-	}
-	return *o.SandboxId.Get()
-}
-
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *RunAccepted) GetSandboxIdOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return o.SandboxId.Get(), o.SandboxId.IsSet()
-}
-
-// HasSandboxId returns a boolean if a field has been set.
-func (o *RunAccepted) HasSandboxId() bool {
-	if o != nil && o.SandboxId.IsSet() {
-		return true
-	}
-
-	return false
-}
-
-// SetSandboxId gets a reference to the given NullableString and assigns it to the SandboxId field.
-func (o *RunAccepted) SetSandboxId(v string) {
-	o.SandboxId.Set(&v)
-}
-// SetSandboxIdNil sets the value for SandboxId to be an explicit nil
-func (o *RunAccepted) SetSandboxIdNil() {
-	o.SandboxId.Set(nil)
-}
-
-// UnsetSandboxId ensures that no value is present for SandboxId, not even an explicit nil
-func (o *RunAccepted) UnsetSandboxId() {
-	o.SandboxId.Unset()
-}
-
 // GetWorkerId returns the WorkerId field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *RunAccepted) GetWorkerId() string {
 	if o == nil || IsNil(o.WorkerId.Get()) {
@@ -509,9 +465,6 @@ func (o RunAccepted) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Kind) {
 		toSerialize["kind"] = o.Kind
 	}
-	if o.SandboxId.IsSet() {
-		toSerialize["sandbox_id"] = o.SandboxId.Get()
-	}
 	if o.WorkerId.IsSet() {
 		toSerialize["worker_id"] = o.WorkerId.Get()
 	}
@@ -573,7 +526,6 @@ func (o *RunAccepted) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "reserved_micro_usd")
 		delete(additionalProperties, "scheduling_class")
 		delete(additionalProperties, "kind")
-		delete(additionalProperties, "sandbox_id")
 		delete(additionalProperties, "worker_id")
 		o.AdditionalProperties = additionalProperties
 	}

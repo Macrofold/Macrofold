@@ -49,9 +49,10 @@ class BillingUsageEntry(BaseModel):
     model_usage: Optional[BillingModelUsage] = None
     tool: Optional[BillingUsageEntryTool] = None
     storage: Optional[BillingUsageEntryStorage] = None
-    sandbox_id: Optional[UUID] = Field(default=None, description="Compute allocation charged independently of individual runs, when present.")
+    worker_id: Optional[UUID] = Field(default=None, description="Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run.")
+    compute_allocation_id: Optional[UUID] = Field(default=None, description="Financial allocation identifier; not a controllable physical-machine API resource.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "kind", "occurred_at", "run_id", "workspace_id", "worktree_id", "session_id", "customer_id", "agent_key", "provider", "model", "billing_mode", "charged_micro_usd", "model_usage", "tool", "storage", "sandbox_id"]
+    __properties: ClassVar[List[str]] = ["id", "kind", "occurred_at", "run_id", "workspace_id", "worktree_id", "session_id", "customer_id", "agent_key", "provider", "model", "billing_mode", "charged_micro_usd", "model_usage", "tool", "storage", "worker_id", "compute_allocation_id"]
 
     @field_validator('kind')
     def kind_validate_enum(cls, value):
@@ -185,6 +186,16 @@ class BillingUsageEntry(BaseModel):
         if self.charged_micro_usd is None and "charged_micro_usd" in self.model_fields_set:
             _dict['charged_micro_usd'] = None
 
+        # set to None if worker_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.worker_id is None and "worker_id" in self.model_fields_set:
+            _dict['worker_id'] = None
+
+        # set to None if compute_allocation_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.compute_allocation_id is None and "compute_allocation_id" in self.model_fields_set:
+            _dict['compute_allocation_id'] = None
+
         return _dict
 
     @classmethod
@@ -213,7 +224,8 @@ class BillingUsageEntry(BaseModel):
             "model_usage": BillingModelUsage.from_dict(obj["model_usage"]) if obj.get("model_usage") is not None else None,
             "tool": BillingUsageEntryTool.from_dict(obj["tool"]) if obj.get("tool") is not None else None,
             "storage": BillingUsageEntryStorage.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
-            "sandbox_id": obj.get("sandbox_id")
+            "worker_id": obj.get("worker_id"),
+            "compute_allocation_id": obj.get("compute_allocation_id")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -38,11 +38,6 @@ type MessageCreate struct {
 	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
 	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
 	Attachments []string `json:"attachments,omitempty"`
-	SandboxId *string `json:"sandbox_id,omitempty"`
-	// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
-	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
-	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
-	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 	WorkerId *string `json:"worker_id,omitempty"`
 	// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
@@ -419,112 +414,6 @@ func (o *MessageCreate) SetAttachments(v []string) {
 	o.Attachments = v
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
-func (o *MessageCreate) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId) {
-		var ret string
-		return ret
-	}
-	return *o.SandboxId
-}
-
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetSandboxIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SandboxId) {
-		return nil, false
-	}
-	return o.SandboxId, true
-}
-
-// HasSandboxId returns a boolean if a field has been set.
-func (o *MessageCreate) HasSandboxId() bool {
-	if o != nil && !IsNil(o.SandboxId) {
-		return true
-	}
-
-	return false
-}
-
-// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
-func (o *MessageCreate) SetSandboxId(v string) {
-	o.SandboxId = &v
-}
-
-// GetKeepWarmSeconds returns the KeepWarmSeconds field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *MessageCreate) GetKeepWarmSeconds() int32 {
-	if o == nil || IsNil(o.KeepWarmSeconds.Get()) {
-		var ret int32
-		return ret
-	}
-	return *o.KeepWarmSeconds.Get()
-}
-
-// GetKeepWarmSecondsOk returns a tuple with the KeepWarmSeconds field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *MessageCreate) GetKeepWarmSecondsOk() (*int32, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return o.KeepWarmSeconds.Get(), o.KeepWarmSeconds.IsSet()
-}
-
-// HasKeepWarmSeconds returns a boolean if a field has been set.
-func (o *MessageCreate) HasKeepWarmSeconds() bool {
-	if o != nil && o.KeepWarmSeconds.IsSet() {
-		return true
-	}
-
-	return false
-}
-
-// SetKeepWarmSeconds gets a reference to the given NullableInt32 and assigns it to the KeepWarmSeconds field.
-func (o *MessageCreate) SetKeepWarmSeconds(v int32) {
-	o.KeepWarmSeconds.Set(&v)
-}
-// SetKeepWarmSecondsNil sets the value for KeepWarmSeconds to be an explicit nil
-func (o *MessageCreate) SetKeepWarmSecondsNil() {
-	o.KeepWarmSeconds.Set(nil)
-}
-
-// UnsetKeepWarmSeconds ensures that no value is present for KeepWarmSeconds, not even an explicit nil
-func (o *MessageCreate) UnsetKeepWarmSeconds() {
-	o.KeepWarmSeconds.Unset()
-}
-
-// GetSandboxMaxCostMicroUsd returns the SandboxMaxCostMicroUsd field value if set, zero value otherwise.
-func (o *MessageCreate) GetSandboxMaxCostMicroUsd() string {
-	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
-		var ret string
-		return ret
-	}
-	return *o.SandboxMaxCostMicroUsd
-}
-
-// GetSandboxMaxCostMicroUsdOk returns a tuple with the SandboxMaxCostMicroUsd field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetSandboxMaxCostMicroUsdOk() (*string, bool) {
-	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
-		return nil, false
-	}
-	return o.SandboxMaxCostMicroUsd, true
-}
-
-// HasSandboxMaxCostMicroUsd returns a boolean if a field has been set.
-func (o *MessageCreate) HasSandboxMaxCostMicroUsd() bool {
-	if o != nil && !IsNil(o.SandboxMaxCostMicroUsd) {
-		return true
-	}
-
-	return false
-}
-
-// SetSandboxMaxCostMicroUsd gets a reference to the given string and assigns it to the SandboxMaxCostMicroUsd field.
-func (o *MessageCreate) SetSandboxMaxCostMicroUsd(v string) {
-	o.SandboxMaxCostMicroUsd = &v
-}
-
 // GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
 func (o *MessageCreate) GetModelParameters() ModelParameters {
 	if o == nil || IsNil(o.ModelParameters) {
@@ -693,15 +582,6 @@ func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Attachments) {
 		toSerialize["attachments"] = o.Attachments
-	}
-	if !IsNil(o.SandboxId) {
-		toSerialize["sandbox_id"] = o.SandboxId
-	}
-	if o.KeepWarmSeconds.IsSet() {
-		toSerialize["keep_warm_seconds"] = o.KeepWarmSeconds.Get()
-	}
-	if !IsNil(o.SandboxMaxCostMicroUsd) {
-		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters

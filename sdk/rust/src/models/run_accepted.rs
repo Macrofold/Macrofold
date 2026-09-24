@@ -38,9 +38,6 @@ pub struct RunAccepted {
     pub scheduling_class: Option<SchedulingClass>,
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
-    /// Reusable compute ID, when selected or created by keep_warm_seconds.
-    #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub sandbox_id: Option<Option<uuid::Uuid>>,
     /// Explicit reusable compute target, independent of the Run context.
     #[serde(rename = "worker_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub worker_id: Option<Option<uuid::Uuid>>,
@@ -60,7 +57,6 @@ impl RunAccepted {
             reserved_micro_usd: None,
             scheduling_class: None,
             kind: None,
-            sandbox_id: None,
             worker_id: None,
         }
     }

@@ -1,4 +1,3 @@
-import { releaseSandbox } from './sandboxes';
 import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
@@ -221,24 +220,6 @@ export async function advanceCloudRun(
       assert(model, 503, 'model_unavailable', 'The configured model is unavailable.');
       const configuration: NativeConfiguration = {
         runId,
-        ...(run.config.sandbox_id
-          ? {
-              warm: {
-                sessionId: run.session_id,
-                checkpointId: await transaction(
-                  org,
-                  async (tx) =>
-                    (await resources.get(tx, 'worktrees', run.worktree_id)).latest_checkpoint_id ?? null,
-                ),
-                toolFingerprint: sha256(
-                  JSON.stringify({
-                    grants: run.config.connection_grants || [],
-                    access: run.config.connection_access || [],
-                  }),
-                ),
-              },
-            }
-          : {}),
         harness: run.config.harness,
         model: run.config.model,
         provider: model.provider,
@@ -427,8 +408,14 @@ export async function advanceCloudRun(
         const recovery = await provider.close(state.machine, Boolean(state.preserve));
         state.snapshotId = recovery.snapshotId;
       }
-      if (!state.machine && run.config.sandbox_id)
-        await releaseSandbox(org, run.config.sandbox_id, runId, 0, true);
+      if (!state.machine && run.config.worker_id) {
+        // No runtime was ever prepared. Its SQL claim still must be released.
+        const { activeHostRun, releaseHostRun } = await import('./host-allocations');
+        await transaction(org, async tx => {
+          const assignment = await activeHostRun(tx, runId);
+          if (assignment && !assignment.launched_at) await releaseHostRun(tx, assignment, false, null);
+        });
+      }
       state.phase = 'done';
       await transaction(org, (tx) =>
         tx.query(
@@ -439,7 +426,7 @@ export async function advanceCloudRun(
     }
     state.failures = 0;
   } catch (error) {
-    if (error instanceof AppError && error.code === 'sandbox_starting') {
+    if (error instanceof AppError && error.code === 'worker_starting') {
       return { done: false, delaySeconds: 3 };
     }
     state.failures = (state.failures || 0) + 1;

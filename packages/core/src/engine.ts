@@ -1,7 +1,6 @@
 import { getWorker } from './workers';
 import { workerAdmissionBlock } from './worker-policy';
 import { claimHostRun, activeHostRun, releaseHostRun } from './host-allocations';
-import { acquireSandbox, changeSandbox, getSandbox, sandboxCost } from './sandboxes';
 import { computeMaximum } from './catalog';
 import { createHash } from 'node:crypto';
 import { publishArtifacts } from './artifacts';
@@ -72,20 +71,6 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       ['deleting', 'degraded', 'restoring'].includes(String(worktree?.status));
     const policy = await getExecutionPolicy(tx, org);
     const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
-    let sandbox = run.kind === 'native_agent' && run.config.sandbox_id ? await getSandbox(tx, run.config.sandbox_id) : null;
-    // An accepted message can wait longer than the idle window. Resume only while its actor remains authorized.
-    if (sandbox?.status === 'paused' && !denied && !unavailable && !run.cancel_requested && !timeoutUnavailable && run.queue_expires_at.getTime() > Date.now()) {
-      try {
-        await changeSandbox(tx, principalFor(run), sandbox.id, 'resume');
-        sandbox = await getSandbox(tx, sandbox.id);
-      } catch (error) {
-        if (!(error instanceof AppError)) throw error;
-        if (['sandbox_limit', 'sandbox_busy'].includes(error.code)) return null;
-        if (error.status !== 402) throw error;
-        // Insufficient funds fail below and release the already-reserved run budget.
-      }
-    }
-    const sandboxUnavailable = sandbox && (!['ready','creating','pausing'].includes(sandbox.status) || BigInt(sandbox.reserved_micro_usd) - sandboxCost(sandbox) < computeMaximum(run.config.limits?.timeout_seconds || 900, sandbox.rate_micro_usd_per_minute));
     const worker = run.kind === 'native_agent' && run.config.worker_id ? await getWorker(tx,run.config.worker_id) : null;
     const workerState = worker ? workerAdmissionBlock(worker,Date.now()) : null;
     const workerUnavailable = workerState === 'worker_destroyed' || workerState === 'worker_expired' ||
@@ -97,7 +82,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       denied ||
       unavailable ||
       timeoutUnavailable ||
-      subscriptionUnavailable || sandboxUnavailable || workerUnavailable
+      subscriptionUnavailable || workerUnavailable
     ) {
       // Deletion and billing controls cancel queued rows without invoking the public
       // cancel handler. Honor that flag before provisioning or any native side effect.
@@ -112,8 +97,6 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
               ? 'execution_limit_changed'
               : workerUnavailable
                 ? workerState || 'worker_lifetime'
-              : sandboxUnavailable
-                ? 'sandbox_unavailable'
                 : subscriptionUnavailable
                 ? 'claude_subscription_unavailable'
                 : 'queue_expired';
@@ -139,14 +122,11 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     // Cancellation and queue expiry above still settle work even under the wrong local profile.
     if (run.kind === 'native_agent' && run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
     if (workerState === 'worker_paused') return null;
-    if (sandbox?.status === 'pausing') return null;
-    if (sandbox && ((sandbox.active_run_id && sandbox.active_run_id !== runId) || (sandbox.lease_until && sandbox.lease_until.getTime() > Date.now()))) return null;
     // Capacity and weighted turns commit together under the existing global lock.
     // A Workflow retry for a specific run must obey the same scheduler as a poller.
     await lock(tx, 'capacity:global');
     const turn = await schedulerTurn(tx);
     if (!turn || turn.id !== runId) return null;
-    if (sandbox && run.kind === 'native_agent') await acquireSandbox(tx, sandbox.id, runId, run.worktree_id);
     if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx,run))) return null;
     await recordTurn(tx, org, turn);
     await tx.query(

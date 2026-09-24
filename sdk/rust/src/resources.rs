@@ -28,7 +28,6 @@ pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnection
 pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}}
 pub fn inferences(&self) -> InferencesResource<'_> {InferencesResource {client:self, options:RequestOptions::default()}}
 pub fn tasks(&self) -> TasksResource<'_> {TasksResource {client:self, options:RequestOptions::default()}}
-pub fn sandboxes(&self) -> SandboxesResource<'_> {SandboxesResource {client:self, options:RequestOptions::default()}}
 pub fn workers(&self) -> WorkersResource<'_> {WorkersResource {client:self, options:RequestOptions::default()}} }
 
 #[derive(Debug,Clone,Default)] pub struct GetWorkspaceParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
@@ -251,7 +250,7 @@ pub async fn list(&self, params: ListSessionsParams) -> Result<models::ListSessi
     }
 #[derive(Debug,Clone,Default)] pub struct ListArtifactsParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListRunEventsParams {pub after: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub workspace_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>,pub session_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub workspace_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>,pub session_id: Option<String>,pub worker_id: Option<String>}
 pub struct RunsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> RunsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -287,7 +286,7 @@ pub async fn list_events(&self, run_id: &str, params: ListRunEventsParams) -> Re
       }
 pub async fn list(&self, params: ListRunsParams) -> Result<models::ListRuns200Response,ClientError> {
 
-        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.workspace_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref()).await
+        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.workspace_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref(), params.worker_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn stream(&self, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_in_organization(run_id,after,self.options.organization.as_deref(),receive).await}
@@ -982,41 +981,6 @@ pub async fn record_outcome(&self, task_id: &str, input: models::ApplicationOutc
 pub async fn wake_decision(&self, task_id: &str, input: models::DecisionTaskWake) -> Result<models::DecisionTask,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
         crate::apis::tasks_api::wake_decision_task(self.client.configuration(), &key, task_id, input).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-    }
-#[derive(Debug,Clone,Default)] pub struct ListSandboxesParams {pub worktree_id: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-pub struct SandboxesResource<'a> {client:&'a Client,options:RequestOptions}
-    impl<'a> SandboxesResource<'a> {
-      pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn create(&self, input: models::SandboxCreate) -> Result<models::Sandbox,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::create_sandbox(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn destroy(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::destroy_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn get(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
-
-        crate::apis::sandboxes_api::get_sandbox(self.client.configuration(), sandbox_id, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn list(&self, params: ListSandboxesParams) -> Result<models::SandboxPage,ClientError> {
-
-        crate::apis::sandboxes_api::list_sandboxes(self.client.configuration(), self.options.organization.as_deref(), params.worktree_id.as_deref(), params.cursor.as_deref(), params.limit).await
-          .map_err(|error|crate::request_error(error,None))
-      }
-pub async fn pause(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::pause_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
-pub async fn resume(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::resume_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

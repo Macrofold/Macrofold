@@ -38,9 +38,6 @@ pub struct InferenceResponse {
     pub scheduling_class: Option<SchedulingClass>,
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
-    /// Reusable compute ID, when selected or created by keep_warm_seconds.
-    #[serde(rename = "sandbox_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub sandbox_id: Option<Option<uuid::Uuid>>,
     #[serde(rename = "result", skip_serializing_if = "Option::is_none")]
     pub result: Option<Box<models::RunResult>>,
 }
@@ -59,7 +56,6 @@ impl InferenceResponse {
             reserved_micro_usd: None,
             scheduling_class: None,
             kind: None,
-            sandbox_id: None,
             result: None,
         }
     }

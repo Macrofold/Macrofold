@@ -12,7 +12,7 @@ import type {
   MachineBinding,
   MachineProvider,
   RuntimeProbe,
-  SandboxTools,
+  MachineTools,
   StdioInvocation,
 } from '../../core/src/ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
@@ -67,7 +67,7 @@ const inspected = z.object({
 type Container = z.infer<typeof inspected>;
 
 /** Trusted contributor compute. No bind mounts, socket, host credentials, or automatic agent restart. */
-export class DockerMachines implements MachineProvider, SandboxTools {
+export class DockerMachines implements MachineProvider, MachineTools {
   private readonly owner = createHash('sha256').update(config.dataDir).digest('hex');
   constructor(private readonly command: DockerCommand = dockerCommand) {}
   private check() {

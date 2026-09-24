@@ -2,6 +2,9 @@
 
 ## Worker cutover regression obligations
 
+- [ ] Cover automatic native execution on the Host protocol, encrypted control-secret recovery, pre-launch allocation cleanup without a received binding, and Session continuation when switching between automatic and explicit Worker placement.
+- [ ] Cover a Worktree advancing via Git/editor publication before Host cleanup: local cache metadata must name the Run's own verified checkpoint, never the newer Worktree checkpoint.
+
 - [ ] Cover the forward-only cutover with closed historical charges and refusal when old compute or reserved funds remain. Verify the financial archive retains itemized journal attribution without credentials or operational state.
 - [ ] Cover Worker-filtered Run/usage pagination and ensure individual Worktree/Session filters do not attribute the full shared allocation to a single Run.
 

@@ -7,7 +7,7 @@ import type {
   MachineProvider,
   MachineBinding,
   RuntimeProbe,
-  SandboxTools,
+  MachineTools,
   StdioInvocation,
 } from '../../core/src/ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
@@ -35,7 +35,7 @@ function providerCode(error: unknown) {
   // providers' top-level status fields. Only a confirmed 404 permits creation.
   return value.response?.status ?? value.status ?? value.statusCode ?? value.code;
 }
-export class VercelMachines implements MachineProvider, SandboxTools {
+export class VercelMachines implements MachineProvider, MachineTools {
   async invokeStdio(binding: MachineBinding, input: StdioInvocation) {
     assert(/^[a-f0-9-]{36}$/.test(input.id), 400, 'invalid_invocation', 'Invalid tool invocation.');
     const session = await this.session(binding);

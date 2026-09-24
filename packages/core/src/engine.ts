@@ -1,7 +1,6 @@
 import { getWorker } from './workers';
 import { workerAdmissionBlock } from './worker-policy';
 import { claimHostRun, activeHostRun, releaseHostRun } from './host-allocations';
-import { computeMaximum } from './catalog';
 import { createHash } from 'node:crypto';
 import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
@@ -10,7 +9,7 @@ import { queueAutomaticSync } from './git-jobs';
 import { pool, transaction, lock, type Tx } from '../../db';
 import { config, isLocal } from './config';
 import { id } from './crypto';
-import { AppError, assert } from './errors';
+import { assert } from './errors';
 import { emit } from './events';
 import { getRun, terminal, requireNativeRun, type RunRow } from './runs';
 import { settle } from './ledger';

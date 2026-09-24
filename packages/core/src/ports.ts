@@ -1,7 +1,7 @@
 import type { NativeConfiguration, NativeResult } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 
-export type MachineBinding = { name: string; sessionId: string; createdAt: string };
+export type MachineBinding = import('../../contracts/host-control').HostBinding;
 export type StdioInvocation = {
   id: string;
   runId: string;
@@ -11,7 +11,7 @@ export type StdioInvocation = {
   tool: string;
   arguments: Record<string, unknown>;
 };
-export interface SandboxTools {
+export interface MachineTools {
   invokeStdio(binding: MachineBinding, input: StdioInvocation): Promise<Record<string, unknown>>;
 }
 export type RuntimeProbe = {
@@ -25,6 +25,8 @@ export type RuntimeProbe = {
 };
 /** Durable orchestration owns retries, leases and checkpoints. A compute adapter owns only VM I/O. */
 export interface MachineProvider {
+  /** Close a named pre-launch allocation after an uncertain provisioning acknowledgement. */
+  cleanupUnbound?(): Promise<void>;
   provision(name: string, timeoutSeconds: number): Promise<MachineBinding>;
   prepare(binding: MachineBinding, configuration: NativeConfiguration): Promise<void | { reused: boolean; restoreNamespaces?: ('workspace' | 'home')[] }>;
   stage(binding: MachineBinding, files: { path: string; content: Buffer }[]): Promise<void>;

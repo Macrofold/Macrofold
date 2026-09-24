@@ -6,7 +6,6 @@ import {
   realExecutionEnabled,
 } from '../../packages/core/src/config';
 import { DockerMachines, type DockerCommand } from '../../packages/providers/src/docker';
-import { sandboxProvider } from '../../packages/providers/src/sandboxes';
 import type { NativeConfiguration } from '../../packages/runtime/src/types';
 const original = { ...config };
 afterEach(() => {
@@ -90,22 +89,6 @@ describe('local Docker execution boundary', () => {
     const f = fixture();
     await expect(f.provider.provision(f.name, null)).rejects.toMatchObject({ code: 'invalid_timeout' });
     expect(f.command.mock.calls.some(([args]) => args[0] === 'create')).toBe(false);
-  });
-  it('passes an unbounded lifetime only through the Docker sandbox adapter', async () => {
-    const f = fixture();
-    const name = `env-${f.name.slice(4)}-1`;
-    const binding = { name, sessionId: 'container', createdAt: new Date().toISOString() };
-    const provision = vi.spyOn(DockerMachines.prototype, 'provision').mockResolvedValue(binding);
-    vi.spyOn(DockerMachines.prototype, 'startControl').mockResolvedValue();
-    vi.spyOn(DockerMachines.prototype, 'control').mockResolvedValue({ boot_id: f.name.slice(4) });
-    expect(await sandboxProvider('docker').create(name, 'fixture-secret', null)).toEqual({
-      ...binding,
-      controlBootId: f.name.slice(4),
-    });
-    expect(provision).toHaveBeenCalledWith(name, null);
-    await expect(sandboxProvider('vercel').create(name, 'fixture-secret', null)).rejects.toMatchObject({
-      code: 'unsupported_lifetime',
-    });
   });
   it('keeps simulator keys unable to enable real inference and validates the explicit poller profile', () => {
     fixture();

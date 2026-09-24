@@ -125,7 +125,7 @@ export async function advanceCloudRun(
   }
   let state = (run.execution_binding || {
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
-    phase: run.config.worker_id ? 'provision' : 'input',
+    phase: 'provision',
   }) as ExecutionState;
   if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
@@ -244,7 +244,7 @@ export async function advanceCloudRun(
       };
       const prepared = await provider.prepare(state.machine, configuration);
       state.restoreNamespaces = prepared?.restoreNamespaces;
-      state.workerPrepared = Boolean(run.config.worker_id);
+      state.workerPrepared = true;
       state.phase = prepared?.reused ? 'launch' : state.workerPrepared ? 'input' : 'hydrate';
     } else if (state.phase === 'hydrate') {
       const objects = await pending<RestoreObject>(
@@ -408,14 +408,7 @@ export async function advanceCloudRun(
         const recovery = await provider.close(state.machine, Boolean(state.preserve));
         state.snapshotId = recovery.snapshotId;
       }
-      if (!state.machine && run.config.worker_id) {
-        // No runtime was ever prepared. Its SQL claim still must be released.
-        const { activeHostRun, releaseHostRun } = await import('./host-allocations');
-        await transaction(org, async tx => {
-          const assignment = await activeHostRun(tx, runId);
-          if (assignment && !assignment.launched_at) await releaseHostRun(tx, assignment, false, null);
-        });
-      }
+      if (!state.machine) await provider.cleanupUnbound?.();
       state.phase = 'done';
       await transaction(org, (tx) =>
         tx.query(

@@ -48,6 +48,7 @@ export type RunConfig = Schema['SessionCreate'] & {
   oauth_token_id?: string;
   oauth_audience?: string;
   execution_provider?: string;
+  automatic_control_secret_ciphertext?: string;
   worker_id?: string;
   worker_resources?: { memory_mib: number; cpu_millis: number };
 };

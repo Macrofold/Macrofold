@@ -28,7 +28,7 @@ async function workload() {
   const { fixtureAccount } = await import('../../tests/fixtures/account');
   const { Client } = await import('../../sdk/typescript/src/client');
   const { handleApi } = await import('../../packages/core/src/http');
-  const { pool, authPool, transaction } = await import('../../packages/db');
+  const { pool, authPool, credentialPool, transaction } = await import('../../packages/db');
   const { credit } = await import('../../packages/core/src/ledger');
   const { executeRun } = await import('../../packages/core/src/engine');
   const { reconcileWorker } = await import('../../packages/core/src/worker-reconciler');
@@ -167,7 +167,18 @@ async function workload() {
     await client.request('destroyWorker', { params: { path: { worker_id: worker.id } } });
     await reconcileWorker(org, worker.id);
     status = 'passed';
-  } catch (error) { failure = error instanceof Error ? error.message : String(error); throw error; }
+  } catch (error) {
+    failure = error instanceof Error ? error.message : String(error);
+    // Independent diagnostic connection: the domain pool may itself be saturated.
+    // This workload is guarded to a disposable unpaid database with synthetic data.
+    console.log('WORKER_POOL_STATE', JSON.stringify({ total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount }));
+    await credentialPool.query(`SELECT pid,state,wait_event_type,wait_event,pg_blocking_pids(pid) AS blockers,
+      left(query,240) AS statement FROM pg_stat_activity
+      WHERE datname=current_database() AND pid<>pg_backend_pid() AND state<>'idle' ORDER BY pid`)
+      .then(value => console.log('WORKER_DATABASE_WAIT', JSON.stringify(value.rows)))
+      .catch(() => console.log('WORKER_DATABASE_WAIT_UNAVAILABLE'));
+    throw error;
+  }
   finally {
     lag.disable();
     const result = { status, failure, source_commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), node: process.version,
@@ -179,7 +190,7 @@ async function workload() {
     await writeFile(reportPath, JSON.stringify(result, null, 2) + '\n');
     console.log('WORKER_STRESS_RESULT', JSON.stringify(result));
     server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
-    await pool.end(); await authPool.end();
+    await pool.end(); await authPool.end(); await credentialPool.end();
   }
 }
 

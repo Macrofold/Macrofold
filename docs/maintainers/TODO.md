@@ -322,3 +322,5 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 - [ ] Cover one-query queued-demand hydration and authorized materialization grouping at the configured Worker/Host limits.
 
 - [ ] Replace the removed legacy reusable-control chunk test with Host assignment/boot-scoped transport coverage for a full 4 MiB decoded checkpoint chunk, bounded encoded envelope, and stopped/replaced-generation rejection. The old method no longer exists; new tests remain deferred by request.
+
+- [ ] Exercise nonblocking background organization/worktree/global admission under a pool smaller than the queued burst. Verify that contended work defers without losing durable jobs, deadline cleanup still progresses, active persistence/heartbeats retain database access, and direct inference preserves its transaction boundary.

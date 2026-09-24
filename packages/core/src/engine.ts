@@ -6,7 +6,7 @@ import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { pool, transaction, lock, type Tx } from '../../db';
+import { pool, transaction, lock, tryLock, type Tx } from '../../db';
 import { config, isLocal } from './config';
 import { id } from './crypto';
 import { assert } from './errors';
@@ -38,14 +38,21 @@ export function principalFor(row: RunRow): Principal {
   };
 }
 export async function claimRun(org: string, runId: string) {
-  return transaction(org, (tx) => claimRunInTransaction(tx, org, runId));
+  return transaction(org, async tx => {
+    // A burst of queued Runs must not fill every connection waiting for the
+    // same organization lock while active Runs need connections to finish.
+    if (!await tryLock(tx, `organization:${org}`)) return null;
+    return claimRunInTransaction(tx, org, runId);
+  });
 }
 
 /** Direct inference claims capacity in its admission transaction: no queued worker hop. */
 export async function claimRunInTransaction(tx: Tx, org: string, runId: string, direct = false) {
     let run = await getRun(tx, runId);
     await lock(tx, `organization:${org}`);
-    await lock(tx, run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`);
+    const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
+    if (direct) await lock(tx, contextLock);
+    else if (!await tryLock(tx, contextLock)) return null;
     run = await getRun(tx, runId);
     if (run.status !== 'queued') {
       // Old outbox entries must not starve newer work. An active execution is never replayed.
@@ -123,7 +130,8 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     if (workerState === 'worker_paused') return null;
     // Capacity and weighted turns commit together under the existing global lock.
     // A Workflow retry for a specific run must obey the same scheduler as a poller.
-    await lock(tx, 'capacity:global');
+    if (direct) await lock(tx, 'capacity:global');
+    else if (!await tryLock(tx, 'capacity:global')) return null;
     const turn = await schedulerTurn(tx);
     if (!turn || turn.id !== runId) return null;
     if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx,run))) return null;

@@ -14,25 +14,23 @@ jobs:
         with:
           persist-credentials: false
           show-progress: false
-      - name: Inventory source contracts and ownership
+      - name: Inventory remaining architecture references
         run: |
           python3 - <<'PY'
-          import pathlib,subprocess,json
+          import pathlib,subprocess,re,json
           paths=subprocess.check_output(['git','ls-files'],text=True).splitlines()
-          print('SCOPED_RULES', '\n'.join(p for p in paths if p.endswith('AGENTS.md')))
-          print('COMPUTE_FILES','\n'.join(p for p in paths if any(x in p for x in ['worker','host-','sandbox']) and not p.startswith(('sdk/','apps/web/public/','docs/product/'))))
-          print('SCHEMA_FILES','\n'.join(p for p in paths if p.startswith('packages/db/') and p.endswith('.sql')))
-          for p in paths:
-              if not p.startswith(('packages/','scripts/','apps/web/')) or not p.endswith(('.ts','.tsx','.mjs')):continue
-              if p.endswith(('api.d.ts','schema.d.ts')) or '/public/' in p:continue
-              s=pathlib.Path(p).read_text()
-              terms=['sandbox_id','createSandbox','getSandbox','keep_warm_seconds','active_run_id','SandboxMachines']
-              hits=[(i+1,line.strip()) for i,line in enumerate(s.splitlines()) if any(term in line for term in terms)]
-              if hits:
-                  print('CUTOVER',p)
-                  for i,line in hits: print(f'{i}: {line[:260]}')
-          s=json.loads(pathlib.Path('docs/api/openapi.json').read_text())
-          for name in ['Worker','WorkerCreate','WorkerPatch','WorkerAction','WorkerOffering','WorkerOfferingList','RunCreate','NativeRunCreate','MessageCreate','RunAccepted']:
-              print('SCHEMA',name,json.dumps(s['components']['schemas'].get(name)))
-          print('MCP_WORKER_OPERATIONS',[(p,list(v)) for p,v in s['paths'].items() if 'workers' in p or 'worker-offerings' in p])
+          for name in paths:
+              p=pathlib.Path(name)
+              if p.suffix not in ('.ts','.tsx','.mjs','.md','.json','.yml'):continue
+              if name.startswith(('sdk/','apps/web/public/','node_modules/')) or p.name in ('openapi.json','api.d.ts','schema.d.ts'):continue
+              text=p.read_text()
+              if p.suffix=='.md':
+                  terms=['sandbox','Sandbox','not yet implemented','not yet enabled','Target API','reusable compute']
+              else: terms=['sandbox-control','sandbox_id','SandboxBinding','SandboxControl','SandboxTools','RENDER_SANDBOX','test:sandboxes','--sandboxes','machineTools(','machines()','SandboxRow']
+              matches=[(i+1,line) for i,line in enumerate(text.splitlines()) if any(term in line for term in terms)]
+              if matches:
+                  print('FILE',name)
+                  for number,line in matches:print(number,line[:350])
+          print('WORKFLOWS',','.join(p for p in paths if p.startswith('.github/workflows/worker')))
+          print('ROOT_SCRIPTS',json.dumps(json.loads(pathlib.Path('package.json').read_text())['scripts']))
           PY

@@ -137,7 +137,15 @@ export async function supervise(configurationPath: string, workerPath: string, r
       cwd: c.workspace,
       uid: UID,
       gid: UID,
-      env: { PATH: process.env.PATH, NODE_ENV: 'production', HOME: c.stateHome, TMPDIR: temporary, USER: `agent${UID}`, LOGNAME: `agent${UID}`, LANG: 'C.UTF-8' },
+      env: {
+        PATH: process.env.PATH,
+        NODE_ENV: 'production',
+        HOME: c.stateHome,
+        TMPDIR: temporary,
+        USER: `agent${UID}`,
+        LOGNAME: `agent${UID}`,
+        LANG: 'C.UTF-8',
+      },
       detached: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -187,12 +195,11 @@ export async function supervise(configurationPath: string, workerPath: string, r
     child.stdin.write(`${JSON.stringify({ type: 'turn', configuration: c })}\n`);
     await signalAgents(resident.processes, 'SIGCONT', UID);
   }
-  let stopAt: number | undefined,
-    checking = false;
+  let stopAt: number | undefined;
+  let checking: Promise<void> | undefined;
   const timer = setInterval(() => {
     if (checking) return;
-    checking = true;
-    void (async () => {
+    checking = (async () => {
       if (!failure) {
         try {
           await lstat(path.join(directory, 'cancel'));
@@ -201,7 +208,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         if (Date.now() >= Date.parse(c.deadline)) failure = 'timed_out';
-        if (!failure && c.hostRun && await agentMemoryMiB(UID) > c.hostRun.memoryMiB) {
+        if (!failure && c.hostRun && (await agentMemoryMiB(UID)) > c.hostRun.memoryMiB) {
           resourceFailure = 'memory_limit';
           failure = 'cancelled';
         }
@@ -231,14 +238,21 @@ export async function supervise(configurationPath: string, workerPath: string, r
         child.kill('SIGTERM');
       })
       .finally(() => {
-        checking = false;
+        checking = undefined;
       });
   }, 500);
+  const stopChecking = async () => {
+    clearInterval(timer);
+    // A timer callback may already be awaiting /proc or an input file. It must
+    // finish before this UID can be retained and assigned to the next turn.
+    await checking;
+  };
   let retained = false;
   try {
     if (resident && c.warm) {
       await finished;
       await dispatch;
+      await stopChecking();
       if (!failure && result?.outcome === 'success' && child.exitCode === null && !child.killed) {
         await freezeAgent(resident.processes, UID);
         resident.child = child;
@@ -259,7 +273,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
       await dispatch;
     }
   } finally {
-    clearInterval(timer);
+    await stopChecking();
     lines.close();
     child.removeListener('exit', finish);
     child.removeListener('error', finish);
@@ -280,7 +294,10 @@ export async function supervise(configurationPath: string, workerPath: string, r
     const live = await agentProcesses(UID);
     if ([...live.values()].some((state) => !retained || state !== 'T'))
       throw new Error('checkpoint_writers_remain');
-    const snapshot = await captureSnapshot({ workspace: c.workspace, home: c.stateHome }, path.join(directory, 'snapshot'));
+    const snapshot = await captureSnapshot(
+      { workspace: c.workspace, home: c.stateHome },
+      path.join(directory, 'snapshot'),
+    );
     snapshotBytes = snapshot.totalBytes;
   } catch (error) {
     persistence = 'failed';
@@ -292,7 +309,9 @@ export async function supervise(configurationPath: string, workerPath: string, r
   }
   const final = {
     ...(result || { output: '', outcome: 'failure', failureCode: 'native_process_exited' }),
-    ...(failure ? { outcome: resourceFailure ? 'failure' : failure, failureCode: resourceFailure || failure } : {}),
+    ...(failure
+      ? { outcome: resourceFailure ? 'failure' : failure, failureCode: resourceFailure || failure }
+      : {}),
     snapshotBytes,
     persistence,
     persistenceError,

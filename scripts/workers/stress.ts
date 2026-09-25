@@ -304,7 +304,7 @@ async function workload() {
     const paused = await client.request('getWorker', { params: { path: { worker_id: worker.id } } });
     if (paused.status !== 'paused' || paused.occupied_slots !== 0)
       throw new Error('The completed workload retained active compute claims.');
-    await client.request('destroyWorker', { params: { path: { worker_id: worker.id } } } });
+    await client.request('destroyWorker', { params: { path: { worker_id: worker.id } } });
     await reconcileWorker(org, worker.id);
     status = 'passed';
   } catch (error) {

@@ -1,11 +1,10 @@
 # Cost-aware Workers and execution infrastructure
 
-**Decision status:** Accepted target.  
-**Repository status:** Documentation updated; Worker API/runtime cutover remains unimplemented. The earlier downloadable code bundle is separate, uncommitted work, not code in this branch. See [implementation and evidence](../features/execution/workers/implementation.md).
+**Status:** Implemented source contract. Deployment and live-provider acceptance are tracked separately in [verification](../features/execution/workers/verification.md) and [maintainer TODO](../maintainers/TODO.md).
 
-This document supersedes the earlier one-serving-Host-per-Worker and short-lived/long-lived resource designs. A **Worker is a stable, autoscaling execution target with an explicit economic contract**. The user chooses cost, tenancy, isolation, and availability requirements; Macrofold sizes and places execution within those requirements. It does not predict future traffic or silently change the purchased offering.
+A **Worker is a stable, autoscaling execution target with an explicit economic contract**. The caller chooses cost, tenancy, isolation and availability requirements; Macrofold sizes and places native execution within those requirements. It does not predict future traffic, change the purchased offering silently, or make a surviving machine the authority for files or conversations.
 
-[Worker guide](../features/execution/workers.md) owns the intended user experience. [Feature TODO](../features/execution/workers/TODO.md) owns unfinished implementation and deployment gates. Existing [sandbox documentation](../features/execution/workers.md) describes the still-implemented API until the coordinated switchover. Do not publish examples from this target as working endpoints before their handlers, schemas, SDKs, and acceptance tests land.
+The [Worker guide](../features/execution/workers.md) owns public usage. [OpenAPI](../api/openapi.json) owns exact HTTP fields and generated clients. [Implementation](../features/execution/workers/implementation.md) maps code ownership; [architecture history](changelog/workers.md) records retired designs. An implemented source contract is not a claim that an unmerged branch or every provider capability is deployed.
 
 ## 1. Resource model and decisions
 
@@ -20,7 +19,7 @@ This document supersedes the earlier one-serving-Host-per-Worker and short-lived
 | Run | Public | One requested invocation, inputs, authority, outcomes, usage, events |
 | Materialization cache | Internal | An authorized, clean filesystem view already available on a Host |
 
-A Worker may have zero, one, or several Hosts. Adding Host B for more traffic does not create a new public Worker or require callers to implement routing. A fixed single-machine allocation remains expressible with `max_instances: 1` on a dedicated Worker. A pooled Worker instead acquires resource allocations from a compatible fleet; its users do not own fleet instance counts.
+A Worker may have zero, one, or several Hosts. Adding Host B for more traffic does not create a new public Worker or require callers to implement routing. A fixed single-machine allocation remains expressible with `max_instances: 1` on a dedicated Worker. A non-dedicated Worker does not own fleet instance counts. Current Host allocations remain Worker/organization scoped even for resource-priced offerings; cross-customer physical packing is a separately validated backend optimization.
 
 A Worktree and Session never belong to a Worker. Runs may select different Workers over time without changing their durable identities. A Worker does not grant access to resident data. A Host is replaceable, but replacement can interrupt active execution and lose unpublished changes. **Published materializations are caches; unpublished writes are not yet durable copies.**
 
@@ -36,7 +35,7 @@ The economic choices are:
 | Dedicated server | Whole allocations exclusively backing this Worker | Allocated Host time, including idle capacity, at accepted rates |
 | On-demand sandbox | Compatible managed sandbox allocations | The published sandbox resource/allocation meter, explicitly disclosed |
 
-These are supported combinations of the same small settings, not a family of incompatible resource APIs. The deployment advertises only tested offerings. A missing pooled executor, isolation primitive, region, or runtime is an explicit unavailable configuration, not permission to substitute something else.
+These are supported combinations of the same small settings, not a family of incompatible resource APIs. The deployment advertises only explicitly enabled, capability-compatible offerings; hosted activation still requires the corresponding acceptance evidence. A missing pooled executor, isolation primitive, region, or runtime is an explicit unavailable configuration, not permission to substitute something else.
 
 `compute: "server"` must never silently become `compute: "sandbox"`, even if the latter is available. Host replacement cannot silently change the customer's rates or runtime version. Provider brand is not a public scheduling requirement by default; the economic class, price authorization, region, runtime, and isolation guarantees are.
 
@@ -44,7 +43,7 @@ There is no universal assertion that one provider is cheapest. Reviewed offering
 
 ## 3. Worker API contract
 
-This section defines the **target** request/response contract. The earlier uncommitted policy bundle uses internal types; it does not replace the authoritative OpenAPI schema or add HTTP routes by itself.
+The Worker handlers, OpenAPI schemas and generated SDKs expose this contract. Common fields remain top-level; physical Hosts, assignments, process handles and caches are not public CRUD resources.
 
 ### Creation and common controls
 
@@ -60,12 +59,12 @@ POST /v1/workers
   "isolate_runs": false,
   "min_instances": 1,
   "max_instances": 4,
-  "max_concurrency": 64,
+  "max_concurrency": 32,
   "max_hourly_compute_cost_micro_usd": "1000000"
 }
 ```
 
-The one-dollar amount (`"1000000"` micro-USD) is a **caller-chosen illustrative ceiling**, not an estimate that this workload or baseline fits it. Admission must verify that at least one advertised configuration satisfies the baseline and ceiling. No size is required. Setting `size` opts out of automatic shape choice while retaining scaling across that shape.
+The one-dollar amount (`"1000000"` micro-USD) is a **caller-chosen illustrative ceiling**, not an estimate that this workload or baseline fits it. Admission must verify that at least one advertised configuration satisfies the baseline and ceiling. No size is required. Setting `size` pins an advertised shape while retaining scaling across that shape. Explicit `size: null` restores automatic shape choice; omission in PATCH preserves the existing value.
 
 | Field | Rule |
 | --- | --- |
@@ -87,7 +86,7 @@ Do not treat numeric zero as missing. Public money follows the existing integer 
 
 `min_instances`/`max_instances` are rejected for pooled Workers, where they have no ownership meaning. Pooled retention must be finite. Baseline capacity remains subject to spending, entitlement, and actual provider availability; it is not an unlimited uptime guarantee.
 
-A read-only `GET /v1/worker-offerings` catalog should expose enabled combinations, shape/resource bounds, runtime versions, accepted meter/rate revisions, and current account limits. It is discovery, not a second mutable product resource. Catalog entries are not evidence of real-time spare capacity.
+The read-only `GET /v1/worker-offerings` catalog exposes enabled combinations, shape/resource bounds, runtime versions, accepted meter/rate revisions, and current account limits. It is discovery, not a second mutable product resource. Catalog entries are not evidence of real-time spare capacity.
 
 ### Response and observability
 
@@ -110,7 +109,7 @@ GET    /v1/worker-offerings
 
 Use existing idempotency, cursor pagination, request IDs, error envelopes, and asynchronous operation conventions. Lifecycle actions acknowledge intent with HTTP 202; inspect the Worker for current status. Repeated identical intent is idempotent.
 
-PATCH uses the existing optimistic revision convention. Name and bounded scaling policies can change without changing identity. Lowering concurrency drains naturally rather than killing active work. Reject a requested rate ceiling below existing committed exposure with a clear conflict and a pause/drain path; do not promise instantaneous termination of already accepted obligations. Changes to compute economics, tenancy, isolation, region, size, or runtime require paused/no-live-allocation state and explicit acceptance of the new quote. Never mutate an active Run's frozen configuration.
+PATCH requires `expected_revision` from the last Worker response. Name and bounded scaling policies can change without changing identity. Lowering concurrency drains naturally rather than killing active work. Reject a requested rate ceiling below existing committed exposure with a clear conflict and a pause/drain path; do not promise instantaneous termination of already accepted obligations. Changes to compute economics, tenancy, isolation, region, size, or runtime require paused/no-live-allocation state and explicit acceptance of the new quote. Never mutate an active Run's frozen configuration.
 
 ## 4. Lifecycle, sleep, and expiration
 
@@ -151,9 +150,9 @@ Idle countdown starts only after the last relevant allocation is safely released
 
 Existing `workspace_id`, `worktree_id`, and `session_id` context resolution remains convenient and mutually consistent. A different Worker does not change conversation ownership. Explicitly targeted work does not spill onto other Workers or a different offering when full or too expensive. Queue limits and timeouts remain real.
 
-Without `worker_id`, use the advertised automatic offering; do not consume customer-managed Workers unless the customer explicitly configures that selection. The first automatic backend can remain the existing isolated execution path. Future managed pooling must preserve the same advertised security and pricing contract.
+Without `worker_id`, use the advertised automatic offering; do not consume customer-managed Workers unless the customer explicitly configures that selection. Automatic native execution uses its own isolated per-Run allocation path and accepted Run compute rate. It does not select customer-managed Workers. Lightweight inference/bounded-agent executors remain separate and do not allocate a native Host.
 
-Keep files, retained conversation, and execution independent in the internal model. A native harness needs a working directory, not necessarily a durable Worktree. Permit temporary working files for one-shot native work and optional Session retention. Preserve current retained-session defaults; a future explicit `retain_session: false` request must not create a retained conversation or accept an existing `session_id`. Do not interpret omission of `session_id` as proof of statelessness: it currently creates a Session. This extension requires a coordinated Run schema/admission change, not just nullable columns.
+Files, retained conversation and execution have separate identities. Current native admission creates or continues a Macrofold Session and resolves a Worktree. Omitting `session_id` creates a new Session; it does not request stateless execution. An explicit no-retained-conversation native mode is a future extension, not an implemented `retain_session` field. It must change schema, admission, persistence and presentation together rather than only relaxing database nullability.
 
 Define Worker scopes separately: `workers:use`, `workers:read`, `workers:write`. Execution requires Worker-use permission **and** the existing data/harness/tool/funding permissions. Worker administration does not imply reading every resident customer's data. Workspace-restricted keys can use granted compute without becoming compute administrators. Scope defaults, principal resource restrictions, MCP catalogs, and SDK key interfaces must change together.
 
@@ -161,25 +160,25 @@ All new tenant tables use organization-scoped foreign keys and FORCE RLS under t
 
 ## 6. Reactive scaling and placement
 
-No traffic prediction service is required. React to queued runnable work, safe resource allocations, observed memory/CPU pressure, and minimum availability. Do not wait for OOM. No orchestration service, Redis queue, or Kubernetes cluster is required simply to express this policy.
+No traffic prediction service is required. React to queued runnable demand, declared resource allocations, available headroom and minimum availability. Host-local memory pressure can evict optional warm caches; the scaler does not infer a future traffic pattern or automatically learn a Run's peak memory. Do not wait for OOM. No orchestration service, Redis queue, or Kubernetes cluster is required simply to express this policy.
 
 For a dedicated Worker:
 
 1. Authorize the Run, resolve required runtime/resources/state, and identify its eligible economic offering.
 2. Exclude draining, expired, wrong-generation, wrong-region, incompatible-runtime or insufficient-isolation Hosts.
 3. Check Worker/account/deployment limits, resource headroom, held cleanup slots, and committed cost.
-4. Prefer a compatible warm harness, then an exact authorized file materialization, then a cold placement on existing capacity.
+4. Prefer an exact authorized file materialization over a cold placement, then pack compatible existing capacity. The selected Host independently reuses a compatible live harness. Pure placement policy can rank warm observations, but global warm-process advertisements are not required or currently persisted.
 5. If none fits, select a compatible fitting Host shape whose accepted aggregate rate is within the ceiling; reserve its cost and identity before the provider call.
 6. Queue with a meaningful reason while capacity starts, or when limits prevent scaling. No expensive or insecure fallback.
 7. Drain excess idle allocations above the minimum with cooldown to avoid thrashing.
 
-A warm match is a preference, not permission to overload memory, bypass fairness, or wait forever when another compatible Host is available. Single-Run peak resources must fit one allocation; adding more machines does not enlarge a process already running. Auto-sizing starts with conservative runtime/harness defaults and bounded observations, not unvalidated claims about memory needs. Advanced resource overrides remain possible within the offering's bounds.
+A warm match is a preference, not permission to overload memory, bypass fairness, or wait forever when another compatible Host is available. Single-Run peak resources must fit one allocation; adding more machines does not enlarge a process already running. Auto-sizing uses conservative defaults (1,024 MiB and 250 CPU millicores per native Run) and accepted offering bounds, not an estimate of a customer's unknown peak memory. Top-level `memory_mib` and `cpu_millis` overrides narrow those requirements. Memory-pressure handling is a safety boundary, not live process migration or a guarantee that an undersized Run will succeed.
 
-The proposed pure dedicated-placement helper, prototyped as `chooseDedicatedWorkerPlacement` in the uncommitted bundle, chooses one placement/provisioning hint. It is **not** an autoscaler service or transactional admission grant. Baseline reconciliation, scale-down, provider create recovery, pending demand accounting, and eventual activation still require integration.
+`chooseWorkerPlacement` returns a pure placement/provisioning hint. `worker-scaling.ts` projects bounded queued demand onto existing and provisioning capacity so one pass does not buy a new Host for every Run. `worker-reconciler.ts` owns baseline provisioning, health, finite funding renewal and idle/expired allocation drain. `host-allocations.ts` rechecks choices under SQL locks; a hint alone never grants execution or spending authority.
 
 ### Atomic admission and avoiding head-of-line blocking
 
-Placement feasibility is part of scheduler eligibility before selecting the next organization/run. Do not repeatedly select a Run pinned to a full Worker and prevent a later independent eligible Run from starting. Preserve FIFO and one writer for each Worktree.
+Placement feasibility is part of scheduler eligibility before selecting the next organization/run. Do not repeatedly select a Run pinned to a full Worker and prevent a later independent eligible Run from starting. Preserve FIFO and one writer for each Worktree. The shared SQL query materializes placement facts and computes Worktree heads once. Its singleton clock is explicitly bounded, avoiding inflated planner estimates and JIT compilation during short admission queries. Local dispatch serializes only admission claims in fair-candidate order; admitted executions run concurrently. Cloud dispatch may wake capacity-eligible queued work before an older backoff deadline while preserving short dispatcher leases and running provider retry deadlines.
 
 Under a documented consistent lock order, claim Worker revision, Host generation, slot/resources, Worktree writer and Session turn, and funding obligations in one short transaction. Release database locks before provider, storage, or model I/O. PostgreSQL ownership remains authoritative across processes and Hosts. Recheck a pure placement hint under locks; stale snapshots are never authority.
 
@@ -191,7 +190,7 @@ Keep slots through capture, persistence, quiescence, and cleanup. An active-run-
 
 **Host** owns provider binding, unique immutable generation/boot identity, actual resource shape, accepted offering/rate revision, observed lifecycle, control capability, and allocation accounting. Worker owns desired policy, not a copy of runtime state.
 
-A dedicated Host belongs to one Worker. A pooled Host belongs to an internal compatible pool, not one tenant Worker. Its resource allocations reference Workers and Runs. Initial dedicated-only execution does not imply pooled safety. Keep public organization data separate from platform fleet state; supporting pooled Hosts requires real allocation/containment integration, not merely allowing a nullable `worker_id`.
+Each current Host belongs to one Worker and organization. This remains true for non-dedicated resource pricing: the platform may absorb unused physical capacity while charging the accepted meter. A future shared fleet can introduce separate allocation ownership behind the same public contract, but must add verified cross-customer containment and metering before actually packing customers together. Merely making `worker_id` nullable would not implement that boundary.
 
 **HostRun** records each placement attempt and its immutable Host generation. Allow multiple historical assignments for a Run, with a partial unique active-Run claim. A transport retry reuses the same assignment. Replacement after confirmed pre-launch failure creates a new fenced assignment. Ambiguous native execution is never automatically replayed.
 
@@ -209,7 +208,7 @@ Per-Run/handle process ownership must cover descendants and daemonized tools. Cg
 
 Even trusted shared execution needs scoped cancellation, temp files, control records, gateway credentials, memory/CPU/PID limits, and safe cleanup. Shared failures can still affect a Host; do not promise microVM-equivalent isolation when unavailable.
 
-For pooled cross-customer execution, independent tenant containment and accounting are release gates. Until verified, `dedicated=false` server requests must fail explicitly; never silently allocate dedicated resources at a pooled price or launch multiple tenants under one agent UID.
+For actual cross-customer physical packing, independent tenant containment and accounting are release gates. Current non-dedicated offers may instead use Worker-scoped Hosts and their accepted resource meter while the platform absorbs unused physical capacity. Only catalog-supported combinations can be admitted; never launch different customers under one agent UID or present unavailable containment as an implemented guarantee.
 
 ## 9. Runtime environment and persistence
 
@@ -281,30 +280,25 @@ Follow existing UUIDv7, bigint micro-USD, typed domain ports, short SQL transact
 | Relation | Main ownership and constraints |
 | --- | --- |
 | `workers` | Tenant identity; typed desired-state/config revision; resolved economic/runtime/isolation/scaling settings; expiry; accepted funding policy |
-| `hosts` | Provider identity/generation, pool or dedicated Worker association, actual shape, quote epoch, lifetime, lifecycle observation |
-| `host_allocations` | Required for pooled resources: Worker/tenant resource/time reservation on a platform Host; dedicated case may use whole allocation |
+| `hosts` | Worker/organization association, provider identity and boot/generation, actual shape, accepted quote, finite funding, lifecycle/meter cursors |
+| `worker_offerings` | Operator-written, versioned capability/price definitions; serving roles cannot rewrite quotes |
 | `host_runs` | Own ID, Run ID, attempt ordinal, Host/allocation/generation, resource/slot claim, native launch/cleanup; at most one live assignment per Run |
-| materialization metadata | Generation, Worktree revision, permission-view identity, clean-state and resource footprint; hint plus local verification |
+| `host_materializations` | Host generation, Worktree/checkpoint identity, permission view and clean state; an advisory hint rechecked by the controller |
 | usage receipts | Accepted quote/meter epoch, cumulative observation, durable settled cursor and ledger reference; reuse existing ledger/journal mechanisms |
 
 Do not duplicate frozen Run inputs in competing state stores. Use `runs.execution_binding` for its existing durable orchestration phase and reference HostRun assignment identity. Make fields required for indexed admission/fencing relational; keep provider-specific bindings behind typed provider ports.
 
 Runtime handles need not be durable public entities. Historical HostRun retention and billing records follow existing retention controls. Worktree/Session references are nullable only for invocation modes that actually support temporary/omitted state; make admission, presentation, and tests agree before changing schema nullability.
 
-## 13. Implementation and migration order
+## 13. Integration and rollout
 
-The repository is prelaunch. Replace old public Sandbox semantics in one coordinated release after implementation is verified, rather than carrying a permanent compatibility API. Preserve real file/session/accounting history. Do not rewrite historical migrations or reinterpret old financial receipts as new billing.
+Workers are integrated with the existing API, SQL scheduler, execution phase engine, native runtime and ledger. There is no public compatibility compute endpoint and no second run engine. All five SDKs, customer MCP discovery, CLI Worker commands, dashboard Worker controls and native Run placement derive from or use the same OpenAPI contract. Management MCP remains read-only.
 
-1. **Policy and recovery groundwork:** establish the revised design, deterministic economic/lifecycle/placement/meter functions, and regression coverage for required hidden continuation state. The prior uncommitted implementation bundle covers this limited slice; repository integration is still required.
-2. **Durable Worker/Host/HostRun ownership:** forward migration; tenant authorization; unique live claims; desired-state operations; rate/funding receipts and provisioning identity. Apply only to disposable fixtures until accepted.
-3. **Provider/runtime containment:** verify backend capabilities; scoped paths/identities; run-indexed controller; stable live-harness boundary; cancel/capture A without affecting B. Keep concurrency one until this is proven.
-4. **Scheduler and scaling integration:** placement-aware eligibility; atomic claims; min-capacity reconciliation; incremental provisioning; idle drain; generation replacement; quotas and cost ceilings. No paid calls during default tests.
-5. **Authorized file and warm caches:** clean revision/view checks, cold-resume acceptance, bounded memory/count/TTL, per-turn credentials. Avoid a full download/manifest pass on a confirmed hit.
-6. **REST/SDK/CLI/MCP/UI cutover:** replace endpoints, update authoritative OpenAPI first, regenerate contracts and all SDKs with the existing tools, use effective limits and async lifecycle UX, update all current public guides/examples. Do not hand-edit generated files.
-7. **Pooled offering activation:** implement allocation/metering and tenant containment with explicit acceptance. Publishing a pure metering function does not enable this product. Keep unsupported combinations rejected.
-8. **Complete acceptance and clean removal:** real PostgreSQL concurrency/failure tests, native Docker, API journeys, SDKs, browser/CLI, docs generation, and measured scaling. Remove superseded Sandbox code/tests only after replacements protect their useful invariants. Do not delete tests just to hide failures.
+Apply numbered forward migrations with the migration role before starting this source; use the restricted role for serving. Stop admission and drain executing/cleanup allocations before replacing an incompatible runtime/controller version. Back up the database, object store and retained vault keys together. Migration history remains immutable; the cutover migration rejects undrained financial or execution obligations rather than dropping them. The [history note](changelog/workers.md) explains its retired schema vocabulary.
 
-Documentation commits do not enable the target endpoints or move uncommitted implementation into the repository. See the implementation record for the code, verification, and publication boundaries. Keep this work on the unmerged feature branch until the coordinated cutover and acceptance are complete.
+Rebuild immutable runtime images when controller, adapter, process or snapshot code changes. Enable only reviewed region/runtime/shape/rate combinations. An unsupported capability is unavailable, never simulated in a hosted profile or represented by an unverified isolation promise. Replacing an image without the corresponding deployment acceptance does not establish cloud correctness.
+
+The [implementation map](../features/execution/workers/implementation.md) owns module details. [Execution evidence](../features/execution/workers/verification.md) records real application/stress runs and representative native continuation, with explicit simulated boundaries. Automated regression obligations and live acceptance remain in [maintainer TODO](../maintainers/TODO.md). Optional extensions such as cross-customer physical packing are listed separately from implemented behavior in the [feature follow-up](../features/execution/workers/TODO.md).
 
 ## 14. Required verification and deferred work
 
@@ -312,9 +306,8 @@ The release evidence must include: duplicate provision/claim races; paused-but-b
 
 Keep speculative features out of this refactor: demand prediction, arbitrary cross-harness session conversion, collaborative multiple writers, customer-defined schedulers, public Host/process/cache CRUD, automatic cross-region failover without authorization, and arbitrary image builds that replace the trusted supervisor.
 
-The unresolved deployment work is not evidence that the architectural primitives need reopening. The material decisions still requiring real inputs are the offered regions/runtime/capability matrix, published production rate cards/default spending limits, and the hosted isolation backend. Do not guess them. [TODO](../features/execution/workers/TODO.md) records owners, verification boundaries, and the implementation sequence.
-
+The unresolved deployment work is not evidence that the architectural primitives need reopening. Production inputs remain the enabled offering/rate catalog, credentials, immutable runtime images, resource quotas and acceptance evidence for each backend. Do not infer them from local zero-price fixtures. Defaults are finite and disclosed; publishing additional prices or enabling a stronger isolation/packing capability requires operator-owned configuration and verification, not another architectural primitive.
 
 ## Changelog
 
-[Worker architecture evolution](changelog/workers.md) preserves the previous sandbox model, the intermediate single-Host proposal, and why the accepted design became a cost-controlled autoscaling target. It is decision history, not release evidence.
+[Worker architecture evolution](changelog/workers.md) owns the previous architecture and reasons for this change. It is decision history, not a substitute for execution or deployment evidence.

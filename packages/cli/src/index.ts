@@ -192,7 +192,10 @@ const examples: Record<string, string> = {
   'connection add': 'macrofold connection add --config-file private-connection.json',
   'run input': 'macrofold run input RUN_ID --request REQUEST_ID --answer-file answer.json',
 };
+const subcommands = (command: string) =>
+  Object.keys(handlers).filter((name) => name.startsWith(command + ' ')).sort();
 function help(command?: string) {
+  const children = command ? subcommands(command) : [];
   const keys = command
     ? Object.keys({
         ...globalFlags,
@@ -202,7 +205,9 @@ function help(command?: string) {
     : Object.keys(globalFlags);
   return `${release.name} · ${release.version}\n\n${
     command
-      ? `Usage: ${release.executable} ${command} [arguments] [flags]`
+      ? `Usage: ${release.executable} ${command}${command in handlers ? '' : ' <command>'} [arguments] [flags]${
+          children.length ? '\n\n' + children.map((name) => '  ' + name).join('\n') : ''
+        }`
       : `Usage: ${release.executable} <command> [arguments] [flags]\n\n${Object.keys(handlers)
           .sort()
           .map((name) => '  ' + name)
@@ -263,7 +268,14 @@ export async function main(argv = process.argv.slice(2)) {
       pair = `${first} ${rest[0] || ''}`;
     command = pair in handlers ? pair : first;
     if (pair in handlers) rest.shift();
-    if (!(command in handlers)) throw new CliError(`Unknown command: ${command}. Run macrofold --help.`);
+    if (!(command in handlers)) {
+      // Command-group help is local and must not require a profile or API call.
+      if (subcommands(command).length && rest.every((arg) => arg === '--help' || arg === '-h')) {
+        process.stdout.write(help(command));
+        return 0;
+      }
+      throw new CliError(`Unknown command: ${command}. Run macrofold --help.`);
+    }
     let parsed;
     try {
       parsed = await Parser.parse([...leading, ...rest], {

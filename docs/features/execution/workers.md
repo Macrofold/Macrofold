@@ -49,6 +49,19 @@ The existing [Run and Session API](../api/README.md) still determines the execut
 
 A Session can continue on another authorized Worker. `session_id` is a Macrofold ID, not a raw upstream conversation ID. Model/provider compatibility rules still apply.
 
+A Worker with a zero baseline normally reports `sleeping` before its first Run. **Submit the Run to create demand; do not wait for this Worker to become `ready` before submitting.** Observe the accepted Run through its status/events and bounded queue deadline. Reading or polling a Worker does not wake it, and a disconnected client does not cancel already accepted work.
+
+## Match compute ownership to your application
+
+| Calling pattern | Recommended boundary |
+| --- | --- |
+| Occasional scheduled reviews, webhooks, and personal-agent conversations | Keep automatic execution unless explicit rate or capacity control is needed. Durable files do not require continuously running compute. |
+| Frequent interactive turns across independent actors or customers | Share a Worker only across the intended trust boundary; retain separate Worktrees and Sessions. A baseline can reduce cold allocation waits, but is not an instant-start guarantee. |
+| Parallel research or coding branches | Use separate Worktrees for simultaneous writers; adding Hosts does not make one Worktree concurrently writable. |
+| Short classifications and explicit-context judgments | Use direct inference where appropriate. `/v1/inferences` does not need a native Worker allocation or retained harness conversation. |
+
+The application component that owns shared compute manages pause, resume and destruction. A conversation ending should cancel only its own outstanding Run, not destroy a Worker still used by other conversations. Per-customer data and tool authorization remain independent of shared compute ownership. `isolate_runs: false` is an explicit choice for mutually trusted workloads, not a default for many unrelated customers in one organization.
+
 ## Choose the economics
 
 `compute` selects an economic offering, not a provider API. `dedicated` controls exclusive capacity; `isolate_runs` separately controls whether your Runs require isolated execution environments.
@@ -105,6 +118,8 @@ The hourly ceiling limits **compute rate**, not monthly spend or model/tool usag
 
 Resource-metered offerings use their documented allocated-memory time and CPU usage counters. Missing final measurements are not treated as zero; uncertain charges remain reserved pending reconciliation. Opportunistic warm-process retention is evictable platform cache, not a promise of free dedicated uptime.
 
+Physical shutdown and financial settlement are separate. A confirmed stopped allocation can remain `draining` while cleanup or an unsettled final usage receipt is resolved; held credit is not a final charge. Funding exhaustion must not keep compute running merely because settlement failed. At a passed funding or lifetime boundary, the platform attempts to stop physical execution and preserves unresolved claims and charges. Such a stop can interrupt work and lose unpublished changes. A provider timeout is not proof of a stop, and neither last-seen usage nor an earlier health sample proves an unknown final tail consumed nothing. Operators must reconcile these exceptional states rather than clearing holds or retrying the prompt blindly.
+
 ## Pause, resume, destroy, and update
 
 ```text
@@ -126,6 +141,18 @@ PATCH uses `expected_revision` from the latest Worker response. Spending and con
 ## CLI and dashboard
 
 Use `macrofold worker --help` or the individual Worker command help for configuration flags. The CLI provides Worker creation, listing, inspection, updates, and lifecycle actions; Run and chat commands accept `--worker`. The dashboard's Workers page exposes the same target and lifecycle state. API examples are the authoritative field-level reference; advanced settings remain available through the API even when a simplified UI does not expose them.
+
+CLI name selectors resolve an exact live Worker name. A destroyed Worker remains inspectable by UUID, and reusing its name targets the replacement. Supplying `worker update WORKER_ID --revision N` avoids an extra read; the server still checks the revision and administrative authority. Name lookup requires `workers:read`; a UUID plus an explicit revision can work with an appropriately restricted `workers:write` key.
+
+The creation form prefers isolated execution. Trusted sharing requires an explicit selection; indefinite idle retention is offered only for dedicated capacity. Expired Workers cannot be resumed or reconfigured, but remain available for explicit destruction/cleanup.
+
+## Migrating a Worktree-bound Sandbox caller
+
+The Worker contract replaces `/v1/sandboxes` and Run `sandbox_id`; it is not a compatible rename. Update the server and caller together after draining old allocations. Keep verified Worktree/Session state and financial history; do not rewrite old receipts as Worker charges.
+
+For an OpenLegend-style world, create or select compute at the application/world trust boundary, not once per actor lane. Replace Sandbox creation/readiness/lifecycle calls with Worker operations and send top-level `worker_id` with each native Run. Continue each actor's existing authorized Worktree and Session independently. A zero-baseline Worker wakes from accepted demand, so remove any unconditional pre-submission readiness wait. Ending one actor conversation must not destroy shared world compute. Only the compute owner performs lifecycle changes.
+
+Retain the caller's stored request identity and exact original body when recovering a lost response. Do not silently attach a different Worker, change rates, restart an expired Worker, or replay an uncertain native launch. Add the appropriate Worker-use/read/management scopes without granting additional file or tool authority. Direct inference callers remain independent of this native-compute migration. Deployments must verify the actual caller migration, not infer it from the presence of new SDK methods.
 
 ## Permissions and isolation
 

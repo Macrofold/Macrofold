@@ -8,6 +8,10 @@ import { nativeModelFixture } from '/fixtures/native-model.mjs';
 
 const [harness = 'codex', phase = 'load'] = process.argv.slice(2);
 if (!['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi'].includes(harness) || !['load', 'cold'].includes(phase)) throw new Error('Choose a supported benchmark workload.');
+// OpenCode's resident server needs a larger working set than the other fixtures.
+const concurrency = harness === 'opencode' ? 2 : 3;
+const memoryMiB = harness === 'opencode' ? 2048 : 1024;
+const hostMemoryMiB = harness === 'opencode' ? 6144 : 4096;
 const secret = `native-load-${randomUUID()}-${randomUUID()}`;
 const child = spawn('node', ['/opt/platform/host-control.mjs'], { env: { PATH: process.env.PATH, HOST_CONTROL_SECRET: secret }, stdio: ['ignore', 'inherit', 'inherit'] });
 const tokens = new Map();
@@ -83,7 +87,7 @@ async function turn(state, index, restored = false) {
       worktree_id: state.worktree, session_id: state.session, checkpoint_id: state.checkpoint,
       session_revision: String(index), permission_view: createHash('sha256').update('native-load-authorized-view').digest('hex'),
       compatibility_key: createHash('sha256').update(`native-load-${harness}`).digest('hex'),
-      resources: { memory_mib: 1024, cpu_millis: 500 },
+      resources: { memory_mib: memoryMiB, cpu_millis: 500 },
       configuration: { runId: run.run_id, harness, provider: harness === 'claude-code' ? 'anthropic' : 'openai',
         model: harness === 'claude-code' ? 'claude-sonnet-4-6' : 'gpt-5.4',
         prompt: index === 0 ? 'Create native.txt with a short note, then finish.' : 'Confirm the prior task is complete.',
@@ -126,8 +130,8 @@ try {
   boot = (await until(async () => {
     try { return await control({ action: 'health' }); } catch { return false; }
   }, 'Host startup', 30)).boot_id;
-  await control({ action: 'configure', host_id: randomUUID(), generation: 1, resources: { memory_mib: 4096, cpu_millis: 2000 },
-    concurrency: 3, isolate_runs: false, warm_memory_mib: 1536, warm_idle_seconds: 120 });
+  await control({ action: 'configure', host_id: randomUUID(), generation: 1, resources: { memory_mib: hostMemoryMiB, cpu_millis: 2000 },
+    concurrency, isolate_runs: false, warm_memory_mib: Math.floor(hostMemoryMiB / 3), warm_idle_seconds: 120 });
   if (phase === 'cold') {
     const saved = JSON.parse(await readFile(`/exchange/${harness}-continuation.json`, 'utf8'));
     saved.fixture = nativeModelFixture({ workspace: `/host-data/worktrees/${saved.worktree}` });
@@ -139,7 +143,7 @@ try {
         fixture: nativeModelFixture({ workspace: `/host-data/worktrees/${worktree}` }) };
     });
     let next = 0;
-    await Promise.all(Array.from({ length: 3 }, async () => {
+    await Promise.all(Array.from({ length: concurrency }, async () => {
       while (next < states.length) {
         const state = states[next++];
         await turn(state, 0); await turn(state, 1);
@@ -153,7 +157,7 @@ try {
 finally {
   lag.disable();
   const sorted = measurements.map(item => item.duration_ms).sort((a, b) => a - b);
-  const report = { status, failure, harness, phase, successful_runs: successful, peak_concurrent_runs: peakActive,
+  const report = { status, failure, harness, phase, memory_mib_per_run: memoryMiB, host_memory_mib: hostMemoryMiB, successful_runs: successful, peak_concurrent_runs: peakActive,
     warm_hits: warmHits, fixture_model_requests: modelRequests, paid_api_calls: 0, captured_bytes: snapshotBytes,
     elapsed_ms: Math.round(performance.now() - started), p95_ms: sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)] ?? null,
     event_loop_p99_ms: Math.round(lag.percentile(99) / 10000) / 100, measurements };

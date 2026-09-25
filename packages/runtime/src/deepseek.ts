@@ -1,4 +1,4 @@
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -23,8 +23,8 @@ export class DeepSeekAdapter implements HarnessAdapter {
     if (!/^session-[a-f0-9]{32}$/.test(resumeId)) throw new Error('Invalid DeepSeek session');
     await mkdir(home, { recursive: true });
     await mkdir(sessions, { recursive: true });
-    // The supervisor fixes cwd at /workspace. This is the pinned SDK's project directory.
-    if (c.resumeId) await access(path.join(sessions, '--workspace--', resumeId, 'session.v3.jsonl'));
+    // The native session service resolves and validates its persisted ID under
+    // this scoped root. Do not duplicate its cwd-dependent directory encoding.
     const patch = path.join(home, 'runtime.json');
     await writeFile(
       patch,

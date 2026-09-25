@@ -1,25 +1,53 @@
 # Worker branch engineering review
 
-Review in progress, September 25, 2026. Source baseline: `dc890bde1860fbdd1f1f896e18401fcb91133007`; merge base: `19865a2f45885e228deb6b7ea443e33982257d21`. Portable engineering guidance was read in `Macrofold/OpenLegend` at `03105fed9209c126e4e69e9faeb4687f42d1e74a`. Game-world policy is not a Macrofold requirement.
+September 25, 2026. Source baseline: `dc890bde1860fbdd1f1f896e18401fcb91133007`; merge base: `19865a2f45885e228deb6b7ea443e33982257d21`. Portable engineering guidance was read in `Macrofold/OpenLegend` at `03105fed9209c126e4e69e9faeb4687f42d1e74a`. This is a source review and executed-change record, not deployment approval. Exact executed revisions and limits belong in [verification](verification.md).
 
-This assessment applies single semantic ownership, bounded work, explicit uncertainty, complete caller paths, and source/evidence separation. It does not replace the [architecture](../../../architecture/worker-execution.md), [implementation](implementation.md), [verification record](verification.md), or central [remaining-work inventory](../../../maintainers/TODO.md).
+## Review lens and scope
 
-## Physical shutdown and financial reconciliation
+The review applies single semantic ownership, bounded work, explicit unknown outcomes, complete caller paths and maintained source/evidence separation. It does not import OpenLegend's game laws or package architecture. Scope is the authored Worker branch, not only its last idle-retirement commit: policy/catalog/pricing, relational claims and migrations, placement/scheduling, local/portable execution, provider/runtime control, capture/continuation, authorization/API/MCP, CLI/dashboard, public contracts and examples. Generated clients are reviewed through schema/generation and exercised surfaces, not represented as independently hand-audited implementations in every language.
 
-The baseline can leave a draining allocation running forever when `settleHostSample` raises `host_funding_exhausted` before the provider stop. It can also receive a provider-confirmed stop and then lose that boundary when the following settlement transaction fails. Repeated polling would continue using an unbounded allocation clock.
+Examples and marketing emphasize persistent customer context, scheduled reviews, selected tools and parallel worktrees. These needs support keeping durable files, Sessions and compute independent. Direct inference must not pay native startup cost. One customer ending a conversation must not manage a shared application's compute. Useful performance work removes unnecessary payload and unbounded ownership waits rather than adding a second queue, cache authority or coordinator.
 
-A disposable PostgreSQL exercise at `8956c5fb7bf0ea620ed91b1c671f092cdb2a0ef9`, Actions run `36196706790`, reproduced the first path: after three reconciliation passes, one synthetic provider allocation remained, no stop had been called, the Host was `draining`, and `stopped_at` was null with `host_funding_exhausted`. The rate and external provider were explicit fixtures; this was not a paid-provider experiment or a unit-test suite.
+## Findings and disposition
 
-The correction keeps three independent facts: a sealed final usage receipt (`final_usage`/`usage_finalized_at`), provider-confirmed physical stop (`stopped_at`), and last-settled financial cursor (`billing_cursor`). Normal idle retirement seals valid resource usage and stops compute before attempting settlement. A failed stop retains its receipt and funding. A failed settlement cannot undo stop confirmation or restart the allocation clock. Unreleased execution/cleanup claims still prevent ordinary retirement and final release of funding.
+| Finding | Disposition and owner |
+| --- | --- |
+| Exhausted funding prevented physical teardown because settlement ran first; stop confirmation could roll back with a failed settlement. | Fixed in `worker-reconciler.ts`: independent final receipt, physical stop and settled cursor; forward migration 047. |
+| Funding release trusted its caller to prove physical stop and cleanup completion. | Fixed at `releaseHostFunding`: require `stopped_at` and no unreleased HostRun. |
+| A same-pass health sample could be mistaken for final resource usage after an unsealed stop. | Fixed: unknown paid usage remains reserved and explicit. |
+| Missing orchestration binding allowed unacknowledged prepare to lose its SQL writer/resource claim. | Fixed in `WorkerMachines.cleanupUnbound` through confirmed controller release; launch ambiguity remains held. |
+| Unknown-assignment release did not fence future late prepare; queued commands could run after release. | Fixed with allocation-serialized tombstones and an in-lock released check in `HostController`. |
+| Frequent capacity reads transferred full Run/config payloads unnecessarily. | Fixed with a narrow resource/timeout projection; existing bounded eligibility and ownership retained. |
+| Destroyed-name history confused CLI lookup; explicit revisions still required an unnecessary read. | Fixed without changing command names, flags, generated schemas or server authority. |
+| Dashboard silently preferred trusted sharing; retention/availability copy overstated guarantees. | Fixed isolated preference, explicit sharing selection, dedicated-only indefinite retention, expired-action controls and precise charge/availability copy. |
+| Current OpenLegend native caller still uses the removed Sandbox API and owns it per lane. | Caller migration is a release gate, documented below. OpenLegend is unchanged. |
 
-Funding exhaustion, a passed funded/lifetime boundary, or a changed controller generation requires a physical stop rather than an unlimited graceful drain. Such a forced stop may lose the resource meter's final tail; missing usage remains unknown and reserved for reconciliation. No extra customer debit, fabricated zero, prompt replay, or speculative release of instance/cost obligations is introduced. A confirmed stopped allocation may remain `draining` in the accounting projection until its claims and usage are resolved.
+The initial shutdown scenario at `8956c5fb7bf0ea620ed91b1c671f092cdb2a0ef9` (Actions `36196706790`) reproduced the fault in real PostgreSQL: three reconciliation passes left one synthetic provider allocation running, no stop, and `host_funding_exhausted`. Subsequent scenarios verified stop confirmation and retained settlement state for allocation and resource meters. These use synthetic accepted rates/provider boundaries, not retail pricing or paid cloud evidence.
 
-Migration `047_host_final_usage.sql` is forward-only. Existing finalized-and-settled receipts can still use their billing cursor; new final receipts are stored before settlement. Deployment requires the migration and matching application code together. Default fixtures must remain unpaid, and real provider stop/meter acceptance remains a separate release gate.
+The first CLI edit during review introduced incompatible imports/command shapes. Source comparison caught it; `8fe6784caa9c09b10ac24ddf9b5acb55925f09ac` restores the original command contract with only the intended selector/revision changes. The real built-CLI exercises at `7b6e41acfb907ea2249c5de6b41dad58f31c0d72` verify the corrected source, not an earlier green build.
 
-## Caller and integration context
+## Architectural decisions retained
 
-OpenLegend's documented fast judgments and generation use direct `/v1/inferences`; native full deliberation/reflection uses the harness route. Workers must not add native allocation overhead to ordinary direct inference. Durable Run identity, bounded queues, explicit cancellation, and unknown billing outcomes matter more than convenient blind retries.
+Keep Worker as a stable economic target, Hosts/HostRuns internal, Worktree/Session as durable authorities, PostgreSQL claims authoritative, and provider I/O outside domain locks. Keep runtime caches advisory and optional. Preserve one writer per Worktree and bounded reactive scaling rather than forecasting traffic or globally repacking live processes. A baseline is funded expected capacity, not uninterrupted availability. Exact source changes and mutation owners are in [implementation](implementation.md).
 
-Macrofold main has an independent model-streaming/SDK documentation commit (`ea0c17cecae715f4def2c17d4cbe4e32d1ae8ae9`) beyond this branch's merge base. This review does not overwrite or merge that work. Its schema, SDK, engine and documentation interactions require reconciliation before branch integration.
+Normal pause remains graceful. Exhausted funding, expired lifetimes and invalid generations are finite physical boundaries, not unlimited graceful drains. A forced physical stop can lose unpublished state or a final meter tail. Keep those obligations visible rather than continuing uncontrolled spend, treating missing usage as zero, automatically charging beyond authorization, or clearing the ledger to obtain a green status. Physically stopped but unresolved allocations may remain `draining` and consume conservative limits until reconciled.
 
-The broader source, caller, performance, and UI review continues; this document is not release approval. Current-task verification uses executable scenarios and existing build/CI paths without authoring unit tests. Evidence for the corrected code will be recorded after execution.
+## OpenLegend caller migration
+
+At the pinned OpenLegend revision, `apps/server/src/macrofold.ts` stores `sandbox` on a lane, creates/awaits `/v1/sandboxes`, submits Run `sandbox_id`, checks the returned Sandbox identity, and destroys lane compute in `closeConversation`. Direct judgments/generation use `/v1/inferences`; full native deliberation/reflection is the affected caller. The current native path is not compatible with this branch's coordinated Sandbox removal.
+
+Before integration, move Worker ownership to the intended application/world trust boundary; retain each actor's Worktree/Session. Use `worker_id`, Worker scopes and the resolved accepted offering. Submit to sleeping zero-baseline Workers before waiting for readiness. Closing an actor lane cancels its own Run, not the shared Worker. Preserve exact persisted idempotency inputs and ambiguity recovery. Drain old allocations before the server/caller cutover. The [public migration guide](../workers.md#migrating-a-worktree-bound-sandbox-caller) explains the generic contract.
+
+No permanent Sandbox compatibility adapter is added: the prelaunch product explicitly chose coordinated replacement, and an adapter would preserve the wrong per-Worktree compute ownership. This is a deployment dependency, not evidence that the Worker abstraction needs reopening.
+
+## Measured performance follow-up
+
+Offline native execution succeeded for all six harnesses, including warm reuse and fresh-container continuation. It also exposes a meaningful latency difference: Hermes' fresh-container turn took about 29.1 seconds, while its six warm reused turns took 202–208 ms in the loopback fixture. This is not a live-model latency estimate or proof of the bottleneck. Profile cold initialization and contention before choosing Hermes for latency-sensitive first turns. Do not hide the result by increasing timeouts or claiming a paid baseline guarantees a warm Session.
+
+OpenCode's fixture declares 6 GiB of logical Host capacity while the workflow container is capped at 4 GiB. The successful run demonstrates the exercised continuation/control path, not an accurate 6-GiB capacity or saturation benchmark. Align measured container limits and declared resources before using this fixture to set production density or pricing.
+
+## Remaining release boundaries
+
+Track the concrete follow-ups in [Worker follow-up](TODO.md), with the broader formal acceptance inventory in [maintainer TODO](../../../maintainers/TODO.md). OpenLegend migration, provider stop/create ambiguity, hosted isolation, production rate/capability configuration, and operator handling of unknown/unfunded usage remain open until demonstrated. Local recovery snapshots are best-effort evidence, not durable automatic salvage of arbitrary unpublished files. Broader browser/CLI/SDK/native acceptance is not inferred from the focused exercises.
+
+Main contains independent model-streaming/SDK documentation work at `ea0c17cecae715f4def2c17d4cbe4e32d1ae8ae9`; reconcile its schema, SDK, engine and documentation changes before merging. This review does not merge or overwrite it. Historical status prose about the old Worktree-bound Sandbox and blanket hidden-file exclusion is not current Worker acceptance; use the current implementation and commit-specific verification owners.

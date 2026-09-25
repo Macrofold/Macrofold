@@ -4,13 +4,24 @@ The public API, durable Worker/Host/HostRun ownership, scaling, pricing, runtime
 
 Formal test cases and release acceptance are centralized in [maintainer TODO](../../../maintainers/TODO.md). Current measured execution evidence is in [verification](verification.md). The broader cutover obligations remain open beyond the verified subset; historical no-test notes describe their own continuations, not permanent changes to CI policy.
 
-## Active implementation review
+## Implementation review checkpoint
 
-Review baseline: `dc890bde1860fbdd1f1f896e18401fcb91133007`, against merge base `19865a2f45885e228deb6b7ea443e33982257d21`. OpenLegend's portable engineering guidance is reviewed at `03105fed9209c126e4e69e9faeb4687f42d1e74a`: single semantic ownership, bounded work, explicit uncertainty, complete caller paths, and maintained documentation. Game-world policy and OpenLegend's package structure do not become Macrofold requirements.
+Review baseline: `dc890bde1860fbdd1f1f896e18401fcb91133007`, against merge base `19865a2f45885e228deb6b7ea443e33982257d21`. OpenLegend's portable engineering guidance was reviewed at `03105fed9209c126e4e69e9faeb4687f42d1e74a`: single semantic ownership, bounded work, explicit uncertainty, complete caller paths, and maintained documentation. Game-world policy and OpenLegend's package structure do not become Macrofold requirements.
 
-The review covers authored branch changes in configuration/admission, scaling and accounting, provider/runtime ownership and persistence, API/SDK/CLI/dashboard integration, and their user-facing contracts. Generated clients are checked through their schema/generator, not edited by hand. Examine the reference applications, marketing journeys, and OpenLegend's actual Macrofold caller, including repeated character turns, interactive bursts, background jobs, shared Worktree ordering, cancellation, and replacement. Preserve independent work on main; a rebase or merge is not part of this review.
+The completed source review covered authored branch changes in configuration/admission, scaling and accounting, provider/runtime ownership and persistence, API/SDK/CLI/dashboard integration, and their user-facing contracts. Generated clients were checked through their schema/generator, not edited by hand. Reference applications, marketing journeys, and OpenLegend's actual Macrofold caller informed repeated character turns, interactive bursts, background jobs, shared Worktree ordering, cancellation, and replacement. Independent work on main is preserved; no rebase or merge was performed.
 
-Current task verification: do not author unit tests or a replacement test suite. Exercise representative runtime and failure scenarios, static/build/documentation checks, and meaningful bounded workloads; preserve existing CI and all unmet release gates. Changes, concrete deferred findings, and actual evidence must be reconciled into the existing implementation, public guide, verification record, and central maintainer TODO before handoff. No deployment or paid-provider enablement is inferred from a source review.
+No new unit tests were authored. Existing CI remains intact; actual database, controller, built CLI, browser and bounded native/runtime scenarios provide task-specific execution evidence. Changes and concrete deferred findings are reconciled into the [engineering review](review.md), implementation, public guide and verification record. No deployment or paid-provider enablement is inferred from a source review.
+
+## Review follow-ups and release dependencies
+
+The [engineering review](review.md) owns finding rationale; [implementation](implementation.md) owns corrected semantics and [verification](verification.md) owns executed results. These dependencies refine, rather than close, the broader central release inventory:
+
+- [ ] Coordinate the OpenLegend native caller migration from `/v1/sandboxes`/`sandbox_id` to application-owned Workers. Prove lazy wake from submitted demand and that closing one actor conversation cannot destroy shared compute. Leave direct inference independent.
+- [ ] Define and exercise the operator procedure for physically stopped but financially unresolved allocations: validate evidence, reconcile through the existing journal, preserve history and release holds only with an explicit resolution. Do not introduce automatic extra debits, write-offs or zero-usage assumptions.
+- [ ] Exercise real provider creation/stop uncertainty and hosted process/isolation boundaries with approved accounts and budgets before enabling those offerings. Offline/native fixtures are not hosted-provider acceptance.
+- [ ] Reconcile independent main streaming/SDK work before merge, then run the applicable full cutover checks. Review-slice success does not close unexecuted language clients or end-to-end hosted recovery.
+- [ ] Profile Hermes cold-start latency and align OpenCode's declared fixture resources with its container limits before using the native workload to set production latency/density expectations. Preserve the observed results and separate functional acceptance from capacity benchmarking.
+- [ ] Reconcile historical top-level status prose and retired Sandbox acceptance with the coordinated release. Current Worker facts are owned by this feature's implementation/evidence, not old no-test or cold-resume notes.
 
 ## Implemented capacity behavior
 

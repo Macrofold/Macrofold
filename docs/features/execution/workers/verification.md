@@ -2,6 +2,50 @@
 
 Evidence is commit-specific. A green build is not native recovery or paid-provider evidence, and simulated external boundaries are not actual cloud resource measurements.
 
+## Cross-repository engineering review — September 25, 2026
+
+The [review](review.md) records findings, caller compatibility and decisions; [implementation](implementation.md) owns the corrected behavior. No new unit tests were authored. Existing tests and CI were preserved. Manual scenarios below execute actual application code without a test runner.
+
+### Database, CLI, controller and browser
+
+Actions **36199822335**, source **7b6e41acfb907ea2249c5de6b41dad58f31c0d72**, Node **24.13.0**, pnpm **10.33.0**, frozen repository dependencies:
+
+| Executed surface | Observed result |
+| --- | --- |
+| `pnpm check` | Documentation generation, SDK build and application type checking passed |
+| Native runtime and portable CLI builds | Passed |
+| Forward migration 047 in disposable PostgreSQL | Applied successfully |
+| Overdue allocation-time shutdown | Exactly one confirmed provider stop; zero physical allocations left; unsettled reservation retained |
+| Resource final receipt exceeding available funding | Exactly one stop; final cumulative CPU receipt retained independently from settlement |
+| Unbound preparation cleanup | Failed release retained SQL writer/resource ownership; confirmed release completed; duplicate cleanup was harmless |
+| Built CLI subprocess against real loopback HTTP API | Destroy/recreate/name lookup selected the live replacement; explicit revision update succeeded with a Worker-restricted write-only key |
+| Compiled Host controller in network-isolated Linux container | Late prepare after unknown release rejected; launch queued behind release rejected; zero active assignments remained |
+| Actual Next.js Worker form in Chromium | Isolated default, optional name, explicit trusted-sharing choice and finite retention after switching away from dedicated capacity verified; real API creation succeeded; zero uncaught page errors |
+| Paid API calls | 0 |
+
+This run's application exercises all passed, but the job was not green: documentation integrity found that the new `review.md` was not linked from the documentation tree. The subsequent implementation/guide/follow-up updates link it and document the changes. A later full-tip documentation check must be used for that result, not this run. Browser evidence is artifact **10891846821**, `worker-review-browser`; its 1440-by-1100 screenshot was visually inspected.
+
+The shutdown providers and prices are explicit fixtures. SQL transactions, RLS, application reconciliation, HTTP handlers, generated SDK transport and built CLI are real. The controller scenario uses the actual compiled implementation in a disposable root-owned Linux container, without launching a model. Chromium operates the actual local dashboard and server, not mocked components. These are focused exercised paths, not complete browser/CLI or hosted-provider acceptance.
+
+The pre-fix source **8956c5fb7bf0ea620ed91b1c671f092cdb2a0ef9**, Actions **36196706790**, reproduced the funding bug: three reconciliation passes left one physical fixture allocation running with no stop and `host_funding_exhausted`. Subsequent **36197367289** and **36198614866** runs independently exercised corrected allocation/resource shutdown. Their results are not substituted for the later source above.
+
+### Native concurrency, warm reuse and fresh-container continuation
+
+Actions **36199524224**, source **8b9c599b0b00fd8d28ea88e7469f0871c4224de7**, completed successfully using the pinned native runtime image. Artifact **10891771940**, `worker-native-performance`, contains all twelve load/cold result files plus the image log. The runtime/cleanup source in that run is unchanged in the later CLI/browser source above.
+
+| Harness | Successful load turns | Peak concurrent turns | Warm-process hits | Fresh-container continuation |
+| --- | ---: | ---: | ---: | --- |
+| Codex | 12 | 3 | 6 | 1 passed |
+| Claude Code | 12 | 3 | 6 | 1 passed |
+| OpenCode | 12 | 2 | 6 | 1 passed |
+| Hermes | 12 | 3 | 6 | 1 passed |
+| DeepSeek | 12 | 3 | 6 | 1 passed |
+| Pi | 12 | 3 | 6 | 1 passed |
+
+Total: **72 load turns, 36 warm hits and 6 fresh-container continuation turns**, all successful, with **zero paid API calls**. These are actual native executables, scoped controller operations, capture and restore with loopback model protocol fixtures and containers without external networking. They do not establish live-model quality, hosted-provider recovery or production concurrency limits.
+
+A performance qualification matters: Hermes' fresh-container turn took **29,098 ms**, and its warm turns **202–208 ms**. Profiling cold startup/contended startup remains a follow-up rather than asserting an unmeasured root cause. OpenCode's logical Host fixture declares **6,144 MiB**, while this workflow's container memory limit is **4 GiB**. Its success is functional evidence, not a validated 6-GiB capacity benchmark; align these limits before drawing density conclusions. No production default or retail rate was changed using these measurements.
+
 ## Demand-aware idle retirement — September 25, 2026
 
 GitHub Actions run **36102148430**, source **dd44fb56fab02365eead0d216cd346663e1fa768**, completed successfully with Node **24.13.0**, pnpm **10.33.0**, and the repository's frozen dependency lockfile. Implementation semantics and safety boundaries are documented in [implementation](implementation.md#demand-aware-idle-scale-down).
@@ -35,7 +79,7 @@ The successful run retained the following stress measurements in the `worker-run
 | Elapsed workload | 16,057 ms |
 | Paid API calls | 0 |
 
-These are bounded-fixture observations, not production throughput or a causal performance comparison with earlier workloads. HTTP, the generated TypeScript SDK, admission, scheduling, PostgreSQL, persistence, and the ledger are real; external compute provisioning and model execution are explicit simulator boundaries. The full monorepo regression suite, native Docker recovery, browser/CLI journeys, and paid-provider acceptance were not run in this verification slice. No production migration, deployment, or merge was performed.
+These are bounded-fixture observations, not production throughput or a causal performance comparison with earlier workloads. HTTP, the generated TypeScript SDK, admission, scheduling, PostgreSQL, persistence, and the ledger are real; external compute provisioning and model execution are explicit simulator boundaries. The full monorepo regression suite, native Docker recovery, browser/CLI journeys, and paid-provider acceptance were not run in this earlier verification slice. No production migration, deployment, or merge was performed.
 
 ## Earlier bounded API/database workload
 
@@ -59,8 +103,6 @@ The preceding run at `77aa30f0a271861af0644be85a6a94785e1d1c66` exposed database
 
 That earlier successful action compiled the application and native runtime, regenerated all SDKs, and validated 64 generated public pages plus local documentation targets. No unit/integration suite was run during that earlier continuation at the user's request; the later focused suites above have their own source-specific evidence.
 
-## Native and hosted boundaries
+## Hosted boundaries
 
-The native performance workflow runs the pinned image without external network access, loopback protocol responses, concurrent harness processes, and continuation in a new container. Its latest result must be recorded separately before making native performance/recovery claims. Live Render, Vercel, model, and hosted-storage checks require explicit configuration and spending authorization; no success is inferred from their stubs.
-
-The current deferred regression inventory is in [maintainer TODO](../../../maintainers/TODO.md). Historical acceptance counts for the retired execution resource are not evidence for the Worker cutover.
+Live Render, Vercel, model, and hosted-storage checks require explicit configuration and spending authorization; no success is inferred from their stubs or offline native execution. The current deferred regression inventory is in [maintainer TODO](../../../maintainers/TODO.md), with concrete caller/operator dependencies in [Worker follow-up](TODO.md). Historical acceptance counts for the retired execution resource are not evidence for the Worker cutover.

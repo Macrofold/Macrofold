@@ -192,11 +192,16 @@ describe('durable capacity and graceful shutdown',()=>{
     expect(assignment?.host_id).toBe(replacement.id);
     if(assignment)await tx(t=>releaseHostRun(t,assignment,false,null));
   });
-  it('does not replace a Host with unpublished state outside the bounded placement cache view',async()=>{
-    const created=await resizableWorker();
+  it.each(['replacement','idle scale-down'] as const)('preserves unpublished state outside the bounded cache view during %s',async mode=>{
+    const created=mode==='replacement' ? await resizableWorker() : await worker({min_instances:1,max_instances:1,idle_timeout_seconds:0});
     const initial=await ensureBaseline(created.id);
     const original=await tx(t=>getHost(t,initial[0].id));
     const run=await newRun(created.id,{memory_mib:4096,cpu_millis:1000});
+    if(mode==='idle scale-down'){
+      await tx(t=>patchWorker(t,principal,created.id,{expected_revision:created.revision,min_instances:0}));
+      await tx(t=>t.query('UPDATE runs SET cancel_requested=true WHERE id=$1',[run.id]).then(()=>{}));
+      await tx(t=>t.query("UPDATE hosts SET idle_since=now()-interval '1 hour' WHERE id=$1",[original.id]).then(()=>{}));
+    }
     await tx(t=>t.query(`INSERT INTO host_materializations
       (organization_id,host_id,host_generation,worktree_id,permission_view,state,last_used_at)
       SELECT $1,$2,$3,$4,'fixture-view-'||n,
@@ -211,6 +216,13 @@ describe('durable capacity and graceful shutdown',()=>{
     expect((await tx(t=>getHost(t,original.id))).status).toBe('ready');
     expect(stops).toBe(before);
     expect((await tx(t=>getNativeRun(t,run.id))).status).toBe('queued');
+    if(mode==='idle scale-down'){
+      // Model an explicitly recovered/published cache; retirement is now safe.
+      await tx(t=>t.query("UPDATE host_materializations SET state='clean' WHERE host_id=$1 AND host_generation=$2",[original.id,original.generation]).then(()=>{}));
+      await reconcileWorker(principal.organizationId,created.id,()=>provider);
+      expect((await tx(t=>getHost(t,original.id))).status).toBe('stopped');
+      expect(stops).toBe(before+1);
+    }
   });
   it('releases excess idle capacity while queued work is blocked by the Worker concurrency limit',async()=>{
     const created=await worker({min_instances:2,idle_timeout_seconds:0});

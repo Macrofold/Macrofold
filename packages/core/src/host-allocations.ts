@@ -172,7 +172,10 @@ export async function settleHostSample(tx: Tx, host: HostRow, meters: ComputeMet
     [host.id, amount.toString(), JSON.stringify(meters), sequence.toString()]);
 }
 export async function releaseHostFunding(tx: Tx, host: HostRow) {
-  assert(host.status === 'draining', 409, 'host_not_draining', 'Only a confirmed stopped allocation may release its funding.');
+  assert(host.status === 'draining' && host.stopped_at !== null, 409, 'host_not_stopped',
+    'Only a provider-confirmed stopped allocation may release its funding.');
+  const occupied = await tx.query('SELECT 1 FROM host_runs WHERE host_id=$1 AND released_at IS NULL LIMIT 1', [host.id]);
+  assert(!occupied.rowCount, 409, 'host_cleanup_pending', 'Execution and cleanup claims must release before allocation funding.');
   await settleReservation(tx, host.organization_id, `host:${host.id}:release`, BigInt(host.reserved_micro_usd), 0n);
   await tx.query("UPDATE hosts SET status='stopped',stopped_at=coalesce(stopped_at,now()),reserved_micro_usd=0,binding=NULL,lease_id=NULL,lease_until=NULL,updated_at=now() WHERE id=$1", [host.id]);
 }

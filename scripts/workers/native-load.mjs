@@ -7,7 +7,7 @@ import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { nativeModelFixture } from '/fixtures/native-model.mjs';
 
 const [harness = 'codex', phase = 'load'] = process.argv.slice(2);
-if (!['codex', 'claude-code'].includes(harness) || !['load', 'cold'].includes(phase)) throw new Error('Choose a supported benchmark workload.');
+if (!['codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi'].includes(harness) || !['load', 'cold'].includes(phase)) throw new Error('Choose a supported benchmark workload.');
 const secret = `native-load-${randomUUID()}-${randomUUID()}`;
 const child = spawn('node', ['/opt/platform/host-control.mjs'], { env: { PATH: process.env.PATH, HOST_CONTROL_SECRET: secret }, stdio: ['ignore', 'inherit', 'inherit'] });
 const tokens = new Map();

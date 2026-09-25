@@ -247,6 +247,13 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
         // The planner used these snapshots under the Worker claim lock. Replacement
         // only requests a drain; advanceHost retains claims and funding until stop.
         const replaceIdle = host.id === plan.replace_idle_host_id;
+        if (replaceIdle && !nearExpiry) {
+          // Placement cache metadata is bounded. Recheck the complete generation
+          // before discarding a Host that may contain older unpublished state.
+          const unpublished = await tx.query(`SELECT 1 FROM host_materializations
+            WHERE host_id=$1 AND host_generation=$2 AND state<>'clean' LIMIT 1`, [host.id,host.generation]);
+          if (unpublished.rowCount) continue;
+        }
         if (host.status==='ready' && (nearExpiry || replaceIdle || (extra && !snapshot?.occupied_slots && idleExpired && !readyDemand.length))) {
           await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1",[host.id]);
           remaining--;

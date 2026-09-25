@@ -53,11 +53,11 @@ A Session can continue on another authorized Worker. `session_id` is a Macrofold
 
 `compute` selects an economic offering, not a provider API. `dedicated` controls exclusive capacity; `isolate_runs` separately controls whether your Runs require isolated execution environments.
 
-| Choice | Behavior | Charges |
-| --- | --- | --- |
-| `compute: "sandbox"` | On-demand execution environments. Idle capacity may be released. | The accepted allocation or resource rate. |
-| `compute: "server", dedicated: true` | Exclusive server-backed capacity, shared by your Runs when `isolate_runs: false`. | Allocated server capacity, including idle time while retained. |
-| `dedicated: false` | No promise of exclusive server capacity. Exact placement is internal. | The published offering's resource/allocation meter, never an arbitrary share determined by your placement on a nearly empty server. |
+| Choice                               | Behavior                                                                          | Charges                                                                                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `compute: "sandbox"`                 | On-demand execution environments. Idle capacity may be released.                  | The accepted allocation or resource rate.                                                                                           |
+| `compute: "server", dedicated: true` | Exclusive server-backed capacity, shared by your Runs when `isolate_runs: false`. | Allocated server capacity, including idle time while retained.                                                                      |
+| `dedicated: false`                   | No promise of exclusive server capacity. Exact placement is internal.             | The published offering's resource/allocation meter, never an arbitrary share determined by your placement on a nearly empty server. |
 
 Not every deployment offers every combination. Unsupported configurations fail explicitly; Macrofold does not silently switch you to another compute product, region, price, or isolation guarantee. Non-dedicated does not grant other customers access to your files or credentials. It also does not promise that the backend will actually colocate workloads.
 
@@ -89,7 +89,7 @@ For bursts, use `min_instances: 0` with an idle timeout. The Worker remains addr
 
 Omit `size` on creation, or set `size: null`, to let Macrofold choose among the accepted compatible sizes. A PATCH with `size: null` restores automatic sizing; omitting it preserves the existing choice. The CLI equivalent is `--auto-size`. Advanced callers can select an advertised `size`, `region`, or `runtime`. A Worker may have several backing Hosts, but callers submit to one `worker_id` and never route to machine IDs.
 
-Native Runs reserve 1,024 MiB and 250 CPU millicores by default. Override top-level `memory_mib` and `cpu_millis` for known heavier or lighter workloads. These are allocation requirements, not a prediction of future memory use. Macrofold packs compatible Runs within Host headroom and capacity, then adds capacity for queued demand. A single oversized Run requires a large enough allocation; another Host does not enlarge an already-running process.
+Native Runs targeting an explicit Worker reserve 1,024 MiB and 250 CPU millicores by default. Resource overrides require `worker_id`; automatic execution has its own managed allocation. Override top-level `memory_mib` and `cpu_millis` for known heavier or lighter workloads. These are allocation requirements, not a prediction of future memory use. Macrofold packs compatible Runs within Host headroom and capacity, then adds capacity for queued demand. A single oversized Run requires a large enough allocation; another Host does not enlarge an already-running process.
 
 `max_concurrency` limits active assignments. Cleanup can briefly keep a slot occupied after the public Run becomes terminal, so `occupied_slots` may exceed `active_runs`. Worktree writes remain serialized globally, even when two Runs target different Workers. Use separate Worktrees for independent concurrent writers.
 

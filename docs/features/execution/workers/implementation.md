@@ -30,6 +30,8 @@ Publication verifies durable Worktree and native continuation state. Only then m
 
 Background Run admission uses nonblocking SQL advisory claims when another claimant owns the organization, Worktree, or global boundary. It defers durable work rather than occupying every connection while active Runs need to persist and heartbeat. Direct inference retains its in-transaction admission semantics. Runnable dispatch hints are limited by observed free global/account slots; cancellation and expiry cleanup remain discoverable at full capacity.
 
+The candidate query materializes Worktree heads and Worker placement once and bounds the singleton scheduler clock. Local dispatch awaits only the ordered short admission claim and runs its returned completion concurrently. Portable dispatch distinguishes fresh capacity eligibility from running provider-error backoff and uses an exact timestamp to release its own short pending lease.
+
 Financial reconciliation derives outstanding liability from active Runs and Host reservations. Storage maintenance treats unreleased HostRuns as active writers even after the public Run is terminal, so it cannot delete Session or Worktree state still needed by cleanup.
 
 ## Verification and remaining scope

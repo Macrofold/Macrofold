@@ -150,6 +150,8 @@
   "model_inference_receipt_provider_evidence.go",
   "model_inference_receipt_validation.go",
   "model_inference_response.go",
+  "model_inference_stream_event.go",
+  "model_inference_stream_event_data.go",
   "model_invitation.go",
   "model_invitation_create.go",
   "model_key_create.go",

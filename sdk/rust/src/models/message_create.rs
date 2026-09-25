@@ -52,6 +52,9 @@ pub struct MessageCreate {
     pub sandbox_max_cost_micro_usd: Option<String>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
+    /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 impl MessageCreate {
@@ -73,6 +76,7 @@ impl MessageCreate {
             keep_warm_seconds: None,
             sandbox_max_cost_micro_usd: None,
             model_parameters: None,
+            stream: None,
         }
     }
 }

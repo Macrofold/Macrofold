@@ -156,6 +156,7 @@ async function api(path: string, method = 'GET', body?: unknown, identity = id()
         authorization: `Bearer ${key}`,
         'content-type': 'application/json',
         'idempotency-key': identity,
+        prefer: 'respond-async',
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
@@ -326,6 +327,70 @@ it.each(
     }),
   );
 });
+it.each([
+  ['typesafe', 'typed'], ['typesafe', 'native'],
+  ['openrouter', 'typed'], ['openrouter', 'native'],
+] as const)('dispatches %s %s Jev requests larger in bytes than the token window', async (provider, shape) => {
+  vi.stubEnv(`${provider.toUpperCase()}_API_KEY`, 'synthetic-jev-key');
+  const model = provider === 'openrouter' ? 'typesafe/jev-1.13' : 'jev-1.13.0';
+  const body = input();
+  body.model_binding = { provider, model, billing_mode: 'managed' };
+  body.definition.allowed_models = [{ provider, model }];
+  const text = ' hello'.repeat(6000); // 36KB, not 36K tokens.
+  body.context.items[0].value = text;
+  const nativeInput = {
+    state: text,
+    questions: { decision: { type: 'choice', instructions: 'Choose review.', criteria: { review: 'Review' } } },
+  };
+  const call = vi.fn(async () => Response.json({
+    model, answers: { decision: { type: 'choice', choice: 'review' } },
+    usage: { input_tokens: 6314, output_tokens: 31 },
+  }));
+  vi.stubGlobal('fetch', call);
+  const runId = await submit(shape === 'typed' ? body : {
+    workspace_id: workspaceId, model_binding: body.model_binding,
+    input: nativeInput, limits: body.definition.limits,
+  });
+  await complete(runId);
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(call).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+    body: expect.stringContaining(text),
+  }));
+  const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+  expect(run.status).toBe('succeeded');
+  expect(run.result.inference?.outcome).toBe('value');
+  expect(run.cost_micro_usd).toBe('266'); // Actual reported input usage at $0.042/M.
+});
+
+it.each(['success', 'budget', 'provider-rejection'] as const)(
+  'keeps billing and provider authority separate from conventional context estimation: %s', async (outcome) => {
+    const body = input();
+    body.context.items[0].value = ' hello'.repeat(22000); // Exceeds the former 128KB pseudo-token window.
+    body.definition.limits.max_cost_micro_usd = outcome === 'budget' ? '1' : '500000';
+    const call = outcome === 'provider-rejection'
+      ? vi.fn(async () => Response.json({ error: { type: 'invalid_request_error', message: 'Prompt is too long' } }, { status: 400 }))
+      : provider();
+    vi.stubGlobal('fetch', call);
+    const runId = await submit(body);
+    await complete(runId);
+    const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+    if (outcome === 'budget') {
+      expect(call).not.toHaveBeenCalled();
+      expect(run.result.failure_code).toBe('run_budget_exhausted');
+      expect(run.cost_micro_usd).toBe('0');
+    } else if (outcome === 'provider-rejection') {
+      expect(run.status).toBe('failed');
+      expect(run.result.inference?.outcome).toBe('uncertain');
+      await advanceInference(owner.organizationId, runId);
+      expect(call).toHaveBeenCalledTimes(1); // No blind retry after dispatch.
+    } else {
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(run.status).toBe('succeeded');
+      expect(run.cost_micro_usd).toBe('150');
+    }
+  },
+);
+
 it('uses the exact OpenRouter BYOK connection and rechecks revocation without managed fallback', async () => {
   enable();
   vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-managed-key');

@@ -34,6 +34,8 @@ The core API exposes reusable workspaces, worktrees, presets, sessions, runs and
 
 ## Reference when you need it
 
+[Model and agent streaming](streaming.md) distinguishes available run streams from direct LLM streaming and unsupported combinations.
+
 [Authentication, errors, retries, and pagination](conventions.md) · [Streaming and webhooks](events.md) · [HTTP quickstart](http-quickstart.md) · [All SDK methods](sdks/reference.md) · [OpenAPI](../../api/openapi.json)
 
 The interactive API reference is available at `/reference` on your deployment. Keep API keys on your server; authorize your application's users before submitting work on their behalf.

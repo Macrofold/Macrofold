@@ -42,7 +42,8 @@ import dev.macrofold.ApiClient;
   CustomerAgentMessage.JSON_PROPERTY_CONVERSATION_ID,
   CustomerAgentMessage.JSON_PROPERTY_LIMITS,
   CustomerAgentMessage.JSON_PROPERTY_QUEUE_IF_BUSY,
-  CustomerAgentMessage.JSON_PROPERTY_ATTACHMENTS
+  CustomerAgentMessage.JSON_PROPERTY_ATTACHMENTS,
+  CustomerAgentMessage.JSON_PROPERTY_STREAM
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class CustomerAgentMessage {
@@ -65,6 +66,10 @@ public class CustomerAgentMessage {
   public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
   @javax.annotation.Nullable
   private Set<String> attachments = new LinkedHashSet<>();
+
+  public static final String JSON_PROPERTY_STREAM = "stream";
+  @javax.annotation.Nullable
+  private Boolean stream;
 
   public CustomerAgentMessage() { 
   }
@@ -198,6 +203,30 @@ public class CustomerAgentMessage {
   }
 
 
+  public CustomerAgentMessage stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+    return this;
+  }
+
+  /**
+   * Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+   * @return stream
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getStream() {
+    return stream;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
   /**
    * Return true if this CustomerAgentMessage object is equal to o.
    */
@@ -214,12 +243,13 @@ public class CustomerAgentMessage {
         Objects.equals(this.conversationId, customerAgentMessage.conversationId) &&
         Objects.equals(this.limits, customerAgentMessage.limits) &&
         Objects.equals(this.queueIfBusy, customerAgentMessage.queueIfBusy) &&
-        Objects.equals(this.attachments, customerAgentMessage.attachments);
+        Objects.equals(this.attachments, customerAgentMessage.attachments) &&
+        Objects.equals(this.stream, customerAgentMessage.stream);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, conversationId, limits, queueIfBusy, attachments);
+    return Objects.hash(prompt, conversationId, limits, queueIfBusy, attachments, stream);
   }
 
   @Override
@@ -231,6 +261,7 @@ public class CustomerAgentMessage {
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
     sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -304,6 +335,11 @@ public class CustomerAgentMessage {
             ApiClient.urlEncode(ApiClient.valueToString(_item))));
       }
       i++;
+    }
+
+    // add `stream` to the URL query string
+    if (getStream() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstream%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStream()))));
     }
 
     return joiner.toString();

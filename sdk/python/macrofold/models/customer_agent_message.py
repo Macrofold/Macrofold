@@ -35,7 +35,8 @@ class CustomerAgentMessage(BaseModel):
     limits: Optional[Limits] = None
     queue_if_busy: Optional[StrictBool] = Field(default=None, description="Queue when this worktree is busy. Omitted means false.")
     attachments: Optional[Annotated[List[Annotated[str, Field(min_length=1, strict=True, max_length=4096)]], Field(max_length=5)]] = Field(default=None, description="Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.")
-    __properties: ClassVar[List[str]] = ["prompt", "conversation_id", "limits", "queue_if_busy", "attachments"]
+    stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
+    __properties: ClassVar[List[str]] = ["prompt", "conversation_id", "limits", "queue_if_busy", "attachments", "stream"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -95,7 +96,8 @@ class CustomerAgentMessage(BaseModel):
             "conversation_id": obj.get("conversation_id"),
             "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
             "queue_if_busy": obj.get("queue_if_busy"),
-            "attachments": obj.get("attachments")
+            "attachments": obj.get("attachments"),
+            "stream": obj.get("stream")
         })
         return _obj
 

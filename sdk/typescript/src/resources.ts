@@ -8,7 +8,7 @@ export type RequestSettings = {
   idempotencyKey?: string;
   headers?: Record<string, string>;
 };
-type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent'>;
+type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent' | 'streamInference'>;
 export type ListWorkspacesOptions = {
   cursor?: NonNullable<operations['listWorkspaces']['parameters']['query']>['cursor'];
   limit?: NonNullable<operations['listWorkspaces']['parameters']['query']>['limit'];
@@ -2127,6 +2127,9 @@ export type CreateBoundedAgentRunOptions = NonNullable<
 >['content']['application/json'];
 export class InferencesResource {
   constructor(private client: Transport) {}
+  stream(request: Schema['InferenceCreate'], options: RequestSettings = {}) {
+    return this.client.streamInference(request, options);
+  }
   create(
     options: CreateInferenceOptions,
     requestOptions: RequestSettings = {},
@@ -2317,6 +2320,10 @@ export class SandboxesResource {
 }
 export abstract class Resources {
   abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
+  abstract streamInference(
+    body: Schema['InferenceCreate'],
+    options?: RequestSettings,
+  ): AsyncGenerator<Schema['InferenceStreamEvent']>;
   abstract stream(
     runId: string,
     options?: { after?: string; signal?: AbortSignal },

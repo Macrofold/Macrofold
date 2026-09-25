@@ -27,6 +27,9 @@ pub struct BoundedAgentCreate {
     pub limits: Option<Box<models::InferenceLimits>>,
     #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
     pub queue_timeout_seconds: Option<i32>,
+    /// Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 impl BoundedAgentCreate {
@@ -39,6 +42,7 @@ impl BoundedAgentCreate {
             model_binding: Box::new(model_binding),
             limits: None,
             queue_timeout_seconds: None,
+            stream: None,
         }
     }
 }

@@ -16,6 +16,7 @@ export type ResolvedContext = ExplicitContext & {
 };
 export type DecisionRequest = {
   model: string;
+  stream?: boolean;
   modelParameters?: import('./model-parameters').ModelParameters;
   definition: InferenceDefinition;
   input: unknown;
@@ -25,6 +26,10 @@ export type DecisionRequest = {
   steps?: { artifact_id: string; context: ExplicitContext }[];
 };
 export type DecisionResponse = {
+  incomplete?: string;
+  /** Assembled streaming output retained when typed parsing would lose original
+   * text (including invalid JSON). Sealed evidence for tracing, never authority. */
+  providerResponse?: unknown;
   value: unknown;
   refused: boolean;
   evidence?: { confidence?: number; probabilities?: Record<string, number> };
@@ -37,7 +42,6 @@ export type DecisionResponse = {
 export interface DecisionProtocol {
   readonly version: string;
   readonly kinds: readonly InferenceDefinition['question']['kind'][];
-  readonly maxInputTokens: number;
   readonly capabilities: {
     structuredOutput: boolean;
     brokeredTools: boolean;
@@ -52,12 +56,40 @@ export interface DecisionProtocol {
     signal: AbortSignal,
     observeResponse?: (response: unknown) => void,
     nativeResponse?: boolean,
+    output?: InferenceOutputSink,
   ): Promise<DecisionResponse>;
 }
 
-/** Share native media bounds with the gateway instead of pricing remote content as URL text. */
-export function inferenceInputBound(body: Record<string, unknown>, provider: string, model: string, native: boolean) {
+/** Conservative billing reservation only, not a tokenizer or context-window check.
+ * Share native media bounds with the gateway instead of pricing remote content as URL text.
+ * Providers enforce their actual model/tokenizer-specific context limits. */
+export function inferenceInputBound(
+  body: Record<string, unknown>,
+  provider: string,
+  model: string,
+  native: boolean,
+) {
   return native && provider !== 'typesafe' && model !== 'typesafe/jev-1.13'
-    ? modelInputBound(body, { provider, model, harness: provider === 'anthropic' ? 'claude-code' : 'opencode' })
+    ? modelInputBound(body, {
+        provider,
+        model,
+        harness: provider === 'anthropic' ? 'claude-code' : 'opencode',
+      })
     : Buffer.byteLength(JSON.stringify(body)) + 1024;
 }
+
+/** Transport-neutral fragments. Partial tool arguments are never executable authority. */
+export type InferenceOutput = {
+  type:
+    'output.started' | 'output.delta' | 'output.finished' | 'output.refusal.delta' | 'tool.arguments.delta';
+  data: {
+    invocation_id?: string;
+    message_id: string;
+    content_index: number;
+    choice_index?: number;
+    tool_call_id?: string;
+    text?: string;
+    stop_reason?: string;
+  };
+};
+export type InferenceOutputSink = (event: InferenceOutput) => void | Promise<void>;

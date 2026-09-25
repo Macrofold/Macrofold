@@ -147,6 +147,8 @@
   "src/models/inference_receipt_provider_evidence.rs",
   "src/models/inference_receipt_validation.rs",
   "src/models/inference_response.rs",
+  "src/models/inference_stream_event.rs",
+  "src/models/inference_stream_event_data.rs",
   "src/models/invitation.rs",
   "src/models/invitation_create.rs",
   "src/models/key_create.rs",

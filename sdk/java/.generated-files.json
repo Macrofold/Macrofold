@@ -158,6 +158,8 @@
   "src/main/java/dev/macrofold/model/InferenceReceiptProviderEvidence.java",
   "src/main/java/dev/macrofold/model/InferenceReceiptValidation.java",
   "src/main/java/dev/macrofold/model/InferenceResponse.java",
+  "src/main/java/dev/macrofold/model/InferenceStreamEvent.java",
+  "src/main/java/dev/macrofold/model/InferenceStreamEventData.java",
   "src/main/java/dev/macrofold/model/Invitation.java",
   "src/main/java/dev/macrofold/model/InvitationCreate.java",
   "src/main/java/dev/macrofold/model/KeyCreate.java",

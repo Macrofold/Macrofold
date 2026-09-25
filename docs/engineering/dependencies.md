@@ -53,3 +53,7 @@ Langfuse core/tracing/OTel 5.11.1 (MIT) and OpenTelemetry API 1.9.1, trace/resou
 The September 19 production audit reports zero known advisories; the refreshed declared-license inventory covers 1,296 package entries. This is not a security guarantee or review of the separate runtime OS/Python graph. [Tracing implementation](../features/observability/implementation.md) documents content bounds, process flushing and the replacement port.
 
 Background step export uses `@vercel/functions` 3.9.5 (Apache-2.0), promoted from the existing Workflow dependency graph to an explicit server dependency. Its `waitUntil` lifecycle primitive keeps exports alive without delaying step completion; request/stream routes retain Next `after`. No new hosted service or browser dependency is added.
+
+## Inference SSE framing
+
+Direct inference promotes `eventsource-parser` 3.1.1 (MIT), already present transitively, to a pinned server dependency. It handles incremental SSE framing; provider-specific assembly and completion checks remain in Macrofold’s provider adapter. No new hosted service, partial-JSON parser or tracing SDK upgrade is introduced. Preserve its existing bundled license when distributing the application.

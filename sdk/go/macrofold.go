@@ -184,6 +184,16 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 }
 
 func readEvents(reader io.Reader, receive func(Event) error) error {
+	return readSSE(reader, func(data []byte) error {
+		var event Event
+		if json.Unmarshal(data, &event) == nil {
+			return receive(event)
+		}
+		return nil
+	})
+}
+
+func readSSE(reader io.Reader, receive func([]byte) error) error {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 4096), 4*1024*1024)
 	var data strings.Builder
@@ -191,11 +201,8 @@ func readEvents(reader io.Reader, receive func(Event) error) error {
 		line := scanner.Text()
 		if line == "" {
 			if data.Len() > 0 {
-				var event Event
-				if json.Unmarshal([]byte(data.String()), &event) == nil {
-					if err := receive(event); err != nil {
-						return err
-					}
+				if err := receive([]byte(data.String())); err != nil {
+					return err
 				}
 				data.Reset()
 			}

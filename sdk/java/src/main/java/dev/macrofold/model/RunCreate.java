@@ -69,7 +69,8 @@ import dev.macrofold.ApiClient;
   RunCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
   RunCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
   RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
-  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE
+  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE,
+  RunCreate.JSON_PROPERTY_STREAM
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunCreate {
@@ -313,6 +314,10 @@ public class RunCreate {
   public static final String JSON_PROPERTY_HARNESS_PROMPT_MODE = "harness_prompt_mode";
   @javax.annotation.Nullable
   private HarnessPromptModeEnum harnessPromptMode;
+
+  public static final String JSON_PROPERTY_STREAM = "stream";
+  @javax.annotation.Nullable
+  private Boolean stream;
 
   public RunCreate() { 
   }
@@ -914,6 +919,30 @@ public class RunCreate {
   }
 
 
+  public RunCreate stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+    return this;
+  }
+
+  /**
+   * Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+   * @return stream
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getStream() {
+    return stream;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
   /**
    * Return true if this RunCreate object is equal to o.
    */
@@ -948,7 +977,8 @@ public class RunCreate {
         equalsNullable(this.keepWarmSeconds, runCreate.keepWarmSeconds) &&
         Objects.equals(this.sandboxMaxCostMicroUsd, runCreate.sandboxMaxCostMicroUsd) &&
         Objects.equals(this.modelParameters, runCreate.modelParameters) &&
-        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode);
+        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode) &&
+        Objects.equals(this.stream, runCreate.stream);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -957,7 +987,7 @@ public class RunCreate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode);
+    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, harnessPromptMode, stream);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -994,6 +1024,7 @@ public class RunCreate {
     sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
     sb.append("}");
     return sb.toString();
   }

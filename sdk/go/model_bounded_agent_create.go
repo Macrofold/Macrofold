@@ -28,6 +28,8 @@ type BoundedAgentCreate struct {
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
+	// Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 type _BoundedAgentCreate BoundedAgentCreate
@@ -240,6 +242,38 @@ func (o *BoundedAgentCreate) SetQueueTimeoutSeconds(v int32) {
 	o.QueueTimeoutSeconds = &v
 }
 
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *BoundedAgentCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *BoundedAgentCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *BoundedAgentCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *BoundedAgentCreate) SetStream(v bool) {
+	o.Stream = &v
+}
+
 func (o BoundedAgentCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -262,6 +296,9 @@ func (o BoundedAgentCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.QueueTimeoutSeconds) {
 		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
 	}
 	return toSerialize, nil
 }

@@ -76,4 +76,6 @@ A cURL stream can end at the server's connection rotation before the run finishe
 
 ## Continue building
 
+- [Stream model responses or agent output](streaming.md), including a complete direct-inference cURL example.
+
 Use a worktree or session selector for work over existing files and conversations. Learn [authentication and retries](conventions.md), [event delivery](events.md), and [CLI workflows](../cli/README.md). The [OpenAPI contract](../../api/openapi.json) lists every operation and schema.

@@ -6,6 +6,8 @@ The [SDKs](sdks/README.md) offer `runs.stream_text`/`streamText` for plain assis
 
 ## Stream a run
 
+See [model and agent streaming](streaming.md) for direct inference and harness capabilities. Direct `stream: true` submissions deliver transient output on their POST response; their GET run stream retains lifecycle events, not historical token deltas.
+
 `GET /v1/runs/{id}/stream` emits durable event IDs. Record the last delivered ID and send it as `Last-Event-ID` when reconnecting. `GET /v1/runs/{id}/events` offers paginated history with an `after` cursor.
 
 Streams deliberately rotate after about 55 seconds. The SDK and CLI reconnect with backoff and current credentials. A network interruption or terminal close does not cancel execution. If a cursor refers to expired detailed history, recover through retained events and the result, acknowledging the gap.

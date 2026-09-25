@@ -69,6 +69,7 @@
 
 - [API conventions](docs/features/api/conventions.md): Authentication, idempotency, errors, pagination, and asynchronous operations.
 - [Streaming and webhooks](docs/features/api/events.md): Reconnect to run events and verify reliable webhook delivery.
+- [Model and agent streaming](docs/features/api/streaming.md): Understand current agent streams and the planned direct-model delta interface and support limits.
 - [HTTP quickstart](docs/features/api/http-quickstart.md): Create a workspace and run using cURL, with explicit request identities and streaming.
 - [SDK method reference](docs/features/api/sdks/reference.md): Find the resource method for every public operation in all five languages.
 - [Troubleshooting](docs/getting-started/troubleshooting.md): Recover from setup failures, access errors, interrupted streams, and conflicting edits.

@@ -11907,6 +11907,12 @@
                 "schema": {
                   "$ref": "#/components/schemas/InferenceResponse"
                 }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "SSE frames containing InferenceStreamEvent JSON; use the maintained incremental SDK helper."
+                }
               }
             }
           }
@@ -14571,6 +14577,10 @@
               "extend"
             ],
             "description": "OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value."
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream."
           }
         },
         "required": [
@@ -14726,6 +14736,10 @@
           },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream."
           }
         },
         "required": [
@@ -19594,6 +19608,10 @@
               "maxLength": 4096
             },
             "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream."
           }
         },
         "required": [
@@ -20233,6 +20251,10 @@
           },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream."
           }
         },
         "required": [
@@ -20790,6 +20812,10 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 86400
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission."
           }
         },
         "required": [
@@ -21747,6 +21773,72 @@
           "urls"
         ],
         "additionalProperties": false
+      },
+      "InferenceStreamEvent": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "run_id",
+          "type",
+          "occurred_at",
+          "data"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "invocation_id": {
+                "type": "string"
+              },
+              "message_id": {
+                "type": "string"
+              },
+              "content_index": {
+                "type": "integer"
+              },
+              "choice_index": {
+                "type": "integer"
+              },
+              "tool_call_id": {
+                "type": "string"
+              },
+              "stop_reason": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "result_replay"
+                ]
+              },
+              "result": {
+                "$ref": "#/components/schemas/RunResult"
+              }
+            }
+          }
+        }
       }
     },
     "parameters": {

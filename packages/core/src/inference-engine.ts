@@ -1,3 +1,5 @@
+import { durableInferenceOutput } from './inference-output';
+import type { InferenceOutputSink } from './decision';
 import { inferenceInputBound } from './decision';
 import { boundedRequest, evidenceSteps, applyBoundedResponse } from './bounded-decisions';
 import { transaction, type Tx } from '../../db';
@@ -103,6 +105,7 @@ function checkedReceipt(
   const receipt = initialReceipt(run.config, call.id);
   const question = run.config.definition.question;
   const valid =
+    !response.incomplete &&
     schemaValidator(run.config.definition.output_schema)(response.value) &&
     (question.kind !== 'choice' ||
       (typeof response.value === 'string' && Object.hasOwn(question.criteria, response.value))) &&
@@ -128,29 +131,33 @@ function checkedReceipt(
     context_digest: call.context_digest,
     dependency_tokens: call.dependency_tokens,
     provider_request_digest: call.provider_request_digest,
-    provider_outcome: 'responded',
+    provider_outcome: response.incomplete ? 'uncertain' : 'responded',
     provider_request_id: response.requestId,
     model_revision: response.modelRevision,
     model_revision_status: response.modelRevision ? 'reported' : 'unavailable',
     usage_request_id: call.id,
-    outcome: stale
-      ? 'stale_input'
-      : response.refused
-        ? 'refused'
-        : unknown
-          ? 'unknown'
-          : valid
-            ? 'value'
-            : 'invalid_output',
-    reason_code: stale
-      ? 'context_expired'
-      : response.refused
-        ? 'provider_refused'
-        : unknown
-          ? 'declared_unknown'
-          : !valid
-            ? 'output_schema_mismatch'
-            : undefined,
+    outcome: response.incomplete
+      ? 'failed'
+      : stale
+        ? 'stale_input'
+        : response.refused
+          ? 'refused'
+          : unknown
+            ? 'unknown'
+            : valid
+              ? 'value'
+              : 'invalid_output',
+    reason_code:
+      response.incomplete ??
+      (stale
+        ? 'context_expired'
+        : response.refused
+          ? 'provider_refused'
+          : unknown
+            ? 'declared_unknown'
+            : !valid
+              ? 'output_schema_mismatch'
+              : undefined),
     provider_evidence: response.evidence,
     ...(valid && !stale && !response.refused && !unknown ? { value: response.value } : {}),
     validation: { ...receipt.validation, status: response.refused ? 'not_run' : valid ? 'passed' : 'failed' },
@@ -160,7 +167,12 @@ function checkedReceipt(
 /** One request, persisted intent and response, no automatic provider replay.
  * A competing worker waits until the accepted deadline before classifying a
  * lost dispatch as uncertain. No connection/transaction is held during HTTP. */
-export async function advanceInference(org: string, runId: string, background?: (task: () => Promise<void>) => void): Promise<Advance> {
+export async function advanceInference(
+  org: string,
+  runId: string,
+  background?: (task: () => Promise<void>) => void,
+  output?: InferenceOutputSink,
+): Promise<Advance> {
   let run = await transaction(org, (tx) => getRun(tx, runId));
   assert(
     run.kind !== 'native_agent',
@@ -206,6 +218,11 @@ export async function advanceInference(org: string, runId: string, background?: 
         type: 'generation',
         startedAt: call.dispatch_started_at || run.created_at,
         endedAt: call.responded_at || new Date(),
+        firstOutputAt:
+          call.dispatch_started_at && call.timings_ms.first_output !== undefined
+            ? new Date(call.dispatch_started_at.getTime() + call.timings_ms.first_output)
+            : undefined,
+        level: response.incomplete ? 'ERROR' : 'DEFAULT',
         input: unseal<Record<string, unknown>>(call.body_ciphertext),
         output: response,
         model: run.config.model,
@@ -220,11 +237,13 @@ export async function advanceInference(org: string, runId: string, background?: 
           context_digest: call.context_digest,
           provider_request_digest: call.provider_request_digest,
           usage_complete: response.usage.complete,
+          incomplete: response.incomplete,
+          ...call.timings_ms,
           ...billing,
         },
       });
     try {
-      const result = await applyBoundedResponse(run, call, response);
+      const result = response.incomplete ? response : await applyBoundedResponse(run, call, response);
       if (!result) return { done: false, delaySeconds: 0 };
       await finish(org, runId, checkedReceipt(run, call, result));
     } catch (error) {
@@ -371,6 +390,7 @@ export async function advanceInference(org: string, runId: string, background?: 
         const body = protocol.prepare(
           boundedRequest({
             model: run.config.model,
+            stream: run.config.stream,
             modelParameters: run.config.model_parameters,
             definition: run.config.definition,
             input: run.config.input,
@@ -383,17 +403,19 @@ export async function advanceInference(org: string, runId: string, background?: 
             ...(run.kind === 'bounded_agent' ? { steps } : {}),
           }),
         );
-        const inputTokenBound = inferenceInputBound(body, provider, run.config.model, run.config.definition.question.kind === 'provider');
-        assert(
-          inputTokenBound + maxOutputTokens <= protocol.maxInputTokens,
-          413,
-          'model_context_exceeded',
-          'The accumulated evidence exceeds the model context limit.',
+        const inputTokenBound = inferenceInputBound(
+          body,
+          provider,
+          run.config.model,
+          run.config.definition.question.kind === 'provider',
         );
         const bound = costForUsage(run.config.rate_card, {
           ...emptyUsage(),
           input: inputTokenBound,
-          cacheWrite: provider === 'anthropic' && run.config.definition.question.kind === 'provider' ? inputTokenBound : 0,
+          cacheWrite:
+            provider === 'anthropic' && run.config.definition.question.kind === 'provider'
+              ? inputTokenBound
+              : 0,
           output: maxOutputTokens,
         });
         assert(
@@ -528,12 +550,18 @@ export async function advanceInference(org: string, runId: string, background?: 
       Math.max(1, authorization.deadline.getTime() - Date.now()),
     );
     const cancelled = setInterval(() => {
-      void transaction(org, (tx) => getRun(tx, runId))
-        .then((latest) => {
-          if (latest.cancel_requested || terminal(latest.status)) controller.abort();
+      void transaction(org, async (tx) => {
+        const latest = await getRun(tx, runId);
+        return { latest, authorized: await actorAuthorized(tx, latest) };
+      })
+        .then(({ latest, authorized }) => {
+          if (!authorized || latest.cancel_requested || terminal(latest.status)) controller.abort();
         })
         .catch(() => controller.abort());
     }, 500);
+    const durable =
+      run.kind === 'bounded_agent' && run.config.stream ? durableInferenceOutput(org, runId) : undefined;
+    let firstOutputMs: number | undefined;
     const attemptStarted = performance.now();
     let failureStage = 'provider_request';
     const startedAt = new Date();
@@ -542,48 +570,69 @@ export async function advanceInference(org: string, runId: string, background?: 
       const protocol = decisionProtocol(run.config.rate_card.provider, run.config.model);
       const providerStarted = performance.now();
       const requestBody = unseal<Record<string, unknown>>(call.body_ciphertext);
-      const response = await observeWorkerStep('inference_provider', {
-        organization_id: org, run_id: runId, request_id: call.id,
-        model: run.config.model, provider: run.config.rate_card.provider,
-      }, () => protocol.invoke(
-        requestBody,
-        authorization.secret,
-        controller.signal,
-        (output) => {
-          rawResponse = output;
+      const response = await observeWorkerStep(
+        'inference_provider',
+        {
+          organization_id: org,
+          run_id: runId,
+          request_id: call.id,
+          model: run.config.model,
+          provider: run.config.rate_card.provider,
         },
-        run.config.definition.question.kind === 'provider',
-      ));
+        () =>
+          protocol.invoke(
+            requestBody,
+            authorization.secret,
+            controller.signal,
+            (output) => {
+              rawResponse = output;
+            },
+            run.config.definition.question.kind === 'provider',
+            async (event) => {
+              if (event.type === 'output.delta' && firstOutputMs === undefined)
+                firstOutputMs = performance.now() - providerStarted;
+              const fragment = { ...event, data: { ...event.data, invocation_id: prepared.id } };
+              await (output ?? durable?.write)?.(fragment);
+            },
+          ),
+      );
       const providerMs = performance.now() - providerStarted;
+      if (run.config.stream && !response.incomplete && run.config.definition.question.kind !== 'provider')
+        response.providerResponse = rawResponse;
       failureStage = 'response_persistence';
       // Commit evidence before attempting financial settlement or publication.
       const persistenceStarted = performance.now();
-      await transaction(org, (tx) =>
-        tx.query(
+      await transaction(org, async (tx) => {
+        // Match run-first locking used by cancellation and content retention.
+        if (durable) await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
+        await tx.query(
           // Retention/purge wins over a late provider response. Never restore
           // customer content after the owning run's diagnostics were erased.
           "UPDATE decision_invocations SET state='responded',response_ciphertext=$2,responded_at=now(),timings_ms=$3 WHERE id=$1 AND body_ciphertext<>''",
-          [prepared.id, seal(response), JSON.stringify({ provider: providerMs })],
-        ),
-      );
+          [
+            prepared.id,
+            seal(response),
+            JSON.stringify({ provider: providerMs, first_output: firstOutputMs }),
+          ],
+        );
+        // Publish the final replay batch atomically with its response evidence.
+        await durable?.flush(tx);
+      });
       const persistenceMs = performance.now() - persistenceStarted;
       // Measurement is non-authoritative. The request host owns it after the
       // response; worker callers retain the existing awaited behavior.
       const recordPersistenceTiming = async () => {
         await transaction(org, (tx) =>
           tx.query('UPDATE decision_invocations SET timings_ms=timings_ms||$2::jsonb WHERE id=$1', [
-            prepared.id, JSON.stringify({ response_persistence: persistenceMs }),
+            prepared.id,
+            JSON.stringify({ response_persistence: persistenceMs }),
           ]),
         ).catch(() => {}); // Never turn a durable provider response into an uncertain call.
       };
       if (background) background(recordPersistenceTiming);
       else await recordPersistenceTiming();
     } catch (error) {
-      if (
-        rawResponse !== undefined &&
-        failureStage === 'provider_request' &&
-        authorization.traceContext
-      )
+      if (rawResponse !== undefined && failureStage === 'provider_request' && authorization.traceContext)
         recordTrace({
           context: authorization.traceContext,
           id: `response:${call.id}`,
@@ -595,19 +644,21 @@ export async function advanceInference(org: string, runId: string, background?: 
           metadata: { invocation_id: call.id, step: call.step, diagnostic: 'normalization_failed' },
           level: 'ERROR',
         });
-      console.error(JSON.stringify({
-        event: 'inference.execution_failed',
-        run_id: runId,
-        invocation_id: prepared.id,
-        organization_id: org,
-        workspace_id: run.workspace_id,
-        provider: run.config.rate_card.provider,
-        model: run.config.model,
-        stage: failureStage,
-        elapsed_ms: Math.round(performance.now() - attemptStarted),
-        aborted: controller.signal.aborted,
-        error: providerErrorDetails(error, authorization.secret),
-      }));
+      console.error(
+        JSON.stringify({
+          event: 'inference.execution_failed',
+          run_id: runId,
+          invocation_id: prepared.id,
+          organization_id: org,
+          workspace_id: run.workspace_id,
+          provider: run.config.rate_card.provider,
+          model: run.config.model,
+          stage: failureStage,
+          elapsed_ms: Math.round(performance.now() - attemptStarted),
+          aborted: controller.signal.aborted,
+          error: providerErrorDetails(error, authorization.secret),
+        }),
+      );
       await transaction(org, (tx) =>
         tx.query(
           "UPDATE decision_invocations SET state='uncertain' WHERE id=$1 AND state='dispatch_started'",

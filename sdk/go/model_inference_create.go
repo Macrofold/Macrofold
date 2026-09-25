@@ -29,6 +29,8 @@ type InferenceCreate struct {
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
+	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 type _InferenceCreate InferenceCreate
@@ -294,6 +296,38 @@ func (o *InferenceCreate) SetModelParameters(v ModelParameters) {
 	o.ModelParameters = &v
 }
 
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *InferenceCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *InferenceCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *InferenceCreate) SetStream(v bool) {
+	o.Stream = &v
+}
+
 func (o InferenceCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -325,6 +359,9 @@ func (o InferenceCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
 	}
 	return toSerialize, nil
 }

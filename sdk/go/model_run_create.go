@@ -54,6 +54,8 @@ type RunCreate struct {
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 	// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
 	HarnessPromptMode *string `json:"harness_prompt_mode,omitempty"`
+	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 type _RunCreate RunCreate
@@ -814,6 +816,38 @@ func (o *RunCreate) SetHarnessPromptMode(v string) {
 	o.HarnessPromptMode = &v
 }
 
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *RunCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *RunCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *RunCreate) SetStream(v bool) {
+	o.Stream = &v
+}
+
 func (o RunCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -890,6 +924,9 @@ func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.HarnessPromptMode) {
 		toSerialize["harness_prompt_mode"] = o.HarnessPromptMode
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
 	}
 	return toSerialize, nil
 }

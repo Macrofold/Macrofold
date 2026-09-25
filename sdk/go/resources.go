@@ -1,12 +1,13 @@
 // Code generated from OpenAPI by pnpm sdk:generate:all; DO NOT EDIT.
 package macrofold
-import ("context"; "os"; "time")
+import ("context"; "os"; "time"; "errors")
 const DefaultOrigin = "https://app.macrofold.ai"
 type Client struct { *APIClient; Workspaces *WorkspacesResource;Worktrees *WorktreesResource;Agents *AgentsResource;Sessions *SessionsResource;Runs *RunsResource;Artifacts *ArtifactsResource;Connections *ConnectionsResource;ApiKeys *ApiKeysResource;WebhookEndpoints *WebhookEndpointsResource;WebhookDeliveries *WebhookDeliveriesResource;Usage *UsageResource;Requests *RequestsResource;Billing *BillingResource;Harnesses *HarnessesResource;Models *ModelsResource;Operations *OperationsResource;Operator *OperatorResource;Checkpoints *CheckpointsResource;Me *MeResource;Transfers *TransfersResource;Integrations *IntegrationsResource;Organizations *OrganizationsResource;Triggers *TriggersResource;SlackConnections *SlackConnectionsResource;CustomerAgents *CustomerAgentsResource;Inferences *InferencesResource;Tasks *TasksResource;Sandboxes *SandboxesResource }
 func resources(api *APIClient) *Client { return &Client{APIClient:api, Workspaces:&WorkspacesResource{api},Worktrees:&WorktreesResource{api},Agents:&AgentsResource{api},Sessions:&SessionsResource{api},Runs:&RunsResource{api},Artifacts:&ArtifactsResource{api},Connections:&ConnectionsResource{api},ApiKeys:&ApiKeysResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Usage:&UsageResource{api},Requests:&RequestsResource{api},Billing:&BillingResource{api},Harnesses:&HarnessesResource{api},Models:&ModelsResource{api},Operations:&OperationsResource{api},Operator:&OperatorResource{api},Checkpoints:&CheckpointsResource{api},Me:&MeResource{api},Transfers:&TransfersResource{api},Integrations:&IntegrationsResource{api},Organizations:&OrganizationsResource{api},Triggers:&TriggersResource{api},SlackConnections:&SlackConnectionsResource{api},CustomerAgents:&CustomerAgentsResource{api},Inferences:&InferencesResource{api},Tasks:&TasksResource{api},Sandboxes:&SandboxesResource{api},} }
 
 type WorkspacesResource struct {client *APIClient}
 func (r *WorkspacesResource) CancelDeletion(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -19,6 +20,7 @@ func (r *WorkspacesResource) CancelDeletion(ctx context.Context, workspaceId str
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorkspacesResource) Create(ctx context.Context, input *WorkspaceCreate, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -31,6 +33,7 @@ func (r *WorkspacesResource) Create(ctx context.Context, input *WorkspaceCreate,
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorkspacesResource) CreateWorktree(ctx context.Context, workspaceId string, input *WorktreeCreate, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -43,6 +46,7 @@ func (r *WorkspacesResource) CreateWorktree(ctx context.Context, workspaceId str
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorkspacesResource) Delete(ctx context.Context, workspaceId string, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -56,6 +60,7 @@ func (r *WorkspacesResource) Delete(ctx context.Context, workspaceId string, opt
       }
 type GetWorkspaceParams struct {IncludeConnections *bool;AgentId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
 func (r *WorkspacesResource) Get(ctx context.Context, workspaceId string, params *GetWorkspaceParams, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &GetWorkspaceParams{}}
@@ -72,6 +77,7 @@ if params.ConnectionsCursor != nil {call = call.ConnectionsCursor(*params.Connec
       }
 type GetWorktreeOptionsParams struct {Name *string;Branch *string}
 func (r *WorkspacesResource) GetWorktreeOptions(ctx context.Context, workspaceId string, params *GetWorktreeOptionsParams, options ...RequestOption) (*WorktreeOptions, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &GetWorktreeOptionsParams{}}
@@ -86,6 +92,7 @@ if params.Branch != nil {call = call.Branch(*params.Branch)}
       }
 type ListWorkspacesParams struct {Cursor *string;Limit *int32;Query *string;Archived *bool}
 func (r *WorkspacesResource) List(ctx context.Context, params *ListWorkspacesParams, options ...RequestOption) (*ListWorkspaces200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListWorkspacesParams{}}
@@ -102,6 +109,7 @@ if params.Archived != nil {call = call.Archived(*params.Archived)}
       }
 type ListWorktreesParams struct {Cursor *string;Limit *int32}
 func (r *WorkspacesResource) ListWorktrees(ctx context.Context, workspaceId string, params *ListWorktreesParams, options ...RequestOption) (*ListWorktrees200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListWorktreesParams{}}
@@ -115,6 +123,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *WorkspacesResource) ScheduleDeletion(ctx context.Context, workspaceId string, input *WorkspaceDeletion, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -127,6 +136,7 @@ func (r *WorkspacesResource) ScheduleDeletion(ctx context.Context, workspaceId s
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorkspacesResource) Update(ctx context.Context, workspaceId string, input *WorkspacePatch, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -140,6 +150,7 @@ func (r *WorkspacesResource) Update(ctx context.Context, workspaceId string, inp
       }
 type WorktreesResource struct {client *APIClient}
 func (r *WorktreesResource) CreateCheckpoint(ctx context.Context, worktreeId string, input *CheckpointCreate, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -153,6 +164,7 @@ func (r *WorktreesResource) CreateCheckpoint(ctx context.Context, worktreeId str
       }
 type CreateFolderParams struct {IfMatch string}
 func (r *WorktreesResource) CreateFolder(ctx context.Context, worktreeId string, input *FolderCreate, params *CreateFolderParams, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -165,6 +177,7 @@ func (r *WorktreesResource) CreateFolder(ctx context.Context, worktreeId string,
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) CreateTransfer(ctx context.Context, worktreeId string, input *TransferCreate, options ...RequestOption) (*Transfer, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -178,6 +191,7 @@ func (r *WorktreesResource) CreateTransfer(ctx context.Context, worktreeId strin
       }
 type DeleteFileParams struct {Path string;IfMatch string}
 func (r *WorktreesResource) DeleteFile(ctx context.Context, worktreeId string, params *DeleteFileParams, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -191,6 +205,7 @@ call = call.IfMatch(params.IfMatch)
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) Delete(ctx context.Context, worktreeId string, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -204,6 +219,7 @@ func (r *WorktreesResource) Delete(ctx context.Context, worktreeId string, optio
       }
 type DuplicateFileParams struct {IfMatch string}
 func (r *WorktreesResource) DuplicateFile(ctx context.Context, worktreeId string, input *FileDuplicate, params *DuplicateFileParams, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -216,6 +232,7 @@ func (r *WorktreesResource) DuplicateFile(ctx context.Context, worktreeId string
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) GetSync(ctx context.Context, worktreeId string, options ...RequestOption) (*GitSync, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -228,6 +245,7 @@ func (r *WorktreesResource) GetSync(ctx context.Context, worktreeId string, opti
         return result, requestError(callError, response, "")
       }
 func (r *WorktreesResource) Get(ctx context.Context, worktreeId string, options ...RequestOption) (*Worktree, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -241,6 +259,7 @@ func (r *WorktreesResource) Get(ctx context.Context, worktreeId string, options 
       }
 type GetWorktreeDiffParams struct {BaseCheckpointId *string;Path *string;Cursor *string;Limit *int32}
 func (r *WorktreesResource) GetDiff(ctx context.Context, worktreeId string, params *GetWorktreeDiffParams, options ...RequestOption) (*WorktreeDiff, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &GetWorktreeDiffParams{}}
@@ -257,6 +276,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListCheckpointsParams struct {Cursor *string;Limit *int32}
 func (r *WorktreesResource) ListCheckpoints(ctx context.Context, worktreeId string, params *ListCheckpointsParams, options ...RequestOption) (*ListCheckpoints200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCheckpointsParams{}}
@@ -271,6 +291,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListFilesParams struct {Path *string;Cursor *string;Limit *int32;Query *string;Recursive *bool}
 func (r *WorktreesResource) ListFiles(ctx context.Context, worktreeId string, params *ListFilesParams, options ...RequestOption) (*FileListing, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListFilesParams{}}
@@ -288,6 +309,7 @@ if params.Recursive != nil {call = call.Recursive(*params.Recursive)}
       }
 type ListTransfersParams struct {Cursor *string;Limit *int32}
 func (r *WorktreesResource) ListTransfers(ctx context.Context, worktreeId string, params *ListTransfersParams, options ...RequestOption) (*ListTransfers200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListTransfersParams{}}
@@ -302,6 +324,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ReadFileParams struct {Path string;Download *bool}
 func (r *WorktreesResource) ReadFile(ctx context.Context, worktreeId string, params *ReadFileParams, options ...RequestOption) (*os.File, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -316,6 +339,7 @@ if params.Download != nil {call = call.Download(*params.Download)}
       }
 type RenameFileParams struct {Path string;IfMatch string}
 func (r *WorktreesResource) RenameFile(ctx context.Context, worktreeId string, input *FileRename, params *RenameFileParams, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -329,6 +353,7 @@ call = call.IfMatch(params.IfMatch)
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) Restore(ctx context.Context, worktreeId string, input *RestoreRequest, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -341,6 +366,7 @@ func (r *WorktreesResource) Restore(ctx context.Context, worktreeId string, inpu
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) Sync(ctx context.Context, worktreeId string, input *SyncWorktreeRequest, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -353,6 +379,7 @@ func (r *WorktreesResource) Sync(ctx context.Context, worktreeId string, input *
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WorktreesResource) Update(ctx context.Context, worktreeId string, input *WorktreePatch, options ...RequestOption) (*Worktree, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -366,6 +393,7 @@ func (r *WorktreesResource) Update(ctx context.Context, worktreeId string, input
       }
 type WriteFileParams struct {Path string;IfMatch string;CreateOnly *bool}
 func (r *WorktreesResource) WriteFile(ctx context.Context, worktreeId string, content *os.File, params *WriteFileParams, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if content == nil {return nil, missingParameter("content")}
         if params == nil {return nil, missingParameter("params")}
@@ -381,6 +409,7 @@ if params.CreateOnly != nil {call = call.CreateOnly(*params.CreateOnly)}
       }
 type AgentsResource struct {client *APIClient}
 func (r *AgentsResource) Create(ctx context.Context, input *AgentCreate, options ...RequestOption) (*Agent, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -393,6 +422,7 @@ func (r *AgentsResource) Create(ctx context.Context, input *AgentCreate, options
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *AgentsResource) Delete(ctx context.Context, agentId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, false); if err != nil {return err}
 
 
@@ -406,6 +436,7 @@ func (r *AgentsResource) Delete(ctx context.Context, agentId string, options ...
       }
 type GetAgentParams struct {IncludeConnections *bool;WorkspaceId *string;ConnectionsLimit *int32;ConnectionsCursor *string}
 func (r *AgentsResource) Get(ctx context.Context, agentId string, params *GetAgentParams, options ...RequestOption) (*Agent, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &GetAgentParams{}}
@@ -422,6 +453,7 @@ if params.ConnectionsCursor != nil {call = call.ConnectionsCursor(*params.Connec
       }
 type ListAgentsParams struct {Cursor *string;Limit *int32;Query *string}
 func (r *AgentsResource) List(ctx context.Context, params *ListAgentsParams, options ...RequestOption) (*ListAgents200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListAgentsParams{}}
@@ -436,6 +468,7 @@ if params.Query != nil {call = call.Query(*params.Query)}
         return result, requestError(callError, response, "")
       }
 func (r *AgentsResource) Update(ctx context.Context, agentId string, input *AgentPatch, options ...RequestOption) (*Agent, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -449,6 +482,7 @@ func (r *AgentsResource) Update(ctx context.Context, agentId string, input *Agen
       }
 type SessionsResource struct {client *APIClient}
 func (r *SessionsResource) ContinueRun(ctx context.Context, sessionId string, input *MessageCreate, options ...RequestOption) (*NativeRunAccepted, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -461,6 +495,7 @@ func (r *SessionsResource) ContinueRun(ctx context.Context, sessionId string, in
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SessionsResource) Create(ctx context.Context, input *SessionCreate, options ...RequestOption) (*Session, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -473,6 +508,7 @@ func (r *SessionsResource) Create(ctx context.Context, input *SessionCreate, opt
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SessionsResource) Get(ctx context.Context, sessionId string, options ...RequestOption) (*Session, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -486,6 +522,7 @@ func (r *SessionsResource) Get(ctx context.Context, sessionId string, options ..
       }
 type ListSessionsParams struct {Cursor *string;Limit *int32;WorktreeId *string}
 func (r *SessionsResource) List(ctx context.Context, params *ListSessionsParams, options ...RequestOption) (*ListSessions200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListSessionsParams{}}
@@ -501,6 +538,7 @@ if params.WorktreeId != nil {call = call.WorktreeId(*params.WorktreeId)}
       }
 type RunsResource struct {client *APIClient}
 func (r *RunsResource) Cancel(ctx context.Context, runId string, options ...RequestOption) (*Run, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -513,6 +551,7 @@ func (r *RunsResource) Cancel(ctx context.Context, runId string, options ...Requ
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *RunsResource) Create(ctx context.Context, input *RunCreate, options ...RequestOption) (*NativeRunAccepted, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -525,6 +564,7 @@ func (r *RunsResource) Create(ctx context.Context, input *RunCreate, options ...
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *RunsResource) Get(ctx context.Context, runId string, options ...RequestOption) (*Run, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -537,6 +577,7 @@ func (r *RunsResource) Get(ctx context.Context, runId string, options ...Request
         return result, requestError(callError, response, "")
       }
 func (r *RunsResource) GetResult(ctx context.Context, runId string, options ...RequestOption) (*RunResult, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -550,6 +591,7 @@ func (r *RunsResource) GetResult(ctx context.Context, runId string, options ...R
       }
 type ListArtifactsParams struct {Cursor *string;Limit *int32}
 func (r *RunsResource) ListArtifacts(ctx context.Context, runId string, params *ListArtifactsParams, options ...RequestOption) (*ListArtifacts200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListArtifactsParams{}}
@@ -564,6 +606,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListRunEventsParams struct {After *string;Cursor *string;Limit *int32}
 func (r *RunsResource) ListEvents(ctx context.Context, runId string, params *ListRunEventsParams, options ...RequestOption) (*ListRunEvents200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListRunEventsParams{}}
@@ -579,6 +622,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListRunsParams struct {Status *string;WorkspaceId *string;From *time.Time;To *time.Time;Cursor *string;Limit *int32;WorktreeId *string;SessionId *string}
 func (r *RunsResource) List(ctx context.Context, params *ListRunsParams, options ...RequestOption) (*ListRuns200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListRunsParams{}}
@@ -599,6 +643,7 @@ if params.SessionId != nil {call = call.SessionId(*params.SessionId)}
       }
 func (r *RunsResource) Stream(ctx context.Context, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.Stream(ctx,runID,after,receive,options...) }
 func (r *RunsResource) SubmitInput(ctx context.Context, runId string, input *RunInput, options ...RequestOption) (*Run, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -612,6 +657,7 @@ func (r *RunsResource) SubmitInput(ctx context.Context, runId string, input *Run
       }
 type ArtifactsResource struct {client *APIClient}
 func (r *ArtifactsResource) Delete(ctx context.Context, artifactId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, true); if err != nil {return err}
 
 
@@ -624,6 +670,7 @@ func (r *ArtifactsResource) Delete(ctx context.Context, artifactId string, optio
         return requestError(callError, response, settings.idempotencyKey)
       }
 func (r *ArtifactsResource) Download(ctx context.Context, artifactId string, options ...RequestOption) (*Download, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -637,6 +684,7 @@ func (r *ArtifactsResource) Download(ctx context.Context, artifactId string, opt
       }
 type ConnectionsResource struct {client *APIClient}
 func (r *ConnectionsResource) Authorize(ctx context.Context, connectionId string, input *AuthorizeRequest, options ...RequestOption) (*AuthorizationLink, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -649,6 +697,7 @@ func (r *ConnectionsResource) Authorize(ctx context.Context, connectionId string
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *ConnectionsResource) Create(ctx context.Context, input *ConnectionCreate, options ...RequestOption) (*Connection, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -662,6 +711,7 @@ func (r *ConnectionsResource) Create(ctx context.Context, input *ConnectionCreat
       }
 type CreateConnectionAccessRuleParams struct {IfMatch string}
 func (r *ConnectionsResource) CreateAccessRule(ctx context.Context, connectionId string, input *ConnectionAccessRuleInput, params *CreateConnectionAccessRuleParams, options ...RequestOption) (*ConnectionAccessRuleMutation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -674,6 +724,7 @@ func (r *ConnectionsResource) CreateAccessRule(ctx context.Context, connectionId
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *ConnectionsResource) Delete(ctx context.Context, connectionId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, false); if err != nil {return err}
 
 
@@ -687,6 +738,7 @@ func (r *ConnectionsResource) Delete(ctx context.Context, connectionId string, o
       }
 type DeleteConnectionAccessRuleParams struct {IfMatch string}
 func (r *ConnectionsResource) DeleteAccessRule(ctx context.Context, connectionId string, ruleId string, params *DeleteConnectionAccessRuleParams, options ...RequestOption) (*ConnectionAccessRuleDeleted, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -699,6 +751,7 @@ func (r *ConnectionsResource) DeleteAccessRule(ctx context.Context, connectionId
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *ConnectionsResource) Get(ctx context.Context, connectionId string, options ...RequestOption) (*Connection, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -711,6 +764,7 @@ func (r *ConnectionsResource) Get(ctx context.Context, connectionId string, opti
         return result, requestError(callError, response, "")
       }
 func (r *ConnectionsResource) GetAccess(ctx context.Context, connectionId string, options ...RequestOption) (*ConnectionAccess, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -724,6 +778,7 @@ func (r *ConnectionsResource) GetAccess(ctx context.Context, connectionId string
       }
 type ListConnectionAccessRulesParams struct {Cursor *string;Limit *int32;WorkspaceId *string;AgentId *string;Sort *string;Direction *string}
 func (r *ConnectionsResource) ListAccessRules(ctx context.Context, connectionId string, params *ListConnectionAccessRulesParams, options ...RequestOption) (*ConnectionAccessRulePage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListConnectionAccessRulesParams{}}
@@ -742,6 +797,7 @@ if params.Direction != nil {call = call.Direction(*params.Direction)}
       }
 type ListConnectionsParams struct {Cursor *string;Limit *int32;WorkspaceId *string;AgentId *string}
 func (r *ConnectionsResource) List(ctx context.Context, params *ListConnectionsParams, options ...RequestOption) (*ContextualConnectionPage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListConnectionsParams{}}
@@ -758,6 +814,7 @@ if params.AgentId != nil {call = call.AgentId(*params.AgentId)}
       }
 type ListConnectionToolsParams struct {Cursor *string;Limit *int32}
 func (r *ConnectionsResource) ListTools(ctx context.Context, connectionId string, params *ListConnectionToolsParams, options ...RequestOption) (*ListConnectionTools200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListConnectionToolsParams{}}
@@ -771,6 +828,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *ConnectionsResource) ListConnectorCatalog(ctx context.Context, options ...RequestOption) (*ConnectorCatalog, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -784,6 +842,7 @@ func (r *ConnectionsResource) ListConnectorCatalog(ctx context.Context, options 
       }
 type ListStdioPackagesParams struct {Cursor *string;Limit *int32}
 func (r *ConnectionsResource) ListStdioPackages(ctx context.Context, params *ListStdioPackagesParams, options ...RequestOption) (*StdioPackagePage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListStdioPackagesParams{}}
@@ -798,6 +857,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ResolveConnectionAccessParams struct {Cursor *string;Limit *int32}
 func (r *ConnectionsResource) ResolveAccess(ctx context.Context, input *ConnectionAccessResolve, params *ResolveConnectionAccessParams, options ...RequestOption) (*ConnectionAccessResolutionPage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {params = &ResolveConnectionAccessParams{}}
@@ -811,6 +871,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *ConnectionsResource) Test(ctx context.Context, connectionId string, options ...RequestOption) (*ConnectionTest, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -823,6 +884,7 @@ func (r *ConnectionsResource) Test(ctx context.Context, connectionId string, opt
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *ConnectionsResource) Update(ctx context.Context, connectionId string, input *ConnectionPatch, options ...RequestOption) (*Connection, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -836,6 +898,7 @@ func (r *ConnectionsResource) Update(ctx context.Context, connectionId string, i
       }
 type UpdateConnectionAccessParams struct {IfMatch string}
 func (r *ConnectionsResource) UpdateAccess(ctx context.Context, connectionId string, input *ConnectionAccessPatch, params *UpdateConnectionAccessParams, options ...RequestOption) (*ConnectionAccess, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -849,6 +912,7 @@ func (r *ConnectionsResource) UpdateAccess(ctx context.Context, connectionId str
       }
 type UpdateConnectionAccessRuleParams struct {IfMatch string}
 func (r *ConnectionsResource) UpdateAccessRule(ctx context.Context, connectionId string, ruleId string, input *ConnectionAccessRuleInput, params *UpdateConnectionAccessRuleParams, options ...RequestOption) (*ConnectionAccessRuleMutation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -862,6 +926,7 @@ func (r *ConnectionsResource) UpdateAccessRule(ctx context.Context, connectionId
       }
 type ApiKeysResource struct {client *APIClient}
 func (r *ApiKeysResource) Create(ctx context.Context, input *KeyCreate, options ...RequestOption) (*CreatedApiKey, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -875,6 +940,7 @@ func (r *ApiKeysResource) Create(ctx context.Context, input *KeyCreate, options 
       }
 type ListApiKeysParams struct {Cursor *string;Limit *int32}
 func (r *ApiKeysResource) List(ctx context.Context, params *ListApiKeysParams, options ...RequestOption) (*ListApiKeys200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListApiKeysParams{}}
@@ -888,6 +954,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *ApiKeysResource) Revoke(ctx context.Context, keyId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, false); if err != nil {return err}
 
 
@@ -901,6 +968,7 @@ func (r *ApiKeysResource) Revoke(ctx context.Context, keyId string, options ...R
       }
 type WebhookEndpointsResource struct {client *APIClient}
 func (r *WebhookEndpointsResource) Create(ctx context.Context, input *WebhookCreate, options ...RequestOption) (*CreatedWebhook, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -913,6 +981,7 @@ func (r *WebhookEndpointsResource) Create(ctx context.Context, input *WebhookCre
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WebhookEndpointsResource) Delete(ctx context.Context, endpointId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, false); if err != nil {return err}
 
 
@@ -926,6 +995,7 @@ func (r *WebhookEndpointsResource) Delete(ctx context.Context, endpointId string
       }
 type ListWebhookEndpointsParams struct {Cursor *string;Limit *int32}
 func (r *WebhookEndpointsResource) List(ctx context.Context, params *ListWebhookEndpointsParams, options ...RequestOption) (*ListWebhookEndpoints200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListWebhookEndpointsParams{}}
@@ -939,6 +1009,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *WebhookEndpointsResource) RotateWebhookSecret(ctx context.Context, endpointId string, options ...RequestOption) (*CreatedWebhook, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -951,6 +1022,7 @@ func (r *WebhookEndpointsResource) RotateWebhookSecret(ctx context.Context, endp
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *WebhookEndpointsResource) Update(ctx context.Context, endpointId string, input *WebhookPatch, options ...RequestOption) (*Webhook, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -965,6 +1037,7 @@ func (r *WebhookEndpointsResource) Update(ctx context.Context, endpointId string
 type WebhookDeliveriesResource struct {client *APIClient}
 type ListWebhookDeliveriesParams struct {Cursor *string;Limit *int32}
 func (r *WebhookDeliveriesResource) List(ctx context.Context, params *ListWebhookDeliveriesParams, options ...RequestOption) (*ListWebhookDeliveries200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListWebhookDeliveriesParams{}}
@@ -978,6 +1051,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *WebhookDeliveriesResource) Replay(ctx context.Context, deliveryId string, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -992,6 +1066,7 @@ func (r *WebhookDeliveriesResource) Replay(ctx context.Context, deliveryId strin
 type UsageResource struct {client *APIClient}
 type GetUsageParams struct {From *time.Time;To *time.Time;GroupBy *string}
 func (r *UsageResource) Get(ctx context.Context, params *GetUsageParams, options ...RequestOption) (*Report, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &GetUsageParams{}}
@@ -1008,6 +1083,7 @@ if params.GroupBy != nil {call = call.GroupBy(*params.GroupBy)}
 type RequestsResource struct {client *APIClient}
 type ListRequestsParams struct {From *time.Time;To *time.Time;Cursor *string;Limit *int32}
 func (r *RequestsResource) List(ctx context.Context, params *ListRequestsParams, options ...RequestOption) (*ListRequests200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListRequestsParams{}}
@@ -1024,6 +1100,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type BillingResource struct {client *APIClient}
 func (r *BillingResource) CreatePortal(ctx context.Context, options ...RequestOption) (*Redirect, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1036,6 +1113,7 @@ func (r *BillingResource) CreatePortal(ctx context.Context, options ...RequestOp
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *BillingResource) CreateCheckout(ctx context.Context, input *CheckoutCreate, options ...RequestOption) (*Redirect, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1048,6 +1126,7 @@ func (r *BillingResource) CreateCheckout(ctx context.Context, input *CheckoutCre
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *BillingResource) Get(ctx context.Context, options ...RequestOption) (*Billing, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1060,6 +1139,7 @@ func (r *BillingResource) Get(ctx context.Context, options ...RequestOption) (*B
         return result, requestError(callError, response, "")
       }
 func (r *BillingResource) GetStorage(ctx context.Context, options ...RequestOption) (*Storage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1073,6 +1153,7 @@ func (r *BillingResource) GetStorage(ctx context.Context, options ...RequestOpti
       }
 type ListBillingUsageParams struct {From time.Time;To time.Time;WorkspaceId *string;WorktreeId *string;RunId *string;SessionId *string;CustomerId *string;AgentKey *string;Provider *string;Model *string;Kind *string;BillingMode *string;Cursor *string;Limit *int32}
 func (r *BillingResource) ListUsage(ctx context.Context, params *ListBillingUsageParams, options ...RequestOption) (*BillingUsagePage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -1098,6 +1179,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *BillingResource) UpdateStoragePolicy(ctx context.Context, input *StoragePolicy, options ...RequestOption) (*Storage, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1112,6 +1194,7 @@ func (r *BillingResource) UpdateStoragePolicy(ctx context.Context, input *Storag
 type HarnessesResource struct {client *APIClient}
 type ListHarnessesParams struct {Cursor *string;Limit *int32}
 func (r *HarnessesResource) List(ctx context.Context, params *ListHarnessesParams, options ...RequestOption) (*ListHarnesses200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListHarnessesParams{}}
@@ -1127,6 +1210,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
 type ModelsResource struct {client *APIClient}
 type ListModelsParams struct {Harness *string;Cursor *string;Limit *int32}
 func (r *ModelsResource) List(ctx context.Context, params *ListModelsParams, options ...RequestOption) (*ListModels200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListModelsParams{}}
@@ -1142,6 +1226,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type OperationsResource struct {client *APIClient}
 func (r *OperationsResource) Get(ctx context.Context, operationId string, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1156,6 +1241,7 @@ func (r *OperationsResource) Get(ctx context.Context, operationId string, option
 type OperatorResource struct {client *APIClient}
 type GetAccountSummaryParams struct {From *time.Time;To *time.Time;IncludeContact *bool}
 func (r *OperatorResource) GetAccountSummary(ctx context.Context, accountId string, params *GetAccountSummaryParams, options ...RequestOption) (*AccountSummary, error) {
+
 
 
         if params == nil {params = &GetAccountSummaryParams{}}
@@ -1173,6 +1259,7 @@ type GetCapacityReportParams struct {From *time.Time;To *time.Time}
 func (r *OperatorResource) GetCapacityReport(ctx context.Context, params *GetCapacityReportParams, options ...RequestOption) (*Report, error) {
 
 
+
         if params == nil {params = &GetCapacityReportParams{}}
         call := r.client.OperatorAPI.GetCapacityReport(ctx)
 
@@ -1185,6 +1272,7 @@ if params.To != nil {call = call.To(*params.To)}
       }
 type GetGrowthMetricsParams struct {From *time.Time;To *time.Time;GroupBy *string;OrganizationId *string}
 func (r *OperatorResource) GetGrowthMetrics(ctx context.Context, params *GetGrowthMetricsParams, options ...RequestOption) (*Report, error) {
+
 
 
         if params == nil {params = &GetGrowthMetricsParams{}}
@@ -1203,6 +1291,7 @@ type GetInfrastructureHealthParams struct {From *time.Time;To *time.Time;Service
 func (r *OperatorResource) GetInfrastructureHealth(ctx context.Context, params *GetInfrastructureHealthParams, options ...RequestOption) (*Report, error) {
 
 
+
         if params == nil {params = &GetInfrastructureHealthParams{}}
         call := r.client.OperatorAPI.GetInfrastructureHealth(ctx)
 
@@ -1218,6 +1307,7 @@ type GetOperatingReportParams struct {From *time.Time;To *time.Time}
 func (r *OperatorResource) GetOperatingReport(ctx context.Context, params *GetOperatingReportParams, options ...RequestOption) (*Report, error) {
 
 
+
         if params == nil {params = &GetOperatingReportParams{}}
         call := r.client.OperatorAPI.GetOperatingReport(ctx)
 
@@ -1230,6 +1320,7 @@ if params.To != nil {call = call.To(*params.To)}
       }
 type GetPlatformUsageMetricsParams struct {From *time.Time;To *time.Time;GroupBy *string;OrganizationId *string}
 func (r *OperatorResource) GetPlatformUsageMetrics(ctx context.Context, params *GetPlatformUsageMetricsParams, options ...RequestOption) (*Report, error) {
+
 
 
         if params == nil {params = &GetPlatformUsageMetricsParams{}}
@@ -1248,6 +1339,7 @@ type GetRunDiagnosticsParams struct {From *time.Time;To *time.Time}
 func (r *OperatorResource) GetRunDiagnostics(ctx context.Context, runId string, params *GetRunDiagnosticsParams, options ...RequestOption) (*Diagnostics, error) {
 
 
+
         if params == nil {params = &GetRunDiagnosticsParams{}}
         call := r.client.OperatorAPI.GetRunDiagnostics(ctx, runId)
 
@@ -1260,6 +1352,7 @@ if params.To != nil {call = call.To(*params.To)}
       }
 type ListAccountsParams struct {From *time.Time;To *time.Time;Query *string;IncludeContact *bool;Cursor *string;Limit *int32}
 func (r *OperatorResource) ListAccounts(ctx context.Context, params *ListAccountsParams, options ...RequestOption) (*ListAccounts200Response, error) {
+
 
 
         if params == nil {params = &ListAccountsParams{}}
@@ -1278,6 +1371,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListPlatformRequestsParams struct {From *time.Time;To *time.Time;OrganizationId *string;StatusCode *int32;Route *string;Cursor *string;Limit *int32}
 func (r *OperatorResource) ListPlatformRequests(ctx context.Context, params *ListPlatformRequestsParams, options ...RequestOption) (*ListRequests200Response, error) {
+
 
 
         if params == nil {params = &ListPlatformRequestsParams{}}
@@ -1299,6 +1393,7 @@ type ListReportSnapshotsParams struct {From *time.Time;To *time.Time;Cursor *str
 func (r *OperatorResource) ListReportSnapshots(ctx context.Context, params *ListReportSnapshotsParams, options ...RequestOption) (*ReportSnapshotPage, error) {
 
 
+
         if params == nil {params = &ListReportSnapshotsParams{}}
         call := r.client.OperatorAPI.ListReportSnapshots(ctx)
 
@@ -1313,6 +1408,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type CheckpointsResource struct {client *APIClient}
 func (r *CheckpointsResource) ExportArchive(ctx context.Context, checkpointId string, input *CheckpointExportRequest, options ...RequestOption) (*ExportOperation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1325,6 +1421,7 @@ func (r *CheckpointsResource) ExportArchive(ctx context.Context, checkpointId st
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CheckpointsResource) UpdateRetention(ctx context.Context, checkpointId string, input *CheckpointPatch, options ...RequestOption) (*Checkpoint, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1338,6 +1435,7 @@ func (r *CheckpointsResource) UpdateRetention(ctx context.Context, checkpointId 
       }
 type MeResource struct {client *APIClient}
 func (r *MeResource) Get(ctx context.Context, options ...RequestOption) (*Identity, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1351,6 +1449,7 @@ func (r *MeResource) Get(ctx context.Context, options ...RequestOption) (*Identi
       }
 type TransfersResource struct {client *APIClient}
 func (r *TransfersResource) Apply(ctx context.Context, transferId string, input *TransferApply, options ...RequestOption) (*Operation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1363,6 +1462,7 @@ func (r *TransfersResource) Apply(ctx context.Context, transferId string, input 
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TransfersResource) Get(ctx context.Context, transferId string, options ...RequestOption) (*Transfer, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1376,6 +1476,7 @@ func (r *TransfersResource) Get(ctx context.Context, transferId string, options 
       }
 type IntegrationsResource struct {client *APIClient}
 func (r *IntegrationsResource) DisconnectGithub(ctx context.Context, workspaceId string, options ...RequestOption) (*Workspace, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1388,6 +1489,7 @@ func (r *IntegrationsResource) DisconnectGithub(ctx context.Context, workspaceId
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *IntegrationsResource) ListGithubInstallations(ctx context.Context, options ...RequestOption) (*GithubInstallations, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1401,6 +1503,7 @@ func (r *IntegrationsResource) ListGithubInstallations(ctx context.Context, opti
       }
 type ListGithubRepositoriesParams struct {InstallationId string}
 func (r *IntegrationsResource) ListGithubRepositories(ctx context.Context, params *ListGithubRepositoriesParams, options ...RequestOption) (*GithubRepositories, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -1414,6 +1517,7 @@ func (r *IntegrationsResource) ListGithubRepositories(ctx context.Context, param
       }
 type OrganizationsResource struct {client *APIClient}
 func (r *OrganizationsResource) CreateInvitation(ctx context.Context, input *InvitationCreate, options ...RequestOption) (*Invitation, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1426,6 +1530,7 @@ func (r *OrganizationsResource) CreateInvitation(ctx context.Context, input *Inv
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) Create(ctx context.Context, input *OrganizationCreate, options ...RequestOption) (*Organization, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1438,6 +1543,7 @@ func (r *OrganizationsResource) Create(ctx context.Context, input *OrganizationC
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) GetExecutionPolicy(ctx context.Context, options ...RequestOption) (*ExecutionPolicy, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1450,6 +1556,7 @@ func (r *OrganizationsResource) GetExecutionPolicy(ctx context.Context, options 
         return result, requestError(callError, response, "")
       }
 func (r *OrganizationsResource) ListInvitations(ctx context.Context, options ...RequestOption) (*ListInvitations200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1462,6 +1569,7 @@ func (r *OrganizationsResource) ListInvitations(ctx context.Context, options ...
         return result, requestError(callError, response, "")
       }
 func (r *OrganizationsResource) ListMembers(ctx context.Context, options ...RequestOption) (*ListMembers200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1474,6 +1582,7 @@ func (r *OrganizationsResource) ListMembers(ctx context.Context, options ...Requ
         return result, requestError(callError, response, "")
       }
 func (r *OrganizationsResource) ListAudit(ctx context.Context, options ...RequestOption) (*ListOrganizationAudit200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1486,6 +1595,7 @@ func (r *OrganizationsResource) ListAudit(ctx context.Context, options ...Reques
         return result, requestError(callError, response, "")
       }
 func (r *OrganizationsResource) RemoveMember(ctx context.Context, userId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, true); if err != nil {return err}
 
 
@@ -1498,6 +1608,7 @@ func (r *OrganizationsResource) RemoveMember(ctx context.Context, userId string,
         return requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) RevokeInvitation(ctx context.Context, invitationId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, true); if err != nil {return err}
 
 
@@ -1510,6 +1621,7 @@ func (r *OrganizationsResource) RevokeInvitation(ctx context.Context, invitation
         return requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) UpdateExecutionPolicy(ctx context.Context, input *ExecutionPolicyPatch, options ...RequestOption) (*ExecutionPolicy, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1522,6 +1634,7 @@ func (r *OrganizationsResource) UpdateExecutionPolicy(ctx context.Context, input
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) UpdateMember(ctx context.Context, userId string, input *MemberPatch, options ...RequestOption) error {
+
         settings, err := requestOptions(options, true); if err != nil {return err}
         if input == nil {return missingParameter("input")}
 
@@ -1534,6 +1647,7 @@ func (r *OrganizationsResource) UpdateMember(ctx context.Context, userId string,
         return requestError(callError, response, settings.idempotencyKey)
       }
 func (r *OrganizationsResource) Update(ctx context.Context, input *OrganizationCreate, options ...RequestOption) (*Organization, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1547,6 +1661,7 @@ func (r *OrganizationsResource) Update(ctx context.Context, input *OrganizationC
       }
 type TriggersResource struct {client *APIClient}
 func (r *TriggersResource) Create(ctx context.Context, input *TriggerCreate, options ...RequestOption) (*CreatedTrigger, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1559,6 +1674,7 @@ func (r *TriggersResource) Create(ctx context.Context, input *TriggerCreate, opt
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TriggersResource) Delete(ctx context.Context, triggerId string, options ...RequestOption) (*DeleteTrigger200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1571,6 +1687,7 @@ func (r *TriggersResource) Delete(ctx context.Context, triggerId string, options
         return result, requestError(callError, response, "")
       }
 func (r *TriggersResource) Get(ctx context.Context, triggerId string, options ...RequestOption) (*Trigger, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1584,6 +1701,7 @@ func (r *TriggersResource) Get(ctx context.Context, triggerId string, options ..
       }
 type ListTriggerDeliveriesParams struct {Cursor *string;Limit *int32}
 func (r *TriggersResource) ListDeliveries(ctx context.Context, triggerId string, params *ListTriggerDeliveriesParams, options ...RequestOption) (*ListTriggerDeliveries200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListTriggerDeliveriesParams{}}
@@ -1598,6 +1716,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListTriggersParams struct {Cursor *string;Limit *int32;Kind *string}
 func (r *TriggersResource) List(ctx context.Context, params *ListTriggersParams, options ...RequestOption) (*ListTriggers200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListTriggersParams{}}
@@ -1612,6 +1731,7 @@ if params.Kind != nil {call = call.Kind(*params.Kind)}
         return result, requestError(callError, response, "")
       }
 func (r *TriggersResource) RetryReply(ctx context.Context, triggerId string, deliveryId string, options ...RequestOption) (*TriggerDelivery, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1624,6 +1744,7 @@ func (r *TriggersResource) RetryReply(ctx context.Context, triggerId string, del
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TriggersResource) RotateSecret(ctx context.Context, triggerId string, options ...RequestOption) (*TriggerSecret, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1636,6 +1757,7 @@ func (r *TriggersResource) RotateSecret(ctx context.Context, triggerId string, o
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TriggersResource) Run(ctx context.Context, triggerId string, options ...RequestOption) (*TriggerDelivery, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1648,6 +1770,7 @@ func (r *TriggersResource) Run(ctx context.Context, triggerId string, options ..
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TriggersResource) Update(ctx context.Context, triggerId string, input *TriggerPatch, options ...RequestOption) (*Trigger, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1661,6 +1784,7 @@ func (r *TriggersResource) Update(ctx context.Context, triggerId string, input *
       }
 type SlackConnectionsResource struct {client *APIClient}
 func (r *SlackConnectionsResource) Create(ctx context.Context, input *SlackConnectionCreate, options ...RequestOption) (*SlackConnection, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1673,6 +1797,7 @@ func (r *SlackConnectionsResource) Create(ctx context.Context, input *SlackConne
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SlackConnectionsResource) Delete(ctx context.Context, connectionId string, options ...RequestOption) (*DeleteTrigger200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1686,6 +1811,7 @@ func (r *SlackConnectionsResource) Delete(ctx context.Context, connectionId stri
       }
 type ListSlackConnectionChannelsParams struct {Cursor *string}
 func (r *SlackConnectionsResource) ListChannels(ctx context.Context, connectionId string, params *ListSlackConnectionChannelsParams, options ...RequestOption) (*ListSlackConnectionChannels200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListSlackConnectionChannelsParams{}}
@@ -1698,6 +1824,7 @@ func (r *SlackConnectionsResource) ListChannels(ctx context.Context, connectionI
         return result, requestError(callError, response, "")
       }
 func (r *SlackConnectionsResource) List(ctx context.Context, options ...RequestOption) (*ListSlackConnections200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1711,6 +1838,7 @@ func (r *SlackConnectionsResource) List(ctx context.Context, options ...RequestO
       }
 type CustomerAgentsResource struct {client *APIClient}
 func (r *CustomerAgentsResource) AuthorizeConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerConnectionAuthorize, options ...RequestOption) (*CustomerConnectionAuthorization, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1723,6 +1851,7 @@ func (r *CustomerAgentsResource) AuthorizeConnection(ctx context.Context, custom
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CustomerAgentsResource) CancelRun(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*Run, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -1735,6 +1864,7 @@ func (r *CustomerAgentsResource) CancelRun(ctx context.Context, customerId strin
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CustomerAgentsResource) CompleteConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerConnectionComplete, options ...RequestOption) (*CustomerAgentConnection, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1747,6 +1877,7 @@ func (r *CustomerAgentsResource) CompleteConnection(ctx context.Context, custome
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CustomerAgentsResource) CreateConnection(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentConnectionCreate, options ...RequestOption) (*CustomerAgentConnection, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1759,6 +1890,7 @@ func (r *CustomerAgentsResource) CreateConnection(ctx context.Context, customerI
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CustomerAgentsResource) DeleteConnection(ctx context.Context, customerId string, customerAgentId string, connectionId string, options ...RequestOption) error {
+
         settings, err := requestOptions(options, false); if err != nil {return err}
 
 
@@ -1771,6 +1903,7 @@ func (r *CustomerAgentsResource) DeleteConnection(ctx context.Context, customerI
         return requestError(callError, response, "")
       }
 func (r *CustomerAgentsResource) Ensure(ctx context.Context, customerId string, input *CustomerAgentEnsure, options ...RequestOption) (*CustomerAgentBinding, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1783,6 +1916,7 @@ func (r *CustomerAgentsResource) Ensure(ctx context.Context, customerId string, 
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *CustomerAgentsResource) Get(ctx context.Context, customerId string, customerAgentId string, options ...RequestOption) (*CustomerAgentBinding, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1795,6 +1929,7 @@ func (r *CustomerAgentsResource) Get(ctx context.Context, customerId string, cus
         return result, requestError(callError, response, "")
       }
 func (r *CustomerAgentsResource) GetRun(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*Run, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1807,6 +1942,7 @@ func (r *CustomerAgentsResource) GetRun(ctx context.Context, customerId string, 
         return result, requestError(callError, response, "")
       }
 func (r *CustomerAgentsResource) GetRunResult(ctx context.Context, customerId string, customerAgentId string, runId string, options ...RequestOption) (*RunResult, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -1820,6 +1956,7 @@ func (r *CustomerAgentsResource) GetRunResult(ctx context.Context, customerId st
       }
 type ListCustomerAgentConnectionsParams struct {Cursor *string;Limit *int32}
 func (r *CustomerAgentsResource) ListConnections(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentConnectionsParams, options ...RequestOption) (*CustomerAgentConnectionPage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCustomerAgentConnectionsParams{}}
@@ -1834,6 +1971,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListCustomerAgentConversationsParams struct {Cursor *string;Limit *int32}
 func (r *CustomerAgentsResource) ListConversations(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentConversationsParams, options ...RequestOption) (*ListSessions200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCustomerAgentConversationsParams{}}
@@ -1848,6 +1986,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListCustomerAgentFilesParams struct {Path *string;Query *string;Recursive *bool;Cursor *string;Limit *int32}
 func (r *CustomerAgentsResource) ListFiles(ctx context.Context, customerId string, customerAgentId string, params *ListCustomerAgentFilesParams, options ...RequestOption) (*FileListing, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCustomerAgentFilesParams{}}
@@ -1865,6 +2004,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListCustomerAgentRunEventsParams struct {After *string;Cursor *string;Limit *int32}
 func (r *CustomerAgentsResource) ListRunEvents(ctx context.Context, customerId string, customerAgentId string, runId string, params *ListCustomerAgentRunEventsParams, options ...RequestOption) (*ListRunEvents200Response, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCustomerAgentRunEventsParams{}}
@@ -1880,6 +2020,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ListCustomerAgentsParams struct {Cursor *string;Limit *int32}
 func (r *CustomerAgentsResource) List(ctx context.Context, customerId string, params *ListCustomerAgentsParams, options ...RequestOption) (*CustomerAgentPage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListCustomerAgentsParams{}}
@@ -1894,6 +2035,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
       }
 type ReadCustomerAgentFileParams struct {Path string;Download *bool}
 func (r *CustomerAgentsResource) ReadFile(ctx context.Context, customerId string, customerAgentId string, params *ReadCustomerAgentFileParams, options ...RequestOption) (*os.File, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {return nil, missingParameter("params")}
@@ -1907,6 +2049,7 @@ if params.Download != nil {call = call.Download(*params.Download)}
         return result, requestError(callError, response, "")
       }
 func (r *CustomerAgentsResource) SendMessage(ctx context.Context, customerId string, customerAgentId string, input *CustomerAgentMessage, options ...RequestOption) (*NativeRunAccepted, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1921,6 +2064,7 @@ func (r *CustomerAgentsResource) SendMessage(ctx context.Context, customerId str
 func (r *CustomerAgentsResource) StreamRun(ctx context.Context, customerID, customerAgentID, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.streamTarget(ctx,runID,after,customerID,customerAgentID,receive,options...) }
 type UpdateCustomerAgentConnectionPermissionsParams struct {IfMatch string}
 func (r *CustomerAgentsResource) UpdateConnectionPermissions(ctx context.Context, customerId string, customerAgentId string, connectionId string, input *CustomerAgentConnectionPermissions, params *UpdateCustomerAgentConnectionPermissionsParams, options ...RequestOption) (*CustomerAgentConnection, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {return nil, missingParameter("params")}
@@ -1934,6 +2078,7 @@ func (r *CustomerAgentsResource) UpdateConnectionPermissions(ctx context.Context
       }
 type InferencesResource struct {client *APIClient}
 func (r *InferencesResource) CreateBoundedAgentRun(ctx context.Context, input *BoundedAgentCreate, options ...RequestOption) (*RunAccepted, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1946,6 +2091,7 @@ func (r *InferencesResource) CreateBoundedAgentRun(ctx context.Context, input *B
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *InferencesResource) CreateContextArtifact(ctx context.Context, input *ContextArtifactCreate, options ...RequestOption) (*ContextArtifact, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1958,6 +2104,7 @@ func (r *InferencesResource) CreateContextArtifact(ctx context.Context, input *C
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *InferencesResource) CreateDecisionDefinition(ctx context.Context, input *DecisionDefinitionCreate, options ...RequestOption) (*DecisionDefinition, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -1969,8 +2116,10 @@ func (r *InferencesResource) CreateDecisionDefinition(ctx context.Context, input
         result, response, callError := call.Execute()
         return result, requestError(callError, response, settings.idempotencyKey)
       }
+func (r *InferencesResource) Stream(ctx context.Context, input *InferenceCreate, receive func(InferenceStreamEvent) error, options ...RequestOption) error { return r.client.StreamInference(ctx,input,receive,options...) }
 type CreateInferenceParams struct {Prefer *string}
 func (r *InferencesResource) Create(ctx context.Context, input *InferenceCreate, params *CreateInferenceParams, options ...RequestOption) (*InferenceResponse, error) {
+        if input != nil && input.GetStream() { return nil, errors.New("use Inferences.Stream for incremental output") }
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
         if params == nil {params = &CreateInferenceParams{}}
@@ -1986,6 +2135,7 @@ func (r *InferencesResource) DeleteContextArtifact(ctx context.Context, artifact
 
 
 
+
         call := r.client.InferencesAPI.DeleteContextArtifact(ctx, artifactId)
 
 
@@ -1995,6 +2145,7 @@ func (r *InferencesResource) DeleteContextArtifact(ctx context.Context, artifact
         return result, requestError(callError, response, "")
       }
 func (r *InferencesResource) DeleteDecisionDefinition(ctx context.Context, definitionId string, options ...RequestOption) (*DecisionDefinition, error) {
+
 
 
 
@@ -2010,6 +2161,7 @@ func (r *InferencesResource) GetContextArtifact(ctx context.Context, artifactId 
 
 
 
+
         call := r.client.InferencesAPI.GetContextArtifact(ctx, artifactId)
 
 
@@ -2019,6 +2171,7 @@ func (r *InferencesResource) GetContextArtifact(ctx context.Context, artifactId 
         return result, requestError(callError, response, "")
       }
 func (r *InferencesResource) GetDecisionDefinition(ctx context.Context, definitionId string, options ...RequestOption) (*DecisionDefinition, error) {
+
 
 
 
@@ -2032,6 +2185,7 @@ func (r *InferencesResource) GetDecisionDefinition(ctx context.Context, definiti
       }
 type TasksResource struct {client *APIClient}
 func (r *TasksResource) CloseDecision(ctx context.Context, taskId string, options ...RequestOption) (*DecisionTask, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -2044,6 +2198,7 @@ func (r *TasksResource) CloseDecision(ctx context.Context, taskId string, option
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TasksResource) CreateDecision(ctx context.Context, input *DecisionTaskCreate, options ...RequestOption) (*DecisionTask, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -2059,6 +2214,7 @@ func (r *TasksResource) GetDecision(ctx context.Context, taskId string, options 
 
 
 
+
         call := r.client.TasksAPI.GetDecisionTask(ctx, taskId)
 
 
@@ -2068,6 +2224,7 @@ func (r *TasksResource) GetDecision(ctx context.Context, taskId string, options 
         return result, requestError(callError, response, "")
       }
 func (r *TasksResource) RecordOutcome(ctx context.Context, taskId string, input *ApplicationOutcome, options ...RequestOption) (*DecisionTask, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -2080,6 +2237,7 @@ func (r *TasksResource) RecordOutcome(ctx context.Context, taskId string, input 
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *TasksResource) WakeDecision(ctx context.Context, taskId string, input *DecisionTaskWake, options ...RequestOption) (*DecisionTask, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -2093,6 +2251,7 @@ func (r *TasksResource) WakeDecision(ctx context.Context, taskId string, input *
       }
 type SandboxesResource struct {client *APIClient}
 func (r *SandboxesResource) Create(ctx context.Context, input *SandboxCreate, options ...RequestOption) (*Sandbox, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
         if input == nil {return nil, missingParameter("input")}
 
@@ -2105,6 +2264,7 @@ func (r *SandboxesResource) Create(ctx context.Context, input *SandboxCreate, op
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SandboxesResource) Destroy(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -2117,6 +2277,7 @@ func (r *SandboxesResource) Destroy(ctx context.Context, sandboxId string, optio
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SandboxesResource) Get(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
 
@@ -2130,6 +2291,7 @@ func (r *SandboxesResource) Get(ctx context.Context, sandboxId string, options .
       }
 type ListSandboxesParams struct {WorktreeId *string;Cursor *string;Limit *int32}
 func (r *SandboxesResource) List(ctx context.Context, params *ListSandboxesParams, options ...RequestOption) (*SandboxPage, error) {
+
         settings, err := requestOptions(options, false); if err != nil {return nil, err}
 
         if params == nil {params = &ListSandboxesParams{}}
@@ -2144,6 +2306,7 @@ if params.Limit != nil {call = call.Limit(*params.Limit)}
         return result, requestError(callError, response, "")
       }
 func (r *SandboxesResource) Pause(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 
@@ -2156,6 +2319,7 @@ func (r *SandboxesResource) Pause(ctx context.Context, sandboxId string, options
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *SandboxesResource) Resume(ctx context.Context, sandboxId string, options ...RequestOption) (*Sandbox, error) {
+
         settings, err := requestOptions(options, true); if err != nil {return nil, err}
 
 

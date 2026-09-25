@@ -131,6 +131,8 @@ from macrofold.models.inference_receipt import InferenceReceipt
 from macrofold.models.inference_receipt_provider_evidence import InferenceReceiptProviderEvidence
 from macrofold.models.inference_receipt_validation import InferenceReceiptValidation
 from macrofold.models.inference_response import InferenceResponse
+from macrofold.models.inference_stream_event import InferenceStreamEvent
+from macrofold.models.inference_stream_event_data import InferenceStreamEventData
 from macrofold.models.invitation import Invitation
 from macrofold.models.invitation_create import InvitationCreate
 from macrofold.models.key_create import KeyCreate

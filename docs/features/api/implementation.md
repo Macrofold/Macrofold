@@ -2,6 +2,8 @@
 
 Contributor reference. Start with the [feature guide](README.md) for user workflows.
 
+[Streaming implementation](streaming-implementation.md) owns direct SSE delivery, capability rejection, final-response accounting, bounded-agent deltas and the existing native harness stream. The [public guide](streaming.md) covers both transport paths.
+
 Implemented contract version 0.9.0. [OpenAPI](../../api/openapi.json) drives AJV request validation, public response projection, generated TypeScript types, TypeScript/Python operation maps, and typed Go/Rust/Java clients. The running app serves `/openapi.json`, `/reference` (Scalar) and `/docs` (quickstart). Provider identity/webhook/internal protocols remain separate from customer REST.
 
 ## Common behavior

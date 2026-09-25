@@ -26,6 +26,9 @@ pub struct CustomerAgentMessage {
     /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
     #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<String>>,
+    /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 impl CustomerAgentMessage {
@@ -37,6 +40,7 @@ impl CustomerAgentMessage {
             limits: None,
             queue_if_busy: None,
             attachments: None,
+            stream: None,
         }
     }
 }

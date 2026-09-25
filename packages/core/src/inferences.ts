@@ -18,7 +18,6 @@ import { claimRunInTransaction } from './engine';
 import { getExecutionPolicy } from './plans';
 import { emit } from './events';
 import { getRun, waitingFields, type InferenceConfig } from './runs';
-import { inferenceInputBound } from './decision';
 import { normalizeInferenceInput } from './inference-input';
 import type { InferenceCreate, InferenceDefinition, ExplicitContext } from './decision';
 
@@ -36,7 +35,7 @@ export async function admitInference(
     'Direct inference admission is not enabled on this deployment.',
   );
   assert(config.allowPaid, 503, 'execution_disabled', 'Paid execution is disabled.');
-  requireScopes(p, ['runs:write']);
+  requireScopes(p, input.stream ? ['runs:write', 'runs:read'] : ['runs:write']);
   requireInferenceCaller(p, input.workspace_id);
   if (input.workspace_id) await requireDecisionWorkspace(tx, p, input.workspace_id);
   await (await import('./storage-maintenance')).requireStorageCapacity(tx, p.organizationId);
@@ -65,10 +64,19 @@ export async function admitInference(
       await authorizeContext(tx, p, input.workspace_id, reference);
     }
   }
-  const model = decisionModel(input.model_binding,
-    input.model_binding.provider === 'openrouter' && input.model_binding.model !== 'typesafe/jev-1.13'
-      ? await models(tx) : []),
+  const model = decisionModel(
+      input.model_binding,
+      input.model_binding.provider === 'openrouter' && input.model_binding.model !== 'typesafe/jev-1.13'
+        ? await models(tx)
+        : [],
+    ),
     protocol = decisionProtocol(input.model_binding.provider, input.model_binding.model);
+  assert(
+    !input.stream || protocol.capabilities.streaming,
+    400,
+    'streaming_not_supported',
+    'This model protocol does not support incremental output. Omit stream for a completed response.',
+  );
   if (input.definition.question.kind !== 'provider')
     validateModelParameters(input.model_parameters, model.provider, model.id);
   assert(
@@ -110,6 +118,7 @@ export async function admitInference(
     admitted_at: new Date().toISOString(),
   };
   const configuration: InferenceConfig = {
+    stream: input.stream ?? false,
     executor_version: '1',
     transformation_version: protocol.version,
     user_id: p.userId,
@@ -135,8 +144,11 @@ export async function admitInference(
     client_type: 'api',
     scheduling_class: 'interactive',
   };
-  const body = protocol.prepare({
+  // Validate the provider shape before admission. Token-window validation belongs
+  // to the provider; the execution-time billing bound is not an exact token count.
+  protocol.prepare({
     model: model.id,
+    stream: input.stream,
     modelParameters: input.model_parameters,
     definition: input.definition,
     input: input.input,
@@ -147,13 +159,6 @@ export async function admitInference(
       outputMicroUsdPerMillion: model.output_micro_usd_per_million,
     },
   });
-  // UTF-8 bytes are a conservative text token bound, plus protocol framing allowance.
-  assert(
-    inferenceInputBound(body, model.provider, model.id, input.definition.question.kind === 'provider') + limits.max_output_tokens <= protocol.maxInputTokens,
-    413,
-    'model_context_exceeded',
-    'The resolved request exceeds this model’s conservative token window. Reduce context.',
-  );
   configuration.admission_ms = performance.now() - admissionStarted;
   const reservation = configuration.billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
   await reserve(tx, p.organizationId, BigInt(reservation));
@@ -214,8 +219,11 @@ export async function prepareInference(
   const input = normalizeInferenceInput(submitted, p.organizationId, kind);
   requireInferenceCaller(p, input.workspace_id);
   assert(
-    input.workspace_id || (kind === 'inference' && !('definition_id' in input.definition) && !('artifact_id' in input.context)),
-    400, 'workspace_required', 'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
+    input.workspace_id ||
+      (kind === 'inference' && !('definition_id' in input.definition) && !('artifact_id' in input.context)),
+    400,
+    'workspace_required',
+    'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
   );
   const definition =
     'definition_id' in input.definition
@@ -248,11 +256,25 @@ export async function prepareInference(
         kind,
       );
       if (direct) {
-        assert(kind === 'inference', 400, 'unsupported_execution_mode', 'Only single-call inference supports direct execution.');
-        assert((input.limits ?? definition.limits).timeout_seconds <= 240,
-          400, 'direct_timeout_exceeded', 'Direct requests support up to 240 seconds. Use Prefer: respond-async for longer requests.');
+        assert(
+          kind === 'inference',
+          400,
+          'unsupported_execution_mode',
+          'Only single-call inference supports direct execution.',
+        );
+        assert(
+          (input.limits ?? definition.limits).timeout_seconds <= 240,
+          400,
+          input.stream ? 'streaming_timeout_unsupported' : 'direct_timeout_exceeded',
+          'Direct requests support up to 240 seconds. Use Prefer: respond-async for longer requests.',
+        );
         const claimed = await claimRunInTransaction(tx, principal.organizationId, accepted.run_id, true);
-        assert(claimed, 429, 'inference_capacity_unavailable', 'Inference capacity is busy. Retry later or use Prefer: respond-async.');
+        assert(
+          claimed,
+          429,
+          input.stream ? 'streaming_capacity_unavailable' : 'inference_capacity_unavailable',
+          'Inference capacity is busy. Retry later or use Prefer: respond-async.',
+        );
       }
       return accepted;
     },

@@ -2,7 +2,11 @@ import type { Tx } from '../../db';
 import type { Principal } from './auth';
 import type { components, operations } from '../../contracts/api';
 export type ApiOperation = keyof operations;
-type Content<T> = T extends { content: infer C } ? C[keyof C] : undefined;
+type Content<T> = T extends { content: infer C }
+  ? C extends { 'application/json': infer J }
+    ? J
+    : C[keyof C]
+  : undefined;
 type Responses<K extends ApiOperation> = operations[K]['responses'];
 export type ApiResult<K extends ApiOperation> = Content<
   Responses<K>[Extract<keyof Responses<K>, 200 | 201 | 202 | 204>]

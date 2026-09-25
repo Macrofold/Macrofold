@@ -8,7 +8,11 @@ export type RequestMethod<K extends Operation> = (typeof routes)[K]['method'];
 export const requestMethod = <K extends Operation>(operation: K): RequestMethod<K> =>
   routes[operation].method;
 type Value<T> = T[keyof T];
-type Content<T> = T extends { content: infer C } ? Value<C> : undefined;
+type Content<T> = T extends { content: infer C }
+  ? C extends { 'application/json': infer J }
+    ? J
+    : Value<C>
+  : undefined;
 type Responses<O extends Operation> = operations[O] extends { responses: infer R } ? R : never;
 export type Result<O extends Operation> = O extends 'readFile' | 'readCustomerAgentFile'
   ? Uint8Array
@@ -199,6 +203,13 @@ export class Client extends Resources {
     }
   }
   async request<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Result<O>> {
+    if (
+      operation === 'createInference' &&
+      options.body &&
+      'stream' in options.body &&
+      options.body.stream === true
+    )
+      throw new Error('Use inferences.stream(request) for incremental inference output.');
     const requestOptions = ['GET', 'HEAD'].includes(routes[operation].method)
       ? options
       : { ...options, idempotencyKey: options.idempotencyKey || crypto.randomUUID() };
@@ -217,6 +228,40 @@ export class Client extends Resources {
         requestOptions.idempotencyKey,
       );
     }
+  }
+  /** A direct stream is single-attempt after headers. Closing it detaches;
+   * use the accepted run ID to recover the final result, never replay deltas. */
+  async *streamInference(
+    body: Schema['InferenceCreate'],
+    options: { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string, string> } = {},
+  ): AsyncGenerator<Schema['InferenceStreamEvent']> {
+    const idempotencyKey = options.idempotencyKey ?? crypto.randomUUID();
+    const response = await this.raw('createInference', {
+      ...options,
+      idempotencyKey,
+      body: { ...body, stream: true },
+      headers: { ...options.headers, Accept: 'text/event-stream' },
+    });
+    if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+      await response.body?.cancel();
+      throw new TransportError('Expected a direct event stream.', idempotencyKey);
+    }
+    try {
+      for await (const frame of sseFrames(response, options.signal)) {
+        const event: Schema['InferenceStreamEvent'] = JSON.parse(frame.data);
+        yield event;
+        if (event.type === 'transport.error')
+          throw new TransportError('Stream interrupted. Retrieve the saved run result.', idempotencyKey);
+        if (['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(event.type)) return;
+      }
+    } catch (error) {
+      if (error instanceof TransportError) throw error;
+      throw new TransportError('Stream interrupted. Retrieve the saved run result.', idempotencyKey);
+    }
+    throw new TransportError(
+      'Stream ended before its terminal result. Retrieve the saved run result.',
+      idempotencyKey,
+    );
   }
   stream(runId: string, options: { after?: string; signal?: AbortSignal } = {}) {
     return this.streamFrom(

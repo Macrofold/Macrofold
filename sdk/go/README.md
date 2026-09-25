@@ -56,6 +56,45 @@ client, err := macrofold.NewClient(
 )
 ```
 
+## Stream a model response
+
+For a direct model call without a harness, use `inferences.stream` (Go: `Inferences.Stream`). The helper sets `stream: true`. Set `MACROFOLD_API_KEY` with `runs:write` and `runs:read`; this example requires a configured Anthropic provider and managed credit. Its $0.10 budget is a ceiling, not a price estimate. Workspace-restricted keys must also supply their authorized `workspace_id`.
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    macrofold "github.com/Macrofold/Macrofold/sdk/go"
+)
+
+func main() {
+    client, err := macrofold.NewClient()
+    if err != nil { panic(err) }
+    binding := macrofold.NewDecisionBinding("anthropic", "claude-haiku-4-5-20251001", "managed")
+    request := macrofold.NewInferenceCreate(map[string]interface{}{
+        "messages": []map[string]string{{"role": "user", "content": "Explain worktrees in two sentences."}},
+        "max_tokens": 256,
+    }, *binding)
+    request.SetLimits(*macrofold.NewInferenceLimits("100000", 256, 60))
+    err = client.Inferences.Stream(context.Background(), request, func(event macrofold.InferenceStreamEvent) error {
+        switch event.Type {
+        case "run.accepted":
+            fmt.Println("Run:", event.RunId)
+        case "output.delta":
+            fmt.Print(event.Data.GetText())
+        case "run.succeeded", "run.failed", "run.cancelled", "run.timed_out":
+            fmt.Println(event.Type, event.Data.GetResult())
+        }
+        return nil
+    })
+    if err != nil { panic(err) }
+}
+```
+
+Direct events are live-only and do not reconnect or replay tokens. Save the accepted run ID to retrieve its final result after a disconnect; detaching leaves execution running. Terminal failures arrive as events, so inspect them even when the helper returns normally. For recovery across process restarts, persist your own idempotency key using the request options described below. See [streaming](../../docs/features/api/streaming.md) for supported providers, events, limits, and REST examples.
+
 ## Resource methods
 
 `client.Runs.Get(ctx, id)` returns a typed run; `client.Runs.Cancel(ctx, id)` cancels it. Methods take path identifiers, a typed body where applicable, and a typed parameter struct for query/header options. For example, `client.Workspaces.List(ctx, nil)` lists workspaces with default pagination. Pass `*ListWorkspacesParams` to set a cursor or limit.

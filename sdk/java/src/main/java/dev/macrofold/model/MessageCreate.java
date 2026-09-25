@@ -61,7 +61,8 @@ import dev.macrofold.ApiClient;
   MessageCreate.JSON_PROPERTY_SANDBOX_ID,
   MessageCreate.JSON_PROPERTY_KEEP_WARM_SECONDS,
   MessageCreate.JSON_PROPERTY_SANDBOX_MAX_COST_MICRO_USD,
-  MessageCreate.JSON_PROPERTY_MODEL_PARAMETERS
+  MessageCreate.JSON_PROPERTY_MODEL_PARAMETERS,
+  MessageCreate.JSON_PROPERTY_STREAM
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class MessageCreate {
@@ -158,6 +159,10 @@ public class MessageCreate {
   public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
   @javax.annotation.Nullable
   private ModelParameters modelParameters;
+
+  public static final String JSON_PROPERTY_STREAM = "stream";
+  @javax.annotation.Nullable
+  private Boolean stream;
 
   public MessageCreate() { 
   }
@@ -567,6 +572,30 @@ public class MessageCreate {
   }
 
 
+  public MessageCreate stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+    return this;
+  }
+
+  /**
+   * Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+   * @return stream
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getStream() {
+    return stream;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
   /**
    * Return true if this MessageCreate object is equal to o.
    */
@@ -593,7 +622,8 @@ public class MessageCreate {
         Objects.equals(this.sandboxId, messageCreate.sandboxId) &&
         equalsNullable(this.keepWarmSeconds, messageCreate.keepWarmSeconds) &&
         Objects.equals(this.sandboxMaxCostMicroUsd, messageCreate.sandboxMaxCostMicroUsd) &&
-        Objects.equals(this.modelParameters, messageCreate.modelParameters);
+        Objects.equals(this.modelParameters, messageCreate.modelParameters) &&
+        Objects.equals(this.stream, messageCreate.stream);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -602,7 +632,7 @@ public class MessageCreate {
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters);
+    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, sandboxId, hashCodeNullable(keepWarmSeconds), sandboxMaxCostMicroUsd, modelParameters, stream);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -631,6 +661,7 @@ public class MessageCreate {
     sb.append("    keepWarmSeconds: ").append(toIndentedString(keepWarmSeconds)).append("\n");
     sb.append("    sandboxMaxCostMicroUsd: ").append(toIndentedString(sandboxMaxCostMicroUsd)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -770,6 +801,11 @@ public class MessageCreate {
     // add `model_parameters` to the URL query string
     if (getModelParameters() != null) {
       joiner.add(getModelParameters().toUrlQueryString(prefix + "model_parameters" + suffix));
+    }
+
+    // add `stream` to the URL query string
+    if (getStream() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstream%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStream()))));
     }
 
     return joiner.toString();

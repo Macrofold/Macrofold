@@ -70,6 +70,9 @@ pub struct RunCreate {
     /// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
     #[serde(rename = "harness_prompt_mode", skip_serializing_if = "Option::is_none")]
     pub harness_prompt_mode: Option<HarnessPromptMode>,
+    /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 impl RunCreate {
@@ -99,6 +102,7 @@ impl RunCreate {
             sandbox_max_cost_micro_usd: None,
             model_parameters: None,
             harness_prompt_mode: None,
+            stream: None,
         }
     }
 }

@@ -42,6 +42,12 @@ Go uses `net/http`; Rust uses Reqwest/Tokio; Java uses the JDK HTTP client and J
 
 Transient stream connection errors retry with bounded exponential delays, up to eight consecutive failures. Authentication denial is surfaced. Go/Rust/Java REST calls remain single-attempt. Resource methods generate mutation identities automatically and wrap errors with the identity while preserving the generated cause/status/body; callers can supply a saved identity. Low-level calls retain their explicit-key behavior. TypeScript/Python retain bounded REST retries. Python response validation also preserves mutation identity on invalid successful responses. Generated REST stream operations buffer responses: customer examples use the incremental helper instead. Download redirects must be handled deliberately without forwarding credentials to object-storage hosts.
 
+## Direct inference delivery
+
+All five resource facades delegate `inferences.stream` to a maintained single-POST SSE helper and yield/dispatch generated `InferenceStreamEvent` models. Helpers own `stream: true`, retain organization and idempotency identity, and never reconnect after headers/output. Normal resource creation rejects `stream: true` locally to prevent a JSON decoder from consuming a billed stream. Low-level generated operations are escape hatches, not the streaming interface.
+
+Framing is shared with durable run streams within each transport, while recovery remains separate: direct EOF without a terminal result is an error; durable streams reconnect by sequence. Closing a reader stops delivery only. Typed terminal failures are events for direct inference; callers inspect the terminal type and receipt. HTTP/transport failures retain submission identity. Go/Rust/Java use a bounded 300-second POST lifetime; server admission limits generation to 240 seconds.
+
 ## Technology decision
 
 [OpenAPI Generator](https://github.com/OpenAPITools/openapi-generator) provides maintained [Go](https://openapi-generator.tech/docs/generators/go/), [Rust](https://openapi-generator.tech/docs/generators/rust/), and [Java](https://openapi-generator.tech/docs/generators/java/) generators under Apache-2.0. It adds a contributor toolchain and generated source, but no paid account or runtime service. Keeping the existing transports avoids replacing already tested mutation recovery to obtain more languages.

@@ -22,16 +22,19 @@ Names below follow each language's casing. TypeScript, Python, and Go use resour
 
 Path identifiers are positional. Required request values stay typed; optional transport settings expose idempotency, cancellation, and organization selection where supported. Methods retain each SDK's documented transport behavior. The run \`events\` method delegates to resumable incremental streaming; \`stream\` remains available. Closing a stream leaves the remote run active; call \`runs.cancel\` to stop it.
 
-## Run convenience helpers
+## Streaming and run convenience helpers
 
 These compose existing operations and add no backend endpoints.
 
 | Purpose | TypeScript / Java | Python / Rust | Go |
 | --- | --- | --- | --- |
+| Direct model events and saved terminal result | \`inferences.stream\` | \`inferences.stream\` | \`Inferences.Stream\` |
 | Assistant text fragments | \`runs.streamText\` | \`runs.stream_text\` | \`Runs.StreamText\` |
 | Typed complete result after execution and persistence | \`runs.wait\` | \`runs.wait\` | \`Runs.Wait\` |
 
-Text streams handle SSE, cursors and duplicate suppression internally, excluding tool payloads and status events. Both convenience helpers report unsuccessful execution or persistence as a typed run error carrying the run ID. A wait timeout stops local waiting without cancelling execution. The language guides describe timeout options, callbacks/iterators, and advanced replay.
+Direct inference helpers set \`stream: true\` and deliver typed events through iterators (TypeScript/Python) or callbacks (Go/Rust/Java). They do not reconnect or replay tokens. Inspect terminal events for execution failure; detaching leaves the remote call running. See [streaming](../streaming.md) and each language guide for complete examples and recovery.
+
+Run text streams handle SSE, cursors and duplicate suppression internally, excluding tool payloads and status events. Both convenience helpers report unsuccessful execution or persistence as a typed run error carrying the run ID. A wait timeout stops local waiting without cancelling execution. The language guides describe timeout options, callbacks/iterators, and advanced replay.
 
 ${sections.join('\n\n')}
 `,

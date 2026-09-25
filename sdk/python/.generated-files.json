@@ -118,6 +118,8 @@
   "macrofold/models/inference_receipt_provider_evidence.py",
   "macrofold/models/inference_receipt_validation.py",
   "macrofold/models/inference_response.py",
+  "macrofold/models/inference_stream_event.py",
+  "macrofold/models/inference_stream_event_data.py",
   "macrofold/models/invitation.py",
   "macrofold/models/invitation_create.py",
   "macrofold/models/key_create.py",

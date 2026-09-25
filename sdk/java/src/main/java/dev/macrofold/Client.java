@@ -113,6 +113,38 @@ public class Client extends Resources {
     streamTarget(customerId, customerAgentId, runId, after, organization, receive);
   }
 
+  @Override
+  protected void streamInference(dev.macrofold.model.InferenceCreate input, RequestOptions options, Predicate<dev.macrofold.model.InferenceStreamEvent> receive)
+      throws IOException, InterruptedException, ApiException {
+    String key = options.identity();
+    var payload = getObjectMapper().valueToTree(input);
+    ((com.fasterxml.jackson.databind.node.ObjectNode) payload).put("stream", true);
+    var request = HttpRequest.newBuilder(URI.create(getBaseUri()+"/v1/inferences"))
+        .header("Authorization", "Bearer "+token).header("X-Client-Type", "sdk")
+        .header("Idempotency-Key", key).header("Content-Type", "application/json")
+        .header("Accept", "text/event-stream").timeout(Duration.ofSeconds(300))
+        .POST(HttpRequest.BodyPublishers.ofString(getObjectMapper().writeValueAsString(payload)));
+    if (options.organization() != null) request.header("X-Organization-Id", options.organization().toString());
+    var deadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+    try {
+      var response = getHttpClient().send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+      var deadline = deadlines.schedule(() -> { try { response.body().close(); } catch (IOException ignored) {} }, 300, java.util.concurrent.TimeUnit.SECONDS);
+      try (var body = response.body()) {
+        if (response.statusCode() != 200) throw new ApiException(response.statusCode(), "Inference stream rejected", response.headers(), new String(body.readNBytes(65536), StandardCharsets.UTF_8));
+        if (!response.headers().firstValue("content-type").orElse("").contains("text/event-stream")) throw new IOException("Expected an event stream");
+        boolean ended = SseReader.read(body, data -> {
+          var event = getObjectMapper().readValue(data, dev.macrofold.model.InferenceStreamEvent.class);
+          if (!receive.test(event)) return true;
+          if ("transport.error".equals(event.getType())) throw new IOException("Stream interrupted; retrieve the saved run result");
+          return java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out").contains(event.getType());
+        });
+        if (!ended) throw new IOException("Stream ended before terminal result; retrieve the saved run result");
+      } finally { deadline.cancel(false); }
+    } catch (ApiException error) { throw new RequestException(error, key); }
+      catch (IOException error) { throw new IOException("Inference stream interrupted; idempotency key: "+key, error); }
+    finally { deadlines.shutdownNow(); }
+  }
+
   private void streamTarget(
       String customerId,
       UUID customerAgentId,
@@ -168,49 +200,24 @@ public class Client extends Resources {
                 throw new ApiException(response.statusCode(), "Event stream rejected");
               throw new IOException("Event stream unavailable: HTTP " + response.statusCode());
             }
-            BufferedReader reader =
-                new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
-            StringBuilder line = new StringBuilder(), data = new StringBuilder();
-            int character;
-            while ((character = reader.read()) != -1) {
-              if (Thread.currentThread().isInterrupted())
-                throw new InterruptedException("Stream detached");
-              if (character != '\n') {
-                line.append((char) character);
-                if (line.length() + data.length() > 4 * 1024 * 1024)
-                  throw new ApiException(413, "SSE frame exceeds client limit");
-                continue;
-              }
-              if (line.length() > 0 && line.charAt(line.length() - 1) == '\r')
-                line.setLength(line.length() - 1);
-              if (line.length() == 0) {
-                Event event = null;
-                try {
-                  if (data.length() > 0)
-                    event = getObjectMapper().readValue(data.toString(), Event.class);
-                } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
-                  /* Ignore invalid frames; replay remains authoritative. */
-                }
-                data.setLength(0);
-                if (event != null
-                    && event.getSequence() != null
-                    && event.getSequence().matches("[0-9]+")) {
-                  BigInteger sequence = new BigInteger(event.getSequence());
-                  if (sequence.compareTo(cursor) > 0) {
-                    if (!receive.test(event)) return;
-                    cursor = sequence;
-                    failures = 0;
-                    if (java.util.Set.of(
-                            "run.succeeded", "run.failed", "run.cancelled", "run.timed_out")
-                        .contains(event.getType())) return;
-                  }
-                }
-              } else if (line.indexOf("data:") == 0) {
-                String value = line.substring(5);
-                data.append(value.startsWith(" ") ? value.substring(1) : value).append('\n');
-              }
-              line.setLength(0);
+            final BigInteger current = cursor;
+            final BigInteger[] delivered = {cursor};
+            boolean ended;
+            try { ended = SseReader.read(body, data -> {
+              Event event;
+              try { event = getObjectMapper().readValue(data, Event.class); }
+              catch (com.fasterxml.jackson.core.JsonProcessingException ignored) { return false; }
+              if (event.getSequence() == null || !event.getSequence().matches("[0-9]+")) return false;
+              BigInteger sequence = new BigInteger(event.getSequence());
+              if (sequence.compareTo(delivered[0]) <= 0) return false;
+              delivered[0] = sequence;
+              return !receive.test(event) || java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out").contains(event.getType());
+            }); } finally {
+              // Preserve delivered identity even if the next network read fails.
+              cursor = delivered[0];
+              if (cursor.compareTo(current) > 0) failures = 0;
             }
+            if (ended) return;
           } finally {
             deadline.cancel(false);
           }

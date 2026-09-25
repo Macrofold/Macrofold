@@ -18,6 +18,8 @@ The selected generative model can invoke `read_context` for one of those exact i
 
 Model/tool call counts, aggregate output tokens, wall time and total spend are finite. Completed steps survive worker restart. An uncertain model call stops the run without automatic replay. There is no shell, evaluated JavaScript, native SDK, shared customer directory, remote MCP or arbitrary connector execution in this bounded executor. Use native isolated agents for those operations. Adding a brokered tool requires a trusted implementation and explicit authorization mapping; a remote server's “read-only” label is insufficient.
 
+Set top-level `stream: true` on the bounded-agent request to receive per-model-call deltas through the returned run stream. Fragments include invocation identity; tools still wait for a complete validated action. See [streaming](../api/streaming.md) for capabilities and final-result handling.
+
 ## One sequential task recipe
 
 Tasks compose existing runs; they do not reserve wallet funds twice. Create a task with a pinned inline decision step, optional investigation, an exact condition value, a cumulative ceiling, a run-count bound, and a bounded evidence horizon:

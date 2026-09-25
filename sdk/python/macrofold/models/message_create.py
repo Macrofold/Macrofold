@@ -48,7 +48,8 @@ class MessageCreate(BaseModel):
     keep_warm_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=0)]] = Field(default=None, description="Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.")
     sandbox_max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.")
     model_parameters: Optional[ModelParameters] = None
-    __properties: ClassVar[List[str]] = ["prompt", "limits", "webhook_endpoint_ids", "queue_if_busy", "model", "queue_timeout_seconds", "scheduling_class", "permissions", "connection_grants", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters"]
+    stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
+    __properties: ClassVar[List[str]] = ["prompt", "limits", "webhook_endpoint_ids", "queue_if_busy", "model", "queue_timeout_seconds", "scheduling_class", "permissions", "connection_grants", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "stream"]
 
     @field_validator('scheduling_class')
     def scheduling_class_validate_enum(cls, value):
@@ -163,7 +164,8 @@ class MessageCreate(BaseModel):
             "sandbox_id": obj.get("sandbox_id"),
             "keep_warm_seconds": obj.get("keep_warm_seconds"),
             "sandbox_max_cost_micro_usd": obj.get("sandbox_max_cost_micro_usd"),
-            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None
+            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
+            "stream": obj.get("stream")
         })
         return _obj
 

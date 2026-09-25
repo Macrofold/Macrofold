@@ -2791,6 +2791,8 @@ export interface components {
              * @enum {string}
              */
             harness_prompt_mode?: "replace" | "extend";
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
         } & (unknown | unknown | unknown);
         /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
         MessageCreate: {
@@ -2822,6 +2824,8 @@ export interface components {
             /** @description Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget. */
             sandbox_max_cost_micro_usd?: string;
             model_parameters?: components["schemas"]["ModelParameters"];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
         };
         RunAccepted: {
             /** Format: uuid */
@@ -4150,6 +4154,8 @@ export interface components {
             queue_if_busy?: boolean;
             /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
             attachments?: string[];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
         };
         /** @description An application-reviewed permission preset. Exact tool names are validated against the enabled provider catalog; labels are not inferred from tool names and do not replace provider OAuth scopes. */
         ConnectionCapability: {
@@ -4300,6 +4306,8 @@ export interface components {
             limits?: components["schemas"]["InferenceLimits"];
             queue_timeout_seconds?: number;
             model_parameters?: components["schemas"]["ModelParameters"];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
         } & (unknown | unknown);
         InferenceReceipt: {
             /** Format: uuid */
@@ -4449,6 +4457,8 @@ export interface components {
             model_binding: components["schemas"]["DecisionBinding"];
             limits?: components["schemas"]["InferenceLimits"];
             queue_timeout_seconds?: number;
+            /** @description Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission. */
+            stream?: boolean;
         };
         TaskStepDefinition: {
             definition: components["schemas"]["InferenceDefinition"];
@@ -4702,6 +4712,31 @@ export interface components {
              */
             sandbox_id?: string | null;
             result?: components["schemas"]["RunResult"];
+        };
+        InferenceStreamEvent: {
+            /** @constant */
+            schema_version: 1;
+            /** Format: uuid */
+            run_id: string;
+            /** @description run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error. */
+            type: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence. */
+            data: {
+                text?: string;
+                invocation_id?: string;
+                message_id?: string;
+                content_index?: number;
+                choice_index?: number;
+                tool_call_id?: string;
+                stop_reason?: string;
+                /** @enum {string} */
+                delivery?: "live" | "result_replay";
+                result?: components["schemas"]["RunResult"];
+            } & {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -10212,6 +10247,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InferenceResponse"];
+                    "text/event-stream": string;
                 };
             };
             /** @description Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery. */

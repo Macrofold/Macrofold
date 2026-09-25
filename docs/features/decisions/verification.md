@@ -40,6 +40,23 @@ Both usage records were complete. The combined rounded estimate was **$0.000061*
 
 This proves the configured account's two current Jev routes through the local application, not hosted enablement, arbitrary routing/model support, direct TypeSafe entitlement, model quality, or provider-side revocation. OpenRouter's documented endpoint is alpha. Real ambiguous transport completion remains a release acceptance item; deterministic no-retry/provisional-accounting fixtures cover its local behavior.
 
+### Context-window correction
+
+The local correction removes byte-as-token context rejection at both admission and invocation preparation, including bounded-agent follow-ups. Billing reservations and request byte limits remain unchanged. Regression cases exercise typed and native-payload Jev through both providers above the old 32KB boundary, conventional inference above the old 128KB boundary, insufficient budgets before dispatch, actual-usage settlement and provider rejection without retries.
+
+The focused disposable-database run passed all eight selected cases (seven new regressions and the existing bounded-evidence loop); `pnpm check`, documentation generation/checks and whitespace validation passed. The broader inference/protocol run passed 66 of 69 tests. The remaining failures concern an expected `decision.response` trace event, a generated-client cancellation test that does not request asynchronous execution, and an exact error-message assertion for unsupported OpenRouter models. Those behaviors were not changed by this correction. The asynchronous test helper now explicitly sends `Prefer: respond-async` so admission and executor phases can be exercised separately.
+
+An explicitly authorized direct OpenRouter probe used only synthetic repeated greetings, fixed `typesafe/jev-1.13`, no retries or fallback, and price ceilings of $0.042/M input and zero output/request fees. Five attempts reserved a combined $0.10 test ceiling:
+
+| Input shape | Result |
+| --- | --- |
+| 60,000 greeting repetitions in state, one short question | HTTP 400, upstream `max_tokens_exceeded` |
+| 10,000 in state, 24,500 in each of two questions | HTTP 400, upstream `max_tokens_exceeded` (each state/question pair also exceeds 32K) |
+| 100 and 1,000 in state, short question | HTTP 200; 414 and 1,314 input tokens, confirming one additional token per repetition for this fixture |
+| 2,000 in state, 29,000 in each of two questions | HTTP 200; **60,369 input tokens**, 59 output tokens, reported cost **$0.002535498**, 829 ms for this sample |
+
+Sanitized reports are retained in ignored `.data/live-checks/openrouter-jev-60k-*.json` and `openrouter-jev-token-calibration.json`. Successful calls reported $0.002608074 combined; rejected calls reported no usage, so no zero-charge claim is made for those attempts. These direct probes establish the configured route's observed limits, not a hosted Macrofold deployment or a latency guarantee. [TypeSafe documentation](https://docs.typesafe.ai/models) specifies 64K total and 32K for state plus the longest question.
+
 ### Coverage review
 
 The in-process aggregate covers the full configured source inventory, including unexercised application UI: 50.05% statements, 43.89% branches and 51.23% lines. This is not combined browser/native coverage. New authority, admission, credential, model, task-allocation and context-artifact modules have 100% branch coverage; explicit context validation has 94.73% and provider protocols 96.66%.

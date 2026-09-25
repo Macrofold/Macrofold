@@ -1,5 +1,15 @@
 # Engineering TODO
 
+## Delta streaming implementation
+
+- [x] Implement [delta streaming](../features/api/streaming-implementation.md): direct transient SSE, provider/harness capability rejection, bounded-agent deltas, completed-response persistence/accounting, typed helpers in all five SDKs, and public/internal documentation. Local live Anthropic direct/bounded delivery, active/completed idempotent replay, disconnect without cancellation, final usage and Langfuse API readback are verified. Builds/type checks pass; no automated tests were written or run by operator request.
+- [ ] Add provider parser regression tests: split UTF-8/SSE, multi-line frames, heartbeats, multiple choices/content blocks/tools, refusals, final usage after text, malformed frames, size limits, premature EOF and cancellation. Assert no successful completion on a missing vendor terminal marker.
+- [ ] Add admission/HTTP coverage across direct, native, bounded, preset/session and customer-agent paths: resolved capabilities, Jev/DeepSeek rejection before side effects, read/write scopes and tenant isolation, nested option contradictions, unsupported transports, deadlines and immediate-capacity rollback.
+- [ ] Add lifecycle/accounting coverage: early delta before held completion, active/completed concurrent idempotency, disconnect, slow reader, explicit cancellation, revoked authority, purge racing late fragments, uncertain dispatch, failed response persistence/settlement and recovery without a second model call. Compare deterministic streamed/non-streamed usage and charge; require one generation per invocation and no direct per-chunk SQL writes. Verify bounded-agent identities and tool execution only after complete validated arguments.
+- [ ] Add all-five-SDK direct-stream coverage for typed events, terminal failures, partial transport errors retaining identity, EOF, reader cleanup, no POST reconnect after output, and local rejection of `create(stream=true)`. Preserve durable replay/reconnect coverage. Add non-blocking exporter/outage and complete assembled tracing assertions, including original provider text when typed JSON validation fails.
+- [ ] Complete successful OpenRouter live streaming acceptance once the configured account has credit (the manual attempt returned upstream HTTP 402). Verify final usage and generation trace; do not substitute credentials or models silently.
+- [ ] Verify hosted flushing, 300-second serving configuration, immediate admission, reader-detach lifetime and finalization with the real deployment proxy. Run supported native harness two-turn/cancellation image journeys, a multi-call bounded investigation, and non-TypeScript SDK real-HTTP journeys. Local Anthropic acceptance and compilation do not establish these paths or hosted acceptance.
+
 ## Native startup failure diagnostics
 
 - Local manual acceptance: the activated diagnostic image and restarted Docker poller export `runtime.failed` through the event API and as an ERROR observation in Langfuse. Fresh OpenCode/OpenRouter requests succeed. A fresh warm session successfully recalls a synthetic marker on its second turn with `reused: true`. These checks used `meta/muse-spark-1.3-contributor`, BYOK, no tools and a $0.24 cap per run. No automated tests were written or run.
@@ -42,6 +52,8 @@ Product and architecture proposals are tracked separately in [ranked improvement
 
 
 ## Stateless inference simplification
+
+- [ ] Reconcile three inference/protocol test expectations observed during the [context-window correction](../features/decisions/verification.md#context-window-correction): successful `decision.response` trace-event presence, explicit async submission before generated-client cancellation, and the unsupported OpenRouter model error assertion. The focused token-limit regressions pass; the broader two-file run remains 66/69.
 
 ### Implementation in this change
 

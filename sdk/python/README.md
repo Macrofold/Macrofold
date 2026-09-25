@@ -40,6 +40,37 @@ macrofold = Macrofold(base_url="http://localhost:3210", api_key="YOUR_LOCAL_API_
 
 An explicit key takes precedence over `MACROFOLD_API_KEY`. Empty or missing keys fail before a request. `Client` remains an alias for the same client. Close the client when finished; long-lived applications can share it across requests.
 
+## Stream a model response
+
+For a direct model call without a harness, use `inferences.stream` (Go: `Inferences.Stream`). The helper sets `stream: true`. Set `MACROFOLD_API_KEY` with `runs:write` and `runs:read`; this example requires a configured Anthropic provider and managed credit. Its $0.10 budget is a ceiling, not a price estimate. Workspace-restricted keys must also supply their authorized `workspace_id`.
+
+```python
+from macrofold import Macrofold
+
+client = Macrofold()
+try:
+    for event in client.inferences.stream({
+        "model_binding": {
+            "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "billing_mode": "managed",
+        },
+        "input": {
+            "messages": [{"role": "user", "content": "Explain worktrees in two sentences."}],
+            "max_tokens": 256,
+        },
+        "limits": {"timeout_seconds": 60, "max_output_tokens": 256, "max_cost_micro_usd": "100000"},
+    }):
+        if event.type == "run.accepted":
+            print("Run:", event.run_id)
+        elif event.type == "output.delta":
+            print(event.data.text or "", end="", flush=True)
+        elif event.type.startswith("run."):
+            print(event.type, event.data.result)
+finally:
+    client.close()
+```
+
+Direct events are live-only and do not reconnect or replay tokens. Save the accepted run ID to retrieve its final result after a disconnect; detaching leaves execution running. Terminal failures arrive as events, so inspect them even when the helper returns normally. For recovery across process restarts, persist your own idempotency key using the request options described below. See [streaming](../../docs/features/api/streaming.md) for supported providers, events, limits, and REST examples.
+
 ## Resource methods and types
 
 ```python

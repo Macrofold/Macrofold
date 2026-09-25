@@ -18,15 +18,22 @@ const retrySeconds = 5;
 const allocationMeters = (host: HostRow, now: number): ComputeMeters => ({ kind: 'allocation', elapsed_ms:
   String(host.started_at ? Math.max(0, Math.min(now, host.stopped_at?.getTime() ?? Infinity) - host.started_at.getTime()) : 0) });
 
-async function mutateHost(org: string, hostId: string, leaseId: string, action: (tx: Tx, host: HostRow) => Promise<void>) {
+async function mutateHost<T>(org: string, hostId: string, leaseId: string, action: (tx: Tx, host: HostRow) => Promise<T>) {
   return transaction(org, async tx => {
     const before = await getHost(tx, hostId);
     await lock(tx, `worker:${before.worker_id}`);
     await lock(tx, `host:${hostId}`);
     const current = await getHost(tx, hostId);
     assert(current.lease_id === leaseId, 409, 'host_lease_lost', 'Another reconciler owns this Host operation.');
-    await action(tx, current);
+    return action(tx, current);
   });
+}
+
+function mandatoryStopReason(host: HostRow, now: number): string | null {
+  if (host.failure_code === 'host_generation_changed') return host.failure_code;
+  if (host.failure_code === 'host_funding_exhausted' || host.funded_until.getTime() <= now)
+    return 'host_funding_exhausted';
+  return null;
 }
 
 /** Reconcile one physical generation. Provider I/O never runs while tenant/capacity locks are held. */
@@ -88,15 +95,27 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       host = await transaction(org, tx => getHost(tx,hostId));
     }
 
-    // A restarted controller cannot prove ownership of its old process trees. Stop the
-    // allocation, not just its DB lease; Run recovery then releases the fenced claims.
-    if (host.failure_code === 'host_generation_changed' && !host.stopped_at) {
-      if (!await provider.destroy(host.provider_name, host.binding)) return;
-      await mutateHost(org, hostId, leaseId, async tx => {
-        await tx.query("UPDATE hosts SET status='draining',stopped_at=now(),updated_at=now() WHERE id=$1", [hostId]);
-        await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
-          (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
+    // Neither a failed meter nor failed settlement may keep unfunded compute alive.
+    // Recheck funding under the admission lock, then stop outside SQL. A concurrent
+    // renewal wins before draining; new claims cannot race the physical shutdown.
+    if (!host.stopped_at && mandatoryStopReason(host, Date.now())) {
+      const stop = await mutateHost(org, hostId, leaseId, async (tx, current) => {
+        const reason = mandatoryStopReason(current, Date.now());
+        if (current.stopped_at || !reason) return false;
+        await tx.query("UPDATE hosts SET status='draining',failure_code=$2,updated_at=now() WHERE id=$1", [hostId, reason]);
+        await tx.query('UPDATE workers SET failure_code=$2,updated_at=now() WHERE id=$1', [current.worker_id, reason]);
+        return true;
       });
+      if (stop) {
+        if (!await provider.destroy(host.provider_name, host.binding)) return;
+        // Persist the physical receipt independently of settlement. Unknown usage or
+        // an overrun still retains the reservation; it must not restart the meter.
+        await mutateHost(org, hostId, leaseId, async tx => {
+          await tx.query("UPDATE hosts SET stopped_at=coalesce(stopped_at,now()),updated_at=now() WHERE id=$1", [hostId]);
+          await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
+            (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
+        });
+      }
       host = await transaction(org, tx => getHost(tx, hostId));
     }
     let meters: ComputeMeters | undefined;
@@ -164,6 +183,9 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       }
       const released = host.stopped_at !== null || await provider.destroy(host.provider_name,host.binding);
       if (!released) return;
+      if (!host.stopped_at) await mutateHost(org, hostId, leaseId, async tx => {
+        await tx.query('UPDATE hosts SET stopped_at=coalesce(stopped_at,now()),updated_at=now() WHERE id=$1', [hostId]);
+      });
       await mutateHost(org, hostId, leaseId, async (tx, current) => {
         // Allocation-time pricing includes the confirmed stop boundary, not merely the DELETE acknowledgement.
         if (current.started_at && current.offering.price.kind === 'allocation') {

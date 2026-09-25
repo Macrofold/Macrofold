@@ -1,5 +1,5 @@
 import { chooseWorkerPlacement, workerCommittedRate } from './worker-placement';
-import { workerOfferingCompatible } from './worker-policy';
+import { workerAdmissionBlock, workerOfferingCompatible } from './worker-policy';
 import { workerHourlyExposure } from './worker-pricing';
 import type { ComputeOffering, HostSnapshot, RunDemand, WorkerIdentity } from './worker-types';
 
@@ -12,6 +12,7 @@ export type CapacityPlan = {
 export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly RunDemand[],
   hosts: readonly HostSnapshot[], offerings: readonly ComputeOffering[], nowMs: number): CapacityPlan {
   const plan: CapacityPlan = { provision: [], fund: new Map() };
+  if (workerAdmissionBlock(worker, nowMs)) return plan;
   const projected: HostSnapshot[] = hosts.map(host => ({ ...host,
     // Starting capacity already counts toward expected supply; never create its duplicate.
     status: host.status === 'provisioning' ? 'ready' : host.status, allocated: { ...host.allocated } }));
@@ -34,8 +35,6 @@ export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly Run
     projected.push(host);
     return host;
   }
-  while (quotes[0] && projected.filter(host => host.status === 'ready').length < worker.settings.min_instances)
-    if (!add(quotes[0], 900)) break;
   for (const demand of demands.slice(0, 32)) {
     const placement = chooseWorkerPlacement(worker, demand, projected, offerings, nowMs);
     const selected = placement.action === 'place' ? projected.find(host => host.id === placement.host_id) :
@@ -49,5 +48,9 @@ export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly Run
       item.execution_seconds = Math.max(item.execution_seconds, demand.execution_seconds);
     } else plan.fund.set(selected.id, Math.max(plan.fund.get(selected.id) || 0, demand.execution_seconds));
   }
+  // Demand-sized Hosts also satisfy the baseline. Buying the cheapest baseline
+  // first can consume the only instance/rate slot with a shape no queued Run fits.
+  while (quotes[0] && projected.filter(host => host.status === 'ready').length < worker.settings.min_instances)
+    if (!add(quotes[0], 900)) break;
   return plan;
 }

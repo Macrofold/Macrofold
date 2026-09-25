@@ -4,10 +4,6 @@ on:
     branches: [feat/worker-economics-autoscaling]
     paths:
       - .github/workflows/worker-development.yml
-      - scripts/workers/resume-edit.py
-      - scripts/workers/receipt-edit.py
-      - scripts/workers/stability-edit.py
-      - scripts/workers/docs-edit.py
       - scripts/workers/verify.marker
 permissions:
   contents: read
@@ -18,14 +14,13 @@ jobs:
   implementation:
     if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    permissions:
-      contents: write
+    timeout-minutes: 30
     env:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
       ALLOW_PAID_EXECUTION: 'false'
       NEXT_TELEMETRY_DISABLED: '1'
+      WORKER_SOURCE_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -36,38 +31,11 @@ jobs:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile --reporter=append-only
-      - name: Apply reviewed source change
-        run: |
-          for script in scripts/workers/resume-edit.py scripts/workers/receipt-edit.py scripts/workers/stability-edit.py scripts/workers/docs-edit.py; do
-            if test -f "$script"; then
-              python3 "$script"
-              rm "$script"
-            fi
-          done
-          git diff --exit-code -- .github/workflows
-      - name: Regenerate owned contracts and public documentation
-        run: |
-          pnpm sdk:generate:all
-          pnpm docs:generate
-      - name: Publish reviewed changes to the unmerged feature branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git add --all
-          if ! git diff --cached --quiet; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'Apply Worker cutover and regenerate owned contracts'
-            git -c 'credential.helper=!gh auth git-credential' push origin HEAD:refs/heads/feat/worker-economics-autoscaling
-          fi
-          echo "VERIFIED_SOURCE_COMMIT=$(git rev-parse HEAD)"
-          echo "WORKER_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Compile application and runtime
         run: |
           pnpm check
           pnpm build:runtime
       - name: Execute bounded runtime stress workload
-        if: hashFiles('scripts/workers/stress.ts') != ''
         run: |
           pnpm run setup
           pnpm exec tsx scripts/workers/stress.ts

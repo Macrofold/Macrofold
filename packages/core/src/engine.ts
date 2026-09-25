@@ -11,7 +11,7 @@ import { config, isLocal } from './config';
 import { id } from './crypto';
 import { assert } from './errors';
 import { emit } from './events';
-import { getRun, terminal, requireNativeRun, type RunRow } from './runs';
+import { getRun, terminal, requireNativeRun, type RunRow, type NativeRunRow } from './runs';
 import { settle } from './ledger';
 import * as resources from './resources';
 import { checkpointState, prepareCheckpoint, saveCheckpoint, normalizePath, type FileRecord } from './files';
@@ -155,17 +155,29 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     return getRun(tx, runId);
 }
 
-/** Claims serialize writers. A crashed execution is never silently re-run. */
-export async function executeRun(org: string, runId: string, provider?: ExecutionProvider) {
+/** Separate the short admission claim from long-running execution. Dispatchers
+ * await claims in fair-candidate order while already-started Runs remain parallel. */
+export async function startRun(org: string, runId: string, provider?: ExecutionProvider) {
   const candidate = await transaction(org, (tx) => getRun(tx, runId));
   if (candidate.kind !== 'native_agent') {
     const { advanceInference } = await import('./inference-engine');
-    await advanceInference(org, runId);
-    return true;
+    return { completion: advanceInference(org, runId).then(() => true) };
   }
   const run = await claimRun(org, runId);
-  if (!run) return false;
+  if (!run) return null;
   requireNativeRun(run);
+  return { completion: executeClaimedNativeRun(run, provider) };
+}
+
+/** Claims serialize writers. A crashed execution is never silently re-run. */
+export async function executeRun(org: string, runId: string, provider?: ExecutionProvider) {
+  const started = await startRun(org, runId, provider);
+  return started ? started.completion : false;
+}
+
+async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionProvider) {
+  const org = run.organization_id;
+  const runId = run.id;
   const p = principalFor(run);
   const abort = new AbortController();
   let stopped = false;

@@ -9,28 +9,80 @@ jobs:
   inspect:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
           show-progress: false
-      - name: Inventory remaining architecture references
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile --reporter=append-only
+      - run: pnpm run setup
+      - name: Exercise overdue allocation shutdown without a test runner
         run: |
-          python3 - <<'PY'
-          import pathlib,subprocess,re,json
-          paths=subprocess.check_output(['git','ls-files'],text=True).splitlines()
-          for name in paths:
-              p=pathlib.Path(name)
-              if p.suffix not in ('.ts','.tsx','.mjs','.md','.json','.yml'):continue
-              if name.startswith(('sdk/','apps/web/public/','node_modules/')) or p.name in ('openapi.json','api.d.ts','schema.d.ts'):continue
-              text=p.read_text()
-              if p.suffix=='.md':
-                  terms=['sandbox','Sandbox','not yet implemented','not yet enabled','Target API','reusable compute']
-              else: terms=['sandbox-control','sandbox_id','SandboxBinding','SandboxControl','SandboxTools','RENDER_SANDBOX','test:sandboxes','--sandboxes','machineTools(','machines()','SandboxRow']
-              matches=[(i+1,line) for i,line in enumerate(text.splitlines()) if any(term in line for term in terms)]
-              if matches:
-                  print('FILE',name)
-                  for number,line in matches:print(number,line[:350])
-          print('WORKFLOWS',','.join(p for p in paths if p.startswith('.github/workflows/worker')))
-          print('ROOT_SCRIPTS',json.dumps(json.loads(pathlib.Path('package.json').read_text())['scripts']))
-          PY
+          cat > .worker-review.mts <<'TS'
+          import { withFixtureDatabase } from './scripts/fixture-database';
+          import { command } from './scripts/coverage/processes';
+          if (!process.env.WORKER_REVIEW_SCENARIO) {
+            await withFixtureDatabase(env => command(['exec','tsx','.worker-review.mts'], {...env,WORKER_REVIEW_SCENARIO:'1'}));
+          } else {
+            const { fixtureAccount } = await import('./tests/fixtures/account');
+            const { pool, authPool, transaction } = await import('./packages/db');
+            const { createWorker, getWorker, changeWorker } = await import('./packages/core/src/workers');
+            const { reconcileWorker } = await import('./packages/core/src/worker-reconciler');
+            const { credit } = await import('./packages/core/src/ledger');
+            const { id } = await import('./packages/core/src/crypto');
+            const allocations = new Map();
+            let stops = 0;
+            const provider = {
+              async provision(spec) {
+                const value = allocations.get(spec.name) ?? {name:spec.name,sessionId:spec.id,controlBootId:spec.id,createdAt:new Date().toISOString()};
+                allocations.set(spec.name,value);
+                return value;
+              },
+              async exists(binding) { return allocations.has(binding.name); },
+              async control(binding,_secret,request) {
+                if(request.action==='configure') return {};
+                return {boot_id:binding.sessionId,started_at:binding.createdAt,configured:true,active_assignments:0,
+                  quiesced:request.action==='quiesce',capabilities:{scoped_processes:true,sibling_isolation:true,resource_meter:true},
+                  meters:{kind:'resource',cpu_ms:'0',memory_mib_ms:'0'}};
+              },
+              async destroy(name) { if(allocations.delete(name)) stops++; return true; },
+            };
+            try {
+              const account = await fixtureAccount('Funded shutdown review');
+              const p = {...account.p,scopes:[...account.p.scopes,'workers:read','workers:write','workers:use']};
+              const tx = action => transaction(p.organizationId,action);
+              await tx(t=>credit(t,p.organizationId,1000000000n,`review:${id()}`));
+              const worker = await tx(t=>createWorker(t,p,{name:'shutdown-review',compute:'server',dedicated:true,isolate_runs:false,
+                min_instances:1,max_instances:1,max_concurrency:1,max_hourly_compute_cost_micro_usd:'3600000'}));
+              await tx(async t=>{
+                const row=await getWorker(t,worker.id);
+                const quote={...row.offerings[0],price:{kind:'allocation',hourly_micro_usd:'3600000'}};
+                await t.query('UPDATE workers SET offerings=$2 WHERE id=$1',[worker.id,JSON.stringify([quote])]);
+              });
+              await reconcileWorker(p.organizationId,worker.id,()=>provider);
+              await tx(t=>t.query("UPDATE hosts SET started_at=now()-interval '2 hours',funded_until=now()-interval '1 hour',next_check_at=now() WHERE worker_id=$1",[worker.id]));
+              await tx(t=>changeWorker(t,p,worker.id,'pause'));
+              for(let pass=0;pass<3;pass++) {
+                await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE worker_id=$1',[worker.id]));
+                await reconcileWorker(p.organizationId,worker.id,()=>provider);
+              }
+              const hosts=await tx(t=>t.query('SELECT status,stopped_at,failure_code,reserved_micro_usd,charged_micro_usd FROM hosts WHERE worker_id=$1',[worker.id]));
+              console.log('WORKER_SHUTDOWN_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,
+                scope:'Real PostgreSQL and reconciliation; synthetic accepted rate and provider boundary; no model execution',
+                physical_allocations_remaining:allocations.size,confirmed_stops:stops,hosts:hosts.rows,paid_api_calls:0}));
+            } finally { await pool.end(); await authPool.end(); }
+          }
+          TS
+          pnpm exec tsx .worker-review.mts
+      - name: Release disposable infrastructure
+        if: always()
+        run: docker compose -f infra/compose.yml down -v

@@ -8,7 +8,7 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
@@ -24,24 +24,27 @@ jobs:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile --reporter=append-only
-      - name: Read version-matched client-component guidance
-        run: |
-          node -p "require('./apps/web/node_modules/next/package.json').version"
-          cat apps/web/node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md
-      - run: pnpm check && pnpm build:runtime
+      - run: pnpm check && pnpm build:runtime && pnpm --filter @hosted-agents/cli build
       - run: pnpm run setup
-      - name: Exercise allocation and resource shutdown without a test runner
+      - name: Exercise real database and built CLI without a test runner
         run: |
           cat > .worker-review.mts <<'TS'
           import { withFixtureDatabase } from './scripts/fixture-database';
           import { command } from './scripts/coverage/processes';
+          import { spawn } from 'node:child_process';
           if (!process.env.WORKER_REVIEW_SCENARIO) {
             await withFixtureDatabase(env => command(['exec','tsx','.worker-review.mts'], {...env,WORKER_REVIEW_SCENARIO:'1'}));
           } else {
             const { fixtureAccount } = await import('./tests/fixtures/account');
-            const { pool, authPool, transaction } = await import('./packages/db');
+            const { fixtureHttpApi } = await import('./tests/fixtures/http-api');
+            const { pool, authPool, credentialPool, transaction } = await import('./packages/db');
             const { createWorker, getWorker, changeWorker } = await import('./packages/core/src/workers');
             const { reconcileWorker } = await import('./packages/core/src/worker-reconciler');
+            const { claimHostRun, activeHostRun } = await import('./packages/core/src/host-allocations');
+            const { WorkerMachines } = await import('./packages/core/src/worker-machines');
+            const { getNativeRun } = await import('./packages/core/src/runs');
+            const { createKey } = await import('./packages/core/src/keys');
+            const { Client } = await import('./sdk/typescript/src/client');
             const { credit } = await import('./packages/core/src/ledger');
             const { id } = await import('./packages/core/src/crypto');
             const allocations = new Map();
@@ -49,8 +52,7 @@ jobs:
             const provider = {
               async provision(spec) {
                 const value = allocations.get(spec.name) ?? {name:spec.name,sessionId:spec.id,controlBootId:spec.id,createdAt:new Date().toISOString()};
-                allocations.set(spec.name,value);
-                return value;
+                allocations.set(spec.name,value); return value;
               },
               async exists(binding) { return allocations.has(binding.name); },
               async control(binding,_secret,request) {
@@ -61,8 +63,9 @@ jobs:
               },
               async destroy(name) { if(allocations.delete(name)) stops++; return true; },
             };
+            const api=await fixtureHttpApi();
             try {
-              const account = await fixtureAccount('Funded shutdown review');
+              const account = await fixtureAccount('Worker implementation review');
               const p = {...account.p,scopes:[...account.p.scopes,'workers:read','workers:write','workers:use']};
               const tx = action => transaction(p.organizationId,action);
               await tx(t=>credit(t,p.organizationId,1000000000n,`review:${id()}`));
@@ -87,13 +90,149 @@ jobs:
                   throw new Error('Physical retirement did not preserve the unresolved financial boundary');
                 if(kind==='resource' && hosts.rows[0].final_usage?.cpu_ms!=='14400000') throw new Error('Final receipt was not retained');
                 console.log('WORKER_SHUTDOWN_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,kind,
-                  scope:'Real PostgreSQL and reconciliation; synthetic accepted rate and provider boundary; no model execution',
                   physical_allocations_remaining:allocations.size,confirmed_stops:stops-before,hosts:hosts.rows,paid_api_calls:0}));
               }
-            } finally { await pool.end(); await authPool.end(); }
+              const client=new Client({baseURL:api.origin,apiKey:account.key,retries:0});
+              const target=await client.request('createWorker',{body:{name:'cleanup-target',compute:'server',dedicated:true,isolate_runs:false,min_instances:1,max_instances:1}});
+              await reconcileWorker(p.organizationId,target.id,()=>provider);
+              const workspace=await client.request('createWorkspace',{body:{name:'Unbound preparation'}});
+              const accepted=await client.request('createRun',{body:{worktree_id:workspace.default_worktree_id,worker_id:target.id,
+                prompt:'Do not launch this cancelled preparation.',harness:'codex',model:'fixture-model',billing_mode:'managed'}});
+              const run=await tx(t=>getNativeRun(t,accepted.run_id));
+              const assignment=await tx(t=>claimHostRun(t,run));
+              if(!assignment) throw new Error('Preparation scenario did not acquire capacity');
+              let released=false;
+              const boundary={...provider,async control(_binding,_secret,request){
+                if(request.action!=='release') throw new Error('Unlaunched cleanup sent an unexpected command');
+                if(!released) throw new Error('runtime_not_quiescent');
+                return {};
+              }};
+              const machines=new WorkerMachines(run,()=>boundary);
+              await machines.cleanupUnbound().then(()=>{throw new Error('Unconfirmed cleanup released a claim');},error=>{
+                if(error.message!=='runtime_not_quiescent') throw error;
+              });
+              if(!(await tx(t=>activeHostRun(t,run.id)))) throw new Error('Writer claim was released before confirmation');
+              released=true;
+              await machines.cleanupUnbound();
+              await machines.cleanupUnbound();
+              if(await tx(t=>activeHostRun(t,run.id))) throw new Error('Confirmed cleanup did not release its claim');
+              console.log('WORKER_UNBOUND_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,held_until_confirmation:true,idempotent_cleanup:true,paid_api_calls:0}));
+              async function cli(args,key=account.key) {
+                return new Promise((resolve,reject)=>{
+                  const child=spawn(process.execPath,['packages/cli/dist/index.mjs',...args,'--json'],{
+                    env:{...process.env,AGENT_HOST:api.origin,AGENT_API_KEY:key,AGENT_CONFIG_DIR:'/tmp/worker-review-cli',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});
+                  let out='',err=''; child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);
+                  child.on('error',reject);child.on('close',code=>code===0?resolve(JSON.parse(out).data):reject(new Error(`CLI failed ${code}: ${err||out}`)));
+                });
+              }
+              const old=await cli(['worker','create','reusable-name']);
+              await cli(['worker','destroy',old.id,'--yes']);
+              const fresh=await cli(['worker','create','reusable-name']);
+              const selected=await cli(['worker','show','reusable-name']);
+              if(selected.id!==fresh.id) throw new Error('CLI selected a destroyed name instead of its replacement');
+              const restricted=await tx(t=>createKey(t,p,{name:'Write-only Worker operator',scopes:['workers:write'],worker_ids:[fresh.id]}));
+              const updated=await cli(['worker','update',fresh.id,'--revision',String(fresh.revision),'--name','revision-without-read'],restricted.secret);
+              if(updated.name!=='revision-without-read') throw new Error('Explicit revision update failed without read scope');
+              console.log('WORKER_CLI_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,name_reuse:true,write_only_revision:true,built_subprocess:true,real_api:true,paid_api_calls:0}));
+            } finally { await api.close();await pool.end();await authPool.end();await credentialPool.end(); }
           }
           TS
           pnpm exec tsx .worker-review.mts
+      - name: Exercise compiled controller fences in a disposable Linux container
+        run: |
+          cat > .worker-fence.mjs <<'JS'
+          import { HostController } from './packages/runtime/dist/host-control.mjs';
+          import { randomUUID } from 'node:crypto';
+          import { mkdir } from 'node:fs/promises';
+          await mkdir('/platform-control',{recursive:true,mode:0o700});
+          const controller=new HostController();
+          await controller.control({action:'configure',host_id:randomUUID(),generation:1,concurrency:2,isolate_runs:false,
+            resources:{memory_mib:4096,cpu_millis:2000},warm_memory_mib:0,warm_idle_seconds:0});
+          const run={run_id:randomUUID(),assignment_id:randomUUID()};
+          const prepare={action:'prepare',...run,worktree_id:randomUUID(),session_id:randomUUID(),permission_view:'review',
+            checkpoint_id:null,session_revision:'0',compatibility_key:'review',resources:{memory_mib:128,cpu_millis:250},
+            configuration:{runId:run.run_id,harness:'codex',model:'fixture',provider:'openai',prompt:'Never execute',
+              workspace:'/unused',stateHome:'/unused',gatewayURL:'http://127.0.0.1:8787',toolURL:'http://127.0.0.1:8787',
+              token:'unpaid-fixture',deadline:new Date(Date.now()+60000).toISOString(),toolGrants:false}};
+          const abandoned=randomUUID();
+          await controller.control({action:'release',...run,assignment_id:abandoned,checkpoint_id:null,session_revision:'0',persisted:false});
+          await controller.control({...prepare,assignment_id:abandoned}).then(()=>{throw new Error('Late preparation recreated a released assignment');},error=>{
+            if(error.message!=='assignment_released') throw error;
+          });
+          await controller.control(prepare);
+          const results=await Promise.allSettled([
+            controller.control({action:'release',...run,checkpoint_id:null,session_revision:'0',persisted:false}),
+            controller.control({action:'launch',...run}),
+          ]);
+          if(results[0].status!=='fulfilled' || results[1].status!=='rejected' || results[1].reason.message!=='assignment_released')
+            throw new Error('A queued command crossed the release boundary');
+          console.log('WORKER_CONTROLLER_REVIEW',JSON.stringify({late_prepare_fenced:true,queued_launch_fenced:true,active_assignments:(await controller.control({action:'health'})).active_assignments,paid_api_calls:0}));
+          JS
+          docker run --rm --init --network none --memory 1g --pids-limit 256 --mount "type=bind,src=$PWD,dst=/repo,readonly" \
+            -w /repo node:24.13.0 node .worker-fence.mjs
+      - name: Exercise the actual Worker form in Chromium
+        run: |
+          pnpm exec playwright install --with-deps chromium > /tmp/worker-browser-install.log 2>&1
+          pnpm dev > /tmp/worker-browser-server.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          cat > .worker-browser.mjs <<'JS'
+          import { chromium } from '@playwright/test';
+          const origin='http://localhost:3210';
+          for(let attempt=0;attempt<120;attempt++) {
+            try { if((await fetch(origin+'/health',{signal:AbortSignal.timeout(1000)})).ok) break; } catch {}
+            if(attempt===119) throw new Error('Local dashboard did not start');
+            await new Promise(resolve=>setTimeout(resolve,500));
+          }
+          const browser=await chromium.launch({headless:true,args:['--host-resolver-rules=MAP localhost 127.0.0.1']});
+          try {
+            const page=await browser.newPage({viewport:{width:1440,height:1100}});
+            const errors=[];page.on('pageerror',error=>errors.push(error.message));
+            await page.goto(origin+'/login');
+            await page.getByRole('button',{name:'Sign in',exact:true}).click();
+            await page.getByRole('heading',{name:'Home',exact:true}).waitFor();
+            await page.getByRole('link',{name:'Workers',exact:true}).click();
+            await page.getByRole('button',{name:'Create Worker',exact:true}).click();
+            const dialog=page.getByRole('dialog');
+            if(!(await dialog.getByRole('combobox').innerText()).includes('isolated Runs')) throw new Error('Form did not default to isolation');
+            const name=dialog.getByRole('textbox',{name:'Name (optional)',exact:true});
+            if(await name.getAttribute('required')!==null) throw new Error('Optional Worker name was required');
+            await name.fill('browser-reviewed-worker');
+            await dialog.getByRole('combobox').click();
+            await page.getByRole('option',{name:'Server compute · dedicated capacity · trusted sharing',exact:true}).click();
+            await dialog.getByText('Trusted sharing is for mutually trusted Runs of one application.',{exact:false}).waitFor();
+            await dialog.locator('summary').click();
+            await dialog.getByRole('checkbox',{name:'Retain idle capacity while funded'}).check();
+            await dialog.getByRole('combobox').click();
+            await page.getByRole('option',{name:'On-demand sandbox · metered capacity · isolated Runs',exact:true}).click();
+            if(await dialog.getByRole('checkbox',{name:'Retain idle capacity while funded'}).count()) throw new Error('Pooled form retained an indefinite idle option');
+            await page.screenshot({path:'/tmp/worker-browser.png',fullPage:true});
+            const reply=page.waitForResponse(response=>new URL(response.url()).pathname==='/v1/workers' && response.request().method()==='POST');
+            await dialog.getByRole('button',{name:'Create Worker',exact:true}).click();
+            const response=await reply;
+            if(!response.ok()) throw new Error(`Worker form failed: ${await response.text()}`);
+            const submitted=response.request().postDataJSON();
+            if(!submitted.isolate_runs || submitted.dedicated || submitted.idle_timeout_seconds===null) throw new Error('Form submitted an unintended compute contract');
+            await page.getByRole('heading',{name:'browser-reviewed-worker',exact:true}).waitFor();
+            if(errors.length) throw new Error(errors.join('\n'));
+            console.log('WORKER_BROWSER_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,isolated_default:true,explicit_trust_choice:true,finite_pooled_retention:true,real_api:true,console_errors:errors.length,paid_api_calls:0}));
+          } finally { await browser.close(); }
+          JS
+          pnpm exec node .worker-browser.mjs
+      - name: Check documentation integrity
+        if: always()
+        run: pnpm docs:check
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-review-browser
+          path: |
+            /tmp/worker-browser.png
+            /tmp/worker-browser-server.log
+            /tmp/worker-browser-install.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Release disposable infrastructure
         if: always()
         run: docker compose -f infra/compose.yml down -v

@@ -6,6 +6,54 @@ on:
 permissions:
   contents: read
 jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        group: [domain, runtime, surfaces, documentation]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: candidate
+          persist-credentials: false
+          show-progress: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 19865a2f45885e228deb6b7ea443e33982257d21
+          path: baseline
+          persist-credentials: false
+          show-progress: false
+      - name: Read authored source differences
+        env:
+          REVIEW_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import pathlib, difflib, os
+          roots = {'domain':('packages/core/','packages/db/','packages/contracts/'),
+                   'runtime':('packages/runtime/','packages/providers/','infra/'),
+                   'surfaces':('apps/','packages/cli/','scripts/','sdk/'),
+                   'documentation':('docs/','examples/','.agents/')}
+          group = os.environ['REVIEW_GROUP']
+          names = set()
+          for root in ('candidate','baseline'):
+              names.update(p.relative_to(root).as_posix() for p in pathlib.Path(root).rglob('*')
+                           if p.is_file() and '.git' not in p.parts)
+          for name in sorted(names):
+              if not name.startswith(roots[group]): continue
+              if pathlib.Path(name).suffix not in ('.ts','.tsx','.mjs','.sql','.md','.json','.py','.yml','.go','.rs','.java'): continue
+              if name.startswith(('sdk/go/','sdk/rust/','sdk/java/','apps/web/public/')): continue
+              if '/generated/' in name or name.endswith(('api.d.ts','schema.d.ts','openapi.json','generated.json')): continue
+              if '.test.' in name or '.spec.' in name or name.startswith('tests/'): continue
+              def text(root):
+                  p=pathlib.Path(root)/name
+                  return p.read_text().splitlines(True) if p.exists() else []
+              before, after = text('baseline'), text('candidate')
+              if before != after:
+                  print('REVIEW_FILE', name)
+                  print(''.join(difflib.unified_diff(before,after,fromfile='baseline/'+name,tofile='candidate/'+name,n=12)))
+          print('REVIEW_SCOPE', group, os.environ['GITHUB_SHA'])
+          PY
   inspect:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -25,7 +73,7 @@ jobs:
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile --reporter=append-only
       - run: pnpm run setup
-      - name: Exercise overdue allocation shutdown without a test runner
+      - name: Exercise allocation and resource shutdown without a test runner
         run: |
           cat > .worker-review.mts <<'TS'
           import { withFixtureDatabase } from './scripts/fixture-database';
@@ -52,7 +100,7 @@ jobs:
                 if(request.action==='configure') return {};
                 return {boot_id:binding.sessionId,started_at:binding.createdAt,configured:true,active_assignments:0,
                   quiesced:request.action==='quiesce',capabilities:{scoped_processes:true,sibling_isolation:true,resource_meter:true},
-                  meters:{kind:'resource',cpu_ms:'0',memory_mib_ms:'0'}};
+                  meters:{kind:'resource',cpu_ms:request.action==='quiesce'?'14400000':'0',memory_mib_ms:'0'}};
               },
               async destroy(name) { if(allocations.delete(name)) stops++; return true; },
             };
@@ -61,24 +109,27 @@ jobs:
               const p = {...account.p,scopes:[...account.p.scopes,'workers:read','workers:write','workers:use']};
               const tx = action => transaction(p.organizationId,action);
               await tx(t=>credit(t,p.organizationId,1000000000n,`review:${id()}`));
-              const worker = await tx(t=>createWorker(t,p,{name:'shutdown-review',compute:'server',dedicated:true,isolate_runs:false,
-                min_instances:1,max_instances:1,max_concurrency:1,max_hourly_compute_cost_micro_usd:'3600000'}));
-              await tx(async t=>{
-                const row=await getWorker(t,worker.id);
-                const quote={...row.offerings[0],price:{kind:'allocation',hourly_micro_usd:'3600000'}};
-                await t.query('UPDATE workers SET offerings=$2 WHERE id=$1',[worker.id,JSON.stringify([quote])]);
-              });
-              await reconcileWorker(p.organizationId,worker.id,()=>provider);
-              await tx(t=>t.query("UPDATE hosts SET started_at=now()-interval '2 hours',funded_until=now()-interval '1 hour',next_check_at=now() WHERE worker_id=$1",[worker.id]));
-              await tx(t=>changeWorker(t,p,worker.id,'pause'));
-              for(let pass=0;pass<3;pass++) {
-                await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE worker_id=$1',[worker.id]));
+              for(const kind of ['allocation','resource']) {
+                const before = stops;
+                const worker = await tx(t=>createWorker(t,p,{name:`shutdown-review-${kind}`,compute:'server',dedicated:true,isolate_runs:false,
+                  min_instances:1,max_instances:1,max_concurrency:1,max_hourly_compute_cost_micro_usd:'10000000'}));
+                await tx(async t=>{
+                  const row=await getWorker(t,worker.id);
+                  const price=kind==='allocation'?{kind,hourly_micro_usd:'3600000'}:{kind,cpu_hour_micro_usd:'3600000',gib_hour_micro_usd:'0'};
+                  await t.query('UPDATE workers SET offerings=$2 WHERE id=$1',[worker.id,JSON.stringify([{...row.offerings[0],price}])]);
+                });
                 await reconcileWorker(p.organizationId,worker.id,()=>provider);
+                if(kind==='allocation') await tx(t=>t.query("UPDATE hosts SET started_at=now()-interval '2 hours',funded_until=now()-interval '1 hour',next_check_at=now() WHERE worker_id=$1",[worker.id]));
+                await tx(t=>changeWorker(t,p,worker.id,'pause'));
+                for(let pass=0;pass<3;pass++) {
+                  await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE worker_id=$1',[worker.id]));
+                  await reconcileWorker(p.organizationId,worker.id,()=>provider);
+                }
+                const hosts=await tx(t=>t.query('SELECT status,stopped_at,failure_code,reserved_micro_usd,charged_micro_usd,final_usage FROM hosts WHERE worker_id=$1',[worker.id]));
+                console.log('WORKER_SHUTDOWN_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,kind,
+                  scope:'Real PostgreSQL and reconciliation; synthetic accepted rate and provider boundary; no model execution',
+                  physical_allocations_remaining:allocations.size,confirmed_stops:stops-before,hosts:hosts.rows,paid_api_calls:0}));
               }
-              const hosts=await tx(t=>t.query('SELECT status,stopped_at,failure_code,reserved_micro_usd,charged_micro_usd FROM hosts WHERE worker_id=$1',[worker.id]));
-              console.log('WORKER_SHUTDOWN_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,
-                scope:'Real PostgreSQL and reconciliation; synthetic accepted rate and provider boundary; no model execution',
-                physical_allocations_remaining:allocations.size,confirmed_stops:stops,hosts:hosts.rows,paid_api_calls:0}));
             } finally { await pool.end(); await authPool.end(); }
           }
           TS

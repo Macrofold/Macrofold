@@ -19,7 +19,7 @@ export type HostRow = {
   binding: HostBinding | null; secret_ciphertext: string; offering: HostOffering;
   capacity: number; memory_mib: number; cpu_millis: number;
   reserved_micro_usd: string; charged_micro_usd: string; billing_cursor: ComputeMeters | null; billing_sequence: string;
-  usage_finalized_at: Date | null;
+  usage_finalized_at: Date | null; final_usage: ComputeMeters | null;
   funded_until: Date; started_at: Date | null; stopped_at: Date | null; expires_at: Date | null; idle_since: Date | null;
   last_observed_at: Date | null; lease_id: string | null; lease_until: Date | null; next_check_at: Date;
   failure_code: string | null; created_at: Date; updated_at: Date;

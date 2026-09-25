@@ -7,7 +7,7 @@ import { getHost, hostSnapshots, reserveHost, extendHostFunding, settleHostSampl
 import { planWorkerCapacity } from './worker-scaling';
 import type { RunDemand } from './worker-types';
 import { workerAdmissionBlock } from './worker-policy';
-import { workerHourlyExposure, type ComputeMeters } from './worker-pricing';
+import { workerAccruedCost, workerChargeDelta, workerHourlyExposure, type ComputeMeters } from './worker-pricing';
 import type { NativeRunRow } from './runs';
 import { hostProvider } from '../../providers/src/hosts';
 import { hostHealth, type HostProvider } from '../../contracts/host-control';
@@ -29,6 +29,49 @@ async function mutateHost(org: string, hostId: string, leaseId: string, action: 
   });
 }
 
+async function hostOccupied(org: string, hostId: string): Promise<boolean> {
+  return transaction(org, async tx => (await tx.query(
+    'SELECT 1 FROM host_runs WHERE host_id=$1 AND released_at IS NULL LIMIT 1', [hostId])).rowCount !== 0);
+}
+
+/** Persist physical confirmation separately: a later financial failure must not erase the stop boundary. */
+async function recordHostStop(org: string, host: HostRow, leaseId: string, reason?: string): Promise<HostRow> {
+  const stoppedAt = new Date();
+  await mutateHost(org, host.id, leaseId, async tx => {
+    await tx.query(`UPDATE hosts SET status='draining',stopped_at=coalesce(stopped_at,$2),
+      failure_code=coalesce($3,failure_code),updated_at=now() WHERE id=$1`, [host.id, stoppedAt, reason ?? null]);
+    await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
+      (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [host.id]);
+  });
+  return transaction(org, tx => getHost(tx, host.id));
+}
+
+async function stopHostAllocation(org: string, host: HostRow, leaseId: string, provider: HostProvider): Promise<HostRow> {
+  if (host.stopped_at || !await provider.destroy(host.provider_name, host.binding)) return host;
+  return recordHostStop(org, host, leaseId);
+}
+
+/** Normal retirement preserves live claims and seals usage before provider teardown, not before payment. */
+async function retireIdleHost(org: string, host: HostRow, leaseId: string,
+  provider: HostProvider, secret: string): Promise<HostRow> {
+  if (host.status !== 'draining' || host.stopped_at || await hostOccupied(org, host.id)) return host;
+  if (host.binding && host.offering.price.kind === 'resource' && !host.usage_finalized_at &&
+    await provider.exists(host.binding, secret)) {
+    const receipt = hostHealth.parse(await provider.control(host.binding, secret, { action: 'quiesce' }));
+    assert(receipt.boot_id === host.binding.controlBootId && receipt.quiesced && receipt.active_assignments === 0 && receipt.meters,
+      503, 'host_usage_unknown', 'A stopped workload and final cumulative meter must be confirmed before deallocation.');
+    const finalUsage = receipt.meters;
+    await mutateHost(org, host.id, leaseId, async (tx, current) => {
+      // Validate the receipt without spending or moving the last-settled cursor.
+      if (current.billing_cursor) workerChargeDelta(current.offering.price, current.billing_cursor, finalUsage);
+      else workerAccruedCost(current.offering.price, finalUsage);
+      await tx.query('UPDATE hosts SET final_usage=$2,usage_finalized_at=now() WHERE id=$1', [host.id, JSON.stringify(finalUsage)]);
+    });
+    host = await transaction(org, tx => getHost(tx, host.id));
+  }
+  return stopHostAllocation(org, host, leaseId, provider);
+}
+
 /** Reconcile one physical generation. Provider I/O never runs while tenant/capacity locks are held. */
 export async function advanceHost(org: string, hostId: string, providerFactory: HostProviderFactory = hostProvider): Promise<void> {
   const leaseId = id();
@@ -43,9 +86,9 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
   });
   if (!claimed) return;
   let host = claimed.host;
-  const provider = providerFactory(host.provider);
-  const secret = unseal<string>(host.secret_ciphertext);
   try {
+    const provider = providerFactory(host.provider);
+    const secret = unseal<string>(host.secret_ciphertext);
     if (host.status === 'provisioning') {
       const worker = claimed.worker;
       if (workerAdmissionBlock(worker, Date.now()) || host.funded_until.getTime() <= Date.now() + HOST_CLEANUP_SECONDS * 1000) {
@@ -85,38 +128,42 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
         await tx.query(`UPDATE hosts SET binding=$2,status=$3,idle_since=now(),failure_code=NULL,last_observed_at=now(),updated_at=now()
           WHERE id=$1`, [hostId, JSON.stringify(fencedBinding), workerAdmissionBlock(latestWorker,Date.now()) ? 'draining' : 'ready']);
       });
-      host = await transaction(org, tx => getHost(tx,hostId));
-    }
-
-    // A restarted controller cannot prove ownership of its old process trees. Stop the
-    // allocation, not just its DB lease; Run recovery then releases the fenced claims.
-    if (host.failure_code === 'host_generation_changed' && !host.stopped_at) {
-      if (!await provider.destroy(host.provider_name, host.binding)) return;
-      await mutateHost(org, hostId, leaseId, async tx => {
-        await tx.query("UPDATE hosts SET status='draining',stopped_at=now(),updated_at=now() WHERE id=$1", [hostId]);
-        await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
-          (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
-      });
       host = await transaction(org, tx => getHost(tx, hostId));
     }
+
+    const now = Date.now();
+    const hardStop = host.failure_code === 'host_generation_changed' ? 'host_generation_changed' :
+      host.failure_code === 'host_funding_exhausted' || host.funded_until.getTime() <= now ? 'host_funding_exhausted' :
+      host.expires_at !== null && host.expires_at.getTime() <= now ? 'host_expired' :
+      claimed.worker.settings.expires_at_ms !== null && claimed.worker.settings.expires_at_ms <= now ? 'worker_expired' : null;
+    if (hardStop && !host.stopped_at) {
+      // A funded/lifetime boundary or invalid generation is not an unlimited graceful drain.
+      // Stop physical work even when its meter/payment is unavailable; retain every SQL hold.
+      await mutateHost(org, hostId, leaseId, async tx => {
+        await tx.query("UPDATE hosts SET status='draining',failure_code=$2 WHERE id=$1", [hostId, hardStop]);
+      });
+      host = await transaction(org, tx => getHost(tx, hostId));
+      host = await stopHostAllocation(org, host, leaseId, provider);
+      if (!host.stopped_at) return;
+    }
+    const retirementAttempted = host.status === 'draining';
+    if (retirementAttempted) host = await retireIdleHost(org, host, leaseId, provider, secret);
+
     let meters: ComputeMeters | undefined;
-    if (host.binding && !host.stopped_at) {
+    if (host.binding && !host.stopped_at && !host.usage_finalized_at) {
       const running = await provider.exists(host.binding, secret);
       if (!running) {
-        await mutateHost(org, hostId, leaseId, async tx => {
-          await tx.query("UPDATE hosts SET status='draining',stopped_at=now(),failure_code='host_lost',updated_at=now() WHERE id=$1", [hostId]);
-          // Native phase recovery observes the lost generation; no prompt is replayed here.
-          await tx.query(`UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id IN
-            (SELECT run_id FROM host_runs WHERE host_id=$1 AND released_at IS NULL)`, [hostId]);
-        });
-        host = await transaction(org, tx => getHost(tx, hostId));
+        host = await recordHostStop(org, host, leaseId, 'host_lost');
       } else {
         const health = hostHealth.parse(await provider.control(host.binding, secret, { action: 'health' }));
         assert(health.boot_id === host.binding.controlBootId, 409, 'host_generation_changed',
           'The Host controller changed; stop the old allocation before releasing claims.');
-        if (health.rotation_requested || health.quiesced) await mutateHost(org, hostId, leaseId, async tx => {
-          await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1", [hostId]);
-        });
+        if (health.rotation_requested || health.quiesced) {
+          await mutateHost(org, hostId, leaseId, async tx => {
+            await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1", [hostId]);
+          });
+          host = await transaction(org, tx => getHost(tx, hostId));
+        }
         if (host.offering.price.kind === 'resource') {
           assert(health.meters, 503, 'host_usage_unknown',
             'The current generation did not provide its required resource meter. Funding is retained for reconciliation.');
@@ -124,17 +171,6 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
         }
       }
     }
-    if (host.started_at) {
-      if (host.offering.price.kind === 'allocation') meters = allocationMeters(host, Date.now());
-      if (host.offering.price.kind === 'resource' && host.stopped_at && !meters) {
-        // Last acknowledged usage is not evidence that the missing tail consumed nothing.
-        if (!host.usage_finalized_at && workerHourlyExposure(host.offering.price,host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
-          'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
-        meters = host.billing_cursor || { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' };
-      }
-      if (meters) { const sample = meters; await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, sample)); }
-    }
-    host = await transaction(org, tx => getHost(tx, hostId));
     if (host.status === 'ready' && host.funded_until.getTime() < Date.now() + 600000) {
       try {
         await mutateHost(org, hostId, leaseId, async (tx, current) => extendHostFunding(tx,current,new Date(Date.now()+3600000)));
@@ -145,33 +181,25 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
           await tx.query("UPDATE workers SET failure_code='insufficient_credits',next_check_at=now() WHERE id=$1", [host.worker_id]);
         });
       }
+      host = await transaction(org, tx => getHost(tx, hostId));
+    }
+    if (!retirementAttempted) host = await retireIdleHost(org, host, leaseId, provider, secret);
+
+    if (host.started_at) {
+      if (host.offering.price.kind === 'allocation') meters = allocationMeters(host, Date.now());
+      if (host.offering.price.kind === 'resource' && host.usage_finalized_at)
+        meters = host.final_usage ?? host.billing_cursor ?? undefined;
+      if (host.offering.price.kind === 'resource' && host.stopped_at && !meters) {
+        // A forced stop can lose the final tail. Stop confirmation is not a zero-usage receipt.
+        if (workerHourlyExposure(host.offering.price, host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
+          'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
+        meters = host.billing_cursor || { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' };
+      }
+      if (meters) { const sample = meters; await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, sample)); }
     }
     host = await transaction(org, tx => getHost(tx, hostId));
-    if (host.status === 'draining') {
-      const count = await transaction(org, async tx => (await tx.query<{ n: number }>(
-        'SELECT count(*)::integer AS n FROM host_runs WHERE host_id=$1 AND released_at IS NULL', [hostId])).rows[0].n);
-      if (count) return;
-      if (host.binding && !host.stopped_at && host.offering.price.kind === 'resource' && !host.usage_finalized_at) {
-        const receipt = hostHealth.parse(await provider.control(host.binding, secret, { action: 'quiesce' }));
-        assert(receipt.boot_id === host.binding.controlBootId && receipt.quiesced && receipt.active_assignments === 0 && receipt.meters,
-          503, 'host_usage_unknown', 'A stopped workload and final cumulative meter must be confirmed before deallocation.');
-        const finalMeters = receipt.meters;
-        await mutateHost(org, hostId, leaseId, async (tx, current) => {
-          await settleHostSample(tx, current, finalMeters);
-          await tx.query('UPDATE hosts SET usage_finalized_at=now() WHERE id=$1', [hostId]);
-        });
-        host = await transaction(org, tx => getHost(tx, hostId));
-      }
-      const released = host.stopped_at !== null || await provider.destroy(host.provider_name,host.binding);
-      if (!released) return;
-      await mutateHost(org, hostId, leaseId, async (tx, current) => {
-        // Allocation-time pricing includes the confirmed stop boundary, not merely the DELETE acknowledgement.
-        if (current.started_at && current.offering.price.kind === 'allocation') {
-          await settleHostSample(tx,current,allocationMeters(current,Date.now()));
-          current = await getHost(tx,hostId);
-        }
-        await releaseHostFunding(tx,current);
-      });
+    if (host.status === 'draining' && host.stopped_at && !await hostOccupied(org, hostId)) {
+      await mutateHost(org, hostId, leaseId, async (tx, current) => releaseHostFunding(tx, current));
     }
   } catch (error) {
     if (error instanceof AppError && error.code === 'host_lease_lost') return;

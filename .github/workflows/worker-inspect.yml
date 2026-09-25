@@ -6,54 +6,6 @@ on:
 permissions:
   contents: read
 jobs:
-  source:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        group: [domain, runtime, surfaces, documentation]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          path: candidate
-          persist-credentials: false
-          show-progress: false
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: 19865a2f45885e228deb6b7ea443e33982257d21
-          path: baseline
-          persist-credentials: false
-          show-progress: false
-      - name: Read authored source differences
-        env:
-          REVIEW_GROUP: ${{ matrix.group }}
-        run: |
-          python3 - <<'PY'
-          import pathlib, difflib, os
-          roots = {'domain':('packages/core/','packages/db/','packages/contracts/'),
-                   'runtime':('packages/runtime/','packages/providers/','infra/'),
-                   'surfaces':('apps/','packages/cli/','scripts/','sdk/'),
-                   'documentation':('docs/','examples/','.agents/')}
-          group = os.environ['REVIEW_GROUP']
-          names = set()
-          for root in ('candidate','baseline'):
-              names.update(p.relative_to(root).as_posix() for p in pathlib.Path(root).rglob('*')
-                           if p.is_file() and '.git' not in p.parts)
-          for name in sorted(names):
-              if not name.startswith(roots[group]): continue
-              if pathlib.Path(name).suffix not in ('.ts','.tsx','.mjs','.sql','.md','.json','.py','.yml','.go','.rs','.java'): continue
-              if name.startswith(('sdk/go/','sdk/rust/','sdk/java/','apps/web/public/')): continue
-              if '/generated/' in name or name.endswith(('api.d.ts','schema.d.ts','openapi.json','generated.json')): continue
-              if '.test.' in name or '.spec.' in name or name.startswith('tests/'): continue
-              def text(root):
-                  p=pathlib.Path(root)/name
-                  return p.read_text().splitlines(True) if p.exists() else []
-              before, after = text('baseline'), text('candidate')
-              if before != after:
-                  print('REVIEW_FILE', name)
-                  print(''.join(difflib.unified_diff(before,after,fromfile='baseline/'+name,tofile='candidate/'+name,n=12)))
-          print('REVIEW_SCOPE', group, os.environ['GITHUB_SHA'])
-          PY
   inspect:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -72,6 +24,11 @@ jobs:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile --reporter=append-only
+      - name: Read version-matched client-component guidance
+        run: |
+          node -p "require('./apps/web/node_modules/next/package.json').version"
+          cat apps/web/node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md
+      - run: pnpm check && pnpm build:runtime
       - run: pnpm run setup
       - name: Exercise allocation and resource shutdown without a test runner
         run: |
@@ -126,6 +83,9 @@ jobs:
                   await reconcileWorker(p.organizationId,worker.id,()=>provider);
                 }
                 const hosts=await tx(t=>t.query('SELECT status,stopped_at,failure_code,reserved_micro_usd,charged_micro_usd,final_usage FROM hosts WHERE worker_id=$1',[worker.id]));
+                if(allocations.size || stops-before!==1 || !hosts.rows[0].stopped_at || hosts.rows[0].failure_code!=='host_funding_exhausted')
+                  throw new Error('Physical retirement did not preserve the unresolved financial boundary');
+                if(kind==='resource' && hosts.rows[0].final_usage?.cpu_ms!=='14400000') throw new Error('Final receipt was not retained');
                 console.log('WORKER_SHUTDOWN_REVIEW',JSON.stringify({source_commit:process.env.GITHUB_SHA,kind,
                   scope:'Real PostgreSQL and reconciliation; synthetic accepted rate and provider boundary; no model execution',
                   physical_allocations_remaining:allocations.size,confirmed_stops:stops-before,hosts:hosts.rows,paid_api_calls:0}));

@@ -38,6 +38,14 @@ The reconciler records the drain under the existing Worker claim lock and also c
 
 This is a bounded one-Host replacement, not global repacking. When several allocations must be released together before a larger one fits, the planner waits rather than discarding capacity speculatively. A selected Host with unpublished state outside the placement window is also preserved rather than trying additional retirement candidates in the same pass. These extensions remain separate from the implemented single-replacement path.
 
+### Demand-aware idle scale-down
+
+Ordinary idle scale-down uses the same plan's per-Host funding selections, not a requirement that the entire queue be empty. A ready Host above `min_instances` may drain once its idle timeout expires, its observed execution/cleanup occupancy is zero, and no bounded queued requirement was projected onto it. This releases excess capacity when a lowered Worker concurrency limit blocks queued work, or when another Host already supplies the needed resources. A selected Host remains available for that work even after its idle timeout; a missing Host snapshot is not evidence of zero occupancy. Null idle retention and the minimum baseline retain their existing meaning.
+
+Every elective retirement, including ordinary idle scale-down, checks the complete Host generation for non-clean materializations before requesting a drain. Older `recovery_required` state outside the 256-entry placement cache view therefore cannot be silently discarded. Once recovery/publication makes that state clean, the normal idle policy can release the Host. Expiration, explicit lifecycle intent, generation fencing, and funding exhaustion retain their existing mandatory drain paths; this safeguard is not a promise to retain an unfunded or expired allocation indefinitely.
+
+An idle drain does not cancel or replay queued Runs, release active assignments, assume that a failed provider stop succeeded, or authorize replacement beyond the existing ceilings. Admission still rechecks the current plan under database ownership; the bounded queue projection is not a reservation or traffic forecast.
+
 ### Execution and publication
 
 Publication verifies durable Worktree and native continuation state. Only then may a local materialization become a clean cache hit. Cancellation, failed publication, and uncertain cleanup do not authorize replay of a potentially executed prompt. Dedicated compute is accounted once per Host; metered offers use monotonic cumulative receipts and a sealed final usage boundary.

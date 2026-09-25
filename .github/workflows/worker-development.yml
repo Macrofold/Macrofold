@@ -10,8 +10,10 @@ on:
       - packages/core/src/worker-policy.ts
       - packages/core/src/worker-pricing.ts
       - packages/core/src/worker-types.ts
+      - packages/core/src/worker-reconciler.ts
       - tests/unit/worker-scaling.test.ts
       - tests/unit/worker-policy.test.ts
+      - tests/integration/workers.test.ts
 permissions:
   contents: read
 concurrency:
@@ -44,10 +46,12 @@ jobs:
           pnpm build:runtime
       - name: Verify Worker policy and queued capacity regressions
         run: pnpm exec vitest run tests/unit/worker-policy.test.ts tests/unit/worker-scaling.test.ts
-      - name: Execute bounded runtime stress workload
+      - name: Verify durable Worker lifecycle in a disposable database
         run: |
           pnpm run setup
-          pnpm exec tsx scripts/workers/stress.ts
+          pnpm test:domain tests/integration/workers.test.ts
+      - name: Execute bounded runtime stress workload
+        run: pnpm exec tsx scripts/workers/stress.ts
       - name: Check documentation integrity
         if: always()
         run: pnpm docs:check

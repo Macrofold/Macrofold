@@ -16,34 +16,34 @@ Each configured model has ID, display name, provider, allowed harnesses, enabled
 
 The immutable Linux image contains Node 24, Python, Git, curl/ripgrep, six native harnesses and the reviewed filesystem MCP server. It does not contain a universal preinstalled browser desktop. Web search is the Brave broker tool; browser automation can be added as an explicitly reviewed MCP/runtime extension. Do not claim a screenshot/desktop product that the UI does not implement.
 
-A compute environment executes one admitted run at a time. Default per-run microVMs are disposable; optional [reusable sandboxes](workers.md) retain Vercel/Docker compute or use long-running Docker workers locally or Render services when hosted. Its root supervisor owns `/platform-control`; the native process tree runs as UID 10001 with `/worktree` and `/agent-home`. No database, object-store, Vercel, Stripe or long-lived model/connector key enters that environment. Native processes receive a short-lived run capability for the exact gateway/tool grants. Package network access is controlled by the sandbox allowlist. Untrusted workspace instructions cannot expand these permissions.
+Automatic execution uses one isolated allocation per Run. Explicit [Workers](workers.md) are stable autoscaling targets whose backing Hosts may run independent Worktrees/Sessions concurrently within accepted resource, funding and isolation limits. The protected Host controller owns assignment control paths and gives each native handle an unprivileged process identity plus scoped Worktree, Session-state and temporary roots. No database, object-store, Vercel, Stripe or long-lived model/connector key enters that environment. Native processes receive a short-lived run capability for the exact gateway/tool grants. Package network access is controlled by the sandbox allowlist. Untrusted workspace instructions cannot expand these permissions.
 
-`MachineProvider` in `packages/core/src/ports.ts` defines provision, prepare, stage, restore/restored, launch, probe, answer, cancel, snapshotPage, chunk and close. `SandboxTools` defines approved stdio invocation. The durable engine owns retries and publication; a compute adapter owns VM I/O. `providers/machines.ts` is the production composition boundary.
+`MachineProvider` in `packages/core/src/ports.ts` defines provision, prepare, stage, restore/restored, launch, probe, answer, cancel, snapshotPage, chunk and close. `MachineTools` defines approved stdio invocation. `HostProvider` owns physical allocation lifecycle; `AutomaticMachines` and `WorkerMachines` adapt it to the execution port. The durable engine owns retries and publication; a compute adapter owns VM I/O. `providers/machines.ts` is the production composition boundary.
 
 ## Run lifecycle
 
-| State                 | Meaning                                                                                 |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| queued                | Admission and funding reservation committed; waiting for writer/capacity                |
-| provisioning          | Claimed with fresh generation; preparing VM and restoring persisted state               |
-| running               | Native harness executing                                                                |
-| waiting_for_input     | An exposed native question requires a matching answer                                   |
-| persisting            | Native execution stopped; snapshot publication/verification in progress                 |
-| succeeded             | Successful execution with verified persistence                                          |
-| failed                | Known failure, revocation, queue expiration or persistence problem; inspect result code |
-| cancelled / timed_out | Execution stopped by cancellation/deadline; inspect persistence separately              |
+| State | Meaning |
+| --- | --- |
+| queued | Admission and funding reservation committed; waiting for writer/capacity |
+| provisioning | Claimed with fresh generation; preparing VM and restoring persisted state |
+| running | Native harness executing |
+| waiting_for_input | An exposed native question requires a matching answer |
+| persisting | Native execution stopped; snapshot publication/verification in progress |
+| succeeded | Successful execution with verified persistence |
+| failed | Known failure, revocation, queue expiration or persistence problem; inspect result code |
+| cancelled / timed_out | Execution stopped by cancellation/deadline; inspect persistence separately |
 
 The runtime has a hard maximum of two hours per run, with shorter defaults and model-request deadlines. Generic run creation rejects a busy explicitly selected worktree. Session messages can opt into `queue_if_busy`, with at most ten pending messages per session and a default 24-hour queue deadline (shortenable per request). A queued message reserves budget immediately, preserves worktree ordering within the fair organization scheduler and revalidates authority before launch. Queue expiry currently terminalizes as `failed` with `queue_expired` and `persistence_status=not_required`; it does not pretend the agent executed. Cancelling one run does not cancel every queued follow-up.
 
-Claiming serializes organization and worktree admission, checks per-plan concurrency, then takes the shared global-capacity lock. The default global active limit is 50; blocked jobs are deferred so an ineligible first page cannot starve other work. Capacity settings do not override provider quotas or funding. PostgreSQL owns the run even if a Workflow start is missed or duplicated.
+Claiming serializes organization and worktree admission, checks per-plan concurrency, then takes the shared global-capacity lock and the eligible Worker/Host resource claim when explicitly targeted. The default global active limit is 50; blocked jobs are deferred so an ineligible first page cannot starve other work. Capacity settings do not override provider quotas or funding. PostgreSQL owns the run even if a Workflow start is missed or duplicated.
 
 ## Cloud orchestration and recovery
 
-`apps/web/workflows/run.ts` uses bounded Workflow steps and durable sleeps. The standalone poller invokes the same `advanceCloudRun` engine. Phases include input preparation, provision, restore, launch, probe, snapshot indexing, chunk verification, publication and cleanup. Each phase uses a database lease. The VM name derives from the run UUID; its actual session ID is stored separately. The native atomic execution marker prevents duplicate launch after an acknowledgement is lost.
+`apps/web/workflows/run.ts` uses bounded Workflow steps and durable sleeps. The standalone poller invokes the same `advanceCloudRun` engine. Phases include input preparation, provision, restore, launch, probe, snapshot indexing, chunk verification, publication and cleanup. Each phase uses a database lease. Automatic allocations derive a private name from the Run/generation. Explicit Worker assignments reference the original Host binding and boot identity; provider session IDs never become public Macrofold Session IDs. The native atomic execution marker prevents duplicate launch after an acknowledgement is lost.
 
 Probe reads use `resume:false` and session-bound VM I/O. The application does not automatically wake a stopped computer for diagnostics. A lost VM, ambiguous launch or uncertain external tool result enters explicit recovery handling; retrying scheduling is not permission to repeat native side effects. Preservation is attempted after failure/cancel/timeout. The latest verified checkpoint remains available even if new capture fails. Emergency provider snapshots expire after seven days by default, and failed publication stays visible rather than silently discarding the only recent copy.
 
-The supervisor stops all native writers before final capture. Captured worktree/Git/native home state is paged into independent encrypted object storage. Checkpoint commit and execution outcome are distinct from later GitHub publication. See [worktree semantics](../workspaces/README.md) for crash-consistency, format limits and loss windows.
+The supervisor quiesces only the current handle and its descendants before final capture; other HostRuns are unaffected. Captured worktree/Git/native home state is paged into independent encrypted object storage. Checkpoint commit and execution outcome are distinct from later GitHub publication. See [worktree semantics](../workspaces/README.md) for crash-consistency, format limits and loss windows.
 
 ## Streaming and interaction
 
@@ -55,4 +55,5 @@ Input is a POST tied to the pending request ID; stale/duplicate answers cannot a
 
 ## Acceptance boundary
 
-Actual pinned binaries run in local Docker with external networking disabled and a loopback model protocol fixture. Tests exercise tools, native session identity, capture, restore into fresh folders and continuation. Cloud fault tests use real SQL/encrypted files and an injected machine provider. These establish protocol and recovery behavior without inference spending. They do not establish Vercel image acceptance, live provider entitlement, TLS/egress policy or provider invoice amounts; the operator runs those after account setup and an explicit smoke-test budget.
+Actual pinned binaries run in local Docker with external networking disabled and a loopback model protocol fixture. Tests exercise tools, native session identity, capture, restore into fresh folders and continuation. Cloud fault tests use real SQL/encrypted files and an injected machine provider. The [Worker evidence](workers/verification.md) records which current runtime/performance paths actually passed; historical suites do not establish the whole cutover. These fixtures exercise protocol and recovery behavior without inference spending. They do not establish Vercel image acceptance, live provider entitlement, TLS/egress policy or provider invoice amounts; the operator runs those after account setup and an explicit smoke-test budget.
+

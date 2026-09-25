@@ -14,14 +14,27 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          fetch-depth: 0
-      - name: Export tracked source changes only
+      - name: Export the checked-out source and content manifest
         run: |
-          mkdir -p /tmp/worker-checkout
-          git diff --binary 2bfedf54644212277e0940a6d4b3694cab60c556 HEAD > /tmp/worker-checkout/source.patch
-          git rev-parse HEAD > /tmp/worker-checkout/commit.txt
-          git ls-files -s > /tmp/worker-checkout/manifest.txt
-          sha256sum /tmp/worker-checkout/source.patch > /tmp/worker-checkout/source.sha256
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, tarfile
+          root = pathlib.Path.cwd()
+          destination = pathlib.Path('/tmp/worker-checkout')
+          destination.mkdir()
+          manifest = {}
+          with tarfile.open(destination / 'source.tar.gz', 'w:gz', compresslevel=1) as archive:
+              for current, dirs, files in os.walk(root, followlinks=False):
+                  dirs[:] = sorted(d for d in dirs if d not in {'.git', 'node_modules'})
+                  for name in sorted(files):
+                      path = pathlib.Path(current) / name
+                      relative = path.relative_to(root).as_posix()
+                      archive.add(path, arcname=relative, recursive=False)
+                      if not path.is_symlink():
+                          manifest[relative] = {'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'mode': path.stat().st_mode & 0o777}
+          (destination / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True))
+          (destination / 'commit.txt').write_text(os.environ['GITHUB_SHA'] + '\n')
+          print(f'Exported {len(manifest)} source files at {os.environ["GITHUB_SHA"]}.')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: worker-checkout

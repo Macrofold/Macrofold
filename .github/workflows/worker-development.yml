@@ -5,6 +5,13 @@ on:
     paths:
       - .github/workflows/worker-development.yml
       - scripts/workers/verify.marker
+      - packages/core/src/worker-scaling.ts
+      - packages/core/src/worker-placement.ts
+      - packages/core/src/worker-policy.ts
+      - packages/core/src/worker-pricing.ts
+      - packages/core/src/worker-types.ts
+      - tests/unit/worker-scaling.test.ts
+      - tests/unit/worker-policy.test.ts
 permissions:
   contents: read
 concurrency:
@@ -35,6 +42,8 @@ jobs:
         run: |
           pnpm check
           pnpm build:runtime
+      - name: Verify Worker policy and queued capacity regressions
+        run: pnpm exec vitest run tests/unit/worker-policy.test.ts tests/unit/worker-scaling.test.ts
       - name: Execute bounded runtime stress workload
         run: |
           pnpm run setup

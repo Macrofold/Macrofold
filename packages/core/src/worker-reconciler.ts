@@ -247,17 +247,20 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
         // The planner used these snapshots under the Worker claim lock. Replacement
         // only requests a drain; advanceHost retains claims and funding until stop.
         const replaceIdle = host.id === plan.replace_idle_host_id;
-        if (replaceIdle && !nearExpiry) {
-          // Placement cache metadata is bounded. Recheck the complete generation
-          // before discarding a Host that may contain older unpublished state.
+        // A nonempty queue does not need every idle Host: concurrency/resource
+        // limits can block it, or another Host can supply its projected capacity.
+        const releaseIdle = extra && snapshot !== undefined && snapshot.occupied_slots === 0 &&
+          idleExpired && !plan.fund.has(host.id);
+        if (host.status !== 'ready' || !(nearExpiry || replaceIdle || releaseIdle)) continue;
+        if (!nearExpiry) {
+          // Placement cache metadata is bounded. Every elective retirement must
+          // check the complete generation for older unpublished state.
           const unpublished = await tx.query(`SELECT 1 FROM host_materializations
             WHERE host_id=$1 AND host_generation=$2 AND state<>'clean' LIMIT 1`, [host.id,host.generation]);
           if (unpublished.rowCount) continue;
         }
-        if (host.status==='ready' && (nearExpiry || replaceIdle || (extra && !snapshot?.occupied_slots && idleExpired && !readyDemand.length))) {
-          await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1",[host.id]);
-          remaining--;
-        }
+        await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1",[host.id]);
+        remaining--;
       }
     }
     await tx.query("UPDATE workers SET next_check_at=now()+interval '2 seconds' WHERE id=$1",[workerId]);

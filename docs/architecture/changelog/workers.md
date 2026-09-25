@@ -1,6 +1,6 @@
 # Worker architecture evolution
 
-This is a decision-history note, not a release announcement. The [accepted Worker design](../worker-execution.md) owns the target contract; the [implementation record](../../features/execution/workers/implementation.md) owns delivery and verification status. At the documentation update, the executable API still uses worktree-bound Sandboxes.
+This is a decision-history note, not a deployment announcement. The [Worker architecture](../worker-execution.md) owns the current contract; the [implementation record](../../features/execution/workers/implementation.md) and [verification](../../features/execution/workers/verification.md) identify code and measured boundaries. The current API uses Workers; the names below describe retired designs.
 
 ## Changelog
 
@@ -28,4 +28,6 @@ Manual pause accepts graceful intent and drains; automatic idle sleep can wake o
 
 Keep PostgreSQL/outbox ownership, exact money and reservations, verified file recovery, per-turn authority, Worktree writer exclusion, and refusal to replay ambiguous native side effects. Preserve user file/session/accounting history. Do not keep hypothetical legacy API aliases solely for a prelaunch customer population that does not exist.
 
-The planned transition introduces durable Worker/Host/HostRun ownership, scoped native containment, placement and billing integration, then cuts over endpoints, generated clients, UI, tests, and current guides together. Pooled execution and stronger isolation activate only after their concrete boundaries pass acceptance. Until then, describing the new design does not mean the switchover has happened.
+The cutover adds durable Worker/Host/HostRun ownership, scoped native control, placement and billing integration, and replaces endpoints, generated clients, CLI/dashboard controls and current guides. Forward migration 045 retires the old resource only after its allocations drain and preserves append-only financial references. Historical numbered migrations necessarily retain the old schema vocabulary; they are not a supported runtime/API compatibility layer. Cross-customer physical pooling and stronger isolation require their own provider acceptance.
+
+The implementation also corrected checkpoint filtering that discarded hidden Git and native conversation files. Credential exclusions remain separate; warm processes no longer conceal missing portable continuation state. Under load, ordered admission, materialized placement facts and one-pass Worktree heads replaced wasteful claim races and repeated backlog scans without introducing another queue or enlarging database pools.

@@ -4,7 +4,7 @@ See [workspace/worktree terminology and migration](resource-terminology.md) for 
 
 This is the current design; [decision log](decisions.md) explains changes from the initial proposal. [Verification](../status/README.md) distinguishes local acceptance from live-provider checks.
 
-[Ranked improvements](../product/improvements.md) owns proposed work and status. [Cost-aware Workers and autoscaling](worker-execution.md) is the accepted compute target, not implemented runtime behavior. Its [implementation record](../features/execution/workers/implementation.md) distinguishes committed documentation from the separate uncommitted code bundle and the unfinished API/runtime cutover. The [target user guide](../features/execution/workers.md) is not a published working API guide. The [Workflow and Temporal evaluation](orchestration-evaluation.md) provides supporting research and criteria for revisiting the current scheduler.
+[Ranked improvements](../product/improvements.md) owns proposed work and status. [Cost-aware Workers and autoscaling](worker-execution.md) describes the implemented compute contract; its [implementation map](../features/execution/workers/implementation.md), [user guide](../features/execution/workers.md), and [verification record](../features/execution/workers/verification.md) separate source capabilities from measured and live-provider acceptance. The [Workflow and Temporal evaluation](orchestration-evaluation.md) records criteria for revisiting orchestration, not a second scheduler.
 
 ## Technology decisions
 
@@ -15,7 +15,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Contracts             | OpenAPI 3.1, AJV, Zod, openapi-typescript, Scalar                      | Reviewed HTTP schema is authoritative; typed clients and runtime validation share it                                 |
 | Database              | PostgreSQL 17, node-postgres, numbered SQL migrations; Neon first      | Explicit locks, RLS and balanced journals are reviewable together; no redundant ORM schema                           |
 | Scheduling            | Vercel Workflow; PostgreSQL outbox and leases                          | Managed wakeups with application-owned recovery; standalone SQL poller reuses the same state machine                 |
-| Agent isolation       | Vercel Sandbox, immutable VCR image; Docker for local development                                    | Managed microVM isolation; no untrusted code in a Function or shared worker process                                  |
+| Compute and isolation | Optional autoscaling Workers; internal Docker, Vercel and Render Hosts | Accepted economic/region/runtime contract; dedicated capacity and sibling isolation are separate. Native tools never run on the API host. |
 | Harnesses             | Native adapters through the [Unified Harness Interface](../features/execution/unified-harness-interface.md) | Shared execution contract with native sessions/tools/input semantics; each contributed harness needs integration and acceptance |
 | Files                 | Encrypted content-addressed chunks and manifests in private R2         | Portable independent recovery and file browsing; owned reachability/retention logic instead of restic processes      |
 | Identity              | Better Auth email/password, MFA, OAuth provider                        | Established identity protocols; domain owns memberships, API keys and authorization                                  |
@@ -24,7 +24,7 @@ This is the current design; [decision log](decisions.md) explains changes from t
 | Clients               | oclif + Ink CLI, TypeScript SDK, Python/httpx SDK                      | Same public API and stream contract; no client database access                                                       |
 | Operations            | Indexed SQL facts, stored reports, optional PostHog                    | Native reports need no analytics subscription or inference                                                           |
 
-Exact versions are in the lockfile and runtime package. pnpm worktrees are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. The local Docker adapter shares the SQL poller and phase engine; hosted alternatives still require adapter and acceptance work. See [development modes](../engineering/development-modes.md).
+Exact versions are in the lockfile and runtime package. pnpm workspaces are sufficient; Turborepo, Redis, Kubernetes, a data warehouse, Vercel Connect and Vercel AI Gateway are not required launch services. The local Docker adapter shares the SQL poller and phase engine; hosted offerings require their configured rates, credentials, immutable images and provider acceptance. See [development modes](../engineering/development-modes.md).
 
 ## Component graph
 
@@ -35,8 +35,11 @@ flowchart TD
   D --> PG[(PostgreSQL: tenants, runs, outbox, events, ledger)]
   PG --> W[Vercel Workflow or standalone SQL poller]
   W --> E[Bounded cloud execution state machine]
-  E --> VM[Vercel Sandbox: protected supervisor]
-  VM --> H[Native harness as unprivileged user]
+  E --> P[Automatic execution or explicit Worker placement]
+  PG --> R[Bounded Worker reconciliation]
+  R --> HOST[Zero or more provider Hosts]
+  P --> HOST
+  HOST --> H[Scoped native harness handles + Run assignments]
   H --> MG[Metered native-protocol model gateway]
   MG --> MP[Direct model provider: managed key or exact BYOK]
   H --> TB[Granted MCP / search tool broker]

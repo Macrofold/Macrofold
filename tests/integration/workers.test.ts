@@ -212,6 +212,56 @@ describe('durable capacity and graceful shutdown',()=>{
     expect(stops).toBe(before);
     expect((await tx(t=>getNativeRun(t,run.id))).status).toBe('queued');
   });
+  it('releases excess idle capacity while queued work is blocked by the Worker concurrency limit',async()=>{
+    const created=await worker({min_instances:2,idle_timeout_seconds:0});
+    const initial=await ensureBaseline(created.id);
+    expect(initial).toHaveLength(2);
+    const running=await newRun(created.id);
+    const assignment=await tx(t=>claimHostRun(t,running));
+    expect(assignment).not.toBeNull();
+    if(!assignment)throw new Error('Expected assignment');
+    try{
+      const queued=await newRun(created.id);
+      const spare=initial.find(host=>host.id!==assignment.host_id);
+      if(!spare)throw new Error('Expected an idle Host');
+      await tx(t=>patchWorker(t,principal,created.id,{expected_revision:created.revision,min_instances:1,max_concurrency:1}));
+      await tx(t=>t.query("UPDATE hosts SET idle_since=now()-interval '1 hour',next_check_at=now() WHERE id=$1",[spare.id]).then(()=>{}));
+      const before=creates;
+      const uncertain:HostProvider={...provider,destroy:async()=>false};
+      await reconcileWorker(principal.organizationId,created.id,()=>uncertain);
+      const held=await tx(t=>getHost(t,spare.id));
+      expect(held.status).toBe('draining');
+      expect(held.stopped_at).toBeNull();
+      expect((await tx(t=>getHost(t,assignment.host_id))).status).toBe('ready');
+      expect((await tx(t=>activeHostRun(t,running.id)))?.id).toBe(assignment.id);
+      expect((await tx(t=>getNativeRun(t,queued.id))).status).toBe('queued');
+      expect(await tx(t=>activeHostRun(t,queued.id))).toBeUndefined();
+      await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE id=$1',[spare.id]).then(()=>{}));
+      await reconcileWorker(principal.organizationId,created.id,()=>provider);
+      expect((await tx(t=>getHost(t,spare.id))).status).toBe('stopped');
+      expect((await tx(t=>getHost(t,spare.id))).reserved_micro_usd).toBe('0');
+      expect(creates).toBe(before);
+    }finally{
+      await tx(t=>releaseHostRun(t,assignment,false,null));
+    }
+  });
+  it('retains the idle Host selected for queued work without retaining every idle Host',async()=>{
+    const created=await worker({min_instances:2,idle_timeout_seconds:0});
+    const initial=await ensureBaseline(created.id);
+    expect(initial).toHaveLength(2);
+    const queued=await newRun(created.id);
+    await tx(t=>patchWorker(t,principal,created.id,{expected_revision:created.revision,min_instances:0}));
+    await tx(t=>t.query("UPDATE hosts SET idle_since=now()-interval '1 hour',next_check_at=now() WHERE worker_id=$1",[created.id]).then(()=>{}));
+    const before=creates;
+    const remaining=await ensureBaseline(created.id);
+    expect(remaining).toHaveLength(1);
+    expect(initial.some(host=>host.id===remaining[0].id)).toBe(true);
+    expect(creates).toBe(before);
+    expect((await tx(t=>getNativeRun(t,queued.id))).status).toBe('queued');
+    const assignment=await tx(t=>claimHostRun(t,queued));
+    expect(assignment?.host_id).toBe(remaining[0].id);
+    if(assignment)await tx(t=>releaseHostRun(t,assignment,false,null));
+  });
   it('keeps a busy Worker draining until its final assignment releases, without replay or forced cancellation',async()=>{
     const created=await worker({min_instances:1,max_instances:1});
     await ensureBaseline(created.id);

@@ -426,6 +426,16 @@ export class HostController {
       const assignment = await this.commands.run('allocation', () => this.allocate(request));
       return assignment.preparation;
     }
+    if (request.action === 'release' && !this.assignments.has(request.assignment_id))
+      return this.commands.run('allocation', async () => {
+        // Serialize with prepare, including its pre-registration I/O. A lost
+        // acknowledgement must not let a late prepare recreate a released writer.
+        if (this.assignments.has(request.assignment_id)) throw new Error('runtime_not_quiescent');
+        if (this.tombstones.has(request.assignment_id)) return {};
+        if (this.tombstones.size >= 100000) throw new Error('host_rotation_required');
+        this.tombstones.add(request.assignment_id);
+        return {};
+      });
     const value = this.assignments.get(request.assignment_id);
     if (!value || value.run !== request.run_id) {
       if (request.action === 'release' && this.tombstones.has(request.assignment_id)) return {};
@@ -446,6 +456,9 @@ export class HostController {
       return {};
     }
     return this.commands.run(value.id, async () => {
+      // A release may have won while this command waited for its assignment lock.
+      if (value.released && !['snapshot', 'chunk', 'release'].includes(request.action))
+        throw new Error('assignment_released');
       switch (request.action) {
         case 'stage':
           await value.preparation;

@@ -69,11 +69,13 @@ export class WorkerMachines extends HostRuntime {
     return z.string().parse(await this.call(binding,{action:'launch',run_id:this.run.id,assignment_id:binding.sessionId}));
   }
   async cleanupUnbound() {
-    await transaction(this.run.organization_id, async tx => {
-      await lock(tx, `worktree:${this.run.worktree_id}`);
-      const assignment = await activeHostRun(tx, this.run.id);
-      if (assignment && !assignment.launched_at) await releaseHostRun(tx, assignment, false, null);
-    });
+    const assignment = await transaction(this.run.organization_id, tx => activeHostRun(tx, this.run.id));
+    if (!assignment) return;
+    assert(!assignment.launched_at, 409, 'host_launch_unknown',
+      'An unbound launch intent requires recovery; its ownership cannot be discarded.');
+    // A missing orchestration binding is not proof that prepare never reached the
+    // controller. Its fenced release must finish before relinquishing SQL ownership.
+    await this.close({name:`run-${this.run.id}`,sessionId:assignment.id,createdAt:assignment.claimed_at.toISOString()}, true);
   }
   async close(binding:MachineBinding,preserve:boolean):Promise<{snapshotId?:string}> {
     const {assignment,host,provider}=await this.context(binding,true);
@@ -88,7 +90,7 @@ export class WorkerMachines extends HostRuntime {
     });
     const exists=host.binding && host.stopped_at===null && await provider.exists(host.binding,unseal<string>(host.secret_ciphertext));
     if(exists && host.binding) {
-      if(preserve) await provider.control(host.binding,unseal<string>(host.secret_ciphertext),
+      if(preserve && assignment.launched_at) await provider.control(host.binding,unseal<string>(host.secret_ciphertext),
         {action:'cancel',run_id:this.run.id,assignment_id:assignment.id});
       // A non-quiescent release throws. Durable cleanup retries without freeing the slot or writer claim.
       await provider.control(host.binding,unseal<string>(host.secret_ciphertext),{action:'release',run_id:this.run.id,

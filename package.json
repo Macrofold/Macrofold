@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @platform/web dev",
     "build": "pnpm --filter @platform/web build",
     "start": "pnpm --filter @platform/web start",
-    "check": "pnpm sdk:build && tsc --noEmit",
+    "check": "pnpm docs:generate && pnpm sdk:build && tsc --noEmit",
     "test": "tsx scripts/test-domain.ts",
     "test:integration": "tsx scripts/test-domain.ts tests/integration",
     "test:e2e": "playwright test",

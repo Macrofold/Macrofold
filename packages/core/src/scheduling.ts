@@ -10,8 +10,15 @@ import { plans } from './plans';
 // Interactive priority remains first; aging never moves work past its worktree writer.
 // Evaluate placement once per scheduling decision. Inlining its correlated Host
 // checks into a nested-loop join made a 512-Run queue repeat them quadratically.
+// Worktree heads similarly replace per-candidate backlog scans. The clock is a
+// singleton even before ANALYZE; LIMIT 1 prevents inflated estimates and costly JIT.
 export const schedulingSQL = `WITH plan_limits AS (
  SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer)
+), worktree_heads AS MATERIALIZED (
+ SELECT DISTINCT ON (worktree_id) worktree_id,id
+ FROM reporting.scheduling_runs
+ WHERE worktree_id IS NOT NULL AND status IN ('queued','provisioning','running','waiting_for_input','persisting')
+ ORDER BY worktree_id,CASE WHEN status='queued' THEN 1 ELSE 0 END,created_at,id
 ), worker_placement AS MATERIALIZED (
  SELECT * FROM reporting.worker_placement
 ), active AS (
@@ -23,13 +30,13 @@ export const schedulingSQL = `WITH plan_limits AS (
  least(coalesce(o.run_concurrency_limit,p.concurrency_limit),p.concurrency_limit) AS account_limit,
  p.scheduler_weight,greatest(o.scheduler_finish,c.virtual_time) AS service,
  least(floor(extract(epoch FROM now()-r.created_at)/60),4)/16 AS age_bonus,
- EXISTS(SELECT 1 FROM reporting.scheduling_runs earlier WHERE earlier.worktree_id=r.worktree_id AND
- (earlier.status IN ('provisioning','running','waiting_for_input','persisting') OR
- (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id)))) AS worktree_blocked,
+ (wh.id IS NOT NULL AND wh.id<>r.id) AS worktree_blocked,
  EXISTS(SELECT 1 FROM reporting.host_writers hw WHERE hw.worktree_id=r.worktree_id AND hw.run_id<>r.id) AS cleanup_blocked,
  coalesce(wp.eligible,true) AS worker_eligible,wp.waiting_reason AS worker_waiting_reason
  FROM reporting.scheduling_runs r JOIN organizations o ON o.id=r.organization_id
- JOIN plan_limits p ON p.id=o.plan CROSS JOIN scheduler_clock c LEFT JOIN worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
+ JOIN plan_limits p ON p.id=o.plan CROSS JOIN (SELECT virtual_time FROM scheduler_clock WHERE id=true LIMIT 1) c
+ LEFT JOIN worktree_heads wh ON wh.worktree_id=r.worktree_id
+ LEFT JOIN worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
  WHERE r.status='queued'
 ), eligible AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY

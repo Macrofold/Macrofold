@@ -24,7 +24,9 @@ const dollars = (value: string) => `${BigInt(value) / 1000000n}.${(BigInt(value)
 function WorkerForm({ initial, offerings, defaults, onSaved }: {
   initial: Worker | null; offerings: Offering[]; defaults: Result<'listWorkerOfferings'>['limits']; onSaved: () => void;
 }) {
-  const preferred = initial ?? offerings.find(item => item.compute === 'server' && item.dedicated && !item.isolate_runs) ?? offerings[0];
+  // Trusted sharing is an explicit choice, never a fallback when isolated compute is unavailable.
+  const preferred = initial ?? offerings.find(item => item.compute === 'sandbox' && !item.dedicated && item.isolate_runs)
+    ?? offerings.find(item => item.isolate_runs);
   const [selection, setSelection] = useState(preferred ? profile(preferred) : '');
   const [name, setName] = useState(initial?.name || '');
   const [cap, setCap] = useState(dollars(initial?.max_hourly_compute_cost_micro_usd ?? defaults.default_hourly_compute_cost_micro_usd));
@@ -38,16 +40,17 @@ function WorkerForm({ initial, offerings, defaults, onSaved }: {
   const [error, setError] = useState('');
   const choices = [...new Map([...offerings, ...(initial?.accepted_offerings || [])].map(item => [profile(item), item])).values()];
   const selected = choices.find(item => profile(item) === selection);
+  const retainIdle = !!selected?.dedicated && keepAlive;
   const disruptiveAllowed = !initial || (initial.status === 'paused' && initial.occupied_slots === 0 && initial.ready_instances + initial.starting_instances + initial.draining_instances === 0);
   return <form onSubmit={async event => {
     event.preventDefault(); if (!selected) return;
     setBusy(true); setError('');
     try {
       const body: Schema['WorkerCreate'] = {
-        name, compute: selected.compute, dedicated: selected.dedicated, isolate_runs: selected.isolate_runs,
+        name: name.trim() || undefined, compute: selected.compute, dedicated: selected.dedicated, isolate_runs: selected.isolate_runs,
         max_hourly_compute_cost_micro_usd: usd(cap), max_concurrency: Number(concurrency),
         ...(selected.dedicated ? { min_instances: Number(minimum), max_instances: Number(maximum) } : {}),
-        idle_timeout_seconds: keepAlive ? null : Number(idle), expires_at: expiry ? new Date(expiry).toISOString() : null,
+        idle_timeout_seconds: retainIdle ? null : Number(idle), expires_at: expiry ? new Date(expiry).toISOString() : null,
       };
       if (initial) await request('patchWorker', { params: { path: { worker_id: initial.id } }, body: { ...body, expected_revision: initial.revision } });
       else await request('createWorker', { body });
@@ -55,30 +58,31 @@ function WorkerForm({ initial, offerings, defaults, onSaved }: {
     } catch (failure) { setError((failure as Error).message); }
     finally { setBusy(false); }
   }}>
-    <Field label="Name"><input value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></Field>
+    <Field label={initial?.name ? "Name" : "Name (optional)"}><input value={name} maxLength={100} required={!!initial?.name} onChange={event => setName(event.target.value)} /></Field>
     <Field label="Compute offering" hint={disruptiveAllowed ? 'Macrofold sizes and places work within this economic and isolation contract.' : 'Pause and finish draining before changing compute or isolation.'}>
-      <Select value={selection} disabled={!disruptiveAllowed} onValueChange={setSelection}
+      <Select value={selection} placeholder="Choose a compute and isolation contract" disabled={!disruptiveAllowed} onValueChange={value => { setSelection(value); setKeepAlive(false); }}
         options={choices.map(item => ({ value: profile(item), label: profileLabel(item) }))} />
     </Field>
     <Field label="Maximum compute rate (USD/hour)" hint="Aggregate scaling ceiling, not a monthly budget or a cap on model/tool usage. Existing commitments cannot be lowered away.">
       <input inputMode="decimal" value={cap} required onChange={event => setCap(event.target.value)} />
     </Field>
     {selected && <p className="form-hint">{selected.price.kind === 'allocation'
-      ? `Allocated capacity starts at ${money(selected.price.hourly_micro_usd)}/hour and is billed while running, including idle time.`
+      ? `Example ${selected.size} allocation: ${money(selected.price.hourly_micro_usd)}/hour, including idle time. Automatic sizing may select another accepted shape.`
       : `Resource rates: ${money(selected.price.cpu_hour_micro_usd)}/active CPU-hour and ${money(selected.price.gib_hour_micro_usd)}/allocated GiB-hour.`}
       {' '}Accepted resource shapes and rates remain visible after creation. <Link href="/docs/workers">Compute and billing guide</Link>.
     </p>}
+    {selected && !selected.isolate_runs && <p className="form-hint">Trusted sharing is for mutually trusted Runs of one application. Dedicated capacity does not isolate sibling Runs.</p>}
     <details>
       <summary>Scaling and lifecycle</summary>
       <div className="form-grid">
         {selected?.dedicated && <>
-          <Field label="Minimum instances" hint="Use 1 for an always-available baseline while enabled."><input type="number" min="0" max={defaults.max_instances} value={minimum} required onChange={event => setMinimum(event.target.value)} /></Field>
+          <Field label="Minimum instances" hint="Retain funded baseline capacity while enabled. Startup, replacement and provider availability still apply."><input type="number" min="0" max={defaults.max_instances} value={minimum} required onChange={event => setMinimum(event.target.value)} /></Field>
           <Field label="Maximum instances"><input type="number" min="1" max={defaults.max_instances} value={maximum} required onChange={event => setMaximum(event.target.value)} /></Field>
         </>}
         <Field label="Maximum concurrent Runs" hint={`Account limit: ${defaults.max_concurrency}. Resource requirements may impose a lower active count.`}><input type="number" min="1" max={defaults.max_concurrency} value={concurrency} required onChange={event => setConcurrency(event.target.value)} /></Field>
-        <Field label="Idle timeout (seconds)"><input type="number" min="0" value={idle} disabled={keepAlive} required={!keepAlive} onChange={event => setIdle(event.target.value)} /></Field>
+        <Field label="Idle timeout (seconds)"><input type="number" min="0" value={idle} disabled={retainIdle} required={!retainIdle} onChange={event => setIdle(event.target.value)} /></Field>
       </div>
-      <label><input type="checkbox" checked={keepAlive} onChange={event => setKeepAlive(event.target.checked)} /> Keep running when idle</label>
+      {selected?.dedicated && <label><input type="checkbox" checked={keepAlive} onChange={event => setKeepAlive(event.target.checked)} /> Retain idle capacity while funded</label>}
       <Field label="Expiration (optional ISO timestamp)" hint="Expires the logical Worker. Provider machine replacement never extends this date."><input value={expiry} placeholder="2026-12-01T00:00:00Z" onChange={event => setExpiry(event.target.value)} /></Field>
       <p className="form-hint">Use the API or CLI for explicit size, region, runtime, per-Run resources, and Worker-restricted credentials.</p>
     </details>
@@ -116,9 +120,10 @@ export function WorkersView() {
             <p>{money(worker.cost_micro_usd)} compute charged · {money(worker.reserved_micro_usd)} held for authorized capacity</p>
           </div>
           {worker.failure_code && <p className="form-error" role="status">Allocation status: {worker.failure_code.replaceAll('_', ' ')}. Existing files and conversations remain independent of compute.</p>}
+          {worker.draining_instances > 0 && <p className="form-hint">Draining includes cleanup and unsettled usage, even after physical compute stops. Held credit is not a final charge.</p>}
           <div className="button-row">
-            <Button variant="secondary" disabled={worker.desired_state === 'destroyed' || !catalog.data} onClick={() => setEdit(worker)}>Settings</Button>
-            <Button variant="secondary" disabled={worker.desired_state === 'destroyed'} onClick={() => { setForce(false); setError(''); setAction({ worker, kind: worker.desired_state === 'paused' ? 'resume' : 'pause' }); }}>
+            <Button variant="secondary" disabled={worker.desired_state === 'destroyed' || worker.status === 'expired' || !catalog.data} onClick={() => setEdit(worker)}>Settings</Button>
+            <Button variant="secondary" disabled={worker.desired_state === 'destroyed' || worker.status === 'expired'} onClick={() => { setForce(false); setError(''); setAction({ worker, kind: worker.desired_state === 'paused' ? 'resume' : 'pause' }); }}>
               {worker.desired_state === 'paused' ? 'Resume' : 'Pause'}
             </Button>
             <Button variant="danger" disabled={worker.desired_state === 'destroyed'} onClick={() => { setForce(false); setError(''); setAction({ worker, kind: 'destroy' }); }}>Destroy</Button>
@@ -144,7 +149,7 @@ export function WorkersView() {
         } catch (failure) { setError((failure as Error).message); }
         finally { setBusy(false); }
       }}>
-        <p>{action.worker.name}</p>
+        <p>{action.worker.name || action.worker.id}</p>
         {action.kind !== 'resume' && <label><input type="checkbox" checked={force} onChange={event => setForce(event.target.checked)} /> Interrupt active Runs instead of waiting for completion</label>}
         {action.kind === 'destroy' && <p>Queued Runs are cancelled. The destroyed Worker cannot be resumed.</p>}
         {error && <p className="form-error" role="alert">{error}</p>}

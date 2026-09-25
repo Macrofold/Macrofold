@@ -1,14 +1,13 @@
 import { transaction, lock, pool, type Tx } from '../../db';
 import { AppError, assert } from './errors';
 import { id, unseal } from './crypto';
-import { getWorker, type WorkerRow } from './workers';
+import { getWorker } from './workers';
 import { getHost, hostSnapshots, reserveHost, extendHostFunding, settleHostSample, releaseHostFunding,
   defaultRunResources, type HostRow, HOST_CLEANUP_SECONDS } from './host-allocations';
 import { planWorkerCapacity } from './worker-scaling';
-import type { RunDemand } from './worker-types';
+import type { RunDemand, ResourceAllocation } from './worker-types';
 import { workerAdmissionBlock } from './worker-policy';
 import { workerAccruedCost, workerChargeDelta, workerHourlyExposure, type ComputeMeters } from './worker-pricing';
-import type { NativeRunRow } from './runs';
 import { hostProvider } from '../../providers/src/hosts';
 import { hostHealth, type HostProvider } from '../../contracts/host-control';
 
@@ -189,8 +188,9 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       if (host.offering.price.kind === 'allocation') meters = allocationMeters(host, Date.now());
       if (host.offering.price.kind === 'resource' && host.usage_finalized_at)
         meters = host.final_usage ?? host.billing_cursor ?? undefined;
-      if (host.offering.price.kind === 'resource' && host.stopped_at && !meters) {
-        // A forced stop can lose the final tail. Stop confirmation is not a zero-usage receipt.
+      if (host.offering.price.kind === 'resource' && host.stopped_at && !host.usage_finalized_at) {
+        // Even a health sample from this pass predates an unsealed stop. It cannot
+        // prove the final tail; physical confirmation is not a zero-usage receipt.
         if (workerHourlyExposure(host.offering.price, host.offering.resources) > 0n) throw new AppError(503,'host_usage_unknown',
           'Resource usage after the last observation is unknown; retain this allocation for reconciliation.');
         meters = host.billing_cursor || { kind: 'resource', cpu_ms: '0', memory_mib_ms: '0' };
@@ -218,13 +218,18 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
   }
 }
 
-async function queuedDemand(tx: Tx, worker: WorkerRow): Promise<NativeRunRow[]> {
-  return (await tx.query<NativeRunRow>(`SELECT r.* FROM runs r WHERE r.config->>'worker_id'=$1 AND r.status='queued'
+type QueuedRequirement = { run_id: string; resources: ResourceAllocation | null; execution_seconds: number | null };
+async function queuedDemand(tx: Tx, workerId: string): Promise<QueuedRequirement[]> {
+  // Do not transfer prompts, tool grants, attachments, or prior execution state
+  // into the frequent capacity loop. Admission owns those richer inputs.
+  return (await tx.query<QueuedRequirement>(`SELECT r.id AS run_id,r.config->'worker_resources' AS resources,
+    (r.config#>>'{limits,timeout_seconds}')::integer AS execution_seconds
+    FROM runs r WHERE r.config->>'worker_id'=$1 AND r.status='queued'
     AND NOT r.cancel_requested AND r.queue_expires_at>now() AND r.kind='native_agent'
     AND NOT EXISTS(SELECT 1 FROM runs earlier WHERE earlier.worktree_id=r.worktree_id AND earlier.id<>r.id AND
       (earlier.status IN ('provisioning','running','waiting_for_input','persisting') OR
       (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id))))
-    ORDER BY CASE r.config->>'scheduling_class' WHEN 'interactive' THEN 0 ELSE 1 END,r.created_at,r.id LIMIT 32`, [worker.id])).rows;
+    ORDER BY CASE r.config->>'scheduling_class' WHEN 'interactive' THEN 0 ELSE 1 END,r.created_at,r.id LIMIT 32`, [workerId])).rows;
 }
 
 export async function reconcileWorker(org: string, workerId: string, providerFactory: HostProviderFactory = hostProvider): Promise<void> {
@@ -238,12 +243,12 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
       await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE worker_id=$1 AND status<>'stopped'",[workerId]);
     } else {
       const serving = snapshots.filter(host => host.status === 'ready' || host.status === 'provisioning');
-      const readyDemand = await queuedDemand(tx, worker);
+      const readyDemand = await queuedDemand(tx, workerId);
       // Scaling needs frozen resource needs, not full filesystem manifests or native
       // continuation data. Actual admission builds and rechecks the authorized view.
-      const demands: RunDemand[] = readyDemand.map(run => ({ run_id: run.id,
-        resources: run.config.worker_resources || defaultRunResources,
-        execution_seconds: run.config.limits?.timeout_seconds || 900, cleanup_seconds: HOST_CLEANUP_SECONDS,
+      const demands: RunDemand[] = readyDemand.map(run => ({ run_id: run.run_id,
+        resources: run.resources ?? defaultRunResources,
+        execution_seconds: run.execution_seconds ?? 900, cleanup_seconds: HOST_CLEANUP_SECONDS,
         worktree: null, session: null, permission_view: '', compatibility_key: '' }));
       const plan = planWorkerCapacity(worker, demands, snapshots, worker.offerings, Date.now());
       for (const item of plan.provision) {

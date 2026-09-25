@@ -10,6 +10,7 @@ import { admitRun, getNativeRun } from '../../packages/core/src/runs';
 import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import type { Principal } from '../../packages/core/src/auth';
+import type { ResourceAllocation } from '../../packages/core/src/worker-types';
 import type { HostProvider, HostBinding } from '../../packages/contracts/host-control';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
@@ -49,18 +50,36 @@ async function worker(input:Parameters<typeof createWorker>[2]={}){
   return tx(t=>createWorker(t,principal,{compute:'server',dedicated:true,isolate_runs:false,min_instances:0,max_instances:2,
     max_concurrency:6,max_hourly_compute_cost_micro_usd:'10000000',...input}));
 }
-async function newRun(workerId:string){
+async function newRun(workerId:string, workerResources?:ResourceAllocation){
   return tx(async t=>{
     const workspace=await resources.create(t,'workspaces',principal.organizationId,{name:`Worker files ${id()}`});
     const operation=await createWorktree(t,principal,workspace.id,{name:'main',branch:'main'});
     const accepted=await admitRun(t,principal,{worktree_id:operation.result.worktree_id,prompt:'fixture',harness:'codex',model:'fixture-model',billing_mode:'managed'});
-    await t.query("UPDATE runs SET config=config||jsonb_build_object('worker_id',$2::text,'compute_rate_micro_usd_per_minute','0') WHERE id=$1",[accepted.run_id,workerId]);
+    await t.query('UPDATE runs SET config=config||$2::jsonb WHERE id=$1',[accepted.run_id,JSON.stringify({
+      worker_id:workerId,worker_resources:workerResources,compute_rate_micro_usd_per_minute:'0',
+    })]);
     return getNativeRun(t,accepted.run_id);
   });
 }
 async function ensureBaseline(workerId:string){
   await reconcileWorker(principal.organizationId,workerId,()=>provider);
   return tx(async t=>(await t.query<{id:string}>("SELECT id FROM hosts WHERE worker_id=$1 AND status='ready' ORDER BY created_at",[workerId])).rows);
+}
+
+// Synthetic accepted rates exercise real SQL/ledger decisions, not commercial provider pricing.
+async function resizableWorker(){
+  const created=await worker({min_instances:1,max_instances:1,max_hourly_compute_cost_micro_usd:'2000000'});
+  await tx(async t=>{
+    await lock(t,`worker:${created.id}`);
+    const row=await getWorker(t,created.id);
+    const base=row.offerings.find(quote=>quote.compute==='server' && quote.dedicated && !quote.isolate_runs);
+    if(!base)throw new Error('Expected a local shared-runtime offering');
+    const small={...base,id:'sizing-small',revision:id(),price:{kind:'allocation' as const,hourly_micro_usd:'1000000'}};
+    const large={...small,id:'sizing-large',revision:id(),size:'2cpu-8g',resources:{memory_mib:8192,cpu_millis:2000},
+      price:{kind:'allocation' as const,hourly_micro_usd:'2000000'}};
+    await t.query('UPDATE workers SET offerings=$2 WHERE id=$1',[created.id,JSON.stringify([small,large])]);
+  });
+  return created;
 }
 
 describe('Worker authority and desired lifecycle',()=>{
@@ -123,6 +142,55 @@ describe('durable capacity and graceful shutdown',()=>{
     const hosts=await tx(t=>t.query('SELECT id FROM hosts WHERE worker_id=$1',[created.id]));
     expect(hosts.rowCount).toBe(1);
     expect(creates-before).toBe(1);
+  });
+  it('uses queued resource requirements before reserving a single-instance baseline',async()=>{
+    const created=await resizableWorker();
+    const run=await newRun(created.id,{memory_mib:4096,cpu_millis:1000});
+    const before=creates;
+    const hosts=await ensureBaseline(created.id);
+    expect(hosts).toHaveLength(1);
+    const selected=await tx(t=>getHost(t,hosts[0].id));
+    expect(selected.offering.id).toBe('sizing-large');
+    expect(selected.memory_mib).toBe(8192);
+    expect(creates-before).toBe(1);
+    const assignment=await tx(t=>claimHostRun(t,run));
+    expect(assignment?.host_id).toBe(selected.id);
+    if(assignment)await tx(t=>releaseHostRun(t,assignment,false,null));
+  });
+  it('retains idle replacement liability until provider-confirmed release and then admits the larger Run',async()=>{
+    const created=await resizableWorker();
+    const initial=await ensureBaseline(created.id);
+    const original=await tx(t=>getHost(t,initial[0].id));
+    expect(original.offering.id).toBe('sizing-small');
+    const run=await newRun(created.id,{memory_mib:4096,cpu_millis:1000});
+    const before=creates;
+    const uncertain:HostProvider={...provider,destroy:async()=>false};
+    await reconcileWorker(principal.organizationId,created.id,()=>uncertain);
+    const held=await tx(t=>getHost(t,original.id));
+    expect(held.status).toBe('draining');
+    expect(held.stopped_at).toBeNull();
+    expect(BigInt(held.reserved_micro_usd)).toBeGreaterThan(0n);
+    await reconcileWorker(principal.organizationId,created.id,()=>uncertain);
+    expect(creates).toBe(before);
+    expect((await tx(t=>getNativeRun(t,run.id))).status).toBe('queued');
+    expect(await tx(t=>activeHostRun(t,run.id))).toBeUndefined();
+    // Make the persisted provider retry due without a wall-clock sleep.
+    await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE id=$1',[original.id]).then(()=>{}));
+    await reconcileWorker(principal.organizationId,created.id,()=>provider);
+    const released=await tx(t=>getHost(t,original.id));
+    expect(released.status).toBe('stopped');
+    expect(released.reserved_micro_usd).toBe('0');
+    expect(creates).toBe(before);
+    const replacements=await ensureBaseline(created.id);
+    expect(replacements).toHaveLength(1);
+    expect(replacements[0].id).not.toBe(original.id);
+    const replacement=await tx(t=>getHost(t,replacements[0].id));
+    expect(replacement.offering.id).toBe('sizing-large');
+    expect(replacement.memory_mib).toBe(8192);
+    expect(creates-before).toBe(1);
+    const assignment=await tx(t=>claimHostRun(t,run));
+    expect(assignment?.host_id).toBe(replacement.id);
+    if(assignment)await tx(t=>releaseHostRun(t,assignment,false,null));
   });
   it('keeps a busy Worker draining until its final assignment releases, without replay or forced cancellation',async()=>{
     const created=await worker({min_instances:1,max_instances:1});

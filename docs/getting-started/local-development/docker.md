@@ -1,25 +1,29 @@
-# Real agents in local Docker
+# Run native agents locally with Docker
 
-Run [any supported harness](../../features/execution/harnesses.md) through the local API, with Docker providing compute and a model provider supplying inference. The application, PostgreSQL, captured email, and encrypted checkpoints stay on your computer. No Vercel account or public tunnel is needed.
-
-The Docker provider shares the cloud run lifecycle: API admission, SQL scheduling, native execution, streaming and verified checkpoints. The free test below exercises that path without model spending. [Acceptance evidence](../../engineering/testing/harnesses.md) distinguishes deterministic native execution from live inference and cloud hosting.
+Use the public API, CLI, or dashboard with actual native harnesses in local Docker containers. PostgreSQL owns execution and billing state; encrypted local storage owns verified files and conversation state. Docker does not make upstream model calls free.
 
 ## Start
 
-You need Node 24, pnpm 10, Git, and a responsive Docker daemon. First complete the [simulation setup](simulation.md#start). Stop its application and worker before changing modes; keep PostgreSQL and Mailpit running.
+Complete [simulation setup](simulation.md#start), then stop its application and dispatcher before changing modes. Keep the local PostgreSQL and mail services running.
 
 ```sh
 docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
-cp -n .env.docker.example .env.docker
 ```
 
-The image build installs only the runtime and its build tool from the shared lockfile. Docker caches npm downloads between attempts and limits concurrent downloads. If the registry disconnects, rerun the same build command to reuse downloaded packages; clearing the cache is unnecessary.
+The image uses the pinned runtime packages and shared lockfile. Docker caches downloads; retrying a failed registry download can reuse that cache.
 
-Configure `.env.docker`:
+Configure the **same `.env`** used by the API and dispatcher:
 
-1. Use the [built-in model catalog](../../features/execution/models.md); no model JSON configuration is required. The worker refreshes provider availability automatically.
-2. For managed inference, configure the corresponding `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY`. Alternatively, add an encrypted model connection in the dashboard and select BYOK.
-3. Set `ALLOW_PAID_EXECUTION=true` only after choosing your inference budget. Merely adding a key never enables execution.
+```dotenv
+PLATFORM_MODE=local
+EXECUTION_PROVIDER=docker
+ORCHESTRATION_BACKEND=poller
+DOCKER_RUNTIME_IMAGE=platform-runtime:0.1.0
+COMPUTE_MICRO_USD_PER_MINUTE=0
+ALLOW_PAID_EXECUTION=false
+```
+
+Use the [model catalog](../../features/execution/models.md); no model JSON configuration is required. For managed inference, securely configure the corresponding `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY`. Alternatively, add an encrypted model connection in the dashboard and choose BYOK. Change `ALLOW_PAID_EXECUTION` to `true` only after choosing an inference budget. A saved credential alone does not authorize spending.
 
 In terminal 1:
 
@@ -34,82 +38,82 @@ In terminal 2:
 pnpm worker:docker
 ```
 
-Open **http://localhost:3210**. The dashboard identifies this mode as **Local Docker**. Your existing local demo login works. Both commands load the same profile; neither rewrites `.env` or `.env.docker`.
+These aliases validate the Docker settings and start the existing application or dispatcher. They read `.env`, preserve it, and let exported environment variables take precedence. Open **http://localhost:3210**; the dashboard identifies **Local Docker**, and the existing local demo login works.
 
-## Invoke an agent
+## Run and continue a task
 
-Follow the [API quickstart](../../features/api/quickstart.md) against localhost, selecting a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing `Hello from the agent`, followed by one newline, and read it back. Start with a 120-second timeout and a deliberately approved run budget.
+Follow the [API quickstart](../../features/api/quickstart.md) against localhost with a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing a short note and read it back. Start with a 120-second timeout and an explicitly approved Run budget.
 
-Use the dashboard, CLI, or SDK to follow events and inspect the published file. Continue the returned session to restore both worktree files and compatible native conversation state in a fresh container. Execution, persistence, and optional Git synchronization retain their separate outcomes.
+Follow events and inspect the published file. Continue with the returned `session_id`; Macrofold restores compatible native history and files when compute is replaced. Execution, verified persistence, and optional Git synchronization have separate outcomes.
 
-The seeded account has synthetic application credits, so Stripe is unnecessary for local development. **Synthetic credits do not make provider inference free.** Local Docker compute defaults to zero micro-USD per minute; `.env.docker.example` sets that explicitly. Model/tool budgets, exact BYOK selection, revocation, reservations, and settlement still apply.
+The seeded account has synthetic application credits, so Stripe is unnecessary for local development. **Synthetic credits do not make provider inference free.** Local Docker compute defaults to zero, but model/tool budgets, exact BYOK selection, revocation, reservations, and settlement still apply.
 
-## Test the complete journey for free
+## Reuse capacity with a Worker
 
-With the image built and local PostgreSQL running, invoke this from the ordinary unpaid simulation shell:
+Omit `worker_id` for automatic per-Run compute. Create a [Worker](../../features/execution/workers.md) to retain baseline capacity or run independent agents concurrently on shared local compute. Both server and sandbox offerings can use Docker locally; no Render credentials are required.
+
+For sustained trusted workloads:
+
+```json
+{
+  "name": "local-agent-service",
+  "compute": "server",
+  "dedicated": true,
+  "isolate_runs": false,
+  "min_instances": 1,
+  "max_instances": 2,
+  "max_concurrency": 8,
+  "idle_timeout_seconds": 300,
+  "max_hourly_compute_cost_micro_usd": "1000000"
+}
+```
+
+Send this to `POST /v1/workers`, then include its ID as `worker_id` on Runs. The dollar ceiling is illustrative, not a model budget. The offering catalog and effective settings are authoritative. Each Run reserves memory and CPU; Macrofold adds backing Hosts within resource, plan, concurrency, and cost bounds.
+
+For bursts, choose `min_instances: 0`. The Worker remains addressable after its idle Hosts stop. A compatible native process may remain warm between turns while its Host survives. Different Worktrees can run concurrently; one Worktree still has one writer globally. `isolate_runs: true` requires the advertised isolated environment and does not share that environment between Runs.
+
+Pause stops admissions and drains active work before releasing compute. Resume enables new Hosts lazily. Destroy retires the Worker but never its Worktrees, Sessions, or verified checkpoints. These operations use the same API locally and in hosted deployments.
+
+## Stop and resume the application
+
+Pause explicit Workers, cancel unwanted queued Runs, and let active Runs finish persistence and cleanup before stopping the dispatcher. Press Ctrl-C in both terminals. Restart with `pnpm dev:docker` and `pnpm worker:docker`; durable state is independent of the process and Host lifecycle.
+
+A dispatcher crash does not authorize replaying a native prompt. Its replacement inspects the original Host binding and execution marker. A stopped or externally restarted container is a recovery condition; do not use `docker start` to resume the agent. Continue the logical Session through the API from verified state instead.
+
+To return to simulation, drain native work, stop the application and dispatcher, change `EXECUTION_PROVIDER=simulator` and `ALLOW_PAID_EXECUTION=false` in `.env`, then run `pnpm dev` and `pnpm worker`. Use separate databases and data directories for concurrent development environments. Both processes must restart after configuration changes; accepted native jobs cannot be executed by a leftover simulator.
+
+## Boundaries and resource limits
+
+Docker is trusted contributor infrastructure, not a claim of production hostile-code isolation. Host allocations use the selected offering's CPU/memory shape with no additional swap and a bounded process count. The protected controller assigns separate native process identities, paths, and cancellation scopes. Sharing trusted Runs is distinct from granting another customer access.
+
+No host checkout, Docker socket, database credential, object-store credential, or upstream model key is mounted into the execution environment. Run-scoped gateway capabilities enter protected configuration through stdin. The adapter requires an already-built image and does not pull arbitrary images on admission. `DOCKER_RUNTIME_IMAGE` selects a compatible local image; `DOCKER_NETWORK` selects an optional bridge, not host networking.
+
+Choose `GLOBAL_CONCURRENT_RUN_LIMIT` and Worker limits within Docker's actual resource allocation, leaving room for the application and PostgreSQL. A high configured concurrency limit is not proof that a particular harness mix fits in memory. [Worker operations](../../features/execution/workers/operations.md) explains headroom, usage receipts, and deployment-specific guarantees.
+
+### Networking
+
+The Docker adapter rewrites only application model/MCP URLs to `host.docker.internal`, retaining the port and exact Run path. The app must listen on a container-reachable interface. Local firewall/VPN rules can affect reachability; production HTTPS and user-URL SSRF rules are unchanged. `DOCKER_HOST_GATEWAY_IP` is an optional exact IPv4 mapping for a controlled local network; ordinary development leaves it unset. See [Docker host networking](https://docs.docker.com/desktop/features/networking/) and [host-gateway mapping](https://docs.docker.com/reference/cli/docker/container/run/#add-host).
+
+### Recovery and cleanup
+
+SQL leases, generation checks, Worktree writer claims, and hash-verified checkpoints are shared with hosted execution. Pending cleanup keeps its Host slot owned even after a Run becomes terminal. Failed persistence quarantines that Worktree's local materialization and retains the previous durable checkpoint; it must not stop unrelated Runs sharing a Host. Local unpublished bytes are not an independent backup and can be lost if the Host is deleted. Back up the database, encrypted objects, and vault keys together.
+
+Remove only confirmed-owned idle resources after examining recovery state. Never use a global Docker prune as application cleanup. A Host name identifies provider infrastructure, not the durable Worker or Worktree identity.
+
+## Free runtime verification
+
+With local infrastructure and the matching image available, the existing isolated runners are:
 
 ```sh
 pnpm test:journey:docker
-```
-
-The runner owns a disposable database, private object directory, independent API/worker processes, an internal Docker network, and its containers. It submits actual API requests for all six harnesses. Scripted model responses pass through the real gateway and drive actual file tools. It checks stream reconnection/replay, exact file bytes, checkpoint publication, fresh-container session continuation, a killed/replaced worker, and released reservations. No provider credentials or paid calls are used.
-
-A pass is expected to print one JSON result per harness with `passed: true`. An unavailable daemon or image fails before fixture provisioning; it is not reported as a skipped or successful test. Consult the [verification record](../../engineering/testing/harnesses.md) for tested platforms and remaining hosted checks.
-
-For live reasoning, use the separately opted-in [complete journey runner](cloud.md#test-a-real-agent-journey), selecting `AGENT_JOURNEY_ENVIRONMENT=docker` and the local origin. It requires an approved budget and an idle synthetic customer.
-
-## Run the existing native tests
-
-```sh
 pnpm test:native codex
 pnpm test:native claude-code
 pnpm test:native opencode
 pnpm test:native hermes deepseek pi
-pnpm test:native hermes deepseek pi --tools
 ```
 
-These narrower tests run real harnesses with networking disabled and a model fixture inside the container. They cover tools, capture, restore, and native continuation, but bypass API admission and Docker provisioning through the worker. `pnpm test:native --image-only` tests the code baked into the image; otherwise the runner mounts fresh runtime bundles. OpenCode questions and stdio MCP have `pnpm test:native opencode --questions` and `pnpm test:native --stdio` paths.
+They use synthetic data and scripted model responses, not provider credentials. The complete journey owns a disposable database/object directory and its network; native-only runners exercise the image/harness boundary separately. An unavailable daemon or image is a failure, not a passing live-provider check. Consult [Worker verification](../../features/execution/workers/verification.md) and [harness acceptance](../../engineering/testing/harnesses.md) for the scope actually exercised.
 
-## Temporary and long-running compute
-
-Both sandbox modes run locally in Docker. Create a sandbox with `long_running: true` to keep its container available without a fixed lifetime cutoff or default idle timeout. No Render credentials are needed. An ordinary sandbox (`long_running: false`) retains its bounded lifetime and keep-warm policy; runs without a reusable sandbox still clean up their containers normally.
-
-Use the same [sandbox API](../../features/execution/workers.md) for create, pause, resume and destroy. Pause removes local compute; resume creates a fresh container, restoring verified files and conversation state on the next run. Destroy never deletes checkpoints. Docker and the SQL worker must remain running. The container can stay warm, but each run still starts its own native harness process.
-
-## Stop and resume
-
-Cancel unfinished runs through the API or dashboard and wait for terminal persistence before stopping the worker. Then press Ctrl-C in both terminals. To resume this profile, run `pnpm dev:docker` and `pnpm worker:docker` again; saved workspaces live independently in PostgreSQL and encrypted local storage.
-
-A worker crash does not restart a native prompt: the replacement worker observes the same container and execution marker. A stopped or externally restarted container is a recovery condition; do not `docker start` it to resume an agent. The normal continuation path creates a new container from a verified checkpoint.
-
-To return to simulation, drain native work, stop both processes, and use `pnpm dev` and `pnpm worker`. Use separate databases/data directories if running modes concurrently. Accepted jobs retain their execution provider, preventing a leftover simulator from executing native work.
-
-## Further details
-
-### Profile precedence and networking
-
-Exported environment variables override `.env.docker`, which overrides `.env`. The Docker overlay selects `PLATFORM_MODE=local`, `EXECUTION_PROVIDER=docker`, and `ORCHESTRATION_BACKEND=poller`. Hosted deployments retain their existing production configuration.
-
-Only the Docker adapter rewrites the run's application model/MCP URLs to `host.docker.internal`, retaining the API port and exact run path. Docker's `host-gateway` mapping supports the Linux host route; Docker Desktop provides the host gateway on macOS. The app must listen on a container-reachable interface, as the standard Next.js development server does. Local firewall/VPN rules can affect reachability. Production HTTPS and user-URL SSRF rules are unchanged. [Docker host networking guidance](https://docs.docker.com/desktop/features/networking/), [host-gateway mapping](https://docs.docker.com/reference/cli/docker/container/run/#add-host).
-
-### Isolation and limits
-
-This is trusted contributor development, not hosted multi-tenant isolation. Containers use two CPUs, four GiB memory without additional swap, a 512-process limit, no new privileges, and only the Linux capabilities required by the existing supervisor. No host directory, checkout, Docker socket, database/storage credential, or upstream model key is mounted or passed into them. Only run-scoped gateway credentials enter protected configuration through stdin.
-
-The example overlay starts with `GLOBAL_CONCURRENT_RUN_LIMIT=1`. Raise it only within Docker's allocated CPU/memory, leaving headroom for PostgreSQL and the application. Organization and worktree limits still apply.
-
-The runtime image is already built locally; provisioning never implicitly pulls one. `DOCKER_RUNTIME_IMAGE` selects another locally built matching image. Normal development uses Docker's bridge network; `DOCKER_NETWORK` can select a custom bridge. Docker is deliberately not advertised as Vercel's microVM or egress-isolation equivalent.
-
-The deterministic runner uses an owned internal network with no external route. A test-only relay forwards runtime paths to the fixture API; the gateway rejects unexpected upstream requests. The runner sets `DOCKER_HOST_GATEWAY_IP` to the relay's internal IPv4 address. Ordinary development leaves this unset to use Docker's host gateway. [Docker internal-network behavior](https://docs.docker.com/reference/cli/docker/network/create/#network-internal-mode).
-
-### Recovery and cleanup
-
-SQL phase leases, worktree serialization, organization/global limits, and checkpoint verification are shared with cloud execution. Ordinary execution observation uses the existing two-second phase delay plus worker/provider time; input and cancellation follow that cadence. A killed worker may leave a two-minute phase lease before replacement can advance. Queue expiry uses the worker's 15-second maintenance sweep; its 24-hour deadline remains independent of execution timeout.
-
-Successful checkpoint publication permits container deletion. Persistence failure stops and retains the owned container's writable layer for manual recovery, while preserving the last verified checkpoint and blocking competing worktree writes. That layer is not an independent backup; deleting Docker data destroys it. Containers also stop after the requested timeout plus the existing 30-minute persistence allowance. Back up PostgreSQL, encrypted objects, and vault keys together.
-
-### Cleanup
-
-The complete test runner removes only containers on its unique test network, its network, and its temporary database/files. Successful application runs remove their own containers. Recovery containers are retained deliberately; inspect the run's failure and recover needed files before removing the corresponding `run-<run ID>` container. Never use a global Docker prune as application cleanup.
+For paid model behavior, use the separately opted-in [complete journey runner](cloud.md#test-a-real-agent-journey) with `AGENT_JOURNEY_ENVIRONMENT=docker`, a synthetic customer, and a bounded approved budget.
 
 Return to [development modes](../local-development.md).

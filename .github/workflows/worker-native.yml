@@ -20,6 +20,7 @@ jobs:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
       ALLOW_PAID_EXECUTION: 'false'
+      HARNESS_WORKLOADS: codex claude-code opencode hermes deepseek pi
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -36,7 +37,7 @@ jobs:
         run: |
           mkdir -p /tmp/worker-native-evidence
           status=0
-          for harness in codex claude-code; do
+          for harness in $HARNESS_WORKLOADS; do
             for phase in load cold; do
               name="worker-load-${GITHUB_RUN_ID}-${harness}-${phase}"
               if ! timeout --signal=TERM --kill-after=10 600 docker run --rm --init --name "$name" \
@@ -68,7 +69,7 @@ jobs:
       - name: Clean benchmark containers
         if: always()
         run: |
-          for harness in codex claude-code; do
+          for harness in $HARNESS_WORKLOADS; do
             for phase in load cold; do
               docker rm -f "worker-load-${GITHUB_RUN_ID}-${harness}-${phase}" >/dev/null 2>&1 || true
             done

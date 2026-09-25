@@ -4,7 +4,7 @@ import { authPool, lock, pool, transaction, type Tx } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import { credit } from '../../packages/core/src/ledger';
 import { createWorker, getWorker, changeWorker, patchWorker, presentWorker, workerForRun } from '../../packages/core/src/workers';
-import { reserveHost, getHost, claimHostRun, activeHostRun, releaseHostRun, settleHostSample } from '../../packages/core/src/host-allocations';
+import { reserveHost, getHost, hostSnapshots, claimHostRun, activeHostRun, releaseHostRun, settleHostSample } from '../../packages/core/src/host-allocations';
 import { reconcileWorker } from '../../packages/core/src/worker-reconciler';
 import { admitRun, getNativeRun } from '../../packages/core/src/runs';
 import { createWorktree } from '../../packages/core/src/files';
@@ -191,6 +191,26 @@ describe('durable capacity and graceful shutdown',()=>{
     const assignment=await tx(t=>claimHostRun(t,run));
     expect(assignment?.host_id).toBe(replacement.id);
     if(assignment)await tx(t=>releaseHostRun(t,assignment,false,null));
+  });
+  it('does not replace a Host with unpublished state outside the bounded placement cache view',async()=>{
+    const created=await resizableWorker();
+    const initial=await ensureBaseline(created.id);
+    const original=await tx(t=>getHost(t,initial[0].id));
+    const run=await newRun(created.id,{memory_mib:4096,cpu_millis:1000});
+    await tx(t=>t.query(`INSERT INTO host_materializations
+      (organization_id,host_id,host_generation,worktree_id,permission_view,state,last_used_at)
+      SELECT $1,$2,$3,$4,'fixture-view-'||n,
+        CASE WHEN n=0 THEN 'recovery_required' ELSE 'clean' END,
+        CASE WHEN n=0 THEN now()-interval '1 hour' ELSE now() END
+      FROM generate_series(0,256) AS series(n)`,[principal.organizationId,original.id,original.generation,run.worktree_id]).then(()=>{}));
+    const snapshots=await tx(t=>hostSnapshots(t,created.id));
+    expect(snapshots[0].worktrees).toHaveLength(256);
+    expect(snapshots[0].worktrees.every(cache=>cache.state==='clean')).toBe(true);
+    const before=stops;
+    await reconcileWorker(principal.organizationId,created.id,()=>provider);
+    expect((await tx(t=>getHost(t,original.id))).status).toBe('ready');
+    expect(stops).toBe(before);
+    expect((await tx(t=>getNativeRun(t,run.id))).status).toBe('queued');
   });
   it('keeps a busy Worker draining until its final assignment releases, without replay or forced cancellation',async()=>{
     const created=await worker({min_instances:1,max_instances:1});

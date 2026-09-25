@@ -8,8 +8,12 @@ import { plans } from './plans';
 // current clock, so they neither hoard turns nor repay a lifetime of old usage.
 // Waiting earns a bounded age bonus: one quarter of a virtual turn after four minutes.
 // Interactive priority remains first; aging never moves work past its worktree writer.
+// Evaluate placement once per scheduling decision. Inlining its correlated Host
+// checks into a nested-loop join made a 512-Run queue repeat them quadratically.
 export const schedulingSQL = `WITH plan_limits AS (
  SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer)
+), worker_placement AS MATERIALIZED (
+ SELECT * FROM reporting.worker_placement
 ), active AS (
  SELECT organization_id,count(*)::integer AS n,count(*) FILTER(WHERE kind='native_agent')::integer AS native_n,count(*) FILTER(WHERE kind<>'native_agent')::integer AS lightweight_n FROM reporting.scheduling_runs
  WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id
@@ -25,7 +29,7 @@ export const schedulingSQL = `WITH plan_limits AS (
  EXISTS(SELECT 1 FROM reporting.host_writers hw WHERE hw.worktree_id=r.worktree_id AND hw.run_id<>r.id) AS cleanup_blocked,
  coalesce(wp.eligible,true) AS worker_eligible,wp.waiting_reason AS worker_waiting_reason
  FROM reporting.scheduling_runs r JOIN organizations o ON o.id=r.organization_id
- JOIN plan_limits p ON p.id=o.plan CROSS JOIN scheduler_clock c LEFT JOIN reporting.worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
+ JOIN plan_limits p ON p.id=o.plan CROSS JOIN scheduler_clock c LEFT JOIN worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
  WHERE r.status='queued'
 ), eligible AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY

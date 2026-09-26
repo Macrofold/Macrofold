@@ -62,7 +62,6 @@ This is the central list of unfinished implementation, testing, documentation, a
 
 Product and architecture proposals are tracked separately in [ranked improvements](../product/improvements.md). The Workflow/Temporal evaluation is conditional on product needs and is not a launch blocker or an approved migration.
 
-
 ## Stateless inference simplification
 
 - [ ] Reconcile three inference/protocol test expectations observed during the [context-window correction](../features/decisions/verification.md#context-window-correction): successful `decision.response` trace-event presence, explicit async submission before generated-client cancellation, and the unsupported OpenRouter model error assertion. The focused token-limit regressions pass; the broader two-file run remains 66/69.
@@ -307,3 +306,11 @@ Implemented the synchronous single-call API path; tests and feature documentatio
 - [ ] Add/run API and regenerated SDK regression coverage for the simplified default `POST /v1/inferences` body: only `model_binding`, native `input`, and `limits` are required. `definition`, `context`, and `question.kind` are no longer required for ordinary inference. Verify optional typed definitions still require their context, bounded agents still require definitions, missing limits fail before admission, and both synchronous/async paths retain billing and idempotency. Ad hoc execution through the actual request validator, internal normalization and provider adapter passed with a synthetic multi-question Jev response; TypeScript checking passed. Formal suites remain deferred by request.
 - [ ] Update the public/internal guides and calling-agent examples to make the simplified body the primary interface. Present definitions/context only as optional higher-level decision features. The server creates its executor envelope internally; callers need no provider-mode flag. Regenerate published docs after this deferred documentation update.
 - [ ] Add a Jev pass-through regression asserting caller state, arbitrary named questions, extra endpoint parameters and routing preferences survive serialization unchanged. Keep chat-only tool/output/service-tier validation off the Decisions path. Only the bound model and Macrofold routing/spending controls are platform-owned. Ad hoc adapter execution verified the OpenRouter Decisions URL, forwarded parameters and complete returned answers; formal tests/documentation remain deferred.
+
+## Agent guidance acceptance
+
+- [ ] Verify native routing in fresh installed Codex, Claude Code, OpenCode and Cursor sessions using the [read-only cases](../engineering/agent-guidance/verification.md). Record versions, relevant settings, injected context and actual file reads; structural checks do not prove dispatch or compliance. Repeat only changed cases after routing changes.
+- [ ] Reconcile [pre-launch policy](../../AGENTS.md#temporary-notes-pre-launch) with the hosted deployment recorded in [status](../status/README.md#remaining-launch-work) before real customer execution/support commitments. Confirm actual customer usage with the operator; do not infer it from deployment or remove developer-state preservation. See [RP01](revisitable-policies.md#rp01--pre-launch-compatibility).
+
+- [x] Recheck the guidance adoption documentation failures on the merged checkout. `pnpm docs:check` passes without placeholder artifacts or relaxed checks; see [merge verification](../engineering/agent-guidance/verification.md#merge-verification).
+- [x] Recheck the guidance adoption TypeScript diagnostics on the merged checkout. `pnpm check` passes after installing the declared dependency from the frozen lockfile, without changing compiler settings; see the same [verification record](../engineering/agent-guidance/verification.md#merge-verification).

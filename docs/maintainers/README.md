@@ -13,6 +13,10 @@ Release work and verification evidence live here, separate from user guides. Sta
 
 ## Product and documentation decisions
 
+- [Project plans and paired designs](../projects/README.md).
+- [Policies to revisit](revisitable-policies.md): known review triggers and decision authority; not another TODO list.
+- [Agent guidance](../engineering/agent-guidance.md): task routes, source adoption and verification.
+
 - [Documentation architecture](../engineering/documentation.md) and [research references](../engineering/documentation/research.md).
 - [Product scope](../product/README.md), [historical naming exploration](../product/naming.md), and [architecture research](../architecture/research.md).
 - [Requirements map](../requirements.csv): feature-to-implementation traceability.

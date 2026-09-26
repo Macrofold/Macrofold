@@ -1,0 +1,7 @@
+# OpenLegend instruction provenance
+
+Portions of contributor guidance are copied or adapted, at the repository owner's request, from [Macrofold/OpenLegend](https://github.com/Macrofold/OpenLegend/tree/ce7ef555f50c979ac3d2179cf5876ea4a55e1318), revision `ce7ef555f50c979ac3d2179cf5876ea4a55e1318` (September 26, 2026).
+
+OpenLegend's [licensing notice](https://github.com/Macrofold/OpenLegend/blob/ce7ef555f50c979ac3d2179cf5876ea4a55e1318/LICENSING.md) covers its first-party instructions and documentation under AGPL-3.0-only. The [unmodified upstream license](licenses/OpenLegend-AGPL-3.0.txt) is retained for that material. Macrofold's root LICENSE is unchanged; copied instruction text is not relabeled as original Apache-2.0 material.
+
+Adaptations replace product/path references and reconcile Macrofold's existing mandatory reading, review-only behavior, testing, spending, storage, deployment and documentation rules. The [adoption record](../docs/engineering/agent-guidance/openlegend-adoption.md) identifies source and destination owners. Imported material occurs in the root planning/task/work/completion additions, this directory's system guide and six `macrofold-*` skills, documentation reconciliation rules, selected scoped instruction additions, and the policies-to-revisit maintenance procedure. The checker and its tests are new Macrofold tooling; no OpenLegend application or checker code is copied.

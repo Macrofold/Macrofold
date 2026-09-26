@@ -20,3 +20,5 @@ For version-matched framework guidance, locate these files beneath `apps/web/nod
 - HTTP routes: `01-app/01-getting-started/15-route-handlers.md`.
 
 Read only the relevant guides. If package updates move them, locate their new paths; do not use stale framework APIs from memory. Preserve the generated instruction block above.
+
+For changed UI behavior, follow the [dashboard/design route](../../docs/engineering/agent-guidance/task-routing.md#feature-ownership). Browser interaction and visual verification matter for UI changes; a passing typecheck cannot demonstrate them. Keep user/model content as untrusted text; trusted repository SVG is not permission to render arbitrary HTML. Profile actual browser work through [Performance](../../.agents/skills/macrofold-performance/SKILL.md) when optimizing it.

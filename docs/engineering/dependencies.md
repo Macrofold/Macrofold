@@ -57,3 +57,7 @@ Background step export uses `@vercel/functions` 3.9.5 (Apache-2.0), promoted fro
 ## Inference SSE framing
 
 Direct inference promotes `eventsource-parser` 3.1.1 (MIT), already present transitively, to a pinned server dependency. It handles incremental SSE framing; provider-specific assembly and completion checks remain in Macrofold’s provider adapter. No new hosted service, partial-JSON parser or tracing SDK upgrade is introduced. Preserve its existing bundled license when distributing the application.
+
+## Contributor guidance validation
+
+The guidance checker promotes the already locked `yaml` 2.9.0 (ISC) to an exact development dependency for standard YAML skill metadata, including quoted/block strings and duplicate-key rejection. It is tooling-only, requires no hosted service and does not affect runtime providers or images. The checker extends the existing documentation gate instead of importing OpenLegend's checker implementation or changing application validation.

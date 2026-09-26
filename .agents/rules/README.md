@@ -23,3 +23,5 @@ Also read the [implemented architecture](../../docs/architecture/README.md), [ac
 Keep each rule actionable: state the condition, preferred behavior, and important exception. Add every new rule file to this index; keep background research outside the mandatory rules directory, in [engineering guidance](../../docs/engineering/agent-guidance.md). Prefer one owner for a rule; link to the owner instead of maintaining copies across tools.
 
 Do not add fixed file-size quotas, mandatory patterns, review rituals, or new tools without a recurring demonstrated need. Amend rules when they cause unnecessary work or contradict a verified dependency contract. They guide judgment; tests, authorization, and CI enforce behavior.
+
+The [root planning policy](../../AGENTS.md#plan-before-implementation) selects documentation by risk and complexity. Use the [guidance-maintenance workflow](../skills/macrofold-guidance/SKILL.md) when editing these instructions. Shared rules remain mandatory; specialized [task procedures](../README.md) and background references remain conditional.

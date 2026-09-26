@@ -1,0 +1,86 @@
+name: Worker reconciliation final diagnostics
+on:
+  push:
+    branches: [integration/worker-reconciliation-checks]
+    paths: [.github/workflows/worker-reconciliation-final-diagnostics.yml]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  scheduling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run setup
+      - name: Diagnose existing scheduler assertion without changing decisions
+        run: |
+          mkdir -p /tmp/final-diagnostics
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/integration/scheduling.test.ts');s=p.read_text()
+          before="    expect(await claimRun(head.organization_id, head.resource_id)).not.toBeNull();"
+          after="""    const claimed = await claimRun(head.organization_id, head.resource_id);
+              if (!claimed) {
+                const detail = await transaction(head.organization_id, async tx => ({
+                  row: (await presentRuns(tx, [await getRun(tx, head.resource_id)]))[0],
+                  turn: await (await import('../../packages/core/src/scheduling')).schedulerTurn(tx),
+                }));
+                console.info('SCHEDULER_DIAGNOSTIC', JSON.stringify({head, tenant:!!tenants.find(a=>a.p.organizationId===head.organization_id),
+                  status:detail.row.status, reason:detail.row.waiting_reason, code:detail.row.failure_code,turn:detail.turn}));
+              }
+              expect(claimed).not.toBeNull();"""
+          if s.count(before)!=2:raise RuntimeError('Unexpected scheduler fixture')
+          p.write_text(s.replace(before,after))
+          PY
+          pnpm test:domain tests/integration/scheduling.test.ts 2>&1 | tee /tmp/final-diagnostics/scheduling.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worker-final-scheduler-diagnostics
+          path: /tmp/final-diagnostics/
+          retention-days: 7
+      - if: always()
+        run: docker compose -f infra/compose.yml down -v
+  question:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Exercise the actual native question path and retain fixture-only failures
+        run: |
+          mkdir -p /tmp/final-diagnostics
+          docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/final-diagnostics/build.log 2>&1 || { tail -100 /tmp/final-diagnostics/build.log; exit 1; }
+          cat > tests/fixtures/.reconciliation-question.mjs <<'JS'
+          import {readFile} from 'node:fs/promises';
+          process.argv=[process.execPath,'/tests/native-mock.mjs','opencode','questions'];
+          try {await import('/tests/native-mock.mjs');}
+          catch(error){
+            for(const path of ['/platform-control/result.json','/platform-control/events.jsonl']) {
+              console.error(path,await readFile(path,'utf8').catch(()=>'<absent>'));
+            }
+            throw error;
+          }
+          JS
+          docker run --rm --network=none --mount "type=bind,src=$PWD/tests/fixtures,dst=/tests,readonly" platform-runtime:0.1.0 node /tests/.reconciliation-question.mjs 2>&1 | tee /tmp/final-diagnostics/question.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worker-final-question-diagnostics
+          path: /tmp/final-diagnostics/
+          retention-days: 7

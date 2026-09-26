@@ -116,7 +116,14 @@ export async function supervise(configurationPath: string, workerPath: string, r
   }
   // The capability is scoped to this run. The supervisor's state and checkpoint staging are inaccessible to the agent.
   const workerConfig = path.join(c.stateHome, '.runtime-config.json');
-  const temporary = hostPaths?.temp ?? path.join(c.stateHome, '.runtime-transient/tmp');
+  const transient = path.join(c.stateHome, '.runtime-transient');
+  const temporary = hostPaths?.temp ?? path.join(transient, 'tmp');
+  if (!hostPaths) {
+    // The isolated harness must traverse its private scratch parent as well as
+    // write the leaf. Recursive mkdir alone leaves a root-owned 0700 parent.
+    await mkdir(transient, { recursive: true, mode: 0o700 });
+    await chown(transient, UID, UID);
+  }
   await mkdir(temporary, { recursive: true, mode: 0o700 });
   await chown(temporary, UID, UID);
   await writeFile(workerConfig, JSON.stringify(c), { mode: 0o600 });

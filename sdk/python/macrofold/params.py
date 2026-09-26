@@ -71,6 +71,8 @@ UpdateWorkspaceGithubParams = TypedDict('UpdateWorkspaceGithubParams', {"install
 
 DefinitionReferenceParams = TypedDict('DefinitionReferenceParams', {"definition_id": "str | UUID", "revision": "str"})
 
+InferenceCreateParams = TypedDict('InferenceCreateParams', {"workspace_id": "NotRequired[str | UUID]", "definition": "NotRequired[InferenceDefinitionParams | DefinitionReferenceParams]", "input": "object", "context": "NotRequired[ExplicitContextParams | ContextReferenceParams]", "model_binding": "DecisionBindingParams", "limits": "NotRequired[InferenceLimitsParams]", "queue_timeout_seconds": "NotRequired[int]", "model_parameters": "NotRequired[ModelParametersParams]", "stream": "NotRequired[bool]"})
+
 DecisionQuestionParams = DecisionQuestionChoice1Params | DecisionQuestionChoice2Params | DecisionQuestionChoice3Params | DecisionQuestionChoice4Params
 
 ConnectionAccessRuleInputParams = ConnectionAccessRuleInputChoice1Params | ConnectionAccessRuleInputChoice2Params | ConnectionAccessRuleInputChoice3Params

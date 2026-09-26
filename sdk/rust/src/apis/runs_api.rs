@@ -89,11 +89,11 @@ pub enum SubmitRunInputError {
 
 
 ///
-pub async fn cancel_run(configuration: &configuration::Configuration, run_id: &str, idempotency_key: &str, request_body: std::collections::HashMap<String, serde_json::Value>, x_organization_id: Option<&str>) -> Result<models::Run, Error<CancelRunError>> {
+pub async fn cancel_run(configuration: &configuration::Configuration, run_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::Run, Error<CancelRunError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_run_id = run_id;
     let p_header_idempotency_key = idempotency_key;
-    let p_body_request_body = request_body;
+    let p_body_body = body;
     let p_header_x_organization_id = x_organization_id;
 
     let uri_str = format!("{}/v1/runs/{run_id}/cancel", configuration.base_path, run_id=crate::apis::urlencode(p_path_run_id));
@@ -112,7 +112,7 @@ pub async fn cancel_run(configuration: &configuration::Configuration, run_id: &s
     if let Some(ref token) = configuration.bearer_access_token {
         req_builder = req_builder.bearer_auth(token.to_owned());
     };
-    req_builder = req_builder.json(&p_body_request_body);
+    req_builder = req_builder.json(&p_body_body);
 
     let req = req_builder.build()?;
     let resp = configuration.client.execute(req).await?;
@@ -339,7 +339,7 @@ pub async fn list_artifacts(configuration: &configuration::Configuration, run_id
 }
 
 ///
-pub async fn list_run_events(configuration: &configuration::Configuration, run_id: &str, after: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListRunEvents200Response, Error<ListRunEventsError>> {
+pub async fn list_run_events(configuration: &configuration::Configuration, run_id: &str, after: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::ListCustomerAgentRunEvents200Response, Error<ListRunEventsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_run_id = run_id;
     let p_query_after = after;
@@ -387,8 +387,8 @@ pub async fn list_run_events(configuration: &configuration::Configuration, run_i
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListRunEvents200Response`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListRunEvents200Response`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListCustomerAgentRunEvents200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListCustomerAgentRunEvents200Response`")))),
         }
     } else {
         let content = resp.text().await?;
@@ -398,7 +398,7 @@ pub async fn list_run_events(configuration: &configuration::Configuration, run_i
 }
 
 ///
-pub async fn list_runs(configuration: &configuration::Configuration, status: Option<&str>, workspace_id: Option<&str>, from: Option<chrono::DateTime<chrono::FixedOffset>>, to: Option<chrono::DateTime<chrono::FixedOffset>>, cursor: Option<&str>, limit: Option<i32>, worktree_id: Option<&str>, session_id: Option<&str>, x_organization_id: Option<&str>) -> Result<models::ListRuns200Response, Error<ListRunsError>> {
+pub async fn list_runs(configuration: &configuration::Configuration, status: Option<&str>, workspace_id: Option<&str>, from: Option<chrono::DateTime<chrono::FixedOffset>>, to: Option<chrono::DateTime<chrono::FixedOffset>>, cursor: Option<&str>, limit: Option<i32>, worktree_id: Option<&str>, session_id: Option<&str>, x_organization_id: Option<&str>, worker_id: Option<&str>) -> Result<models::ListRuns200Response, Error<ListRunsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_status = status;
     let p_query_workspace_id = workspace_id;
@@ -409,6 +409,7 @@ pub async fn list_runs(configuration: &configuration::Configuration, status: Opt
     let p_query_worktree_id = worktree_id;
     let p_query_session_id = session_id;
     let p_header_x_organization_id = x_organization_id;
+    let p_query_worker_id = worker_id;
 
     let uri_str = format!("{}/v1/runs", configuration.base_path);
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
@@ -436,6 +437,9 @@ pub async fn list_runs(configuration: &configuration::Configuration, status: Opt
     }
     if let Some(ref param_value) = p_query_session_id {
         req_builder = req_builder.query(&[("session_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_worker_id {
+        req_builder = req_builder.query(&[("worker_id", &param_value.to_string())]);
     }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());

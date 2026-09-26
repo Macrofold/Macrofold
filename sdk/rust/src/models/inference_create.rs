@@ -20,7 +20,7 @@ pub struct InferenceCreate {
     #[serde(rename = "input", deserialize_with = "Option::deserialize")]
     pub input: Option<serde_json::Value>,
     #[serde(rename = "context", skip_serializing_if = "Option::is_none")]
-    pub context: Option<Box<models::InferenceCreateContext>>,
+    pub context: Option<Box<models::DecisionTaskWakeContext>>,
     #[serde(rename = "model_binding")]
     pub model_binding: Box<models::DecisionBinding>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]

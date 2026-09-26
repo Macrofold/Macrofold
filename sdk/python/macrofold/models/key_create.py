@@ -18,8 +18,9 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from uuid import UUID
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,7 +34,8 @@ class KeyCreate(BaseModel):
     scopes: List[StrictStr]
     workspace_id: Optional[UUID] = None
     expires_at: Optional[datetime] = None
-    __properties: ClassVar[List[str]] = ["name", "scopes", "workspace_id", "expires_at"]
+    worker_ids: Optional[Annotated[List[UUID], Field(max_length=100)]] = Field(default=None, description="Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access.")
+    __properties: ClassVar[List[str]] = ["name", "scopes", "workspace_id", "expires_at", "worker_ids"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -89,7 +91,8 @@ class KeyCreate(BaseModel):
             "name": obj.get("name"),
             "scopes": obj.get("scopes"),
             "workspace_id": obj.get("workspace_id"),
-            "expires_at": obj.get("expires_at")
+            "expires_at": obj.get("expires_at"),
+            "worker_ids": obj.get("worker_ids")
         })
         return _obj
 

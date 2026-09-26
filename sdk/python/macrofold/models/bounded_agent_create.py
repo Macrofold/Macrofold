@@ -22,7 +22,7 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from uuid import UUID
 from macrofold.models.decision_binding import DecisionBinding
-from macrofold.models.inference_create_context import InferenceCreateContext
+from macrofold.models.decision_task_wake_context import DecisionTaskWakeContext
 from macrofold.models.inference_create_definition import InferenceCreateDefinition
 from macrofold.models.inference_limits import InferenceLimits
 from typing import Optional, Set
@@ -36,7 +36,7 @@ class BoundedAgentCreate(BaseModel):
     workspace_id: UUID
     definition: InferenceCreateDefinition
     input: Optional[Any]
-    context: InferenceCreateContext
+    context: DecisionTaskWakeContext
     model_binding: DecisionBinding
     limits: Optional[InferenceLimits] = None
     queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = None
@@ -114,7 +114,7 @@ class BoundedAgentCreate(BaseModel):
             "workspace_id": obj.get("workspace_id"),
             "definition": InferenceCreateDefinition.from_dict(obj["definition"]) if obj.get("definition") is not None else None,
             "input": obj.get("input"),
-            "context": InferenceCreateContext.from_dict(obj["context"]) if obj.get("context") is not None else None,
+            "context": DecisionTaskWakeContext.from_dict(obj["context"]) if obj.get("context") is not None else None,
             "model_binding": DecisionBinding.from_dict(obj["model_binding"]) if obj.get("model_binding") is not None else None,
             "limits": InferenceLimits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
             "queue_timeout_seconds": obj.get("queue_timeout_seconds"),

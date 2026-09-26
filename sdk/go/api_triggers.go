@@ -180,7 +180,7 @@ func (r ApiDeleteTriggerRequest) XOrganizationId(xOrganizationId string) ApiDele
 	return r
 }
 
-func (r ApiDeleteTriggerRequest) Execute() (*DeleteTrigger200Response, *http.Response, error) {
+func (r ApiDeleteTriggerRequest) Execute() (*DeleteSlackConnection200Response, *http.Response, error) {
 	return r.ApiService.DeleteTriggerExecute(r)
 }
 
@@ -202,13 +202,13 @@ func (a *TriggersAPIService) DeleteTrigger(ctx context.Context, triggerId string
 }
 
 // Execute executes the request
-//  @return DeleteTrigger200Response
-func (a *TriggersAPIService) DeleteTriggerExecute(r ApiDeleteTriggerRequest) (*DeleteTrigger200Response, *http.Response, error) {
+//  @return DeleteSlackConnection200Response
+func (a *TriggersAPIService) DeleteTriggerExecute(r ApiDeleteTriggerRequest) (*DeleteSlackConnection200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *DeleteTrigger200Response
+		localVarReturnValue  *DeleteSlackConnection200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TriggersAPIService.DeleteTrigger")

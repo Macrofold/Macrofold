@@ -10,6 +10,40 @@
 - [ ] Complete successful OpenRouter live streaming acceptance once the configured account has credit (the manual attempt returned upstream HTTP 402). Verify final usage and generation trace; do not substitute credentials or models silently.
 - [ ] Verify hosted flushing, 300-second serving configuration, immediate admission, reader-detach lifetime and finalization with the real deployment proxy. Run supported native harness two-turn/cancellation image journeys, a multi-call bounded investigation, and non-TypeScript SDK real-HTTP journeys. Local Anthropic acceptance and compilation do not establish these paths or hosted acceptance.
 
+## Worker cutover regression obligations
+
+- [ ] Cover Worker creation with an otherwise administrative Worker-restricted key, immutable expired targets, explicit pooled instance settings on PATCH, and baseline affordability after raising `min_instances`. Default resolution must honor requested runtime/size before choosing region and rates. Cover `size: null` and CLI `--auto-size` returning to automatic sizing without weakening revision or pause requirements.
+
+- [ ] Cover native continuation databases with absolute paths: Session-scoped HOME stays stable across different handle IDs and fresh Hosts; permission changes, handle eviction and failed preparation remove only the owning continuation directory. Preserve credential exclusions and the separate per-handle temporary directory.
+
+- [ ] Cover release failures during process discard, filesystem cleanup and final resource metering: keep Worktree and capacity ownership until cleanup succeeds, retry idempotently, and never advertise an unpublished cache. A transient health-meter failure must not skip releasing an already-metered assignment.
+- [ ] Cover a pending supervisor timer at the native result boundary and ensure it cannot cancel a later turn reusing the same UID. Cover bounded idle-cache maintenance without subsequent traffic and no unhandled supervisor-cleanup rejection.
+
+- [ ] Cover aggregate queued-demand scaling, existing provisioning as projected supply, mixed resource sizes, bounded four-allocation expansion, Worker caps, financial reservation rechecks, and no repeated provisioning for the same pending pressure.
+
+- [ ] Cover restore-marker-before-process-exit handoff: launch waits for the restore child, without touching another Run or spuriously failing an acknowledged restoration.
+- [ ] Cover warm harness incompatibility when model parameters or harness prompt mode change; old scoped runtime-control operations must not remain discoverable.
+
+- [ ] Cover dashboard Worker lifecycle confirmation, revision-conflict preservation, exact USD conversion, paginated selectors, disabled unsupported offerings, and placement on both new and continuing Runs. A Run's budget label must not imply it pays for the entire explicit Worker.
+
+- [ ] Cover automatic native execution on the Host protocol, encrypted control-secret recovery, pre-launch allocation cleanup without a received binding, and Session continuation when switching between automatic and explicit Worker placement.
+- [ ] Cover a Worktree advancing via Git/editor publication before Host cleanup: local cache metadata must name the Run's own verified checkpoint, never the newer Worktree checkpoint.
+
+- [ ] Cover the forward-only cutover with closed historical charges and refusal when old compute or reserved funds remain. Verify the financial archive retains itemized journal attribution without credentials or operational state.
+- [ ] Cover Worker-filtered Run/usage pagination and ensure individual Worktree/Session filters do not attribute the full shared allocation to a single Run.
+
+- [ ] Cover a live provider allocation whose container/session/controller generation changes: stop confirmed compute before releasing the hold, recover old Run claims without replay, and retain unknown metering tails for reconciliation.
+- [ ] Cover isolated allocation retirement after one Run, restore acknowledgement loss, staging after restore starts, and warm ownership handoff without recursive filesystem traversal.
+
+No unit or integration suites are written or run for this continuation, as requested. Runtime execution and bounded performance exercises are recorded separately.
+
+- [ ] Cover Worker response projection (`worker_id` on accepted and retrieved Runs), independent Worker/Workspace restrictions, non-escalating child keys, and the actual `/v1/api-keys` route.
+- [ ] Cover CLI create/update/pause/resume/destroy, human USD conversion, mutually exclusive flags, name-versus-ID permissions, resource overrides, and both chat modes. Session creation must not acquire or inherit compute implicitly.
+- [ ] Cover batched Worker observations with multiple tenants, pagination, active-versus-cleaning assignments, empty lists, historical charges, and no observation-query growth proportional to page length.
+- [ ] Cover cold native continuation and hidden Git/session files while excluding credentials; repeat from a fresh Host rather than relying on warm-process reuse.
+- [ ] Cover spending ceilings during provisioning and draining, same-Worker concurrent writers, late generation callbacks, graceful pause, and pool/instance resource exhaustion.
+
+
 ## Native startup failure diagnostics
 
 - Local manual acceptance: the activated diagnostic image and restarted Docker poller export `runtime.failed` through the event API and as an ERROR observation in Langfuse. Fresh OpenCode/OpenRouter requests succeed. A fresh warm session successfully recalls a synthetic marker on its second turn with `reused: true`. These checks used `meta/muse-spark-1.3-contributor`, BYOK, no tools and a $0.24 cap per run. No automated tests were written or run.
@@ -90,7 +124,7 @@ Product and architecture proposals are tracked separately in [ranked improvement
 ## Reusable sandbox acceptance
 
 - [ ] Apply migration 040, publish the matching runtime image with the control service and current parser dependencies, then deploy API/worker together. Configure Render owner/key, immutable registry image, plan, explicit compute price and enablement; ensure maintenance runs continuously. Do not treat adapter tests as hosted enablement.
-- [ ] Verify bounded Render create, same-server follow-up, asynchronous suspend confirmation, resume/rehydration, destroy/new-disk behavior, process restart fencing and provider invoice reconciliation. Verify no persistent disk, no platform credentials in agent processes, and reviewed network access. Repeat Vercel reuse/expiry recovery on a plan supporting the configured lifetime. See [sandbox acceptance](../features/execution/sandboxes/verification.md).
+- [ ] Verify bounded Render create, same-server follow-up, asynchronous suspend confirmation, resume/rehydration, destroy/new-disk behavior, process restart fencing and provider invoice reconciliation. Verify no persistent disk, no platform credentials in agent processes, and reviewed network access. Repeat Vercel reuse/expiry recovery on a plan supporting the configured lifetime. See [sandbox acceptance](../features/execution/workers/verification.md).
 - [ ] Exercise provider outage and maintenance backlog; confirm active servers do not starve idle cleanup, uncertain deletion retains reservations, and separate compute holds reconcile. Reusable servers currently stop without a provider disk-recovery snapshot when capture fails; accept this limitation before offering that route for valuable uncheckpointed work.
 
 ## Execution tracing acceptance
@@ -104,7 +138,7 @@ Product and architecture proposals are tracked separately in [ranked improvement
 ## Startup latency acceptance
 
 - [ ] Accept immediate phase advancement and batched hydration on deployed Workflow and Linux AMD64 compute. Exercise a fresh run and conversation continuation with many small files and multi-chunk files; verify exact restored bytes/session history, one native launch, checkpoint publication and released reservations. Local tests use PostgreSQL 14 and provider fixtures; repeat the configured PostgreSQL 17 CI checks. Docker was unavailable during this change's local verification.
-- [ ] Compare queue-to-claim time, internal [phase timings](../features/execution/runtime.md#startup-latency-and-measurement), orchestration gaps, first model response and browser delivery on representative workloads. Check upload/control API counts and failure retries as well as latency. No deployed speedup is established by local fixture timings. Compare the separate [warm sandbox implementation](../features/execution/sandboxes.md) using the same measurements.
+- [ ] Compare queue-to-claim time, internal [phase timings](../features/execution/runtime.md#startup-latency-and-measurement), orchestration gaps, first model response and browser delivery on representative workloads. Check upload/control API counts and failure retries as well as latency. No deployed speedup is established by local fixture timings. Compare the separate [warm sandbox implementation](../features/execution/workers.md) using the same measurements.
 
 ## Multimedia release acceptance
 
@@ -295,3 +329,24 @@ Implemented the synchronous single-call API path; tests and feature documentatio
 - [ ] Add/run API and regenerated SDK regression coverage for the simplified default `POST /v1/inferences` body: only `model_binding`, native `input`, and `limits` are required. `definition`, `context`, and `question.kind` are no longer required for ordinary inference. Verify optional typed definitions still require their context, bounded agents still require definitions, missing limits fail before admission, and both synchronous/async paths retain billing and idempotency. Ad hoc execution through the actual request validator, internal normalization and provider adapter passed with a synthetic multi-question Jev response; TypeScript checking passed. Formal suites remain deferred by request.
 - [ ] Update the public/internal guides and calling-agent examples to make the simplified body the primary interface. Present definitions/context only as optional higher-level decision features. The server creates its executor envelope internally; callers need no provider-mode flag. Regenerate published docs after this deferred documentation update.
 - [ ] Add a Jev pass-through regression asserting caller state, arbitrary named questions, extra endpoint parameters and routing preferences survive serialization unchanged. Keep chat-only tool/output/service-tier validation off the Decisions path. Only the bound model and Macrofold routing/spending controls are platform-owned. Ad hoc adapter execution verified the OpenRouter Decisions URL, forwarded parameters and complete returned answers; formal tests/documentation remain deferred.
+
+
+### Worker allocation receipt and metering regressions
+
+Formal test additions remain deferred at the user's request; runtime/load checks are separate.
+
+- [ ] Verify controller startup failure after physical provisioning retains the accepted provider identity/start time and permits idempotent cleanup without double provisioning or released liability.
+- [ ] Cover runtime-requested rotation, provider-observation pacing, idle and manually paused Workers, and capacity handoff while old Hosts drain.
+- [ ] Cover metered graceful shutdown with a lost quiesce acknowledgement, crash after the final receipt but before provider deletion, duplicate finalization, and confirmation of the same controller generation. No missing usage tail may silently settle as zero.
+- [ ] Cover one-query queued-demand hydration and authorized materialization grouping at the configured Worker/Host limits.
+
+- [ ] Replace the removed legacy reusable-control chunk test with Host assignment/boot-scoped transport coverage for a full 4 MiB decoded checkpoint chunk, bounded encoded envelope, and stopped/replaced-generation rejection. The old method no longer exists; new tests remain deferred by request.
+
+- [ ] Exercise nonblocking background organization/worktree/global admission under a pool smaller than the queued burst. Verify that contended work defers without losing durable jobs, deadline cleanup still progresses, active persistence/heartbeats retain database access, and direct inference preserves its transaction boundary.
+
+- [ ] Cover Run publication read/prepare/commit: large object and Git work holds no database connection, GC guard expiry prevents commit, a changed Worktree revision or execution-step/lease fence cannot publish, and duplicate terminal publication is idempotent. Exercise simulator and native cold paths and retain Worktree/Session atomicity.
+
+- [ ] Add candidate-hint regressions for full global/account capacity: return only actionable free-slot starts while cancellation/expiry/deletion cleanup remains discoverable. Prove successive capacity release refills fairly across organizations and that stale hints still cannot exceed SQL-authoritative caps.
+
+- [ ] Exercise financial reconciliation after the Worker-only cutover: expected reservations are active Run budgets plus live Host holds, without querying retired compute tables; confirmed stop and repeated settlement preserve exact wallet/journal totals.
+- [ ] Cover storage maintenance while a publicly terminal Run still owns an unreleased HostRun: no Workspace/Session purge, history pruning, or object collection until cleanup releases its writer. Resume normal collection after release, including failed/uncertain cleanup.

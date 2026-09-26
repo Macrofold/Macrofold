@@ -167,7 +167,7 @@ type ApiReplayWebhookDeliveryRequest struct {
 	ApiService *WebhookDeliveriesAPIService
 	deliveryId string
 	idempotencyKey *string
-	body *map[string]interface{}
+	requestBody *map[string]*interface{}
 	xOrganizationId *string
 }
 
@@ -176,8 +176,8 @@ func (r ApiReplayWebhookDeliveryRequest) IdempotencyKey(idempotencyKey string) A
 	return r
 }
 
-func (r ApiReplayWebhookDeliveryRequest) Body(body map[string]interface{}) ApiReplayWebhookDeliveryRequest {
-	r.body = &body
+func (r ApiReplayWebhookDeliveryRequest) RequestBody(requestBody map[string]*interface{}) ApiReplayWebhookDeliveryRequest {
+	r.requestBody = &requestBody
 	return r
 }
 
@@ -238,8 +238,8 @@ func (a *WebhookDeliveriesAPIService) ReplayWebhookDeliveryExecute(r ApiReplayWe
 	if strlen(*r.idempotencyKey) > 200 {
 		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
 	}
-	if r.body == nil {
-		return localVarReturnValue, nil, reportError("body is required and must be specified")
+	if r.requestBody == nil {
+		return localVarReturnValue, nil, reportError("requestBody is required and must be specified")
 	}
 
 	// to determine the Content-Type header
@@ -264,7 +264,7 @@ func (a *WebhookDeliveriesAPIService) ReplayWebhookDeliveryExecute(r ApiReplayWe
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
 	// body params
-	localVarPostBody = r.body
+	localVarPostBody = r.requestBody
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

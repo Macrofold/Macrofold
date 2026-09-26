@@ -1,0 +1,76 @@
+name: Worker native performance
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths:
+      - .github/workflows/worker-native.yml
+      - scripts/workers/native.marker
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: worker-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      HARNESS_WORKLOADS: codex claude-code opencode hermes deepseek pi
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          show-progress: false
+      - name: Build the pinned native runtime
+        run: |
+          if ! docker build -f infra/runtime.Dockerfile -t platform-runtime:worker-load . > /tmp/worker-image.log 2>&1; then
+            tail -100 /tmp/worker-image.log
+            exit 1
+          fi
+          docker image inspect platform-runtime:worker-load --format 'NATIVE_IMAGE={{.Id}}'
+      - name: Run concurrent native workloads and fresh-container recovery
+        run: |
+          mkdir -p /tmp/worker-native-evidence
+          status=0
+          for harness in $HARNESS_WORKLOADS; do
+            for phase in load cold; do
+              name="worker-load-${GITHUB_RUN_ID}-${harness}-${phase}"
+              if ! timeout --signal=TERM --kill-after=10 600 docker run --rm --init --name "$name" \
+                --network none --cpus 2 --memory 4g --pids-limit 1024 \
+                --cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add KILL \
+                --security-opt no-new-privileges \
+                --mount "type=bind,src=$PWD/scripts/workers/native-load.mjs,dst=/load.mjs,readonly" \
+                --mount "type=bind,src=$PWD/tests/fixtures,dst=/fixtures,readonly" \
+                --mount type=bind,src=/tmp/worker-native-evidence,dst=/exchange \
+                platform-runtime:worker-load node /load.mjs "$harness" "$phase"; then
+                status=1
+                docker rm -f "$name" >/dev/null 2>&1 || true
+                break
+              fi
+            done
+          done
+          exit "$status"
+      - name: Retain measured evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-native-performance
+          path: |
+            /tmp/worker-image.log
+            /tmp/worker-native-evidence/*-load.json
+            /tmp/worker-native-evidence/*-cold.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Clean benchmark containers
+        if: always()
+        run: |
+          for harness in $HARNESS_WORKLOADS; do
+            for phase in load cold; do
+              docker rm -f "worker-load-${GITHUB_RUN_ID}-${harness}-${phase}" >/dev/null 2>&1 || true
+            done
+          done

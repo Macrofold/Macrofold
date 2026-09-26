@@ -35,8 +35,6 @@ type InferenceResponse struct {
 	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
 	SchedulingClass *string `json:"scheduling_class,omitempty"`
 	Kind *string `json:"kind,omitempty"`
-	// Reusable compute ID, when selected or created by keep_warm_seconds.
-	SandboxId NullableString `json:"sandbox_id,omitempty"`
 	Result *RunResult `json:"result,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
@@ -391,48 +389,6 @@ func (o *InferenceResponse) SetKind(v string) {
 	o.Kind = &v
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *InferenceResponse) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId.Get()) {
-		var ret string
-		return ret
-	}
-	return *o.SandboxId.Get()
-}
-
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *InferenceResponse) GetSandboxIdOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return o.SandboxId.Get(), o.SandboxId.IsSet()
-}
-
-// HasSandboxId returns a boolean if a field has been set.
-func (o *InferenceResponse) HasSandboxId() bool {
-	if o != nil && o.SandboxId.IsSet() {
-		return true
-	}
-
-	return false
-}
-
-// SetSandboxId gets a reference to the given NullableString and assigns it to the SandboxId field.
-func (o *InferenceResponse) SetSandboxId(v string) {
-	o.SandboxId.Set(&v)
-}
-// SetSandboxIdNil sets the value for SandboxId to be an explicit nil
-func (o *InferenceResponse) SetSandboxIdNil() {
-	o.SandboxId.Set(nil)
-}
-
-// UnsetSandboxId ensures that no value is present for SandboxId, not even an explicit nil
-func (o *InferenceResponse) UnsetSandboxId() {
-	o.SandboxId.Unset()
-}
-
 // GetResult returns the Result field value if set, zero value otherwise.
 func (o *InferenceResponse) GetResult() RunResult {
 	if o == nil || IsNil(o.Result) {
@@ -498,9 +454,6 @@ func (o InferenceResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Kind) {
 		toSerialize["kind"] = o.Kind
 	}
-	if o.SandboxId.IsSet() {
-		toSerialize["sandbox_id"] = o.SandboxId.Get()
-	}
 	if !IsNil(o.Result) {
 		toSerialize["result"] = o.Result
 	}
@@ -562,7 +515,6 @@ func (o *InferenceResponse) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "reserved_micro_usd")
 		delete(additionalProperties, "scheduling_class")
 		delete(additionalProperties, "kind")
-		delete(additionalProperties, "sandbox_id")
 		delete(additionalProperties, "result")
 		o.AdditionalProperties = additionalProperties
 	}

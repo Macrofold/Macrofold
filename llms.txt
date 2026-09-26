@@ -41,7 +41,7 @@
 
 - [Dashboard](docs/features/dashboard/README.md): Navigate workspaces, files, run history, access, and usage.
 - [Runs and agents](docs/features/execution/README.md): Select a harness, follow progress, continue work, and cancel safely.
-- [Warm sandboxes and servers](docs/features/execution/sandboxes.md): Reuse compute across runs, or create, pause, resume and destroy long-running servers.
+- [Workers](docs/features/execution/workers.md): Reuse compute across runs, or create, pause, resume and destroy long-running servers.
 - [Explicit-context decisions](docs/features/decisions/README.md): Submit typed decisions with explicit evidence and budgets, without a worktree.
 - [Context and definitions](docs/features/decisions/context.md): Publish immutable evidence and reusable contracts with audience and retention boundaries.
 - [Bounded agents and tasks](docs/features/decisions/tasks.md): Inspect granted evidence and coordinate decisions, investigations and application review.
@@ -81,7 +81,7 @@
 - [PostgreSQL and Neon](docs/operations/neon.md): Configure restricted roles, connection pooling, migrations, and recovery.
 - [Provider integrations](docs/operations/launch-integrations.md): Register models, tools, billing, storage, email, and GitHub.
 - [Usage and operator reporting](docs/features/operations/README.md): Read activity, execution demand, account metrics, and management MCP reports.
-- [Host long-running servers](docs/features/execution/sandboxes/operations.md): Configure disposable Render services and operate their lifecycle and compute budgets.
+- [Host long-running servers](docs/features/execution/workers/operations.md): Configure disposable Render services and operate their lifecycle and compute budgets.
 
 ## Development
 

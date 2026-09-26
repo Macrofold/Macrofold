@@ -1,5 +1,6 @@
 'use client';
 import { RunAttachments, type PendingAttachment } from './run-attachments';
+import { WorkerSelection, type WorkerPlacement } from './worker-selection';
 import { attachmentIssue } from '../../../packages/contracts/media';
 import { uploadWorktreeFiles } from '../lib/upload-workspace-files';
 import { request, useData, useDataPages } from '../lib/dashboard-data';
@@ -43,6 +44,7 @@ export function RunComposer({
     [accessChoice, setAccessChoice] = useState<{ context: string; value: RunAccessChoice }>(),
     [pendingAccessContext, setPendingAccessContext] = useState<string>(),
     [advanced, setAdvanced] = useState(false),
+    [placement, setPlacement] = useState<WorkerPlacement>({}),
     [budget, setBudget] = useState('2.00'),
     [timeout, setTimeoutValue] = useState('15'),
     [queueHours, setQueueHours] = useState('24'),
@@ -128,6 +130,7 @@ export function RunComposer({
               max_cost_micro_usd: String(Math.round(Number(budget) * 1000000)),
             };
             const body: Schema['RunCreate'] = {
+              ...placement,
               prompt,
               limits,
               scheduling_class: schedulingClass,
@@ -283,6 +286,7 @@ export function RunComposer({
         </button>
         {advanced && (
           <div className="advanced-fields" id="run-settings">
+            <WorkerSelection value={placement} onChange={setPlacement} />
             <div className="form-grid">
               <Field label="Maximum budget (USD)">
                 <input
@@ -402,7 +406,7 @@ export function RunComposer({
             <ShieldCheck size={15} />
             {(selectedPreset?.model || model) === 'fixture-model'
               ? 'Simulation makes no paid API calls'
-              : 'Spending is capped by your budget'}
+              : placement.worker_id ? 'Run budget excludes separately billed Worker compute' : 'Spending is capped by your budget'}
           </span>
           <Button
             busy={busy}

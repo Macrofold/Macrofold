@@ -20,7 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from macrofold.models.inference_create_context import InferenceCreateContext
+from macrofold.models.decision_task_wake_context import DecisionTaskWakeContext
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -31,7 +31,7 @@ class DecisionTaskWake(BaseModel):
     """ # noqa: E501
     event_id: Annotated[str, Field(min_length=1, strict=True, max_length=200)]
     input: Optional[Any]
-    context: InferenceCreateContext
+    context: DecisionTaskWakeContext
     __properties: ClassVar[List[str]] = ["event_id", "input", "context"]
 
     model_config = ConfigDict(
@@ -95,7 +95,7 @@ class DecisionTaskWake(BaseModel):
         _obj = cls.model_validate({
             "event_id": obj.get("event_id"),
             "input": obj.get("input"),
-            "context": InferenceCreateContext.from_dict(obj["context"]) if obj.get("context") is not None else None
+            "context": DecisionTaskWakeContext.from_dict(obj["context"]) if obj.get("context") is not None else None
         })
         return _obj
 

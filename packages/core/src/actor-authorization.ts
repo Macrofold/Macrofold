@@ -9,7 +9,7 @@ export async function actorAuthorized(
     config: Pick<
       RunRow['config'],
       'user_id' | 'principal_id' | 'principal_kind' | 'oauth_token_id' | 'oauth_audience'
-    >;
+    > & { worker_id?: string }; 
   },
   scope = 'runs:write',
 ) {
@@ -20,8 +20,9 @@ export async function actorAuthorized(
   if (!member.rowCount || member.rows[0].role === 'viewer') return false;
   if (run.config.principal_kind === 'api_key') {
     const key = await tx.query(
-      `SELECT 1 FROM api_keys WHERE id=$1 AND organization_id=$2 AND user_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND $5=ANY(scopes) AND (cardinality(workspace_ids)=0 OR $4=ANY(workspace_ids))`,
-      [run.config.principal_id, run.organization_id, run.config.user_id, run.workspace_id, scope],
+      `SELECT 1 FROM api_keys WHERE id=$1 AND organization_id=$2 AND user_id=$3 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND $5=ANY(scopes) AND (cardinality(workspace_ids)=0 OR $4=ANY(workspace_ids)) AND ($6::uuid IS NULL OR
+        ('workers:use'=ANY(scopes) AND (cardinality(worker_ids)=0 OR $6=ANY(worker_ids))))`,
+      [run.config.principal_id, run.organization_id, run.config.user_id, run.workspace_id, scope,run.config.worker_id || null],
     );
     if (!key.rowCount) return false;
   }
@@ -29,8 +30,8 @@ export async function actorAuthorized(
     // Admission delegates through the run deadline, so normal token expiration/rotation does not stop a run.
     // Explicit token/session/client revocation does. Retain expired records while dependent runs are active.
     const token = await tx.query(
-      `SELECT 1 FROM auth."oauthAccessToken" t JOIN auth."oauthClient" c ON c."clientId"=t."clientId" JOIN auth."oauthClientResource" cr ON cr."clientId"=c."clientId" AND cr."resourceId"=$2 JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE t.id=$1 AND t.scopes::jsonb ? $3 AND c.scopes::jsonb ? $3 AND t.revoked IS NULL AND c.disabled=false AND r.disabled=false AND (t."sessionId" IS NULL OR EXISTS(SELECT 1 FROM auth.session s WHERE s.id=t."sessionId" AND s."expiresAt">now()))`,
-      [run.config.oauth_token_id, run.config.oauth_audience || `${config.origin}/v1`, scope],
+      `SELECT 1 FROM auth."oauthAccessToken" t JOIN auth."oauthClient" c ON c."clientId"=t."clientId" JOIN auth."oauthClientResource" cr ON cr."clientId"=c."clientId" AND cr."resourceId"=$2 JOIN auth."oauthResource" r ON r.identifier=cr."resourceId" WHERE t.id=$1 AND t.scopes::jsonb ? $3 AND c.scopes::jsonb ? $3 AND ($4::uuid IS NULL OR (t.scopes::jsonb ? 'workers:use' AND c.scopes::jsonb ? 'workers:use')) AND t.revoked IS NULL AND c.disabled=false AND r.disabled=false AND (t."sessionId" IS NULL OR EXISTS(SELECT 1 FROM auth.session s WHERE s.id=t."sessionId" AND s."expiresAt">now()))`,
+      [run.config.oauth_token_id, run.config.oauth_audience || `${config.origin}/v1`, scope,run.config.worker_id || null],
     );
     if (!token.rowCount) return false;
   }

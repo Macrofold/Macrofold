@@ -33,23 +33,23 @@ class MessageCreate(BaseModel):
     """
     Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
     """ # noqa: E501
-    prompt: Annotated[str, Field(min_length=1, strict=True, max_length=100000)]
-    limits: Optional[Limits] = None
     webhook_endpoint_ids: Optional[List[UUID]] = None
-    queue_if_busy: Optional[StrictBool] = False
-    model: Optional[StrictStr] = Field(default=None, description="Optional model override within the pinned harness catalog; never changes the active run.")
-    queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
-    scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
-    permissions: Optional[AgentPermissions] = None
-    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
     connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
-    attachments: Optional[Annotated[List[Annotated[str, Field(min_length=1, strict=True, max_length=4096)]], Field(max_length=5)]] = Field(default=None, description="Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.")
-    sandbox_id: Optional[UUID] = None
-    keep_warm_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=0)]] = Field(default=None, description="Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.")
-    sandbox_max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.")
-    model_parameters: Optional[ModelParameters] = None
     stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
-    __properties: ClassVar[List[str]] = ["prompt", "limits", "webhook_endpoint_ids", "queue_if_busy", "model", "queue_timeout_seconds", "scheduling_class", "permissions", "connection_grants", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "stream"]
+    prompt: Annotated[str, Field(min_length=1, strict=True, max_length=100000)]
+    queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
+    model_parameters: Optional[ModelParameters] = None
+    memory_mib: Optional[Annotated[int, Field(le=1048576, strict=True, ge=128)]] = Field(default=None, description="Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.")
+    cpu_millis: Optional[Annotated[int, Field(le=1024000, strict=True, ge=1)]] = Field(default=None, description="Advanced per-Run CPU allocation in millicores on an explicit Worker.")
+    worker_id: Optional[UUID] = None
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
+    scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
+    limits: Optional[Limits] = None
+    model: Optional[StrictStr] = Field(default=None, description="Optional model override within the pinned harness catalog; never changes the active run.")
+    permissions: Optional[AgentPermissions] = None
+    queue_if_busy: Optional[StrictBool] = False
+    attachments: Optional[Annotated[List[Annotated[str, Field(min_length=1, strict=True, max_length=4096)]], Field(max_length=5)]] = Field(default=None, description="Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.")
+    __properties: ClassVar[List[str]] = ["webhook_endpoint_ids", "connection_access_overrides", "stream", "prompt", "queue_timeout_seconds", "model_parameters", "memory_mib", "cpu_millis", "worker_id", "connection_grants", "scheduling_class", "limits", "model", "permissions", "queue_if_busy", "attachments"]
 
     @field_validator('scheduling_class')
     def scheduling_class_validate_enum(cls, value):
@@ -59,16 +59,6 @@ class MessageCreate(BaseModel):
 
         if value not in set(['background', 'interactive']):
             raise ValueError("must be one of enum values ('background', 'interactive')")
-        return value
-
-    @field_validator('sandbox_max_cost_micro_usd', mode="before")
-    def sandbox_max_cost_micro_usd_validate_regular_expression(cls, value):
-        """Validates the regular expression"""
-        if value is None:
-            return value
-
-        if isinstance(value, str) and not re.match(r"^[0-9]{1,12}$", value):
-            raise ValueError(r"must validate the regular expression /^[0-9]{1,12}$/")
         return value
 
     model_config = ConfigDict(
@@ -110,19 +100,6 @@ class MessageCreate(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of limits
-        if self.limits:
-            _dict['limits'] = self.limits.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of permissions
-        if self.permissions:
-            _dict['permissions'] = self.permissions.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in connection_grants (list)
-        _items = []
-        if self.connection_grants:
-            for _item_connection_grants in self.connection_grants:
-                if _item_connection_grants:
-                    _items.append(_item_connection_grants.to_dict())
-            _dict['connection_grants'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in connection_access_overrides (list)
         _items = []
         if self.connection_access_overrides:
@@ -133,11 +110,19 @@ class MessageCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of model_parameters
         if self.model_parameters:
             _dict['model_parameters'] = self.model_parameters.to_dict()
-        # set to None if keep_warm_seconds (nullable) is None
-        # and model_fields_set contains the field
-        if self.keep_warm_seconds is None and "keep_warm_seconds" in self.model_fields_set:
-            _dict['keep_warm_seconds'] = None
-
+        # override the default output from pydantic by calling `to_dict()` of each item in connection_grants (list)
+        _items = []
+        if self.connection_grants:
+            for _item_connection_grants in self.connection_grants:
+                if _item_connection_grants:
+                    _items.append(_item_connection_grants.to_dict())
+            _dict['connection_grants'] = _items
+        # override the default output from pydantic by calling `to_dict()` of limits
+        if self.limits:
+            _dict['limits'] = self.limits.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of permissions
+        if self.permissions:
+            _dict['permissions'] = self.permissions.to_dict()
         return _dict
 
     @classmethod
@@ -150,22 +135,22 @@ class MessageCreate(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "prompt": obj.get("prompt"),
-            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
             "webhook_endpoint_ids": obj.get("webhook_endpoint_ids"),
-            "queue_if_busy": obj.get("queue_if_busy") if obj.get("queue_if_busy") is not None else False,
-            "model": obj.get("model"),
-            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
-            "scheduling_class": obj.get("scheduling_class"),
-            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
-            "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
             "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None,
-            "attachments": obj.get("attachments"),
-            "sandbox_id": obj.get("sandbox_id"),
-            "keep_warm_seconds": obj.get("keep_warm_seconds"),
-            "sandbox_max_cost_micro_usd": obj.get("sandbox_max_cost_micro_usd"),
+            "stream": obj.get("stream"),
+            "prompt": obj.get("prompt"),
+            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
             "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
-            "stream": obj.get("stream")
+            "memory_mib": obj.get("memory_mib"),
+            "cpu_millis": obj.get("cpu_millis"),
+            "worker_id": obj.get("worker_id"),
+            "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
+            "scheduling_class": obj.get("scheduling_class"),
+            "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
+            "model": obj.get("model"),
+            "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
+            "queue_if_busy": obj.get("queue_if_busy") if obj.get("queue_if_busy") is not None else False,
+            "attachments": obj.get("attachments")
         })
         return _obj
 

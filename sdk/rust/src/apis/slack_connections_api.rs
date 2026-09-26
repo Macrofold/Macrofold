@@ -99,7 +99,7 @@ pub async fn create_slack_connection(configuration: &configuration::Configuratio
 }
 
 ///
-pub async fn delete_slack_connection(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>) -> Result<models::DeleteTrigger200Response, Error<DeleteSlackConnectionError>> {
+pub async fn delete_slack_connection(configuration: &configuration::Configuration, connection_id: &str, x_organization_id: Option<&str>) -> Result<models::DeleteSlackConnection200Response, Error<DeleteSlackConnectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_connection_id = connection_id;
     let p_header_x_organization_id = x_organization_id;
@@ -135,8 +135,8 @@ pub async fn delete_slack_connection(configuration: &configuration::Configuratio
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::DeleteTrigger200Response`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::DeleteTrigger200Response`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::DeleteSlackConnection200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::DeleteSlackConnection200Response`")))),
         }
     } else {
         let content = resp.text().await?;

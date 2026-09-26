@@ -20,6 +20,7 @@ import { streamCommand, outcomeExit } from './stream';
 import { transferFiles } from './transfers';
 import { checkout } from './checkout';
 import { chat } from './chat';
+import { workerCommands, workerRunOptions } from './workers';
 
 export type CommandResult = { data: unknown; exitCode?: number; printed?: boolean };
 export type Invocation = { args: string[]; flags: Options; context: () => Promise<Context> };
@@ -66,6 +67,7 @@ function openBrowser(url: string) {
 }
 
 export const handlers: Record<string, Handler> = {
+  ...workerCommands,
   version: async () =>
     result({ version: release.version, executable: release.executable, node: process.versions.node }),
   config: async () => result(await profileSummaries()),
@@ -195,6 +197,7 @@ export const handlers: Record<string, Handler> = {
     const text = await promptText(args, flags),
       ctx = await context(),
       session = await ctx.session();
+    const placement = await workerRunOptions(ctx);
     let run: Schema['RunAccepted'];
     if (session) {
       if (flags.agent || flags['provider-connection'] || flags['billing-mode'])
@@ -202,6 +205,7 @@ export const handlers: Record<string, Handler> = {
       run = await ctx.client.request('continueSession', {
         params: { path: { session_id: session.id } },
         body: {
+          ...placement,
           prompt: text,
           queue_if_busy: Boolean(flags.queue),
           ...scheduling(flags),
@@ -222,6 +226,7 @@ export const handlers: Record<string, Handler> = {
           : undefined;
       run = await ctx.client.request('createRun', {
         body: {
+          ...placement,
           prompt: text,
           worktree_id: (await ctx.worktree()).id,
           ...(agentId

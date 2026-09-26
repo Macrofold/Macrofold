@@ -91,11 +91,14 @@ if (process.argv[1]?.endsWith('/restore.mjs')) {
   }
   if (claimed)
     try {
-      await restoreSnapshot(
-        `${controlDirectory()}/restore`,
-        { workspace: '/workspace', home: '/agent-home' },
-        10001,
-      );
+      const configuration = JSON.parse(await readFile(`${controlDirectory()}/config.json`, 'utf8'));
+      const { runtimeConfiguration } = await import('./supervisor');
+      const checked = runtimeConfiguration.parse(configuration);
+      const { hostRunPaths } = await import('./host-paths');
+      const assigned = checked.hostRun ? hostRunPaths(checked.hostRun) : undefined;
+      if (checked.workspace !== (assigned?.workspace ?? '/workspace') || checked.stateHome !== (assigned?.home ?? '/agent-home') ||
+          (assigned && assigned.control !== controlDirectory())) throw new Error('Unexpected restore roots');
+      await restoreSnapshot(`${controlDirectory()}/restore`, { workspace: checked.workspace, home: checked.stateHome }, checked.hostRun?.uid ?? 10001);
       await atomicJSON(`${controlDirectory()}/restore-result.json`, { ok: true });
     } catch {
       await atomicJSON(`${controlDirectory()}/restore-result.json`, {

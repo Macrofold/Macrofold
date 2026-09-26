@@ -43,10 +43,9 @@ class InferenceResponse(BaseModel):
     reserved_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Funds still held and unavailable for other jobs; released on settlement.")
     scheduling_class: Optional[StrictStr] = None
     kind: Optional[StrictStr] = None
-    sandbox_id: Optional[UUID] = Field(default=None, description="Reusable compute ID, when selected or created by keep_warm_seconds.")
     result: Optional[RunResult] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "queue_expires_at", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "kind", "sandbox_id", "result"]
+    __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "queue_expires_at", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "kind", "result"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -61,8 +60,8 @@ class InferenceResponse(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity']):
-            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity')")
+        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits']):
+            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits')")
         return value
 
     @field_validator('reserved_micro_usd', mode="before")
@@ -162,11 +161,6 @@ class InferenceResponse(BaseModel):
         if self.waiting_reason is None and "waiting_reason" in self.model_fields_set:
             _dict['waiting_reason'] = None
 
-        # set to None if sandbox_id (nullable) is None
-        # and model_fields_set contains the field
-        if self.sandbox_id is None and "sandbox_id" in self.model_fields_set:
-            _dict['sandbox_id'] = None
-
         return _dict
 
     @classmethod
@@ -190,7 +184,6 @@ class InferenceResponse(BaseModel):
             "reserved_micro_usd": obj.get("reserved_micro_usd"),
             "scheduling_class": obj.get("scheduling_class"),
             "kind": obj.get("kind"),
-            "sandbox_id": obj.get("sandbox_id"),
             "result": RunResult.from_dict(obj["result"]) if obj.get("result") is not None else None
         })
         # store additional fields in additional_properties

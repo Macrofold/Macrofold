@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.DecisionBinding;
-import dev.macrofold.model.InferenceCreateContext;
+import dev.macrofold.model.DecisionTaskWakeContext;
 import dev.macrofold.model.InferenceCreateDefinition;
 import dev.macrofold.model.InferenceLimits;
 import dev.macrofold.model.ModelParameters;
@@ -65,7 +65,7 @@ public class InferenceCreate {
 
   public static final String JSON_PROPERTY_CONTEXT = "context";
   @javax.annotation.Nullable
-  private InferenceCreateContext context;
+  private DecisionTaskWakeContext context;
 
   public static final String JSON_PROPERTY_MODEL_BINDING = "model_binding";
   @javax.annotation.Nonnull
@@ -162,7 +162,7 @@ public class InferenceCreate {
   }
 
 
-  public InferenceCreate context(@javax.annotation.Nullable InferenceCreateContext context) {
+  public InferenceCreate context(@javax.annotation.Nullable DecisionTaskWakeContext context) {
     this.context = context;
     return this;
   }
@@ -174,14 +174,14 @@ public class InferenceCreate {
   @javax.annotation.Nullable
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public InferenceCreateContext getContext() {
+  public DecisionTaskWakeContext getContext() {
     return context;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContext(@javax.annotation.Nullable InferenceCreateContext context) {
+  public void setContext(@javax.annotation.Nullable DecisionTaskWakeContext context) {
     this.context = context;
   }
 

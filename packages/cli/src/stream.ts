@@ -30,6 +30,17 @@ export function waitingLine(run: Schema['Run']) {
     cancellation_requested: 'cancellation requested',
     deadline_expired: 'deadline expired; finalizing',
     worktree_unavailable: 'worktree unavailable',
+    worker_paused: 'Worker manually paused; resume it to continue',
+    worker_destroyed: 'Worker retired; finalizing this Run',
+    worker_expired: 'Worker expired; finalizing this Run',
+    worker_concurrency: 'Worker execution limit occupied',
+    worker_cost_limit: 'Worker compute spending ceiling',
+    worker_instance_limit: 'Worker allocation limit',
+    worker_starting: 'Worker capacity is starting',
+    worker_capacity: 'waiting for compatible Worker capacity',
+    worker_lifetime: 'insufficient remaining Worker lifetime',
+    compute_unavailable: 'requested compute offering unavailable',
+    insufficient_credits: 'insufficient compute funding',
   }[run.waiting_reason || 'scheduler_turn'];
   return `Queued ${Math.floor(run.wait_seconds || 0)}s · ${reason} · expires ${run.queue_expires_at} · $${(Number(run.reserved_micro_usd || 0) / 1000000).toFixed(2)} held · cancel: macrofold run cancel ${run.id}`;
 }

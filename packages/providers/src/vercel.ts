@@ -1,12 +1,12 @@
+import type { HostBinding, HostControlRequest } from '../../contracts/host-control';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { SandboxBinding, SandboxControlRequest } from '../../contracts/sandbox-control';
 import { Sandbox } from '@vercel/sandbox';
 import type {
   MachineProvider,
   MachineBinding,
   RuntimeProbe,
-  SandboxTools,
+  MachineTools,
   StdioInvocation,
 } from '../../core/src/ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
@@ -34,7 +34,7 @@ function providerCode(error: unknown) {
   // providers' top-level status fields. Only a confirmed 404 permits creation.
   return value.response?.status ?? value.status ?? value.statusCode ?? value.code;
 }
-export class VercelMachines implements MachineProvider, SandboxTools {
+export class VercelMachines implements MachineProvider, MachineTools {
   async invokeStdio(binding: MachineBinding, input: StdioInvocation) {
     assert(/^[a-f0-9-]{36}$/.test(input.id), 400, 'invalid_invocation', 'Invalid tool invocation.');
     const session = await this.session(binding);
@@ -59,7 +59,7 @@ export class VercelMachines implements MachineProvider, SandboxTools {
     );
     return JSON.parse(await command.stdout()) as Record<string, unknown>;
   }
-  async provision(name: string, timeoutSeconds: number): Promise<MachineBinding> {
+  async provision(name: string, timeoutSeconds: number, resources?: { memory_mib: number; cpu_millis: number }): Promise<MachineBinding> {
     paid();
     assert(
       process.env.RUNTIME_IMAGE?.includes('@sha256:'),
@@ -83,7 +83,7 @@ export class VercelMachines implements MachineProvider, SandboxTools {
           image: process.env.RUNTIME_IMAGE!,
           persistent: true,
           timeout: (timeoutSeconds + 1800) * 1000,
-          resources: { vcpus: 2 },
+          resources: { vcpus: resources ? resources.cpu_millis / 1000 : 2 },
           snapshotExpiration: 7 * 86400_000,
           keepLastSnapshots: { count: 2, expiration: 7 * 86400_000, deleteEvicted: true },
           networkPolicy: {
@@ -135,7 +135,7 @@ export class VercelMachines implements MachineProvider, SandboxTools {
     // Session methods do not silently resume a stopped VM; Sandbox methods can.
     return session;
   }
-  async startControl(binding: MachineBinding, secret: string) {
+  async startControl(binding: MachineBinding, secret: string, entry: 'host-control' = 'host-control') {
     const session = await this.session(binding);
     const setup = await session.runCommand({ cmd: 'node', args: ['-e', "const fs=require('fs');fs.mkdirSync('/platform-control',{recursive:true});fs.chmodSync('/platform-control',0o2770)"], sudo: true });
     assert(setup.exitCode === 0, 502, 'runtime_setup_failed', 'Unable to initialize control.');
@@ -146,15 +146,28 @@ export class VercelMachines implements MachineProvider, SandboxTools {
     await session.writeFiles([{ path: '/platform-control/control-secret', content: Buffer.from(secret), mode: 0o600 }]);
     const network = await session.runCommand({ cmd: 'sysctl', args: ['-w', 'net.ipv6.conf.all.disable_ipv6=1', 'net.ipv6.conf.default.disable_ipv6=1'], sudo: true });
     assert(network.exitCode === 0, 502, 'runtime_network_setup_failed', 'Unable to configure network.');
-    await session.runCommand({ cmd: 'node', args: ['-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/sandbox-control.mjs'],{detached:true,stdio:'ignore'}).unref()"], sudo: true });
+    await session.runCommand({ cmd: 'node', args: ['-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/" + entry + ".mjs'],{detached:true,stdio:'ignore'}).unref()"], sudo: true });
   }
-  async control(binding: SandboxBinding, _secret: string, request: SandboxControlRequest) {
+  startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
+  hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
+  private async controlRequest(binding: HostBinding, _secret: string, request: HostControlRequest, entry: 'host-control-cli') {
     const session = await this.session(binding);
     const path = `/platform-control/request-${randomUUID()}.json`;
     await session.writeFiles([{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })), mode: 0o600 }]);
-    const result = await session.runCommand({ cmd: 'node', args: ['/opt/platform/sandbox-control-cli.mjs', path], sudo: true, timeoutMs: 60_000 });
-    assert(result.exitCode === 0, 502, 'sandbox_control_failed', 'The runtime did not confirm this operation.');
+    const result = await session.runCommand({ cmd: 'node', args: [`/opt/platform/${entry}.mjs`, path], sudo: true, timeoutMs: 60_000 });
+    assert(result.exitCode === 0, 502, 'host_control_failed', 'The runtime did not confirm this operation.');
     return z.object({ value: z.unknown() }).parse(JSON.parse(await result.stdout())).value;
+  }
+  async generationRunning(binding: MachineBinding) {
+    paid();
+    let sandbox: Sandbox;
+    try { sandbox = await Sandbox.get({ name: binding.name, resume: false }); }
+    catch (error) { if (providerCode(error) === 404) return false; throw error; }
+    const session = sandbox.currentSession();
+    if (session.status !== 'running') return false;
+    assert(session.sessionId === binding.sessionId, 409, 'host_generation_changed',
+      'The allocation is still running but its original execution generation was replaced.');
+    return true;
   }
   async environmentRunning(binding: MachineBinding) {
     paid();

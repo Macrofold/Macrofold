@@ -39,7 +39,7 @@ public SlackConnectionsResource slackConnections(){return new SlackConnectionsRe
 public CustomerAgentsResource customerAgents(){return new CustomerAgentsResource(this,RequestOptions.defaults());}
 public InferencesResource inferences(){return new InferencesResource(this,RequestOptions.defaults());}
 public TasksResource tasks(){return new TasksResource(this,RequestOptions.defaults());}
-public SandboxesResource sandboxes(){return new SandboxesResource(this,RequestOptions.defaults());}
+public WorkersResource workers(){return new WorkersResource(this,RequestOptions.defaults());}
 
 public static final class GetWorkspaceParams {
         private Boolean includeConnections;
@@ -484,6 +484,7 @@ private String cursor;
 private Integer limit;
 private UUID worktreeId;
 private UUID sessionId;
+private UUID workerId;
         public ListRunsParams(){}
         public ListRunsParams status(String value){this.status=value;return this;}
 public ListRunsParams workspaceId(UUID value){this.workspaceId=value;return this;}
@@ -493,6 +494,7 @@ public ListRunsParams cursor(String value){this.cursor=value;return this;}
 public ListRunsParams limit(Integer value){this.limit=value;return this;}
 public ListRunsParams worktreeId(UUID value){this.worktreeId=value;return this;}
 public ListRunsParams sessionId(UUID value){this.sessionId=value;return this;}
+public ListRunsParams workerId(UUID value){this.workerId=value;return this;}
       }
 public static final class RunsResource {
       private final Resources client; private final RequestOptions options;
@@ -546,7 +548,7 @@ public ListRuns200Response list() throws ApiException {
 public ListRuns200Response list(ListRunsParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new RunsApi(client).listRuns(params.status,params.workspaceId,params.from,params.to,params.cursor,params.limit,params.worktreeId,params.sessionId,options.organization());}
+        try {return new RunsApi(client).listRuns(params.status,params.workspaceId,params.from,params.to,params.cursor,params.limit,params.worktreeId,params.sessionId,options.organization(),params.workerId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public void stream(UUID runId,Predicate<Event> receive) throws IOException,InterruptedException,ApiException {stream(runId,"0",receive);}
@@ -938,6 +940,7 @@ private String kind;
 private String billingMode;
 private UUID cursor;
 private Integer limit;
+private UUID workerId;
         public ListBillingUsageParams(OffsetDateTime from,OffsetDateTime to){this.from=Objects.requireNonNull(from,"from");this.to=Objects.requireNonNull(to,"to");}
         public ListBillingUsageParams from(OffsetDateTime value){this.from=value;return this;}
 public ListBillingUsageParams to(OffsetDateTime value){this.to=value;return this;}
@@ -953,6 +956,7 @@ public ListBillingUsageParams kind(String value){this.kind=value;return this;}
 public ListBillingUsageParams billingMode(String value){this.billingMode=value;return this;}
 public ListBillingUsageParams cursor(UUID value){this.cursor=value;return this;}
 public ListBillingUsageParams limit(Integer value){this.limit=value;return this;}
+public ListBillingUsageParams workerId(UUID value){this.workerId=value;return this;}
       }
 public static final class BillingResource {
       private final Resources client; private final RequestOptions options;
@@ -985,7 +989,7 @@ public Storage getStorage() throws ApiException {
 public BillingUsagePage listUsage(ListBillingUsageParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new BillingApi(client).listBillingUsage(params.from,params.to,params.workspaceId,params.worktreeId,params.runId,params.sessionId,params.customerId,params.agentKey,params.provider,params.model,params.kind,params.billingMode,params.cursor,params.limit,options.organization());}
+        try {return new BillingApi(client).listBillingUsage(params.from,params.to,params.workspaceId,params.worktreeId,params.runId,params.sessionId,params.customerId,params.agentKey,params.provider,params.model,params.kind,params.billingMode,params.cursor,params.limit,options.organization(),params.workerId);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
 public Storage updateStoragePolicy(StoragePolicy input) throws ApiException {
@@ -1785,56 +1789,66 @@ public DecisionTask wakeDecision(UUID taskId,DecisionTaskWake input) throws ApiE
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }
-public static final class ListSandboxesParams {
-        private UUID worktreeId;
-private UUID cursor;
+public static final class ListWorkersParams {
+        private UUID cursor;
 private Integer limit;
-        public ListSandboxesParams(){}
-        public ListSandboxesParams worktreeId(UUID value){this.worktreeId=value;return this;}
-public ListSandboxesParams cursor(UUID value){this.cursor=value;return this;}
-public ListSandboxesParams limit(Integer value){this.limit=value;return this;}
+        public ListWorkersParams(){}
+        public ListWorkersParams cursor(UUID value){this.cursor=value;return this;}
+public ListWorkersParams limit(Integer value){this.limit=value;return this;}
       }
-public static final class SandboxesResource {
+public static final class WorkersResource {
       private final Resources client; private final RequestOptions options;
-      private SandboxesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
-      public SandboxesResource withOptions(RequestOptions options){return new SandboxesResource(client,Objects.requireNonNull(options));}
-      public Sandbox create(SandboxCreate input) throws ApiException {
+      private WorkersResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
+      public WorkersResource withOptions(RequestOptions options){return new WorkersResource(client,Objects.requireNonNull(options));}
+      public Worker create(WorkerCreate input) throws ApiException {
         String key=options.identity();
 
-        try {return new SandboxesApi(client).createSandbox(key,input,options.organization());}
+        try {return new WorkersApi(client).createWorker(key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Sandbox destroy(UUID sandboxId) throws ApiException {
+public Worker destroy(UUID workerId,WorkerAction input) throws ApiException {
         String key=options.identity();
 
-        try {return new SandboxesApi(client).destroySandbox(sandboxId,key,options.organization());}
+        try {return new WorkersApi(client).destroyWorker(workerId,key,options.organization(),input);}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Sandbox get(UUID sandboxId) throws ApiException {
+public Worker get(UUID workerId) throws ApiException {
 
 
-        try {return new SandboxesApi(client).getSandbox(sandboxId,options.organization());}
+        try {return new WorkersApi(client).getWorker(workerId,options.organization());}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public SandboxPage list() throws ApiException {
-        return list(new ListSandboxesParams());
+public WorkerOfferings listOfferings() throws ApiException {
+
+
+        try {return new WorkersApi(client).listWorkerOfferings(options.organization());}
+        catch(ApiException error) {throw new RequestException(error,null);}
       }
-public SandboxPage list(ListSandboxesParams params) throws ApiException {
+public WorkerPage list() throws ApiException {
+        return list(new ListWorkersParams());
+      }
+public WorkerPage list(ListWorkersParams params) throws ApiException {
 
         Objects.requireNonNull(params,"params");
-        try {return new SandboxesApi(client).listSandboxes(options.organization(),params.worktreeId,params.cursor,params.limit);}
+        try {return new WorkersApi(client).listWorkers(options.organization(),params.cursor,params.limit);}
         catch(ApiException error) {throw new RequestException(error,null);}
       }
-public Sandbox pause(UUID sandboxId) throws ApiException {
+public Worker patch(UUID workerId,WorkerPatch input) throws ApiException {
         String key=options.identity();
 
-        try {return new SandboxesApi(client).pauseSandbox(sandboxId,key,options.organization());}
+        try {return new WorkersApi(client).patchWorker(workerId,key,input,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
-public Sandbox resume(UUID sandboxId) throws ApiException {
+public Worker pause(UUID workerId,WorkerAction input) throws ApiException {
         String key=options.identity();
 
-        try {return new SandboxesApi(client).resumeSandbox(sandboxId,key,options.organization());}
+        try {return new WorkersApi(client).pauseWorker(workerId,key,options.organization(),input);}
+        catch(ApiException error) {throw new RequestException(error,key);}
+      }
+public Worker resume(UUID workerId) throws ApiException {
+        String key=options.identity();
+
+        try {return new WorkersApi(client).resumeWorker(workerId,key,options.organization());}
         catch(ApiException error) {throw new RequestException(error,key);}
       }
     }

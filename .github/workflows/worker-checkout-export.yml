@@ -1,0 +1,61 @@
+name: Worker checkout export
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths: [.github/workflows/worker-checkout-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          show-progress: false
+          path: candidate
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          show-progress: false
+          ref: 19865a2f45885e228deb6b7ea443e33982257d21
+          path: baseline
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: Macrofold/OpenLegend
+          persist-credentials: false
+          show-progress: false
+          ref: 03105fed9209c126e4e69e9faeb4687f42d1e74a
+          path: openlegend
+      - name: Export pinned text sources and integrity manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, tarfile
+          root = pathlib.Path.cwd()
+          destination = pathlib.Path('/tmp/worker-checkout')
+          destination.mkdir()
+          manifest = {}
+          with tarfile.open(destination / 'source.tar.gz', 'w:gz') as archive:
+              for project in ('candidate','baseline','openlegend'):
+                  for current, dirs, files in os.walk(root / project, followlinks=False):
+                      dirs[:] = sorted(d for d in dirs if d not in {'.git', 'node_modules'})
+                      for name in sorted(files):
+                          path = pathlib.Path(current) / name
+                          if path.is_symlink(): continue
+                          data = path.read_bytes()
+                          try: data.decode('utf-8')
+                          except UnicodeDecodeError: continue
+                          relative = path.relative_to(root).as_posix()
+                          archive.add(path, arcname=relative, recursive=False)
+                          manifest[relative] = hashlib.sha256(data).hexdigest()
+          (destination / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True))
+          (destination / 'commit.txt').write_text(os.environ['GITHUB_SHA'] + '\n')
+          print(f'Exported {len(manifest)} text source files at {os.environ["GITHUB_SHA"]}.')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-checkout
+          path: /tmp/worker-checkout/
+          retention-days: 7

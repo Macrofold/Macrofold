@@ -34,8 +34,11 @@ const pages = await Promise.all(
     return { ...page, url: urlFor(page.slug), markdown };
   }),
 );
+// The public content module is a disposable build artifact, not another source
+// copy. Keep the small repository discovery index under drift verification.
+const contentModule = 'apps/web/lib/docs/generated.json';
 const outputs = new Map([
-  ['apps/web/lib/docs/generated.json', JSON.stringify(pages, null, 2) + '\n'],
+  [contentModule, JSON.stringify(pages, null, 2) + '\n'],
   [
     'llms.txt',
     '# Macrofold documentation\n\n> Persistent agents on Macrofold Cloud or your own infrastructure. Start with Build with AI or the API quickstart.\n\n' +
@@ -55,8 +58,16 @@ const outputs = new Map([
 for (const [file, content] of outputs) {
   const target = path.join(root, file);
   if (process.argv.includes('--check')) {
-    if ((await readFile(target, 'utf8').catch(() => '')) !== content)
-      throw new Error(`${file} is stale. Run pnpm docs:generate.`);
+    const existing = await readFile(target, 'utf8').catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    // A clean checkout has no compiled content. Materialize it from the approved
+    // manifest; an existing stale module or a stale tracked index still fails.
+    if (existing === null && file === contentModule) {
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, content);
+    } else if (existing !== content) throw new Error(`${file} is stale. Run pnpm docs:generate.`);
   } else {
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, content);

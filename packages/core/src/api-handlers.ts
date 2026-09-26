@@ -1,5 +1,6 @@
 import { respondAsync } from './direct-inference';
-import * as sandboxes from './sandboxes';
+import * as workers from './workers';
+import { workerOfferings, workerPolicyLimits, publicOffering } from './worker-catalog';
 import * as decisionTasks from './decision-tasks';
 import { prepareInference } from './inferences';
 import * as decisionDefinitions from './decision-definitions';
@@ -66,7 +67,7 @@ export const capabilities = {
   api_version: 'v1',
   minimum_cli_version: '0.1.0',
   recommended_cli_version: '0.1.0',
-  features: ['streaming', 'sessions', 'worktrees', 'transfers', 'checkpoint_exports'],
+  features: ['streaming', 'sessions', 'worktrees', 'transfers', 'checkpoint_exports', 'workers'],
   stream_rotation_seconds: 55 as const,
   max_transfer_files: 1000 as const,
   max_transfer_bytes: 262144000 as const,
@@ -459,17 +460,17 @@ const primitiveHandlers = {
   deleteDecisionDefinition: c=>decisionDefinitions.withdrawDefinition(c.tx,c.p,c.params.definition_id),
   getContextArtifact: async c=>contextArtifacts.presentContext(await contextArtifacts.contextArtifact(c.tx,c.p,c.params.artifact_id)),
   deleteContextArtifact: c=>contextArtifacts.releaseContext(c.tx,c.p,c.params.artifact_id),
-  createSandbox: c => sandboxes.createSandbox(c.tx, c.p, input<'SandboxCreate'>(c)),
-  getSandbox: async c => sandboxes.presentSandbox(await sandboxes.getSandbox(c.tx, c.params.sandbox_id, c.p)),
-  pauseSandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'pause'),
-  resumeSandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'resume'),
-  destroySandbox: c => sandboxes.changeSandbox(c.tx, c.p, c.params.sandbox_id, 'destroy'),
-  listSandboxes: async c => {
-    const limit = Number(c.query.get('limit') || 25);
-    const rows = (await c.tx.query<sandboxes.SandboxRow>(`SELECT * FROM sandboxes WHERE ($1::uuid IS NULL OR worktree_id=$1)
-      AND ($2::uuid IS NULL OR id<$2) AND (cardinality($3::uuid[])=0 OR workspace_id=ANY($3::uuid[])) ORDER BY id DESC LIMIT $4`,
-      [c.query.get('worktree_id'), c.query.get('cursor'), c.p.workspaceIds, limit+1])).rows;
-    return { data: rows.slice(0,limit).map(sandboxes.presentSandbox), next_cursor: rows.length>limit ? rows[limit-1].id : null };
+  createWorker: c => workers.createWorker(c.tx,c.p,input<'WorkerCreate'>(c)),
+  getWorker: async c => workers.presentWorker(c.tx,await workers.getWorker(c.tx,c.params.worker_id,c.p)),
+  listWorkers: c => workers.listWorkers(c.tx,c.p,c.query),
+  patchWorker: c => workers.patchWorker(c.tx,c.p,c.params.worker_id,input<'WorkerPatch'>(c)),
+  pauseWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'pause',input<'WorkerAction'>(c)?.force ?? false),
+  resumeWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'resume'),
+  destroyWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'destroy',input<'WorkerAction'>(c)?.force ?? false),
+  listWorkerOfferings: async c => {
+    workers.authorizeWorker(c.p,'workers:read');
+    const offerings=await workerOfferings(c.tx);
+    return {data:offerings.map(publicOffering),limits:await workerPolicyLimits(c.tx,c.p.organizationId,offerings)};
   },
   createRun: async (c) => runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), runs.requestClientType(c.request)),
   getRun: async (c) => (await runs.presentRuns(c.tx, [await runs.getRun(c.tx, c.params.run_id, c.p)]))[0],
@@ -481,6 +482,10 @@ const primitiveHandlers = {
         args.push(c.query.get(field));
         where.push(`${field}=$${args.length}`);
       }
+    if (c.query.has('worker_id')) {
+      args.push(c.query.get('worker_id'));
+      where.push(`config->>'worker_id'=$${args.length}`);
+    }
     if (c.query.has('cursor')) {
       args.push(c.query.get('cursor'));
       where.push(`id<$${args.length}::uuid`);

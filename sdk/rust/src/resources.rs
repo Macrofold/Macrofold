@@ -28,7 +28,7 @@ pub fn slack_connections(&self) -> SlackConnectionsResource<'_> {SlackConnection
 pub fn customer_agents(&self) -> CustomerAgentsResource<'_> {CustomerAgentsResource {client:self, options:RequestOptions::default()}}
 pub fn inferences(&self) -> InferencesResource<'_> {InferencesResource {client:self, options:RequestOptions::default()}}
 pub fn tasks(&self) -> TasksResource<'_> {TasksResource {client:self, options:RequestOptions::default()}}
-pub fn sandboxes(&self) -> SandboxesResource<'_> {SandboxesResource {client:self, options:RequestOptions::default()}} }
+pub fn workers(&self) -> WorkersResource<'_> {WorkersResource {client:self, options:RequestOptions::default()}} }
 
 #[derive(Debug,Clone,Default)] pub struct GetWorkspaceParams {pub include_connections: Option<bool>,pub agent_id: Option<String>,pub connections_limit: Option<i32>,pub connections_cursor: Option<String>}
 #[derive(Debug,Clone,Default)] pub struct GetWorktreeOptionsParams {pub name: Option<String>,pub branch: Option<String>}
@@ -250,7 +250,7 @@ pub async fn list(&self, params: ListSessionsParams) -> Result<models::ListSessi
     }
 #[derive(Debug,Clone,Default)] pub struct ListArtifactsParams {pub cursor: Option<String>,pub limit: Option<i32>}
 #[derive(Debug,Clone,Default)] pub struct ListRunEventsParams {pub after: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub workspace_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>,pub session_id: Option<String>}
+#[derive(Debug,Clone,Default)] pub struct ListRunsParams {pub status: Option<String>,pub workspace_id: Option<String>,pub from: Option<chrono::DateTime<chrono::FixedOffset>>,pub to: Option<chrono::DateTime<chrono::FixedOffset>>,pub cursor: Option<String>,pub limit: Option<i32>,pub worktree_id: Option<String>,pub session_id: Option<String>,pub worker_id: Option<String>}
 pub struct RunsResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> RunsResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -286,7 +286,7 @@ pub async fn list_events(&self, run_id: &str, params: ListRunEventsParams) -> Re
       }
 pub async fn list(&self, params: ListRunsParams) -> Result<models::ListRuns200Response,ClientError> {
 
-        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.workspace_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref()).await
+        crate::apis::runs_api::list_runs(self.client.configuration(), params.status.as_deref(), params.workspace_id.as_deref(), params.from, params.to, params.cursor.as_deref(), params.limit, params.worktree_id.as_deref(), params.session_id.as_deref(), self.options.organization.as_deref(), params.worker_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn stream(&self, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_in_organization(run_id,after,self.options.organization.as_deref(),receive).await}
@@ -493,7 +493,7 @@ pub struct RequestsResource<'a> {client:&'a Client,options:RequestOptions}
           .map_err(|error|crate::request_error(error,None))
       }
     }
-#[derive(Debug,Clone)] pub struct ListBillingUsageParams {pub from: chrono::DateTime<chrono::FixedOffset>,pub to: chrono::DateTime<chrono::FixedOffset>,pub workspace_id: Option<String>,pub worktree_id: Option<String>,pub run_id: Option<String>,pub session_id: Option<String>,pub customer_id: Option<String>,pub agent_key: Option<String>,pub provider: Option<String>,pub model: Option<String>,pub kind: Option<String>,pub billing_mode: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
+#[derive(Debug,Clone)] pub struct ListBillingUsageParams {pub from: chrono::DateTime<chrono::FixedOffset>,pub to: chrono::DateTime<chrono::FixedOffset>,pub workspace_id: Option<String>,pub worktree_id: Option<String>,pub run_id: Option<String>,pub session_id: Option<String>,pub customer_id: Option<String>,pub agent_key: Option<String>,pub provider: Option<String>,pub model: Option<String>,pub kind: Option<String>,pub billing_mode: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>,pub worker_id: Option<String>}
 pub struct BillingResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> BillingResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -519,7 +519,7 @@ pub async fn get_storage(&self) -> Result<models::Storage,ClientError> {
       }
 pub async fn list_usage(&self, params: ListBillingUsageParams) -> Result<models::BillingUsagePage,ClientError> {
 
-        crate::apis::billing_api::list_billing_usage(self.client.configuration(), params.from, params.to, params.workspace_id.as_deref(), params.worktree_id.as_deref(), params.run_id.as_deref(), params.session_id.as_deref(), params.customer_id.as_deref(), params.agent_key.as_deref(), params.provider.as_deref(), params.model.as_deref(), params.kind.as_deref(), params.billing_mode.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref()).await
+        crate::apis::billing_api::list_billing_usage(self.client.configuration(), params.from, params.to, params.workspace_id.as_deref(), params.worktree_id.as_deref(), params.run_id.as_deref(), params.session_id.as_deref(), params.customer_id.as_deref(), params.agent_key.as_deref(), params.provider.as_deref(), params.model.as_deref(), params.kind.as_deref(), params.billing_mode.as_deref(), params.cursor.as_deref(), params.limit, self.options.organization.as_deref(), params.worker_id.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
 pub async fn update_storage_policy(&self, input: models::StoragePolicy) -> Result<models::Storage,ClientError> {
@@ -984,38 +984,48 @@ pub async fn wake_decision(&self, task_id: &str, input: models::DecisionTaskWake
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct ListSandboxesParams {pub worktree_id: Option<String>,pub cursor: Option<String>,pub limit: Option<i32>}
-pub struct SandboxesResource<'a> {client:&'a Client,options:RequestOptions}
-    impl<'a> SandboxesResource<'a> {
+#[derive(Debug,Clone,Default)] pub struct ListWorkersParams {pub cursor: Option<String>,pub limit: Option<i32>}
+pub struct WorkersResource<'a> {client:&'a Client,options:RequestOptions}
+    impl<'a> WorkersResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
-      pub async fn create(&self, input: models::SandboxCreate) -> Result<models::Sandbox,ClientError> {
+      pub async fn create(&self, input: models::WorkerCreate) -> Result<models::Worker,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::create_sandbox(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
+        crate::apis::workers_api::create_worker(self.client.configuration(), &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn destroy(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+pub async fn destroy(&self, worker_id: &str, input: Option<models::WorkerAction>) -> Result<models::Worker,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::destroy_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+        crate::apis::workers_api::destroy_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref(), input).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn get(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+pub async fn get(&self, worker_id: &str) -> Result<models::Worker,ClientError> {
 
-        crate::apis::sandboxes_api::get_sandbox(self.client.configuration(), sandbox_id, self.options.organization.as_deref()).await
+        crate::apis::workers_api::get_worker(self.client.configuration(), worker_id, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn list(&self, params: ListSandboxesParams) -> Result<models::SandboxPage,ClientError> {
+pub async fn list_offerings(&self) -> Result<models::WorkerOfferings,ClientError> {
 
-        crate::apis::sandboxes_api::list_sandboxes(self.client.configuration(), self.options.organization.as_deref(), params.worktree_id.as_deref(), params.cursor.as_deref(), params.limit).await
+        crate::apis::workers_api::list_worker_offerings(self.client.configuration(), self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,None))
       }
-pub async fn pause(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+pub async fn list(&self, params: ListWorkersParams) -> Result<models::WorkerPage,ClientError> {
+
+        crate::apis::workers_api::list_workers(self.client.configuration(), self.options.organization.as_deref(), params.cursor.as_deref(), params.limit).await
+          .map_err(|error|crate::request_error(error,None))
+      }
+pub async fn patch(&self, worker_id: &str, input: models::WorkerPatch) -> Result<models::Worker,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::pause_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+        crate::apis::workers_api::patch_worker(self.client.configuration(), worker_id, &key, input, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
-pub async fn resume(&self, sandbox_id: &str) -> Result<models::Sandbox,ClientError> {
+pub async fn pause(&self, worker_id: &str, input: Option<models::WorkerAction>) -> Result<models::Worker,ClientError> {
         let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::sandboxes_api::resume_sandbox(self.client.configuration(), sandbox_id, &key, self.options.organization.as_deref()).await
+        crate::apis::workers_api::pause_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref(), input).await
+          .map_err(|error|crate::request_error(error,Some(key)))
+      }
+pub async fn resume(&self, worker_id: &str) -> Result<models::Worker,ClientError> {
+        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
+        crate::apis::workers_api::resume_worker(self.client.configuration(), worker_id, &key, self.options.organization.as_deref()).await
           .map_err(|error|crate::request_error(error,Some(key)))
       }
     }

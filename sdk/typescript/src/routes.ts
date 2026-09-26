@@ -636,28 +636,36 @@ export const routes = {
     "method": "GET",
     "path": "/v1/billing/usage"
   },
-  "createSandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes"
-  },
-  "listSandboxes": {
+  "listWorkers": {
     "method": "GET",
-    "path": "/v1/sandboxes"
+    "path": "/v1/workers"
   },
-  "getSandbox": {
+  "createWorker": {
+    "method": "POST",
+    "path": "/v1/workers"
+  },
+  "getWorker": {
     "method": "GET",
-    "path": "/v1/sandboxes/{sandbox_id}"
+    "path": "/v1/workers/{worker_id}"
   },
-  "pauseSandbox": {
-    "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/pause"
+  "patchWorker": {
+    "method": "PATCH",
+    "path": "/v1/workers/{worker_id}"
   },
-  "resumeSandbox": {
+  "pauseWorker": {
     "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/resume"
+    "path": "/v1/workers/{worker_id}/pause"
   },
-  "destroySandbox": {
+  "resumeWorker": {
     "method": "POST",
-    "path": "/v1/sandboxes/{sandbox_id}/destroy"
+    "path": "/v1/workers/{worker_id}/resume"
+  },
+  "destroyWorker": {
+    "method": "POST",
+    "path": "/v1/workers/{worker_id}/destroy"
+  },
+  "listWorkerOfferings": {
+    "method": "GET",
+    "path": "/v1/worker-offerings"
   }
 } as const;

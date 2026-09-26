@@ -865,6 +865,7 @@ type ApiListRunsRequest struct {
 	worktreeId *string
 	sessionId *string
 	xOrganizationId *string
+	workerId *string
 }
 
 func (r ApiListRunsRequest) Status(status string) ApiListRunsRequest {
@@ -912,6 +913,12 @@ func (r ApiListRunsRequest) SessionId(sessionId string) ApiListRunsRequest {
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiListRunsRequest) XOrganizationId(xOrganizationId string) ApiListRunsRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+// Only Runs or compute usage associated with this Worker. Normal context permissions still apply.
+func (r ApiListRunsRequest) WorkerId(workerId string) ApiListRunsRequest {
+	r.workerId = &workerId
 	return r
 }
 
@@ -982,6 +989,9 @@ func (a *RunsAPIService) ListRunsExecute(r ApiListRunsRequest) (*ListRuns200Resp
 	}
 	if r.sessionId != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "session_id", r.sessionId, "form", "")
+	}
+	if r.workerId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "worker_id", r.workerId, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

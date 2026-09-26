@@ -17,7 +17,7 @@ import { failureDiagnostic, type RuntimeStage } from './failure-diagnostic';
 
 let configuration = JSON.parse(await readFile(process.argv[2], 'utf8')) as NativeConfiguration;
 // OpenCode's SDK inherits its parent's environment. Remove it before starting any harness.
-const allowed = new Set(['PATH', 'NODE_ENV', 'LANG', 'SSL_CERT_FILE', 'SSL_CERT_DIR']);
+const allowed = new Set(['PATH', 'NODE_ENV', 'LANG', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'TMPDIR', 'USER', 'LOGNAME']);
 for (const key of Object.keys(process.env)) if (!allowed.has(key)) delete process.env[key];
 process.env.HOME = configuration.stateHome;
 process.env.XDG_CONFIG_HOME = `${configuration.stateHome}/.config`;

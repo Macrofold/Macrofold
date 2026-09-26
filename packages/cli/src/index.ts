@@ -22,6 +22,17 @@ const globalFlags = {
   help: Flags.boolean({ char: 'h' }),
 };
 const executionFlags = {
+  worker: Flags.string({ description: 'Reusable Worker ID or exact name; omitted for automatic compute' }),
+  'memory-mib': Flags.integer({
+    min: 1,
+    max: 1048576,
+    description: 'Per-Run memory allocation on the selected Worker',
+  }),
+  'cpu-millis': Flags.integer({
+    min: 1,
+    max: 1024000,
+    description: 'Per-Run CPU allocation in thousandths of a core',
+  }),
   harness: Flags.string({ options: harnessNames }),
   model: Flags.string(),
   'billing-mode': Flags.string({ options: ['managed', 'byok', 'subscription'] }),
@@ -60,7 +71,42 @@ const transferFlags = {
   'include-ignored': Flags.boolean(),
   delete: Flags.boolean(),
 };
+const workerFlags = {
+  compute: Flags.string({
+    options: ['server', 'sandbox'],
+    description: 'Compute economics; not a provider override',
+  }),
+  dedicated: Flags.boolean({ exclusive: ['pooled'], description: 'Exclusive compute allocation' }),
+  pooled: Flags.boolean({
+    exclusive: ['dedicated'],
+    description: 'Resource-priced managed capacity where available',
+  }),
+  'shared-runs': Flags.boolean({
+    exclusive: ['isolated-runs'],
+    description: 'Allow this Worker’s trusted Runs to share an execution environment',
+  }),
+  'isolated-runs': Flags.boolean({ exclusive: ['shared-runs'] }),
+  'min-instances': Flags.integer({ min: 0 }),
+  'max-instances': Flags.integer({ min: 1 }),
+  'max-concurrency': Flags.integer({ min: 1 }),
+  'idle-timeout': Flags.integer({ min: 0, exclusive: ['keep-alive'] }),
+  'keep-alive': Flags.boolean({ exclusive: ['idle-timeout'] }),
+  'max-hourly-cost': Flags.string({ description: 'Aggregate compute ceiling in USD/hour, e.g. 1.00' }),
+  'expires-at': Flags.string({ exclusive: ['no-expiry'] }),
+  'no-expiry': Flags.boolean({ exclusive: ['expires-at'] }),
+  region: Flags.string(),
+  runtime: Flags.string(),
+  size: Flags.string({ exclusive: ['auto-size'] }),
+  'auto-size': Flags.boolean({
+    exclusive: ['size'],
+    description: 'Choose fitting accepted sizes automatically',
+  }),
+};
 const specialFlags: Record<string, Interfaces.FlagInput> = {
+  'worker create': workerFlags,
+  'worker update': { ...workerFlags, name: Flags.string(), revision: Flags.integer({ min: 1 }) },
+  'worker pause': { force: Flags.boolean(), yes: Flags.boolean() },
+  'worker destroy': { force: Flags.boolean(), yes: Flags.boolean() },
   login: {
     host: Flags.string(),
     scope: Flags.string({ multiple: true }),
@@ -94,6 +140,7 @@ const specialFlags: Record<string, Interfaces.FlagInput> = {
   usage: { from: Flags.string(), to: Flags.string() },
 };
 const listCommands = new Set([
+  'worker list',
   'workspace list',
   'worktree list',
   'run list',
@@ -106,6 +153,8 @@ const listCommands = new Set([
 ]);
 const unlimitedArgs = new Set(['run', 'workspace create', 'files push', 'files pull', 'files diff']);
 const noArgs = new Set([
+  'worker list',
+  'worker offerings',
   'login',
   'logout',
   'whoami',
@@ -127,6 +176,10 @@ const noArgs = new Set([
   'version',
 ]);
 const examples: Record<string, string> = {
+  'worker create':
+    'macrofold worker create openlegend --compute server --dedicated --shared-runs --min-instances 1 --max-hourly-cost 1.00',
+  'worker update': 'macrofold worker update WORKER_ID --max-hourly-cost 2.00 --revision 3',
+  'worker pause': 'macrofold worker pause WORKER_ID',
   run: 'macrofold run "Update the report" --harness codex --model MODEL\nmacrofold run --prompt-file - --session SESSION_ID --json',
   login:
     'macrofold login --host https://agents.example.com\nmacrofold login --host http://localhost:3210 --api-key-stdin',
@@ -139,7 +192,10 @@ const examples: Record<string, string> = {
   'connection add': 'macrofold connection add --config-file private-connection.json',
   'run input': 'macrofold run input RUN_ID --request REQUEST_ID --answer-file answer.json',
 };
+const subcommands = (command: string) =>
+  Object.keys(handlers).filter((name) => name.startsWith(command + ' ')).sort();
 function help(command?: string) {
+  const children = command ? subcommands(command) : [];
   const keys = command
     ? Object.keys({
         ...globalFlags,
@@ -149,7 +205,9 @@ function help(command?: string) {
     : Object.keys(globalFlags);
   return `${release.name} · ${release.version}\n\n${
     command
-      ? `Usage: ${release.executable} ${command} [arguments] [flags]`
+      ? `Usage: ${release.executable} ${command}${command in handlers ? '' : ' <command>'} [arguments] [flags]${
+          children.length ? '\n\n' + children.map((name) => '  ' + name).join('\n') : ''
+        }`
       : `Usage: ${release.executable} <command> [arguments] [flags]\n\n${Object.keys(handlers)
           .sort()
           .map((name) => '  ' + name)
@@ -210,7 +268,14 @@ export async function main(argv = process.argv.slice(2)) {
       pair = `${first} ${rest[0] || ''}`;
     command = pair in handlers ? pair : first;
     if (pair in handlers) rest.shift();
-    if (!(command in handlers)) throw new CliError(`Unknown command: ${command}. Run macrofold --help.`);
+    if (!(command in handlers)) {
+      // Command-group help is local and must not require a profile or API call.
+      if (subcommands(command).length && rest.every((arg) => arg === '--help' || arg === '-h')) {
+        process.stdout.write(help(command));
+        return 0;
+      }
+      throw new CliError(`Unknown command: ${command}. Run macrofold --help.`);
+    }
     let parsed;
     try {
       parsed = await Parser.parse([...leading, ...rest], {

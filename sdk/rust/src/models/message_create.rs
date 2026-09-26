@@ -42,16 +42,16 @@ pub struct MessageCreate {
     /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
     #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<String>>,
-    #[serde(rename = "sandbox_id", skip_serializing_if = "Option::is_none")]
-    pub sandbox_id: Option<uuid::Uuid>,
-    /// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
-    #[serde(rename = "keep_warm_seconds", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub keep_warm_seconds: Option<Option<i32>>,
-    /// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
-    #[serde(rename = "sandbox_max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
-    pub sandbox_max_cost_micro_usd: Option<String>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
+    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<uuid::Uuid>,
+    /// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+    #[serde(rename = "memory_mib", skip_serializing_if = "Option::is_none")]
+    pub memory_mib: Option<i32>,
+    /// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+    #[serde(rename = "cpu_millis", skip_serializing_if = "Option::is_none")]
+    pub cpu_millis: Option<i32>,
 }
 
 impl MessageCreate {
@@ -69,10 +69,10 @@ impl MessageCreate {
             connection_grants: None,
             connection_access_overrides: None,
             attachments: None,
-            sandbox_id: None,
-            keep_warm_seconds: None,
-            sandbox_max_cost_micro_usd: None,
             model_parameters: None,
+            worker_id: None,
+            memory_mib: None,
+            cpu_millis: None,
         }
     }
 }

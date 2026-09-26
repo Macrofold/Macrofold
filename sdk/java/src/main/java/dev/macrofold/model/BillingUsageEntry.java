@@ -30,6 +30,10 @@ import dev.macrofold.model.BillingUsageEntryTool;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.UUID;
+import org.openapitools.jackson.nullable.JsonNullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.openapitools.jackson.nullable.JsonNullable;
+import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -54,7 +58,8 @@ import dev.macrofold.ApiClient;
   BillingUsageEntry.JSON_PROPERTY_MODEL_USAGE,
   BillingUsageEntry.JSON_PROPERTY_TOOL,
   BillingUsageEntry.JSON_PROPERTY_STORAGE,
-  BillingUsageEntry.JSON_PROPERTY_SANDBOX_ID
+  BillingUsageEntry.JSON_PROPERTY_WORKER_ID,
+  BillingUsageEntry.JSON_PROPERTY_COMPUTE_ALLOCATION_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class BillingUsageEntry {
@@ -196,9 +201,11 @@ public class BillingUsageEntry {
   @javax.annotation.Nullable
   private BillingUsageEntryStorage storage;
 
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  @javax.annotation.Nullable
-  private UUID sandboxId;
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  private JsonNullable<UUID> workerId = JsonNullable.<UUID>undefined();
+
+  public static final String JSON_PROPERTY_COMPUTE_ALLOCATION_ID = "compute_allocation_id";
+  private JsonNullable<UUID> computeAllocationId = JsonNullable.<UUID>undefined();
 
   public BillingUsageEntry() { 
   }
@@ -587,27 +594,67 @@ public class BillingUsageEntry {
   }
 
 
-  public BillingUsageEntry sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
+  public BillingUsageEntry workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
     return this;
   }
 
   /**
-   * Compute allocation charged independently of individual runs, when present.
-   * @return sandboxId
+   * Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run.
+   * @return workerId
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonIgnore
+  public UUID getWorkerId() {
+        return workerId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getSandboxId() {
-    return sandboxId;
+
+  public JsonNullable<UUID> getWorkerId_JsonNullable() {
+    return workerId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_WORKER_ID)
+  public void setWorkerId_JsonNullable(JsonNullable<UUID> workerId) {
+    this.workerId = workerId;
+  }
+
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  public BillingUsageEntry computeAllocationId(@javax.annotation.Nullable UUID computeAllocationId) {
+    this.computeAllocationId = JsonNullable.<UUID>of(computeAllocationId);
+    return this;
+  }
+
+  /**
+   * Financial allocation identifier; not a controllable physical-machine API resource.
+   * @return computeAllocationId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getComputeAllocationId() {
+        return computeAllocationId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_COMPUTE_ALLOCATION_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = sandboxId;
+
+  public JsonNullable<UUID> getComputeAllocationId_JsonNullable() {
+    return computeAllocationId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_COMPUTE_ALLOCATION_ID)
+  public void setComputeAllocationId_JsonNullable(JsonNullable<UUID> computeAllocationId) {
+    this.computeAllocationId = computeAllocationId;
+  }
+
+  public void setComputeAllocationId(@javax.annotation.Nullable UUID computeAllocationId) {
+    this.computeAllocationId = JsonNullable.<UUID>of(computeAllocationId);
   }
 
 
@@ -639,12 +686,24 @@ public class BillingUsageEntry {
         Objects.equals(this.modelUsage, billingUsageEntry.modelUsage) &&
         Objects.equals(this.tool, billingUsageEntry.tool) &&
         Objects.equals(this.storage, billingUsageEntry.storage) &&
-        Objects.equals(this.sandboxId, billingUsageEntry.sandboxId);
+        equalsNullable(this.workerId, billingUsageEntry.workerId) &&
+        equalsNullable(this.computeAllocationId, billingUsageEntry.computeAllocationId);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, kind, occurredAt, runId, workspaceId, worktreeId, sessionId, customerId, agentKey, provider, model, billingMode, chargedMicroUsd, modelUsage, tool, storage, sandboxId);
+    return Objects.hash(id, kind, occurredAt, runId, workspaceId, worktreeId, sessionId, customerId, agentKey, provider, model, billingMode, chargedMicroUsd, modelUsage, tool, storage, hashCodeNullable(workerId), hashCodeNullable(computeAllocationId));
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -667,7 +726,8 @@ public class BillingUsageEntry {
     sb.append("    modelUsage: ").append(toIndentedString(modelUsage)).append("\n");
     sb.append("    tool: ").append(toIndentedString(tool)).append("\n");
     sb.append("    storage: ").append(toIndentedString(storage)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
+    sb.append("    computeAllocationId: ").append(toIndentedString(computeAllocationId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -792,9 +852,14 @@ public class BillingUsageEntry {
       joiner.add(getStorage().toUrlQueryString(prefix + "storage" + suffix));
     }
 
-    // add `sandbox_id` to the URL query string
-    if (getSandboxId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
+    // add `worker_id` to the URL query string
+    if (getWorkerId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworker_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkerId()))));
+    }
+
+    // add `compute_allocation_id` to the URL query string
+    if (getComputeAllocationId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%scompute_allocation_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getComputeAllocationId()))));
     }
 
     return joiner.toString();

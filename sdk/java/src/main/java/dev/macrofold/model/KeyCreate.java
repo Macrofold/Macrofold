@@ -24,10 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -40,7 +43,8 @@ import dev.macrofold.ApiClient;
   KeyCreate.JSON_PROPERTY_NAME,
   KeyCreate.JSON_PROPERTY_SCOPES,
   KeyCreate.JSON_PROPERTY_WORKSPACE_ID,
-  KeyCreate.JSON_PROPERTY_EXPIRES_AT
+  KeyCreate.JSON_PROPERTY_EXPIRES_AT,
+  KeyCreate.JSON_PROPERTY_WORKER_IDS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class KeyCreate {
@@ -59,6 +63,10 @@ public class KeyCreate {
   public static final String JSON_PROPERTY_EXPIRES_AT = "expires_at";
   @javax.annotation.Nullable
   private OffsetDateTime expiresAt;
+
+  public static final String JSON_PROPERTY_WORKER_IDS = "worker_ids";
+  @javax.annotation.Nullable
+  private Set<UUID> workerIds = new LinkedHashSet<>();
 
   public KeyCreate() { 
   }
@@ -167,6 +175,39 @@ public class KeyCreate {
   }
 
 
+  public KeyCreate workerIds(@javax.annotation.Nullable Set<UUID> workerIds) {
+    this.workerIds = workerIds;
+    return this;
+  }
+
+  public KeyCreate addWorkerIdsItem(UUID workerIdsItem) {
+    if (this.workerIds == null) {
+      this.workerIds = new LinkedHashSet<>();
+    }
+    this.workerIds.add(workerIdsItem);
+    return this;
+  }
+
+  /**
+   * Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access.
+   * @return workerIds
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKER_IDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<UUID> getWorkerIds() {
+    return workerIds;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_WORKER_IDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkerIds(@javax.annotation.Nullable Set<UUID> workerIds) {
+    this.workerIds = workerIds;
+  }
+
+
   /**
    * Return true if this KeyCreate object is equal to o.
    */
@@ -182,12 +223,13 @@ public class KeyCreate {
     return Objects.equals(this.name, keyCreate.name) &&
         Objects.equals(this.scopes, keyCreate.scopes) &&
         Objects.equals(this.workspaceId, keyCreate.workspaceId) &&
-        Objects.equals(this.expiresAt, keyCreate.expiresAt);
+        Objects.equals(this.expiresAt, keyCreate.expiresAt) &&
+        Objects.equals(this.workerIds, keyCreate.workerIds);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, scopes, workspaceId, expiresAt);
+    return Objects.hash(name, scopes, workspaceId, expiresAt, workerIds);
   }
 
   @Override
@@ -198,6 +240,7 @@ public class KeyCreate {
     sb.append("    scopes: ").append(toIndentedString(scopes)).append("\n");
     sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
+    sb.append("    workerIds: ").append(toIndentedString(workerIds)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -264,6 +307,19 @@ public class KeyCreate {
     // add `expires_at` to the URL query string
     if (getExpiresAt() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sexpires_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getExpiresAt()))));
+    }
+
+    // add `worker_ids` to the URL query string
+    if (getWorkerIds() != null) {
+      int i = 0;
+      for (UUID _item : getWorkerIds()) {
+        if (_item != null) {
+          joiner.add(String.format(java.util.Locale.ROOT, "%sworker_ids%s%s=%s", prefix, suffix,
+              "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
+              ApiClient.urlEncode(ApiClient.valueToString(_item))));
+        }
+        i++;
+      }
     }
 
     return joiner.toString();

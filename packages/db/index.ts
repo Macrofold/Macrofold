@@ -100,3 +100,11 @@ async function transact<T>(
 export async function lock(tx: Tx, value: string) {
   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [value]);
 }
+
+/** Background work can defer immediately instead of occupying a connection while
+ * another claimant holds the same admission boundary. Ownership remains in SQL. */
+export async function tryLock(tx: Tx, value: string): Promise<boolean> {
+  const result = await tx.query<{ acquired: boolean }>(
+    'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS acquired', [value]);
+  return result.rows[0].acquired;
+}

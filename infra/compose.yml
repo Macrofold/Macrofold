@@ -9,7 +9,8 @@ services:
     ports: ["127.0.0.1:55432:5432"]
     volumes: ["database:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U platform_owner -d platform"]
+      # The bootstrap server listens on a Unix socket before restarting. Wait for the final TCP listener.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U platform_owner -d platform"]
       interval: 2s
       timeout: 2s
       retries: 30

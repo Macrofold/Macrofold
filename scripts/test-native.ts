@@ -21,7 +21,6 @@ if (media)
   });
 const stdio = process.argv.includes('--stdio');
 const warm = process.argv.includes('--warm');
-const sandboxes = process.argv.includes('--sandboxes');
 const selected = process.argv
   .slice(2)
   .filter(
@@ -35,22 +34,11 @@ const selected = process.argv
         '--image-only',
         '--stdio',
         '--media',
-        '--sandboxes',
         '--warm',
       ].includes(a),
   );
-for (const harness of sandboxes
-  ? warm
-    ? selected.length
-      ? selected
-      : harnessNames
-    : ['codex']
-  : stdio
-    ? ['stdio']
-    : selected.length
-      ? selected
-      : harnessNames) {
-  if (![...harnessNames, 'stdio', 'sandbox'].includes(harness))
+for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNames) {
+  if (![...harnessNames, 'stdio'].includes(harness))
     throw new Error('Choose a supported native harness');
   const args = [
     'run',
@@ -87,7 +75,7 @@ for (const harness of sandboxes
         'restore',
         'deepseek-bridge',
         'document-worker',
-        ...(sandboxes ? ['sandbox-control', 'sandbox-control-cli', 'snapshot-page', 'stdio-call'] : []),
+        'snapshot-page', 'stdio-call',
       ])
     args.push(
       '--mount',
@@ -101,7 +89,7 @@ for (const harness of sandboxes
   args.push(
     process.env.DOCKER_RUNTIME_IMAGE || 'platform-runtime:0.1.0',
     'node',
-    sandboxes ? '/tests/sandbox-native.mjs' : stdio ? '/tests/stdio-native.mjs' : '/tests/native-mock.mjs',
+    stdio ? '/tests/stdio-native.mjs' : '/tests/native-mock.mjs',
   );
   if (!stdio) args.push(harness);
   if (warm) args.push('--warm');

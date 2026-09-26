@@ -41,7 +41,7 @@ pnpm check
 pnpm test:domain
 ```
 
-The domain test wrapper creates disposable databases and files. It leaves the development preview intact. For actual harness behavior, use [native Docker fixtures](docker.md#run-the-existing-native-tests); for live inference and complete cloud execution, use [cloud staging](cloud.md).
+The domain test wrapper creates disposable databases and files. It leaves the development preview intact. For actual harness behavior, use [native Docker fixtures](docker.md#free-runtime-verification); for live inference and complete cloud execution, use [cloud staging](cloud.md).
 
 ## Stop and resume
 

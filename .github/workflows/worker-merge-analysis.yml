@@ -122,6 +122,7 @@ jobs:
           pnpm sdk:generate:all
           pnpm docs:generate
           git add -A
+          pnpm install --frozen-lockfile --reporter=append-only
           test -z "$(git diff --name-only --diff-filter=U)"
       - name: Verify combined source
         run: |

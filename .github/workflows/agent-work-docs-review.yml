@@ -1,0 +1,58 @@
+name: Agent work documentation review
+on:
+  push:
+    branches: [docs/agent-work-public-story]
+permissions:
+  contents: read
+concurrency:
+  group: agent-work-docs-review
+  cancel-in-progress: true
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Export exact source for isolated review
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, zipfile
+          root = pathlib.Path.cwd()
+          with zipfile.ZipFile(pathlib.Path(os.environ['RUNNER_TEMP']) / 'source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in root.rglob('*'):
+                  if '.git' in path.parts or not path.is_file():
+                      continue
+                  if path.stat().st_size <= 4 * 1024 * 1024:
+                      archive.write(path, path.relative_to(root))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agent-work-source
+          path: ${{ runner.temp }}/source.zip
+          retention-days: 2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Generate and check public documentation
+        run: pnpm docs:generate && pnpm docs:check
+      - name: Export generated documentation and framework guide
+        if: always()
+        run: |
+          mkdir -p /tmp/agent-work-review
+          cp apps/web/lib/docs/generated.json llms.txt /tmp/agent-work-review/
+          cp apps/web/node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md /tmp/agent-work-review/next-components.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: agent-work-generated
+          path: /tmp/agent-work-review/
+          retention-days: 2

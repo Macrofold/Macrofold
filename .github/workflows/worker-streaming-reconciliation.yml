@@ -1,0 +1,133 @@
+name: Worker streaming reconciliation
+on:
+  push:
+    branches: [integration/worker-reconciliation-checks]
+    paths: [.github/workflows/worker-streaming-reconciliation.yml]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  exercise:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: cd88616b9835c29b9ed89551054f0b5cc6315952
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run setup
+      - name: Exercise actual HTTP, admission, streaming and accounting with one held synthetic provider response
+        run: |
+          mkdir -p /tmp/streaming-reconciliation
+          cat > .streaming-reconciliation.mts <<'TS'
+          import assert from 'node:assert/strict';
+          import { withFixtureDatabase } from './scripts/fixture-database';
+          import { command } from './scripts/coverage/processes';
+          if (!process.env.STREAMING_RECONCILIATION_INNER) {
+            await withFixtureDatabase(env => command(['exec','tsx','.streaming-reconciliation.mts'], {...env,STREAMING_RECONCILIATION_INNER:'1'}));
+          } else {
+            const { fixtureAccount } = await import('./tests/fixtures/account');
+            const { pool,authPool,credentialPool,transaction } = await import('./packages/db');
+            const { config } = await import('./packages/core/src/config');
+            const { handleApi } = await import('./packages/core/src/http');
+            const { credit } = await import('./packages/core/src/ledger');
+            const { createKey } = await import('./packages/core/src/keys');
+            const { getRun } = await import('./packages/core/src/runs');
+            const { id } = await import('./packages/core/src/crypto');
+            const account=await fixtureAccount('Worker streaming reconciliation');
+            const tx=action=>transaction(account.p.organizationId,action);
+            await tx(t=>credit(t,account.p.organizationId,10000000n,`stream-reconcile:${id()}`));
+            const originalFetch=globalThis.fetch;
+            const originalPaid=config.allowPaid;
+            const tasks:Promise<void>[]=[];
+            const background=(task:()=>Promise<void>)=>{const pending=task();void pending.catch(()=>{});tasks.push(pending);};
+            const api=(path:string,body?:unknown,key=id(),credential=account.key)=>handleApi(new Request(config.origin+path,{
+              method:body===undefined?'GET':'POST',headers:{authorization:`Bearer ${credential}`,'content-type':'application/json','idempotency-key':key},
+              ...(body===undefined?{}:{body:JSON.stringify(body)}),
+            }),'rest',background);
+            let calls=0;
+            let finish:()=>void=()=>{};
+            const encoder=new TextEncoder();
+            globalThis.fetch=async(input,init)=>{
+              assert.equal(String(input),'https://api.anthropic.com/v1/messages','No other outbound request is permitted');
+              const body=JSON.parse(String(init?.body));assert.equal(body.stream,true);
+              calls++;
+              return new Response(new ReadableStream({start(controller){
+                const frame=(value:unknown)=>controller.enqueue(encoder.encode(`data: ${JSON.stringify(value)}\n\n`));
+                frame({type:'message_start',message:{id:'fixture-stream',type:'message',role:'assistant',model:'claude-haiku-4-5-20251001',content:[],usage:{input_tokens:100,output_tokens:0}}});
+                frame({type:'content_block_start',index:0,content_block:{type:'text',text:''}});
+                frame({type:'content_block_delta',index:0,delta:{type:'text_delta',text:'Hello'}});
+                finish=()=>{
+                  frame({type:'content_block_stop',index:0});
+                  frame({type:'message_delta',delta:{stop_reason:'end_turn',stop_sequence:null},usage:{output_tokens:10}});
+                  frame({type:'message_stop'});controller.close();
+                };
+              }}),{headers:{'content-type':'text/event-stream','request-id':'fixture-stream'}});
+            };
+            process.env.ANTHROPIC_API_KEY='synthetic-stream-fixture';
+            config.allowPaid=true; // Only after every outbound request is replaced by the explicit fixture above.
+            const timeout=setTimeout(()=>{console.error('Streaming verification deadline exceeded');process.exit(1);},90000);timeout.unref();
+            try{
+              const workerResponse=await api('/v1/workers',{compute:'server',dedicated:true,isolate_runs:false,min_instances:0,max_instances:1});
+              assert.equal(workerResponse.status,202);const worker=await workerResponse.json();
+              const workspace=await(await api('/v1/workspaces',{name:'Stream-aware native context'})).json();
+              const nativeBody={workspace_id:workspace.id,prompt:'Native stream admission',harness:'codex',model:'fixture-model',billing_mode:'managed',worker_id:worker.id,stream:true};
+              const nativeResponse=await api('/v1/runs',nativeBody);assert.equal(nativeResponse.status,202);
+              const native=await nativeResponse.json();assert.equal(native.worker_id,worker.id);
+              assert.equal((await api(`/v1/runs/${native.run_id}/cancel`,{})).status,202);
+              const rejected=await api('/v1/runs',{...nativeBody,harness:'deepseek'});
+              assert.equal(rejected.status,400);assert.equal((await rejected.json()).error.code,'streaming_not_supported');
+              const writeOnly=await tx(t=>createKey(t,account.p,{name:'Native write-only fixture',scopes:['runs:write','workers:use'],worker_ids:[worker.id]}));
+              const forbidden=await api('/v1/runs',nativeBody,id(),writeOnly.secret);assert.equal(forbidden.status,403);
+              const request={stream:true,model_binding:{provider:'anthropic',model:'claude-haiku-4-5-20251001',billing_mode:'managed'},
+                input:{messages:[{role:'user',content:'One streamed fixture response'}],max_tokens:64},
+                limits:{timeout_seconds:60,max_output_tokens:64,max_cost_micro_usd:'100000'}};
+              const identity=id();const response=await api('/v1/inferences',request,identity);
+              assert.equal(response.status,200);assert.match(response.headers.get('content-type')||'',/text\/event-stream/);
+              const runId=response.headers.get('x-run-id');assert.ok(runId);
+              const reader=response.body!.getReader();let received='';
+              while(!received.includes('output.delta')){const next=await reader.read();assert.equal(next.done,false);received+=new TextDecoder().decode(next.value);}
+              assert.match(received,/Hello/);assert.equal(calls,1);
+              assert.equal((await tx(t=>getRun(t,runId))).status,'running');
+              const duplicate=await api('/v1/inferences',request,identity);
+              assert.equal(duplicate.status,409);assert.equal((await duplicate.json()).error.code,'stream_already_started');
+              await reader.cancel();finish();await Promise.all(tasks);
+              const completed=await tx(t=>getRun(t,runId));assert.equal(completed.status,'succeeded');assert.equal(completed.cost_micro_usd,'150');
+              const replay=await api('/v1/inferences',request,identity);assert.equal(replay.status,200);
+              const replayText=await replay.text();assert.match(replayText,/result_replay/);assert.match(replayText,/run.succeeded/);assert.doesNotMatch(replayText,/output.delta/);
+              assert.equal(calls,1);
+              const state=await tx(async t=>({hosts:(await t.query('SELECT id FROM hosts')).rowCount,
+                usage:(await t.query('SELECT id FROM model_usage WHERE run_id=$1',[runId])).rowCount,
+                reservation:(await t.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1',[account.p.organizationId])).rows[0].reserved_micro_usd}));
+              assert.deepEqual(state,{hosts:0,usage:1,reservation:'0'});
+              await Promise.all(tasks);
+              console.log('WORKER_STREAMING_RECONCILIATION',JSON.stringify({source:'cd88616b9835c29b9ed89551054f0b5cc6315952',
+                native_worker_receipt:true,native_capability_rejection:true,native_read_scope_enforced:true,
+                incremental_before_completion:true,disconnect_without_cancel:true,active_replay_rejected:true,completed_replay_without_generation:true,
+                provider_fixture_calls:calls,settled_model_rows:state.usage,native_hosts_created:state.hosts,paid_api_calls:0}));
+            }finally{
+              clearTimeout(timeout);globalThis.fetch=originalFetch;config.allowPaid=originalPaid;
+              await Promise.allSettled(tasks);await pool.end();await authPool.end();await credentialPool.end();
+            }
+          }
+          TS
+          pnpm exec tsx .streaming-reconciliation.mts 2>&1 | tee /tmp/streaming-reconciliation/execution.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worker-streaming-reconciliation
+          path: /tmp/streaming-reconciliation/
+          retention-days: 7
+      - if: always()
+        run: docker compose -f infra/compose.yml down -v

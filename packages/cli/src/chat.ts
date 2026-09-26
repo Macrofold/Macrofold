@@ -89,10 +89,12 @@ export async function chat(context: Context, existing?: Schema['Session']) {
     interrupts = 0,
     submission = Promise.resolve();
   let finish: (value: unknown) => void = () => {};
+  let outputRunId: string | undefined;
   const done = new Promise((resolve) => {
     finish = resolve;
   });
   const add = (text: string) => {
+    outputRunId = undefined;
     state.lines.push(terminalText(text));
     if (state.lines.length > 1000) state.lines.splice(0, state.lines.length - 1000);
     ui.update(state);
@@ -148,9 +150,11 @@ export async function chat(context: Context, existing?: Schema['Session']) {
           }
           const line = eventLine(event);
           if (event.type === 'output.delta') {
-            const last = state.lines.length - 1;
-            if (last < 0) state.lines.push('');
-            state.lines[Math.max(0, last)] += line;
+            if (outputRunId !== event.run_id || !state.lines.length) {
+              state.lines.push('Assistant › ');
+              outputRunId = event.run_id;
+            }
+            state.lines[state.lines.length - 1] += terminalText(line);
             ui.update(state);
           } else if (line) add(line);
         },

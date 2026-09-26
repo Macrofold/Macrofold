@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { permissionFileTools, fileToolName, fileToolDescription, fileToolSchema } from './permission-files';
 import path from 'node:path';
@@ -131,6 +132,8 @@ export class PiAdapter implements HarnessAdapter {
       failed = false,
       successful = false;
     let pending = Promise.resolve();
+    let messageId = randomUUID();
+    const reasoningBlocks = new Set<string>();
     try {
       const abort = () => {
         void session.abort();
@@ -141,13 +144,42 @@ export class PiAdapter implements HarnessAdapter {
         await emit({ type: 'runtime.started', data: { harness: 'pi', native_session_id: resumeId, reused } });
         const unsubscribe = session.subscribe((event) => {
           pending = pending.then(async () => {
+            if (event.type === 'message_start') messageId = randomUUID();
+            if (event.type === 'message_update') {
+              const part = event.assistantMessageEvent;
+              if (
+                part.type === 'thinking_start' ||
+                part.type === 'thinking_delta' ||
+                part.type === 'thinking_end'
+              ) {
+                const block = part.partial.content[part.contentIndex];
+                if (block?.type === 'thinking' && !block.redacted) {
+                  const data = { reasoning_id: `${messageId}:${part.contentIndex}`, format: 'text' };
+                  reasoningBlocks.add(data.reasoning_id);
+                  // Pi can emit thinking_end before rejecting a truncated stream.
+                  // Only the assistant message outcome establishes completion.
+                  if (part.type === 'thinking_start') await emit({ type: 'reasoning.started', data });
+                  else if (part.type === 'thinking_delta')
+                    await emit({ type: 'reasoning.delta', data: { ...data, text: part.delta } });
+                }
+              }
+            }
             if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
               const text = event.assistantMessageEvent.delta;
               output += text;
               await emit({ type: 'output.delta', data: { text } });
             }
-            if (event.type === 'message_end' && event.message.role === 'assistant')
-              failed ||= event.message.stopReason === 'error' || event.message.stopReason === 'aborted';
+            if (event.type === 'message_end' && event.message.role === 'assistant') {
+              const interrupted =
+                event.message.stopReason === 'error' || event.message.stopReason === 'aborted';
+              failed ||= interrupted;
+              for (const id of reasoningBlocks)
+                await emit({
+                  type: 'reasoning.completed',
+                  data: { reasoning_id: id, status: interrupted ? 'interrupted' : 'completed' },
+                });
+              reasoningBlocks.clear();
+            }
             if (event.type === 'tool_execution_start')
               await emit({
                 type: 'tool.started',

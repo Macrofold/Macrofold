@@ -52,7 +52,7 @@ macrofold run "Create hello.txt containing Hello world." --harness pi --model gp
 
 Continue the returned session to reuse both its conversation and the latest verified worktree files. Native state stays with its session: Hermes retains its session database, skills, and memory; DeepSeek retains its session logs; Pi retains its conversation files. Starting another harness creates a new conversation over the same worktree rather than translating another harness's history.
 
-Hermes and Pi stream assistant text as it arrives. The DeepSeek adapter publishes text when each assistant message commits; tool events appear as work progresses. `stream_text()` handles the same normalized stream for every harness and excludes tool payloads and private reasoning. Use `runs.events()` for structured activity or `runs.wait()` for the final result.
+Hermes and Pi stream assistant text as it arrives. The DeepSeek adapter publishes text when each assistant message commits; tool events appear as work progresses. `stream_text()` handles the same normalized stream for every harness and excludes tool payloads and all reasoning. Use `runs.events()` for structured activity or `runs.wait()` for the final result. Codex, Claude Code, OpenCode, Hermes and Pi also expose provider-supplied thinking through separate [reasoning events](../api/streaming.md#show-thinking-without-mixing-it-into-the-answer). Check `reasoning_output` in the harness catalog; readable text and its timing depend on the selected model and native SDK.
 
 Cancelling a run stops its native process and saves recoverable files. It does not undo completed tools. Closing a stream only detaches. DeepSeek cancellation stops its supervised native process.
 

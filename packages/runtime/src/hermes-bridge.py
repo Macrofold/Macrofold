@@ -121,14 +121,39 @@ def main():
         if not register_mcp_servers(config["mcp_servers"]):
             raise RuntimeError("Authorized MCP broker unavailable")
         toolsets.extend("mcp-" + name for name in config["mcp_servers"])
+    reasoning_id = None
+
+    def finish_reasoning():
+        nonlocal reasoning_id
+        if reasoning_id:
+            emit("reasoning.completed", reasoning_id=reasoning_id, status="completed")
+            reasoning_id = None
+
+    def reasoning_delta(text):
+        nonlocal reasoning_id
+        if not isinstance(text, str) or not text:
+            return
+        if reasoning_id is None:
+            reasoning_id = str(uuid.uuid4())
+            emit("reasoning.started", reasoning_id=reasoning_id, format="text")
+        emit("reasoning.delta", reasoning_id=reasoning_id, format="text", text=text)
+
+    def text_delta(text):
+        finish_reasoning()
+        emit("output.delta", text=text)
+
+    def tool_started(ident, name, args):
+        finish_reasoning()
+        emit("tool.started", tool_call_id=ident, name=name, arguments=args)
+
     agent = AIAgent(
         **route, api_mode="chat_completions", max_tokens=8192,
         session_id=session_id, session_db=db, enabled_toolsets=toolsets,
         quiet_mode=True, skip_background_review=True, fallback_model=[],
         ephemeral_system_prompt=c.get("instructions"),
-        stream_delta_callback=lambda text: emit("output.delta", text=text),
-        tool_start_callback=lambda ident, name, args: emit(
-            "tool.started", tool_call_id=ident, name=name, arguments=args),
+        stream_delta_callback=text_delta,
+        reasoning_callback=reasoning_delta,
+        tool_start_callback=tool_started,
         tool_complete_callback=lambda ident, name, args, result: emit(
             "tool.completed", tool_call_id=ident, name=name, result=result),
         clarify_callback=clarify,
@@ -142,6 +167,8 @@ def main():
             result = agent.run_conversation(user_message=c["prompt"], conversation_history=history)
             outcome = "cancelled" if result.get("interrupted") else (
                 "success" if result.get("completed") and not result.get("error") else "failure")
+            if outcome == "success":
+                finish_reasoning()
             send({"type": "result", "result": {
                 "output": result.get("final_response") or "", "resumeId": agent.session_id,
                 "outcome": outcome, **({"failureCode": "harness_error"} if outcome == "failure" else {}),

@@ -50,7 +50,7 @@ All six adapters implement the [universal permission policy](permissions.md) thr
 
 OpenCode server startup allows up to 30 seconds, capped by the remaining run deadline, and receives the run's cancellation signal. The SDK's default five-second startup window proved insufficient in the local native fixture on a busy host. This allowance does not retry prompt execution.
 
-The runtime emits normalized output deltas, tool events, lifecycle metadata and provider-exposed reasoning summaries. It does not export private chain-of-thought blocks. Each event has a producer sequence; the database assigns the public durable sequence and deduplicates repeated ingestion. The supervisor writes bounded JSONL records and the cloud poller resumes by byte offset. Large tool payloads and oversized traces are explicitly marked as truncated.
+The runtime emits normalized output deltas, tool events, lifecycle metadata and provider-exposed reasoning summaries. It forwards readable provider-exposed thinking separately from answer text, never encrypted reasoning, signatures or redacted blocks. The worker batches reasoning fragments through `reasoning-events.ts` before supervisor persistence. Each event has a producer sequence; the database assigns the public durable sequence and deduplicates repeated ingestion. The supervisor writes bounded JSONL records and the cloud poller resumes by byte offset. Large tool payloads and oversized traces are explicitly marked as truncated.
 
 ## Harness adapters
 

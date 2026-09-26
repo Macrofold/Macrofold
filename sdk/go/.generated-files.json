@@ -198,6 +198,7 @@
   "model_organization_create.go",
   "model_permission_patterns.go",
   "model_plan.go",
+  "model_reasoning_event_data.go",
   "model_recommendation.go",
   "model_redirect.go",
   "model_report.go",

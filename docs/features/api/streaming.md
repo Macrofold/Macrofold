@@ -107,6 +107,44 @@ for await (const text of client.runs.streamText(run.run_id)) process.stdout.writ
 
 Use `runs.events` for tools, lifecycle events and model-call boundaries. Session/customer-agent messages accept the same boolean and validate the resolved session or preset harness. Native/bounded execution can queue normally. `/v1/harnesses` includes `incremental_output` only on harnesses that emit incremental assistant text; `streaming` alone means run-event delivery, including completed messages.
 
+## Show thinking without mixing it into the answer
+
+Native runs expose readable reasoning supplied by the harness/provider through the same authenticated run stream. No extra endpoint, subscription or model call is needed. Use `runs.events`, rather than the answer-only `runs.streamText` helper:
+
+```ts
+const thinking = new Map<string, string>();
+for await (const event of client.runs.events(run.run_id)) {
+  const id = event.data.reasoning_id;
+  if (event.type === 'reasoning.started' && typeof id === 'string') {
+    thinking.set(id, ''); // Show a thinking indicator for this block.
+  }
+  if (event.type === 'reasoning.delta' && typeof id === 'string') {
+    thinking.set(id, (thinking.get(id) ?? '') + String(event.data.text ?? ''));
+    console.error('Thinking:', thinking.get(id));
+  }
+  if (event.type === 'reasoning.completed') {
+    console.error('Thinking block:', id, event.data.status);
+  }
+  if (event.type === 'output.delta') process.stdout.write(String(event.data.text ?? ''));
+}
+```
+
+REST consumers receive the same events from `GET /v1/runs/{id}/stream`; all five SDK event helpers preserve them. The generated `ReasoningEventData` model documents the payload. Group by `reasoning_id`, append `text` in event sequence order, and use the existing cursor to avoid duplication on reconnect. Keep thinking in a separate disclosure; the dashboard does this automatically. Do not append it to answer text or execute its contents.
+
+| Event | Data | Meaning |
+| --- | --- | --- |
+| `reasoning.started` | `reasoning_id`, `format` | A native reasoning block started; readable text may never follow. |
+| `reasoning.delta` | `reasoning_id`, `format`, `text` | Append this readable fragment. `format` is `summary` or `text`. |
+| `reasoning.completed` | `reasoning_id`, `status` | Block ended (`completed`) or the turn stopped (`interrupted`). This is not run completion. |
+
+Codex exposes readable summaries; Claude Code, OpenCode, Hermes and Pi map their SDK's exposed thinking text. `/v1/harnesses` advertises `reasoning_output` for these adapters. It describes event support, not a promise that a selected model/turn emits reasoning. DeepSeek's pinned adapter has no reasoning events. Direct inference and bounded-agent streams currently expose answer/tool deltas only; this reasoning contract applies to native harness runs.
+
+**Reasoning visibility and reasoning effort are different.** Displaying an existing stream does not raise the model's effort or create extra inference. Existing harness/model defaults still apply. Codex requests automatic summaries. On compatible OpenRouter routes, the existing `model_parameters.reasoning.effort` controls generation (for example `low`); strict provider parameter support is enforced. Pi's local thinking setting remains off by default; an admitted OpenRouter reasoning setting is applied at the gateway. Pi only forwards its SDK's readable thinking events; an OpenRouter route that provides only opaque replay metadata can produce an empty block. Higher effort can increase tokens, cost and latency. Unsupported parameters fail rather than silently selecting another model.
+
+Only readable provider-exposed text is published. Encrypted reasoning, signatures and redacted blocks remain native protocol state. No attempt is made to reconstruct hidden reasoning. Treat readable thinking as untrusted, potentially sensitive model output; it shares authorized run history and its retention rules. `output_text` and answer-only helpers never include it.
+
+Thinking can precede answer text but cannot precede container/harness startup. Show the existing queued/provisioning/runtime/tool events during those stages. No reasoning events does not mean a stuck run. A block can start without any readable text; if the run terminates or detailed history is truncated before its completion event, stop the indicator and mark that block incomplete. Native delivery retains its polling cadence, so batches may arrive together.
+
 ## Events and final results
 
 Direct SSE begins with `run.accepted` and the run ID/recovery URLs. `output.delta` carries `text`, `invocation_id`, `message_id`, `content_index`, and a `choice_index` when relevant. `tool.arguments.delta` carries opaque text and tool identity separately. Never execute a tool from partial arguments or concatenate independent choices into one answer. Content lifecycle/refusal events carry the same identities. Native events keep their existing harness granularity and envelope.

@@ -199,6 +199,7 @@
   "src/models/organization_create.rs",
   "src/models/permission_patterns.rs",
   "src/models/plan.rs",
+  "src/models/reasoning_event_data.rs",
   "src/models/recommendation.rs",
   "src/models/redirect.rs",
   "src/models/report.rs",

@@ -2975,6 +2975,7 @@ export interface components {
             run_id: string;
             /** @description Non-negative integer count as a decimal string. */
             sequence: string;
+            /** @description Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only. */
             type: string;
             /** Format: date-time */
             occurred_at: string;
@@ -3241,6 +3242,7 @@ export interface components {
             id: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
             version: string;
             enabled: boolean;
+            /** @description Enabled adapter capabilities. incremental_output means answer deltas; reasoning_output means provider-exposed thinking events can be delivered. Neither guarantees a particular model/turn emits text. */
             capabilities: string[];
         };
         Model: {
@@ -4737,6 +4739,23 @@ export interface components {
             } & {
                 [key: string]: unknown;
             };
+        };
+        /** @description Native reasoning.started/delta/completed payload. Provider-exposed readable reasoning only; separate from output.delta and final output_text. Append delta text by reasoning_id in event sequence order. Completion closes a block, not the run. A terminal run without block completion means interruption. */
+        ReasoningEventData: {
+            /** @description Stable block identity within this run; distinct across model turns. */
+            reasoning_id: string;
+            /**
+             * @description Provider summary or provider-exposed thinking text; included on started/delta.
+             * @enum {string}
+             */
+            format?: "summary" | "text";
+            /** @description Append-only readable fragment on reasoning.delta. Never encrypted reasoning or a signature. */
+            text?: string;
+            /**
+             * @description On reasoning.completed; completed means the block ended, not that its statements are authoritative.
+             * @enum {string}
+             */
+            status?: "completed" | "interrupted";
         };
     };
     responses: never;

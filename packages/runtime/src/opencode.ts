@@ -89,8 +89,11 @@ export class OpenCodeAdapter implements HarnessAdapter {
     const client = createSessionClient({ baseUrl: server.url });
     let sessionId = this.sessionId || c.resumeId,
       output = '';
+    const parts = new Map<string, { type: string; length: number }>();
     let done = false;
     const controller = new AbortController();
+    const transportSignal = AbortSignal.any([controller.signal, signal]);
+    let consume: Promise<void> | undefined;
     const questions = createOpencodeClient({ baseUrl: 'http://127.0.0.1:4096' });
     try {
       if (!sessionId) {
@@ -105,11 +108,22 @@ export class OpenCodeAdapter implements HarnessAdapter {
         data: { harness: 'opencode', native_session_id: sessionId, reused },
       });
       setStage?.('event_subscribe');
-      const subscription = await client.event.subscribe({ signal: controller.signal });
-      const consume = (async () => {
+      let connected!: () => void;
+      const subscribed = new Promise<void>((resolve) => {
+        connected = resolve;
+      });
+      const subscription = await client.event.subscribe({
+        signal: transportSignal,
+        sseMaxRetryAttempts: 1,
+      });
+      consume = (async () => {
         for await (const event of subscription.stream) {
           if (done) break;
           const raw = event as unknown as { type: string; properties: Record<string, unknown> };
+          if (raw.type === 'server.connected') connected();
+          // The prompt HTTP response can arrive before its queued SSE tail.
+          // Drain to the session boundary, including all model/tool turns.
+          if (raw.type === 'session.idle' && raw.properties.sessionID === sessionId) return;
           if (raw.type === 'question.asked' && raw.properties.sessionID === sessionId) {
             const request = raw.properties as {
               id: string;
@@ -131,12 +145,21 @@ export class OpenCodeAdapter implements HarnessAdapter {
             raw.properties.field === 'text'
           ) {
             const text = String(raw.properties.delta || '');
-            output += text;
-            await emit({ type: 'output.delta', data: { text } });
+            const id = String(raw.properties.partID || '');
+            const part = parts.get(id);
+            if (part?.type === 'reasoning') {
+              part.length += text.length;
+              await emit({ type: 'reasoning.delta', data: { reasoning_id: id, format: 'text', text } });
+            } else if (part?.type === 'text') {
+              output += text;
+              await emit({ type: 'output.delta', data: { text } });
+            }
           }
           if (raw.type === 'message.part.updated') {
             const part = raw.properties.part as {
+              id: string;
               type: string;
+              time?: { end?: number };
               sessionID: string;
               text?: string;
               callID?: string;
@@ -144,6 +167,29 @@ export class OpenCodeAdapter implements HarnessAdapter {
               state?: Record<string, unknown>;
             };
             if (part.sessionID !== sessionId) continue;
+            const previous = parts.get(part.id);
+            if (!previous) parts.set(part.id, { type: part.type, length: 0 });
+            if (part.type === 'reasoning') {
+              if (!previous)
+                await emit({ type: 'reasoning.started', data: { reasoning_id: part.id, format: 'text' } });
+              // Snapshots repeat streamed text; publish only an unseen suffix.
+              const saved = parts.get(part.id)!;
+              const text =
+                typeof raw.properties.delta === 'string'
+                  ? raw.properties.delta
+                  : (part.text || '').slice(saved.length);
+              saved.length += text.length;
+              if (text)
+                await emit({
+                  type: 'reasoning.delta',
+                  data: { reasoning_id: part.id, format: 'text', text },
+                });
+              if (part.time?.end !== undefined)
+                await emit({
+                  type: 'reasoning.completed',
+                  data: { reasoning_id: part.id, status: 'completed' },
+                });
+            }
             if (part.type === 'text' && raw.properties.delta) {
               const text = String(raw.properties.delta);
               output += text;
@@ -177,30 +223,37 @@ export class OpenCodeAdapter implements HarnessAdapter {
       };
       signal.addEventListener('abort', abort, { once: true });
       try {
-        setStage?.('turn_execute');
-        const response = await Promise.race([
-          client.session.prompt({
-            path: { id: sessionId },
-            body: {
-              agent: c.harnessPromptMode === 'extend' ? 'build' : 'macrofold',
-              model: { providerID: 'platform', modelID: c.model },
-              ...(c.instructions ? { system: c.instructions } : {}),
-              parts: [{ type: 'text', text: c.prompt }],
-            },
-          }),
+        // SDK subscriptions connect lazily; do not submit before the feed is live.
+        await Promise.race([
+          subscribed,
           consume.then(() => {
-            throw new Error('OpenCode event stream ended before the turn completed');
+            throw new Error('OpenCode event stream ended before subscription');
           }),
         ]);
-        if (response.error) throw new Error('OpenCode turn failed');
+        setStage?.('turn_execute');
+        const [response] = await Promise.all([
+          client.session
+            .prompt({
+              signal: transportSignal,
+              path: { id: sessionId },
+              body: {
+                agent: c.harnessPromptMode === 'extend' ? 'build' : 'macrofold',
+                model: { providerID: 'platform', modelID: c.model },
+                ...(c.instructions ? { system: c.instructions } : {}),
+                parts: [{ type: 'text', text: c.prompt }],
+              },
+            })
+            .then((response) => {
+              if (response.error) throw new Error('OpenCode turn failed');
+              return response;
+            }),
+          consume,
+        ]);
         const full = response.data?.parts
           .filter((p) => p.type === 'text')
           .map((p) => (p.type === 'text' ? p.text : ''))
           .join('\n');
         if (full) output = full;
-        done = true;
-        controller.abort();
-        await consume;
         successful = !signal.aborted;
         return { output, resumeId: sessionId, outcome: signal.aborted ? 'cancelled' : 'success' };
       } finally {
@@ -209,6 +262,8 @@ export class OpenCodeAdapter implements HarnessAdapter {
     } finally {
       done = true;
       controller.abort();
+      // Do not let queued emissions outlive the worker's reasoning closure.
+      await consume?.catch(() => {});
       if (!c.warm || !successful) this.close();
     }
   }

@@ -34,7 +34,7 @@ class Event(BaseModel):
     schema_version: StrictInt
     run_id: UUID
     sequence: Annotated[str, Field(strict=True)] = Field(description="Non-negative integer count as a decimal string.")
-    type: StrictStr
+    type: StrictStr = Field(description="Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only.")
     occurred_at: datetime
     ingested_at: datetime
     data: Dict[str, Any] = Field(description="Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.")

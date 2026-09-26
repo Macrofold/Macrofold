@@ -7,6 +7,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: true,
+      reasoning_output: true,
       continuation: true,
       cancellation: true,
       mcp: true,
@@ -20,6 +21,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: true,
+      reasoning_output: true,
       continuation: true,
       cancellation: true,
       mcp: true,
@@ -33,6 +35,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: true,
+      reasoning_output: true,
       continuation: true,
       cancellation: true,
       mcp: true,
@@ -46,6 +49,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: true,
+      reasoning_output: true,
       continuation: true,
       cancellation: true,
       mcp: true,
@@ -59,6 +63,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: false,
+      reasoning_output: false,
       continuation: true,
       cancellation: true,
       mcp: true,
@@ -72,6 +77,7 @@ export const harnesses = [
     capabilities: {
       streaming: true,
       incremental_output: true,
+      reasoning_output: true,
       continuation: true,
       cancellation: true,
       mcp: true,

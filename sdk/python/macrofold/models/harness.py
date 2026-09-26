@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,7 +30,7 @@ class Harness(BaseModel):
     id: StrictStr
     version: StrictStr
     enabled: StrictBool
-    capabilities: List[StrictStr]
+    capabilities: List[StrictStr] = Field(description="Enabled adapter capabilities. incremental_output means answer deltas; reasoning_output means provider-exposed thinking events can be delivered. Neither guarantees a particular model/turn emits text.")
     __properties: ClassVar[List[str]] = ["id", "version", "enabled", "capabilities"]
 
     @field_validator('id')

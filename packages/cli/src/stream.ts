@@ -36,6 +36,10 @@ export function waitingLine(run: Schema['Run']) {
 export const eventLine = (event: Schema['Event']) => {
   if (event.type === 'output.delta') return String(event.data.text || '');
   if (event.type === 'reasoning.summary') return `Reasoning summary: ${String(event.data.text || '')}`;
+  if (event.type === 'reasoning.started') return 'Thinking…';
+  if (event.type === 'reasoning.delta') return `Thinking: ${String(event.data.text || '')}`;
+  if (event.type === 'reasoning.completed')
+    return event.data.status === 'interrupted' ? 'Thinking interrupted' : 'Thinking complete';
   if (event.type.startsWith('tool.'))
     return `${event.type === 'tool.started' ? '↳' : '✓'} ${String(event.data.name || event.data.tool || 'Tool')} ${String(event.data.summary || '')}`;
   if (event.type === 'input.requested')

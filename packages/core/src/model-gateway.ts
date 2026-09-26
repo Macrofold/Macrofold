@@ -507,7 +507,9 @@ export async function handleModelRequest(
         cancel() {
           closed = true;
           controller.abort();
-          void reader.cancel();
+          // Aborting can already have errored the upstream reader. The read loop
+          // owns settlement; a cleanup rejection must not escape that lifecycle.
+          return reader.cancel().catch(() => {});
         },
       });
       return new Response(stream, {

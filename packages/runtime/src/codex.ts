@@ -13,9 +13,26 @@ export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   if (message.method === 'item/agentMessage/delta')
     return { type: 'output.delta', data: { text: params.delta || '' } };
   if (message.method === 'item/reasoning/summaryTextDelta')
-    return { type: 'reasoning.summary', data: { text: params.delta || '' } };
+    return {
+      type: 'reasoning.delta',
+      data: { reasoning_id: params.itemId, format: 'summary', text: params.delta || '' },
+    };
+  if (message.method === 'item/reasoning/summaryPartAdded')
+    return {
+      type: 'reasoning.delta',
+      data: {
+        reasoning_id: params.itemId,
+        format: 'summary',
+        text: Number(params.summaryIndex) > 0 ? '\n\n' : '',
+      },
+    };
   if (item && ['item/started', 'item/completed'].includes(message.method || '')) {
     const type = String(item.type);
+    if (type === 'reasoning')
+      return {
+        type: message.method === 'item/started' ? 'reasoning.started' : 'reasoning.completed',
+        data: { reasoning_id: item.id, format: 'summary', status: 'completed' },
+      };
     if (['reasoning', 'agentMessage', 'userMessage', 'contextCompaction', 'plan'].includes(type)) return;
     const started = message.method === 'item/started';
     return {
@@ -64,6 +81,7 @@ export class CodexAdapter implements HarnessAdapter {
     const overrides: Record<string, unknown> = {
       model_provider: 'platform',
       model: c.model,
+      model_reasoning_summary: 'auto',
       'model_providers.platform.name': 'Platform',
       'model_providers.platform.base_url': `${c.gatewayURL}/v1`,
       'model_providers.platform.env_key': 'PLATFORM_RUN_TOKEN',

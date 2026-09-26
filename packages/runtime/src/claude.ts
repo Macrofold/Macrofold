@@ -27,6 +27,8 @@ export class ClaudeAdapter implements HarnessAdapter {
       this.close();
     };
     signal.addEventListener('abort', abort, { once: true });
+    let reasoningMessageId: string = randomUUID();
+    const reasoningBlocks = new Map<number, string>();
     let output = '',
       resumeId = c.resumeId;
     let outcome: NativeResult['outcome'] = 'failure';
@@ -148,14 +150,47 @@ export class ClaudeAdapter implements HarnessAdapter {
         if (message.type === 'stream_event') {
           const event = message.event as unknown as {
             type: string;
-            delta?: { type: string; text?: string };
+            index?: number;
+            message?: { id: string };
+            delta?: { type: string; text?: string; thinking?: string };
             content_block?: { type: string; id?: string; name?: string; input?: unknown };
           };
           if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
             output += event.delta.text || '';
             await emit({ type: 'output.delta', data: { text: event.delta.text || '' } });
           }
-          // Private thinking blocks are deliberately not persisted or displayed.
+          if (event.type === 'message_start') {
+            reasoningMessageId = event.message?.id || randomUUID();
+            reasoningBlocks.clear();
+          }
+          if (
+            event.type === 'content_block_start' &&
+            event.content_block?.type === 'thinking' &&
+            event.index !== undefined
+          ) {
+            const id = `${reasoningMessageId}:${event.index}`;
+            reasoningBlocks.set(event.index, id);
+            await emit({ type: 'reasoning.started', data: { reasoning_id: id, format: 'text' } });
+          }
+          if (
+            event.type === 'content_block_delta' &&
+            event.delta?.type === 'thinking_delta' &&
+            event.index !== undefined
+          ) {
+            const id = reasoningBlocks.get(event.index);
+            if (id && event.delta.thinking)
+              await emit({
+                type: 'reasoning.delta',
+                data: { reasoning_id: id, format: 'text', text: event.delta.thinking },
+              });
+          }
+          if (event.type === 'content_block_stop' && event.index !== undefined) {
+            const id = reasoningBlocks.get(event.index);
+            if (id)
+              await emit({ type: 'reasoning.completed', data: { reasoning_id: id, status: 'completed' } });
+            reasoningBlocks.delete(event.index);
+          }
+          // Signatures and redacted_thinking remain native protocol state only.
           if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use')
             await emit({
               type: 'tool.started',

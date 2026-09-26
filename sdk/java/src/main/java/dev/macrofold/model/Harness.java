@@ -190,7 +190,7 @@ public class Harness {
   }
 
   /**
-   * Get capabilities
+   * Enabled adapter capabilities. incremental_output means answer deltas; reasoning_output means provider-exposed thinking events can be delivered. Neither guarantees a particular model/turn emits text.
    * @return capabilities
    */
   @javax.annotation.Nonnull

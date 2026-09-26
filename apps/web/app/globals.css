@@ -1589,6 +1589,10 @@ pre,
 .reasoning-summary p {
   margin-top: 12px;
 }
+.reasoning-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .input-request {
   padding: 24px;
   border-top: 1px solid var(--line);

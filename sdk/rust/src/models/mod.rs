@@ -336,6 +336,8 @@ pub mod permission_patterns;
 pub use self::permission_patterns::PermissionPatterns;
 pub mod plan;
 pub use self::plan::Plan;
+pub mod reasoning_event_data;
+pub use self::reasoning_event_data::ReasoningEventData;
 pub mod recommendation;
 pub use self::recommendation::Recommendation;
 pub mod redirect;

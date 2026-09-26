@@ -169,6 +169,7 @@
   "macrofold/models/organization_create.py",
   "macrofold/models/permission_patterns.py",
   "macrofold/models/plan.py",
+  "macrofold/models/reasoning_event_data.py",
   "macrofold/models/recommendation.py",
   "macrofold/models/redirect.py",
   "macrofold/models/report.py",

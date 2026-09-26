@@ -24,6 +24,7 @@ pub struct Event {
     /// Non-negative integer count as a decimal string.
     #[serde(rename = "sequence")]
     pub sequence: String,
+    /// Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only.
     #[serde(rename = "type")]
     pub r#type: String,
     #[serde(rename = "occurred_at")]

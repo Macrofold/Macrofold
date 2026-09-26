@@ -1,6 +1,7 @@
 'use client';
 import { TaskLineage } from './task-lineage';
 import { InferenceResult } from './inference-result';
+import { ReasoningOutput } from './reasoning-output';
 import { RunArtifacts } from './run-artifacts';
 import { harnessLabel } from '../../../packages/contracts/harnesses';
 import { CopyButton } from './copy-button';
@@ -126,7 +127,6 @@ export function RunDetail({ runId }: { runId: string }) {
     ? events.filter((e) => e.type.startsWith('run.'))
     : events;
   const tools = visibleEvents.filter((e) => e.type.startsWith('tool.'));
-  const summaries = visibleEvents.filter((e) => e.type === 'reasoning.summary');
   return (
     <div className="page run-detail">
       <Link href="/runs" className="back-link">
@@ -257,12 +257,7 @@ export function RunDetail({ runId }: { runId: string }) {
               {!live && run.kind === 'native_agent' && !result.data?.content_expired && (
                 <RunArtifacts runId={runId} />
               )}
-              {summaries.map((e) => (
-                <details className="reasoning-summary" key={e.id}>
-                  <summary>Reasoning summary</summary>
-                  <p>{String(e.data.text || '')}</p>
-                </details>
-              ))}
+              <ReasoningOutput events={visibleEvents} live={live} />
               {result.data?.inference ? (
                 <InferenceResult receipt={result.data.inference} />
               ) : output ? (

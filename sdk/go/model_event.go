@@ -27,6 +27,7 @@ type Event struct {
 	RunId string `json:"run_id"`
 	// Non-negative integer count as a decimal string.
 	Sequence string `json:"sequence" validate:"regexp=^[0-9]+$"`
+	// Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only.
 	Type string `json:"type"`
 	OccurredAt time.Time `json:"occurred_at"`
 	IngestedAt time.Time `json:"ingested_at"`

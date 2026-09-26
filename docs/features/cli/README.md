@@ -32,6 +32,8 @@ Use `fixture-model` instead of `YOUR_ENABLED_MODEL` for free local simulation. U
 
 `--detach` submits a run and returns its ID. In chat, `/help` lists available commands; `/new` starts a new conversation, and `/detach` leaves remote work running.
 
+When the harness exposes readable thinking, the CLI shows it with `Thinking` labels separately from assistant answers, including completion or interruption. In plain redirected output, thinking and progress go to stderr; stdout contains the final answer. `--jsonl` preserves the structured reasoning events for your own renderer.
+
 ## Work in parallel
 
 ```sh

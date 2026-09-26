@@ -209,6 +209,7 @@
   "src/main/java/dev/macrofold/model/OrganizationCreate.java",
   "src/main/java/dev/macrofold/model/PermissionPatterns.java",
   "src/main/java/dev/macrofold/model/Plan.java",
+  "src/main/java/dev/macrofold/model/ReasoningEventData.java",
   "src/main/java/dev/macrofold/model/Recommendation.java",
   "src/main/java/dev/macrofold/model/Redirect.java",
   "src/main/java/dev/macrofold/model/Report.java",

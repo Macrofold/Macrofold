@@ -26,7 +26,7 @@ The dashboard explicitly selects TypeScript's `sessionAuth: true` for same-origi
 
 ## Text and completion helpers
 
-Maintained run helpers compose generated resource/transport calls; they introduce no HTTP endpoint, queue, or backend streaming system. `events` exposes the existing typed stream, while `stream_text`/`streamText` filters only nonempty string values from normalized `output.delta` events. It never emits tool payloads, reasoning, status data, or completed-message copies. Underlying sequence cursors provide reconnect/replay deduplication; identical text at different sequences is still legitimate output.
+Maintained run helpers compose generated resource/transport calls; they introduce no HTTP endpoint, queue, or backend streaming system. `events` exposes the existing typed stream, including native `reasoning.started/delta/completed` envelopes described by the generated `ReasoningEventData` model, while `stream_text`/`streamText` filters only nonempty string values from normalized `output.delta` events. It never emits tool payloads, reasoning, status data, or completed-message copies. Underlying sequence cursors provide reconnect/replay deduplication; identical text at different sequences is still legitimate output.
 
 Normal stream exhaustion invokes the same completion check as `wait`, including when a cursor is already past the terminal event. Detachment skips that check and does not cancel execution. A failed/cancelled/timed-out run or unsuccessful persistence produces a typed run error with its ID, status, failure code, and result metadata. API/authorization failures retain the transport's existing error types.
 

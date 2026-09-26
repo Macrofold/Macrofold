@@ -12,7 +12,7 @@ See [model and agent streaming](streaming.md) for direct inference and harness c
 
 Streams deliberately rotate after about 55 seconds. The SDK and CLI reconnect with backoff and current credentials. A network interruption or terminal close does not cancel execution. If a cursor refers to expired detailed history, recover through retained events and the result, acknowledging the gap.
 
-Event payloads can include assistant text, tool activity, lifecycle changes, and artifact references. Render tool/model content as untrusted text. Only reasoning content exposed by the harness/provider is available.
+Event payloads can include assistant text, tool activity, lifecycle changes, and artifact references. Render tool/model content as untrusted text. Native `reasoning.started`, `reasoning.delta`, and `reasoning.completed` events expose readable thinking separately from answer text, grouped by `data.reasoning_id`. See [thinking event payloads and examples](streaming.md#show-thinking-without-mixing-it-into-the-answer). Only reasoning content exposed by the harness/provider is available.
 
 ## Register a webhook
 

@@ -182,6 +182,7 @@ from macrofold.models.organization_audit import OrganizationAudit
 from macrofold.models.organization_create import OrganizationCreate
 from macrofold.models.permission_patterns import PermissionPatterns
 from macrofold.models.plan import Plan
+from macrofold.models.reasoning_event_data import ReasoningEventData
 from macrofold.models.recommendation import Recommendation
 from macrofold.models.redirect import Redirect
 from macrofold.models.report import Report

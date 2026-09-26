@@ -315,6 +315,9 @@ export async function advanceCloudRun(
             [
               'output.delta',
               'reasoning.summary',
+              'reasoning.started',
+              'reasoning.delta',
+              'reasoning.completed',
               'tool.started',
               'tool.completed',
               'runtime.started',

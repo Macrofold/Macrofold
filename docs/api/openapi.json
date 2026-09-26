@@ -15204,7 +15204,8 @@
             "description": "Non-negative integer count as a decimal string."
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only."
           },
           "occurred_at": {
             "type": "string",
@@ -16086,7 +16087,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Enabled adapter capabilities. incremental_output means answer deltas; reasoning_output means provider-exposed thinking events can be delivered. Neither guarantees a particular model/turn emits text."
           }
         },
         "required": [
@@ -21839,6 +21841,40 @@
             }
           }
         }
+      },
+      "ReasoningEventData": {
+        "type": "object",
+        "description": "Native reasoning.started/delta/completed payload. Provider-exposed readable reasoning only; separate from output.delta and final output_text. Append delta text by reasoning_id in event sequence order. Completion closes a block, not the run. A terminal run without block completion means interruption.",
+        "properties": {
+          "reasoning_id": {
+            "type": "string",
+            "description": "Stable block identity within this run; distinct across model turns."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "text"
+            ],
+            "description": "Provider summary or provider-exposed thinking text; included on started/delta."
+          },
+          "text": {
+            "type": "string",
+            "description": "Append-only readable fragment on reasoning.delta. Never encrypted reasoning or a signature."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "interrupted"
+            ],
+            "description": "On reasoning.completed; completed means the block ended, not that its statements are authoritative."
+          }
+        },
+        "required": [
+          "reasoning_id"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {

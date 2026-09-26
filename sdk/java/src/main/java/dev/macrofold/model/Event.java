@@ -218,7 +218,7 @@ public class Event {
   }
 
   /**
-   * Get type
+   * Event discriminator. Native reasoning uses reasoning.started, reasoning.delta and reasoning.completed; their data follows ReasoningEventData. output.delta is answer text only.
    * @return type
    */
   @javax.annotation.Nonnull

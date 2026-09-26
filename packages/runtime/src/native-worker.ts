@@ -14,6 +14,7 @@ import type { NativeConfiguration, NativeEvent } from './types';
 import { startPermissionFileServer } from './permission-server';
 import { startModelTransport } from './model-transport';
 import { failureDiagnostic, type RuntimeStage } from './failure-diagnostic';
+import { reasoningEvents } from './reasoning-events';
 
 let configuration = JSON.parse(await readFile(process.argv[2], 'utf8')) as NativeConfiguration;
 // OpenCode's SDK inherits its parent's environment. Remove it before starting any harness.
@@ -110,6 +111,7 @@ try {
     };
     const c = { ...configuration, gatewayURL: models.url, toolURL: `${models.url}/mcp`, token: localToken };
 
+    const reasoning = reasoningEvents((event) => send({ type: 'event', event }));
     try {
       stage = 'attachments_prepare';
       const prepared = await prepareAttachments(c, controller.signal);
@@ -131,7 +133,7 @@ try {
         signal: controller.signal,
         emit: (event: NativeEvent) => {
           if (event.type === 'runtime.started') stage = 'turn_execute';
-          return send({ type: 'event', event });
+          return reasoning.write(event);
         },
         ask: async (id, question, details) => {
           const answer = new Promise<Record<string, unknown>>((resolve) => answers.set(id, resolve));
@@ -140,6 +142,7 @@ try {
         },
       });
       const successful = result.outcome === 'success';
+      await reasoning.close(successful ? 'completed' : 'interrupted');
       if (result.outcome === 'failure')
         await send({
           type: 'event',
@@ -166,6 +169,7 @@ try {
       if (!next) break;
       configuration = await next;
     } catch (error) {
+      await reasoning.close('interrupted');
       active = undefined;
       controller.abort();
       await reportFailure(error);

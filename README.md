@@ -1,25 +1,30 @@
 # Macrofold
 
-**A persistent workspace for cloud agents.**
+**Run cloud agents. Keep their work.**
 
-Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi in the cloud from an API, your terminal, or a shared dashboard. Keep workspace files, conversation history, and Git revisions between tasks. [Choose a harness](docs/features/execution/harnesses.md).
+Macrofold is an open-source control plane for agent work. Give an agent a task, follow its progress, and review the files it produces—from an API, your terminal, or a shared dashboard.
 
-The [Unified Harness Interface (UHI)](docs/features/execution/unified-harness-interface.md) connects each native harness to the same execution system.
+Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi without building a separate integration for each. Workspace files outlive individual runs, so agents can build on earlier work without a dedicated, always-running computer. [Choose an agent harness](docs/features/execution/harnesses.md).
 
 [Documentation](docs/README.md) · [Build with AI](docs/getting-started/agents.md) · [API quickstart](docs/features/api/quickstart.md) · [Cloud](docs/cloud/README.md) · [Self-hosting](docs/operations/README.md)
 
+## Start with one task
+
+Create a **workspace** for the files, choose an **agent**, and start a **run**. Review the result, then give it the next task. Add connected tools, schedules, or parallel work when you need them—not before your first result. [See the core concepts](docs/getting-started/concepts.md).
+
+Use it for a research brief that stays up to date, recurring operational checks, or an agent inside your own product. The same saved files can support the next conversation or a handoff to another agent.
+
 ## What you can do
 
-- **Keep work between runs.** [Let agents share saved files](docs/features/workspaces/shared-agents.md), restore checkpoints, and create independent worktrees for parallel tasks.
-- **Work from anywhere.** Start a run through the API, stream it in the terminal, and review its output and tool activity in the dashboard.
-- **Start work automatically.** Connect Slack messages, incoming webhooks, or [scheduled prompts](docs/features/triggers/README.md) to a saved agent.
-- **Connect your tools.** Add MCP servers, authorized applications, search providers, and your own model API keys.
-- **Control access and spending.** Use organizations, scoped keys, run budgets, concurrency limits, and usage reporting.
-- **Keep Git in the loop.** Connect a GitHub repository, review changes, and synchronize without force-pushing.
+- **Keep the work, not a machine running.** Save files and Git revisions between tasks, restore checkpoints, and use [independent worktrees](docs/features/workspaces/shared-agents.md) for parallel agents. Native conversation continuation depends on harness compatibility.
+- **Leave a task running and come back.** Submit a background agent run, follow its output and tool activity, and reconnect to its event history. Closing your client does not cancel that run. [Streaming and recovery](docs/features/api/streaming.md).
+- **Set up an agent once.** Reuse its instructions, selected tools, and limits through the API, dashboard, [Slack, webhooks, or scheduled prompts](docs/features/triggers/README.md).
+- **Connect the tools you use.** Add MCP servers, authorized applications, search providers, and your own model API keys. [Connections](docs/features/identity-integrations/README.md).
+- **Keep control as you delegate.** Set permissions, run budgets, and concurrency limits; inspect usage and outputs. Connect GitHub to review and synchronize changes without force-pushing.
 
 ## Start building
 
-Use [Macrofold Cloud](docs/cloud/README.md) with your account access, or [self-host](docs/operations/README.md) on infrastructure you control. Both use the same API, SDKs, CLI, and dashboard; configure your client's origin and credentials for the deployment you choose.
+Use [Macrofold Cloud](docs/cloud/README.md) with your account access, or [self-host](docs/operations/README.md) on infrastructure you control. Both use the same API, SDKs, CLI, and dashboard; configure your client's origin and credentials for the deployment you choose. Using a configured deployment does not require you to manage its execution infrastructure.
 
 **Building with a coding agent?** Give it the [setup prompt](docs/getting-started/agents.md) and describe your feature. Prefer code? Follow the [API quickstart](docs/features/api/quickstart.md). To start without code, use the [dashboard quickstart](docs/getting-started/quickstart.md).
 
@@ -63,7 +68,7 @@ Continue with [your first run](docs/getting-started/quickstart.md), or compare [
 
 Bug reports, documentation improvements, and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and review guidance, and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
-Anyone can [contribute a harness](docs/features/execution/unified-harness-interface.md#contribute-a-harness) that implements the Unified Harness Interface and meets its integration and testing requirements.
+Anyone can [contribute a harness](docs/features/execution/unified-harness-interface.md#contribute-a-harness) through the Unified Harness Interface and its integration and testing requirements.
 
 ## License
 

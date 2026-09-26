@@ -2,6 +2,16 @@
 
 [Feature guide](README.md) describes the homepage; [pricing](pricing.md) describes estimates and sales-assisted offers. Checks use public synthetic examples and local rendering. No customer records, subscriptions, or paid provider calls are involved.
 
+## Agent-work messaging review — September 26, 2026
+
+The public-story update on `docs/agent-work-public-story` was checked at source commit `c08e3d3841dec3d67750cdabfa7757146ba2feef` in [Actions run 36260549329](https://github.com/Macrofold/Macrofold/actions/runs/36260549329). The job verified the blob hashes of all 13 authored public-content files before testing. It used Node 24.13.0, pnpm 10.33.0, local simulation configuration, and no paid provider calls.
+
+`pnpm check` passed, including the TypeScript SDK build and repository TypeScript check. The existing homepage onboarding/benefits journey and documentation navigation/search/copy/mobile journey both passed (2/2). The new guide and benefit copy were captured at 1440, 390, and 320 pixel widths. The guide had no horizontal overflow or browser page errors, and its raw Markdown endpoint returned 200. Desktop and phone screenshots were inspected; sticky navigation appears within the tall element captures, so these are content/layout evidence rather than polished full-page artwork. The complete animation, native execution, paid model, and production deployment suites were not repeated for these copy-only changes.
+
+The normal documentation generator produced and verified 66 public pages. Its generated JSON and `llms.txt` were independently byte-matched between the local source copy and the Actions artifact before publication. The full documentation command still fails on 156 missing research-artifact links. A separate checkout of unchanged main `b8013ecf8dd9cb13776d062d2a8476466601efdd` produced the identical ordered list: this update adds no link failures. The checker was not weakened and those unrelated links were left unchanged.
+
+The read-only, branch-scoped review workflow was temporary and is removed from the final change. The run retains its logs and short-retention `agent-work-public-review` and `agent-work-baseline` artifacts. This is source verification, not publication to the live marketing site. Earlier acceptance below remains historical evidence for its stated changes.
+
 ## Current checks
 
 The latest onboarding follow-up passes **39 TypeScript unit/SDK/CLI contract tests**, **117 Python HTTPX contract tests**, and the focused homepage browser journey. The exact displayed TypeScript example passes the API request schema and streams text; the exact Python example traverses typed response/event parsing and closes its client. A clean temporary npm installation verifies the `macrofold` executable, help, and SDK public exports under Node 24. The new browser assertions verify direct harness/model selection, no prerequisite session, public imports, and the CLI command. No provider execution occurred. Earlier visual checks below were not all repeated for these copy/example changes.

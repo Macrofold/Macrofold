@@ -1,4 +1,4 @@
-name: Worker merge analysis
+name: Worker merge resolution
 on:
   push:
     branches: [feat/worker-economics-autoscaling]
@@ -6,34 +6,137 @@ on:
 permissions:
   contents: read
 jobs:
-  analyze:
+  resolve:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Reproduce merge against main
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile --reporter=append-only
+      - name: Merge latest main and resolve authored conflicts
         run: |
-          git config user.name "merge-analysis"
-          git config user.email "merge-analysis@example.invalid"
+          git config user.name "merge-resolution"
+          git config user.email "merge-resolution@example.invalid"
           git fetch origin main
-          set +e
-          git merge --no-commit --no-ff origin/main
-          code=$?
-          set -e
-          mkdir -p /tmp/merge-conflicts
-          git diff --name-only --diff-filter=U | while IFS= read -r path; do
-            mkdir -p "/tmp/merge-conflicts/$(dirname "$path")"
-            cp "$path" "/tmp/merge-conflicts/$path" 2>/dev/null || true
+          git merge --no-commit --no-ff origin/main || true
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+
+          def stage(n, path):
+              return subprocess.check_output(['git','show',f':{n}:{path}'], text=True)
+
+          missing=object()
+          def merge(base, ours, theirs, path='root'):
+              if ours == theirs: return ours
+              if ours == base: return theirs
+              if theirs == base: return ours
+              if isinstance(base,dict) and isinstance(ours,dict) and isinstance(theirs,dict):
+                  out={}
+                  for k in base.keys() | ours.keys() | theirs.keys():
+                      b=base.get(k,missing); o=ours.get(k,missing); t=theirs.get(k,missing)
+                      if o is missing and t is missing: continue
+                      if b is missing:
+                          if o is missing: out[k]=t; continue
+                          if t is missing: out[k]=o; continue
+                          out[k]=merge(None,o,t,path+'.'+k); continue
+                      if o is missing:
+                          if t == b: continue
+                          raise RuntimeError(f'delete/change conflict at {path}.{k}')
+                      if t is missing:
+                          if o == b: continue
+                          raise RuntimeError(f'change/delete conflict at {path}.{k}')
+                      out[k]=merge(b,o,t,path+'.'+k)
+                  return out
+              raise RuntimeError(f'semantic conflict at {path}: {type(base).__name__}')
+
+          p='docs/api/openapi.json'
+          merged=merge(json.loads(stage(1,p)),json.loads(stage(2,p)),json.loads(stage(3,p)))
+          Path(p).write_text(json.dumps(merged,indent=2)+'\n')
+
+          p='packages/core/src/runs.ts'
+          text=stage(2,p)
+          if "import { harnesses } from '../../contracts/harnesses';" not in text:
+              text="import { harnesses } from '../../contracts/harnesses';\n"+text
+          needle="& {\n  executor_version: '1';"
+          if needle in text:
+              text=text.replace(needle,"& {\n  stream?: boolean;\n  executor_version: '1';",1)
+          check="""  if (input.stream) {
+            requireScopes(p, ['runs:read']);
+            assert(harnesses.find(h => h.id === configured.harness)?.capabilities.incremental_output,
+              400, 'streaming_not_supported', 'This harness does not emit incremental text. Omit stream to receive completed messages and progress.');
+          }
+          """
+          anchor="  assert(input.harness_prompt_mode === undefined || configured.harness === 'opencode',"
+          if check.strip() not in text:
+              text=text.replace(anchor,check+anchor,1)
+          Path(p).write_text(text)
+
+          p='docs/maintainers/TODO.md'
+          text=stage(2,p)
+          main_section="""## Delta streaming implementation
+
+          - [x] Implement [delta streaming](../features/api/streaming-implementation.md): direct transient SSE, provider/harness capability rejection, bounded-agent deltas, completed-response persistence/accounting, typed helpers in all five SDKs, and public/internal documentation. Local live Anthropic direct/bounded delivery, active/completed idempotent replay, disconnect without cancellation, final usage and Langfuse API readback are verified. Builds/type checks pass; no automated tests were written or run by operator request.
+          - [ ] Add provider parser regression tests: split UTF-8/SSE, multi-line frames, heartbeats, multiple choices/content blocks/tools, refusals, final usage after text, malformed frames, size limits, premature EOF and cancellation. Assert no successful completion on a missing vendor terminal marker.
+          - [ ] Add admission/HTTP coverage across direct, native, bounded, preset/session and customer-agent paths: resolved capabilities, Jev/DeepSeek rejection before side effects, read/write scopes and tenant isolation, nested option contradictions, unsupported transports, deadlines and immediate-capacity rollback.
+          - [ ] Add lifecycle/accounting coverage: early delta before held completion, active/completed concurrent idempotency, disconnect, slow reader, explicit cancellation, revoked authority, purge racing late fragments, uncertain dispatch, failed response persistence/settlement and recovery without a second model call. Compare deterministic streamed/non-streamed usage and charge; require one generation per invocation and no direct per-chunk SQL writes. Verify bounded-agent identities and tool execution only after complete validated arguments.
+          - [ ] Add all-five-SDK direct-stream coverage for typed events, terminal failures, partial transport errors retaining identity, EOF, reader cleanup, no POST reconnect after output, and local rejection of `create(stream=true)`. Preserve durable replay/reconnect coverage. Add non-blocking exporter/outage and complete assembled tracing assertions, including original provider text when typed JSON validation fails.
+          - [ ] Complete successful OpenRouter live streaming acceptance once the configured account has credit (the manual attempt returned upstream HTTP 402). Verify final usage and generation trace; do not substitute credentials or models silently.
+          - [ ] Verify hosted flushing, 300-second serving configuration, immediate admission, reader-detach lifetime and finalization with the real deployment proxy. Run supported native harness two-turn/cancellation image journeys, a multi-call bounded investigation, and non-TypeScript SDK real-HTTP journeys. Local Anthropic acceptance and compilation do not establish these paths or hosted acceptance.
+
+          """
+          if '## Delta streaming implementation' not in text:
+              text=text.replace('# Engineering TODO\n\n','# Engineering TODO\n\n'+main_section,1)
+          context_item="- [ ] Reconcile three inference/protocol test expectations observed during the [context-window correction](../features/decisions/verification.md#context-window-correction): successful `decision.response` trace-event presence, explicit async submission before generated-client cancellation, and the unsupported OpenRouter model error assertion. The focused token-limit regressions pass; the broader two-file run remains 66/69.\n"
+          if context_item not in text:
+              marker='## Stateless inference simplification\n\n'
+              if marker in text: text=text.replace(marker,marker+context_item+'\n',1)
+              else: text += '\n'+context_item
+          Path(p).write_text(text)
+
+          p='docs/status/README.md'
+          text=stage(2,p)
+          additions="""[Delta streaming](../features/api/streaming-implementation.md) is implemented for direct Anthropic/OpenRouter chat and bounded generative calls, with explicit native harness capability admission, final-response accounting and all five SDK helpers. Live local Anthropic delivery, completed-result replay and Langfuse usage/cost readback pass. OpenRouter live acceptance is blocked by provider credit; automated regression and hosted lifetime acceptance remain in [maintainer TODO](../maintainers/TODO.md#delta-streaming-implementation). No automated tests were written or run for this change at the operator’s request.
+
+          [Decision context validation](../features/decisions/README.md#request-bounds-and-billing) now leaves actual token-window enforcement to the provider instead of rejecting serialized bytes as tokens. Conservative spending reservations and request-size bounds remain. A synthetic direct OpenRouter Jev probe accepted 60,369 input tokens across two questions while rejecting an oversized single state; [verification](../features/decisions/verification.md#context-window-correction) records the distinction and local regression scope.
+
+          """
+          if '[Delta streaming]' not in text:
+              text=text.replace('# Implementation status\n\n','# Implementation status\n\n'+additions,1)
+          Path(p).write_text(text)
+          PY
+          git rm -f apps/web/lib/docs/generated.json || true
+          for path in             packages/contracts/api.d.ts             sdk/go/model_message_create.go sdk/go/model_run_create.go sdk/go/resources.go             sdk/java/src/main/java/dev/macrofold/Resources.java             sdk/java/src/main/java/dev/macrofold/model/MessageCreate.java             sdk/java/src/main/java/dev/macrofold/model/RunCreate.java             sdk/python/macrofold/models/message_create.py sdk/python/macrofold/models/run_create.py sdk/python/macrofold/resources.py             sdk/rust/src/models/message_create.rs sdk/rust/src/models/run_create.rs sdk/rust/src/resources.rs             sdk/typescript/src/schema.d.ts; do git checkout --ours -- "$path"; done
+          git add docs/api/openapi.json docs/maintainers/TODO.md docs/status/README.md packages/core/src/runs.ts
+          pnpm sdk:generate:all
+          pnpm docs:generate
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+      - name: Verify combined source
+        run: |
+          pnpm check
+          pnpm build:runtime
+          pnpm docs:check
+      - name: Export resolved conflict files
+        run: |
+          mkdir -p /tmp/resolved
+          for path in             apps/web/lib/docs/generated.json docs/api/openapi.json docs/maintainers/TODO.md docs/status/README.md             packages/contracts/api.d.ts packages/core/src/runs.ts             sdk/go/model_message_create.go sdk/go/model_run_create.go sdk/go/resources.go             sdk/java/src/main/java/dev/macrofold/Resources.java sdk/java/src/main/java/dev/macrofold/model/MessageCreate.java sdk/java/src/main/java/dev/macrofold/model/RunCreate.java             sdk/python/macrofold/models/message_create.py sdk/python/macrofold/models/run_create.py sdk/python/macrofold/resources.py             sdk/rust/src/models/message_create.rs sdk/rust/src/models/run_create.rs sdk/rust/src/resources.rs             sdk/typescript/src/schema.d.ts; do
+              if [ -f "$path" ]; then mkdir -p "/tmp/resolved/$(dirname "$path")"; cp "$path" "/tmp/resolved/$path"; else echo "$path" >> /tmp/resolved/deleted.txt; fi
           done
-          git diff --cc > /tmp/merge-conflicts/conflicts.diff || true
-          git diff --name-only --diff-filter=U > /tmp/merge-conflicts/conflicts.txt || true
-          echo "MERGE_EXIT=$code"
-          cat /tmp/merge-conflicts/conflicts.txt
+          git diff --stat HEAD origin/main > /tmp/resolved/merge-stat.txt || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-merge-conflicts
-          path: /tmp/merge-conflicts/
+          name: worker-merge-resolved
+          path: /tmp/resolved/
           retention-days: 7

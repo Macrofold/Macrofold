@@ -4,7 +4,14 @@
     "source": "docs/README.md",
     "title": "Documentation",
     "section": "Start here",
-    "description": "Build with persistent agents on Macrofold Cloud or your own infrastructure."
+    "description": "Start an agent task, review its output, and keep its files on Cloud or your own deployment."
+  },
+  {
+    "slug": "agent-work",
+    "source": "docs/getting-started/agent-work.md",
+    "title": "From one task to ongoing work",
+    "section": "Start here",
+    "description": "Keep saved work between runs, reuse agent setup, and add automation only when you need it."
   },
   {
     "slug": "agents",
@@ -39,7 +46,7 @@
     "source": "docs/getting-started/concepts.md",
     "title": "Core concepts",
     "section": "Start here",
-    "description": "Understand workspaces, worktrees, sessions, runs, and checkpoints."
+    "description": "Start with a workspace, agent, and run; understand files, conversations, and compute separately."
   },
   {
     "slug": "customer-agents",

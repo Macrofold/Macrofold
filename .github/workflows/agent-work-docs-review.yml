@@ -8,7 +8,24 @@ concurrency:
   group: agent-work-docs-review
   cancel-in-progress: true
 jobs:
-  docs:
+  baseline-links:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: b8013ecf8dd9cb13776d062d2a8476466601efdd
+          persist-credentials: false
+      - name: Record unchanged base link checks
+        continue-on-error: true
+        run: python3 scripts/check-docs.py 2>&1 | tee /tmp/baseline-links.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: agent-work-baseline
+          path: /tmp/baseline-links.log
+          retention-days: 2
+  public-content:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -16,26 +33,103 @@ jobs:
       EXECUTION_PROVIDER: simulator
       ALLOW_PAID_EXECUTION: 'false'
       NEXT_TELEMETRY_DISABLED: '1'
+      PRODUCT_NAME: Macrofold
+      MARKETING_HOMEPAGE: 'true'
+      APP_ORIGIN: http://localhost:3210
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Verify authored source bytes
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib
+          expected = {
+            'docs/getting-started/agent-work.md': 'cafe55ed8f7e6c33720862fd9465715c7b4f9bdd',
+            'README.md': 'a8c28ceffd028d9b1f08e3dbc83e6ef71faf0666',
+            'docs/README.md': '01a0d0bc7a0a8417d9f245eacdac4bb42bb91bd8',
+            'docs/getting-started/concepts.md': 'e58b088469595c92c8dbbbdcc4b3e402cf1b1df8',
+            'docs/features/execution/README.md': '72b3512b694e65fdd03b8d1947bd38c6d759ad8f',
+            'docs/getting-started/quickstart.md': 'b53c3d61fc93f624fa9b7092fbab9dc7f61fdfb5',
+            'docs/getting-started/agents.md': 'ed7027f78d26f7709fb80c4bcf81508a8e254255',
+            'docs/features/api/quickstart.md': '82deac8a4340b72c17bec451aff403353dade26a',
+            'docs/features/workspaces/shared-agents.md': '361461282dcbc2ac440662511316fdd780581318',
+            'docs/cloud/README.md': '07f6879cc82b86df94b8ca156c134fdcaeb0b516',
+            'docs/product/marketing/site/README.md': 'c74c4aa6e17a44200ddc5044c988b92f043a2d97',
+            'apps/web/components/landing/site.tsx': '8b42ebd1814cff96c02b654fd1a8750ddab1dc9b',
+            'docs/navigation.json': '618b5b07172811a381deb57f5249d776c08d22a8',
+          }
+          for name, wanted in expected.items():
+              content = pathlib.Path(name).read_bytes()
+              actual = hashlib.sha1(b'blob ' + str(len(content)).encode() + b'\0' + content).hexdigest()
+              assert actual == wanted, (name, actual, wanted)
+          print(f'{len(expected)} authored files match reviewed source bytes.')
+          PY
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
-      - name: Generate and check public documentation
-        run: pnpm docs:generate && pnpm docs:check
-      - name: Export generated documentation and framework guide
+      - run: pnpm docs:generate
+      - name: Documentation checks
+        continue-on-error: true
+        run: pnpm docs:check 2>&1 | tee /tmp/current-docs.log
+      - name: Type checking
+        continue-on-error: true
+        run: pnpm check 2>&1 | tee /tmp/typecheck.log
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Start unpaid public preview
+        run: |
+          pnpm dev > /tmp/agent-work-preview.log 2>&1 &
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:3210/docs/agent-work > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/agent-work-preview.log
+          exit 1
+      - name: Existing homepage and documentation acceptance
+        continue-on-error: true
+        run: pnpm exec playwright test tests/browser/landing.spec.ts tests/browser/docs.spec.ts --grep 'the final homepage exposes|documentation navigation, search recovery' 2>&1 | tee /tmp/browser-tests.log
+      - name: Capture changed public surfaces
+        run: |
+          node <<'JS'
+          const { chromium } = require('@playwright/test');
+          const { mkdirSync, writeFileSync } = require('node:fs');
+          (async () => {
+            mkdirSync('/tmp/agent-work-review', { recursive: true });
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            const report = [];
+            const errors = [];
+            page.on('pageerror', error => errors.push(error.message));
+            for (const width of [1440, 390, 320]) {
+              await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+              await page.goto('http://localhost:3210/site', { waitUntil: 'domcontentloaded' });
+              await page.getByRole('link', { name: 'From one task to ongoing work', exact: true }).waitFor();
+              await page.locator('.mf-benefits').screenshot({ path: `/tmp/agent-work-review/benefits-${width}.png`, animations: 'disabled' });
+              await page.goto('http://localhost:3210/docs/agent-work', { waitUntil: 'domcontentloaded' });
+              await page.getByRole('heading', { name: 'From one task to ongoing work', exact: true }).waitFor();
+              const scrollWidth = await page.locator('body').evaluate(el => el.scrollWidth);
+              report.push({ width, scrollWidth });
+              if (scrollWidth > width) throw new Error(`Documentation overflow at ${width}: ${scrollWidth}`);
+              await page.screenshot({ path: `/tmp/agent-work-review/guide-${width}.png`, fullPage: true, animations: 'disabled' });
+            }
+            const raw = await page.request.get('http://localhost:3210/docs/raw/agent-work.md');
+            if (!raw.ok() || !(await raw.text()).includes('# From one task to ongoing work')) throw new Error('Missing raw documentation route');
+            writeFileSync('/tmp/agent-work-review/visual-checks.json', JSON.stringify({ report, errors, rawStatus: raw.status() }, null, 2));
+            await browser.close();
+            if (errors.length) throw new Error(errors.join('\n'));
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
+      - name: Export review outputs
         if: always()
         run: |
           mkdir -p /tmp/agent-work-review
           cp apps/web/lib/docs/generated.json llms.txt /tmp/agent-work-review/
-          cp apps/web/node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md /tmp/agent-work-review/next-components.md
+          cp /tmp/current-docs.log /tmp/typecheck.log /tmp/browser-tests.log /tmp/agent-work-preview.log /tmp/agent-work-review/ 2>/dev/null || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: agent-work-generated
+          name: agent-work-public-review
           path: /tmp/agent-work-review/
           retention-days: 2

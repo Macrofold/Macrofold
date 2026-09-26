@@ -60,21 +60,21 @@ const benefits = [
   },
   {
     title: 'Start at the right moment.',
-    body: 'Trigger an agent from a Slack message, a webhook, or a recurring schedule. Connect an agent preset to a workspace and let the work begin.',
+    body: 'Save an agent’s instructions, model, and selected tools once. Reuse that setup from a Slack message, a webhook, or a recurring schedule.',
     link: '/docs/triggers',
     label: 'Set up a trigger',
     icon: Webhook,
   },
   {
     title: 'Pick up where you left off.',
-    body: 'Continue a compatible native session with its conversation and workspace files. Give another instruction without rebuilding the context from scratch.',
+    body: 'Files outlive each run, without keeping a dedicated computer running. Continue a compatible native conversation, or start a new task over the saved work.',
     link: '/docs/runs',
     label: 'Explore sessions',
     icon: History,
   },
   {
     title: 'See the work as it happens.',
-    body: 'Stream progress and tool activity into your product. Follow live output, inspect results, and replay the run’s recorded events later.',
+    body: 'Start a background agent run, then leave and return. Reconnect to its recorded progress, tool activity, and results. Closing your client does not cancel it.',
     link: '/docs/api/events',
     label: 'Explore streaming',
     icon: Radio,
@@ -345,6 +345,10 @@ export function LandingSite({ name = 'Macrofold' }: { name?: string }) {
             <h2 className="mf-gleam" id="benefits-heading">
               Everything you need to go live.
             </h2>
+            <Link className="mf-text-link" href="/docs/agent-work">
+              From one task to ongoing work
+              <ArrowRight size={14} />
+            </Link>
           </div>
           <div className="mf-benefit-grid">
             {benefits.map((benefit, index) => (

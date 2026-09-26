@@ -9,52 +9,6 @@ defaults:
   run:
     shell: bash
 jobs:
-  scheduling:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      PLATFORM_MODE: local
-      EXECUTION_PROVIDER: simulator
-      ALLOW_PAID_EXECUTION: 'false'
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 24.13.0
-      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run setup
-      - name: Diagnose existing scheduler assertion without changing decisions
-        run: |
-          mkdir -p /tmp/final-diagnostics
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('tests/integration/scheduling.test.ts');s=p.read_text()
-          before="    expect(await claimRun(head.organization_id, head.resource_id)).not.toBeNull();"
-          after="""    const claimed = await claimRun(head.organization_id, head.resource_id);
-              if (!claimed) {
-                const detail = await transaction(head.organization_id, async tx => ({
-                  row: (await presentRuns(tx, [await getRun(tx, head.resource_id)]))[0],
-                  turn: await (await import('../../packages/core/src/scheduling')).schedulerTurn(tx),
-                }));
-                console.info('SCHEDULER_DIAGNOSTIC', JSON.stringify({head, tenant:!!tenants.find(a=>a.p.organizationId===head.organization_id),
-                  status:detail.row.status, reason:detail.row.waiting_reason, code:detail.row.failure_code,turn:detail.turn}));
-              }
-              expect(claimed).not.toBeNull();"""
-          if s.count(before)!=2:raise RuntimeError('Unexpected scheduler fixture')
-          p.write_text(s.replace(before,after))
-          PY
-          pnpm test:domain tests/integration/scheduling.test.ts 2>&1 | tee /tmp/final-diagnostics/scheduling.log
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: worker-final-scheduler-diagnostics
-          path: /tmp/final-diagnostics/
-          retention-days: 7
-      - if: always()
-        run: docker compose -f infra/compose.yml down -v
   question:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -62,17 +16,34 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Exercise the actual native question path and retain fixture-only failures
+      - name: Exercise the pinned native question path and inspect fixture-only failures
         run: |
           mkdir -p /tmp/final-diagnostics
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/final-diagnostics/build.log 2>&1 || { tail -100 /tmp/final-diagnostics/build.log; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/fixtures/native-mock.mjs');s=p.read_text()
+          before="  assert.equal(answered, 1, 'Interactive question must reach the supervisor');"
+          if s.count(before)!=1:raise RuntimeError('Unexpected question assertion')
+          p.write_text(s.replace(before,"  console.info('QUESTION_MODEL_OBSERVATIONS',JSON.stringify(observed));\n"+before))
+          PY
           cat > tests/fixtures/.reconciliation-question.mjs <<'JS'
-          import {readFile} from 'node:fs/promises';
+          import {readFile,readdir} from 'node:fs/promises';
+          import {createRequire} from 'node:module';
+          const require=createRequire('/opt/platform/node_modules/@opencode-ai/sdk/package.json');
+          console.info('NATIVE_FLAG_COMPILED',(await readFile('/opt/platform/native-worker.mjs','utf8')).includes('OPENCODE_ENABLE_QUESTION_TOOL'));
+          const server=await readFile(require.resolve('@opencode-ai/sdk/v2/server'),'utf8');
+          console.info('SDK_SERVER_SOURCE',server);
           process.argv=[process.execPath,'/tests/native-mock.mjs','opencode','questions'];
           try {await import('/tests/native-mock.mjs');}
           catch(error){
             for(const path of ['/platform-control/result.json','/platform-control/events.jsonl']) {
               console.error(path,await readFile(path,'utf8').catch(()=>'<absent>'));
+            }
+            for(const file of await readdir('/agent-home/.local/share/opencode/log').catch(()=>[])){
+              const text=await readFile('/agent-home/.local/share/opencode/log/'+file,'utf8');
+              const lines=text.split('\n').filter(line=>/question|ERROR/.test(line));
+              console.error('FIXTURE_OPENCODE_LOG',lines.slice(-20).join('\n'));
             }
             throw error;
           }

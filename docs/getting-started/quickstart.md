@@ -18,7 +18,7 @@ A **worktree** is the workspace's independent working folder and branch. Two age
 
 ## 3. Start a run
 
-Create a run from the dashboard. Select your workspace, harness, and an available model. Try a small task such as “Read the workspace files and write a short summary.” Set a runtime and spending limit, then submit.
+Create a run from the dashboard. Select your workspace, harness, and an available model. For an empty workspace, try “Create hello.txt containing Hello world.” Set a runtime and spending limit, then submit. No connected apps, saved agent preset, or schedule is needed for this first task.
 
 On a real deployment, managed execution uses prepaid credits. To use your own model account, add a provider connection and select BYOK. Compute and authorized tools can still use platform credits. The local simulator uses synthetic credits and does not call a model.
 
@@ -32,7 +32,9 @@ You can leave the page and return later. Closing the browser does not cancel the
 
 When persistence finishes, open the worktree files and its checkpoint history. Execution, persistence, and Git synchronization have separate outcomes; check all three before relying on a remote Git update.
 
-Continue the same session to preserve a compatible native conversation, or start a new session over the saved files.
+For a real-model run, open `hello.txt` to confirm the requested file was saved. Ask a follow-up to read it and write a second file. The simulator demonstrates this lifecycle with scripted files and output instead of interpreting that prompt.
+
+Continue the same session to preserve a compatible native conversation, or start a new session over the saved files. Your files do not depend on keeping the earlier execution environment running. After this first result, [reuse an agent](../features/execution/README.md#reuse-an-agent) or explore [ongoing workflows](agent-work.md).
 
 ## Next steps
 

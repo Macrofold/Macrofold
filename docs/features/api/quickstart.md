@@ -53,6 +53,8 @@ macrofold.close()
 
 Run `python example.py`. You'll see the agent's response after execution and file persistence finish. A failed run raises an exception with its run ID. Simulation produces scripted output rather than interpreting the prompt.
 
+For a real-model run, [read `hello.txt`](../workspaces/read-files.md) using `run.worktree_id` to verify the saved result. Reuse that worktree for the next task instead of creating a new workspace. The saved file is independent of the earlier compute; keeping the same native conversation additionally requires a compatible session. See [from one task to ongoing work](../../getting-started/agent-work.md).
+
 ## Next steps
 
 - [Stream direct model calls or agent output](streaming.md), with complete REST and SDK examples.

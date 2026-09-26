@@ -4,12 +4,13 @@
 
 ## Start here
 
-- [Documentation](docs/README.md): Build with persistent agents on Macrofold Cloud or your own infrastructure.
+- [Documentation](docs/README.md): Start an agent task, review its output, and keep its files on Cloud or your own deployment.
+- [From one task to ongoing work](docs/getting-started/agent-work.md): Keep saved work between runs, reuse agent setup, and add automation only when you need it.
 - [Build with AI](docs/getting-started/agents.md): Give your coding agent a setup prompt and direct links to current Macrofold documentation.
 - [API quickstart](docs/features/api/quickstart.md): Create a workspace and stream your first API-triggered run.
 - [MCP for coding agents](docs/features/mcp/README.md): Configure shared agents and start cloud runs directly from Codex, Claude Code, or another MCP client.
 - [Quickstart](docs/getting-started/quickstart.md): Create a workspace, start an agent, and review its saved work.
-- [Core concepts](docs/getting-started/concepts.md): Understand workspaces, worktrees, sessions, runs, and checkpoints.
+- [Core concepts](docs/getting-started/concepts.md): Start with a workspace, agent, and run; understand files, conversations, and compute separately.
 
 ## Integration paths
 

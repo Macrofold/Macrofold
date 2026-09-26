@@ -1,6 +1,8 @@
 # Documentation
 
-Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, or Pi through an API, CLI, or dashboard. Give agents persistent files they can return to across tasks.
+Give an agent a task, follow its progress, and keep the work it produces. Macrofold runs Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi through the same API, terminal, and dashboard—without a separate integration for each harness.
+
+Workspace files outlive individual runs. Start with one useful task, then reuse its files, agent setup, and connected tools for the next. [From one task to ongoing work](getting-started/agent-work.md) explains how the pieces fit together.
 
 ## Start building
 
@@ -19,7 +21,7 @@ The same API, SDK, CLI, and feature guides apply to both. Use the origin and cre
 
 ## Learn the essentials
 
-A **workspace** owns a distinct file tree. Its **worktrees** are checkouts of that tree. A **run** performs a task. Projects will be added later solely to group workspaces; they are not implemented. [Core concepts](getting-started/concepts.md) explains what persists.
+Start with a **workspace** for files, an **agent** for the job, and a **run** to do one task. You can use the workspace's main worktree before learning about parallel branches or saved conversations. [Core concepts](getting-started/concepts.md) explains the resources and what persists.
 
 - [Explicit-context decisions](features/decisions/README.md): submit evidence for typed decisions, bounded investigations and reviewable task proposals.
 - [Runs and agents](features/execution/README.md): select a harness, stream output, continue, and cancel.

@@ -8,6 +8,12 @@ Choose a workspace for isolated work, a worktree to use its files, or a session 
 
 Model availability depends on the deployment and funding mode. Query `/v1/harnesses` and `/v1/models` or use the dashboard selectors. A different harness starts a new conversation over the preserved files; native conversation state is not interchangeable across harness families.
 
+## Reuse an agent
+
+Once a task works, save an agent preset with its instructions, harness, model, and run configuration. Choose its allowed connections and tools, then reuse that setup with new prompts through the API or dashboard. Saving a preset does not create new tool permissions or start work.
+
+For example, reuse a research agent to update a brief, or a team agent to inspect a repository and write a diagnostic report. Add a [schedule, Slack message, or webhook](../triggers/README.md) when the workflow should start automatically. The trigger still uses the ordinary run permissions, funding, and capacity checks.
+
 ## Follow progress
 
 The run view and detailed SSE stream show lifecycle changes, assistant output, tool activity, artifacts, and provider-exposed reasoning summaries. Hidden model reasoning is not available. Retrieve the final result even if you were disconnected during execution.

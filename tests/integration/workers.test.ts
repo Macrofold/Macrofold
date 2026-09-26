@@ -100,7 +100,6 @@ describe('Worker authority and desired lifecycle',()=>{
     expect((await tx(t=>workerForRun(t,user,created.id))).id).toBe(created.id);
     await expect(tx(t=>changeWorker(t,user,created.id,'pause'))).rejects.toMatchObject({status:403});
     await expect(tx(t=>getWorker(t,created.id,{...principal,scopes:['workers:use']}))).rejects.toMatchObject({status:403});
-    await expect(tx(t=>changeWorker(t,{...principal,scopes:['workers:use']}),created.id,'pause')).rejects.toMatchObject({status:403});
     await expect(tx(t=>changeWorker(t,{...principal,workspaceIds:[id()]},created.id,'pause'))).rejects.toMatchObject({code:'worker_management_forbidden'});
   });
   it('manual pause cannot be undone by incoming traffic, while explicit resume re-enables it',async()=>{

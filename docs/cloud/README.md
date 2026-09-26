@@ -1,6 +1,8 @@
 # Macrofold Cloud
 
-Use Macrofold without running its API, workers, database, or sandbox infrastructure yourself. Your application calls the same API used by the dashboard and CLI.
+Use Macrofold without running its API, workers, database, or sandbox infrastructure yourself. Give a supported agent a task, follow its progress, and keep its files for the next run. Your application calls the same API used by the dashboard and CLI.
+
+Start with one workspace and one run. Saved agents, connected tools, and schedules can follow after your first result; [ongoing agent work](../getting-started/agent-work.md) explains that progression.
 
 ## Connect to Cloud
 

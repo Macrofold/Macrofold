@@ -10,7 +10,7 @@ Run Codex, Claude Code, OpenCode, Hermes, DeepSeek Harness, and Pi without build
 
 ## Start with one task
 
-Create a **workspace** for the files, choose an **agent**, and start a **run**. Review the result, then give it the next task. Add connected tools, schedules, or parallel work when you need them—not before your first result. [See the core concepts](docs/getting-started/concepts.md).
+Create a **workspace** for the files, choose an **agent**, and start a **run**. Review the result, then give it the next task. Add connected tools, schedules, or parallel work when you need them—not before your first result. [From one task to ongoing work](docs/getting-started/agent-work.md).
 
 Use it for a research brief that stays up to date, recurring operational checks, or an agent inside your own product. The same saved files can support the next conversation or a handoff to another agent.
 

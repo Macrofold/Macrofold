@@ -2,7 +2,9 @@
 
 Two agents can use the same persisted files by taking turns in one worktree. They can use different harnesses, models, and named connections. Each new session keeps its own conversation.
 
-This works the same way on Macrofold Cloud and self-hosted deployments.
+For example, one agent writes a research brief and another reviews it, or a team agent updates a diagnostic report for a later task. The handoff uses saved files, not an always-running process or shared private conversation.
+
+This works the same way on Macrofold Cloud and self-hosted deployments. Start with [one useful task](../../getting-started/agent-work.md) before adding parallel work.
 
 ## Hand work from one agent to another
 

@@ -25,7 +25,9 @@ from the existing secret environment; never ask me to paste it into chat, print
 it, commit it, or expose it to the browser. If missing, tell me exactly where
 to configure it securely. Use an API key issued by the selected deployment.
 
-First implement one workspace -> run -> completed result flow. Reuse workspace and
+First implement one workspace -> run -> completed result flow with a small,
+inspectable output. Do not require schedules, connected apps, or reusable compute
+unless the requested feature needs them. Reuse workspace and
 worktree IDs instead of creating new ones on every request. Use an enabled
 model and an explicit run budget; ask before paid execution if no budget was
 authorized. A local simulator run uses fixture-model and makes no model calls.

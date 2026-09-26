@@ -5,6 +5,9 @@ on:
     paths: [.github/workflows/worker-reconciliation-acceptance.yml]
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 jobs:
   domain:
     runs-on: ubuntu-24.04
@@ -23,51 +26,49 @@ jobs:
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm run setup
-      - name: Apply narrowly scoped existing-fixture corrections for verification
+      - name: Finish the existing Worker fixture's queued cancellation through its real owner
         run: |
           mkdir -p /tmp/reconciliation-acceptance
           python3 - <<'PY'
           from pathlib import Path
           import hashlib,json,shutil
-          def edit(path, before, after):
-              p=Path(path); text=p.read_text()
-              if text.count(before)!=1: raise RuntimeError('Unexpected source: '+path)
-              p.write_text(text.replace(before,after,1))
-          p='tests/integration/tool-broker.test.ts'
-          edit(p,"import { seal } from '../../packages/core/src/crypto';","import { seal } from '../../packages/core/src/crypto';\nimport { credit } from '../../packages/core/src/ledger';")
-          edit(p,"  account = await fixtureAccount('Broker fixtures');","  account = await fixtureAccount('Broker fixtures');\n  // A simulated admission holds no credit; priced platform tools still require funding.\n  await transaction(account.p.organizationId, tx =>\n    credit(tx, account.p.organizationId, 10000000n, `broker-fixture:${account.p.organizationId}`));")
-          p='tests/integration/inference.test.ts'
-          edit(p,"  expect(observations.find(o=>o.name==='decision.response')).toMatchObject({type:'event',output:{content:expect.any(Array)},context:{run_id:runId}});","  // Successful output belongs to the settled generation, not a duplicate raw-response event.\n  expect(observations.filter(o=>o.type==='generation')).toHaveLength(1);")
-          edit(p,"    const queued = await client.request('createInference', { body: input() });","    const queued = await client.request('createInference', { body: input(), headers: { Prefer: 'respond-async' } });")
-          edit('tests/unit/decision-protocols.test.ts',"      'explicitly supported decision model',","      expect.objectContaining({ status: 400, code: 'decision_model_unavailable' }),")
-          result={}
-          for name in ['tests/integration/tool-broker.test.ts','tests/integration/inference.test.ts','tests/unit/decision-protocols.test.ts']:
-              p=Path(name); data=p.read_bytes(); result[name]=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
-              shutil.copyfile(p,'/tmp/reconciliation-acceptance/'+p.name)
-          Path('/tmp/reconciliation-acceptance/fixture-hashes.json').write_text(json.dumps(result,indent=2))
-          print(json.dumps(result,indent=2))
+          p=Path('tests/integration/workers.test.ts');s=p.read_text()
+          before="import { admitRun, getNativeRun } from '../../packages/core/src/runs';"
+          after="import { admitRun, cancelRun, getNativeRun } from '../../packages/core/src/runs';"
+          if s.count(before)!=1:raise RuntimeError('Unexpected Worker import')
+          s=s.replace(before,after)
+          before='  await tx(t=>t.query("UPDATE runs SET cancel_requested=true WHERE config ? \'worker_id\' AND status=\'queued\'").then(()=>{}));'
+          after='''  // Retire our synthetic queue entries, not merely request cancellation.
+            // Global candidate discovery intentionally prioritizes pending cleanup.
+            const queued=await tx(t=>t.query<{id:string}>("SELECT id FROM runs WHERE config ? 'worker_id' AND status='queued'"));
+            for(const run of queued.rows)await tx(t=>cancelRun(t,principal,run.id));'''
+          if s.count(before)!=1:raise RuntimeError('Unexpected Worker cleanup')
+          s=s.replace(before,after);p.write_text(s)
+          shutil.copyfile(p,'/tmp/reconciliation-acceptance/workers.test.ts')
+          data=p.read_bytes();Path('/tmp/reconciliation-acceptance/fixture-hash.json').write_text(json.dumps({'path':str(p),'sha':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()}))
+          p=Path('tests/integration/scheduling.test.ts');s=p.read_text()
+          before="    expect(await claimRun(head.organization_id, head.resource_id)).not.toBeNull();"
+          after="""    const claimed=await claimRun(head.organization_id,head.resource_id);
+              if(!claimed) {
+                const detail=await transaction(head.organization_id,async tx=>({
+                  row:(await presentRuns(tx,[await getRun(tx,head.resource_id)]))[0],
+                  turn:await(await import('../../packages/core/src/scheduling')).schedulerTurn(tx),
+                }));
+                console.info('SCHEDULER_DIAGNOSTIC',JSON.stringify({head,tenant:!!tenants.find(a=>a.p.organizationId===head.organization_id),
+                  status:detail.row.status,reason:detail.row.waiting_reason,code:detail.row.failure_code,turn:detail.turn}));
+              }
+              expect(claimed).not.toBeNull();"""
+          if s.count(before)!=2:raise RuntimeError('Unexpected scheduler assertions')
+          p.write_text(s.replace(before,after))
           PY
       - name: Execute the complete existing domain suite
-        id: domain
-        continue-on-error: true
         run: pnpm test:domain 2>&1 | tee /tmp/reconciliation-acceptance/domain.log
-      - name: Isolate scheduler-sensitive fixtures without changing production scheduling
-        if: steps.domain.outcome == 'failure'
-        run: |
-          failed=0
-          for name in agent-permissions decision-scheduling deletion growth-activation media scale scheduling webhooks; do
-            pnpm test:domain "tests/integration/$name.test.ts" > "/tmp/reconciliation-acceptance/isolated-$name.log" 2>&1 || failed=1
-          done
-          exit "$failed"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: worker-reconciliation-acceptance
           path: /tmp/reconciliation-acceptance/
           retention-days: 7
-      - name: Preserve full-suite failure status
-        if: steps.domain.outcome == 'failure'
-        run: exit 1
       - name: Clean disposable infrastructure
         if: always()
         run: docker compose -f infra/compose.yml down -v
@@ -92,14 +93,9 @@ jobs:
         run: |
           mkdir -p /tmp/reconciled-native
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/reconciled-native/build.log 2>&1 || { tail -100 /tmp/reconciled-native/build.log; exit 1; }
-          { pnpm test:native --image-only &&
-            pnpm test:native codex claude-code --media --image-only &&
-            pnpm test:native --permissions --image-only &&
-            pnpm test:native opencode --questions --image-only &&
-            pnpm test:native hermes deepseek pi --tools --image-only &&
-            pnpm test:native hermes deepseek pi --failure --image-only &&
-            pnpm test:native hermes deepseek pi --cancel --image-only &&
-            pnpm test:native --stdio --image-only; } 2>&1 | tee /tmp/reconciled-native/execution.log
+          for args in '--image-only' 'codex claude-code --media --image-only' '--permissions --image-only' 'opencode --questions --image-only' 'hermes deepseek pi --tools --image-only' 'hermes deepseek pi --failure --image-only' 'hermes deepseek pi --cancel --image-only' '--stdio --image-only'; do
+            pnpm test:native $args 2>&1 | tee -a /tmp/reconciled-native/execution.log
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

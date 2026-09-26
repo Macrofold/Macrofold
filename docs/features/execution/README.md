@@ -28,7 +28,7 @@ Cancel with the dashboard, CLI, or `POST /v1/runs/{id}/cancel`. Queued cancellat
 
 ## Learn more
 
-- [Warm sandboxes and long-running servers](sandboxes.md): reuse compute independently of durable files and sessions.
+- [Warm sandboxes and long-running servers](workers.md): reuse compute independently of durable files and sessions.
 - [Choose a harness](harnesses.md): native tools, models, streaming, and continuation.
 - [Unified Harness Interface](unified-harness-interface.md): how native adapters connect and how to contribute a harness.
 - [Model catalog](models.md): built-in choices, discovery, and accepted prices.

@@ -1,0 +1,68 @@
+name: Worker branch verification
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths:
+      - .github/workflows/worker-development.yml
+      - scripts/workers/verify.marker
+      - packages/core/src/worker-scaling.ts
+      - packages/core/src/worker-placement.ts
+      - packages/core/src/worker-policy.ts
+      - packages/core/src/worker-pricing.ts
+      - packages/core/src/worker-types.ts
+      - packages/core/src/worker-reconciler.ts
+      - tests/unit/worker-scaling.test.ts
+      - tests/unit/worker-policy.test.ts
+      - tests/integration/workers.test.ts
+permissions:
+  contents: read
+concurrency:
+  group: worker-development-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  implementation:
+    if: github.repository == 'Macrofold/Macrofold' && github.ref == 'refs/heads/feat/worker-economics-autoscaling'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+      WORKER_SOURCE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          show-progress: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.13.0
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile --reporter=append-only
+      - name: Compile application and runtime
+        run: |
+          pnpm check
+          pnpm build:runtime
+      - name: Verify Worker policy and queued capacity regressions
+        run: pnpm exec vitest run tests/unit/worker-policy.test.ts tests/unit/worker-scaling.test.ts
+      - name: Verify durable Worker lifecycle in a disposable database
+        run: |
+          pnpm run setup
+          pnpm test:domain tests/integration/workers.test.ts
+      - name: Execute bounded runtime stress workload
+        run: pnpm exec tsx scripts/workers/stress.ts
+      - name: Check documentation integrity
+        if: always()
+        run: pnpm docs:check
+      - name: Preserve execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-runtime-evidence
+          path: /tmp/worker-stress.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Release disposable infrastructure
+        if: always()
+        run: docker compose -f infra/compose.yml down -v

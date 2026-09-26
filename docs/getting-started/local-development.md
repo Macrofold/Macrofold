@@ -33,16 +33,16 @@ Choose tests based on the boundary you changed:
 | Question                                               | Use                                                                                          | What a pass establishes                                                                      |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Does the application workflow work?                    | [Local domain and customer-journey tests](local-development/simulation.md#test-your-changes) | API, database, dashboard, and client behavior with simulated execution                       |
-| Can each real harness run tools and restore its files? | [Native Docker fixtures](local-development/docker.md#run-the-existing-native-tests)          | Actual harness software works with deterministic model responses                             |
+| Can each real harness run tools and restore its files? | [Native Docker fixtures](local-development/docker.md#free-runtime-verification)          | Actual harness software works with deterministic model responses                             |
 | Does our gateway speak to the actual provider?         | [Opt-in live provider tests](../engineering/testing/live-integrations.md)                    | Selected real provider protocols and accounting, without launching an agent sandbox          |
-| Does API-to-Docker work with free model fixtures?      | [Complete Docker journey](local-development/docker.md#test-the-complete-journey-for-free)    | Actual API, SQL worker, native tools, gateway, checkpoint and continuation                   |
+| Does API-to-Docker work with free model fixtures?      | [Complete Docker journey](local-development/docker.md#free-runtime-verification)    | Actual API, SQL worker, native tools, gateway, checkpoint and continuation                   |
 | Does the entire real-agent journey work?               | [Cloud staging acceptance](local-development/cloud.md#test-a-real-agent-journey)             | API admission through real sandbox execution, model calls, persisted files, and continuation |
 
 Development modes and test levels are different. Mocked model responses let real harnesses execute tools, but cannot prove live reasoning or provider compatibility. A successful provider request alone cannot prove sandbox startup. The complete journey needs both together.
 
 ## Stop
 
-Use the selected guide's shutdown steps: [simulation](local-development/simulation.md#stop-and-resume), [Docker fixtures](local-development/docker.md#cleanup), or [cloud staging](local-development/cloud.md#stop-new-work).
+Use the selected guide's shutdown steps: [simulation](local-development/simulation.md#stop-and-resume), [Docker fixtures](local-development/docker.md#stop-and-resume-the-application), or [cloud staging](local-development/cloud.md#stop-new-work).
 
 ## Further details
 

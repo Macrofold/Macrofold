@@ -10,31 +10,31 @@ API, CLI, and SDK requests use the same authorization, model/grant validation, b
 
 ## Provider boundary
 
-`MachineProvider` and `SandboxTools` remain the domain-owned ports. `machines()` composes `VercelMachines` for hosted execution or `DockerMachines` for the explicit local poller profile. The Docker adapter uses the installed Docker CLI, with argument arrays, bounded output/timeouts and stdin for sensitive configuration; it adds no dependency, queue, or lifecycle engine.
+`MachineProvider` and `MachineTools` remain the domain-owned ports. `machines()` composes automatic or explicit Worker execution over the Host runtime. Provider ports select Docker for the explicit local poller profile, Vercel for enabled sandbox offers, and Render for enabled server offers. The Docker adapter uses the installed Docker CLI, with argument arrays, bounded output/timeouts and stdin for sensitive configuration; it adds no dependency, queue, or lifecycle engine.
 
-Each container has the stable run name and installation/execution ownership labels. Successful lookup distinguishes absence from transport failure. Provisioning may start a never-started container; a stopped or externally restarted execution is never resumed implicitly. Container ID and start timestamp fence later operations. Native restore/execution markers retain deduplication after uncertain command acknowledgements. Successful publication deletes the owned container; failed persistence stops and retains its writable layer, preserving the last verified independent checkpoint.
+Each Host container has a stable allocation name and installation/execution ownership labels. Successful lookup distinguishes absence from transport failure. Provisioning may start a never-started container; a stopped or externally restarted execution is never resumed implicitly. Container ID and start timestamp fence later operations. Native restore/execution markers retain deduplication after uncertain command acknowledgements. Successful automatic execution releases its private allocation; shared Worker capacity remains until lifecycle policy drains it. Failed persistence preserves the last verified checkpoint and quarantines the affected materialization rather than destroying neighboring Runs.
 
-The existing image keeps the protected supervisor separate from UID 10001, `/worktree`, and native home. Docker imposes two CPUs, four GiB memory, no additional swap, 512 processes and a restricted capability set. It mounts no host files, sockets or credentials. This is trusted local development, not a second production multi-tenant sandbox product. The runtime lifespan includes the existing 30-minute recovery allowance after its requested execution window.
+The runtime keeps the protected controller separate from native handles, each with its own unprivileged identity and scoped paths. Docker imposes the accepted Host CPU/memory allocation, no additional swap, a bounded process count and a restricted capability set. It mounts no host files, sockets or credentials. This is trusted local development, not a second production multi-tenant sandbox product. The runtime lifespan includes the existing 30-minute recovery allowance after its requested execution window.
 
 Only Docker preparation rewrites the authorized application gateway host to `host.docker.internal`, preserving run path and port. The container's host-gateway mapping is local to this provider. Production HTTPS, tenant authority, user-URL SSRF checks, and Vercel egress policy are unchanged. Workstation/Linux networking acceptance remains explicit.
 
 ## Configuration and accounting
 
-`dev:docker`, `worker:docker`, and `doctor:docker` share `scripts/docker-profile.ts`: exported environment values override `.env.docker`, which overrides `.env`. Both files are preserved. The overlay selects local infrastructure, Docker, and SQL polling; paid execution remains disabled until deliberately enabled. The simulator setup remains unchanged.
+`dev:docker`, `worker:docker`, and `doctor:docker` share `scripts/docker-profile.ts`: exported environment values override the single `.env`. These aliases validate `PLATFORM_MODE=local`, `EXECUTION_PROVIDER=docker`, and `ORCHESTRATION_BACKEND=poller`; they do not create another overlay or rewrite configuration. Paid execution remains disabled until deliberately enabled. Restart both serving processes after a mode change.
 
-Synthetic demo credits exercise the actual ledger without Stripe. Docker compute defaults to zero, explicitly repeated in the overlay; configured compute rates still snapshot at admission. Inference and authorized tools remain budgeted and can incur real provider charges. BYOK uses only its selected encrypted credential and never falls back to managed funding. The same worktree/account/global limits, queue expiry, cancellation, recovery and historical replay remain authoritative.
+Synthetic demo credits exercise the actual ledger without Stripe. Docker compute defaults to zero; automatic Run rates and explicit Worker offering quotes are accepted independently. Configured rates are never retroactively applied to old liabilities. Inference and authorized tools remain budgeted and can incur real provider charges. BYOK uses only its selected encrypted credential and never falls back to managed funding. The same worktree/account/global limits, queue expiry, cancellation, recovery and historical replay remain authoritative.
 
-Drain work before switching profiles; use independent databases and object directories for concurrent modes. A provider setting does not migrate an active container, native session format or cloud deployment. Vercel remains the production topology, with Workflow driving bounded SQL phases and the existing maintenance path repairing dispatch.
+Drain work before switching profiles; use independent databases and object directories for concurrent modes. A provider setting does not migrate an active container, native session format or cloud deployment. Hosted Vercel Workflow or the portable poller can drive the same bounded SQL phases; maintenance repairs dispatch and reconciles Worker capacity independently from the requested Run context.
 
 ## Test and acceptance ownership
 
-| Test                              | Boundary                                                                                                                                         |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Domain/browser/CLI/SDK simulation | Actual application workflows, no real harness reasoning                                                                                          |
-| `test:native`                     | Actual harness/container tools and restore against an in-container fixture; bypasses API/worker provisioning                                     |
-| `test:journey:docker`             | Public API, SQL worker, actual native container, gateway fixture, files, replay, fresh-container continuation, worker replacement and settlement |
-| `test:live`                       | Separately opted-in provider/gateway protocols; no native sandbox                                                                                |
-| `test:journey:live`               | The same customer API journey through Docker or deployed staging, with explicit isolation and approved budget                                    |
+| Test | Boundary |
+| --- | --- |
+| Domain/browser/CLI/SDK simulation | Actual application workflows, no real harness reasoning |
+| `test:native` | Actual harness/container tools and restore against an in-container fixture; bypasses API/worker provisioning |
+| `test:journey:docker` | Public API, SQL worker, actual native container, gateway fixture, files, replay, fresh-container continuation, worker replacement and settlement |
+| `test:live` | Separately opted-in provider/gateway protocols; no native sandbox |
+| `test:journey:live` | The same customer API journey through Docker or deployed staging, with explicit isolation and approved budget |
 
 The deterministic native journey reuses the native protocol fixture, substitutes only the gateway's upstream transport, and rejects unexpected upstream URLs/credentials. It owns a unique internal Docker network, disposable database/files and isolated processes. A test-only relay connects that network to the host API: it forwards only runtime paths to one fixed destination. Agents have no external route. The relay uses the existing runtime image and adds no production service. Default/fork CI has no paid provider credentials; the native image job runs this path after narrower native fixtures.
 

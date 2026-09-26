@@ -435,10 +435,10 @@ export async function admitRun(
     limits: { ...(session.limits as Schema['Limits']), ...input.limits },
   } as unknown as Schema['SessionCreate']);
   if (input.stream) {
-  requireScopes(p, ['runs:read']);
-  assert(harnesses.find(h => h.id === configured.harness)?.capabilities.incremental_output,
-    400, 'streaming_not_supported', 'This harness does not emit incremental text. Omit stream to receive completed messages and progress.');
-}
+    requireScopes(p, ['runs:read']);
+    assert(harnesses.find(h => h.id === configured.harness)?.capabilities.incremental_output,
+      400, 'streaming_not_supported', 'This harness does not emit incremental text. Omit stream to receive completed messages and progress.');
+  }
   assert(input.harness_prompt_mode === undefined || configured.harness === 'opencode',
     400, 'unsupported_prompt_mode', 'Harness prompt mode is currently supported by OpenCode only.');
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);

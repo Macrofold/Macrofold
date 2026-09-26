@@ -33,7 +33,7 @@ The public [streaming guide](../../api/streaming.md#native-streaming-on-reusable
 
 ## Existing fixture corrections
 
-No new unit test cases were authored. Existing assertions were reconciled with accepted behavior, not removed to hide failures:
+The source reconciliation authored no new unit cases; the later [full-tip acceptance repairs](#full-tip-acceptance-repairs) add behavioral cases required by unchanged coverage gates. Existing assertions were reconciled with accepted behavior, not removed to hide failures:
 
 - Local Docker is free; initial BYOK platform reservation is zero. Managed reservation, actual model usage, exact final charge, no credential fallback, cancellation, publication and once-only launch checks remain. The separate budget-boundary fixture explicitly selects its synthetic billable quote and still rejects 7,999, accepts 8,000 and releases the exact reservation on cancellation.
 - Priced tool-broker fixtures receive real ledger credit before dispatch. Per-invocation costs, idempotency, revocation, exhausted budgets and no provider calls after denial remain checked.
@@ -54,6 +54,15 @@ Evidence belongs to the exact executed source, not merely a green workflow badge
 | Same source/run, native job | All six cold/continuation fixtures, Codex/Claude media and all six permission-matrix fixtures passed; OpenCode questions then failed. This is not a full native pass. The explicit custom-agent permission repair follows that result. |
 
 Final merge acceptance must use the checks attached to the exact head of PR 8, including compilation, generated-contract drift, domain/coverage, browser/CLI, all-five-SDK and native image jobs. The preceding partial results do not substitute for that final status. Native fixtures execute actual binaries with loopback model responses; external networking is disabled. SQL and HTTP/SDK journeys use disposable local infrastructure. No paid model/provider calls or production migrations were made.
+
+## Full-tip acceptance repairs
+
+The first full run on PR head `cd88616b9835c29b9ed89551054f0b5cc6315952` (Actions `36217514235`) passed all 1,254 domain tests but failed two unchanged gates:
+
+- **Module coverage floors.** Floors in [the shared policy](../../../../scripts/coverage/policy.ts) failed for run admission, cloud execution, snapshot capture and restore. The combined source had removed Sandbox-era coverage without testing its replacements. The fix adds behavioral cases: explicit session creation and continuation; `runs:read` and incremental-harness checks for native `stream: true` admission; session continuation on a prepared Host that stages only missing `home` state; capture-slot handoff after failures; assigned-root and once-only restore outcomes. No floor, exclusion or assertion was relaxed.
+- **Native stdio MCP.** `stdio-call` now validates the complete supervisor configuration, but the stdio fixture still wrote only `runId` and `deadline`, so the first call exited before reaching MCP. The fixture now writes a schema-valid configuration and reports child stderr on failure.
+
+Two small source changes accompany the tests. Restore and stdio share `assignedRoots`, so both protected commands accept only the default roots or the roots assigned to their control directory; previously only restore checked them. The restore command's claim/validate/record step is an exported owner, so its failure paths are testable outside the image. Cloud execution also drops an always-true `workerPrepared` flag: every new execution provisions and prepares before staging input, so the dead alternative phases were removed.
 
 ## Remaining deployment boundaries
 

@@ -114,6 +114,46 @@ describe('portable filesystem checkpoints', () => {
     expect(probe.nextOffset).toBe(Buffer.byteLength(line));
     expect((await probeRuntime(root, probe.nextOffset)).events).toHaveLength(0);
   });
+  it('hands bounded capture slots to queued captures, including after failures', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'platform-capture-slots-'));
+    try {
+      const roots = await Promise.all(
+        [0, 1, 2, 3, 4].map(async (n) => {
+          const value = { workspace: path.join(root, `w${n}`), home: path.join(root, `h${n}`) };
+          await mkdir(value.workspace);
+          await mkdir(value.home);
+          await writeFile(path.join(value.workspace, 'file.txt'), `capture ${n}`);
+          return value;
+        }),
+      );
+      // Two failures occupy both slots first; a leaked slot would leave the queued captures waiting forever.
+      const outcomes = await Promise.allSettled(
+        roots.map((value, n) =>
+          captureSnapshot(value, path.join(root, `out${n}`), {
+            bytes: 1024,
+            entries: n < 2 ? 0 : 10,
+          }),
+        ),
+      );
+      expect(outcomes.map((outcome) => outcome.status)).toEqual([
+        'rejected',
+        'rejected',
+        'fulfilled',
+        'fulfilled',
+        'fulfilled',
+      ]);
+      for (const n of [2, 3, 4]) {
+        const index = JSON.parse(await readFile(path.join(root, `out${n}`, 'index.json'), 'utf8'));
+        expect(index.entries.map((entry: { path: string }) => entry.path)).toEqual(['file.txt']);
+        expect(index.totalBytes).toBe(Buffer.byteLength(`capture ${n}`));
+      }
+      await expect(readFile(path.join(root, 'out0', 'index.json'))).rejects.toThrow();
+      const after = await captureSnapshot(roots[0], path.join(root, 'after'));
+      expect(after.entries).toHaveLength(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it('rejects a snapshot that would write through a symlink ancestor', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-unsafe-'));
     await writeFile(

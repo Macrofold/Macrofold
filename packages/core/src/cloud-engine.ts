@@ -46,7 +46,6 @@ export type ExecutionState = {
   phase: Phase;
   machine?: MachineBinding;
   inputOffset?: number;
-  workerPrepared?: boolean;
   restoreNamespaces?: ('workspace' | 'home')[];
   indexOffset?: number;
   eventOffset?: number;
@@ -199,7 +198,7 @@ export async function advanceCloudRun(
       if (entries.length)
         await transaction(org, (tx) => object(tx, org, runId, 'input_page', String(offset), { entries }));
       state.inputOffset = offset + entries.length;
-      if (state.inputOffset >= source.length) state.phase = state.workerPrepared ? 'hydrate' : 'provision';
+      if (state.inputOffset >= source.length) state.phase = 'hydrate';
     } else if (state.phase === 'provision') {
       assert(
         !run.cancel_requested && run.deadline!.getTime() > Date.now(),
@@ -244,9 +243,9 @@ export async function advanceCloudRun(
         permissions: run.config.permission_layers,
       };
       const prepared = await provider.prepare(state.machine, configuration);
+      // Input pages are staged after preparation so they include only the namespaces this Host must restore.
       state.restoreNamespaces = prepared?.restoreNamespaces;
-      state.workerPrepared = true;
-      state.phase = prepared?.reused ? 'launch' : state.workerPrepared ? 'input' : 'hydrate';
+      state.phase = prepared?.reused ? 'launch' : 'input';
     } else if (state.phase === 'hydrate') {
       const objects = await pending<RestoreObject>(
         org,

@@ -23,6 +23,24 @@ export function hostRunPaths(context: HostRunContext) {
     temp: `/host-data/handles/${value.handleId}/tmp`,
   };
 }
+/** Protected restore and stdio commands act only on the roots assigned to their control directory. */
+export function assignedRoots(
+  configuration: { hostRun?: HostRunContext; workspace: string; stateHome: string },
+  control: string,
+) {
+  const assigned = configuration.hostRun ? hostRunPaths(configuration.hostRun) : undefined;
+  if (
+    configuration.workspace !== (assigned?.workspace ?? '/workspace') ||
+    configuration.stateHome !== (assigned?.home ?? '/agent-home') ||
+    (assigned && assigned.control !== control)
+  )
+    throw new Error('Unexpected runtime roots');
+  return {
+    workspace: configuration.workspace,
+    home: configuration.stateHome,
+    uid: configuration.hostRun?.uid ?? 10001,
+  };
+}
 /** Only unrelated assignments may mutate concurrently; no global slow-command queue. */
 export class KeyedCommands {
   private readonly tails = new Map<string, Promise<unknown>>();

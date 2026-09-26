@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HostMeter } from '../../packages/runtime/src/host-meter';
-import { hostRunPaths, KeyedCommands } from '../../packages/runtime/src/host-paths';
+import { assignedRoots, hostRunPaths, KeyedCommands } from '../../packages/runtime/src/host-paths';
 import { hostControlRequest } from '../../packages/contracts/host-control';
 
 const assignment='019e1700-0000-7000-8000-000000000001';
@@ -74,6 +74,22 @@ describe('control ownership',()=>{
   it('rejects arbitrary directories and wrong ownership before resolving a path',()=>{
     expect(()=>hostRunPaths({assignmentId:'../root',handleId:handle,worktreeId:worktree,uid:20000,memoryMiB:1024})).toThrow();
     expect(()=>hostRunPaths({assignmentId:assignment,handleId:handle,worktreeId:worktree,uid:0,memoryMiB:1024})).toThrow();
+  });
+  it('resolves protected command roots only from the assignment that owns the control directory',()=>{
+    const hostRun={assignmentId:assignment,handleId:handle,worktreeId:worktree,uid:20000,memoryMiB:1024};
+    const paths=hostRunPaths(hostRun);
+    expect(assignedRoots({workspace:'/workspace',stateHome:'/agent-home'},'/platform-control'))
+      .toEqual({workspace:'/workspace',home:'/agent-home',uid:10001});
+    expect(assignedRoots({hostRun,workspace:paths.workspace,stateHome:paths.home},paths.control))
+      .toEqual({workspace:paths.workspace,home:paths.home,uid:20000});
+  });
+  it.each([
+    ['a different default workspace',{workspace:'/etc',stateHome:'/agent-home'},'/platform-control'],
+    ['a different default home',{workspace:'/workspace',stateHome:'/root'},'/platform-control'],
+    ['default roots for an assigned HostRun',{hostRun:{assignmentId:assignment,handleId:handle,worktreeId:worktree,uid:20000,memoryMiB:1024},workspace:'/workspace',stateHome:'/agent-home'},`/platform-control/assignments/${assignment}`],
+    ['another assignment control directory',{hostRun:{assignmentId:assignment,handleId:handle,worktreeId:worktree,uid:20000,memoryMiB:1024},workspace:`/host-data/worktrees/${worktree}`,stateHome:`/host-data/handles/${handle}/home`},'/platform-control/assignments/019e1700-0000-7000-8000-000000000009'],
+  ])('rejects %s before a protected command changes identity',(_name,configuration,control)=>{
+    expect(()=>assignedRoots(configuration,control)).toThrow('Unexpected runtime roots');
   });
   it('requires assignment fencing on all execution-control messages',()=>{
     expect(hostControlRequest.safeParse({action:'launch',run_id:assignment}).success).toBe(false);

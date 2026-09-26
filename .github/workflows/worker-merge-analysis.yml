@@ -1,0 +1,41 @@
+name: Worker merge analysis
+on:
+  push:
+    branches: [feat/worker-economics-autoscaling]
+    paths: [.github/workflows/worker-merge-analysis.yml]
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reproduce merge against main
+        run: |
+          git config user.name "merge-analysis"
+          git config user.email "merge-analysis@example.invalid"
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          code=$?
+          set -e
+          echo "MERGE_EXIT=$code"
+          echo "CONFLICTS_BEGIN"
+          git diff --name-only --diff-filter=U
+          echo "CONFLICTS_END"
+          echo "STATUS_BEGIN"
+          git status --short
+          echo "STATUS_END"
+          mkdir -p /tmp/merge-analysis
+          git diff --cc > /tmp/merge-analysis/conflicts.diff || true
+          git diff --name-only --diff-filter=U > /tmp/merge-analysis/conflicts.txt || true
+          tar --exclude=.git -czf /tmp/merge-analysis/working-tree.tar.gz .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: worker-merge-analysis
+          path: /tmp/merge-analysis/
+          retention-days: 7

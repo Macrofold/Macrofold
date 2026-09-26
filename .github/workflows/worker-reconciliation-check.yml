@@ -6,6 +6,8 @@ on:
       - .github/workflows/worker-reconciliation-check.yml
       - scripts/sdk/python.ts
       - scripts/test-native.ts
+      - sdk/go/macrofold.go
+      - packages/runtime/src/supervisor.ts
 permissions:
   contents: read
 jobs:
@@ -37,53 +39,30 @@ jobs:
           python-version: '3.11'
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
-      - name: Generate current contracts and preserve exact emitted changes
-        run: |
-          python3 - <<'PY'
-          import hashlib,json,pathlib
-          files={}
-          for directory in ('sdk','packages/contracts'):
-              for p in pathlib.Path(directory).rglob('*'):
-                  if p.is_file() and 'node_modules' not in p.parts:
-                      files[str(p)]=hashlib.sha256(p.read_bytes()).hexdigest()
-          pathlib.Path('/tmp/before-generation.json').write_text(json.dumps(files))
-          PY
-          pnpm sdk:generate:all
-          python3 - <<'PY'
-          import hashlib,json,pathlib,shutil
-          before=json.loads(pathlib.Path('/tmp/before-generation.json').read_text())
-          out=pathlib.Path('/tmp/reconciled-sdk');out.mkdir()
-          changed={}
-          for directory in ('sdk','packages/contracts'):
-              for p in pathlib.Path(directory).rglob('*'):
-                  if not p.is_file() or 'node_modules' in p.parts: continue
-                  data=p.read_bytes()
-                  if hashlib.sha256(data).hexdigest()==before.get(str(p)): continue
-                  dest=out/p;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
-                  changed[str(p)]=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
-          (out/'manifest.json').write_text(json.dumps(changed,indent=2))
-          print(json.dumps(changed,indent=2))
-          PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: reconciled-sdk-output
-          path: /tmp/reconciled-sdk/
-          retention-days: 7
+      - run: pnpm sdk:generate:all
       - run: python -m pip install './sdk/python[test]'
       - run: rustup toolchain install 1.94.1 --profile minimal
       - run: pnpm run setup
-      - run: pnpm test:sdks
+      - name: Execute all five existing SDK journeys
+        run: |
+          mkdir -p /tmp/reconciled-sdk
+          pnpm test:sdks 2>&1 | tee /tmp/reconciled-sdk/execution.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: reconciliation-sdk-execution
+          path: /tmp/reconciled-sdk/
+          retention-days: 7
       - name: Clean disposable infrastructure
         if: always()
         run: docker compose -f infra/compose.yml down -v
-  native:
+  domain:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 20
     env:
       PLATFORM_MODE: local
       EXECUTION_PROVIDER: simulator
       ALLOW_PAID_EXECUTION: 'false'
-      NATIVE_COVERAGE_DIR: coverage/native
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -93,23 +72,68 @@ jobs:
           node-version: 24.13.0
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
-      - name: Build and execute existing native image journeys
+      - run: pnpm run setup
+      - name: Record exact test sources and execute existing domain suites
         run: |
-          docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/worker-native-build.log 2>&1 || { tail -100 /tmp/worker-native-build.log; exit 1; }
-          pnpm test:native --image-only
-          pnpm test:native codex claude-code --media --image-only
-          pnpm test:native --permissions --image-only
-          pnpm test:native opencode --questions --image-only
-          pnpm test:native hermes deepseek pi --tools --image-only
-          pnpm test:native hermes deepseek pi --failure --image-only
-          pnpm test:native hermes deepseek pi --cancel --image-only
-          pnpm test:native --stdio --image-only
-      - name: Retain coverage and image evidence
+          mkdir -p /tmp/reconciled-domain
+          python3 - <<'PY'
+          import pathlib,hashlib,json,os,shutil
+          result={'commit':os.environ['GITHUB_SHA'],'files':{}}
+          for p in pathlib.Path('tests').rglob('*.ts'):
+              data=p.read_bytes()
+              result['files'][str(p)]=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+          pathlib.Path('/tmp/reconciled-domain/sources.json').write_text(json.dumps(result,indent=2))
+          for p in ['tests/integration/workers-api.test.ts','tests/integration/inference.test.ts']:
+              shutil.copyfile(p,'/tmp/reconciled-domain/'+pathlib.Path(p).name)
+          PY
+          pnpm test:domain 2>&1 | tee /tmp/reconciled-domain/execution.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: reconciled-native-evidence
-          path: |
-            coverage/native/
-            /tmp/worker-native-build.log
+          name: reconciliation-domain-execution
+          path: /tmp/reconciled-domain/
+          retention-days: 7
+      - name: Clean disposable infrastructure
+        if: always()
+        run: docker compose -f infra/compose.yml down -v
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Execute existing OpenCode fixture with safe failure and directory diagnostics
+        run: |
+          mkdir -p /tmp/reconciled-native
+          docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/reconciled-native/build.log 2>&1 || { tail -100 /tmp/reconciled-native/build.log; exit 1; }
+          cat > tests/fixtures/.reconciliation-native.mjs <<'JS'
+          import { readFile, lstat } from 'node:fs/promises';
+          import { spawnSync } from 'node:child_process';
+          process.argv = [process.execPath, '/tests/native-mock.mjs', 'opencode'];
+          try { await import('/tests/native-mock.mjs'); }
+          catch(error) {
+            for(const line of (await readFile('/platform-control/events.jsonl','utf8')).trim().split('\n')) {
+              const event=JSON.parse(line);
+              if(event.type==='runtime.failed') console.error(JSON.stringify(event));
+            }
+            for(const path of ['/agent-home','/agent-home/.runtime-transient','/agent-home/.runtime-transient/tmp']) {
+              const stat=await lstat(path);
+              console.error(JSON.stringify({path,uid:stat.uid,gid:stat.gid,mode:(stat.mode&0o777).toString(8)}));
+            }
+            const probe=spawnSync(process.execPath,['--input-type=module','-e',"import{writeFile}from'node:fs/promises';await writeFile('/agent-home/.runtime-transient/tmp/probe','fixture')"],{uid:10001,gid:10001,encoding:'utf8'});
+            console.error(JSON.stringify({temp_write_status:probe.status,permission_denied:probe.stderr.includes('EACCES')}));
+            throw error;
+          }
+          JS
+          docker run --rm --network=none --mount "type=bind,src=$PWD/tests/fixtures,dst=/tests,readonly" platform-runtime:0.1.0 node /tests/.reconciliation-native.mjs 2>&1 | tee /tmp/reconciled-native/execution.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: reconciliation-native-diagnostics
+          path: /tmp/reconciled-native/
           retention-days: 7

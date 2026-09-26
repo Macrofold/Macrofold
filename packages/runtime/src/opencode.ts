@@ -60,7 +60,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
           },
           ...(guarded
             ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
-            : { permission: { edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+            : { permission: { question: 'allow' as const, edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
           mcp: {
             ...(c.toolGrants
               ? {

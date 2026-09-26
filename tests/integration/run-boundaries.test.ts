@@ -64,7 +64,8 @@ describe('run state transitions and concurrent requests', () => {
     vi.spyOn(catalog, 'models').mockResolvedValue(models);
     config.execution = 'docker';
     config.allowPaid = true;
-    vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
+    // Local Docker is free. Exercise the accepted billable quote, not its local default.
+    vi.spyOn(catalog, 'computeRate').mockReturnValue('8000');
     await transaction(account.p.organizationId, (tx) =>
       credit(tx, account.p.organizationId, 100000n, `compute:${id()}`),
     );

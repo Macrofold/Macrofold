@@ -24,6 +24,8 @@ Use `runs.stream_text` (with language-appropriate casing/accessors) for assistan
 
 Advanced integrations use `runs.events` for structured events and durable sequence cursors; `runs.stream` remains available. Streaming resumes after interruptions and suppresses duplicate sequences. Save a sequence to resume after a process restart. Detaching leaves the remote run running; use `runs.cancel` explicitly.
 
+Direct model calls use `inferences.stream(request)` (language-appropriate casing) for typed incremental events and the saved terminal result. This is a single POST, with no token replay or reconnect after output begins. Use `inferences.create` for ordinary JSON responses. See the [streaming guide](../streaming.md) for copyable examples, capability errors, idempotency recovery and detachment.
+
 ## Optional customer-agent path
 
 All five clients expose the `customerAgents` resource group (idiomatic casing in each language) for [customer-specific setup and ownership](../../customer-agents/quickstart.md). These methods use `/v1/integration-paths/customer-agents`, compose the same core resources, and retain their retry/streaming behavior. TypeScript offers `streamText` and `waitRun` helpers and the optional `macrofold/react` connection controls. [Account connection setup](../../customer-agents/connections.md) explains the authenticated backend callbacks; no platform key belongs in a browser component.

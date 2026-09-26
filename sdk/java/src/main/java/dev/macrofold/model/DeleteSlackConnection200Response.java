@@ -30,21 +30,21 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import dev.macrofold.ApiClient;
 /**
- * DeleteTrigger200Response
+ * DeleteSlackConnection200Response
  */
 @JsonPropertyOrder({
-  DeleteTrigger200Response.JSON_PROPERTY_DELETED
+  DeleteSlackConnection200Response.JSON_PROPERTY_DELETED
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
-public class DeleteTrigger200Response {
+public class DeleteSlackConnection200Response {
   public static final String JSON_PROPERTY_DELETED = "deleted";
   @javax.annotation.Nonnull
   private Boolean deleted;
 
-  public DeleteTrigger200Response() { 
+  public DeleteSlackConnection200Response() { 
   }
 
-  public DeleteTrigger200Response deleted(@javax.annotation.Nonnull Boolean deleted) {
+  public DeleteSlackConnection200Response deleted(@javax.annotation.Nonnull Boolean deleted) {
     this.deleted = deleted;
     return this;
   }
@@ -69,7 +69,7 @@ public class DeleteTrigger200Response {
 
 
   /**
-   * Return true if this deleteTrigger_200_response object is equal to o.
+   * Return true if this deleteSlackConnection_200_response object is equal to o.
    */
   @Override
   public boolean equals(Object o) {
@@ -79,8 +79,8 @@ public class DeleteTrigger200Response {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    DeleteTrigger200Response deleteTrigger200Response = (DeleteTrigger200Response) o;
-    return Objects.equals(this.deleted, deleteTrigger200Response.deleted);
+    DeleteSlackConnection200Response deleteSlackConnection200Response = (DeleteSlackConnection200Response) o;
+    return Objects.equals(this.deleted, deleteSlackConnection200Response.deleted);
   }
 
   @Override
@@ -91,7 +91,7 @@ public class DeleteTrigger200Response {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class DeleteTrigger200Response {\n");
+    sb.append("class DeleteSlackConnection200Response {\n");
     sb.append("    deleted: ").append(toIndentedString(deleted)).append("\n");
     sb.append("}");
     return sb.toString();

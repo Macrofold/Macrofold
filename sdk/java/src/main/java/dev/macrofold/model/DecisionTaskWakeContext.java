@@ -63,37 +63,37 @@ import dev.macrofold.ApiClient;
 import dev.macrofold.JSON;
 
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
-@JsonDeserialize(using = InferenceCreateContext.InferenceCreateContextDeserializer.class)
-@JsonSerialize(using = InferenceCreateContext.InferenceCreateContextSerializer.class)
-public class InferenceCreateContext extends AbstractOpenApiSchema {
-    private static final Logger log = Logger.getLogger(InferenceCreateContext.class.getName());
+@JsonDeserialize(using = DecisionTaskWakeContext.DecisionTaskWakeContextDeserializer.class)
+@JsonSerialize(using = DecisionTaskWakeContext.DecisionTaskWakeContextSerializer.class)
+public class DecisionTaskWakeContext extends AbstractOpenApiSchema {
+    private static final Logger log = Logger.getLogger(DecisionTaskWakeContext.class.getName());
 
-    public static class InferenceCreateContextSerializer extends StdSerializer<InferenceCreateContext> {
-        public InferenceCreateContextSerializer(Class<InferenceCreateContext> t) {
+    public static class DecisionTaskWakeContextSerializer extends StdSerializer<DecisionTaskWakeContext> {
+        public DecisionTaskWakeContextSerializer(Class<DecisionTaskWakeContext> t) {
             super(t);
         }
 
-        public InferenceCreateContextSerializer() {
+        public DecisionTaskWakeContextSerializer() {
             this(null);
         }
 
         @Override
-        public void serialize(InferenceCreateContext value, JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+        public void serialize(DecisionTaskWakeContext value, JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
             jgen.writeObject(value.getActualInstance());
         }
     }
 
-    public static class InferenceCreateContextDeserializer extends StdDeserializer<InferenceCreateContext> {
-        public InferenceCreateContextDeserializer() {
-            this(InferenceCreateContext.class);
+    public static class DecisionTaskWakeContextDeserializer extends StdDeserializer<DecisionTaskWakeContext> {
+        public DecisionTaskWakeContextDeserializer() {
+            this(DecisionTaskWakeContext.class);
         }
 
-        public InferenceCreateContextDeserializer(Class<?> vc) {
+        public DecisionTaskWakeContextDeserializer(Class<?> vc) {
             super(vc);
         }
 
         @Override
-        public InferenceCreateContext deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+        public DecisionTaskWakeContext deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException, JsonProcessingException {
             JsonNode tree = ctxt.readTree(jp);
             Object deserialized = null;
             boolean typeCoercion = ctxt.isEnabled(MapperFeature.ALLOW_COERCION_OF_SCALARS);
@@ -152,35 +152,35 @@ public class InferenceCreateContext extends AbstractOpenApiSchema {
             }
 
             if (match == 1) {
-                InferenceCreateContext ret = new InferenceCreateContext();
+                DecisionTaskWakeContext ret = new DecisionTaskWakeContext();
                 ret.setActualInstance(deserialized);
                 return ret;
             }
-            throw new IOException(String.format(java.util.Locale.ROOT, "Failed deserialization for InferenceCreateContext: %d classes match result, expected 1", match));
+            throw new IOException(String.format(java.util.Locale.ROOT, "Failed deserialization for DecisionTaskWakeContext: %d classes match result, expected 1", match));
         }
 
         /**
          * Handle deserialization of the 'null' value.
          */
         @Override
-        public InferenceCreateContext getNullValue(DeserializationContext ctxt) throws JsonMappingException {
-            throw new JsonMappingException(ctxt.getParser(), "InferenceCreateContext cannot be null");
+        public DecisionTaskWakeContext getNullValue(DeserializationContext ctxt) throws JsonMappingException {
+            throw new JsonMappingException(ctxt.getParser(), "DecisionTaskWakeContext cannot be null");
         }
     }
 
     // store a list of schema names defined in oneOf
     public static final Map<String, Class<?>> schemas = new HashMap<>();
 
-    public InferenceCreateContext() {
+    public DecisionTaskWakeContext() {
         super("oneOf", Boolean.FALSE);
     }
 
-    public InferenceCreateContext(ContextReference o) {
+    public DecisionTaskWakeContext(ContextReference o) {
         super("oneOf", Boolean.FALSE);
         setActualInstance(o);
     }
 
-    public InferenceCreateContext(ExplicitContext o) {
+    public DecisionTaskWakeContext(ExplicitContext o) {
         super("oneOf", Boolean.FALSE);
         setActualInstance(o);
     }
@@ -188,12 +188,12 @@ public class InferenceCreateContext extends AbstractOpenApiSchema {
     static {
         schemas.put("ContextReference", ContextReference.class);
         schemas.put("ExplicitContext", ExplicitContext.class);
-        JSON.registerDescendants(InferenceCreateContext.class, Collections.unmodifiableMap(schemas));
+        JSON.registerDescendants(DecisionTaskWakeContext.class, Collections.unmodifiableMap(schemas));
     }
 
     @Override
     public Map<String, Class<?>> getSchemas() {
-        return InferenceCreateContext.schemas;
+        return DecisionTaskWakeContext.schemas;
     }
 
     /**

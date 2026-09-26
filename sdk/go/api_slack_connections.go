@@ -180,7 +180,7 @@ func (r ApiDeleteSlackConnectionRequest) XOrganizationId(xOrganizationId string)
 	return r
 }
 
-func (r ApiDeleteSlackConnectionRequest) Execute() (*DeleteTrigger200Response, *http.Response, error) {
+func (r ApiDeleteSlackConnectionRequest) Execute() (*DeleteSlackConnection200Response, *http.Response, error) {
 	return r.ApiService.DeleteSlackConnectionExecute(r)
 }
 
@@ -202,13 +202,13 @@ func (a *SlackConnectionsAPIService) DeleteSlackConnection(ctx context.Context, 
 }
 
 // Execute executes the request
-//  @return DeleteTrigger200Response
-func (a *SlackConnectionsAPIService) DeleteSlackConnectionExecute(r ApiDeleteSlackConnectionRequest) (*DeleteTrigger200Response, *http.Response, error) {
+//  @return DeleteSlackConnection200Response
+func (a *SlackConnectionsAPIService) DeleteSlackConnectionExecute(r ApiDeleteSlackConnectionRequest) (*DeleteSlackConnection200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *DeleteTrigger200Response
+		localVarReturnValue  *DeleteSlackConnection200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SlackConnectionsAPIService.DeleteSlackConnection")

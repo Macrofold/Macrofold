@@ -787,7 +787,7 @@ pub async fn list_customer_agent_files(configuration: &configuration::Configurat
 }
 
 /// Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-pub async fn list_customer_agent_run_events(configuration: &configuration::Configuration, customer_id: &str, customer_agent_id: &str, run_id: &str, x_organization_id: Option<&str>, after: Option<&str>, cursor: Option<&str>, limit: Option<i32>) -> Result<models::ListRunEvents200Response, Error<ListCustomerAgentRunEventsError>> {
+pub async fn list_customer_agent_run_events(configuration: &configuration::Configuration, customer_id: &str, customer_agent_id: &str, run_id: &str, x_organization_id: Option<&str>, after: Option<&str>, cursor: Option<&str>, limit: Option<i32>) -> Result<models::ListCustomerAgentRunEvents200Response, Error<ListCustomerAgentRunEventsError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_customer_id = customer_id;
     let p_path_customer_agent_id = customer_agent_id;
@@ -837,8 +837,8 @@ pub async fn list_customer_agent_run_events(configuration: &configuration::Confi
         let content = resp.text().await?;
         match content_type {
             ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
-            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListRunEvents200Response`"))),
-            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListRunEvents200Response`")))),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ListCustomerAgentRunEvents200Response`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ListCustomerAgentRunEvents200Response`")))),
         }
     } else {
         let content = resp.text().await?;

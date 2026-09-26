@@ -350,6 +350,13 @@
     "description": "Reconnect to run events and verify reliable webhook delivery."
   },
   {
+    "slug": "api/streaming",
+    "source": "docs/features/api/streaming.md",
+    "title": "Model and agent streaming",
+    "section": "Reference",
+    "description": "Understand current agent streams and the planned direct-model delta interface and support limits."
+  },
+  {
     "slug": "api/http-quickstart",
     "source": "docs/features/api/http-quickstart.md",
     "title": "HTTP quickstart",

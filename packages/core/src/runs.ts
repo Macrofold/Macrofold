@@ -1,3 +1,4 @@
+import { harnesses } from '../../contracts/harnesses';
 import { workerForRun } from './workers';
 import { validateWorkerResources } from './worker-pricing';
 import { initialReceipt } from './inference-receipt';
@@ -78,6 +79,7 @@ type RunEnvelope = {
 export type InferenceConfig = Pick<RunConfig,
   'user_id' | 'principal_id' | 'principal_kind' | 'workspace_ids' | 'oauth_token_id' |
   'oauth_audience' | 'client_type' | 'scheduling_class' | 'webhook_endpoint_ids'> & {
+  stream?: boolean;
   executor_version: '1';
   task_id?: string;
   context_reference?: Schema['ContextReference'];
@@ -432,6 +434,11 @@ export async function admitRun(
     ...(input.model ? { model: input.model } : {}),
     limits: { ...(session.limits as Schema['Limits']), ...input.limits },
   } as unknown as Schema['SessionCreate']);
+  if (input.stream) {
+  requireScopes(p, ['runs:read']);
+  assert(harnesses.find(h => h.id === configured.harness)?.capabilities.incremental_output,
+    400, 'streaming_not_supported', 'This harness does not emit incremental text. Omit stream to receive completed messages and progress.');
+}
   assert(input.harness_prompt_mode === undefined || configured.harness === 'opencode',
     400, 'unsupported_prompt_mode', 'Harness prompt mode is currently supported by OpenCode only.');
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);

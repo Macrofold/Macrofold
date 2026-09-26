@@ -1,3 +1,4 @@
+import { directInferenceStream } from './direct-inference-stream';
 import { completeDirectInference, respondAsync } from './direct-inference';
 import { getCustomerBinding, customerRun } from './customer-agents';
 import { pool, transaction, lock } from '../../db';
@@ -13,7 +14,11 @@ import { adminReport } from './reports';
 import { organizationManager } from './organizations';
 import { boundedBody } from './body';
 
-export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'rest', background?: (task: () => Promise<void>) => void) {
+export async function handleApi(
+  request: Request,
+  surface: 'rest' | 'mcp' = 'rest',
+  background?: (task: () => Promise<void>) => void,
+) {
   const requestId = id(),
     start = Date.now();
   let principal: Principal | undefined;
@@ -24,15 +29,16 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
   });
-  if (!background) await pool
-    .query('INSERT INTO api_requests(request_id,method,route) VALUES($1,$2,$3)', [
-      requestId,
-      request.method,
-      'unmatched',
-    ])
-    .catch(() => {
-      console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_start_failed' }));
-    });
+  if (!background)
+    await pool
+      .query('INSERT INTO api_requests(request_id,method,route) VALUES($1,$2,$3)', [
+        requestId,
+        request.method,
+        'unmatched',
+      ])
+      .catch(() => {
+        console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_start_failed' }));
+      });
   try {
     const matched = matchRoute(request);
     route = matched.path;
@@ -41,17 +47,18 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
     const audience = `${config.origin}${admin ? '/admin/v1' : surface === 'mcp' ? '/mcp' : '/v1'}`;
     principal = await identify(request, audience);
     const p = principal;
-    if (!background) await pool.query(
-      'UPDATE api_requests SET organization_id=$2,principal_id=$3,principal_type=$4,user_id=$5,route=$6 WHERE request_id=$1',
-      [
-        requestId,
-        p.organizationId,
-        p.id,
-        p.kind === 'api_key' ? 'service' : admin ? 'operator' : 'human',
-        p.userId || null,
-        route,
-      ],
-    );
+    if (!background)
+      await pool.query(
+        'UPDATE api_requests SET organization_id=$2,principal_id=$3,principal_type=$4,user_id=$5,route=$6 WHERE request_id=$1',
+        [
+          requestId,
+          p.organizationId,
+          p.id,
+          p.kind === 'api_key' ? 'service' : admin ? 'operator' : 'human',
+          p.userId || null,
+          route,
+        ],
+      );
     // Scopes apply to every credential kind, including API-key-only operations.
     const scopes = operationScopes(matched.operation);
     requireScopes(p, scopes);
@@ -142,6 +149,27 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
       }
     }
     validateBody(matched.operation, body, binary);
+    const directStream =
+      matched.operation.operationId === 'createInference' &&
+      !!body &&
+      typeof body === 'object' &&
+      'stream' in body &&
+      body.stream === true;
+    if (directStream) {
+      requireScopes(p, ['runs:read']);
+      assert(
+        surface === 'rest' && background,
+        400,
+        'streaming_not_supported',
+        'Direct streaming requires the REST/SDK request lifecycle. Omit stream on this transport.',
+      );
+      assert(
+        !respondAsync(request),
+        400,
+        'invalid_request',
+        'Do not combine stream with Prefer: respond-async.',
+      );
+    }
     const handler = handlers[matched.operation.operationId];
     const prepare = preparations[matched.operation.operationId];
     assert(handler || prepare, 503, 'operation_unavailable', 'This operation is not configured.');
@@ -213,7 +241,14 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
             value = await handler({ ...context, tx });
           }
           committed = true;
-          const response = value instanceof Response ? value : responseFor(matched.operation, value, matched.operation.operationId === 'createInference' ? 202 : undefined);
+          const response =
+            value instanceof Response
+              ? value
+              : responseFor(
+                  matched.operation,
+                  value,
+                  matched.operation.operationId === 'createInference' ? 202 : undefined,
+                );
           if (idempotencyKey && !(response instanceof Response))
             await tx.query(
               'INSERT INTO idempotency(organization_id,principal_id,route,key,fingerprint,response_ciphertext,status) VALUES($1,$2,$3,$4,$5,$6,$7)',
@@ -261,6 +296,18 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
       status = outcome.status;
       const response = outcome;
       headers.forEach((value, key) => response.headers.set(key, value));
+      return response;
+    }
+    if (directStream && background) {
+      const response = await directInferenceStream(
+        p,
+        outcome.body,
+        committed,
+        headers,
+        background,
+        request.signal,
+      );
+      status = response.status;
       return response;
     }
     if (matched.operation.operationId === 'createInference') {
@@ -320,27 +367,31 @@ export async function handleApi(request: Request, surface: 'rest' | 'mcp' = 'res
             ? 'human'
             : 'anonymous';
     const duration = Date.now() - start;
-    const recordRequest = async () => { await pool
-      .query(
-        'INSERT INTO api_requests(request_id,organization_id,principal_id,principal_type,user_id,method,route,status,duration_ms,client_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id) DO UPDATE SET organization_id=excluded.organization_id,principal_id=excluded.principal_id,principal_type=excluded.principal_type,user_id=excluded.user_id,route=excluded.route,status=excluded.status,duration_ms=excluded.duration_ms,client_type=excluded.client_type',
-        [
-          requestId,
-          principal?.organizationId || null,
-          principal?.id || null,
-          type,
-          principal?.userId || null,
-          request.method,
-          route,
-          status,
-          duration,
-          ['dashboard', 'cli', 'sdk', 'api', 'internal'].includes(request.headers.get('x-client-type') || '')
-            ? request.headers.get('x-client-type')
-            : 'api',
-        ],
-      )
-      .catch(() => {
-        console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_failed' }));
-      }); };
+    const recordRequest = async () => {
+      await pool
+        .query(
+          'INSERT INTO api_requests(request_id,organization_id,principal_id,principal_type,user_id,method,route,status,duration_ms,client_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id) DO UPDATE SET organization_id=excluded.organization_id,principal_id=excluded.principal_id,principal_type=excluded.principal_type,user_id=excluded.user_id,route=excluded.route,status=excluded.status,duration_ms=excluded.duration_ms,client_type=excluded.client_type',
+          [
+            requestId,
+            principal?.organizationId || null,
+            principal?.id || null,
+            type,
+            principal?.userId || null,
+            request.method,
+            route,
+            status,
+            duration,
+            ['dashboard', 'cli', 'sdk', 'api', 'internal'].includes(
+              request.headers.get('x-client-type') || '',
+            )
+              ? request.headers.get('x-client-type')
+              : 'api',
+          ],
+        )
+        .catch(() => {
+          console.error(JSON.stringify({ request_id: requestId, code: 'request_observation_failed' }));
+        });
+    };
     if (background) background(recordRequest);
     else await recordRequest();
   }

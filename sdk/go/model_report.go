@@ -13,7 +13,6 @@ package macrofold
 import (
 	"encoding/json"
 	"time"
-	"bytes"
 	"fmt"
 )
 
@@ -35,6 +34,7 @@ type Report struct {
 	EvidenceUrls []string `json:"evidence_urls,omitempty"`
 	Recommendations []Recommendation `json:"recommendations,omitempty"`
 	Scheduling *SchedulingReport `json:"scheduling,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _Report Report
@@ -414,6 +414,11 @@ func (o Report) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Scheduling) {
 		toSerialize["scheduling"] = o.Scheduling
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -448,15 +453,31 @@ func (o *Report) UnmarshalJSON(data []byte) (err error) {
 
 	varReport := _Report{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varReport)
+	err = json.Unmarshal(data, &varReport)
 
 	if err != nil {
 		return err
 	}
 
 	*o = Report(varReport)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "definition_version")
+		delete(additionalProperties, "from")
+		delete(additionalProperties, "to")
+		delete(additionalProperties, "timezone")
+		delete(additionalProperties, "observed_at")
+		delete(additionalProperties, "complete_through")
+		delete(additionalProperties, "missing_sources")
+		delete(additionalProperties, "filters")
+		delete(additionalProperties, "metrics")
+		delete(additionalProperties, "evidence_urls")
+		delete(additionalProperties, "recommendations")
+		delete(additionalProperties, "scheduling")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

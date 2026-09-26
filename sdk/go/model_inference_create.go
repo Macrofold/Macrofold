@@ -24,11 +24,13 @@ type InferenceCreate struct {
 	WorkspaceId *string `json:"workspace_id,omitempty"`
 	Definition *InferenceCreateDefinition `json:"definition,omitempty"`
 	Input interface{} `json:"input"`
-	Context *InferenceCreateContext `json:"context,omitempty"`
+	Context *DecisionTaskWakeContext `json:"context,omitempty"`
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
+	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 type _InferenceCreate InferenceCreate
@@ -143,9 +145,9 @@ func (o *InferenceCreate) SetInput(v interface{}) {
 }
 
 // GetContext returns the Context field value if set, zero value otherwise.
-func (o *InferenceCreate) GetContext() InferenceCreateContext {
+func (o *InferenceCreate) GetContext() DecisionTaskWakeContext {
 	if o == nil || IsNil(o.Context) {
-		var ret InferenceCreateContext
+		var ret DecisionTaskWakeContext
 		return ret
 	}
 	return *o.Context
@@ -153,7 +155,7 @@ func (o *InferenceCreate) GetContext() InferenceCreateContext {
 
 // GetContextOk returns a tuple with the Context field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *InferenceCreate) GetContextOk() (*InferenceCreateContext, bool) {
+func (o *InferenceCreate) GetContextOk() (*DecisionTaskWakeContext, bool) {
 	if o == nil || IsNil(o.Context) {
 		return nil, false
 	}
@@ -169,8 +171,8 @@ func (o *InferenceCreate) HasContext() bool {
 	return false
 }
 
-// SetContext gets a reference to the given InferenceCreateContext and assigns it to the Context field.
-func (o *InferenceCreate) SetContext(v InferenceCreateContext) {
+// SetContext gets a reference to the given DecisionTaskWakeContext and assigns it to the Context field.
+func (o *InferenceCreate) SetContext(v DecisionTaskWakeContext) {
 	o.Context = &v
 }
 
@@ -294,6 +296,38 @@ func (o *InferenceCreate) SetModelParameters(v ModelParameters) {
 	o.ModelParameters = &v
 }
 
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *InferenceCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *InferenceCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *InferenceCreate) SetStream(v bool) {
+	o.Stream = &v
+}
+
 func (o InferenceCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -325,6 +359,9 @@ func (o InferenceCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
 	}
 	return toSerialize, nil
 }

@@ -61,11 +61,13 @@ Optional lower bounds: `DECISION_INPUT_MAX_BYTES` (262144), `DECISION_CONTEXT_MA
 
 ## Measurements and deliberate limits
 
+[Direct generative streaming](../api/streaming-implementation.md) adds a transport-neutral output sink to the existing executor. Provider adapters assemble a full response; the invocation owner persists and settles it once. Bounded-agent output is coalesced into existing run events; direct output bypasses the event store. Interrupted provider streams retain partial evidence and incomplete usage without repeating dispatch.
+
 Receipts expose admission preparation, context resolution, queue wait, provider duration, response persistence and validation milliseconds. Admission preparation excludes the final ledger/admission commit; bounded receipts report the final invocation's provider/persistence timing, while every invocation stores its own timings. Missing measurements after process death remain missing. These are stage observations, not an end-to-end hosted SLA or provider first-token measurements; the adapters return complete bounded responses.
 
 The fixture benchmark measures the whole local submission/execution path, SQL statement/write counts, row bytes and artifact count against a 5-second application fixture budget. See actual results in [verification](verification.md). No VM startup, worktree hydration or object output is needed for the small inline decision.
 
-Remote context-provider registration, arbitrary bounded tools, generative streaming, model aliases, warm native pools, mutable definition aliases, a DAG builder and automatic late-charge correction are intentionally absent. The current typed ports support replacing provider transport or context reads without moving policy into vendor adapters. The byte-based token bound is deliberately conservative; a reviewed tokenizer can replace it without changing the contract. Shadow fixtures demonstrate adapter disagreement/provenance, not model quality.
+Remote context-provider registration, arbitrary bounded tools, model aliases, warm native pools, mutable definition aliases, a DAG builder and automatic late-charge correction are intentionally absent. The current typed ports support replacing provider transport or context reads without moving policy into vendor adapters. The byte-based input bound is exclusively a conservative billing reservation, never a context-window validator. Admission still prepares and validates the provider payload; dispatch still authorizes its bounded cost. Providers enforce actual token windows, including Jev's total and per-question limits. A provider-accurate tokenizer or counting API could add preflight validation later; an approximate byte count cannot safely reject a request as too many tokens. Existing no-retry and provisional-liability handling applies to provider failures. Shadow fixtures demonstrate adapter disagreement/provenance, not model quality.
 
 ## Decision tracing
 

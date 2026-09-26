@@ -36,6 +36,31 @@ const macrofold = new Macrofold({ baseURL: 'http://localhost:3210', apiKey: 'YOU
 
 Missing or empty credentials fail before a request. Explicit keys take precedence over the environment. `Client` remains an alias for the same client.
 
+## Stream a model response
+
+For a direct model call without a harness, use `inferences.stream` (Go: `Inferences.Stream`). The helper sets `stream: true`. Set `MACROFOLD_API_KEY` with `runs:write` and `runs:read`; this example requires a configured Anthropic provider and managed credit. Its $0.10 budget is a ceiling, not a price estimate. Workspace-restricted keys must also supply their authorized `workspace_id`.
+
+```ts
+import { Macrofold } from 'macrofold';
+
+const client = new Macrofold();
+for await (const event of client.inferences.stream({
+  model_binding: {
+    provider: 'anthropic', model: 'claude-haiku-4-5-20251001', billing_mode: 'managed',
+  },
+  input: { messages: [{ role: 'user', content: 'Explain worktrees in two sentences.' }], max_tokens: 256 },
+  limits: { timeout_seconds: 60, max_output_tokens: 256, max_cost_micro_usd: '100000' },
+})) {
+  if (event.type === 'run.accepted') console.log('Run:', event.run_id);
+  if (event.type === 'output.delta') process.stdout.write(event.data.text ?? '');
+  if (event.type.startsWith('run.') && event.type !== 'run.accepted') {
+    console.log(event.type, event.data.result);
+  }
+}
+```
+
+Direct events are live-only and do not reconnect or replay tokens. Save the accepted run ID to retrieve its final result after a disconnect; detaching leaves execution running. Terminal failures arrive as events, so inspect them even when the helper returns normally. For recovery across process restarts, persist your own idempotency key using the request options described below. See [streaming](../../docs/features/api/streaming.md) for supported providers, events, limits, and REST examples.
+
 ## Resource methods
 
 Methods return typed responses and accept typed options, with identifiers as positional arguments:

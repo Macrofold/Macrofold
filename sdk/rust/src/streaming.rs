@@ -209,48 +209,58 @@ impl Client {
         if response.status() != reqwest::StatusCode::OK {
             return Err(format!("event stream rejected: HTTP {}", response.status()).into());
         }
-        let mut chunks = response.bytes_stream();
-        let mut line = Vec::new();
-        let mut data = Vec::new();
-        while let Some(chunk) = chunks.next().await {
-            for byte in chunk? {
-                if byte != b'\n' {
-                    line.push(byte);
-                    if line.len() + data.len() > 4 * 1024 * 1024 {
-                        return Err("SSE frame exceeds client limit".into());
-                    }
-                    continue;
-                }
-                if line.last() == Some(&b'\r') {
-                    line.pop();
-                }
-                if line.is_empty() {
-                    if let Ok(event) = serde_json::from_slice::<Event>(&data) {
-                        if let Ok(sequence) = event.sequence.parse::<u64>() {
-                            if sequence > *cursor {
-                                let terminal = matches!(
-                                    event.r#type.as_str(),
-                                    "run.succeeded"
-                                        | "run.failed"
-                                        | "run.cancelled"
-                                        | "run.timed_out"
-                                );
-                                let keep = receive(event);
-                                *cursor = sequence;
-                                if terminal || !keep {
-                                    return Ok(true);
-                                }
-                            }
+        read_sse(response, |data| {
+            if let Ok(event) = serde_json::from_slice::<Event>(data) {
+                if let Ok(sequence) = event.sequence.parse::<u64>() {
+                    if sequence > *cursor {
+                        let terminal = matches!(
+                            event.r#type.as_str(),
+                            "run.succeeded" | "run.failed" | "run.cancelled" | "run.timed_out"
+                        );
+                        let keep = receive(event);
+                        *cursor = sequence;
+                        if terminal || !keep {
+                            return Ok(true);
                         }
                     }
-                    data.clear();
-                } else if let Some(value) = line.strip_prefix(b"data:") {
-                    data.extend_from_slice(value.strip_prefix(b" ").unwrap_or(value));
-                    data.push(b'\n');
                 }
-                line.clear();
             }
-        }
-        Ok(false)
+            Ok(false)
+        })
+        .await
     }
+}
+
+pub(crate) async fn read_sse(
+    response: reqwest::Response,
+    mut receive: impl FnMut(&[u8]) -> Result<bool, ClientError>,
+) -> Result<bool, ClientError> {
+    let mut chunks = response.bytes_stream();
+    let mut line = Vec::new();
+    let mut data = Vec::new();
+    while let Some(chunk) = chunks.next().await {
+        for byte in chunk? {
+            if byte != b'\n' {
+                line.push(byte);
+                if line.len() + data.len() > 4 * 1024 * 1024 {
+                    return Err("SSE frame exceeds client limit".into());
+                }
+                continue;
+            }
+            if line.last() == Some(&b'\r') {
+                line.pop();
+            }
+            if line.is_empty() {
+                if !data.is_empty() && receive(&data)? {
+                    return Ok(true);
+                }
+                data.clear();
+            } else if let Some(value) = line.strip_prefix(b"data:") {
+                data.extend_from_slice(value.strip_prefix(b" ").unwrap_or(value));
+                data.push(b'\n');
+            }
+            line.clear();
+        }
+    }
+    Ok(false)
 }

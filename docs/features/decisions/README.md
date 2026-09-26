@@ -173,11 +173,15 @@ Macrofold uses OpenRouter's [Decisions endpoint](https://openrouter.ai/docs/api/
 
 Maximum defaults: 256 KiB inline input, 2 MiB context, 64 evidence items. Operators can lower these bounds. Schemas are limited to 32 KiB, 128 nodes and eight levels, using a finite JSON Schema subset: ordinary types/properties/items, required/additionalProperties, enums/constants, scalar and collection bounds, title/description. Remote references, regexes, and combinatorial alternatives are rejected. Inputs and outputs are never coerced, defaulted, or silently truncated.
 
-A separate conservative provider limit counts UTF-8 bytes plus framing and output allowance against a 128,000-token conventional window or 32,000-token Jev window. This intentionally rejects some inputs a tokenizer might fit; it prevents unbounded liability without claiming bytes are an exact token count. Responses are bounded to 512 KiB. See the API schemas for numeric call/time/token maxima.
+The provider enforces its actual model context window. Macrofold does not treat serialized UTF-8 bytes as tokens or reject requests against a fixed token window. It still uses a conservative input bound to authorize spending before each call; an insufficient spending ceiling can therefore stop a request even when its context fits. Actual reported tokens determine settled usage. Responses are bounded to 512 KiB. See the API schemas for numeric call/time/token maxima.
+
+Jev has two documented limits: 64K tokens for state plus all questions, and 32K for state plus the longest individual question ([TypeSafe model limits](https://docs.typesafe.ai/models)). OpenRouter advertises 32K, but a live synthetic request with two questions accepted 60,369 input tokens; a roughly 60K single-state request was rejected. A large total budget does not permit a 60K state. Macrofold delegates these tokenizer-specific checks to the provider and never silently truncates evidence.
 
 Managed requests reserve the run ceiling in the existing wallet. BYOK uses the exact selected healthy connection and never substitutes a platform key. Missing usage consumes the request's authorized bound provisionally, not zero. Late usage is retained for operator reconciliation; this version does not automatically refund a terminal provisional charge. Recorded provider cost is an estimate under frozen cost terms, distinct from the customer charge, not an upstream invoice.
 
 ## Next steps
+
+Anthropic Messages and OpenRouter chat support [direct output deltas](../api/streaming.md) with top-level `stream: true`. Bounded generative calls use the same adapters and retain durable run events. Jev remains a completed-response path and rejects explicit streaming before admission.
 
 - [Context and reusable definitions](context.md): evidence semantics, immutable references, audience checks and retention.
 - [Bounded agents and tasks](tasks.md): read-only investigations, task ceilings, wakes and application receipts.

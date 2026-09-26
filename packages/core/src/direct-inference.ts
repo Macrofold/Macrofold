@@ -1,3 +1,4 @@
+import type { InferenceOutputSink } from './decision';
 import { transaction } from '../../db';
 import type { Principal } from './auth';
 import { assert } from './errors';
@@ -18,6 +19,7 @@ export async function completeDirectInference(
   accepted: unknown,
   execute: boolean,
   background?: (task: () => Promise<void>) => void,
+  output?: InferenceOutputSink,
 ) {
   assert(
     accepted && typeof accepted === 'object' && 'run_id' in accepted && typeof accepted.run_id === 'string',
@@ -31,7 +33,7 @@ export async function completeDirectInference(
       // One preparation, one provider invocation, one settlement. Bounded agents
       // never enter this path and cannot extend the HTTP request with a tool loop.
       for (let step = 0; step < 3; step++) {
-        const result = await advanceInference(p.organizationId, runId, background);
+        const result = await advanceInference(p.organizationId, runId, background, output);
         if (result.done || result.queued || result.delaySeconds > 0) break;
       }
     } catch {

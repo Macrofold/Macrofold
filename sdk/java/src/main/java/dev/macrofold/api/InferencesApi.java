@@ -709,7 +709,7 @@ public class InferencesApi {
       localVarRequestBuilder.header("Prefer", prefer.toString());
     }
     localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json, text/event-stream");
 
     try {
       byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(inferenceCreate);

@@ -94,8 +94,9 @@ from macrofold.models.decision_question_one_of3 import DecisionQuestionOneOf3
 from macrofold.models.decision_task import DecisionTask
 from macrofold.models.decision_task_create import DecisionTaskCreate
 from macrofold.models.decision_task_wake import DecisionTaskWake
+from macrofold.models.decision_task_wake_context import DecisionTaskWakeContext
 from macrofold.models.definition_reference import DefinitionReference
-from macrofold.models.delete_trigger200_response import DeleteTrigger200Response
+from macrofold.models.delete_slack_connection200_response import DeleteSlackConnection200Response
 from macrofold.models.delivery import Delivery
 from macrofold.models.diagnostics import Diagnostics
 from macrofold.models.diff_entry import DiffEntry
@@ -122,7 +123,6 @@ from macrofold.models.harness import Harness
 from macrofold.models.identity import Identity
 from macrofold.models.identity_organizations_inner import IdentityOrganizationsInner
 from macrofold.models.inference_create import InferenceCreate
-from macrofold.models.inference_create_context import InferenceCreateContext
 from macrofold.models.inference_create_definition import InferenceCreateDefinition
 from macrofold.models.inference_definition import InferenceDefinition
 from macrofold.models.inference_definition_allowed_models_inner import InferenceDefinitionAllowedModelsInner
@@ -131,6 +131,8 @@ from macrofold.models.inference_receipt import InferenceReceipt
 from macrofold.models.inference_receipt_provider_evidence import InferenceReceiptProviderEvidence
 from macrofold.models.inference_receipt_validation import InferenceReceiptValidation
 from macrofold.models.inference_response import InferenceResponse
+from macrofold.models.inference_stream_event import InferenceStreamEvent
+from macrofold.models.inference_stream_event_data import InferenceStreamEventData
 from macrofold.models.invitation import Invitation
 from macrofold.models.invitation_create import InvitationCreate
 from macrofold.models.key_create import KeyCreate
@@ -141,13 +143,13 @@ from macrofold.models.list_api_keys200_response import ListApiKeys200Response
 from macrofold.models.list_artifacts200_response import ListArtifacts200Response
 from macrofold.models.list_checkpoints200_response import ListCheckpoints200Response
 from macrofold.models.list_connection_tools200_response import ListConnectionTools200Response
+from macrofold.models.list_customer_agent_run_events200_response import ListCustomerAgentRunEvents200Response
 from macrofold.models.list_harnesses200_response import ListHarnesses200Response
 from macrofold.models.list_invitations200_response import ListInvitations200Response
 from macrofold.models.list_members200_response import ListMembers200Response
 from macrofold.models.list_models200_response import ListModels200Response
 from macrofold.models.list_organization_audit200_response import ListOrganizationAudit200Response
 from macrofold.models.list_requests200_response import ListRequests200Response
-from macrofold.models.list_run_events200_response import ListRunEvents200Response
 from macrofold.models.list_runs200_response import ListRuns200Response
 from macrofold.models.list_sessions200_response import ListSessions200Response
 from macrofold.models.list_slack_connection_channels200_response import ListSlackConnectionChannels200Response

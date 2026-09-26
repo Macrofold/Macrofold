@@ -43,47 +43,64 @@ import dev.macrofold.ApiClient;
  * Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
  */
 @JsonPropertyOrder({
-  MessageCreate.JSON_PROPERTY_PROMPT,
-  MessageCreate.JSON_PROPERTY_LIMITS,
   MessageCreate.JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS,
-  MessageCreate.JSON_PROPERTY_QUEUE_IF_BUSY,
-  MessageCreate.JSON_PROPERTY_MODEL,
-  MessageCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
-  MessageCreate.JSON_PROPERTY_SCHEDULING_CLASS,
-  MessageCreate.JSON_PROPERTY_PERMISSIONS,
-  MessageCreate.JSON_PROPERTY_CONNECTION_GRANTS,
   MessageCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
-  MessageCreate.JSON_PROPERTY_ATTACHMENTS,
+  MessageCreate.JSON_PROPERTY_STREAM,
+  MessageCreate.JSON_PROPERTY_PROMPT,
+  MessageCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
   MessageCreate.JSON_PROPERTY_MODEL_PARAMETERS,
-  MessageCreate.JSON_PROPERTY_WORKER_ID,
   MessageCreate.JSON_PROPERTY_MEMORY_MIB,
-  MessageCreate.JSON_PROPERTY_CPU_MILLIS
+  MessageCreate.JSON_PROPERTY_CPU_MILLIS,
+  MessageCreate.JSON_PROPERTY_WORKER_ID,
+  MessageCreate.JSON_PROPERTY_CONNECTION_GRANTS,
+  MessageCreate.JSON_PROPERTY_SCHEDULING_CLASS,
+  MessageCreate.JSON_PROPERTY_LIMITS,
+  MessageCreate.JSON_PROPERTY_MODEL,
+  MessageCreate.JSON_PROPERTY_PERMISSIONS,
+  MessageCreate.JSON_PROPERTY_QUEUE_IF_BUSY,
+  MessageCreate.JSON_PROPERTY_ATTACHMENTS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class MessageCreate {
-  public static final String JSON_PROPERTY_PROMPT = "prompt";
-  @javax.annotation.Nonnull
-  private String prompt;
-
-  public static final String JSON_PROPERTY_LIMITS = "limits";
-  @javax.annotation.Nullable
-  private Limits limits;
-
   public static final String JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS = "webhook_endpoint_ids";
   @javax.annotation.Nullable
   private List<UUID> webhookEndpointIds = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_QUEUE_IF_BUSY = "queue_if_busy";
+  public static final String JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES = "connection_access_overrides";
   @javax.annotation.Nullable
-  private Boolean queueIfBusy = false;
+  private List<Grant> connectionAccessOverrides = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_MODEL = "model";
+  public static final String JSON_PROPERTY_STREAM = "stream";
   @javax.annotation.Nullable
-  private String model;
+  private Boolean stream;
+
+  public static final String JSON_PROPERTY_PROMPT = "prompt";
+  @javax.annotation.Nonnull
+  private String prompt;
 
   public static final String JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS = "queue_timeout_seconds";
   @javax.annotation.Nullable
   private Integer queueTimeoutSeconds;
+
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  @javax.annotation.Nullable
+  private ModelParameters modelParameters;
+
+  public static final String JSON_PROPERTY_MEMORY_MIB = "memory_mib";
+  @javax.annotation.Nullable
+  private Integer memoryMib;
+
+  public static final String JSON_PROPERTY_CPU_MILLIS = "cpu_millis";
+  @javax.annotation.Nullable
+  private Integer cpuMillis;
+
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  @javax.annotation.Nullable
+  private UUID workerId;
+
+  public static final String JSON_PROPERTY_CONNECTION_GRANTS = "connection_grants";
+  @javax.annotation.Nullable
+  private List<Grant> connectionGrants = new ArrayList<>();
 
   /**
    * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
@@ -124,88 +141,28 @@ public class MessageCreate {
   @javax.annotation.Nullable
   private SchedulingClassEnum schedulingClass;
 
+  public static final String JSON_PROPERTY_LIMITS = "limits";
+  @javax.annotation.Nullable
+  private Limits limits;
+
+  public static final String JSON_PROPERTY_MODEL = "model";
+  @javax.annotation.Nullable
+  private String model;
+
   public static final String JSON_PROPERTY_PERMISSIONS = "permissions";
   @javax.annotation.Nullable
   private AgentPermissions permissions;
 
-  public static final String JSON_PROPERTY_CONNECTION_GRANTS = "connection_grants";
+  public static final String JSON_PROPERTY_QUEUE_IF_BUSY = "queue_if_busy";
   @javax.annotation.Nullable
-  private List<Grant> connectionGrants = new ArrayList<>();
-
-  public static final String JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES = "connection_access_overrides";
-  @javax.annotation.Nullable
-  private List<Grant> connectionAccessOverrides = new ArrayList<>();
+  private Boolean queueIfBusy = false;
 
   public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
   @javax.annotation.Nullable
   private Set<String> attachments = new LinkedHashSet<>();
 
-  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
-  @javax.annotation.Nullable
-  private ModelParameters modelParameters;
-
-  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
-  @javax.annotation.Nullable
-  private UUID workerId;
-
-  public static final String JSON_PROPERTY_MEMORY_MIB = "memory_mib";
-  @javax.annotation.Nullable
-  private Integer memoryMib;
-
-  public static final String JSON_PROPERTY_CPU_MILLIS = "cpu_millis";
-  @javax.annotation.Nullable
-  private Integer cpuMillis;
-
   public MessageCreate() { 
   }
-
-  public MessageCreate prompt(@javax.annotation.Nonnull String prompt) {
-    this.prompt = prompt;
-    return this;
-  }
-
-  /**
-   * Get prompt
-   * @return prompt
-   */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public String getPrompt() {
-    return prompt;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPrompt(@javax.annotation.Nonnull String prompt) {
-    this.prompt = prompt;
-  }
-
-
-  public MessageCreate limits(@javax.annotation.Nullable Limits limits) {
-    this.limits = limits;
-    return this;
-  }
-
-  /**
-   * Get limits
-   * @return limits
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Limits getLimits() {
-    return limits;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLimits(@javax.annotation.Nullable Limits limits) {
-    this.limits = limits;
-  }
-
 
   public MessageCreate webhookEndpointIds(@javax.annotation.Nullable List<UUID> webhookEndpointIds) {
     this.webhookEndpointIds = webhookEndpointIds;
@@ -236,160 +193,6 @@ public class MessageCreate {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setWebhookEndpointIds(@javax.annotation.Nullable List<UUID> webhookEndpointIds) {
     this.webhookEndpointIds = webhookEndpointIds;
-  }
-
-
-  public MessageCreate queueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
-    this.queueIfBusy = queueIfBusy;
-    return this;
-  }
-
-  /**
-   * Get queueIfBusy
-   * @return queueIfBusy
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Boolean getQueueIfBusy() {
-    return queueIfBusy;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
-    this.queueIfBusy = queueIfBusy;
-  }
-
-
-  public MessageCreate model(@javax.annotation.Nullable String model) {
-    this.model = model;
-    return this;
-  }
-
-  /**
-   * Optional model override within the pinned harness catalog; never changes the active run.
-   * @return model
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getModel() {
-    return model;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setModel(@javax.annotation.Nullable String model) {
-    this.model = model;
-  }
-
-
-  public MessageCreate queueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-    return this;
-  }
-
-  /**
-   * Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-   * minimum: 1
-   * maximum: 86400
-   * @return queueTimeoutSeconds
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Integer getQueueTimeoutSeconds() {
-    return queueTimeoutSeconds;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-  }
-
-
-  public MessageCreate schedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
-    return this;
-  }
-
-  /**
-   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-   * @return schedulingClass
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public SchedulingClassEnum getSchedulingClass() {
-    return schedulingClass;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSchedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
-  }
-
-
-  public MessageCreate permissions(@javax.annotation.Nullable AgentPermissions permissions) {
-    this.permissions = permissions;
-    return this;
-  }
-
-  /**
-   * Get permissions
-   * @return permissions
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public AgentPermissions getPermissions() {
-    return permissions;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPermissions(@javax.annotation.Nullable AgentPermissions permissions) {
-    this.permissions = permissions;
-  }
-
-
-  public MessageCreate connectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
-    this.connectionGrants = connectionGrants;
-    return this;
-  }
-
-  public MessageCreate addConnectionGrantsItem(Grant connectionGrantsItem) {
-    if (this.connectionGrants == null) {
-      this.connectionGrants = new ArrayList<>();
-    }
-    this.connectionGrants.add(connectionGrantsItem);
-    return this;
-  }
-
-  /**
-   * Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-   * @return connectionGrants
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public List<Grant> getConnectionGrants() {
-    return connectionGrants;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setConnectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
-    this.connectionGrants = connectionGrants;
   }
 
 
@@ -425,36 +228,77 @@ public class MessageCreate {
   }
 
 
-  public MessageCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
-    this.attachments = attachments;
-    return this;
-  }
-
-  public MessageCreate addAttachmentsItem(String attachmentsItem) {
-    if (this.attachments == null) {
-      this.attachments = new LinkedHashSet<>();
-    }
-    this.attachments.add(attachmentsItem);
+  public MessageCreate stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
     return this;
   }
 
   /**
-   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-   * @return attachments
+   * Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+   * @return stream
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Set<String> getAttachments() {
-    return attachments;
+  public Boolean getStream() {
+    return stream;
   }
 
 
-  @JsonDeserialize(as = LinkedHashSet.class)
-  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
-    this.attachments = attachments;
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
+  public MessageCreate prompt(@javax.annotation.Nonnull String prompt) {
+    this.prompt = prompt;
+    return this;
+  }
+
+  /**
+   * Get prompt
+   * @return prompt
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public String getPrompt() {
+    return prompt;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setPrompt(@javax.annotation.Nonnull String prompt) {
+    this.prompt = prompt;
+  }
+
+
+  public MessageCreate queueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
+    this.queueTimeoutSeconds = queueTimeoutSeconds;
+    return this;
+  }
+
+  /**
+   * Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+   * minimum: 1
+   * maximum: 86400
+   * @return queueTimeoutSeconds
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getQueueTimeoutSeconds() {
+    return queueTimeoutSeconds;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setQueueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
+    this.queueTimeoutSeconds = queueTimeoutSeconds;
   }
 
 
@@ -479,30 +323,6 @@ public class MessageCreate {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setModelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
     this.modelParameters = modelParameters;
-  }
-
-
-  public MessageCreate workerId(@javax.annotation.Nullable UUID workerId) {
-    this.workerId = workerId;
-    return this;
-  }
-
-  /**
-   * Get workerId
-   * @return workerId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getWorkerId() {
-    return workerId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
-    this.workerId = workerId;
   }
 
 
@@ -558,6 +378,215 @@ public class MessageCreate {
   }
 
 
+  public MessageCreate workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+    return this;
+  }
+
+  /**
+   * Get workerId
+   * @return workerId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorkerId() {
+    return workerId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+  }
+
+
+  public MessageCreate connectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
+    this.connectionGrants = connectionGrants;
+    return this;
+  }
+
+  public MessageCreate addConnectionGrantsItem(Grant connectionGrantsItem) {
+    if (this.connectionGrants == null) {
+      this.connectionGrants = new ArrayList<>();
+    }
+    this.connectionGrants.add(connectionGrantsItem);
+    return this;
+  }
+
+  /**
+   * Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+   * @return connectionGrants
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public List<Grant> getConnectionGrants() {
+    return connectionGrants;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setConnectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
+    this.connectionGrants = connectionGrants;
+  }
+
+
+  public MessageCreate schedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
+    this.schedulingClass = schedulingClass;
+    return this;
+  }
+
+  /**
+   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+   * @return schedulingClass
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public SchedulingClassEnum getSchedulingClass() {
+    return schedulingClass;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSchedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
+    this.schedulingClass = schedulingClass;
+  }
+
+
+  public MessageCreate limits(@javax.annotation.Nullable Limits limits) {
+    this.limits = limits;
+    return this;
+  }
+
+  /**
+   * Get limits
+   * @return limits
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Limits getLimits() {
+    return limits;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLimits(@javax.annotation.Nullable Limits limits) {
+    this.limits = limits;
+  }
+
+
+  public MessageCreate model(@javax.annotation.Nullable String model) {
+    this.model = model;
+    return this;
+  }
+
+  /**
+   * Optional model override within the pinned harness catalog; never changes the active run.
+   * @return model
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getModel() {
+    return model;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModel(@javax.annotation.Nullable String model) {
+    this.model = model;
+  }
+
+
+  public MessageCreate permissions(@javax.annotation.Nullable AgentPermissions permissions) {
+    this.permissions = permissions;
+    return this;
+  }
+
+  /**
+   * Get permissions
+   * @return permissions
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public AgentPermissions getPermissions() {
+    return permissions;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setPermissions(@javax.annotation.Nullable AgentPermissions permissions) {
+    this.permissions = permissions;
+  }
+
+
+  public MessageCreate queueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
+    this.queueIfBusy = queueIfBusy;
+    return this;
+  }
+
+  /**
+   * Get queueIfBusy
+   * @return queueIfBusy
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getQueueIfBusy() {
+    return queueIfBusy;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setQueueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
+    this.queueIfBusy = queueIfBusy;
+  }
+
+
+  public MessageCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+    return this;
+  }
+
+  public MessageCreate addAttachmentsItem(String attachmentsItem) {
+    if (this.attachments == null) {
+      this.attachments = new LinkedHashSet<>();
+    }
+    this.attachments.add(attachmentsItem);
+    return this;
+  }
+
+  /**
+   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+   * @return attachments
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<String> getAttachments() {
+    return attachments;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+  }
+
+
   /**
    * Return true if this MessageCreate object is equal to o.
    */
@@ -570,47 +599,49 @@ public class MessageCreate {
       return false;
     }
     MessageCreate messageCreate = (MessageCreate) o;
-    return Objects.equals(this.prompt, messageCreate.prompt) &&
-        Objects.equals(this.limits, messageCreate.limits) &&
-        Objects.equals(this.webhookEndpointIds, messageCreate.webhookEndpointIds) &&
-        Objects.equals(this.queueIfBusy, messageCreate.queueIfBusy) &&
-        Objects.equals(this.model, messageCreate.model) &&
-        Objects.equals(this.queueTimeoutSeconds, messageCreate.queueTimeoutSeconds) &&
-        Objects.equals(this.schedulingClass, messageCreate.schedulingClass) &&
-        Objects.equals(this.permissions, messageCreate.permissions) &&
-        Objects.equals(this.connectionGrants, messageCreate.connectionGrants) &&
+    return Objects.equals(this.webhookEndpointIds, messageCreate.webhookEndpointIds) &&
         Objects.equals(this.connectionAccessOverrides, messageCreate.connectionAccessOverrides) &&
-        Objects.equals(this.attachments, messageCreate.attachments) &&
+        Objects.equals(this.stream, messageCreate.stream) &&
+        Objects.equals(this.prompt, messageCreate.prompt) &&
+        Objects.equals(this.queueTimeoutSeconds, messageCreate.queueTimeoutSeconds) &&
         Objects.equals(this.modelParameters, messageCreate.modelParameters) &&
-        Objects.equals(this.workerId, messageCreate.workerId) &&
         Objects.equals(this.memoryMib, messageCreate.memoryMib) &&
-        Objects.equals(this.cpuMillis, messageCreate.cpuMillis);
+        Objects.equals(this.cpuMillis, messageCreate.cpuMillis) &&
+        Objects.equals(this.workerId, messageCreate.workerId) &&
+        Objects.equals(this.connectionGrants, messageCreate.connectionGrants) &&
+        Objects.equals(this.schedulingClass, messageCreate.schedulingClass) &&
+        Objects.equals(this.limits, messageCreate.limits) &&
+        Objects.equals(this.model, messageCreate.model) &&
+        Objects.equals(this.permissions, messageCreate.permissions) &&
+        Objects.equals(this.queueIfBusy, messageCreate.queueIfBusy) &&
+        Objects.equals(this.attachments, messageCreate.attachments);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, limits, webhookEndpointIds, queueIfBusy, model, queueTimeoutSeconds, schedulingClass, permissions, connectionGrants, connectionAccessOverrides, attachments, modelParameters, workerId, memoryMib, cpuMillis);
+    return Objects.hash(webhookEndpointIds, connectionAccessOverrides, stream, prompt, queueTimeoutSeconds, modelParameters, memoryMib, cpuMillis, workerId, connectionGrants, schedulingClass, limits, model, permissions, queueIfBusy, attachments);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MessageCreate {\n");
-    sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
-    sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    webhookEndpointIds: ").append(toIndentedString(webhookEndpointIds)).append("\n");
-    sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
-    sb.append("    model: ").append(toIndentedString(model)).append("\n");
-    sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
-    sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
-    sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
-    sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
-    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
+    sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
+    sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
-    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("    memoryMib: ").append(toIndentedString(memoryMib)).append("\n");
     sb.append("    cpuMillis: ").append(toIndentedString(cpuMillis)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
+    sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
+    sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
+    sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
+    sb.append("    model: ").append(toIndentedString(model)).append("\n");
+    sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
+    sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
+    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -655,16 +686,6 @@ public class MessageCreate {
 
     StringJoiner joiner = new StringJoiner("&");
 
-    // add `prompt` to the URL query string
-    if (getPrompt() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sprompt%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getPrompt()))));
-    }
-
-    // add `limits` to the URL query string
-    if (getLimits() != null) {
-      joiner.add(getLimits().toUrlQueryString(prefix + "limits" + suffix));
-    }
-
     // add `webhook_endpoint_ids` to the URL query string
     if (getWebhookEndpointIds() != null) {
       for (int i = 0; i < getWebhookEndpointIds().size(); i++) {
@@ -672,41 +693,6 @@ public class MessageCreate {
           joiner.add(String.format(java.util.Locale.ROOT, "%swebhook_endpoint_ids%s%s=%s", prefix, suffix,
               "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
               ApiClient.urlEncode(ApiClient.valueToString(getWebhookEndpointIds().get(i)))));
-        }
-      }
-    }
-
-    // add `queue_if_busy` to the URL query string
-    if (getQueueIfBusy() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_if_busy%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueIfBusy()))));
-    }
-
-    // add `model` to the URL query string
-    if (getModel() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%smodel%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getModel()))));
-    }
-
-    // add `queue_timeout_seconds` to the URL query string
-    if (getQueueTimeoutSeconds() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_timeout_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueTimeoutSeconds()))));
-    }
-
-    // add `scheduling_class` to the URL query string
-    if (getSchedulingClass() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sscheduling_class%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSchedulingClass()))));
-    }
-
-    // add `permissions` to the URL query string
-    if (getPermissions() != null) {
-      joiner.add(getPermissions().toUrlQueryString(prefix + "permissions" + suffix));
-    }
-
-    // add `connection_grants` to the URL query string
-    if (getConnectionGrants() != null) {
-      for (int i = 0; i < getConnectionGrants().size(); i++) {
-        if (getConnectionGrants().get(i) != null) {
-          joiner.add(getConnectionGrants().get(i).toUrlQueryString(String.format(java.util.Locale.ROOT, "%sconnection_grants%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix))));
         }
       }
     }
@@ -721,25 +707,24 @@ public class MessageCreate {
       }
     }
 
-    // add `attachments` to the URL query string
-    if (getAttachments() != null) {
-      int i = 0;
-      for (String _item : getAttachments()) {
-        joiner.add(String.format(java.util.Locale.ROOT, "%sattachments%s%s=%s", prefix, suffix,
-            "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
-            ApiClient.urlEncode(ApiClient.valueToString(_item))));
-      }
-      i++;
+    // add `stream` to the URL query string
+    if (getStream() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstream%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStream()))));
+    }
+
+    // add `prompt` to the URL query string
+    if (getPrompt() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sprompt%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getPrompt()))));
+    }
+
+    // add `queue_timeout_seconds` to the URL query string
+    if (getQueueTimeoutSeconds() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_timeout_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueTimeoutSeconds()))));
     }
 
     // add `model_parameters` to the URL query string
     if (getModelParameters() != null) {
       joiner.add(getModelParameters().toUrlQueryString(prefix + "model_parameters" + suffix));
-    }
-
-    // add `worker_id` to the URL query string
-    if (getWorkerId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sworker_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkerId()))));
     }
 
     // add `memory_mib` to the URL query string
@@ -750,6 +735,57 @@ public class MessageCreate {
     // add `cpu_millis` to the URL query string
     if (getCpuMillis() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%scpu_millis%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getCpuMillis()))));
+    }
+
+    // add `worker_id` to the URL query string
+    if (getWorkerId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworker_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkerId()))));
+    }
+
+    // add `connection_grants` to the URL query string
+    if (getConnectionGrants() != null) {
+      for (int i = 0; i < getConnectionGrants().size(); i++) {
+        if (getConnectionGrants().get(i) != null) {
+          joiner.add(getConnectionGrants().get(i).toUrlQueryString(String.format(java.util.Locale.ROOT, "%sconnection_grants%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    // add `scheduling_class` to the URL query string
+    if (getSchedulingClass() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sscheduling_class%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSchedulingClass()))));
+    }
+
+    // add `limits` to the URL query string
+    if (getLimits() != null) {
+      joiner.add(getLimits().toUrlQueryString(prefix + "limits" + suffix));
+    }
+
+    // add `model` to the URL query string
+    if (getModel() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%smodel%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getModel()))));
+    }
+
+    // add `permissions` to the URL query string
+    if (getPermissions() != null) {
+      joiner.add(getPermissions().toUrlQueryString(prefix + "permissions" + suffix));
+    }
+
+    // add `queue_if_busy` to the URL query string
+    if (getQueueIfBusy() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_if_busy%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueIfBusy()))));
+    }
+
+    // add `attachments` to the URL query string
+    if (getAttachments() != null) {
+      int i = 0;
+      for (String _item : getAttachments()) {
+        joiner.add(String.format(java.util.Locale.ROOT, "%sattachments%s%s=%s", prefix, suffix,
+            "".equals(suffix) ? "" : String.format(java.util.Locale.ROOT, "%s%d%s", containerPrefix, i, containerSuffix),
+            ApiClient.urlEncode(ApiClient.valueToString(_item))));
+      }
+      i++;
     }
 
     return joiner.toString();

@@ -28,6 +28,8 @@ type CustomerAgentMessage struct {
 	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
 	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
 	Attachments []string `json:"attachments,omitempty"`
+	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 type _CustomerAgentMessage CustomerAgentMessage
@@ -202,6 +204,38 @@ func (o *CustomerAgentMessage) SetAttachments(v []string) {
 	o.Attachments = v
 }
 
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *CustomerAgentMessage) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CustomerAgentMessage) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *CustomerAgentMessage) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *CustomerAgentMessage) SetStream(v bool) {
+	o.Stream = &v
+}
+
 func (o CustomerAgentMessage) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -224,6 +258,9 @@ func (o CustomerAgentMessage) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Attachments) {
 		toSerialize["attachments"] = o.Attachments
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
 	}
 	return toSerialize, nil
 }

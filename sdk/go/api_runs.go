@@ -29,7 +29,7 @@ type ApiCancelRunRequest struct {
 	ApiService *RunsAPIService
 	runId string
 	idempotencyKey *string
-	requestBody *map[string]*interface{}
+	body *map[string]interface{}
 	xOrganizationId *string
 }
 
@@ -38,8 +38,8 @@ func (r ApiCancelRunRequest) IdempotencyKey(idempotencyKey string) ApiCancelRunR
 	return r
 }
 
-func (r ApiCancelRunRequest) RequestBody(requestBody map[string]*interface{}) ApiCancelRunRequest {
-	r.requestBody = &requestBody
+func (r ApiCancelRunRequest) Body(body map[string]interface{}) ApiCancelRunRequest {
+	r.body = &body
 	return r
 }
 
@@ -100,8 +100,8 @@ func (a *RunsAPIService) CancelRunExecute(r ApiCancelRunRequest) (*Run, *http.Re
 	if strlen(*r.idempotencyKey) > 200 {
 		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 200 elements")
 	}
-	if r.requestBody == nil {
-		return localVarReturnValue, nil, reportError("requestBody is required and must be specified")
+	if r.body == nil {
+		return localVarReturnValue, nil, reportError("body is required and must be specified")
 	}
 
 	// to determine the Content-Type header
@@ -126,7 +126,7 @@ func (a *RunsAPIService) CancelRunExecute(r ApiCancelRunRequest) (*Run, *http.Re
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
 	// body params
-	localVarPostBody = r.requestBody
+	localVarPostBody = r.body
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -732,7 +732,7 @@ func (r ApiListRunEventsRequest) XOrganizationId(xOrganizationId string) ApiList
 	return r
 }
 
-func (r ApiListRunEventsRequest) Execute() (*ListRunEvents200Response, *http.Response, error) {
+func (r ApiListRunEventsRequest) Execute() (*ListCustomerAgentRunEvents200Response, *http.Response, error) {
 	return r.ApiService.ListRunEventsExecute(r)
 }
 
@@ -754,13 +754,13 @@ func (a *RunsAPIService) ListRunEvents(ctx context.Context, runId string) ApiLis
 }
 
 // Execute executes the request
-//  @return ListRunEvents200Response
-func (a *RunsAPIService) ListRunEventsExecute(r ApiListRunEventsRequest) (*ListRunEvents200Response, *http.Response, error) {
+//  @return ListCustomerAgentRunEvents200Response
+func (a *RunsAPIService) ListRunEventsExecute(r ApiListRunEventsRequest) (*ListCustomerAgentRunEvents200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ListRunEvents200Response
+		localVarReturnValue  *ListCustomerAgentRunEvents200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "RunsAPIService.ListRunEvents")

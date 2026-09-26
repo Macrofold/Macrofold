@@ -14,91 +14,95 @@ use serde::{Deserialize, Serialize};
 /// RunCreate : Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RunCreate {
-    #[serde(rename = "prompt")]
-    pub prompt: String,
-    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
-    pub workspace_id: Option<uuid::Uuid>,
-    #[serde(rename = "worktree_id", skip_serializing_if = "Option::is_none")]
-    pub worktree_id: Option<uuid::Uuid>,
-    #[serde(rename = "session_id", skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<uuid::Uuid>,
-    #[serde(rename = "agent_id", skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<uuid::Uuid>,
-    #[serde(rename = "harness", skip_serializing_if = "Option::is_none")]
-    pub harness: Option<Harness>,
-    #[serde(rename = "model", skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-    #[serde(rename = "billing_mode", skip_serializing_if = "Option::is_none")]
-    pub billing_mode: Option<BillingMode>,
-    /// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-    #[serde(rename = "provider_connection_id", skip_serializing_if = "Option::is_none")]
-    pub provider_connection_id: Option<uuid::Uuid>,
-    /// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-    #[serde(rename = "connection_grants", skip_serializing_if = "Option::is_none")]
-    pub connection_grants: Option<Vec<models::Grant>>,
-    #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
-    pub limits: Option<Box<models::Limits>>,
     #[serde(rename = "webhook_endpoint_ids", skip_serializing_if = "Option::is_none")]
     pub webhook_endpoint_ids: Option<Vec<uuid::Uuid>>,
-    /// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-    #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
-    pub queue_timeout_seconds: Option<i32>,
-    /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-    #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
-    pub scheduling_class: Option<SchedulingClass>,
-    /// Only session follow-ups can queue behind worktree work.
-    #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
-    pub queue_if_busy: Option<bool>,
-    #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
-    pub permissions: Option<Box<models::AgentPermissions>>,
     /// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
     #[serde(rename = "connection_access_overrides", skip_serializing_if = "Option::is_none")]
     pub connection_access_overrides: Option<Vec<models::Grant>>,
-    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
-    pub attachments: Option<Vec<String>>,
+    /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(rename = "prompt")]
+    pub prompt: String,
+    /// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+    #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
+    pub queue_timeout_seconds: Option<i32>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
-    /// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
-    #[serde(rename = "harness_prompt_mode", skip_serializing_if = "Option::is_none")]
-    pub harness_prompt_mode: Option<HarnessPromptMode>,
-    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
-    pub worker_id: Option<uuid::Uuid>,
+    #[serde(rename = "harness", skip_serializing_if = "Option::is_none")]
+    pub harness: Option<Harness>,
     /// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
     #[serde(rename = "memory_mib", skip_serializing_if = "Option::is_none")]
     pub memory_mib: Option<i32>,
     /// Advanced per-Run CPU allocation in millicores on an explicit Worker.
     #[serde(rename = "cpu_millis", skip_serializing_if = "Option::is_none")]
     pub cpu_millis: Option<i32>,
+    #[serde(rename = "agent_id", skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<uuid::Uuid>,
+    /// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+    #[serde(rename = "harness_prompt_mode", skip_serializing_if = "Option::is_none")]
+    pub harness_prompt_mode: Option<HarnessPromptMode>,
+    #[serde(rename = "session_id", skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<uuid::Uuid>,
+    /// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+    #[serde(rename = "connection_grants", skip_serializing_if = "Option::is_none")]
+    pub connection_grants: Option<Vec<models::Grant>>,
+    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<uuid::Uuid>,
+    /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+    #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
+    pub scheduling_class: Option<SchedulingClass>,
+    #[serde(rename = "model", skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(rename = "billing_mode", skip_serializing_if = "Option::is_none")]
+    pub billing_mode: Option<BillingMode>,
+    #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
+    pub limits: Option<Box<models::Limits>>,
+    #[serde(rename = "worktree_id", skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<uuid::Uuid>,
+    /// Only session follow-ups can queue behind worktree work.
+    #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
+    pub queue_if_busy: Option<bool>,
+    /// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+    #[serde(rename = "provider_connection_id", skip_serializing_if = "Option::is_none")]
+    pub provider_connection_id: Option<uuid::Uuid>,
+    #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Box<models::AgentPermissions>>,
+    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<String>>,
+    #[serde(rename = "workspace_id", skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<uuid::Uuid>,
 }
 
 impl RunCreate {
     /// Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
     pub fn new(prompt: String) -> RunCreate {
         RunCreate {
-            prompt,
-            workspace_id: None,
-            worktree_id: None,
-            session_id: None,
-            agent_id: None,
-            harness: None,
-            model: None,
-            billing_mode: None,
-            provider_connection_id: None,
-            connection_grants: None,
-            limits: None,
             webhook_endpoint_ids: None,
-            queue_timeout_seconds: None,
-            scheduling_class: None,
-            queue_if_busy: None,
-            permissions: None,
             connection_access_overrides: None,
-            attachments: None,
+            stream: None,
+            prompt,
+            queue_timeout_seconds: None,
             model_parameters: None,
-            harness_prompt_mode: None,
-            worker_id: None,
+            harness: None,
             memory_mib: None,
             cpu_millis: None,
+            agent_id: None,
+            harness_prompt_mode: None,
+            session_id: None,
+            connection_grants: None,
+            worker_id: None,
+            scheduling_class: None,
+            model: None,
+            billing_mode: None,
+            limits: None,
+            worktree_id: None,
+            queue_if_busy: None,
+            provider_connection_id: None,
+            permissions: None,
+            attachments: None,
+            workspace_id: None,
         }
     }
 }
@@ -124,20 +128,18 @@ impl Default for Harness {
         Self::Codex
     }
 }
-///
+/// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum BillingMode {
-    #[serde(rename = "byok")]
-    Byok,
-    #[serde(rename = "managed")]
-    Managed,
-    #[serde(rename = "subscription")]
-    Subscription,
+pub enum HarnessPromptMode {
+    #[serde(rename = "replace")]
+    Replace,
+    #[serde(rename = "extend")]
+    Extend,
 }
 
-impl Default for BillingMode {
-    fn default() -> BillingMode {
-        Self::Byok
+impl Default for HarnessPromptMode {
+    fn default() -> HarnessPromptMode {
+        Self::Replace
     }
 }
 /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
@@ -154,18 +156,20 @@ impl Default for SchedulingClass {
         Self::Background
     }
 }
-/// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum HarnessPromptMode {
-    #[serde(rename = "replace")]
-    Replace,
-    #[serde(rename = "extend")]
-    Extend,
+pub enum BillingMode {
+    #[serde(rename = "byok")]
+    Byok,
+    #[serde(rename = "managed")]
+    Managed,
+    #[serde(rename = "subscription")]
+    Subscription,
 }
 
-impl Default for HarnessPromptMode {
-    fn default() -> HarnessPromptMode {
-        Self::Replace
+impl Default for BillingMode {
+    fn default() -> BillingMode {
+        Self::Byok
     }
 }
 

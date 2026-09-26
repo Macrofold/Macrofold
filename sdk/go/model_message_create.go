@@ -21,29 +21,31 @@ var _ MappedNullable = &MessageCreate{}
 
 // MessageCreate Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
 type MessageCreate struct {
-	Prompt string `json:"prompt"`
-	Limits *Limits `json:"limits,omitempty"`
 	WebhookEndpointIds []string `json:"webhook_endpoint_ids,omitempty"`
-	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
-	// Optional model override within the pinned harness catalog; never changes the active run.
-	Model *string `json:"model,omitempty"`
-	// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
-	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-	SchedulingClass *string `json:"scheduling_class,omitempty"`
-	Permissions *AgentPermissions `json:"permissions,omitempty"`
-	// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
 	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
 	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
-	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-	Attachments []string `json:"attachments,omitempty"`
+	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+	Stream *bool `json:"stream,omitempty"`
+	Prompt string `json:"prompt"`
+	// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
-	WorkerId *string `json:"worker_id,omitempty"`
 	// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
 	MemoryMib *int32 `json:"memory_mib,omitempty"`
 	// Advanced per-Run CPU allocation in millicores on an explicit Worker.
 	CpuMillis *int32 `json:"cpu_millis,omitempty"`
+	WorkerId *string `json:"worker_id,omitempty"`
+	// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
+	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+	SchedulingClass *string `json:"scheduling_class,omitempty"`
+	Limits *Limits `json:"limits,omitempty"`
+	// Optional model override within the pinned harness catalog; never changes the active run.
+	Model *string `json:"model,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
+	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+	Attachments []string `json:"attachments,omitempty"`
 }
 
 type _MessageCreate MessageCreate
@@ -68,62 +70,6 @@ func NewMessageCreateWithDefaults() *MessageCreate {
 	var queueIfBusy bool = false
 	this.QueueIfBusy = &queueIfBusy
 	return &this
-}
-
-// GetPrompt returns the Prompt field value
-func (o *MessageCreate) GetPrompt() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.Prompt
-}
-
-// GetPromptOk returns a tuple with the Prompt field value
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetPromptOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.Prompt, true
-}
-
-// SetPrompt sets field value
-func (o *MessageCreate) SetPrompt(v string) {
-	o.Prompt = v
-}
-
-// GetLimits returns the Limits field value if set, zero value otherwise.
-func (o *MessageCreate) GetLimits() Limits {
-	if o == nil || IsNil(o.Limits) {
-		var ret Limits
-		return ret
-	}
-	return *o.Limits
-}
-
-// GetLimitsOk returns a tuple with the Limits field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetLimitsOk() (*Limits, bool) {
-	if o == nil || IsNil(o.Limits) {
-		return nil, false
-	}
-	return o.Limits, true
-}
-
-// HasLimits returns a boolean if a field has been set.
-func (o *MessageCreate) HasLimits() bool {
-	if o != nil && !IsNil(o.Limits) {
-		return true
-	}
-
-	return false
-}
-
-// SetLimits gets a reference to the given Limits and assigns it to the Limits field.
-func (o *MessageCreate) SetLimits(v Limits) {
-	o.Limits = &v
 }
 
 // GetWebhookEndpointIds returns the WebhookEndpointIds field value if set, zero value otherwise.
@@ -158,68 +104,92 @@ func (o *MessageCreate) SetWebhookEndpointIds(v []string) {
 	o.WebhookEndpointIds = v
 }
 
-// GetQueueIfBusy returns the QueueIfBusy field value if set, zero value otherwise.
-func (o *MessageCreate) GetQueueIfBusy() bool {
-	if o == nil || IsNil(o.QueueIfBusy) {
+// GetConnectionAccessOverrides returns the ConnectionAccessOverrides field value if set, zero value otherwise.
+func (o *MessageCreate) GetConnectionAccessOverrides() []Grant {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionAccessOverrides
+}
+
+// GetConnectionAccessOverridesOk returns a tuple with the ConnectionAccessOverrides field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetConnectionAccessOverridesOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		return nil, false
+	}
+	return o.ConnectionAccessOverrides, true
+}
+
+// HasConnectionAccessOverrides returns a boolean if a field has been set.
+func (o *MessageCreate) HasConnectionAccessOverrides() bool {
+	if o != nil && !IsNil(o.ConnectionAccessOverrides) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionAccessOverrides gets a reference to the given []Grant and assigns it to the ConnectionAccessOverrides field.
+func (o *MessageCreate) SetConnectionAccessOverrides(v []Grant) {
+	o.ConnectionAccessOverrides = v
+}
+
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *MessageCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
 		var ret bool
 		return ret
 	}
-	return *o.QueueIfBusy
+	return *o.Stream
 }
 
-// GetQueueIfBusyOk returns a tuple with the QueueIfBusy field value if set, nil otherwise
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MessageCreate) GetQueueIfBusyOk() (*bool, bool) {
-	if o == nil || IsNil(o.QueueIfBusy) {
+func (o *MessageCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
 		return nil, false
 	}
-	return o.QueueIfBusy, true
+	return o.Stream, true
 }
 
-// HasQueueIfBusy returns a boolean if a field has been set.
-func (o *MessageCreate) HasQueueIfBusy() bool {
-	if o != nil && !IsNil(o.QueueIfBusy) {
+// HasStream returns a boolean if a field has been set.
+func (o *MessageCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
 		return true
 	}
 
 	return false
 }
 
-// SetQueueIfBusy gets a reference to the given bool and assigns it to the QueueIfBusy field.
-func (o *MessageCreate) SetQueueIfBusy(v bool) {
-	o.QueueIfBusy = &v
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *MessageCreate) SetStream(v bool) {
+	o.Stream = &v
 }
 
-// GetModel returns the Model field value if set, zero value otherwise.
-func (o *MessageCreate) GetModel() string {
-	if o == nil || IsNil(o.Model) {
+// GetPrompt returns the Prompt field value
+func (o *MessageCreate) GetPrompt() string {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Model
+
+	return o.Prompt
 }
 
-// GetModelOk returns a tuple with the Model field value if set, nil otherwise
+// GetPromptOk returns a tuple with the Prompt field value
 // and a boolean to check if the value has been set.
-func (o *MessageCreate) GetModelOk() (*string, bool) {
-	if o == nil || IsNil(o.Model) {
+func (o *MessageCreate) GetPromptOk() (*string, bool) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Model, true
+	return &o.Prompt, true
 }
 
-// HasModel returns a boolean if a field has been set.
-func (o *MessageCreate) HasModel() bool {
-	if o != nil && !IsNil(o.Model) {
-		return true
-	}
-
-	return false
-}
-
-// SetModel gets a reference to the given string and assigns it to the Model field.
-func (o *MessageCreate) SetModel(v string) {
-	o.Model = &v
+// SetPrompt sets field value
+func (o *MessageCreate) SetPrompt(v string) {
+	o.Prompt = v
 }
 
 // GetQueueTimeoutSeconds returns the QueueTimeoutSeconds field value if set, zero value otherwise.
@@ -254,166 +224,6 @@ func (o *MessageCreate) SetQueueTimeoutSeconds(v int32) {
 	o.QueueTimeoutSeconds = &v
 }
 
-// GetSchedulingClass returns the SchedulingClass field value if set, zero value otherwise.
-func (o *MessageCreate) GetSchedulingClass() string {
-	if o == nil || IsNil(o.SchedulingClass) {
-		var ret string
-		return ret
-	}
-	return *o.SchedulingClass
-}
-
-// GetSchedulingClassOk returns a tuple with the SchedulingClass field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetSchedulingClassOk() (*string, bool) {
-	if o == nil || IsNil(o.SchedulingClass) {
-		return nil, false
-	}
-	return o.SchedulingClass, true
-}
-
-// HasSchedulingClass returns a boolean if a field has been set.
-func (o *MessageCreate) HasSchedulingClass() bool {
-	if o != nil && !IsNil(o.SchedulingClass) {
-		return true
-	}
-
-	return false
-}
-
-// SetSchedulingClass gets a reference to the given string and assigns it to the SchedulingClass field.
-func (o *MessageCreate) SetSchedulingClass(v string) {
-	o.SchedulingClass = &v
-}
-
-// GetPermissions returns the Permissions field value if set, zero value otherwise.
-func (o *MessageCreate) GetPermissions() AgentPermissions {
-	if o == nil || IsNil(o.Permissions) {
-		var ret AgentPermissions
-		return ret
-	}
-	return *o.Permissions
-}
-
-// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetPermissionsOk() (*AgentPermissions, bool) {
-	if o == nil || IsNil(o.Permissions) {
-		return nil, false
-	}
-	return o.Permissions, true
-}
-
-// HasPermissions returns a boolean if a field has been set.
-func (o *MessageCreate) HasPermissions() bool {
-	if o != nil && !IsNil(o.Permissions) {
-		return true
-	}
-
-	return false
-}
-
-// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
-func (o *MessageCreate) SetPermissions(v AgentPermissions) {
-	o.Permissions = &v
-}
-
-// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
-func (o *MessageCreate) GetConnectionGrants() []Grant {
-	if o == nil || IsNil(o.ConnectionGrants) {
-		var ret []Grant
-		return ret
-	}
-	return o.ConnectionGrants
-}
-
-// GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetConnectionGrantsOk() ([]Grant, bool) {
-	if o == nil || IsNil(o.ConnectionGrants) {
-		return nil, false
-	}
-	return o.ConnectionGrants, true
-}
-
-// HasConnectionGrants returns a boolean if a field has been set.
-func (o *MessageCreate) HasConnectionGrants() bool {
-	if o != nil && !IsNil(o.ConnectionGrants) {
-		return true
-	}
-
-	return false
-}
-
-// SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
-func (o *MessageCreate) SetConnectionGrants(v []Grant) {
-	o.ConnectionGrants = v
-}
-
-// GetConnectionAccessOverrides returns the ConnectionAccessOverrides field value if set, zero value otherwise.
-func (o *MessageCreate) GetConnectionAccessOverrides() []Grant {
-	if o == nil || IsNil(o.ConnectionAccessOverrides) {
-		var ret []Grant
-		return ret
-	}
-	return o.ConnectionAccessOverrides
-}
-
-// GetConnectionAccessOverridesOk returns a tuple with the ConnectionAccessOverrides field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetConnectionAccessOverridesOk() ([]Grant, bool) {
-	if o == nil || IsNil(o.ConnectionAccessOverrides) {
-		return nil, false
-	}
-	return o.ConnectionAccessOverrides, true
-}
-
-// HasConnectionAccessOverrides returns a boolean if a field has been set.
-func (o *MessageCreate) HasConnectionAccessOverrides() bool {
-	if o != nil && !IsNil(o.ConnectionAccessOverrides) {
-		return true
-	}
-
-	return false
-}
-
-// SetConnectionAccessOverrides gets a reference to the given []Grant and assigns it to the ConnectionAccessOverrides field.
-func (o *MessageCreate) SetConnectionAccessOverrides(v []Grant) {
-	o.ConnectionAccessOverrides = v
-}
-
-// GetAttachments returns the Attachments field value if set, zero value otherwise.
-func (o *MessageCreate) GetAttachments() []string {
-	if o == nil || IsNil(o.Attachments) {
-		var ret []string
-		return ret
-	}
-	return o.Attachments
-}
-
-// GetAttachmentsOk returns a tuple with the Attachments field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetAttachmentsOk() ([]string, bool) {
-	if o == nil || IsNil(o.Attachments) {
-		return nil, false
-	}
-	return o.Attachments, true
-}
-
-// HasAttachments returns a boolean if a field has been set.
-func (o *MessageCreate) HasAttachments() bool {
-	if o != nil && !IsNil(o.Attachments) {
-		return true
-	}
-
-	return false
-}
-
-// SetAttachments gets a reference to the given []string and assigns it to the Attachments field.
-func (o *MessageCreate) SetAttachments(v []string) {
-	o.Attachments = v
-}
-
 // GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
 func (o *MessageCreate) GetModelParameters() ModelParameters {
 	if o == nil || IsNil(o.ModelParameters) {
@@ -444,38 +254,6 @@ func (o *MessageCreate) HasModelParameters() bool {
 // SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
 func (o *MessageCreate) SetModelParameters(v ModelParameters) {
 	o.ModelParameters = &v
-}
-
-// GetWorkerId returns the WorkerId field value if set, zero value otherwise.
-func (o *MessageCreate) GetWorkerId() string {
-	if o == nil || IsNil(o.WorkerId) {
-		var ret string
-		return ret
-	}
-	return *o.WorkerId
-}
-
-// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MessageCreate) GetWorkerIdOk() (*string, bool) {
-	if o == nil || IsNil(o.WorkerId) {
-		return nil, false
-	}
-	return o.WorkerId, true
-}
-
-// HasWorkerId returns a boolean if a field has been set.
-func (o *MessageCreate) HasWorkerId() bool {
-	if o != nil && !IsNil(o.WorkerId) {
-		return true
-	}
-
-	return false
-}
-
-// SetWorkerId gets a reference to the given string and assigns it to the WorkerId field.
-func (o *MessageCreate) SetWorkerId(v string) {
-	o.WorkerId = &v
 }
 
 // GetMemoryMib returns the MemoryMib field value if set, zero value otherwise.
@@ -542,6 +320,262 @@ func (o *MessageCreate) SetCpuMillis(v int32) {
 	o.CpuMillis = &v
 }
 
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise.
+func (o *MessageCreate) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId) {
+		var ret string
+		return ret
+	}
+	return *o.WorkerId
+}
+
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetWorkerIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkerId) {
+		return nil, false
+	}
+	return o.WorkerId, true
+}
+
+// HasWorkerId returns a boolean if a field has been set.
+func (o *MessageCreate) HasWorkerId() bool {
+	if o != nil && !IsNil(o.WorkerId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerId gets a reference to the given string and assigns it to the WorkerId field.
+func (o *MessageCreate) SetWorkerId(v string) {
+	o.WorkerId = &v
+}
+
+// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
+func (o *MessageCreate) GetConnectionGrants() []Grant {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionGrants
+}
+
+// GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetConnectionGrantsOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		return nil, false
+	}
+	return o.ConnectionGrants, true
+}
+
+// HasConnectionGrants returns a boolean if a field has been set.
+func (o *MessageCreate) HasConnectionGrants() bool {
+	if o != nil && !IsNil(o.ConnectionGrants) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
+func (o *MessageCreate) SetConnectionGrants(v []Grant) {
+	o.ConnectionGrants = v
+}
+
+// GetSchedulingClass returns the SchedulingClass field value if set, zero value otherwise.
+func (o *MessageCreate) GetSchedulingClass() string {
+	if o == nil || IsNil(o.SchedulingClass) {
+		var ret string
+		return ret
+	}
+	return *o.SchedulingClass
+}
+
+// GetSchedulingClassOk returns a tuple with the SchedulingClass field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetSchedulingClassOk() (*string, bool) {
+	if o == nil || IsNil(o.SchedulingClass) {
+		return nil, false
+	}
+	return o.SchedulingClass, true
+}
+
+// HasSchedulingClass returns a boolean if a field has been set.
+func (o *MessageCreate) HasSchedulingClass() bool {
+	if o != nil && !IsNil(o.SchedulingClass) {
+		return true
+	}
+
+	return false
+}
+
+// SetSchedulingClass gets a reference to the given string and assigns it to the SchedulingClass field.
+func (o *MessageCreate) SetSchedulingClass(v string) {
+	o.SchedulingClass = &v
+}
+
+// GetLimits returns the Limits field value if set, zero value otherwise.
+func (o *MessageCreate) GetLimits() Limits {
+	if o == nil || IsNil(o.Limits) {
+		var ret Limits
+		return ret
+	}
+	return *o.Limits
+}
+
+// GetLimitsOk returns a tuple with the Limits field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetLimitsOk() (*Limits, bool) {
+	if o == nil || IsNil(o.Limits) {
+		return nil, false
+	}
+	return o.Limits, true
+}
+
+// HasLimits returns a boolean if a field has been set.
+func (o *MessageCreate) HasLimits() bool {
+	if o != nil && !IsNil(o.Limits) {
+		return true
+	}
+
+	return false
+}
+
+// SetLimits gets a reference to the given Limits and assigns it to the Limits field.
+func (o *MessageCreate) SetLimits(v Limits) {
+	o.Limits = &v
+}
+
+// GetModel returns the Model field value if set, zero value otherwise.
+func (o *MessageCreate) GetModel() string {
+	if o == nil || IsNil(o.Model) {
+		var ret string
+		return ret
+	}
+	return *o.Model
+}
+
+// GetModelOk returns a tuple with the Model field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetModelOk() (*string, bool) {
+	if o == nil || IsNil(o.Model) {
+		return nil, false
+	}
+	return o.Model, true
+}
+
+// HasModel returns a boolean if a field has been set.
+func (o *MessageCreate) HasModel() bool {
+	if o != nil && !IsNil(o.Model) {
+		return true
+	}
+
+	return false
+}
+
+// SetModel gets a reference to the given string and assigns it to the Model field.
+func (o *MessageCreate) SetModel(v string) {
+	o.Model = &v
+}
+
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *MessageCreate) GetPermissions() AgentPermissions {
+	if o == nil || IsNil(o.Permissions) {
+		var ret AgentPermissions
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetPermissionsOk() (*AgentPermissions, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *MessageCreate) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
+func (o *MessageCreate) SetPermissions(v AgentPermissions) {
+	o.Permissions = &v
+}
+
+// GetQueueIfBusy returns the QueueIfBusy field value if set, zero value otherwise.
+func (o *MessageCreate) GetQueueIfBusy() bool {
+	if o == nil || IsNil(o.QueueIfBusy) {
+		var ret bool
+		return ret
+	}
+	return *o.QueueIfBusy
+}
+
+// GetQueueIfBusyOk returns a tuple with the QueueIfBusy field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetQueueIfBusyOk() (*bool, bool) {
+	if o == nil || IsNil(o.QueueIfBusy) {
+		return nil, false
+	}
+	return o.QueueIfBusy, true
+}
+
+// HasQueueIfBusy returns a boolean if a field has been set.
+func (o *MessageCreate) HasQueueIfBusy() bool {
+	if o != nil && !IsNil(o.QueueIfBusy) {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueIfBusy gets a reference to the given bool and assigns it to the QueueIfBusy field.
+func (o *MessageCreate) SetQueueIfBusy(v bool) {
+	o.QueueIfBusy = &v
+}
+
+// GetAttachments returns the Attachments field value if set, zero value otherwise.
+func (o *MessageCreate) GetAttachments() []string {
+	if o == nil || IsNil(o.Attachments) {
+		var ret []string
+		return ret
+	}
+	return o.Attachments
+}
+
+// GetAttachmentsOk returns a tuple with the Attachments field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MessageCreate) GetAttachmentsOk() ([]string, bool) {
+	if o == nil || IsNil(o.Attachments) {
+		return nil, false
+	}
+	return o.Attachments, true
+}
+
+// HasAttachments returns a boolean if a field has been set.
+func (o *MessageCreate) HasAttachments() bool {
+	if o != nil && !IsNil(o.Attachments) {
+		return true
+	}
+
+	return false
+}
+
+// SetAttachments gets a reference to the given []string and assigns it to the Attachments field.
+func (o *MessageCreate) SetAttachments(v []string) {
+	o.Attachments = v
+}
+
 func (o MessageCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -552,48 +586,51 @@ func (o MessageCreate) MarshalJSON() ([]byte, error) {
 
 func (o MessageCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["prompt"] = o.Prompt
-	if !IsNil(o.Limits) {
-		toSerialize["limits"] = o.Limits
-	}
 	if !IsNil(o.WebhookEndpointIds) {
 		toSerialize["webhook_endpoint_ids"] = o.WebhookEndpointIds
-	}
-	if !IsNil(o.QueueIfBusy) {
-		toSerialize["queue_if_busy"] = o.QueueIfBusy
-	}
-	if !IsNil(o.Model) {
-		toSerialize["model"] = o.Model
-	}
-	if !IsNil(o.QueueTimeoutSeconds) {
-		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
-	}
-	if !IsNil(o.SchedulingClass) {
-		toSerialize["scheduling_class"] = o.SchedulingClass
-	}
-	if !IsNil(o.Permissions) {
-		toSerialize["permissions"] = o.Permissions
-	}
-	if !IsNil(o.ConnectionGrants) {
-		toSerialize["connection_grants"] = o.ConnectionGrants
 	}
 	if !IsNil(o.ConnectionAccessOverrides) {
 		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
 	}
-	if !IsNil(o.Attachments) {
-		toSerialize["attachments"] = o.Attachments
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
+	}
+	toSerialize["prompt"] = o.Prompt
+	if !IsNil(o.QueueTimeoutSeconds) {
+		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters
-	}
-	if !IsNil(o.WorkerId) {
-		toSerialize["worker_id"] = o.WorkerId
 	}
 	if !IsNil(o.MemoryMib) {
 		toSerialize["memory_mib"] = o.MemoryMib
 	}
 	if !IsNil(o.CpuMillis) {
 		toSerialize["cpu_millis"] = o.CpuMillis
+	}
+	if !IsNil(o.WorkerId) {
+		toSerialize["worker_id"] = o.WorkerId
+	}
+	if !IsNil(o.ConnectionGrants) {
+		toSerialize["connection_grants"] = o.ConnectionGrants
+	}
+	if !IsNil(o.SchedulingClass) {
+		toSerialize["scheduling_class"] = o.SchedulingClass
+	}
+	if !IsNil(o.Limits) {
+		toSerialize["limits"] = o.Limits
+	}
+	if !IsNil(o.Model) {
+		toSerialize["model"] = o.Model
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
+	}
+	if !IsNil(o.QueueIfBusy) {
+		toSerialize["queue_if_busy"] = o.QueueIfBusy
+	}
+	if !IsNil(o.Attachments) {
+		toSerialize["attachments"] = o.Attachments
 	}
 	return toSerialize, nil
 }

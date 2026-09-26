@@ -15,37 +15,37 @@ import (
 	"fmt"
 )
 
-// checks if the DeleteTrigger200Response type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &DeleteTrigger200Response{}
+// checks if the DeleteSlackConnection200Response type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &DeleteSlackConnection200Response{}
 
-// DeleteTrigger200Response struct for DeleteTrigger200Response
-type DeleteTrigger200Response struct {
+// DeleteSlackConnection200Response struct for DeleteSlackConnection200Response
+type DeleteSlackConnection200Response struct {
 	Deleted bool `json:"deleted"`
 	AdditionalProperties map[string]interface{}
 }
 
-type _DeleteTrigger200Response DeleteTrigger200Response
+type _DeleteSlackConnection200Response DeleteSlackConnection200Response
 
-// NewDeleteTrigger200Response instantiates a new DeleteTrigger200Response object
+// NewDeleteSlackConnection200Response instantiates a new DeleteSlackConnection200Response object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewDeleteTrigger200Response(deleted bool) *DeleteTrigger200Response {
-	this := DeleteTrigger200Response{}
+func NewDeleteSlackConnection200Response(deleted bool) *DeleteSlackConnection200Response {
+	this := DeleteSlackConnection200Response{}
 	this.Deleted = deleted
 	return &this
 }
 
-// NewDeleteTrigger200ResponseWithDefaults instantiates a new DeleteTrigger200Response object
+// NewDeleteSlackConnection200ResponseWithDefaults instantiates a new DeleteSlackConnection200Response object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewDeleteTrigger200ResponseWithDefaults() *DeleteTrigger200Response {
-	this := DeleteTrigger200Response{}
+func NewDeleteSlackConnection200ResponseWithDefaults() *DeleteSlackConnection200Response {
+	this := DeleteSlackConnection200Response{}
 	return &this
 }
 
 // GetDeleted returns the Deleted field value
-func (o *DeleteTrigger200Response) GetDeleted() bool {
+func (o *DeleteSlackConnection200Response) GetDeleted() bool {
 	if o == nil {
 		var ret bool
 		return ret
@@ -56,7 +56,7 @@ func (o *DeleteTrigger200Response) GetDeleted() bool {
 
 // GetDeletedOk returns a tuple with the Deleted field value
 // and a boolean to check if the value has been set.
-func (o *DeleteTrigger200Response) GetDeletedOk() (*bool, bool) {
+func (o *DeleteSlackConnection200Response) GetDeletedOk() (*bool, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -64,11 +64,11 @@ func (o *DeleteTrigger200Response) GetDeletedOk() (*bool, bool) {
 }
 
 // SetDeleted sets field value
-func (o *DeleteTrigger200Response) SetDeleted(v bool) {
+func (o *DeleteSlackConnection200Response) SetDeleted(v bool) {
 	o.Deleted = v
 }
 
-func (o DeleteTrigger200Response) MarshalJSON() ([]byte, error) {
+func (o DeleteSlackConnection200Response) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -76,7 +76,7 @@ func (o DeleteTrigger200Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o DeleteTrigger200Response) ToMap() (map[string]interface{}, error) {
+func (o DeleteSlackConnection200Response) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["deleted"] = o.Deleted
 
@@ -87,7 +87,7 @@ func (o DeleteTrigger200Response) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-func (o *DeleteTrigger200Response) UnmarshalJSON(data []byte) (err error) {
+func (o *DeleteSlackConnection200Response) UnmarshalJSON(data []byte) (err error) {
 	// This validates that all required properties are included in the JSON object
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
@@ -109,15 +109,15 @@ func (o *DeleteTrigger200Response) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	varDeleteTrigger200Response := _DeleteTrigger200Response{}
+	varDeleteSlackConnection200Response := _DeleteSlackConnection200Response{}
 
-	err = json.Unmarshal(data, &varDeleteTrigger200Response)
+	err = json.Unmarshal(data, &varDeleteSlackConnection200Response)
 
 	if err != nil {
 		return err
 	}
 
-	*o = DeleteTrigger200Response(varDeleteTrigger200Response)
+	*o = DeleteSlackConnection200Response(varDeleteSlackConnection200Response)
 
 	additionalProperties := make(map[string]interface{})
 
@@ -129,38 +129,38 @@ func (o *DeleteTrigger200Response) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-type NullableDeleteTrigger200Response struct {
-	value *DeleteTrigger200Response
+type NullableDeleteSlackConnection200Response struct {
+	value *DeleteSlackConnection200Response
 	isSet bool
 }
 
-func (v NullableDeleteTrigger200Response) Get() *DeleteTrigger200Response {
+func (v NullableDeleteSlackConnection200Response) Get() *DeleteSlackConnection200Response {
 	return v.value
 }
 
-func (v *NullableDeleteTrigger200Response) Set(val *DeleteTrigger200Response) {
+func (v *NullableDeleteSlackConnection200Response) Set(val *DeleteSlackConnection200Response) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableDeleteTrigger200Response) IsSet() bool {
+func (v NullableDeleteSlackConnection200Response) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableDeleteTrigger200Response) Unset() {
+func (v *NullableDeleteSlackConnection200Response) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableDeleteTrigger200Response(val *DeleteTrigger200Response) *NullableDeleteTrigger200Response {
-	return &NullableDeleteTrigger200Response{value: val, isSet: true}
+func NewNullableDeleteSlackConnection200Response(val *DeleteSlackConnection200Response) *NullableDeleteSlackConnection200Response {
+	return &NullableDeleteSlackConnection200Response{value: val, isSet: true}
 }
 
-func (v NullableDeleteTrigger200Response) MarshalJSON() ([]byte, error) {
+func (v NullableDeleteSlackConnection200Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableDeleteTrigger200Response) UnmarshalJSON(src []byte) error {
+func (v *NullableDeleteSlackConnection200Response) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

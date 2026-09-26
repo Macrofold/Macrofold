@@ -16,29 +16,29 @@ import (
 	"gopkg.in/validator.v2"
 )
 
-// InferenceCreateContext - struct for InferenceCreateContext
-type InferenceCreateContext struct {
+// DecisionTaskWakeContext - struct for DecisionTaskWakeContext
+type DecisionTaskWakeContext struct {
 	ContextReference *ContextReference
 	ExplicitContext *ExplicitContext
 }
 
-// ContextReferenceAsInferenceCreateContext is a convenience function that returns ContextReference wrapped in InferenceCreateContext
-func ContextReferenceAsInferenceCreateContext(v *ContextReference) InferenceCreateContext {
-	return InferenceCreateContext{
+// ContextReferenceAsDecisionTaskWakeContext is a convenience function that returns ContextReference wrapped in DecisionTaskWakeContext
+func ContextReferenceAsDecisionTaskWakeContext(v *ContextReference) DecisionTaskWakeContext {
+	return DecisionTaskWakeContext{
 		ContextReference: v,
 	}
 }
 
-// ExplicitContextAsInferenceCreateContext is a convenience function that returns ExplicitContext wrapped in InferenceCreateContext
-func ExplicitContextAsInferenceCreateContext(v *ExplicitContext) InferenceCreateContext {
-	return InferenceCreateContext{
+// ExplicitContextAsDecisionTaskWakeContext is a convenience function that returns ExplicitContext wrapped in DecisionTaskWakeContext
+func ExplicitContextAsDecisionTaskWakeContext(v *ExplicitContext) DecisionTaskWakeContext {
+	return DecisionTaskWakeContext{
 		ExplicitContext: v,
 	}
 }
 
 
 // Unmarshal JSON data into one of the pointers in the struct
-func (dst *InferenceCreateContext) UnmarshalJSON(data []byte) error {
+func (dst *DecisionTaskWakeContext) UnmarshalJSON(data []byte) error {
 	var err error
 	match := 0
 	// try to unmarshal data into ContextReference
@@ -80,25 +80,25 @@ func (dst *InferenceCreateContext) UnmarshalJSON(data []byte) error {
 		dst.ContextReference = nil
 		dst.ExplicitContext = nil
 
-		return fmt.Errorf("data matches more than one schema in oneOf(InferenceCreateContext)")
+		return fmt.Errorf("data matches more than one schema in oneOf(DecisionTaskWakeContext)")
 	} else if match == 1 {
 		return nil // exactly one match
 	} else { // no match
         if err != nil {
-            return fmt.Errorf("data failed to match schemas in oneOf(InferenceCreateContext): %v", err)
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionTaskWakeContext): %v", err)
         } else {
-            return fmt.Errorf("data failed to match schemas in oneOf(InferenceCreateContext)")
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionTaskWakeContext)")
         }
         if err != nil {
-            return fmt.Errorf("data failed to match schemas in oneOf(InferenceCreateContext): %v", err)
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionTaskWakeContext): %v", err)
         } else {
-            return fmt.Errorf("data failed to match schemas in oneOf(InferenceCreateContext)")
+            return fmt.Errorf("data failed to match schemas in oneOf(DecisionTaskWakeContext)")
         }
 	}
 }
 
 // Marshal data from the first non-nil pointers in the struct to JSON
-func (src InferenceCreateContext) MarshalJSON() ([]byte, error) {
+func (src DecisionTaskWakeContext) MarshalJSON() ([]byte, error) {
 	if src.ContextReference != nil {
 		return json.Marshal(&src.ContextReference)
 	}
@@ -111,7 +111,7 @@ func (src InferenceCreateContext) MarshalJSON() ([]byte, error) {
 }
 
 // Get the actual instance
-func (obj *InferenceCreateContext) GetActualInstance() (interface{}) {
+func (obj *DecisionTaskWakeContext) GetActualInstance() (interface{}) {
 	if obj == nil {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (obj *InferenceCreateContext) GetActualInstance() (interface{}) {
 }
 
 // Get the actual instance value
-func (obj InferenceCreateContext) GetActualInstanceValue() (interface{}) {
+func (obj DecisionTaskWakeContext) GetActualInstanceValue() (interface{}) {
 	if obj.ContextReference != nil {
 		return *obj.ContextReference
 	}
@@ -141,38 +141,38 @@ func (obj InferenceCreateContext) GetActualInstanceValue() (interface{}) {
 	return nil
 }
 
-type NullableInferenceCreateContext struct {
-	value *InferenceCreateContext
+type NullableDecisionTaskWakeContext struct {
+	value *DecisionTaskWakeContext
 	isSet bool
 }
 
-func (v NullableInferenceCreateContext) Get() *InferenceCreateContext {
+func (v NullableDecisionTaskWakeContext) Get() *DecisionTaskWakeContext {
 	return v.value
 }
 
-func (v *NullableInferenceCreateContext) Set(val *InferenceCreateContext) {
+func (v *NullableDecisionTaskWakeContext) Set(val *DecisionTaskWakeContext) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableInferenceCreateContext) IsSet() bool {
+func (v NullableDecisionTaskWakeContext) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableInferenceCreateContext) Unset() {
+func (v *NullableDecisionTaskWakeContext) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableInferenceCreateContext(val *InferenceCreateContext) *NullableInferenceCreateContext {
-	return &NullableInferenceCreateContext{value: val, isSet: true}
+func NewNullableDecisionTaskWakeContext(val *DecisionTaskWakeContext) *NullableDecisionTaskWakeContext {
+	return &NullableDecisionTaskWakeContext{value: val, isSet: true}
 }
 
-func (v NullableInferenceCreateContext) MarshalJSON() ([]byte, error) {
+func (v NullableDecisionTaskWakeContext) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableInferenceCreateContext) UnmarshalJSON(src []byte) error {
+func (v *NullableDecisionTaskWakeContext) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

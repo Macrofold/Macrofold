@@ -4,18 +4,1343 @@
  */
 
 export interface paths {
-    "/v1/workspaces": {
+    "/v1/tasks": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List authorized workspaces */
-        get: operations["listWorkspaces"];
+        get?: never;
         put?: never;
-        /** Create a workspace */
-        post: operations["createWorkspace"];
+        /**
+         * Create a waiting task with a pinned, bounded recipe
+         * @description Create a waiting sequential decision task with a cumulative spend ceiling, optional bounded investigation and evidence horizon. Requires a backend API key bound to exactly one workspace. Creating a task does not start paid work; wake it with explicit authorized evidence.
+         */
+        post: operations["createDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-deliveries/{delivery_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay delivery without rerunning work */
+        post: operations["replayWebhookDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream resumable durable events
+         * @description Durable SSE; sequence cursor via Last-Event-ID or after. Rotate after 55 seconds; reconnect and refresh auth without rerunning. Cursor expiry explicitly reports retained bounds. Stream disconnect never cancels.
+         */
+        get: operations["streamRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an organization */
+        post: operations["createOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/checkpoints/{checkpoint_id}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export a Git bundle or portable checkpoint archive
+         * @description Bounded trusted maintenance task with quota checks. Poll getOperation; successful checkpoint_export results match CheckpointExport. No inference runs.
+         */
+        post: operations["exportCheckpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/stdio-packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List reviewed sandbox MCP packages */
+        get: operations["listStdioPackages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/deliveries/{delivery_id}/retry-reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed or uncertain Slack reply
+         * @description Check Slack for an existing message before retrying an uncertain reply. This never reruns the agent.
+         */
+        post: operations["retryTriggerReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect a customer-agent run
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgentRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore without rewriting remote history */
+        post: operations["restoreWorktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect task budget, run lineage and application outcomes */
+        get: operations["getDecisionTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect run state */
+        get: operations["getRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/wake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Observe an application event and start a budgeted decision
+         * @description Submit an application observation and admit one decision child under the existing task and wallet limits. Use a stable event_id and identical body for duplicate delivery. Requires the creating workspace-bound backend API key; only waiting tasks can start a new cycle.
+         */
+        post: operations["wakeDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slack-connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect a Slack bot and pause its triggers */
+        delete: operations["deleteSlackConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List triggers and scheduled tasks */
+        get: operations["listTriggers"];
+        put?: never;
+        /** Create a trigger or scheduled task */
+        post: operations["createTrigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slack-connections/{connection_id}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List channels the bot has joined */
+        get: operations["listSlackConnectionChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/worktree-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List saved branches and validate worktree names
+         * @description Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
+         */
+        get: operations["getWorktreeOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect owned connection access */
+        get: operations["getConnectionAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update organization access or approved tools */
+        patch: operations["updateConnectionAccess"];
+        trace?: never;
+    };
+    "/v1/runs/{run_id}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List run artifacts */
+        get: operations["listArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List file transfer plans */
+        get: operations["listTransfers"];
+        put?: never;
+        /**
+         * Plan explicit local/remote file transfer
+         * @description Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
+         */
+        post: operations["createTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workers/{worker_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Worker configuration and capacity
+         * @description Read Worker configuration and capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         */
+        get: operations["getWorker"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a Worker configuration revision
+         * @description Change a Worker configuration revision. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         */
+        patch: operations["patchWorker"];
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a scheduled task now */
+        post: operations["runTrigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connection-access/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview connection access for a run */
+        post: operations["resolveConnectionAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the selected permission presets
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        patch: operations["updateCustomerAgentConnectionPermissions"];
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Perform non-side-effecting discovery check */
+        post: operations["testConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect a trigger */
+        get: operations["getTrigger"];
+        put?: never;
+        post?: never;
+        /** Delete a trigger; preserve accepted runs */
+        delete: operations["deleteTrigger"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit or pause a trigger
+         * @description Only the creator can edit/resume. Organization administrators can pause. Editing configuration invalidates deliveries that have not yet become runs.
+         */
+        patch: operations["updateTrigger"];
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List one customer’s agent bindings
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgents"];
+        put?: never;
+        /**
+         * Get or create a customer-agent binding
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["ensureCustomerAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/infrastructure/capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read capacity evidence and recommendations
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getCapacityReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/metrics/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Requests, tokens and cost across tenants
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getPlatformUsageMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect connection without secrets */
+        get: operations["getConnection"];
+        put?: never;
+        post?: never;
+        /** Revoke connection access */
+        delete: operations["deleteConnection"];
+        options?: never;
+        head?: never;
+        /** Update connection configuration */
+        patch: operations["updateConnection"];
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read customer-agent events
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/github/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listGithubRepositories */
+        get: operations["listGithubRepositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a customer-agent message
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["sendCustomerAgentMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect balance, limits and rates */
+        get: operations["getBilling"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Schedule permanent deletion with seven days to undo */
+        post: operations["scheduleWorkspaceDeletion"];
+        /** Cancel pending permanent deletion */
+        delete: operations["cancelWorkspaceDeletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a key */
+        delete: operations["revokeApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a follow-up run */
+        post: operations["continueSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a customer-agent binding
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List continuing sessions */
+        get: operations["listSessions"];
+        put?: never;
+        /** Create a session */
+        post: operations["createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/checkpoints/{checkpoint_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Pin or unpin a retained checkpoint */
+        patch: operations["updateCheckpointRetention"];
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a worktree folder
+         * @description Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current worktree revision and an idle writer.
+         */
+        post: operations["createFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect a worktree */
+        get: operations["getWorktree"];
+        put?: never;
+        post?: never;
+        /** Schedule worktree deletion */
+        delete: operations["deleteWorktree"];
+        options?: never;
+        head?: never;
+        /** Rename a remote worktree */
+        patch: operations["updateWorktree"];
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the returning customer and activate the account
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["completeCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect retained storage and budget */
+        get: operations["getStorage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set an explicit storage overage budget */
+        patch: operations["updateStoragePolicy"];
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List this agent’s connected accounts
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentConnections"];
+        put?: never;
+        /**
+         * Prepare a customer-owned connector
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["createCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect account without customer content
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getAccountSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/context-artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read context snapshot metadata */
+        get: operations["getContextArtifact"];
+        put?: never;
+        post?: never;
+        /** Release a published context snapshot */
+        delete: operations["deleteContextArtifact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a pending invitation */
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision-definitions/{definition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a published decision revision */
+        get: operations["getDecisionDefinition"];
+        put?: never;
+        post?: never;
+        /** Withdraw a published definition from new admissions */
+        delete: operations["deleteDecisionDefinition"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an embedded account setup link
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["authorizeCustomerAgentConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List webhook destinations */
+        get: operations["listWebhookEndpoints"];
+        put?: never;
+        /** Register and validate a destination */
+        post: operations["createWebhookEndpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a typed decision with explicit context
+         * @description Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+         */
+        post: operations["createInference"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workers/{worker_id}/destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Destroy Worker execution capacity
+         * @description Destroy Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         */
+        post: operations["destroyWorker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/runs/{run_id}/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read sanitized execution diagnostics
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getRunDiagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Release a published artifact
+         * @description Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
+         */
+        delete: operations["deleteArtifact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bounded-agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a finite agent that inspects authorized evidence
+         * @description A bounded JSON decision loop can read explicitly granted context snapshots, then return a validated proposal. Shares run status, events, cancellation and budget. Requires an Anthropic JSON definition with a bounded_agent policy; max_output_tokens bounds aggregate model output. No native worktree or shell. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["createBoundedAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workers/{worker_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Worker execution capacity
+         * @description Resume Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         */
+        post: operations["resumeWorker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transfers/{transfer_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply staged push or record pull receipt
+         * @description Returns an idempotent operation. Push requires files:write and an unchanged base revision. Pull acknowledges completed local paths only; client maintains local rollback/resume state. Return 409 for busy/conflicted plans, 412 for stale revision, 410 for expired plan.
+         */
+        post: operations["applyTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve durable event history */
+        get: operations["listRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a customer-agent result
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["getCustomerAgentRunResult"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a customer-agent run
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        post: operations["cancelCustomerAgentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop new task work and release evidence when child settlement completes */
+        post: operations["closeDecisionTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect discovered and granted tools */
+        get: operations["listConnectionTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/checkpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recoverable checkpoints */
+        get: operations["listCheckpoints"];
+        put?: never;
+        /** Create a verified checkpoint */
+        post: operations["createCheckpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/portal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open organization billing portal */
+        post: operations["createBillingPortal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/execution-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect account execution limits
+         * @description An unrestricted organization administrator may lower limits within the plan or restore defaults. Running agents are never interrupted. Plans are assigned only by verified billing events. Concurrency is a maximum, not guaranteed immediate capacity.
+         */
+        get: operations["getExecutionPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set customer concurrency and execution timeout caps
+         * @description An unrestricted organization administrator may lower limits within the plan or restore defaults. Running agents are never interrupted. Plans are assigned only by verified billing events. Concurrency is a maximum, not guaranteed immediate capacity.
+         */
+        patch: operations["updateExecutionPolicy"];
+        trace?: never;
+    };
+    "/v1/billing/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List detailed billed usage and model tokens
+         * @description Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
+         */
+        get: operations["listBillingUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-endpoints/{endpoint_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disable a webhook destination */
+        delete: operations["deleteWebhookEndpoint"];
+        options?: never;
+        head?: never;
+        /** Update destination configuration */
+        patch: operations["updateWebhookEndpoint"];
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/worktrees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List workspace worktrees */
+        get: operations["listWorktrees"];
+        put?: never;
+        /** Create an isolated worktree */
+        post: operations["createWorktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get tenant-scoped usage */
+        get: operations["getUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/infrastructure/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read fresh or explicitly stale provider health
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getInfrastructureHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhook-endpoints/{endpoint_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate signing secret; reveal new value once */
+        post: operations["rotateWebhookSecret"];
         delete?: never;
         options?: never;
         head?: never;
@@ -47,52 +1372,462 @@ export interface paths {
         patch: operations["updateWorkspace"];
         trace?: never;
     };
-    "/v1/workspaces/{workspace_id}/worktrees": {
+    "/v1/triggers/{trigger_id}/deliveries": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List workspace worktrees */
-        get: operations["listWorktrees"];
+        /** List trigger deliveries and linked runs */
+        get: operations["listTriggerDeliveries"];
         put?: never;
-        /** Create an isolated worktree */
-        post: operations["createWorktree"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/worktrees/{worktree_id}": {
+    "/v1/connections/{connection_id}/access/rules": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Inspect a worktree */
-        get: operations["getWorktree"];
+        /** List saved connection permissions */
+        get: operations["listConnectionAccessRules"];
         put?: never;
-        post?: never;
-        /** Schedule worktree deletion */
-        delete: operations["deleteWorktree"];
+        /** Add a connection permission */
+        post: operations["createConnectionAccessRule"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** Rename a remote worktree */
-        patch: operations["updateWorktree"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/worktrees/{worktree_id}/files": {
+    "/v1/worktrees/{worktree_id}/files/duplicate": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Browse a revision of the worktree */
-        get: operations["listFiles"];
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate a file
+         * @description Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
+         */
+        post: operations["duplicateFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/reports/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List stored daily operating reports
+         * @description One closed UTC day per snapshot. Read-only, no late-data rewriting. Two-year retention; each request spans at most 366 days. Growth excludes operator-marked internal accounts; usage includes all recorded traffic.
+         */
+        get: operations["listReportSnapshots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List authorized workspaces */
+        get: operations["listWorkspaces"];
+        put?: never;
+        /** Create a workspace */
+        post: operations["createWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pending invitations */
+        get: operations["listInvitations"];
+        put?: never;
+        /** Create a single-use email-bound invitation */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/{task_id}/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record application acceptance, rejection or uncertainty
+         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
+         */
+        post: operations["recordTaskOutcome"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search platform account summaries
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["listAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/operations/{operation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect asynchronous action
+         * @description Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
+         */
+        get: operations["getOperation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/access/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a connection permission */
+        delete: operations["deleteConnectionAccessRule"];
+        options?: never;
+        head?: never;
+        /** Retarget a connection permission */
+        patch: operations["updateConnectionAccessRule"];
+        trace?: never;
+    };
+    "/v1/artifacts/{artifact_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an authorized short-lived download URL */
+        get: operations["downloadArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover tested model combinations */
+        get: operations["listModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List reusable agent definitions */
+        get: operations["listAgents"];
+        put?: never;
+        /** Create an agent definition */
+        post: operations["createAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke this customer’s connection
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        delete: operations["deleteCustomerAgentConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish an immutable named decision revision
+         * @description Publish an immutable workspace/name/revision decision contract. Reuse its ID and exact revision in new inference submissions; withdrawing it prevents future resolution without rewriting admitted runs.
+         */
+        post: operations["createDecisionDefinition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worker-offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect enabled economic offerings and effective limits
+         * @description Inspect enabled economic offerings and effective limits. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         */
+        get: operations["listWorkerOfferings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect an agent definition
+         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+         */
+        get: operations["getAgent"];
+        put?: never;
+        post?: never;
+        /** Archive an agent definition */
+        delete: operations["deleteAgent"];
+        options?: never;
+        head?: never;
+        /** Create the next definition revision */
+        patch: operations["updateAgent"];
+        trace?: never;
+    };
+    "/v1/slack-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List your Slack bot connections */
+        get: operations["listSlackConnections"];
+        put?: never;
+        /** Connect a customer-owned Slack bot */
+        post: operations["createSlackConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect identity, memberships, and CLI compatibility */
+        get: operations["getIdentity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate the incoming webhook secret */
+        post: operations["rotateTriggerSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect tenant request history */
+        get: operations["listRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest 100 team administration events */
+        get: operations["listOrganizationAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List current and historical runs */
+        get: operations["listRuns"];
+        put?: never;
+        /** Invoke an agent harness */
+        post: operations["createRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List this agent’s conversations
+         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         */
+        get: operations["listCustomerAgentConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/github/installations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listGithubInstallations */
+        get: operations["listGithubInstallations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -130,25 +1865,7 @@ export interface paths {
         patch: operations["renameFile"];
         trace?: never;
     };
-    "/v1/worktrees/{worktree_id}/checkpoints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List recoverable checkpoints */
-        get: operations["listCheckpoints"];
-        put?: never;
-        /** Create a verified checkpoint */
-        post: operations["createCheckpoint"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worktrees/{worktree_id}/restore": {
+    "/v1/organization": {
         parameters: {
             query?: never;
             header?: never;
@@ -157,51 +1874,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Restore without rewriting remote history */
-        post: operations["restoreWorktree"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Rename the selected organization */
+        patch: operations["updateOrganization"];
         trace?: never;
     };
-    "/v1/worktrees/{worktree_id}/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect Git integration */
-        get: operations["getSync"];
-        put?: never;
-        /** Retry Git integration without rerunning the agent */
-        post: operations["syncWorktree"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/agents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List reusable agent definitions */
-        get: operations["listAgents"];
-        put?: never;
-        /** Create an agent definition */
-        post: operations["createAgent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/agents/{agent_id}": {
+    "/admin/v1/reports/operating": {
         parameters: {
             query?: never;
             header?: never;
@@ -209,135 +1890,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Inspect an agent definition
-         * @description Optionally expand persistent connection eligibility. include_connections=true requires connections:read; counterpart and pagination parameters require that flag. Unspecified context is a browsing wildcard, not a custom run.
+         * Read deterministic business and infrastructure report
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
          */
-        get: operations["getAgent"];
+        get: operations["getOperatingReport"];
         put?: never;
         post?: never;
-        /** Archive an agent definition */
-        delete: operations["deleteAgent"];
-        options?: never;
-        head?: never;
-        /** Create the next definition revision */
-        patch: operations["updateAgent"];
-        trace?: never;
-    };
-    "/v1/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List continuing sessions */
-        get: operations["listSessions"];
-        put?: never;
-        /** Create a session */
-        post: operations["createSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect a session */
-        get: operations["getSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start a follow-up run */
-        post: operations["continueSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List current and historical runs */
-        get: operations["listRuns"];
-        put?: never;
-        /** Invoke an agent harness */
-        post: operations["createRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect run state */
-        get: operations["getRun"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request idempotent cancellation */
-        post: operations["cancelRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}/input": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Answer a pending input request */
-        post: operations["submitRunInput"];
         delete?: never;
         options?: never;
         head?: never;
@@ -353,165 +1911,6 @@ export interface paths {
         };
         /** Retrieve partial or final results */
         get: operations["getRunResult"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Retrieve durable event history */
-        get: operations["listRunEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Stream resumable durable events
-         * @description Durable SSE; sequence cursor via Last-Event-ID or after. Rotate after 55 seconds; reconnect and refresh auth without rerunning. Cursor expiry explicitly reports retained bounds. Stream disconnect never cancels.
-         */
-        get: operations["streamRun"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runs/{run_id}/artifacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List run artifacts */
-        get: operations["listArtifacts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/{artifact_id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get an authorized short-lived download URL */
-        get: operations["downloadArtifact"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List configured connections */
-        get: operations["listConnections"];
-        put?: never;
-        /** Create credential or MCP connection */
-        post: operations["createConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect connection without secrets */
-        get: operations["getConnection"];
-        put?: never;
-        post?: never;
-        /** Revoke connection access */
-        delete: operations["deleteConnection"];
-        options?: never;
-        head?: never;
-        /** Update connection configuration */
-        patch: operations["updateConnection"];
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/authorize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Begin authorization */
-        post: operations["authorizeConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Perform non-side-effecting discovery check */
-        post: operations["testConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/tools": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect discovered and granted tools */
-        get: operations["listConnectionTools"];
         put?: never;
         post?: never;
         delete?: never;
@@ -538,831 +1937,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/api-keys/{key_id}": {
+    "/v1/connections": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List configured connections */
+        get: operations["listConnections"];
         put?: never;
-        post?: never;
-        /** Revoke a key */
-        delete: operations["revokeApiKey"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/webhook-endpoints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List webhook destinations */
-        get: operations["listWebhookEndpoints"];
-        put?: never;
-        /** Register and validate a destination */
-        post: operations["createWebhookEndpoint"];
+        /** Create credential or MCP connection */
+        post: operations["createConnection"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/webhook-endpoints/{endpoint_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Disable a webhook destination */
-        delete: operations["deleteWebhookEndpoint"];
-        options?: never;
-        head?: never;
-        /** Update destination configuration */
-        patch: operations["updateWebhookEndpoint"];
-        trace?: never;
-    };
-    "/v1/webhook-deliveries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect durable deliveries */
-        get: operations["listWebhookDeliveries"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/webhook-deliveries/{delivery_id}/replay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Replay delivery without rerunning work */
-        post: operations["replayWebhookDelivery"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get tenant-scoped usage */
-        get: operations["getUsage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect tenant request history */
-        get: operations["listRequests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect balance, limits and rates */
-        get: operations["getBilling"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/checkout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a server-priced checkout */
-        post: operations["createCheckout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/portal": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Open organization billing portal */
-        post: operations["createBillingPortal"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/harnesses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Discover supported harnesses */
-        get: operations["listHarnesses"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Discover tested model combinations */
-        get: operations["listModels"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/operations/{operation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect asynchronous action
-         * @description Inspect durable operation. For kind=checkpoint_export, successful result matches CheckpointExport. Creation of a worktree resolves result.worktree_id and source_commit before CLI selects it. Authorization derives from the stored operation kind and target; require corresponding workspace/file/run read permission, never merely possession of operation ID.
-         */
-        get: operations["getOperation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/metrics/growth": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Growth, activation, retention and human activity
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getGrowthMetrics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/metrics/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Requests, tokens and cost across tenants
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getPlatformUsageMetrics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/accounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search platform account summaries
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["listAccounts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/accounts/{account_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect account without customer content
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getAccountSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Query attributed HTTP attempts
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["listPlatformRequests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/runs/{run_id}/diagnostics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read sanitized execution diagnostics
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getRunDiagnostics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/infrastructure/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read fresh or explicitly stale provider health
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getInfrastructureHealth"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/infrastructure/capacity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read capacity evidence and recommendations
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getCapacityReport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/reports/operating": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read deterministic business and infrastructure report
-         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
-         */
-        get: operations["getOperatingReport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/checkpoints/{checkpoint_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Pin or unpin a retained checkpoint */
-        patch: operations["updateCheckpointRetention"];
-        trace?: never;
-    };
-    "/v1/webhook-endpoints/{endpoint_id}/rotate-secret": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rotate signing secret; reveal new value once */
-        post: operations["rotateWebhookSecret"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect identity, memberships, and CLI compatibility */
-        get: operations["getIdentity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worktrees/{worktree_id}/diff": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect checkpoint-based remote file changes
-         * @description Default baseline is worktree creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
-         */
-        get: operations["getWorktreeDiff"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worktrees/{worktree_id}/transfers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List file transfer plans */
-        get: operations["listTransfers"];
-        put?: never;
-        /**
-         * Plan explicit local/remote file transfer
-         * @description Plan expires after 30 minutes. Short-lived object URLs expire no later than the plan; authenticated GET can refresh URLs while the plan remains valid. Recheck paths, quota, membership and revision before apply. File data bypasses Function bodies.
-         */
-        post: operations["createTransfer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/transfers/{transfer_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect transfer and refresh permitted object grants
-         * @description Only creator or authorized organization administrator can resume a plan. Redact upload grants for read-only callers. Never extend plan lifetime on polling.
-         */
-        get: operations["getTransfer"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/transfers/{transfer_id}/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Apply staged push or record pull receipt
-         * @description Returns an idempotent operation. Push requires files:write and an unchanged base revision. Pull acknowledges completed local paths only; client maintains local rollback/resume state. Return 409 for busy/conflicted plans, 412 for stale revision, 410 for expired plan.
-         */
-        post: operations["applyTransfer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/checkpoints/{checkpoint_id}/exports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Export a Git bundle or portable checkpoint archive
-         * @description Bounded trusted maintenance task with quota checks. Poll getOperation; successful checkpoint_export results match CheckpointExport. No inference runs.
-         */
-        post: operations["exportCheckpoint"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integrations/github/installations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** listGithubInstallations */
-        get: operations["listGithubInstallations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integrations/github/repositories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** listGithubRepositories */
-        get: operations["listGithubRepositories"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/workspaces/{workspace_id}/github": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** disconnectGithub */
-        delete: operations["disconnectGithub"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/stdio-packages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List reviewed sandbox MCP packages */
-        get: operations["listStdioPackages"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create an organization */
-        post: operations["createOrganization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organization": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Rename the selected organization */
-        patch: operations["updateOrganization"];
-        trace?: never;
-    };
-    "/v1/organization/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List team members */
-        get: operations["listMembers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organization/members/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a team member */
-        delete: operations["removeMember"];
-        options?: never;
-        head?: never;
-        /** Change a member role */
-        patch: operations["updateMember"];
-        trace?: never;
-    };
-    "/v1/organization/invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List pending invitations */
-        get: operations["listInvitations"];
-        put?: never;
-        /** Create a single-use email-bound invitation */
-        post: operations["createInvitation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organization/invitations/{invitation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke a pending invitation */
-        delete: operations["revokeInvitation"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organization/audit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read the latest 100 team administration events */
-        get: operations["listOrganizationAudit"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/storage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect retained storage and budget */
-        get: operations["getStorage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Set an explicit storage overage budget */
-        patch: operations["updateStoragePolicy"];
-        trace?: never;
-    };
-    "/v1/workspaces/{workspace_id}/deletion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Schedule permanent deletion with seven days to undo */
-        post: operations["scheduleWorkspaceDeletion"];
-        /** Cancel pending permanent deletion */
-        delete: operations["cancelWorkspaceDeletion"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/reports/snapshots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List stored daily operating reports
-         * @description One closed UTC day per snapshot. Read-only, no late-data rewriting. Two-year retention; each request spans at most 366 days. Growth excludes operator-marked internal accounts; usage includes all recorded traffic.
-         */
-        get: operations["listReportSnapshots"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organization/execution-policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect account execution limits
-         * @description An unrestricted organization administrator may lower limits within the plan or restore defaults. Running agents are never interrupted. Plans are assigned only by verified billing events. Concurrency is a maximum, not guaranteed immediate capacity.
-         */
-        get: operations["getExecutionPolicy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Set customer concurrency and execution timeout caps
-         * @description An unrestricted organization administrator may lower limits within the plan or restore defaults. Running agents are never interrupted. Plans are assigned only by verified billing events. Concurrency is a maximum, not guaranteed immediate capacity.
-         */
-        patch: operations["updateExecutionPolicy"];
         trace?: never;
     };
     "/v1/connector-catalog": {
@@ -1385,436 +1975,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/triggers": {
+    "/v1/worktrees/{worktree_id}/files": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List triggers and scheduled tasks */
-        get: operations["listTriggers"];
-        put?: never;
-        /** Create a trigger or scheduled task */
-        post: operations["createTrigger"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/triggers/{trigger_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect a trigger */
-        get: operations["getTrigger"];
-        put?: never;
-        post?: never;
-        /** Delete a trigger; preserve accepted runs */
-        delete: operations["deleteTrigger"];
-        options?: never;
-        head?: never;
-        /**
-         * Edit or pause a trigger
-         * @description Only the creator can edit/resume. Organization administrators can pause. Editing configuration invalidates deliveries that have not yet become runs.
-         */
-        patch: operations["updateTrigger"];
-        trace?: never;
-    };
-    "/v1/triggers/{trigger_id}/rotate-secret": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rotate the incoming webhook secret */
-        post: operations["rotateTriggerSecret"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/triggers/{trigger_id}/deliveries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List trigger deliveries and linked runs */
-        get: operations["listTriggerDeliveries"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/triggers/{trigger_id}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Run a scheduled task now */
-        post: operations["runTrigger"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/triggers/{trigger_id}/deliveries/{delivery_id}/retry-reply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Retry a failed or uncertain Slack reply
-         * @description Check Slack for an existing message before retrying an uncertain reply. This never reruns the agent.
-         */
-        post: operations["retryTriggerReply"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/slack-connections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List your Slack bot connections */
-        get: operations["listSlackConnections"];
-        put?: never;
-        /** Connect a customer-owned Slack bot */
-        post: operations["createSlackConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/slack-connections/{connection_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Disconnect a Slack bot and pause its triggers */
-        delete: operations["deleteSlackConnection"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/slack-connections/{connection_id}/channels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List channels the bot has joined */
-        get: operations["listSlackConnectionChannels"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worktrees/{worktree_id}/folders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a worktree folder
-         * @description Persist an empty folder by creating a conventional .gitkeep file inside it. Rejects an existing file or directory. The marker is part of checkpoints and restores, and follows normal Git ignore rules. Requires the current worktree revision and an idle writer.
-         */
-        post: operations["createFolder"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/workspaces/{workspace_id}/worktree-options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List saved branches and validate worktree names
-         * @description Read-only validation. Creation rechecks names and branches under the workspace lock. Branches come from saved workspace repositories.
-         */
-        get: operations["getWorktreeOptions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worktrees/{worktree_id}/files/duplicate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Duplicate a file
-         * @description Copies a saved file or symlink without following it. Requires the current revision; refuses an existing destination.
-         */
-        post: operations["duplicateFile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/access": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect owned connection access */
-        get: operations["getConnectionAccess"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update organization access or approved tools */
-        patch: operations["updateConnectionAccess"];
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/access/rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List saved connection permissions */
-        get: operations["listConnectionAccessRules"];
-        put?: never;
-        /** Add a connection permission */
-        post: operations["createConnectionAccessRule"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/connections/{connection_id}/access/rules/{rule_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a connection permission */
-        delete: operations["deleteConnectionAccessRule"];
-        options?: never;
-        head?: never;
-        /** Retarget a connection permission */
-        patch: operations["updateConnectionAccessRule"];
-        trace?: never;
-    };
-    "/v1/connection-access/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Preview connection access for a run */
-        post: operations["resolveConnectionAccess"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List one customer’s agent bindings
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["listCustomerAgents"];
-        put?: never;
-        /**
-         * Get or create a customer-agent binding
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        post: operations["ensureCustomerAgent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get a customer-agent binding
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["getCustomerAgent"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a customer-agent message
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        post: operations["sendCustomerAgentMessage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/conversations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List this agent’s conversations
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["listCustomerAgentConversations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect a customer-agent run
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["getCustomerAgentRun"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read a customer-agent result
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["getCustomerAgentRunResult"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read customer-agent events
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["listCustomerAgentRunEvents"];
+        /** Browse a revision of the worktree */
+        get: operations["listFiles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1843,7 +2012,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/runs/{run_id}/cancel": {
+    "/v1/runs/{run_id}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -1852,11 +2021,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Cancel a customer-agent run
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        post: operations["cancelCustomerAgentRun"];
+        /** Request idempotent cancellation */
+        post: operations["cancelRun"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1883,6 +2049,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organization/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List team members */
+        get: operations["listMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transfers/{transfer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect transfer and refresh permitted object grants
+         * @description Only creator or authorized organization administrator can resume a plan. Redact upload grants for read-only callers. Never extend plan lifetime on polling.
+         */
+        get: operations["getTransfer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** disconnectGithub */
+        delete: operations["disconnectGithub"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/metrics/growth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Growth, activation, retention and human activity
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["getGrowthMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Begin authorization */
+        post: operations["authorizeConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Query attributed HTTP attempts
+         * @description Read-only operator projection. Customer API keys rejected. Scope/audience checked and access audited. Raw intervals max 90 days; aggregate intervals max 24 months.
+         */
+        get: operations["listPlatformRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect a session */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inspect checkpoint-based remote file changes
+         * @description Default baseline is worktree creation checkpoint. Changes are pinned to response revision; paginated cursors preserve that snapshot. Maximum 1 MiB text diff per page, with truncation explicit. Local comparisons use transfer dry-run.
+         */
+        get: operations["getWorktreeDiff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/worktrees/{worktree_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect Git integration */
+        get: operations["getSync"];
+        put?: never;
+        /** Retry Git integration without rerunning the agent */
+        post: operations["syncWorktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/file": {
         parameters: {
             query?: never;
@@ -1903,31 +2235,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections": {
+    "/v1/billing/checkout": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * List this agent’s connected accounts
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        get: operations["listCustomerAgentConnections"];
+        get?: never;
         put?: never;
-        /**
-         * Prepare a customer-owned connector
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        post: operations["createCustomerAgentConnection"];
+        /** Create a server-priced checkout */
+        post: operations["createCheckout"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}": {
+    "/v1/webhook-deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect durable deliveries */
+        get: operations["listWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/members/{user_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1937,37 +2279,15 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Revoke this customer’s connection
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        delete: operations["deleteCustomerAgentConnection"];
+        /** Remove a team member */
+        delete: operations["removeMember"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Change a member role */
+        patch: operations["updateMember"];
         trace?: never;
     };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change the selected permission presets
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        patch: operations["updateCustomerAgentConnectionPermissions"];
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/authorize": {
+    "/v1/workers/{worker_id}/pause": {
         parameters: {
             query?: never;
             header?: never;
@@ -1977,280 +2297,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create an embedded account setup link
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
+         * Pause Worker execution capacity
+         * @description Pause Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
          */
-        post: operations["authorizeCustomerAgentConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integration-paths/customer-agents/{customer_id}/{customer_agent_id}/connections/{connection_id}/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Confirm the returning customer and activate the account
-         * @description Optional Customer agents integration path: composes core primitives. Your authenticated server supplies customer identity; this is not an end-customer login API. Core APIs remain available independently.
-         */
-        post: operations["completeCustomerAgentConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/inferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request a typed decision with explicit context
-         * @description Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
-         */
-        post: operations["createInference"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/decision-definitions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish an immutable named decision revision
-         * @description Publish an immutable workspace/name/revision decision contract. Reuse its ID and exact revision in new inference submissions; withdrawing it prevents future resolution without rewriting admitted runs.
-         */
-        post: operations["createDecisionDefinition"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/decision-definitions/{definition_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read a published decision revision */
-        get: operations["getDecisionDefinition"];
-        put?: never;
-        post?: never;
-        /** Withdraw a published definition from new admissions */
-        delete: operations["deleteDecisionDefinition"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/context-artifacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish an immutable workspace-owned context snapshot
-         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
-         */
-        post: operations["createContextArtifact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/context-artifacts/{artifact_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read context snapshot metadata */
-        get: operations["getContextArtifact"];
-        put?: never;
-        post?: never;
-        /** Release a published context snapshot */
-        delete: operations["deleteContextArtifact"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/bounded-agent-runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run a finite agent that inspects authorized evidence
-         * @description A bounded JSON decision loop can read explicitly granted context snapshots, then return a validated proposal. Shares run status, events, cancellation and budget. Requires an Anthropic JSON definition with a bounded_agent policy; max_output_tokens bounds aggregate model output. No native worktree or shell. Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
-         */
-        post: operations["createBoundedAgentRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a waiting task with a pinned, bounded recipe
-         * @description Create a waiting sequential decision task with a cumulative spend ceiling, optional bounded investigation and evidence horizon. Requires a backend API key bound to exactly one workspace. Creating a task does not start paid work; wake it with explicit authorized evidence.
-         */
-        post: operations["createDecisionTask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks/{task_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Inspect task budget, run lineage and application outcomes */
-        get: operations["getDecisionTask"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks/{task_id}/wake": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Observe an application event and start a budgeted decision
-         * @description Submit an application observation and admit one decision child under the existing task and wallet limits. Use a stable event_id and identical body for duplicate delivery. Requires the creating workspace-bound backend API key; only waiting tasks can start a new cycle.
-         */
-        post: operations["wakeDecisionTask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks/{task_id}/outcomes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Record application acceptance, rejection or uncertainty
-         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
-         */
-        post: operations["recordTaskOutcome"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks/{task_id}/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stop new task work and release evidence when child settlement completes */
-        post: operations["closeDecisionTask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/artifacts/{artifact_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Release a published artifact
-         * @description Release independently published context or proposal content after active tasks release their evidence pins. Requires files:write. Diagnostic artifacts follow run retention. Physical object collection is asynchronous.
-         */
-        delete: operations["deleteArtifact"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List detailed billed usage and model tokens
-         * @description Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
-         */
-        get: operations["listBillingUsage"];
-        put?: never;
-        post?: never;
+        post: operations["pauseWorker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2281,31 +2331,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/workers/{worker_id}": {
+    "/v1/runs/{run_id}/input": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Read Worker configuration and capacity
-         * @description Read Worker configuration and capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
-         */
-        get: operations["getWorker"];
+        get?: never;
+        put?: never;
+        /** Answer a pending input request */
+        post: operations["submitRunInput"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/harnesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover supported harnesses */
+        get: operations["listHarnesses"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Change a Worker configuration revision
-         * @description Change a Worker configuration revision. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
-         */
-        patch: operations["patchWorker"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/workers/{worker_id}/pause": {
+    "/v1/context-artifacts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2315,70 +2375,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Pause Worker execution capacity
-         * @description Pause Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
+         * Publish an immutable workspace-owned context snapshot
+         * @description Requires a backend API key bound to exactly one workspace; the application authenticates its audience. Dashboard and OAuth credentials cannot submit this operation.
          */
-        post: operations["pauseWorker"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/workers/{worker_id}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume Worker execution capacity
-         * @description Resume Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
-         */
-        post: operations["resumeWorker"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/workers/{worker_id}/destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Destroy Worker execution capacity
-         * @description Destroy Worker execution capacity. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
-         */
-        post: operations["destroyWorker"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/worker-offerings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Inspect enabled economic offerings and effective limits
-         * @description Inspect enabled economic offerings and effective limits. Worker state, not a transport response, records lifecycle progress. Durable files and conversations are independent of compute.
-         */
-        get: operations["listWorkerOfferings"];
-        put?: never;
-        post?: never;
+        post: operations["createContextArtifact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2389,55 +2389,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Error: {
-            error: components["schemas"]["ErrorDetail"];
-        };
-        Operation: {
+        Checkpoint: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            kind: string;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            result?: {
-                /** Format: uuid */
-                worktree_id?: string;
-                revision?: string;
-                /** Format: uuid */
-                checkpoint_id?: string;
-                /** @description Created, saved, renamed, or removed path for a file mutation. */
-                path?: string;
-                /** @description Original path for a file rename. */
-                previous_path?: string;
-                /** @description Authoritative resulting file or directory entry, absent for deletion. */
-                entry?: components["schemas"]["FileEntry"];
-                /** Format: uuid */
-                workspace_id?: string;
-                /** Format: uuid */
-                transfer_id?: string;
-                /** Format: uuid */
-                delivery_id?: string;
-                local_receipt_complete?: boolean;
-                /** @enum {string} */
-                format?: "git_bundle" | "portable_archive";
-                /** Format: uri */
-                download_url?: string;
-                /** Format: uri */
-                manifest_url?: string;
-                /** Format: date-time */
-                expires_at?: string;
-                size_bytes?: string;
-                sha256?: string;
-                manifest_sha256?: string;
-                export_commit?: string;
-                source_commit?: string;
-                sync?: components["schemas"]["GitSync"];
-            } & {
-                [key: string]: unknown;
-            };
-            error?: components["schemas"]["ErrorDetail"];
+            /** Format: uuid */
+            worktree_id: string;
+            /** Format: uuid */
+            run_id?: string;
             /** Format: date-time */
             created_at: string;
+            /** @enum {string} */
+            consistency: "crash_consistent" | "quiescent";
+            /** @enum {string} */
+            verification: "pending" | "verified" | "failed";
+            /** @description Non-negative integer count as a decimal string. */
+            size_bytes?: string;
+            pinned: boolean;
+            git_commit?: string;
+            /** @enum {string} */
+            git_status?: "ready" | "attention";
+            git_error?: string | null;
+        };
+        WorktreePatch: {
+            name?: string;
+            permissions?: components["schemas"]["AgentPermissions"];
         };
         WorkspaceCreate: {
             name: string;
@@ -2465,89 +2440,93 @@ export interface components {
             };
             permissions?: components["schemas"]["AgentPermissions"];
         };
-        WorkspacePatch: {
-            name?: string;
-            github?: {
-                installation_id: string;
-                repository_id: string;
-                target_branch: string;
-                /**
-                 * @description Opt in to synchronizing after persisted agent runs.
-                 * @default false
-                 */
-                auto_sync: boolean;
-                /**
-                 * @default push
-                 * @enum {string}
-                 */
-                sync_mode: "push" | "pull_request";
-                /**
-                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
-                 * @default false
-                 */
-                auto_pull: boolean;
-            };
-            archived?: boolean;
-            permissions?: components["schemas"]["AgentPermissions"];
+        RestoreRequest: {
+            /** Format: uuid */
+            checkpoint_id: string;
         };
-        Workspace: {
+        TriggerDelivery: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            organization_id: string;
+            trigger_id: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "failed" | "skipped";
+            /** Format: uuid */
+            run_id: string | null;
+            error_code: string | null;
+            /** Format: date-time */
+            received_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            reply_state: "none" | "pending" | "sending" | "sent" | "failed" | "uncertain";
+        };
+        ContextualConnection: {
+            /** Format: uuid */
+            id: string;
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
             name: string;
             /** @enum {string} */
-            persistence: "persistent" | "ephemeral";
-            github?: {
-                installation_id: string;
-                repository_id: string;
-                target_branch: string;
-                /**
-                 * @description Opt in to synchronizing after persisted agent runs.
-                 * @default false
-                 */
-                auto_sync: boolean;
-                /**
-                 * @default push
-                 * @enum {string}
-                 */
-                sync_mode: "push" | "pull_request";
-                /**
-                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
-                 * @default false
-                 */
-                auto_pull: boolean;
-            } | null;
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
+            provider?: string;
+            /** Format: uri */
+            url?: string;
+            auth_method: string;
+            /** @enum {string} */
+            status: "pending" | "healthy" | "expired" | "error";
+            owner_subject_id?: string;
+            /** Format: date-time */
+            last_checked_at?: string;
             /** Format: date-time */
             created_at: string;
-            /** @description Non-negative integer count as a decimal string. */
-            storage_bytes?: string;
-            archived?: boolean;
-            /** Format: uuid */
-            default_worktree_id?: string;
-            revision?: string;
-            /** Format: date-time */
-            deletion_due_at?: string | null;
-            /** Format: date-time */
-            deletion_requested_at?: string | null;
-            permissions?: components["schemas"]["AgentPermissions"];
-            connections?: components["schemas"]["ContextualConnectionPage"];
-        };
-        /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the workspace. Source selects saved starting files and never uploads a local folder. */
-        WorktreeCreate: {
-            /** @description Optional. Leave empty for smart naming. */
-            name?: string;
-            /** Format: uuid */
-            checkpoint_id?: string;
-            /** @description Optional. Leave empty for smart naming. */
-            branch?: string;
-            source?: components["schemas"]["WorktreeSource"];
+            package?: string;
+            package_version?: string;
+            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
+            account_identity?: string | null;
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
             /**
-             * @description Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
+             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
              * @enum {string}
              */
-            branch_mode?: "auto" | "new" | "existing";
-            permissions?: components["schemas"]["AgentPermissions"];
+            availability?: "pending_approval";
+            access_match?: components["schemas"]["ConnectionAccessMatch"];
+            /** @description Approved tool names only; this selection ceiling does not authorize execution. */
+            approved_tools?: string[];
+        };
+        /** @description Customer-scoped connection and permission choices. Core tool ceilings/rules remain authoritative. */
+        CustomerAgentConnection: {
+            connection: components["schemas"]["Connection"];
+            capabilities: components["schemas"]["ConnectionCapability"][];
+            selected_capabilities: string[];
+            access_version: string;
+            approved_tools: string[];
+        };
+        Transfer: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            direction: "push" | "pull";
+            base_revision: string;
+            /** @enum {string} */
+            status: "planned" | "staging" | "ready" | "applying" | "succeeded" | "conflicted" | "expired" | "failed";
+            dry_run: boolean;
+            actions: components["schemas"]["TransferAction"][];
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            operation_id?: string;
+            result_revision?: string;
+            /** Format: uuid */
+            checkpoint_id?: string;
+            local_receipt_complete?: boolean;
+        };
+        Error: {
+            error: components["schemas"]["ErrorDetail"];
         };
         Worktree: {
             /** Format: uuid */
@@ -2583,161 +2562,26 @@ export interface components {
             } | null;
             permissions?: components["schemas"]["AgentPermissions"];
         };
-        FileEntry: {
-            path: string;
-            /** @enum {string} */
-            type: "file" | "directory" | "symlink";
-            /** @description Non-negative integer count as a decimal string. */
-            size_bytes?: string;
-            /** Format: date-time */
-            modified_at?: string;
+        DefinitionReference: {
+            /** Format: uuid */
+            definition_id: string;
             revision: string;
-            git_ignored?: boolean;
-            /** @description SHA-256 of stored file bytes; omitted for directories. */
-            sha256?: string;
         };
-        FileListing: {
-            entries: components["schemas"]["FileEntry"][];
-            revision: string;
-            /** @enum {string} */
-            source: "active_worktree" | "checkpoint";
-            /** Format: date-time */
-            observed_at: string;
-            next_cursor: string | null;
+        WorkerResources: {
+            memory_mib: number;
+            cpu_millis: number;
         };
-        Checkpoint: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            worktree_id: string;
-            /** Format: uuid */
-            run_id?: string;
-            /** Format: date-time */
-            created_at: string;
+        ConnectorCatalog: {
+            data: components["schemas"]["ConnectorCatalogEntry"][];
             /** @enum {string} */
-            consistency: "crash_consistent" | "quiescent";
-            /** @enum {string} */
-            verification: "pending" | "verified" | "failed";
-            /** @description Non-negative integer count as a decimal string. */
-            size_bytes?: string;
-            pinned: boolean;
-            git_commit?: string;
-            /** @enum {string} */
-            git_status?: "ready" | "attention";
-            git_error?: string | null;
-        };
-        CheckpointCreate: {
-            pinned?: boolean;
-        };
-        RestoreRequest: {
-            /** Format: uuid */
-            checkpoint_id: string;
-        };
-        GitSync: {
-            /** Format: uuid */
-            worktree_id: string;
-            /** @enum {string} */
-            status: "disabled" | "pending" | "running" | "synced" | "already_integrated" | "conflict" | "blocked" | "failed";
-            source_commit?: string;
-            target_commit?: string;
-            conflicting_paths?: string[];
-            error_code?: string;
+            source: "live" | "snapshot";
             /** Format: date-time */
             updated_at: string;
-            /** Format: uri */
-            pull_request_url?: string;
         };
-        Limits: {
-            /** @description Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap. */
-            timeout_seconds?: number;
-            /**
-             * @description Integer micro-USD as a decimal string.
-             * @default 2000000
-             */
-            max_cost_micro_usd: string;
-        };
-        Grant: {
-            /** Format: uuid */
-            connection_id: string;
-            tools: string[];
-        };
-        AgentCreate: {
-            name: string;
+        ContextAudience: {
             /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model: string;
-            instructions?: string;
-            /** @enum {string} */
-            billing_mode: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
-            connection_grants?: components["schemas"]["Grant"][];
-            limits?: components["schemas"]["Limits"];
-        };
-        AgentPatch: {
-            name?: string;
-            /** @enum {string} */
-            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model?: string;
-            instructions?: string;
-            /** @enum {string} */
-            billing_mode?: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            /** @description Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools. */
-            connection_grants?: components["schemas"]["Grant"][] | null;
-            limits?: components["schemas"]["Limits"];
-        };
-        Agent: {
-            name: string;
-            /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model: string;
-            instructions?: string;
-            /** @enum {string} */
-            billing_mode: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
-            connection_grants?: components["schemas"]["Grant"][];
-            limits?: components["schemas"]["Limits"];
-            /** Format: uuid */
+            kind: "application_actor" | "application";
             id: string;
-            /** Format: uuid */
-            organization_id: string;
-            version: number;
-            /** Format: date-time */
-            created_at: string;
-            connections?: components["schemas"]["ContextualConnectionPage"];
-        };
-        /** @description Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants. */
-        SessionCreate: {
-            /** Format: uuid */
-            worktree_id: string;
-            /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model: string;
-            /** @enum {string} */
-            billing_mode: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
-            connection_grants?: components["schemas"]["Grant"][];
-            limits?: components["schemas"]["Limits"];
-            model_parameters?: components["schemas"]["ModelParameters"];
         };
         Session: {
             /** Format: uuid */
@@ -2764,88 +2608,380 @@ export interface components {
             agent_version?: number | null;
             model_parameters?: components["schemas"]["ModelParameters"];
         };
-        /** @description Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
-        RunCreate: {
+        Trigger: {
+            name: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
             prompt: string;
+            enabled: boolean;
+            max_runs_per_day: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id: string | null;
+            channel_id: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            next_fire_at: string | null;
+            last_error_code: string | null;
+            /** Format: date-time */
+            last_fired_at: string | null;
+            /** Format: uri */
+            webhook_url: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        WorkspacePatch: {
+            name?: string;
+            github?: {
+                installation_id: string;
+                repository_id: string;
+                target_branch: string;
+                /**
+                 * @description Opt in to synchronizing after persisted agent runs.
+                 * @default false
+                 */
+                auto_sync: boolean;
+                /**
+                 * @default push
+                 * @enum {string}
+                 */
+                sync_mode: "push" | "pull_request";
+                /**
+                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
+                 * @default false
+                 */
+                auto_pull: boolean;
+            };
+            archived?: boolean;
+            permissions?: components["schemas"]["AgentPermissions"];
+        };
+        Account: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            plan: "payg" | "pro" | "scale";
+            /** @description Non-negative integer count as a decimal string. */
+            member_count: string;
+            /** Format: date-time */
+            activated_at?: string;
+            /** Format: date-time */
+            last_active_at?: string;
+            /**
+             * Format: email
+             * @description Omitted unless accounts:pii:read is granted and requested.
+             */
+            contact_email?: string;
+        };
+        Grant: {
+            /** Format: uuid */
+            connection_id: string;
+            tools: string[];
+        };
+        /** @description Push: verify staged bytes, recheck revision/writer, create and checkpoint replacement, atomically switch. Pull: completed_paths is an untrusted client receipt of local work, never proof of remote mutation; the remote snapshot stays unchanged. Partial receipts remain resumable. A dry-run, expired, or conflicted plan cannot apply. */
+        TransferApply: {
+            expected_revision: string;
+            completed_paths?: string[];
+        };
+        ConnectionAccessMatch: {
+            scopes: ("organization" | "workspace" | "agent" | "workspace_agent")[];
+            conditional: boolean;
+            matched_rule_count: number;
+            matching_rules: components["schemas"]["ConnectionAccessRuleMatch"][];
+            matching_rules_truncated: boolean;
+        };
+        WorkerOffering: {
+            id: string;
+            revision: string;
+            /**
+             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
+             * @enum {string}
+             */
+            compute: "server" | "sandbox";
+            dedicated: boolean;
+            isolate_runs: boolean;
+            region: string;
+            runtime: string;
+            size: string;
+            resources: components["schemas"]["WorkerResources"];
+            concurrency: number;
+            max_host_lifetime_seconds: number | null;
+            price: components["schemas"]["WorkerPrice"];
+        };
+        Invitation: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            accepted_at?: string | null;
+            /** Format: date-time */
+            revoked_at?: string | null;
+            /** Format: uri */
+            invite_url?: string;
+        };
+        ConnectionPatch: {
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
+            name?: string;
+            /** @enum {string} */
+            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
+            provider?: string;
+            /** Format: uri */
+            url?: string;
+            /** @enum {string} */
+            auth_method?: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
+            /** @description Write-only secret; never returned. */
+            secret?: string;
+            secret_headers?: {
+                [key: string]: string;
+            };
+            package?: string;
+            package_version?: string;
+            args?: string[];
+            /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
+            secret_env?: {
+                [key: string]: string;
+            };
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
+        };
+        ConnectionCreate: {
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
+            name: string;
+            /** @enum {string} */
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
+            provider?: string;
+            /** Format: uri */
+            url?: string;
+            /** @enum {string} */
+            auth_method: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
+            /** @description Write-only secret; never returned. */
+            secret?: string;
+            secret_headers?: {
+                [key: string]: string;
+            };
+            package?: string;
+            package_version?: string;
+            args?: string[];
+            /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
+            secret_env?: {
+                [key: string]: string;
+            };
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
+        };
+        CheckpointExportRequest: {
+            /** @enum {string} */
+            format: "git_bundle" | "portable_archive";
+        };
+        SlackConnection: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            team_id: string;
+            bot_user_id: string;
+            /** Format: uri */
+            events_url: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        WorkerPolicyLimits: {
+            region: string;
+            runtime: string;
+            default_hourly_compute_cost_micro_usd: string;
+            default_max_instances: number;
+            max_instances: number;
+            default_max_concurrency: number;
+            max_concurrency: number;
+        };
+        DecisionTask: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            objective: string;
+            /** @enum {string} */
+            status: "waiting" | "running" | "needs_investigation" | "publishing" | "proposal" | "stopped" | "closed";
+            next_step: string;
+            max_cost_micro_usd: string;
+            committed_micro_usd: string;
+            outstanding_micro_usd: string;
+            max_runs: number;
+            /** Format: date-time */
+            evidence_expires_at: string;
+            /** Format: uuid */
+            latest_wake_id: string | null;
+            /** Format: uuid */
+            proposal_artifact_id: string | null;
+            failure_code: string | null;
+            runs: components["schemas"]["TaskRun"][];
+            outcomes: components["schemas"]["TaskOutcomeReceipt"][];
+        };
+        NewTrigger: {
+            name: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
+            prompt: string;
+            enabled: boolean;
+            max_runs_per_day: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id: string | null;
+            channel_id: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            next_fire_at: string | null;
+            last_error_code: string | null;
+            /** Format: date-time */
+            last_fired_at: string | null;
+            /** Format: uri */
+            webhook_url: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description Returned once for a new webhook trigger. Send as Authorization: Bearer; never put it in the URL. */
+            webhook_secret?: string;
+        };
+        TriggerPatch: {
+            name?: string;
             /** Format: uuid */
             workspace_id?: string;
             /** Format: uuid */
-            worktree_id?: string;
-            /** Format: uuid */
-            session_id?: string;
-            /** Format: uuid */
             agent_id?: string;
-            /** @enum {string} */
-            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model?: string;
-            /** @enum {string} */
-            billing_mode?: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
-            connection_grants?: components["schemas"]["Grant"][];
-            limits?: components["schemas"]["Limits"];
-            webhook_endpoint_ids?: string[];
-            /** @description Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention. */
-            queue_timeout_seconds?: number;
-            /**
-             * @description Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-             * @enum {string}
-             */
-            scheduling_class?: "background" | "interactive";
-            /** @description Only session follow-ups can queue behind worktree work. */
-            queue_if_busy?: boolean;
-            permissions?: components["schemas"]["AgentPermissions"];
-            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
-            connection_access_overrides?: components["schemas"]["Grant"][];
-            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
-            attachments?: string[];
-            model_parameters?: components["schemas"]["ModelParameters"];
-            /**
-             * @description OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
-             * @enum {string}
-             */
-            harness_prompt_mode?: "replace" | "extend";
+            prompt?: string;
+            enabled?: boolean;
+            max_runs_per_day?: number;
+            cron?: string;
+            timezone?: string;
             /** Format: uuid */
-            worker_id?: string;
-            /** @description Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate. */
-            memory_mib?: number;
-            /** @description Advanced per-Run CPU allocation in millicores on an explicit Worker. */
-            cpu_millis?: number;
-        } & (unknown | unknown | unknown);
-        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
-        MessageCreate: {
-            prompt: string;
-            limits?: components["schemas"]["Limits"];
-            webhook_endpoint_ids?: string[];
-            /** @default false */
-            queue_if_busy: boolean;
-            /** @description Optional model override within the pinned harness catalog; never changes the active run. */
-            model?: string;
-            /** @description Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention. */
-            queue_timeout_seconds?: number;
-            /**
-             * @description Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-             * @enum {string}
-             */
-            scheduling_class?: "background" | "interactive";
-            permissions?: components["schemas"]["AgentPermissions"];
-            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
-            connection_grants?: components["schemas"]["Grant"][];
-            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
-            connection_access_overrides?: components["schemas"]["Grant"][];
-            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
-            attachments?: string[];
-            model_parameters?: components["schemas"]["ModelParameters"];
+            slack_connection_id?: string;
+            channel_id?: string;
+        };
+        KeyCreate: {
+            name: string;
+            scopes: string[];
             /** Format: uuid */
-            worker_id?: string;
-            /** @description Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate. */
-            memory_mib?: number;
-            /** @description Advanced per-Run CPU allocation in millicores on an explicit Worker. */
-            cpu_millis?: number;
+            workspace_id?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** @description Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access. */
+            worker_ids?: string[];
+        };
+        WebhookCreate: {
+            /** Format: uri */
+            url: string;
+            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
+        };
+        ContextItem: {
+            id: string;
+            /** @enum {string} */
+            kind: "observation" | "inference" | "correction" | "instruction";
+            /** @enum {string} */
+            status: "known" | "unknown" | "conflicting" | "not_applicable" | "omitted";
+            value?: unknown;
+            source: string;
+            source_revision: string;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        ErrorDetail: {
+            code: string;
+            message: string;
+            /** Format: uuid */
+            request_id: string;
+            retryable: boolean;
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            details?: {
+                [key: string]: unknown;
+            };
+        };
+        NewApiKey: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            prefix: string;
+            scopes: string[];
+            /** Format: uuid */
+            workspace_id?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** Format: date-time */
+            revoked_at?: string;
+            /** @description Displayed once at creation; never returned again. */
+            readonly secret: string;
+        };
+        NewWebhook: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            url: string;
+            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** @description Shown only once; encrypted at rest. */
+            readonly signing_secret: string;
+        };
+        Diagnostics: {
+            /** Format: uuid */
+            run_id: string;
+            status: string;
+            /** Format: date-time */
+            observed_at: string;
+            lease_status?: string;
+            checkpoint_status?: string;
+            error_codes: string[];
+            request_ids?: string[];
+        };
+        /** @description An authenticated callback in YOUR application. After provider consent, authenticate the returning customer again and complete authorization server-side. Never reflect an untrusted browser-supplied return URL. */
+        CustomerConnectionAuthorize: {
+            /** Format: uri */
+            return_url: string;
+        };
+        Download: {
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        FileRename: {
+            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
+            new_path: string;
+        };
+        /** @description Resolve within the authorized workspace to an immutable commit/checkpoint before creating the clone. */
+        WorktreeSource: {
+            /** @constant */
+            kind: "git_ref";
+            ref: string;
+        } | {
+            /** @constant */
+            kind: "checkpoint";
+            /** Format: uuid */
+            checkpoint_id: string;
         };
         RunAccepted: {
             /** Format: uuid */
@@ -2891,6 +3027,839 @@ export interface components {
              * @description Explicit reusable compute target, independent of conversation and files.
              */
             worker_id?: string | null;
+        };
+        TaskRun: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            wake_id: string;
+            /** @enum {string} */
+            step: "decide" | "investigate";
+            allocated_micro_usd: string;
+            committed_micro_usd: string | null;
+            status: string;
+        };
+        ConnectionAccessRuleDeleted: {
+            /** Format: uuid */
+            id: string;
+            version: string;
+        };
+        /** @description URLs are temporary bearer capabilities scoped to one object/hash; suppress from logs. Conflicts have no write grant. Never forward a platform Authorization header to an object URL. */
+        TransferAction: {
+            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
+            path: string;
+            /** @enum {string} */
+            action: "upload" | "download" | "delete" | "unchanged" | "conflict";
+            /** @description SHA-256 of a regular file; null means absent. */
+            local_sha256: string | null;
+            /** @description SHA-256 of a regular file; null means absent. */
+            remote_sha256: string | null;
+            size_bytes?: string;
+            conflict_reason?: string;
+            /** Format: uri */
+            url?: string;
+            /** Format: date-time */
+            url_expires_at?: string;
+            /** @enum {string} */
+            method?: "PUT" | "GET";
+            required_headers?: {
+                [key: string]: string;
+            };
+        };
+        CreditLot: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            remaining_micro_usd: string;
+            /** Format: date-time */
+            expires_at: string | null;
+        };
+        DecisionDefinition: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            definition: components["schemas"]["InferenceDefinition"];
+            digest: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        DiffEntry: {
+            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
+            path: string;
+            /** @enum {string} */
+            change: "added" | "modified" | "deleted" | "type_changed";
+            /** @description SHA-256 of a regular file; null means absent. */
+            before_sha256: string | null;
+            /** @description SHA-256 of a regular file; null means absent. */
+            after_sha256: string | null;
+            /** @description Whether inspected content contains binary bytes. Null means inspection was skipped because the two recorded file sizes total 512,000 bytes or more; no file content is loaded and no patch is returned. */
+            binary: boolean | null;
+            patch?: string;
+        };
+        /** @description Create a configured conversation without starting inference. BYOK requires a compatible provider_connection_id; runtime validates catalog and grants. */
+        SessionCreate: {
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model: string;
+            /** @enum {string} */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
+            connection_grants?: components["schemas"]["Grant"][];
+            limits?: components["schemas"]["Limits"];
+            model_parameters?: components["schemas"]["ModelParameters"];
+        };
+        WorkspaceDeletion: {
+            confirmation: string;
+            password?: string;
+        };
+        RequestRecord: {
+            /** Format: uuid */
+            request_id: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at?: string;
+            /** Format: uuid */
+            organization_id?: string;
+            /** @enum {string} */
+            principal_type: "human" | "service" | "anonymous" | "operator" | "synthetic";
+            principal_id?: string;
+            method: string;
+            route: string;
+            status_code?: number;
+            duration_ms?: number;
+            /** Format: uuid */
+            run_id?: string;
+            /** @enum {string} */
+            idempotency_outcome?: "new" | "replay" | "conflict" | "none";
+            error_code?: string;
+            /** @enum {string} */
+            client_type?: "dashboard" | "cli" | "sdk" | "api" | "internal";
+            client_version?: string;
+        };
+        Billing: {
+            /** @enum {string} */
+            plan: "payg" | "pro" | "scale";
+            /** @description Integer micro-USD as a decimal string. */
+            available_micro_usd: string;
+            /** @description Integer micro-USD as a decimal string. */
+            reserved_micro_usd: string;
+            rate_card_version: string;
+            /** @constant */
+            currency: "USD";
+            concurrency_limit: number;
+            /** @description Non-negative integer count as a decimal string. */
+            storage_allowance_bytes: string;
+            outstanding_micro_usd?: string;
+            billing_hold?: boolean;
+            billing_status?: string;
+            subscription_price_micro_usd?: string;
+            credit_lots?: components["schemas"]["CreditLot"][];
+            execution_policy?: components["schemas"]["ExecutionPolicy"];
+            plans?: components["schemas"]["Plan"][];
+        };
+        ContextArtifact: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            revision: string;
+            sha256: string;
+            size_bytes: string;
+            audience: components["schemas"]["ContextAudience"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        DecisionTaskWake: {
+            event_id: string;
+            input: unknown;
+            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+        };
+        ApiKey: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            prefix: string;
+            scopes: string[];
+            /** Format: uuid */
+            workspace_id?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** Format: date-time */
+            revoked_at?: string;
+        };
+        CustomerAgentConnectionPage: {
+            data: components["schemas"]["CustomerAgentConnection"][];
+            next_cursor: string | null;
+        };
+        SchedulingReport: {
+            /** Format: date-time */
+            observed_at: string;
+            global_concurrency_limit: number;
+            active_executions: number;
+            eligible_queued_jobs: number;
+            queued_jobs: number;
+            starts: number;
+            accounts_limit: number;
+            oldest_eligible_wait_seconds: number;
+            mean_start_wait_seconds: number | null;
+            p95_start_wait_seconds: number | null;
+            accounts: components["schemas"]["SchedulingAccount"][];
+        };
+        Workspace: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organization_id: string;
+            name: string;
+            /** @enum {string} */
+            persistence: "persistent" | "ephemeral";
+            github?: {
+                installation_id: string;
+                repository_id: string;
+                target_branch: string;
+                /**
+                 * @description Opt in to synchronizing after persisted agent runs.
+                 * @default false
+                 */
+                auto_sync: boolean;
+                /**
+                 * @default push
+                 * @enum {string}
+                 */
+                sync_mode: "push" | "pull_request";
+                /**
+                 * @description Fetch and merge incoming target-branch pushes when the worktree is idle. Conflicts preserve local files.
+                 * @default false
+                 */
+                auto_pull: boolean;
+            } | null;
+            /** Format: date-time */
+            created_at: string;
+            /** @description Non-negative integer count as a decimal string. */
+            storage_bytes?: string;
+            archived?: boolean;
+            /** Format: uuid */
+            default_worktree_id?: string;
+            revision?: string;
+            /** Format: date-time */
+            deletion_due_at?: string | null;
+            /** Format: date-time */
+            deletion_requested_at?: string | null;
+            permissions?: components["schemas"]["AgentPermissions"];
+            connections?: components["schemas"]["ContextualConnectionPage"];
+        };
+        Event: {
+            /** Format: uuid */
+            id: string;
+            /** @constant */
+            schema_version: 1;
+            /** Format: uuid */
+            run_id: string;
+            /** @description Non-negative integer count as a decimal string. */
+            sequence: string;
+            type: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: date-time */
+            ingested_at: string;
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        Worker: {
+            name: string | null;
+            /**
+             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
+             * @enum {string}
+             */
+            compute: "server" | "sandbox";
+            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
+            dedicated: boolean;
+            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
+            isolate_runs: boolean;
+            region: string;
+            runtime: string;
+            size: string | null;
+            min_instances: number;
+            max_instances: number | null;
+            max_concurrency: number;
+            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
+            idle_timeout_seconds: number | null;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
+            max_hourly_compute_cost_micro_usd: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organization_id: string;
+            revision: number;
+            /** @enum {string} */
+            desired_state: "enabled" | "paused" | "destroyed";
+            /** @enum {string} */
+            status: "sleeping" | "starting" | "ready" | "draining" | "paused" | "destroyed" | "expired";
+            active_runs: number;
+            occupied_slots: number;
+            queued_runs: number;
+            ready_instances: number;
+            starting_instances: number;
+            draining_instances: number;
+            committed_hourly_compute_cost_micro_usd: string;
+            cost_micro_usd: string;
+            reserved_micro_usd: string;
+            accepted_offerings: components["schemas"]["WorkerOffering"][];
+            failure_code: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        /** @description An incoming Slack/webhook trigger or durable scheduled task. A saved agent preset supplies harness, model, grants and billing. Cron requires five fields and an IANA timezone (UTC by default); Slack requires a connection and channel ID. */
+        TriggerCreate: {
+            name: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** @enum {string} */
+            kind: "slack" | "webhook" | "schedule";
+            prompt: string;
+            enabled?: boolean;
+            max_runs_per_day?: number;
+            cron?: string;
+            timezone?: string;
+            /** Format: uuid */
+            slack_connection_id?: string;
+            channel_id?: string;
+        };
+        DecisionQuestion: {
+            /** @enum {string} */
+            kind: "json";
+        } | {
+            /** @enum {string} */
+            kind: "choice";
+            criteria: {
+                [key: string]: string;
+            };
+        } | {
+            /** @enum {string} */
+            kind: "score";
+            criteria: string[];
+        } | {
+            /** @enum {string} */
+            kind: "provider";
+        };
+        InferenceReceipt: {
+            /** Format: uuid */
+            invocation_id: string;
+            definition_revision: string;
+            definition_digest: string;
+            context_digest: string;
+            provider_request_digest: string | null;
+            transformation_version: string;
+            dependency_tokens: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            outcome: "value" | "unknown" | "refused" | "invalid_output" | "failed" | "uncertain" | "stale_input";
+            value?: unknown;
+            /** @enum {string} */
+            provider_outcome: "not_invoked" | "responded" | "uncertain";
+            provider_request_id?: string | null;
+            model: string;
+            model_revision?: string | null;
+            /** @enum {string} */
+            model_revision_status: "pinned" | "reported" | "unavailable";
+            validation: {
+                schema_digest: string;
+                /** @enum {string} */
+                status: "not_run" | "passed" | "failed";
+            };
+            /** Format: uuid */
+            usage_request_id?: string | null;
+            timings_ms?: {
+                [key: string]: number;
+            };
+            reason_code?: string;
+            provider_evidence?: {
+                confidence?: number;
+                probabilities?: {
+                    [key: string]: number;
+                };
+            };
+        };
+        /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
+        BoundedAgentPolicy: {
+            max_model_calls: number;
+            max_tool_calls: number;
+            context_artifacts: components["schemas"]["ContextReference"][];
+        };
+        SchedulingAccount: {
+            /** Format: uuid */
+            organization_id: string;
+            active_executions: number;
+            starts: number;
+            queued_jobs: number;
+            eligible_queued_jobs: number;
+            oldest_eligible_wait_seconds: number;
+            mean_start_wait_seconds: number | null;
+            p95_start_wait_seconds: number | null;
+        };
+        Member: {
+            /** Format: uuid */
+            user_id: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+        };
+        ReportSnapshot: {
+            /** Format: date */
+            day: string;
+            /** Format: date-time */
+            observed_at: string;
+            report: components["schemas"]["Report"];
+        };
+        Redirect: {
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            expires_at?: string;
+        };
+        SlackConnectionCreate: {
+            name: string;
+            bot_token: string;
+            signing_secret: string;
+        };
+        RunResult: {
+            /** Format: uuid */
+            run_id: string;
+            final: boolean;
+            output_text?: string;
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            structured_output?: {
+                [key: string]: unknown;
+            };
+            artifact_ids?: string[];
+            /** Format: uuid */
+            checkpoint_id?: string;
+            execution_outcome: string;
+            persistence_status: string;
+            error?: components["schemas"]["ErrorDetail"];
+            content_expired?: boolean;
+            /** Format: date-time */
+            content_expired_at?: string;
+            inference?: components["schemas"]["InferenceReceipt"];
+        };
+        WorkerPrice: {
+            /** @constant */
+            kind: "allocation";
+            hourly_micro_usd: string;
+        } | {
+            /** @constant */
+            kind: "resource";
+            cpu_hour_micro_usd: string;
+            gib_hour_micro_usd: string;
+        };
+        WorktreeDiff: {
+            /** Format: uuid */
+            worktree_id: string;
+            /** Format: uuid */
+            base_checkpoint_id?: string;
+            revision: string;
+            data: components["schemas"]["DiffEntry"][];
+            next_cursor: string | null;
+            truncated: boolean;
+        };
+        AgentPatch: {
+            name?: string;
+            /** @enum {string} */
+            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model?: string;
+            instructions?: string;
+            /** @enum {string} */
+            billing_mode?: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            /** @description Omit to preserve, null to inherit current connection access, [] to select none, or select exact connection/tools. */
+            connection_grants?: components["schemas"]["Grant"][] | null;
+            limits?: components["schemas"]["Limits"];
+        };
+        /** @description Tenant-authorized, short-lived download capabilities. Git bundle contains tracked objects/refs only; portable archive includes permitted ignored files and sanitized session state, never infrastructure credentials or archive keys. Expired links require a new idempotent export request. */
+        CheckpointExport: {
+            /** Format: uuid */
+            checkpoint_id: string;
+            /** @enum {string} */
+            format: "git_bundle" | "portable_archive";
+            /** Format: uri */
+            download_url: string;
+            /** Format: date-time */
+            expires_at: string;
+            size_bytes: string;
+            sha256: string;
+            /** Format: uri */
+            manifest_url: string;
+            manifest_sha256: string;
+            source_commit?: string;
+            /** @description Git bundle review commit containing permitted checkpoint edits; may differ from source_commit. Does not mutate hosted branch. */
+            export_commit?: string;
+        };
+        WorkerAction: {
+            /** @description Explicitly cancel active Runs. Cleanup and accounting still complete before release. */
+            force?: boolean;
+        };
+        /** @description Prepare an embedded app connection with no access. Configure an enabled connector and reviewed capability presets on the trusted backend. The customer selects a preset during consent; no Macrofold login is required. */
+        CustomerAgentConnectionCreate: {
+            name: string;
+            provider: string;
+            capabilities: components["schemas"]["ConnectionCapability"][];
+        };
+        ConnectionAccessRulePage: {
+            data: components["schemas"]["ConnectionAccessRule"][];
+            next_cursor: string | null;
+            version: string;
+        };
+        /** @description Create an expiring plan, not a filesystem mutation. Empty paths selects default permitted scope. Explicit paths required with include_ignored. Manifest is the complete selected local regular-file inventory plus tombstones; runtime validates aggregate 250 MiB cap. Dry-run receives no upload/download grants and cannot apply. */
+        TransferCreate: {
+            /** @enum {string} */
+            direction: "push" | "pull";
+            base_revision: string;
+            manifest: components["schemas"]["TransferManifestEntry"][];
+            paths: string[];
+            /** @default false */
+            include_ignored: boolean;
+            /** @default false */
+            delete: boolean;
+            /** @default false */
+            dry_run: boolean;
+        } & unknown;
+        SlackChannel: {
+            id: string;
+            name: string;
+        };
+        Harness: {
+            /** @enum {string} */
+            id: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            version: string;
+            enabled: boolean;
+            capabilities: string[];
+        };
+        /** @description Case-sensitive worktree-relative glob rules (*, **, ?). Omitted include inherits all; an empty include allows none. Exclusions always win. */
+        PermissionPatterns: {
+            include?: string[];
+            exclude?: string[];
+        };
+        InferenceResponse: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            session_id: string | null;
+            /** Format: uuid */
+            worktree_id: string | null;
+            /** @enum {string} */
+            status: "queued" | "provisioning" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+            urls: {
+                /** Format: uri */
+                status: string;
+                /** Format: uri */
+                events: string;
+                /** Format: uri */
+                stream: string;
+                /** Format: uri */
+                result: string;
+                /**
+                 * Format: uri
+                 * @description POST to request cancellation.
+                 */
+                cancel?: string;
+            };
+            /** Format: date-time */
+            queue_expires_at?: string;
+            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+            wait_seconds?: number;
+            /**
+             * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
+             * @enum {string|null}
+             */
+            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity" | "worker_paused" | "worker_destroyed" | "worker_expired" | "worker_concurrency" | "worker_cost_limit" | "worker_instance_limit" | "worker_starting" | "worker_capacity" | "worker_lifetime" | "compute_unavailable" | "insufficient_credits";
+            /** @description Funds still held and unavailable for other jobs; released on settlement. */
+            reserved_micro_usd?: string;
+            /** @enum {string} */
+            scheduling_class?: "background" | "interactive";
+            /** @enum {string} */
+            kind?: "native_agent" | "inference" | "bounded_agent";
+            result?: components["schemas"]["RunResult"];
+        };
+        ExecutionPolicy: {
+            /** @enum {string} */
+            plan: "payg" | "pro" | "scale";
+            plan_name: string;
+            concurrency_limit: number;
+            max_timeout_seconds: number;
+            plan_concurrency_limit: number;
+            plan_max_timeout_seconds: number;
+            default_queue_timeout_seconds: number;
+            concurrency_override: number | null;
+            timeout_override_seconds: number | null;
+        };
+        Delivery: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            event_id: string;
+            /** Format: uuid */
+            endpoint_id: string;
+            /** @enum {string} */
+            status: "pending" | "delivered" | "retrying" | "exhausted";
+            attempts: number;
+            last_status_code?: number;
+            /** Format: date-time */
+            next_attempt_at?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExecutionPolicyPatch: {
+            /** @description Null restores plan default. An integer must not exceed the current plan limit. */
+            concurrency_limit?: number | null;
+            /** @description Null restores plan default. Changes affect new starts, never interrupt running work. */
+            max_timeout_seconds?: number | null;
+        };
+        Model: {
+            id: string;
+            provider: string;
+            harnesses: string[];
+            enabled: boolean;
+            billing_modes: ("byok" | "managed")[];
+            rate_card_version: string;
+            /** @description Display name of the reviewed model. */
+            name: string;
+            /** @description Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot. */
+            input_micro_usd_per_million: string;
+            /** @description Current retail micro-USD per million output tokens, including reported reasoning tokens. */
+            output_micro_usd_per_million: string;
+        };
+        /** @description Create an independent worktree addressed by ID. Name alone creates its derived branch; branch alone supplies the name. Both omitted defers name and branch until the first accepted agent run. Names are unique in the workspace. Source selects saved starting files and never uploads a local folder. */
+        WorktreeCreate: {
+            /** @description Optional. Leave empty for smart naming. */
+            name?: string;
+            /** Format: uuid */
+            checkpoint_id?: string;
+            /** @description Optional. Leave empty for smart naming. */
+            branch?: string;
+            source?: components["schemas"]["WorktreeSource"];
+            /**
+             * @description Auto uses a named existing branch or creates a new branch; new rejects an existing branch; existing requires a saved branch.
+             * @enum {string}
+             */
+            branch_mode?: "auto" | "new" | "existing";
+            permissions?: components["schemas"]["AgentPermissions"];
+        };
+        FolderCreate: {
+            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
+            path: string;
+        };
+        GithubInstallations: {
+            data: {
+                installation_id: string;
+                account_login: string;
+            }[];
+            /** Format: uri */
+            install_url: string;
+            truncated: boolean;
+        };
+        FileListing: {
+            entries: components["schemas"]["FileEntry"][];
+            revision: string;
+            /** @enum {string} */
+            source: "active_worktree" | "checkpoint";
+            /** Format: date-time */
+            observed_at: string;
+            next_cursor: string | null;
+        };
+        Report: {
+            definition_version: string;
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @constant */
+            timezone: "UTC";
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            complete_through?: string;
+            missing_sources: string[];
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            filters: {
+                [key: string]: unknown;
+            };
+            metrics: components["schemas"]["Metric"][];
+            evidence_urls?: string[];
+            recommendations?: components["schemas"]["Recommendation"][];
+            scheduling?: components["schemas"]["SchedulingReport"];
+        };
+        ConnectionAccessRule: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connection_id: string;
+            /** @enum {string} */
+            scope: "workspace" | "agent" | "workspace_agent";
+            /** Format: uuid */
+            workspace_id: string | null;
+            /** Format: uuid */
+            agent_id: string | null;
+            workspace_name: string | null;
+            agent_name: string | null;
+            unavailable: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CliCapabilities: {
+            api_version: string;
+            minimum_cli_version: string;
+            recommended_cli_version: string;
+            features: string[];
+            /** @constant */
+            stream_rotation_seconds: 55;
+            /** @constant */
+            max_transfer_files: 1000;
+            /** @constant */
+            max_transfer_bytes: 262144000;
+            /** @constant */
+            max_file_bytes: 26214400;
+        };
+        WebhookPatch: {
+            /** Format: uri */
+            url?: string;
+            events?: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
+            enabled?: boolean;
+        };
+        ConnectionAccessResolution: {
+            /** Format: uuid */
+            connection_id: string;
+            name: string;
+            tools: string[];
+            /** @enum {string} */
+            source: "organization" | "workspace" | "agent" | "workspace_agent" | "run_override" | "none";
+            ready: boolean;
+            rejection_codes: string[];
+            access_match: components["schemas"]["ConnectionAccessMatch"];
+            can_override: boolean;
+        };
+        ConnectionTest: {
+            /** @enum {string} */
+            status: "healthy" | "error" | "unknown";
+            /** Format: date-time */
+            observed_at: string;
+            diagnostic_code?: string;
+            message?: string;
+        };
+        TaskStepDefinition: {
+            definition: components["schemas"]["InferenceDefinition"];
+            model_binding: components["schemas"]["DecisionBinding"];
+        };
+        Identity: {
+            /** Format: uuid */
+            principal_id: string;
+            /** @enum {string} */
+            principal_type: "user" | "api_key";
+            /** Format: uuid */
+            user_id?: string;
+            organizations: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @enum {string} */
+                role: "owner" | "admin" | "member" | "viewer";
+            }[];
+            effective_scopes: string[];
+            workspace_restrictions: string[];
+            capabilities: components["schemas"]["CliCapabilities"];
+            /** Format: uuid */
+            organization_id?: string;
+        };
+        AccountSummary: {
+            account: components["schemas"]["Account"];
+            billing: components["schemas"]["Billing"];
+            usage: components["schemas"]["Report"];
+            health: components["schemas"]["Metric"][];
+        };
+        /** @description Short-lived setup link, not a platform API credential. Open it in a popup or top-level window; its fragment must not be logged. Expired or uncertain attempts require a newly requested link. */
+        CustomerConnectionAuthorization: {
+            /** Format: uuid */
+            authorization_id: string;
+            /** Format: uri */
+            authorization_url: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        ContextArtifactCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            name: string;
+            context: components["schemas"]["ExplicitContext"];
+            /** Format: uuid */
+            source_run_id?: string;
+        };
+        /** @description An application-reviewed permission preset. Exact tool names are validated against the enabled provider catalog; labels are not inferred from tool names and do not replace provider OAuth scopes. */
+        ConnectionCapability: {
+            id: string;
+            label: string;
+            description?: string;
+            tools: string[];
+        };
+        InvitationCreate: {
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role: "admin" | "member" | "viewer";
+        };
+        ExplicitContext: {
+            /** @constant */
+            schema_version: 1;
+            template_revision: string;
+            audience: components["schemas"]["ContextAudience"];
+            items: components["schemas"]["ContextItem"][];
+            complete: boolean;
+            truncated: boolean;
+            /** @enum {string} */
+            consistency: "snapshot" | "read_interval";
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            read_completed_at?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            dependency_tokens: {
+                [key: string]: string;
+            };
+        };
+        ContextualConnectionPage: {
+            data: components["schemas"]["ContextualConnection"][];
+            next_cursor: string | null;
         };
         Run: {
             /** Format: uuid */
@@ -2958,52 +3927,71 @@ export interface components {
              */
             worker_id?: string | null;
         };
-        RunInput: {
-            /** Format: uuid */
-            input_request_id: string;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            answer: {
-                [key: string]: unknown;
-            };
+        AuthorizeRequest: {
+            /** @description Application-relative allowlisted return location. */
+            return_to?: string;
         };
-        RunResult: {
+        DecisionBinding: {
+            /** @enum {string} */
+            provider: "anthropic" | "typesafe" | "openrouter";
+            model: string;
+            /** @enum {string} */
+            billing_mode: "managed" | "byok";
             /** Format: uuid */
-            run_id: string;
-            final: boolean;
-            output_text?: string;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            structured_output?: {
-                [key: string]: unknown;
-            };
-            artifact_ids?: string[];
-            /** Format: uuid */
-            checkpoint_id?: string;
-            execution_outcome: string;
-            persistence_status: string;
-            error?: components["schemas"]["ErrorDetail"];
-            content_expired?: boolean;
-            /** Format: date-time */
-            content_expired_at?: string;
-            inference?: components["schemas"]["InferenceReceipt"];
+            provider_connection_id?: string;
         };
-        Event: {
+        Limits: {
+            /** @description Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap. */
+            timeout_seconds?: number;
+            /**
+             * @description Integer micro-USD as a decimal string.
+             * @default 2000000
+             */
+            max_cost_micro_usd: string;
+        };
+        Agent: {
+            name: string;
+            /** @enum {string} */
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model: string;
+            instructions?: string;
+            /** @enum {string} */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
+            connection_grants?: components["schemas"]["Grant"][];
+            limits?: components["schemas"]["Limits"];
             /** Format: uuid */
             id: string;
-            /** @constant */
-            schema_version: 1;
             /** Format: uuid */
-            run_id: string;
-            /** @description Non-negative integer count as a decimal string. */
-            sequence: string;
-            type: string;
+            organization_id: string;
+            version: number;
             /** Format: date-time */
-            occurred_at: string;
+            created_at: string;
+            connections?: components["schemas"]["ContextualConnectionPage"];
+        };
+        /** @description An authorized, bounded rule sample for explaining contextual access. Never use a sample as an authorization decision. */
+        ConnectionAccessRuleMatch: {
+            /** Format: uuid */
+            rule_id: string;
+            /** @enum {string} */
+            scope: "workspace" | "agent" | "workspace_agent";
+            /** Format: uuid */
+            workspace_id?: string | null;
+            /** Format: uuid */
+            agent_id?: string | null;
+            workspace_name?: string | null;
+            agent_name?: string | null;
+        };
+        AuthorizationLink: {
+            /** Format: uri */
+            authorization_url: string;
             /** Format: date-time */
-            ingested_at: string;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            data: {
-                [key: string]: unknown;
-            };
+            expires_at: string;
         };
         Artifact: {
             /** Format: uuid */
@@ -3018,1353 +4006,81 @@ export interface components {
             /** Format: date-time */
             expires_at?: string;
         };
-        Download: {
-            /** Format: uri */
-            url: string;
-            /** Format: date-time */
-            expires_at: string;
-        };
-        ConnectionCreate: {
-            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
-            name: string;
+        BillingModelUsage: {
+            /** @description Total input, including cached reads and writes once. */
+            input_tokens: string | null;
+            /** @description Output includes reasoning subsets when reported. */
+            output_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cached_input_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cache_write_input_tokens: string | null;
+            completeness: string;
+            provisional: boolean;
+            bound_breached: boolean;
+            /** @description Consumes the run budget even for BYOK; not an additional charge. */
+            budget_cost_micro_usd: string | null;
+            /** @description Original model-call ceiling. */
+            reserved_micro_usd: string | null;
+            /** @description Usage at accepted retail rates, before the authorized ceiling. */
+            reported_micro_usd: string | null;
+            /** @description Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge. */
+            provider_cost_micro_usd: string | null;
             /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
-            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
-            provider?: string;
-            /** Format: uri */
-            url?: string;
-            /** @enum {string} */
-            auth_method: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
-            /** @description Write-only secret; never returned. */
-            secret?: string;
-            secret_headers?: {
-                [key: string]: string;
-            };
-            package?: string;
-            package_version?: string;
-            args?: string[];
-            /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
-            secret_env?: {
-                [key: string]: string;
-            };
-            api_fallback?: components["schemas"]["ClaudeApiFallback"];
-        };
-        ConnectionPatch: {
-            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
-            name?: string;
-            /** @enum {string} */
-            kind?: "model" | "mcp_remote" | "mcp_stdio" | "composio" | "search" | "claude_subscription";
-            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
-            provider?: string;
-            /** Format: uri */
-            url?: string;
-            /** @enum {string} */
-            auth_method?: "oauth" | "bearer" | "headers" | "api_key" | "none" | "claude_code";
-            /** @description Write-only secret; never returned. */
-            secret?: string;
-            secret_headers?: {
-                [key: string]: string;
-            };
-            package?: string;
-            package_version?: string;
-            args?: string[];
-            /** @description Write-only environment secrets for approved stdio package variables. Visible to processes inside your agent sandbox. */
-            secret_env?: {
-                [key: string]: string;
-            };
-            api_fallback?: components["schemas"]["ClaudeApiFallback"];
-        };
-        Connection: {
-            /** Format: uuid */
-            id: string;
-            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
-            name: string;
-            /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
-            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
-            provider?: string;
-            /** Format: uri */
-            url?: string;
-            auth_method: string;
-            /** @enum {string} */
-            status: "pending" | "healthy" | "expired" | "error";
-            owner_subject_id?: string;
-            /** Format: date-time */
-            last_checked_at?: string;
-            /** Format: date-time */
-            created_at: string;
-            package?: string;
-            package_version?: string;
-            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
-            account_identity?: string | null;
-            api_fallback?: components["schemas"]["ClaudeApiFallback"];
-            /**
-             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
-             * @enum {string}
-             */
-            availability?: "pending_approval";
-        };
-        AuthorizeRequest: {
-            /** @description Application-relative allowlisted return location. */
-            return_to?: string;
-        };
-        AuthorizationLink: {
-            /** Format: uri */
-            authorization_url: string;
-            /** Format: date-time */
-            expires_at: string;
-        };
-        ConnectionTest: {
-            /** @enum {string} */
-            status: "healthy" | "error" | "unknown";
-            /** Format: date-time */
-            observed_at: string;
-            diagnostic_code?: string;
-            message?: string;
-        };
-        Tool: {
-            name: string;
-            description?: string;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            input_schema: {
-                [key: string]: unknown;
-            };
-            granted: boolean;
-        };
-        KeyCreate: {
-            name: string;
-            scopes: string[];
-            /** Format: uuid */
-            workspace_id?: string;
-            /** Format: date-time */
-            expires_at?: string;
-            /** @description Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access. */
-            worker_ids?: string[];
-        };
-        ApiKey: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            prefix: string;
-            scopes: string[];
-            /** Format: uuid */
-            workspace_id?: string;
-            /** Format: date-time */
-            last_used_at?: string;
-            /** Format: date-time */
-            expires_at?: string;
-            /** Format: date-time */
-            revoked_at?: string;
-        };
-        NewApiKey: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            prefix: string;
-            scopes: string[];
-            /** Format: uuid */
-            workspace_id?: string;
-            /** Format: date-time */
-            last_used_at?: string;
-            /** Format: date-time */
-            expires_at?: string;
-            /** Format: date-time */
-            revoked_at?: string;
-            /** @description Displayed once at creation; never returned again. */
-            readonly secret: string;
-        };
-        WebhookCreate: {
-            /** Format: uri */
-            url: string;
-            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
-        };
-        WebhookPatch: {
-            /** Format: uri */
-            url?: string;
-            events?: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
-            enabled?: boolean;
-        };
-        Webhook: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uri */
-            url: string;
-            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
-            enabled: boolean;
-            /** Format: date-time */
-            created_at: string;
-        };
-        NewWebhook: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uri */
-            url: string;
-            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
-            enabled: boolean;
-            /** Format: date-time */
-            created_at: string;
-            /** @description Shown only once; encrypted at rest. */
-            readonly signing_secret: string;
-        };
-        Delivery: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            event_id: string;
-            /** Format: uuid */
-            endpoint_id: string;
-            /** @enum {string} */
-            status: "pending" | "delivered" | "retrying" | "exhausted";
-            attempts: number;
-            last_status_code?: number;
-            /** Format: date-time */
-            next_attempt_at?: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        Billing: {
-            /** @enum {string} */
-            plan: "payg" | "pro" | "scale";
-            /** @description Integer micro-USD as a decimal string. */
-            available_micro_usd: string;
-            /** @description Integer micro-USD as a decimal string. */
-            reserved_micro_usd: string;
-            rate_card_version: string;
-            /** @constant */
-            currency: "USD";
-            concurrency_limit: number;
-            /** @description Non-negative integer count as a decimal string. */
-            storage_allowance_bytes: string;
-            outstanding_micro_usd?: string;
-            billing_hold?: boolean;
-            billing_status?: string;
-            subscription_price_micro_usd?: string;
-            credit_lots?: components["schemas"]["CreditLot"][];
-            execution_policy?: components["schemas"]["ExecutionPolicy"];
-            plans?: components["schemas"]["Plan"][];
-        };
-        /** @description Server validates purchased-credit minimum of 10000000 micro-USD and selects Stripe price IDs. Client cannot override currency, redirect domains or unit rates. Subscriptions default to pro for older clients. Existing subscribers change tiers in the Stripe portal. Upgrades do not grant extra included credits until a regular subscription-cycle invoice is paid. */
-        CheckoutCreate: {
-            /** @enum {string} */
-            kind: "topup" | "subscription";
-            /** @description Integer micro-USD as a decimal string. */
-            amount_micro_usd?: string;
-            /** @enum {string} */
-            plan?: "pro" | "scale";
-        };
-        Redirect: {
-            /** Format: uri */
-            url: string;
-            /** Format: date-time */
-            expires_at?: string;
-        };
-        Harness: {
-            /** @enum {string} */
-            id: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            version: string;
-            enabled: boolean;
-            capabilities: string[];
-        };
-        Model: {
-            id: string;
-            provider: string;
-            harnesses: string[];
-            enabled: boolean;
-            billing_modes: ("byok" | "managed")[];
-            rate_card_version: string;
-            /** @description Display name of the reviewed model. */
-            name: string;
-            /** @description Current retail micro-USD per million input tokens. Each accepted run retains its own rate snapshot. */
-            input_micro_usd_per_million: string;
-            /** @description Current retail micro-USD per million output tokens, including reported reasoning tokens. */
-            output_micro_usd_per_million: string;
-        };
-        RequestRecord: {
-            /** Format: uuid */
+            provider_cost_status: "estimated_from_usage" | "unavailable";
+            /** @description Durable model-call identity; use to correlate gateway diagnostics and tracing. */
             request_id: string;
-            /** Format: date-time */
-            started_at: string;
-            /** Format: date-time */
-            completed_at?: string;
-            /** Format: uuid */
-            organization_id?: string;
-            /** @enum {string} */
-            principal_type: "human" | "service" | "anonymous" | "operator" | "synthetic";
-            principal_id?: string;
-            method: string;
-            route: string;
-            status_code?: number;
-            duration_ms?: number;
-            /** Format: uuid */
-            run_id?: string;
-            /** @enum {string} */
-            idempotency_outcome?: "new" | "replay" | "conflict" | "none";
-            error_code?: string;
-            /** @enum {string} */
-            client_type?: "dashboard" | "cli" | "sdk" | "api" | "internal";
-            client_version?: string;
         };
-        Metric: {
-            name: string;
-            value: number | string | null;
-            unit: string;
-            dimensions?: {
-                [key: string]: string;
-            };
-            /** @enum {string} */
-            status: "known" | "estimated" | "missing" | "insufficient_data";
-            /** @description Non-negative integer count as a decimal string. */
-            sample_size?: string;
-        };
-        Report: {
-            definition_version: string;
-            /** Format: date-time */
-            from: string;
-            /** Format: date-time */
-            to: string;
-            /** @constant */
-            timezone: "UTC";
-            /** Format: date-time */
-            observed_at: string;
-            /** Format: date-time */
-            complete_through?: string;
-            missing_sources: string[];
+        RunInput: {
+            /** Format: uuid */
+            input_request_id: string;
             /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            filters: {
+            answer: {
                 [key: string]: unknown;
             };
-            metrics: components["schemas"]["Metric"][];
-            evidence_urls?: string[];
-            recommendations?: components["schemas"]["Recommendation"][];
-            scheduling?: components["schemas"]["SchedulingReport"];
-        };
-        Account: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** Format: date-time */
-            created_at: string;
-            /** @enum {string} */
-            plan: "payg" | "pro" | "scale";
-            /** @description Non-negative integer count as a decimal string. */
-            member_count: string;
-            /** Format: date-time */
-            activated_at?: string;
-            /** Format: date-time */
-            last_active_at?: string;
-            /**
-             * Format: email
-             * @description Omitted unless accounts:pii:read is granted and requested.
-             */
-            contact_email?: string;
-        };
-        AccountSummary: {
-            account: components["schemas"]["Account"];
-            billing: components["schemas"]["Billing"];
-            usage: components["schemas"]["Report"];
-            health: components["schemas"]["Metric"][];
-        };
-        Diagnostics: {
-            /** Format: uuid */
-            run_id: string;
-            status: string;
-            /** Format: date-time */
-            observed_at: string;
-            lease_status?: string;
-            checkpoint_status?: string;
-            error_codes: string[];
-            request_ids?: string[];
-        };
-        ErrorDetail: {
-            code: string;
-            message: string;
-            /** Format: uuid */
-            request_id: string;
-            retryable: boolean;
-            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
-            details?: {
-                [key: string]: unknown;
-            };
-        };
-        Recommendation: {
-            code: string;
-            summary: string;
-            evidence_metric_names: string[];
-            sample_size?: string;
-            suggested_action: string;
-            /** @constant */
-            action_executed: false;
-        };
-        CheckpointPatch: {
-            pinned: boolean;
-        };
-        /** @description Resolve within the authorized workspace to an immutable commit/checkpoint before creating the clone. */
-        WorktreeSource: {
-            /** @constant */
-            kind: "git_ref";
-            ref: string;
-        } | {
-            /** @constant */
-            kind: "checkpoint";
-            /** Format: uuid */
-            checkpoint_id: string;
-        };
-        WorktreePatch: {
-            name?: string;
-            permissions?: components["schemas"]["AgentPermissions"];
-        };
-        CliCapabilities: {
-            api_version: string;
-            minimum_cli_version: string;
-            recommended_cli_version: string;
-            features: string[];
-            /** @constant */
-            stream_rotation_seconds: 55;
-            /** @constant */
-            max_transfer_files: 1000;
-            /** @constant */
-            max_transfer_bytes: 262144000;
-            /** @constant */
-            max_file_bytes: 26214400;
-        };
-        Identity: {
-            /** Format: uuid */
-            principal_id: string;
-            /** @enum {string} */
-            principal_type: "user" | "api_key";
-            /** Format: uuid */
-            user_id?: string;
-            organizations: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                /** @enum {string} */
-                role: "owner" | "admin" | "member" | "viewer";
-            }[];
-            effective_scopes: string[];
-            workspace_restrictions: string[];
-            capabilities: components["schemas"]["CliCapabilities"];
-            /** Format: uuid */
-            organization_id?: string;
-        };
-        DiffEntry: {
-            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
-            path: string;
-            /** @enum {string} */
-            change: "added" | "modified" | "deleted" | "type_changed";
-            /** @description SHA-256 of a regular file; null means absent. */
-            before_sha256: string | null;
-            /** @description SHA-256 of a regular file; null means absent. */
-            after_sha256: string | null;
-            /** @description Whether inspected content contains binary bytes. Null means inspection was skipped because the two recorded file sizes total 512,000 bytes or more; no file content is loaded and no patch is returned. */
-            binary: boolean | null;
-            patch?: string;
-        };
-        WorktreeDiff: {
-            /** Format: uuid */
-            worktree_id: string;
-            /** Format: uuid */
-            base_checkpoint_id?: string;
-            revision: string;
-            data: components["schemas"]["DiffEntry"][];
-            next_cursor: string | null;
-            truncated: boolean;
-        };
-        /** @description Explicit absent local file has null hash and zero bytes. baseline_known=false is distinct from a known absent baseline. Regular-file transfers only; reject symlink/device/directory conflicts. Runtime validates unique normalized paths and consistent hashes/sizes. */
-        TransferManifestEntry: {
-            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
-            path: string;
-            /** @description SHA-256 of a regular file; null means absent. */
-            local_sha256: string | null;
-            local_size_bytes: number;
-            baseline_known: boolean;
-            /** @description SHA-256 of a regular file; null means absent. */
-            baseline_sha256: string | null;
-        };
-        /** @description Create an expiring plan, not a filesystem mutation. Empty paths selects default permitted scope. Explicit paths required with include_ignored. Manifest is the complete selected local regular-file inventory plus tombstones; runtime validates aggregate 250 MiB cap. Dry-run receives no upload/download grants and cannot apply. */
-        TransferCreate: {
-            /** @enum {string} */
-            direction: "push" | "pull";
-            base_revision: string;
-            manifest: components["schemas"]["TransferManifestEntry"][];
-            paths: string[];
-            /** @default false */
-            include_ignored: boolean;
-            /** @default false */
-            delete: boolean;
-            /** @default false */
-            dry_run: boolean;
-        } & unknown;
-        /** @description URLs are temporary bearer capabilities scoped to one object/hash; suppress from logs. Conflicts have no write grant. Never forward a platform Authorization header to an object URL. */
-        TransferAction: {
-            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
-            path: string;
-            /** @enum {string} */
-            action: "upload" | "download" | "delete" | "unchanged" | "conflict";
-            /** @description SHA-256 of a regular file; null means absent. */
-            local_sha256: string | null;
-            /** @description SHA-256 of a regular file; null means absent. */
-            remote_sha256: string | null;
-            size_bytes?: string;
-            conflict_reason?: string;
-            /** Format: uri */
-            url?: string;
-            /** Format: date-time */
-            url_expires_at?: string;
-            /** @enum {string} */
-            method?: "PUT" | "GET";
-            required_headers?: {
-                [key: string]: string;
-            };
-        };
-        Transfer: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            worktree_id: string;
-            /** @enum {string} */
-            direction: "push" | "pull";
-            base_revision: string;
-            /** @enum {string} */
-            status: "planned" | "staging" | "ready" | "applying" | "succeeded" | "conflicted" | "expired" | "failed";
-            dry_run: boolean;
-            actions: components["schemas"]["TransferAction"][];
-            /** Format: date-time */
-            expires_at: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: uuid */
-            operation_id?: string;
-            result_revision?: string;
-            /** Format: uuid */
-            checkpoint_id?: string;
-            local_receipt_complete?: boolean;
-        };
-        /** @description Push: verify staged bytes, recheck revision/writer, create and checkpoint replacement, atomically switch. Pull: completed_paths is an untrusted client receipt of local work, never proof of remote mutation; the remote snapshot stays unchanged. Partial receipts remain resumable. A dry-run, expired, or conflicted plan cannot apply. */
-        TransferApply: {
-            expected_revision: string;
-            completed_paths?: string[];
-        };
-        CheckpointExportRequest: {
-            /** @enum {string} */
-            format: "git_bundle" | "portable_archive";
-        };
-        /** @description Tenant-authorized, short-lived download capabilities. Git bundle contains tracked objects/refs only; portable archive includes permitted ignored files and sanitized session state, never infrastructure credentials or archive keys. Expired links require a new idempotent export request. */
-        CheckpointExport: {
-            /** Format: uuid */
-            checkpoint_id: string;
-            /** @enum {string} */
-            format: "git_bundle" | "portable_archive";
-            /** Format: uri */
-            download_url: string;
-            /** Format: date-time */
-            expires_at: string;
-            size_bytes: string;
-            sha256: string;
-            /** Format: uri */
-            manifest_url: string;
-            manifest_sha256: string;
-            source_commit?: string;
-            /** @description Git bundle review commit containing permitted checkpoint edits; may differ from source_commit. Does not mutate hosted branch. */
-            export_commit?: string;
-        };
-        ExportOperation: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /** @constant */
-            kind: "checkpoint_export";
-            result?: components["schemas"]["CheckpointExport"];
-            error?: components["schemas"]["ErrorDetail"];
-            /** Format: date-time */
-            created_at: string;
-        } & unknown;
-        GithubInstallations: {
-            data: {
-                installation_id: string;
-                account_login: string;
-            }[];
-            /** Format: uri */
-            install_url: string;
-            truncated: boolean;
-        };
-        GithubRepositories: {
-            data: {
-                repository_id: string;
-                full_name: string;
-                default_branch: string;
-            }[];
-            truncated: boolean;
-        };
-        CreditLot: {
-            /** Format: uuid */
-            id: string;
-            kind: string;
-            remaining_micro_usd: string;
-            /** Format: date-time */
-            expires_at: string | null;
-        };
-        StdioPackage: {
-            package: string;
-            version: string;
-            label: string;
-            environment_keys: string[];
-            tools: string[];
-        };
-        StdioPackagePage: {
-            data: components["schemas"]["StdioPackage"][];
-            next_cursor: string | null;
-        };
-        OrganizationCreate: {
-            name: string;
-        };
-        Organization: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** @enum {string} */
-            role?: "owner" | "admin" | "member" | "viewer";
-        };
-        Member: {
-            /** Format: uuid */
-            user_id: string;
-            name: string;
-            /** Format: email */
-            email: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
-        };
-        MemberPatch: {
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
-        };
-        InvitationCreate: {
-            /** Format: email */
-            email: string;
-            /** @enum {string} */
-            role: "admin" | "member" | "viewer";
-        };
-        Invitation: {
-            /** Format: uuid */
-            id: string;
-            email: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            expires_at: string;
-            /** Format: date-time */
-            accepted_at?: string | null;
-            /** Format: date-time */
-            revoked_at?: string | null;
-            /** Format: uri */
-            invite_url?: string;
-        };
-        OrganizationAudit: {
-            /** Format: uuid */
-            id: string;
-            actor_id: string;
-            action: string;
-            subject_id: string | null;
-            data: {
-                [key: string]: unknown;
-            };
-            /** Format: date-time */
-            created_at: string;
-        };
-        StoragePolicy: {
-            overage_enabled: boolean;
-            monthly_budget_micro_usd: string;
-        };
-        Storage: {
-            physical_bytes: string;
-            object_count?: string;
-            allowance_bytes: string;
-            /** Format: date-time */
-            observed_at: string | null;
-            overage_enabled: boolean;
-            monthly_budget_micro_usd: string;
-            over_quota: boolean;
-            rate_micro_usd_per_gib_month?: string;
-            retention?: {
-                all_hours?: number;
-                daily_days?: number;
-                weekly_weeks?: number;
-                unreferenced_grace_days?: number;
-            };
-        };
-        WorkspaceDeletion: {
-            confirmation: string;
-            password?: string;
-        };
-        ReportSnapshot: {
-            /** Format: date */
-            day: string;
-            /** Format: date-time */
-            observed_at: string;
-            report: components["schemas"]["Report"];
-        };
-        ReportSnapshotPage: {
-            data: components["schemas"]["ReportSnapshot"][];
-            /** Format: date */
-            next_cursor: string | null;
-        };
-        Plan: {
-            /** @enum {string} */
-            id: "payg" | "pro" | "scale";
-            name: string;
-            monthly_price_micro_usd: string;
-            included_credit_micro_usd: string;
-            concurrency_limit: number;
-            max_timeout_seconds: number;
-            scheduler_weight: number;
-            storage_gib: number;
-            history_days: number;
-        };
-        ExecutionPolicy: {
-            /** @enum {string} */
-            plan: "payg" | "pro" | "scale";
-            plan_name: string;
-            concurrency_limit: number;
-            max_timeout_seconds: number;
-            plan_concurrency_limit: number;
-            plan_max_timeout_seconds: number;
-            default_queue_timeout_seconds: number;
-            concurrency_override: number | null;
-            timeout_override_seconds: number | null;
-        };
-        ExecutionPolicyPatch: {
-            /** @description Null restores plan default. An integer must not exceed the current plan limit. */
-            concurrency_limit?: number | null;
-            /** @description Null restores plan default. Changes affect new starts, never interrupt running work. */
-            max_timeout_seconds?: number | null;
-        };
-        SchedulingAccount: {
-            /** Format: uuid */
-            organization_id: string;
-            active_executions: number;
-            starts: number;
-            queued_jobs: number;
-            eligible_queued_jobs: number;
-            oldest_eligible_wait_seconds: number;
-            mean_start_wait_seconds: number | null;
-            p95_start_wait_seconds: number | null;
-        };
-        SchedulingReport: {
-            /** Format: date-time */
-            observed_at: string;
-            global_concurrency_limit: number;
-            active_executions: number;
-            eligible_queued_jobs: number;
-            queued_jobs: number;
-            starts: number;
-            accounts_limit: number;
-            oldest_eligible_wait_seconds: number;
-            mean_start_wait_seconds: number | null;
-            p95_start_wait_seconds: number | null;
-            accounts: components["schemas"]["SchedulingAccount"][];
-        };
-        ConnectorCatalogEntry: {
-            slug: string;
-            name: string;
-            description: string;
-            /** Format: uri */
-            logo: string;
-            categories: string[];
-            tool_count: number;
-            /** @description Operator auth config, version pin and callback verification are configured. This is not proof of user authorization or successful live execution. */
-            connectable: boolean;
-        };
-        ConnectorCatalog: {
-            data: components["schemas"]["ConnectorCatalogEntry"][];
-            /** @enum {string} */
-            source: "live" | "snapshot";
-            /** Format: date-time */
-            updated_at: string;
-        };
-        /** @description An incoming Slack/webhook trigger or durable scheduled task. A saved agent preset supplies harness, model, grants and billing. Cron requires five fields and an IANA timezone (UTC by default); Slack requires a connection and channel ID. */
-        TriggerCreate: {
-            name: string;
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            agent_id: string;
-            /** @enum {string} */
-            kind: "slack" | "webhook" | "schedule";
-            prompt: string;
-            enabled?: boolean;
-            max_runs_per_day?: number;
-            cron?: string;
-            timezone?: string;
-            /** Format: uuid */
-            slack_connection_id?: string;
-            channel_id?: string;
-        };
-        TriggerPatch: {
-            name?: string;
-            /** Format: uuid */
-            workspace_id?: string;
-            /** Format: uuid */
-            agent_id?: string;
-            prompt?: string;
-            enabled?: boolean;
-            max_runs_per_day?: number;
-            cron?: string;
-            timezone?: string;
-            /** Format: uuid */
-            slack_connection_id?: string;
-            channel_id?: string;
-        };
-        Trigger: {
-            name: string;
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            agent_id: string;
-            /** @enum {string} */
-            kind: "slack" | "webhook" | "schedule";
-            prompt: string;
-            enabled: boolean;
-            max_runs_per_day: number;
-            cron?: string;
-            timezone?: string;
-            /** Format: uuid */
-            slack_connection_id: string | null;
-            channel_id: string | null;
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            next_fire_at: string | null;
-            last_error_code: string | null;
-            /** Format: date-time */
-            last_fired_at: string | null;
-            /** Format: uri */
-            webhook_url: string | null;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        NewTrigger: {
-            name: string;
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            agent_id: string;
-            /** @enum {string} */
-            kind: "slack" | "webhook" | "schedule";
-            prompt: string;
-            enabled: boolean;
-            max_runs_per_day: number;
-            cron?: string;
-            timezone?: string;
-            /** Format: uuid */
-            slack_connection_id: string | null;
-            channel_id: string | null;
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            next_fire_at: string | null;
-            last_error_code: string | null;
-            /** Format: date-time */
-            last_fired_at: string | null;
-            /** Format: uri */
-            webhook_url: string | null;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-            /** @description Returned once for a new webhook trigger. Send as Authorization: Bearer; never put it in the URL. */
-            webhook_secret?: string;
-        };
-        TriggerSecret: {
-            webhook_secret: string;
-        };
-        TriggerDelivery: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            trigger_id: string;
-            /** @enum {string} */
-            status: "pending" | "accepted" | "failed" | "skipped";
-            /** Format: uuid */
-            run_id: string | null;
-            error_code: string | null;
-            /** Format: date-time */
-            received_at: string;
-            /** Format: date-time */
-            expires_at: string;
-            /** @enum {string} */
-            reply_state: "none" | "pending" | "sending" | "sent" | "failed" | "uncertain";
-        };
-        SlackConnectionCreate: {
-            name: string;
-            bot_token: string;
-            signing_secret: string;
-        };
-        SlackConnection: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            team_id: string;
-            bot_user_id: string;
-            /** Format: uri */
-            events_url: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        SlackChannel: {
-            id: string;
-            name: string;
-        };
-        /** @description Optional per-run policy for confirmed subscription quota exhaustion before native execution starts. Disabled by default. Subscription execution is currently gated. */
-        ClaudeApiFallback: {
-            /**
-             * Format: uuid
-             * @description Your Anthropic API-key connection. No implicit managed-key fallback.
-             */
-            connection_id?: string;
-            /** @description Positive per-run API spending ceiling, including in-flight request reservations. Infrastructure is charged separately. */
-            max_cost_micro_usd?: string;
-            /** @description False disables fallback and clears the saved backup selection. True requires an owned connection_id and a positive max_cost_micro_usd. */
-            enabled: boolean;
-        };
-        FolderCreate: {
-            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
-            path: string;
-        };
-        FileRename: {
-            /** @description Relative worktree path without traversal, empty segments, or reserved platform paths. */
-            new_path: string;
-        };
-        WorktreeOptions: {
-            branches: {
-                name: string;
-                ref: string;
-                /** Format: uuid */
-                worktree_id: string;
-            }[];
-            valid: boolean;
-            name?: string | null;
-            branch?: string | null;
-            branch_exists?: boolean;
-            message?: string;
-        };
-        FileDuplicate: {
-            path: string;
-            new_path: string;
-        };
-        /** @description Case-sensitive worktree-relative glob rules (*, **, ?). Omitted include inherits all; an empty include allows none. Exclusions always win. */
-        PermissionPatterns: {
-            include?: string[];
-            exclude?: string[];
-        };
-        /** @description Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation. */
-        AgentPermissions: {
-            /** @enum {integer} */
-            version: 1;
-            files?: {
-                read?: components["schemas"]["PermissionPatterns"];
-                write?: components["schemas"]["PermissionPatterns"];
-            };
-            /** @enum {string} */
-            shell?: "allow" | "deny";
-            tools?: components["schemas"]["PermissionPatterns"];
-        };
-        ConnectionAccess: {
-            /** Format: uuid */
-            connection_id: string;
-            version: string;
-            organization_wide: boolean;
-            tools: string[];
-            rule_count: number;
-            can_grant: boolean;
-            can_revoke: boolean;
         };
         ConnectionAccessPatch: {
             organization_wide?: boolean;
             tools?: string[];
-        };
-        ConnectionAccessRuleInput: {
-            /** @enum {string} */
-            scope: "workspace";
-            /** Format: uuid */
-            workspace_id: string;
-        } | {
-            /** @enum {string} */
-            scope: "agent";
-            /** Format: uuid */
-            agent_id: string;
-        } | {
-            /** @enum {string} */
-            scope: "workspace_agent";
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            agent_id: string;
-        };
-        ConnectionAccessRule: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            connection_id: string;
-            /** @enum {string} */
-            scope: "workspace" | "agent" | "workspace_agent";
-            /** Format: uuid */
-            workspace_id: string | null;
-            /** Format: uuid */
-            agent_id: string | null;
-            workspace_name: string | null;
-            agent_name: string | null;
-            unavailable: boolean;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        ConnectionAccessRulePage: {
-            data: components["schemas"]["ConnectionAccessRule"][];
-            next_cursor: string | null;
-            version: string;
-        };
-        ConnectionAccessRuleMutation: {
-            rule: components["schemas"]["ConnectionAccessRule"];
-            version: string;
-        };
-        ConnectionAccessRuleDeleted: {
-            /** Format: uuid */
-            id: string;
-            version: string;
-        };
-        ConnectionAccessMatch: {
-            scopes: ("organization" | "workspace" | "agent" | "workspace_agent")[];
-            conditional: boolean;
-            matched_rule_count: number;
-            matching_rules: components["schemas"]["ConnectionAccessRuleMatch"][];
-            matching_rules_truncated: boolean;
-        };
-        ContextualConnection: {
-            /** Format: uuid */
-            id: string;
-            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
-            name: string;
-            /** @enum {string} */
-            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
-            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
-            provider?: string;
-            /** Format: uri */
-            url?: string;
-            auth_method: string;
-            /** @enum {string} */
-            status: "pending" | "healthy" | "expired" | "error";
-            owner_subject_id?: string;
-            /** Format: date-time */
-            last_checked_at?: string;
-            /** Format: date-time */
-            created_at: string;
-            package?: string;
-            package_version?: string;
-            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
-            account_identity?: string | null;
-            api_fallback?: components["schemas"]["ClaudeApiFallback"];
-            /**
-             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
-             * @enum {string}
-             */
-            availability?: "pending_approval";
-            access_match?: components["schemas"]["ConnectionAccessMatch"];
-            /** @description Approved tool names only; this selection ceiling does not authorize execution. */
-            approved_tools?: string[];
-        };
-        ContextualConnectionPage: {
-            data: components["schemas"]["ContextualConnection"][];
-            next_cursor: string | null;
-        };
-        ConnectionAccessResolution: {
-            /** Format: uuid */
-            connection_id: string;
-            name: string;
-            tools: string[];
-            /** @enum {string} */
-            source: "organization" | "workspace" | "agent" | "workspace_agent" | "run_override" | "none";
-            ready: boolean;
-            rejection_codes: string[];
-            access_match: components["schemas"]["ConnectionAccessMatch"];
-            can_override: boolean;
-        };
-        ConnectionAccessResolutionPage: {
-            data: components["schemas"]["ConnectionAccessResolution"][];
-            next_cursor: string | null;
-        };
-        ConnectionAccessResolve: {
-            /** Format: uuid */
-            workspace_id?: string;
-            /** Format: uuid */
-            worktree_id?: string;
-            /** Format: uuid */
-            session_id?: string;
-            /** Format: uuid */
-            agent_id?: string;
-            connection_grants?: components["schemas"]["Grant"][];
-            connection_access_overrides?: components["schemas"]["Grant"][];
-            permissions?: components["schemas"]["AgentPermissions"];
-        } & (unknown | unknown | unknown);
-        /** @description An authorized, bounded rule sample for explaining contextual access. Never use a sample as an authorization decision. */
-        ConnectionAccessRuleMatch: {
-            /** Format: uuid */
-            rule_id: string;
-            /** @enum {string} */
-            scope: "workspace" | "agent" | "workspace_agent";
-            /** Format: uuid */
-            workspace_id?: string | null;
-            /** Format: uuid */
-            agent_id?: string | null;
-            workspace_name?: string | null;
-            agent_name?: string | null;
-        };
-        CustomerAgentConfiguration: {
-            /** @enum {string} */
-            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
-            model: string;
-            instructions?: string;
-            /** @enum {string} */
-            billing_mode: "byok" | "managed" | "subscription";
-            /**
-             * Format: uuid
-             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-             */
-            provider_connection_id?: string;
-            limits: components["schemas"]["Limits"];
-        };
-        /** @description Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts. */
-        CustomerAgentEnsure: {
-            key: string;
-            name: string;
-            configuration: components["schemas"]["CustomerAgentConfiguration"];
-        };
-        /** @description Optional use-case binding over core resources, not another execution primitive. The authenticated application server asserts its verified customer subject. */
-        CustomerAgentBinding: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            integration_path: "customer-agents";
-            customer_id: string;
-            key: string;
-            name: string;
-            /** Format: uuid */
-            workspace_id: string;
-            /** Format: uuid */
-            agent_id: string;
-            /** Format: uuid */
-            worktree_id: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        CustomerAgentPage: {
-            data: components["schemas"]["CustomerAgentBinding"][];
-            next_cursor: string | null;
-        };
-        /** @description Omit conversation_id for a new native conversation over the same files. An existing conversation must belong to this binding. Only explicitly selected customer connections are used; no organization-wide inheritance. */
-        CustomerAgentMessage: {
-            prompt: string;
-            /** Format: uuid */
-            conversation_id?: string;
-            limits?: components["schemas"]["Limits"];
-            /** @description Queue when this worktree is busy. Omitted means false. */
-            queue_if_busy?: boolean;
-            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
-            attachments?: string[];
-        };
-        /** @description An application-reviewed permission preset. Exact tool names are validated against the enabled provider catalog; labels are not inferred from tool names and do not replace provider OAuth scopes. */
-        ConnectionCapability: {
-            id: string;
-            label: string;
-            description?: string;
-            tools: string[];
-        };
-        /** @description Prepare an embedded app connection with no access. Configure an enabled connector and reviewed capability presets on the trusted backend. The customer selects a preset during consent; no Macrofold login is required. */
-        CustomerAgentConnectionCreate: {
-            name: string;
-            provider: string;
-            capabilities: components["schemas"]["ConnectionCapability"][];
-        };
-        /** @description Customer-scoped connection and permission choices. Core tool ceilings/rules remain authoritative. */
-        CustomerAgentConnection: {
-            connection: components["schemas"]["Connection"];
-            capabilities: components["schemas"]["ConnectionCapability"][];
-            selected_capabilities: string[];
-            access_version: string;
-            approved_tools: string[];
-        };
-        CustomerAgentConnectionPage: {
-            data: components["schemas"]["CustomerAgentConnection"][];
-            next_cursor: string | null;
-        };
-        /** @description Select within the reviewed capability ceiling, or [] to remove tool access. Requires the current quoted access version in If-Match. */
-        CustomerAgentConnectionPermissions: {
-            capability_ids: string[];
-        };
-        /** @description An authenticated callback in YOUR application. After provider consent, authenticate the returning customer again and complete authorization server-side. Never reflect an untrusted browser-supplied return URL. */
-        CustomerConnectionAuthorize: {
-            /** Format: uri */
-            return_url: string;
-        };
-        /** @description Short-lived setup link, not a platform API credential. Open it in a popup or top-level window; its fragment must not be logged. Expired or uncertain attempts require a newly requested link. */
-        CustomerConnectionAuthorization: {
-            /** Format: uuid */
-            authorization_id: string;
-            /** Format: uri */
-            authorization_url: string;
-            /** Format: date-time */
-            expires_at: string;
-        };
-        /** @description Single-use callback code. Only send after authenticating the returning user in your app and deriving customer_id from that verified session. Browser-supplied identity is not authority. */
-        CustomerConnectionComplete: {
-            code: string;
         };
         InferenceLimits: {
             max_cost_micro_usd: string;
             max_output_tokens: number;
             timeout_seconds: number;
         };
-        DecisionBinding: {
-            /** @enum {string} */
-            provider: "anthropic" | "typesafe" | "openrouter";
-            model: string;
-            /** @enum {string} */
-            billing_mode: "managed" | "byok";
+        TaskOutcomeReceipt: {
             /** Format: uuid */
-            provider_connection_id?: string;
-        };
-        DecisionQuestion: {
-            /** @enum {string} */
-            kind: "json";
-        } | {
-            /** @enum {string} */
-            kind: "choice";
-            criteria: {
-                [key: string]: string;
-            };
-        } | {
-            /** @enum {string} */
-            kind: "score";
-            criteria: string[];
-        } | {
-            /** @enum {string} */
-            kind: "provider";
-        };
-        InferenceDefinition: {
-            revision: string;
-            prompt: string;
-            input_schema: {
-                [key: string]: unknown;
-            };
-            output_schema: {
-                [key: string]: unknown;
-            };
-            question: components["schemas"]["DecisionQuestion"];
-            allowed_models: {
-                /** @enum {string} */
-                provider: "anthropic" | "typesafe" | "openrouter";
-                model: string;
-            }[];
-            limits: components["schemas"]["InferenceLimits"];
-            required_records?: string[];
-            required_known?: string[];
-            require_complete?: boolean;
-            require_snapshot?: boolean;
-            bounded_agent?: components["schemas"]["BoundedAgentPolicy"];
-            /** @description Exact validated outputs treated as explicit abstention, rather than a usable value. */
-            unknown_values?: unknown[];
-        };
-        ContextAudience: {
-            /** @enum {string} */
-            kind: "application_actor" | "application";
             id: string;
+            /** Format: date-time */
+            created_at: string;
+            receipt: components["schemas"]["ApplicationOutcome"];
         };
-        ContextItem: {
-            id: string;
-            /** @enum {string} */
-            kind: "observation" | "inference" | "correction" | "instruction";
-            /** @enum {string} */
-            status: "known" | "unknown" | "conflicting" | "not_applicable" | "omitted";
-            value?: unknown;
-            source: string;
-            source_revision: string;
+        /** @description Revision-checked configuration edit. Changing compute, isolation, runtime, shape or region requires a fully paused Worker. */
+        WorkerPatch: {
+            name?: string;
+            /**
+             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
+             * @enum {string}
+             */
+            compute?: "server" | "sandbox";
+            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
+            dedicated?: boolean;
+            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
+            isolate_runs?: boolean;
+            region?: string;
+            runtime?: string;
+            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
+            size?: string | null;
+            min_instances?: number;
+            max_instances?: number;
+            max_concurrency?: number;
+            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
+            idle_timeout_seconds?: number | null;
             /** Format: date-time */
-            observed_at: string;
-        };
-        ExplicitContext: {
-            /** @constant */
-            schema_version: 1;
-            template_revision: string;
-            audience: components["schemas"]["ContextAudience"];
-            items: components["schemas"]["ContextItem"][];
-            complete: boolean;
-            truncated: boolean;
-            /** @enum {string} */
-            consistency: "snapshot" | "read_interval";
-            /** Format: date-time */
-            observed_at: string;
-            /** Format: date-time */
-            read_completed_at?: string;
-            /** Format: date-time */
-            expires_at?: string;
-            dependency_tokens: {
-                [key: string]: string;
-            };
-        };
-        InferenceCreate: {
-            /** Format: uuid */
-            workspace_id?: string;
-            definition?: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
-            input: unknown;
-            context?: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
-            model_binding: components["schemas"]["DecisionBinding"];
-            limits?: components["schemas"]["InferenceLimits"];
-            queue_timeout_seconds?: number;
-            model_parameters?: components["schemas"]["ModelParameters"];
-        } & (unknown | unknown);
-        InferenceReceipt: {
-            /** Format: uuid */
-            invocation_id: string;
-            definition_revision: string;
-            definition_digest: string;
-            context_digest: string;
-            provider_request_digest: string | null;
-            transformation_version: string;
-            dependency_tokens: {
-                [key: string]: string;
-            };
-            /** @enum {string} */
-            outcome: "value" | "unknown" | "refused" | "invalid_output" | "failed" | "uncertain" | "stale_input";
-            value?: unknown;
-            /** @enum {string} */
-            provider_outcome: "not_invoked" | "responded" | "uncertain";
-            provider_request_id?: string | null;
-            model: string;
-            model_revision?: string | null;
-            /** @enum {string} */
-            model_revision_status: "pinned" | "reported" | "unavailable";
-            validation: {
-                schema_digest: string;
-                /** @enum {string} */
-                status: "not_run" | "passed" | "failed";
-            };
-            /** Format: uuid */
-            usage_request_id?: string | null;
-            timings_ms?: {
-                [key: string]: number;
-            };
-            reason_code?: string;
-            provider_evidence?: {
-                confidence?: number;
-                probabilities?: {
-                    [key: string]: number;
-                };
-            };
+            expires_at?: string | null;
+            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
+            max_hourly_compute_cost_micro_usd?: string;
+            expected_revision: number;
         };
         NativeRunAccepted: {
             /** Format: uuid */
@@ -4411,74 +4127,109 @@ export interface components {
              */
             worker_id?: string | null;
         };
-        DefinitionReference: {
-            /** Format: uuid */
-            definition_id: string;
-            revision: string;
-        };
-        ContextReference: {
-            /** Format: uuid */
-            artifact_id: string;
-            revision: string;
-            audience: components["schemas"]["ContextAudience"];
-        };
-        DecisionDefinitionCreate: {
-            /** Format: uuid */
-            workspace_id: string;
-            name: string;
-            definition: components["schemas"]["InferenceDefinition"];
-        };
-        DecisionDefinition: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            workspace_id: string;
-            name: string;
-            definition: components["schemas"]["InferenceDefinition"];
-            digest: string;
-            /** Format: date-time */
-            created_at: string;
-        };
-        ContextArtifactCreate: {
-            /** Format: uuid */
-            workspace_id: string;
-            name: string;
-            context: components["schemas"]["ExplicitContext"];
-            /** Format: uuid */
-            source_run_id?: string;
-        };
-        ContextArtifact: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            workspace_id: string;
-            name: string;
-            revision: string;
-            sha256: string;
-            size_bytes: string;
-            audience: components["schemas"]["ContextAudience"];
-            /** Format: date-time */
-            created_at: string;
-        };
-        /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
-        BoundedAgentPolicy: {
-            max_model_calls: number;
-            max_tool_calls: number;
-            context_artifacts: components["schemas"]["ContextReference"][];
-        };
-        BoundedAgentCreate: {
-            /** Format: uuid */
-            workspace_id: string;
-            definition: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
-            input: unknown;
-            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
-            model_binding: components["schemas"]["DecisionBinding"];
-            limits?: components["schemas"]["InferenceLimits"];
+        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
+        MessageCreate: {
+            webhook_endpoint_ids?: string[];
+            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
+            connection_access_overrides?: components["schemas"]["Grant"][];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
+            prompt: string;
+            /** @description Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention. */
             queue_timeout_seconds?: number;
+            model_parameters?: components["schemas"]["ModelParameters"];
+            /** @description Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate. */
+            memory_mib?: number;
+            /** @description Advanced per-Run CPU allocation in millicores on an explicit Worker. */
+            cpu_millis?: number;
+            /** Format: uuid */
+            worker_id?: string;
+            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
+            connection_grants?: components["schemas"]["Grant"][];
+            /**
+             * @description Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+             * @enum {string}
+             */
+            scheduling_class?: "background" | "interactive";
+            limits?: components["schemas"]["Limits"];
+            /** @description Optional model override within the pinned harness catalog; never changes the active run. */
+            model?: string;
+            permissions?: components["schemas"]["AgentPermissions"];
+            /** @default false */
+            queue_if_busy: boolean;
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
         };
-        TaskStepDefinition: {
-            definition: components["schemas"]["InferenceDefinition"];
-            model_binding: components["schemas"]["DecisionBinding"];
+        ConnectionAccessRuleMutation: {
+            rule: components["schemas"]["ConnectionAccessRule"];
+            version: string;
+        };
+        ExportOperation: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** @constant */
+            kind: "checkpoint_export";
+            result?: components["schemas"]["CheckpointExport"];
+            error?: components["schemas"]["ErrorDetail"];
+            /** Format: date-time */
+            created_at: string;
+        } & unknown;
+        ReportSnapshotPage: {
+            data: components["schemas"]["ReportSnapshot"][];
+            /** Format: date */
+            next_cursor: string | null;
+        };
+        CheckpointCreate: {
+            pinned?: boolean;
+        };
+        AgentCreate: {
+            name: string;
+            /** @enum {string} */
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model: string;
+            instructions?: string;
+            /** @enum {string} */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            /** @description Saved tool selection, not authority. Omit to inherit eligible approved tools; [] selects none. */
+            connection_grants?: components["schemas"]["Grant"][];
+            limits?: components["schemas"]["Limits"];
+        };
+        StdioPackagePage: {
+            data: components["schemas"]["StdioPackage"][];
+            next_cursor: string | null;
+        };
+        /** @description Create an autoscaling execution target independent of Worktrees and Sessions. Defaults resolve from enabled offerings. Instance counts apply only to dedicated capacity. */
+        WorkerCreate: {
+            name?: string;
+            /**
+             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
+             * @enum {string}
+             */
+            compute?: "server" | "sandbox";
+            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
+            dedicated?: boolean;
+            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
+            isolate_runs?: boolean;
+            region?: string;
+            runtime?: string;
+            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
+            size?: string | null;
+            min_instances?: number;
+            max_instances?: number;
+            max_concurrency?: number;
+            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
+            idle_timeout_seconds?: number | null;
+            /** Format: date-time */
+            expires_at?: string | null;
+            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
+            max_hourly_compute_cost_micro_usd?: string;
         };
         DecisionTaskCreate: {
             /** Format: uuid */
@@ -4491,11 +4242,299 @@ export interface components {
             max_runs: number;
             evidence_horizon_seconds: number;
         };
-        DecisionTaskWake: {
-            event_id: string;
-            input: unknown;
-            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+        Storage: {
+            physical_bytes: string;
+            object_count?: string;
+            allowance_bytes: string;
+            /** Format: date-time */
+            observed_at: string | null;
+            overage_enabled: boolean;
+            monthly_budget_micro_usd: string;
+            over_quota: boolean;
+            rate_micro_usd_per_gib_month?: string;
+            retention?: {
+                all_hours?: number;
+                daily_days?: number;
+                weekly_weeks?: number;
+                unreferenced_grace_days?: number;
+            };
         };
+        /** @description Optional per-run policy for confirmed subscription quota exhaustion before native execution starts. Disabled by default. Subscription execution is currently gated. */
+        ClaudeApiFallback: {
+            /**
+             * Format: uuid
+             * @description Your Anthropic API-key connection. No implicit managed-key fallback.
+             */
+            connection_id?: string;
+            /** @description Positive per-run API spending ceiling, including in-flight request reservations. Infrastructure is charged separately. */
+            max_cost_micro_usd?: string;
+            /** @description False disables fallback and clears the saved backup selection. True requires an owned connection_id and a positive max_cost_micro_usd. */
+            enabled: boolean;
+        };
+        CustomerAgentConfiguration: {
+            /** @enum {string} */
+            harness: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            model: string;
+            instructions?: string;
+            /** @enum {string} */
+            billing_mode: "byok" | "managed" | "subscription";
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            limits: components["schemas"]["Limits"];
+        };
+        /** @description Server validates purchased-credit minimum of 10000000 micro-USD and selects Stripe price IDs. Client cannot override currency, redirect domains or unit rates. Subscriptions default to pro for older clients. Existing subscribers change tiers in the Stripe portal. Upgrades do not grant extra included credits until a regular subscription-cycle invoice is paid. */
+        CheckoutCreate: {
+            /** @enum {string} */
+            kind: "topup" | "subscription";
+            /** @description Integer micro-USD as a decimal string. */
+            amount_micro_usd?: string;
+            /** @enum {string} */
+            plan?: "pro" | "scale";
+        };
+        ModelParameters: {
+            reasoning?: {
+                /** @enum {string} */
+                effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+            };
+            provider?: {
+                require_parameters: boolean;
+            };
+        };
+        TriggerSecret: {
+            webhook_secret: string;
+        };
+        WorktreeOptions: {
+            branches: {
+                name: string;
+                ref: string;
+                /** Format: uuid */
+                worktree_id: string;
+            }[];
+            valid: boolean;
+            name?: string | null;
+            branch?: string | null;
+            branch_exists?: boolean;
+            message?: string;
+        };
+        /** @description Explicit absent local file has null hash and zero bytes. baseline_known=false is distinct from a known absent baseline. Regular-file transfers only; reject symlink/device/directory conflicts. Runtime validates unique normalized paths and consistent hashes/sizes. */
+        TransferManifestEntry: {
+            /** @description Normalized relative POSIX path; runtime rejects traversal, NUL, absolute paths, unsafe links and reserved internal paths. */
+            path: string;
+            /** @description SHA-256 of a regular file; null means absent. */
+            local_sha256: string | null;
+            local_size_bytes: number;
+            baseline_known: boolean;
+            /** @description SHA-256 of a regular file; null means absent. */
+            baseline_sha256: string | null;
+        };
+        InferenceDefinition: {
+            revision: string;
+            prompt: string;
+            input_schema: {
+                [key: string]: unknown;
+            };
+            output_schema: {
+                [key: string]: unknown;
+            };
+            question: components["schemas"]["DecisionQuestion"];
+            allowed_models: {
+                /** @enum {string} */
+                provider: "anthropic" | "typesafe" | "openrouter";
+                model: string;
+            }[];
+            limits: components["schemas"]["InferenceLimits"];
+            required_records?: string[];
+            required_known?: string[];
+            require_complete?: boolean;
+            require_snapshot?: boolean;
+            bounded_agent?: components["schemas"]["BoundedAgentPolicy"];
+            /** @description Exact validated outputs treated as explicit abstention, rather than a usable value. */
+            unknown_values?: unknown[];
+        };
+        BillingUsagePage: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @enum {string} */
+            currency: "USD";
+            data: components["schemas"]["BillingUsageEntry"][];
+            next_cursor: string | null;
+        };
+        Operation: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            kind: string;
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            result?: {
+                /** Format: uuid */
+                worktree_id?: string;
+                revision?: string;
+                /** Format: uuid */
+                checkpoint_id?: string;
+                /** @description Created, saved, renamed, or removed path for a file mutation. */
+                path?: string;
+                /** @description Original path for a file rename. */
+                previous_path?: string;
+                /** @description Authoritative resulting file or directory entry, absent for deletion. */
+                entry?: components["schemas"]["FileEntry"];
+                /** Format: uuid */
+                workspace_id?: string;
+                /** Format: uuid */
+                transfer_id?: string;
+                /** Format: uuid */
+                delivery_id?: string;
+                local_receipt_complete?: boolean;
+                /** @enum {string} */
+                format?: "git_bundle" | "portable_archive";
+                /** Format: uri */
+                download_url?: string;
+                /** Format: uri */
+                manifest_url?: string;
+                /** Format: date-time */
+                expires_at?: string;
+                size_bytes?: string;
+                sha256?: string;
+                manifest_sha256?: string;
+                export_commit?: string;
+                source_commit?: string;
+                sync?: components["schemas"]["GitSync"];
+            } & {
+                [key: string]: unknown;
+            };
+            error?: components["schemas"]["ErrorDetail"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        StoragePolicy: {
+            overage_enabled: boolean;
+            monthly_budget_micro_usd: string;
+        };
+        ContextReference: {
+            /** Format: uuid */
+            artifact_id: string;
+            revision: string;
+            audience: components["schemas"]["ContextAudience"];
+        };
+        FileEntry: {
+            path: string;
+            /** @enum {string} */
+            type: "file" | "directory" | "symlink";
+            /** @description Non-negative integer count as a decimal string. */
+            size_bytes?: string;
+            /** Format: date-time */
+            modified_at?: string;
+            revision: string;
+            git_ignored?: boolean;
+            /** @description SHA-256 of stored file bytes; omitted for directories. */
+            sha256?: string;
+        };
+        ConnectionAccessResolve: {
+            /** Format: uuid */
+            workspace_id?: string;
+            /** Format: uuid */
+            worktree_id?: string;
+            /** Format: uuid */
+            session_id?: string;
+            /** Format: uuid */
+            agent_id?: string;
+            connection_grants?: components["schemas"]["Grant"][];
+            connection_access_overrides?: components["schemas"]["Grant"][];
+            permissions?: components["schemas"]["AgentPermissions"];
+        } & (unknown | unknown | unknown);
+        /** @description Agent authority, separate from human/API scopes. Workspace, worktree and run restrictions intersect. File restrictions disable shell and local stdio connectors. Policies are frozen for a session; start a new session after changing them. Unsupported harness policies fail before reservation. */
+        AgentPermissions: {
+            /** @enum {integer} */
+            version: 1;
+            files?: {
+                read?: components["schemas"]["PermissionPatterns"];
+                write?: components["schemas"]["PermissionPatterns"];
+            };
+            /** @enum {string} */
+            shell?: "allow" | "deny";
+            tools?: components["schemas"]["PermissionPatterns"];
+        };
+        ConnectorCatalogEntry: {
+            slug: string;
+            name: string;
+            description: string;
+            /** Format: uri */
+            logo: string;
+            categories: string[];
+            tool_count: number;
+            /** @description Operator auth config, version pin and callback verification are configured. This is not proof of user authorization or successful live execution. */
+            connectable: boolean;
+        };
+        GithubRepositories: {
+            data: {
+                repository_id: string;
+                full_name: string;
+                default_branch: string;
+            }[];
+            truncated: boolean;
+        };
+        CheckpointPatch: {
+            pinned: boolean;
+        };
+        /** @description Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules. */
+        RunCreate: {
+            webhook_endpoint_ids?: string[];
+            /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
+            connection_access_overrides?: components["schemas"]["Grant"][];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
+            prompt: string;
+            /** @description Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention. */
+            queue_timeout_seconds?: number;
+            model_parameters?: components["schemas"]["ModelParameters"];
+            /** @enum {string} */
+            harness?: "codex" | "claude-code" | "opencode" | "hermes" | "deepseek" | "pi";
+            /** @description Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate. */
+            memory_mib?: number;
+            /** @description Advanced per-Run CPU allocation in millicores on an explicit Worker. */
+            cpu_millis?: number;
+            /** Format: uuid */
+            agent_id?: string;
+            /**
+             * @description OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+             * @enum {string}
+             */
+            harness_prompt_mode?: "replace" | "extend";
+            /** Format: uuid */
+            session_id?: string;
+            /** @description Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access. */
+            connection_grants?: components["schemas"]["Grant"][];
+            /** Format: uuid */
+            worker_id?: string;
+            /**
+             * @description Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+             * @enum {string}
+             */
+            scheduling_class?: "background" | "interactive";
+            model?: string;
+            /** @enum {string} */
+            billing_mode?: "byok" | "managed" | "subscription";
+            limits?: components["schemas"]["Limits"];
+            /** Format: uuid */
+            worktree_id?: string;
+            /** @description Only session follow-ups can queue behind worktree work. */
+            queue_if_busy?: boolean;
+            /**
+             * Format: uuid
+             * @description Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+             */
+            provider_connection_id?: string;
+            permissions?: components["schemas"]["AgentPermissions"];
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
+            /** Format: uuid */
+            workspace_id?: string;
+        } & (unknown | unknown | unknown);
         ApplicationOutcome: {
             event_id: string;
             /** Format: uuid */
@@ -4507,71 +4546,50 @@ export interface components {
             };
             note?: string;
         };
-        TaskRun: {
-            /** Format: uuid */
-            run_id: string;
-            /** Format: uuid */
-            wake_id: string;
-            /** @enum {string} */
-            step: "decide" | "investigate";
-            allocated_micro_usd: string;
-            committed_micro_usd: string | null;
-            status: string;
-        };
-        TaskOutcomeReceipt: {
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            created_at: string;
-            receipt: components["schemas"]["ApplicationOutcome"];
-        };
-        DecisionTask: {
-            /** Format: uuid */
-            id: string;
+        DecisionDefinitionCreate: {
             /** Format: uuid */
             workspace_id: string;
-            objective: string;
-            /** @enum {string} */
-            status: "waiting" | "running" | "needs_investigation" | "publishing" | "proposal" | "stopped" | "closed";
-            next_step: string;
-            max_cost_micro_usd: string;
-            committed_micro_usd: string;
-            outstanding_micro_usd: string;
-            max_runs: number;
-            /** Format: date-time */
-            evidence_expires_at: string;
-            /** Format: uuid */
-            latest_wake_id: string | null;
-            /** Format: uuid */
-            proposal_artifact_id: string | null;
-            failure_code: string | null;
-            runs: components["schemas"]["TaskRun"][];
-            outcomes: components["schemas"]["TaskOutcomeReceipt"][];
+            name: string;
+            definition: components["schemas"]["InferenceDefinition"];
         };
-        BillingModelUsage: {
-            /** @description Total input, including cached reads and writes once. */
-            input_tokens: string | null;
-            /** @description Output includes reasoning subsets when reported. */
-            output_tokens: string | null;
-            /** @description Subset of input tokens; null when unavailable. */
-            cached_input_tokens: string | null;
-            /** @description Subset of input tokens; null when unavailable. */
-            cache_write_input_tokens: string | null;
-            completeness: string;
-            provisional: boolean;
-            bound_breached: boolean;
-            /** @description Consumes the run budget even for BYOK; not an additional charge. */
-            budget_cost_micro_usd: string | null;
-            /** @description Original model-call ceiling. */
-            reserved_micro_usd: string | null;
-            /** @description Usage at accepted retail rates, before the authorized ceiling. */
-            reported_micro_usd: string | null;
-            /** @description Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge. */
-            provider_cost_micro_usd: string | null;
+        /** @description Select within the reviewed capability ceiling, or [] to remove tool access. Requires the current quoted access version in If-Match. */
+        CustomerAgentConnectionPermissions: {
+            capability_ids: string[];
+        };
+        /** @description Omit conversation_id for a new native conversation over the same files. An existing conversation must belong to this binding. Only explicitly selected customer connections are used; no organization-wide inheritance. */
+        CustomerAgentMessage: {
+            prompt: string;
+            /** Format: uuid */
+            conversation_id?: string;
+            limits?: components["schemas"]["Limits"];
+            /** @description Queue when this worktree is busy. Omitted means false. */
+            queue_if_busy?: boolean;
+            /** @description Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported. */
+            attachments?: string[];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
+        };
+        /** @description Optional use-case binding over core resources, not another execution primitive. The authenticated application server asserts its verified customer subject. */
+        CustomerAgentBinding: {
+            /** Format: uuid */
+            id: string;
             /** @enum {string} */
-            provider_cost_status: "estimated_from_usage" | "unavailable";
-            /** @description Durable model-call identity; use to correlate gateway diagnostics and tracing. */
-            request_id: string;
+            integration_path: "customer-agents";
+            customer_id: string;
+            key: string;
+            name: string;
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            agent_id: string;
+            /** Format: uuid */
+            worktree_id: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ConnectionAccessResolutionPage: {
+            data: components["schemas"]["ConnectionAccessResolution"][];
+            next_cursor: string | null;
         };
         BillingUsageEntry: {
             /** Format: uuid */
@@ -4626,222 +4644,239 @@ export interface components {
              */
             compute_allocation_id?: string | null;
         };
-        BillingUsagePage: {
-            /** Format: date-time */
-            from: string;
-            /** Format: date-time */
-            to: string;
-            /** @enum {string} */
-            currency: "USD";
-            data: components["schemas"]["BillingUsageEntry"][];
-            next_cursor: string | null;
-        };
-        ModelParameters: {
-            reasoning?: {
-                /** @enum {string} */
-                effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-            };
-            provider?: {
-                require_parameters: boolean;
-            };
-        };
-        InferenceResponse: {
-            /** Format: uuid */
-            run_id: string;
-            /** Format: uuid */
-            session_id: string | null;
-            /** Format: uuid */
-            worktree_id: string | null;
-            /** @enum {string} */
-            status: "queued" | "provisioning" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
-            urls: {
-                /** Format: uri */
-                status: string;
-                /** Format: uri */
-                events: string;
-                /** Format: uri */
-                stream: string;
-                /** Format: uri */
-                result: string;
-                /**
-                 * Format: uri
-                 * @description POST to request cancellation.
-                 */
-                cancel?: string;
-            };
-            /** Format: date-time */
-            queue_expires_at?: string;
-            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
-            wait_seconds?: number;
-            /**
-             * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-             * @enum {string|null}
-             */
-            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity" | "worker_paused" | "worker_destroyed" | "worker_expired" | "worker_concurrency" | "worker_cost_limit" | "worker_instance_limit" | "worker_starting" | "worker_capacity" | "worker_lifetime" | "compute_unavailable" | "insufficient_credits";
-            /** @description Funds still held and unavailable for other jobs; released on settlement. */
-            reserved_micro_usd?: string;
-            /** @enum {string} */
-            scheduling_class?: "background" | "interactive";
-            /** @enum {string} */
-            kind?: "native_agent" | "inference" | "bounded_agent";
-            result?: components["schemas"]["RunResult"];
-        };
-        /** @description Create an autoscaling execution target independent of Worktrees and Sessions. Defaults resolve from enabled offerings. Instance counts apply only to dedicated capacity. */
-        WorkerCreate: {
-            name?: string;
-            /**
-             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
-             * @enum {string}
-             */
-            compute?: "server" | "sandbox";
-            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
-            dedicated?: boolean;
-            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
-            isolate_runs?: boolean;
-            region?: string;
-            runtime?: string;
-            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
-            size?: string | null;
-            min_instances?: number;
-            max_instances?: number;
-            max_concurrency?: number;
-            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
-            idle_timeout_seconds?: number | null;
-            /** Format: date-time */
-            expires_at?: string | null;
-            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
-            max_hourly_compute_cost_micro_usd?: string;
-        };
-        /** @description Revision-checked configuration edit. Changing compute, isolation, runtime, shape or region requires a fully paused Worker. */
-        WorkerPatch: {
-            name?: string;
-            /**
-             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
-             * @enum {string}
-             */
-            compute?: "server" | "sandbox";
-            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
-            dedicated?: boolean;
-            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
-            isolate_runs?: boolean;
-            region?: string;
-            runtime?: string;
-            /** @description Fixed advertised shape, or null for automatic sizing. Omission preserves the current shape on PATCH. */
-            size?: string | null;
-            min_instances?: number;
-            max_instances?: number;
-            max_concurrency?: number;
-            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
-            idle_timeout_seconds?: number | null;
-            /** Format: date-time */
-            expires_at?: string | null;
-            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
-            max_hourly_compute_cost_micro_usd?: string;
-            expected_revision: number;
-        };
-        WorkerResources: {
-            memory_mib: number;
-            cpu_millis: number;
-        };
-        WorkerPrice: {
-            /** @constant */
-            kind: "allocation";
-            hourly_micro_usd: string;
-        } | {
-            /** @constant */
-            kind: "resource";
-            cpu_hour_micro_usd: string;
-            gib_hour_micro_usd: string;
-        };
-        WorkerOffering: {
-            id: string;
-            revision: string;
-            /**
-             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
-             * @enum {string}
-             */
-            compute: "server" | "sandbox";
-            dedicated: boolean;
-            isolate_runs: boolean;
-            region: string;
-            runtime: string;
-            size: string;
-            resources: components["schemas"]["WorkerResources"];
-            concurrency: number;
-            max_host_lifetime_seconds: number | null;
-            price: components["schemas"]["WorkerPrice"];
-        };
-        Worker: {
-            name: string | null;
-            /**
-             * @description Economic offering, not a placement hint. Macrofold never silently switches this choice.
-             * @enum {string}
-             */
-            compute: "server" | "sandbox";
-            /** @description Exclusive capacity for this Worker. Independent of sibling Run isolation. */
-            dedicated: boolean;
-            /** @description Require the advertised boundary between sibling Runs. False permits trusted sharing only within this Worker. */
-            isolate_runs: boolean;
-            region: string;
-            runtime: string;
-            size: string | null;
-            min_instances: number;
-            max_instances: number | null;
-            max_concurrency: number;
-            /** @description Idle scale-down grace. Null retains idle dedicated capacity while enabled and funded. */
-            idle_timeout_seconds: number | null;
-            /** Format: date-time */
-            expires_at: string | null;
-            /** @description Maximum aggregate committed compute rate, including starting and draining allocations. This is not a model budget or a daily spending budget. */
-            max_hourly_compute_cost_micro_usd: string;
+        OrganizationAudit: {
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            organization_id: string;
-            revision: number;
-            /** @enum {string} */
-            desired_state: "enabled" | "paused" | "destroyed";
-            /** @enum {string} */
-            status: "sleeping" | "starting" | "ready" | "draining" | "paused" | "destroyed" | "expired";
-            active_runs: number;
-            occupied_slots: number;
-            queued_runs: number;
-            ready_instances: number;
-            starting_instances: number;
-            draining_instances: number;
-            committed_hourly_compute_cost_micro_usd: string;
-            cost_micro_usd: string;
-            reserved_micro_usd: string;
-            accepted_offerings: components["schemas"]["WorkerOffering"][];
-            failure_code: string | null;
+            actor_id: string;
+            action: string;
+            subject_id: string | null;
+            data: {
+                [key: string]: unknown;
+            };
             /** Format: date-time */
             created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-            /** Format: date-time */
-            observed_at: string;
         };
-        WorkerAction: {
-            /** @description Explicitly cancel active Runs. Cleanup and accounting still complete before release. */
-            force?: boolean;
+        InferenceStreamEvent: {
+            /** @constant */
+            schema_version: 1;
+            /** Format: uuid */
+            run_id: string;
+            /** @description run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error. */
+            type: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence. */
+            data: {
+                text?: string;
+                invocation_id?: string;
+                message_id?: string;
+                content_index?: number;
+                choice_index?: number;
+                tool_call_id?: string;
+                stop_reason?: string;
+                /** @enum {string} */
+                delivery?: "live" | "result_replay";
+                result?: components["schemas"]["RunResult"];
+            } & {
+                [key: string]: unknown;
+            };
+        };
+        ConnectionAccessRuleInput: {
+            /** @enum {string} */
+            scope: "workspace";
+            /** Format: uuid */
+            workspace_id: string;
+        } | {
+            /** @enum {string} */
+            scope: "agent";
+            /** Format: uuid */
+            agent_id: string;
+        } | {
+            /** @enum {string} */
+            scope: "workspace_agent";
+            /** Format: uuid */
+            workspace_id: string;
+            /** Format: uuid */
+            agent_id: string;
         };
         WorkerPage: {
             data: components["schemas"]["Worker"][];
             /** Format: uuid */
             next_cursor: string | null;
         };
-        WorkerPolicyLimits: {
-            region: string;
-            runtime: string;
-            default_hourly_compute_cost_micro_usd: string;
-            default_max_instances: number;
-            max_instances: number;
-            default_max_concurrency: number;
-            max_concurrency: number;
+        FileDuplicate: {
+            path: string;
+            new_path: string;
+        };
+        CustomerAgentPage: {
+            data: components["schemas"]["CustomerAgentBinding"][];
+            next_cursor: string | null;
+        };
+        MemberPatch: {
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+        };
+        GitSync: {
+            /** Format: uuid */
+            worktree_id: string;
+            /** @enum {string} */
+            status: "disabled" | "pending" | "running" | "synced" | "already_integrated" | "conflict" | "blocked" | "failed";
+            source_commit?: string;
+            target_commit?: string;
+            conflicting_paths?: string[];
+            error_code?: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: uri */
+            pull_request_url?: string;
+        };
+        OrganizationCreate: {
+            name: string;
+        };
+        InferenceCreate: {
+            /** Format: uuid */
+            workspace_id?: string;
+            definition?: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
+            input: unknown;
+            context?: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+            model_binding: components["schemas"]["DecisionBinding"];
+            limits?: components["schemas"]["InferenceLimits"];
+            queue_timeout_seconds?: number;
+            model_parameters?: components["schemas"]["ModelParameters"];
+            /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
+            stream?: boolean;
+        } & (unknown | unknown);
+        StdioPackage: {
+            package: string;
+            version: string;
+            label: string;
+            environment_keys: string[];
+            tools: string[];
+        };
+        Webhook: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            url: string;
+            events: ("run.completed" | "run.failed" | "run.cancelled" | "git_sync.updated" | "connection.expired")[];
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
+        Plan: {
+            /** @enum {string} */
+            id: "payg" | "pro" | "scale";
+            name: string;
+            monthly_price_micro_usd: string;
+            included_credit_micro_usd: string;
+            concurrency_limit: number;
+            max_timeout_seconds: number;
+            scheduler_weight: number;
+            storage_gib: number;
+            history_days: number;
+        };
+        Metric: {
+            name: string;
+            value: number | string | null;
+            unit: string;
+            dimensions?: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            status: "known" | "estimated" | "missing" | "insufficient_data";
+            /** @description Non-negative integer count as a decimal string. */
+            sample_size?: string;
+        };
+        /** @description Single-use callback code. Only send after authenticating the returning user in your app and deriving customer_id from that verified session. Browser-supplied identity is not authority. */
+        CustomerConnectionComplete: {
+            code: string;
+        };
+        BoundedAgentCreate: {
+            /** Format: uuid */
+            workspace_id: string;
+            definition: components["schemas"]["InferenceDefinition"] | components["schemas"]["DefinitionReference"];
+            input: unknown;
+            context: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
+            model_binding: components["schemas"]["DecisionBinding"];
+            limits?: components["schemas"]["InferenceLimits"];
+            queue_timeout_seconds?: number;
+            /** @description Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission. */
+            stream?: boolean;
+        };
+        Recommendation: {
+            code: string;
+            summary: string;
+            evidence_metric_names: string[];
+            sample_size?: string;
+            suggested_action: string;
+            /** @constant */
+            action_executed: false;
         };
         WorkerOfferings: {
             data: components["schemas"]["WorkerOffering"][];
             limits: components["schemas"]["WorkerPolicyLimits"];
+        };
+        Connection: {
+            /** Format: uuid */
+            id: string;
+            /** @description Editable display name. Does not change the stable connection ID or any agent selection. */
+            name: string;
+            /** @enum {string} */
+            kind: "model" | "mcp_remote" | "mcp_stdio" | "github" | "composio" | "search" | "claude_subscription";
+            /** @description For kind search: brave, exa, tavily, parallel, or firecrawl. All support BYOK with auth_method api_key and a write-only secret. Only brave supports managed search with auth_method none. Provider identity cannot be changed after creation. */
+            provider?: string;
+            /** Format: uri */
+            url?: string;
+            auth_method: string;
+            /** @enum {string} */
+            status: "pending" | "healthy" | "expired" | "error";
+            owner_subject_id?: string;
+            /** Format: date-time */
+            last_checked_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            package?: string;
+            package_version?: string;
+            /** @description Verified provider account identifier. Null until authorization completes; never contains OAuth tokens or provider credential state. */
+            account_identity?: string | null;
+            api_fallback?: components["schemas"]["ClaudeApiFallback"];
+            /**
+             * @description Present on gated Claude subscription connections. No subscription login or execution is currently enabled.
+             * @enum {string}
+             */
+            availability?: "pending_approval";
+        };
+        Tool: {
+            name: string;
+            description?: string;
+            /** @description Versioned metadata; secrets and unbounded arbitrary payloads are prohibited. */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            granted: boolean;
+        };
+        /** @description Integration path only. Creates one workspace, default worktree and private preset atomically, or returns the existing binding for this customer/key. Configuration is used only on first creation; use core APIs for explicit configuration changes. No run or paid call starts. */
+        CustomerAgentEnsure: {
+            key: string;
+            name: string;
+            configuration: components["schemas"]["CustomerAgentConfiguration"];
+        };
+        Organization: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role?: "owner" | "admin" | "member" | "viewer";
+        };
+        ConnectionAccess: {
+            /** Format: uuid */
+            connection_id: string;
+            version: string;
+            organization_wide: boolean;
+            tools: string[];
+            rule_count: number;
+            can_grant: boolean;
+            can_revoke: boolean;
         };
     };
     responses: never;
@@ -4864,35 +4899,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listWorkspaces: {
+    createDecisionTask: {
         parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                /** @description Case-insensitive literal substring of the workspace name. */
-                query?: string;
-                /** @description Filter archived or active workspaces. */
-                archived?: boolean;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
             };
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionTaskCreate"];
+            };
+        };
         responses: {
-            /** @description Success */
+            /** @description Successful response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["Workspace"][];
-                        next_cursor: string | null;
-                    };
+                    "application/json": components["schemas"]["DecisionTask"];
                 };
             };
             /** @description Error */
@@ -4906,7 +4934,7 @@ export interface operations {
             };
         };
     };
-    createWorkspace: {
+    replayWebhookDelivery: {
         parameters: {
             query?: never;
             header: {
@@ -4914,87 +4942,16 @@ export interface operations {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
-            path?: never;
+            path: {
+                delivery_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WorkspaceCreate"];
+                "application/json": Record<string, never>;
             };
         };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getWorkspace: {
-        parameters: {
-            query?: {
-                include_connections?: boolean;
-                agent_id?: string;
-                connections_limit?: number;
-                connections_cursor?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteWorkspace: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             /** @description Accepted asynchronous operation */
             202: {
@@ -5016,10 +4973,1514 @@ export interface operations {
             };
         };
     };
-    updateWorkspace: {
+    streamRun: {
+        parameters: {
+            query?: {
+                after?: string;
+            };
+            header?: {
+                "Last-Event-ID"?: string;
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE event IDs are persisted run sequences; heartbeat comments are not product events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createOrganization: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Organization"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    exportCheckpoint: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                checkpoint_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckpointExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOperation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listStdioPackages: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StdioPackagePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    retryTriggerReply: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerDelivery"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgentRun: {
         parameters: {
             query?: never;
             header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    restoreWorktree: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDecisionTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRun: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    wakeDecisionTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionTaskWake"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteSlackConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: boolean;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listTriggers: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                kind?: "slack" | "webhook" | "schedule";
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Trigger"][];
+                        next_cursor: string | null;
+                        /** @description Organization-wide saved-trigger capacity, including paused definitions. Independent of delivery and execution limits. */
+                        quota: {
+                            limit: number;
+                            used: number;
+                            remaining: number;
+                        };
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createTrigger: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewTrigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSlackConnectionChannels: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SlackChannel"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorktreeOptions: {
+        parameters: {
+            query?: {
+                name?: string;
+                branch?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorktreeOptions"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getConnectionAccess: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccess"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateConnectionAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccess"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listArtifacts: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Artifact"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listTransfers: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Transfer"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createTransfer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transfer"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorker: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worker"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    patchWorker: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                worker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkerPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worker"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    runTrigger: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerDelivery"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    resolveConnectionAccess: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessResolve"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessResolutionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateCustomerAgentConnectionPermissions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentConnectionPermissions"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    testConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionTest"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: boolean;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgents: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    ensureCustomerAgent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentEnsure"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentBinding"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCapacityReport: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPlatformUsageMetrics: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                /** @description Unsupported metric/group combinations return invalid_request. */
+                group_by?: components["parameters"]["GroupBy"];
+                organization_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentRunEvents: {
+        parameters: {
+            query?: {
+                after?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Event"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listGithubRepositories: {
+        parameters: {
+            query: {
+                installation_id: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GithubRepositories"];
+                };
+            };
+            /** @description Request failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    sendCustomerAgentMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeRunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getBilling: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Billing"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    scheduleWorkspaceDeletion: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
@@ -5030,7 +6491,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WorkspacePatch"];
+                "application/json": components["schemas"]["WorkspaceDeletion"];
             };
         };
         responses: {
@@ -5054,13 +6515,11 @@ export interface operations {
             };
         };
     };
-    listWorktrees: {
+    cancelWorkspaceDeletion: {
         parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
@@ -5077,8 +6536,151 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeApiKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    continueSession: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeRunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentBinding"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                worktree_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": {
-                        data: components["schemas"]["Worktree"][];
+                        data: components["schemas"]["Session"][];
                         next_cursor: string | null;
                     };
                 };
@@ -5094,7 +6696,7 @@ export interface operations {
             };
         };
     };
-    createWorktree: {
+    createSession: {
         parameters: {
             query?: never;
             header: {
@@ -5102,14 +6704,90 @@ export interface operations {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateCheckpointRetention: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
             path: {
-                workspace_id: string;
+                checkpoint_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WorktreeCreate"];
+                "application/json": components["schemas"]["CheckpointPatch"];
+            };
+        };
+        responses: {
+            /** @description Resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Checkpoint"];
+                };
+            };
+            /** @description Resource */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createFolder: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderCreate"];
             };
         };
         responses: {
@@ -5239,16 +6917,975 @@ export interface operations {
             };
         };
     };
-    listFiles: {
+    completeCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerConnectionComplete"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getStorage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Storage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateStoragePolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoragePolicy"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Storage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentConnections: {
         parameters: {
             query?: {
-                path?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnectionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerAgentConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAgentConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAccountSummary: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                /** @description Requires accounts:pii:read; otherwise forbidden. */
+                include_contact?: boolean;
+            };
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getContextArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteContextArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    authorizeCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerConnectionAuthorize"];
+            };
+        };
+        responses: {
+            /** @description Successful integration-path operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerConnectionAuthorization"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listWebhookEndpoints: {
+        parameters: {
+            query?: {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
-                /** @description Case-insensitive literal substring of the relative file path. */
-                query?: string;
-                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
-                recursive?: boolean;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Webhook"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewWebhook"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createInference: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                /** @description Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. */
+                Prefer?: "respond-async";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InferenceCreate"];
+            };
+        };
+        responses: {
+            /** @description Completed single-call inference; inspect result.inference.outcome before applying its value. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceResponse"];
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    destroyWorker: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                worker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WorkerAction"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worker"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRunDiagnostics: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Diagnostics"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Released */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createBoundedAgentRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoundedAgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    resumeWorker: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                worker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worker"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    applyTransfer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                transfer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferApply"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listRunEvents: {
+        parameters: {
+            query?: {
+                after?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Event"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCustomerAgentRunResult: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelCustomerAgentRun: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    closeDecisionTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listConnectionTools: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Tool"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCheckpoints: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
@@ -5267,10 +7904,1870 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FileListing"];
+                    "application/json": {
+                        data: components["schemas"]["Checkpoint"][];
+                        next_cursor: string | null;
+                    };
                 };
             };
             /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createCheckpoint: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckpointCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createBillingPortal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Redirect"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getExecutionPolicy: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionPolicy"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateExecutionPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecutionPolicyPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionPolicy"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listBillingUsage: {
+        parameters: {
+            query: {
+                /** @description Inclusive RFC3339 interval start. */
+                from: string;
+                /** @description Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. */
+                to: string;
+                workspace_id?: string;
+                worktree_id?: string;
+                run_id?: string;
+                session_id?: string;
+                customer_id?: string;
+                agent_key?: string;
+                provider?: string;
+                model?: string;
+                kind?: "model" | "tool" | "compute" | "storage";
+                billing_mode?: "managed" | "byok";
+                /** @description Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. */
+                cursor?: string;
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter by the Worker charged for compute. Organization usage authority is still required. */
+                worker_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage records; next_cursor is null when finished. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingUsagePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                endpoint_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                endpoint_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Webhook"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listWorktrees: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Worktree"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWorktree: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorktreeCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getUsage: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                /** @description Unsupported metric/group combinations return invalid_request. */
+                group_by?: components["parameters"]["GroupBy"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getInfrastructureHealth: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                service_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    rotateWebhookSecret: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                endpoint_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewWebhook"];
+                };
+            };
+            /** @description Resource */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorkspace: {
+        parameters: {
+            query?: {
+                include_connections?: boolean;
+                agent_id?: string;
+                connections_limit?: number;
+                connections_cursor?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteWorkspace: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWorkspace: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspacePatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listTriggerDeliveries: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TriggerDelivery"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listConnectionAccessRules: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                workspace_id?: string;
+                agent_id?: string;
+                sort?: "workspace" | "agent" | "created_at";
+                direction?: "asc" | "desc";
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRulePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    duplicateFile: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileDuplicate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listReportSnapshots: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                cursor?: string;
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSnapshotPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listWorkspaces: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Case-insensitive literal substring of the workspace name. */
+                query?: string;
+                /** @description Filter archived or active workspaces. */
+                archived?: boolean;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Workspace"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWorkspace: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Invitation"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    recordTaskOutcome: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplicationOutcome"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionTask"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                query?: string;
+                /** @description Requires accounts:pii:read; otherwise forbidden. */
+                include_contact?: boolean;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Account"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getOperation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleDeleted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateConnectionAccessRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "If-Match": string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                connection_id: string;
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description Current quoted connection access version. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    downloadArtifact: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Download"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listModels: {
+        parameters: {
+            query?: {
+                harness?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Model"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAgents: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Search preset names. */
+                query?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Agent"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createAgent: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteCustomerAgentConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful integration-path operation */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createDecisionDefinition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDefinitionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDefinition"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listWorkerOfferings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerOfferings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAgent: {
+        parameters: {
+            query?: {
+                include_connections?: boolean;
+                workspace_id?: string;
+                connections_limit?: number;
+                connections_cursor?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateAgent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentPatch"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSlackConnections: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SlackConnection"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSlackConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlackConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackConnection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getIdentity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Identity"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    rotateTriggerSecret: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerSecret"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listRequests: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RequestRecord"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listOrganizationAudit: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationAudit"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listRuns: {
+        parameters: {
+            query?: {
+                status?: string;
+                workspace_id?: string;
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                worktree_id?: string;
+                session_id?: string;
+                /** @description Only Runs or compute usage associated with this Worker. Normal context permissions still apply. */
+                worker_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Run"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeRunAccepted"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentConversations: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Session"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listGithubInstallations: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GithubInstallations"];
+                };
+            };
+            /** @description Request failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5452,9 +9949,718 @@ export interface operations {
             };
         };
     };
-    listCheckpoints: {
+    updateOrganization: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Organization"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getOperatingReport: {
         parameters: {
             query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRunResult: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listApiKeys: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ApiKey"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createApiKey: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewApiKey"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listConnections: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                workspace_id?: string;
+                agent_id?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextualConnectionPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listConnectorCatalog: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorCatalog"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listFiles: {
+        parameters: {
+            query?: {
+                path?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Case-insensitive literal substring of the relative file path. */
+                query?: string;
+                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
+                recursive?: boolean;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                worktree_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileListing"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    streamCustomerAgentRun: {
+        parameters: {
+            query?: {
+                after?: string;
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Last-Event-ID"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE event IDs are persisted run sequences; heartbeat comments are not product events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Accepted asynchronous operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listCustomerAgentFiles: {
+        parameters: {
+            query?: {
+                path?: string;
+                /** @description Case-insensitive literal substring of the relative file path. */
+                query?: string;
+                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
+                recursive?: boolean;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileListing"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listMembers: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Member"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getTransfer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                transfer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transfer"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    disconnectGithub: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Request failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getGrowthMetrics: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                /** @description Unsupported metric/group combinations return invalid_request. */
+                group_by?: components["parameters"]["GroupBy"];
+                organization_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    authorizeConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthorizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationLink"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listPlatformRequests: {
+        parameters: {
+            query?: {
+                /** @description Inclusive interval start; default trailing 7 days. */
+                from?: components["parameters"]["From"];
+                /** @description Exclusive interval end; default now. */
+                to?: components["parameters"]["To"];
+                organization_id?: string;
+                status_code?: number;
+                route?: string;
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RequestRecord"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
+                "X-Organization-Id"?: string;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorktreeDiff: {
+        parameters: {
+            query?: {
+                base_checkpoint_id?: string;
+                path?: string;
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
             };
@@ -5475,88 +10681,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["Checkpoint"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createCheckpoint: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CheckpointCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    restoreWorktree: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RestoreRequest"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
+                    "application/json": components["schemas"]["WorktreeDiff"];
                 };
             };
             /** @description Error */
@@ -5649,1450 +10774,43 @@ export interface operations {
             };
         };
     };
-    listAgents: {
+    readCustomerAgentFile: {
         parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                /** @description Search preset names. */
-                query?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Agent"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createAgent: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AgentCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Agent"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getAgent: {
-        parameters: {
-            query?: {
-                include_connections?: boolean;
-                workspace_id?: string;
-                connections_limit?: number;
-                connections_cursor?: string;
+            query: {
+                /** @description Redirect to a short-lived streaming download, including files larger than 4 MiB. */
+                download?: boolean;
+                path: components["parameters"]["FilePath"];
             };
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
             };
             path: {
-                agent_id: string;
+                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
+                customer_id: string;
+                customer_agent_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Success */
+            /** @description Raw file bytes; active content served as attachment */
             200: {
                 headers: {
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Agent"];
+                    "application/octet-stream": string;
                 };
             };
-            /** @description Error */
-            default: {
+            /** @description Temporary private download URL */
+            302: {
                 headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteAgent: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Completed */
-            204: {
-                headers: {
+                    Location?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateAgent: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AgentPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Agent"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listSessions: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                worktree_id?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Session"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createSession: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getSession: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    continueSession: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MessageCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NativeRunAccepted"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listRuns: {
-        parameters: {
-            query?: {
-                status?: string;
-                workspace_id?: string;
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                worktree_id?: string;
-                session_id?: string;
-                /** @description Only Runs or compute usage associated with this Worker. Normal context permissions still apply. */
-                worker_id?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Run"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createRun: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RunCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NativeRunAccepted"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getRun: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Run"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    cancelRun: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Run"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    submitRunInput: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RunInput"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Run"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getRunResult: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunResult"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listRunEvents: {
-        parameters: {
-            query?: {
-                after?: string;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Event"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    streamRun: {
-        parameters: {
-            query?: {
-                after?: string;
-            };
-            header?: {
-                "Last-Event-ID"?: string;
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description SSE event IDs are persisted run sequences; heartbeat comments are not product events. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listArtifacts: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Artifact"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    downloadArtifact: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Download"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listConnections: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                workspace_id?: string;
-                agent_id?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContextualConnectionPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Connection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getConnection: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Connection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteConnection: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Completed */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateConnection: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Connection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    authorizeConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AuthorizeRequest"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthorizationLink"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    testConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionTest"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listConnectionTools: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Tool"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listApiKeys: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["ApiKey"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createApiKey: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["KeyCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NewApiKey"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    revokeApiKey: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                key_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Completed */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listWebhookEndpoints: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Webhook"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createWebhookEndpoint: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WebhookCreate"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NewWebhook"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteWebhookEndpoint: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                endpoint_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Completed */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateWebhookEndpoint: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                endpoint_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WebhookPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Webhook"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listWebhookDeliveries: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Delivery"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    replayWebhookDelivery: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                delivery_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getUsage: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                /** @description Unsupported metric/group combinations return invalid_request. */
-                group_by?: components["parameters"]["GroupBy"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listRequests: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RequestRecord"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getBilling: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Billing"];
-                };
             };
             /** @description Error */
             default: {
@@ -7142,44 +10860,7 @@ export interface operations {
             };
         };
     };
-    createBillingPortal: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Redirect"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listHarnesses: {
+    listWebhookDeliveries: {
         parameters: {
             query?: {
                 cursor?: components["parameters"]["Cursor"];
@@ -7201,999 +10882,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["Harness"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listModels: {
-        parameters: {
-            query?: {
-                harness?: string;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Model"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getOperation: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getGrowthMetrics: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                /** @description Unsupported metric/group combinations return invalid_request. */
-                group_by?: components["parameters"]["GroupBy"];
-                organization_id?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getPlatformUsageMetrics: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                /** @description Unsupported metric/group combinations return invalid_request. */
-                group_by?: components["parameters"]["GroupBy"];
-                organization_id?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listAccounts: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                query?: string;
-                /** @description Requires accounts:pii:read; otherwise forbidden. */
-                include_contact?: boolean;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Account"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getAccountSummary: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                /** @description Requires accounts:pii:read; otherwise forbidden. */
-                include_contact?: boolean;
-            };
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountSummary"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listPlatformRequests: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                organization_id?: string;
-                status_code?: number;
-                route?: string;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RequestRecord"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getRunDiagnostics: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-            };
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Diagnostics"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getInfrastructureHealth: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                service_id?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getCapacityReport: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getOperatingReport: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Report"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateCheckpointRetention: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                checkpoint_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CheckpointPatch"];
-            };
-        };
-        responses: {
-            /** @description Resource */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Checkpoint"];
-                };
-            };
-            /** @description Resource */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    rotateWebhookSecret: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                endpoint_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Resource */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NewWebhook"];
-                };
-            };
-            /** @description Resource */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getIdentity: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Identity"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getWorktreeDiff: {
-        parameters: {
-            query?: {
-                base_checkpoint_id?: string;
-                path?: string;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorktreeDiff"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listTransfers: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Transfer"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createTransfer: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransferCreate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transfer"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getTransfer: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                transfer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transfer"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    applyTransfer: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                transfer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransferApply"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    exportCheckpoint: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                checkpoint_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CheckpointExportRequest"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExportOperation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listGithubInstallations: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GithubInstallations"];
-                };
-            };
-            /** @description Request failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listGithubRepositories: {
-        parameters: {
-            query: {
-                installation_id: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GithubRepositories"];
-                };
-            };
-            /** @description Request failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    disconnectGithub: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Request failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listStdioPackages: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StdioPackagePage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createOrganization: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OrganizationCreate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Organization"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateOrganization: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OrganizationCreate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Organization"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listMembers: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Member"][];
+                        data: components["schemas"]["Delivery"][];
                         next_cursor: string | null;
                     };
                 };
@@ -8279,2579 +10968,32 @@ export interface operations {
             };
         };
     };
-    listInvitations: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Invitation"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createInvitation: {
+    pauseWorker: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
+                "Idempotency-Key": components["parameters"]["Idempotency"];
             };
-            path?: never;
+            path: {
+                worker_id: string;
+            };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["InvitationCreate"];
+                "application/json": components["schemas"]["WorkerAction"];
             };
         };
         responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Invitation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    revokeInvitation: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                invitation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listOrganizationAudit: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["OrganizationAudit"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getStorage: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Storage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateStoragePolicy: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoragePolicy"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Storage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    scheduleWorkspaceDeletion: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceDeletion"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    cancelWorkspaceDeletion: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listReportSnapshots: {
-        parameters: {
-            query?: {
-                /** @description Inclusive interval start; default trailing 7 days. */
-                from?: components["parameters"]["From"];
-                /** @description Exclusive interval end; default now. */
-                to?: components["parameters"]["To"];
-                cursor?: string;
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReportSnapshotPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getExecutionPolicy: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExecutionPolicy"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateExecutionPolicy: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExecutionPolicyPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExecutionPolicy"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listConnectorCatalog: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectorCatalog"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listTriggers: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                kind?: "slack" | "webhook" | "schedule";
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Trigger"][];
-                        next_cursor: string | null;
-                        /** @description Organization-wide saved-trigger capacity, including paused definitions. Independent of delivery and execution limits. */
-                        quota: {
-                            limit: number;
-                            used: number;
-                            remaining: number;
-                        };
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createTrigger: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TriggerCreate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NewTrigger"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getTrigger: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Trigger"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteTrigger: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        deleted: boolean;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateTrigger: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TriggerPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Trigger"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    rotateTriggerSecret: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TriggerSecret"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listTriggerDeliveries: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["TriggerDelivery"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    runTrigger: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Success */
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TriggerDelivery"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    retryTriggerReply: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                trigger_id: string;
-                delivery_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TriggerDelivery"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listSlackConnections: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SlackConnection"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createSlackConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SlackConnectionCreate"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SlackConnection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteSlackConnection: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        deleted: boolean;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listSlackConnectionChannels: {
-        parameters: {
-            query?: {
-                cursor?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SlackChannel"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createFolder: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": components["parameters"]["IfMatch"];
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FolderCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getWorktreeOptions: {
-        parameters: {
-            query?: {
-                name?: string;
-                branch?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorktreeOptions"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    duplicateFile: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": components["parameters"]["IfMatch"];
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worktree_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FileDuplicate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Operation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getConnectionAccess: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccess"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateConnectionAccess: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "If-Match": string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionAccessPatch"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccess"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listConnectionAccessRules: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                workspace_id?: string;
-                agent_id?: string;
-                sort?: "workspace" | "agent" | "created_at";
-                direction?: "asc" | "desc";
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccessRulePage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createConnectionAccessRule: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "If-Match": string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteConnectionAccessRule: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "If-Match": string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                connection_id: string;
-                rule_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccessRuleDeleted"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateConnectionAccessRule: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "If-Match": string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                connection_id: string;
-                rule_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionAccessRuleInput"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccessRuleMutation"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    resolveConnectionAccess: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConnectionAccessResolve"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    /** @description Current quoted connection access version. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionAccessResolutionPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listCustomerAgents: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    ensureCustomerAgent: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerAgentEnsure"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentBinding"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getCustomerAgent: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentBinding"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    sendCustomerAgentMessage: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerAgentMessage"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NativeRunAccepted"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listCustomerAgentConversations: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Session"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getCustomerAgentRun: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Run"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getCustomerAgentRunResult: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunResult"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listCustomerAgentRunEvents: {
-        parameters: {
-            query?: {
-                after?: string;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["Event"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    streamCustomerAgentRun: {
-        parameters: {
-            query?: {
-                after?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Last-Event-ID"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description SSE event IDs are persisted run sequences; heartbeat comments are not product events. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    cancelCustomerAgentRun: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": Record<string, never>;
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Run"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listCustomerAgentFiles: {
-        parameters: {
-            query?: {
-                path?: string;
-                /** @description Case-insensitive literal substring of the relative file path. */
-                query?: string;
-                /** @description List all matching files by default. Set false to return only direct children of path, including directories derived from persisted files. */
-                recursive?: boolean;
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FileListing"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    readCustomerAgentFile: {
-        parameters: {
-            query: {
-                /** @description Redirect to a short-lived streaming download, including files larger than 4 MiB. */
-                download?: boolean;
-                path: components["parameters"]["FilePath"];
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Raw file bytes; active content served as attachment */
-            200: {
-                headers: {
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/octet-stream": string;
-                };
-            };
-            /** @description Temporary private download URL */
-            302: {
-                headers: {
-                    Location?: string;
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listCustomerAgentConnections: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentConnectionPage"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createCustomerAgentConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerAgentConnectionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentConnection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteCustomerAgentConnection: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful integration-path operation */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    updateCustomerAgentConnectionPermissions: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "If-Match": string;
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerAgentConnectionPermissions"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentConnection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    authorizeCustomerAgentConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerConnectionAuthorize"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerConnectionAuthorization"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    completeCustomerAgentConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                /** @description Stable opaque subject from your application’s authenticated backend. Never trust a browser-supplied customer ID. */
-                customer_id: string;
-                customer_agent_id: string;
-                connection_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerConnectionComplete"];
-            };
-        };
-        responses: {
-            /** @description Successful integration-path operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerAgentConnection"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createInference: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                /** @description Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. */
-                Prefer?: "respond-async";
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InferenceCreate"];
-            };
-        };
-        responses: {
-            /** @description Completed single-call inference; inspect result.inference.outcome before applying its value. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InferenceResponse"];
-                };
-            };
-            /** @description Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery. */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InferenceResponse"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createDecisionDefinition: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionDefinitionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionDefinition"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getDecisionDefinition: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                definition_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionDefinition"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteDecisionDefinition: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                definition_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionDefinition"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createContextArtifact: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContextArtifactCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContextArtifact"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getContextArtifact: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContextArtifact"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteContextArtifact: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContextArtifact"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createBoundedAgentRun: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BoundedAgentCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted asynchronous operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunAccepted"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createDecisionTask: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionTaskCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionTask"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getDecisionTask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                task_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionTask"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    wakeDecisionTask: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                task_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionTaskWake"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionTask"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    recordTaskOutcome: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                task_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApplicationOutcome"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionTask"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    closeDecisionTask: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                task_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DecisionTask"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    deleteArtifact: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": string;
-            };
-            path: {
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Released */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listBillingUsage: {
-        parameters: {
-            query: {
-                /** @description Inclusive RFC3339 interval start. */
-                from: string;
-                /** @description Exclusive RFC3339 interval end. Must be after from; there is no fixed maximum date range. */
-                to: string;
-                workspace_id?: string;
-                worktree_id?: string;
-                run_id?: string;
-                session_id?: string;
-                customer_id?: string;
-                agent_key?: string;
-                provider?: string;
-                model?: string;
-                kind?: "model" | "tool" | "compute" | "storage";
-                billing_mode?: "managed" | "byok";
-                /** @description Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. */
-                cursor?: string;
-                limit?: components["parameters"]["Limit"];
-                /** @description Filter by the Worker charged for compute. Organization usage authority is still required. */
-                worker_id?: string;
-            };
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Usage records; next_cursor is null when finished. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BillingUsagePage"];
+                    "application/json": components["schemas"]["Worker"];
                 };
             };
             /** @description Error */
@@ -10937,105 +11079,32 @@ export interface operations {
             };
         };
     };
-    getWorker: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-            };
-            path: {
-                worker_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Worker"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    patchWorker: {
+    submitRunInput: {
         parameters: {
             query?: never;
             header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
             };
             path: {
-                worker_id: string;
+                run_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WorkerPatch"];
+                "application/json": components["schemas"]["RunInput"];
             };
         };
         responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Worker"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    pauseWorker: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                worker_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["WorkerAction"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
+            /** @description Accepted asynchronous operation */
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Worker"];
+                    "application/json": components["schemas"]["Run"];
                 };
             };
             /** @description Error */
@@ -11049,83 +11118,12 @@ export interface operations {
             };
         };
     };
-    resumeWorker: {
+    listHarnesses: {
         parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
             };
-            path: {
-                worker_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Worker"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    destroyWorker: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
-                "X-Organization-Id"?: string;
-                "Idempotency-Key": components["parameters"]["Idempotency"];
-            };
-            path: {
-                worker_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["WorkerAction"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Worker"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    listWorkerOfferings: {
-        parameters: {
-            query?: never;
             header?: {
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
@@ -11135,13 +11133,51 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Success */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkerOfferings"];
+                    "application/json": {
+                        data: components["schemas"]["Harness"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createContextArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["Idempotency"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContextArtifactCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextArtifact"];
                 };
             };
             /** @description Error */

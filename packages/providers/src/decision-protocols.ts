@@ -1,5 +1,12 @@
+import { readInferenceStream } from './inference-stream';
 import { z } from 'zod';
-import type { DecisionBinding, DecisionProtocol, DecisionRequest, DecisionResponse } from '../../core/src/decision';
+import type {
+  DecisionBinding,
+  DecisionProtocol,
+  DecisionRequest,
+  DecisionResponse,
+  InferenceOutputSink,
+} from '../../core/src/decision';
 import { boundedBody, boundedJSON } from '../../core/src/body';
 import { canonical } from '../../core/src/crypto';
 import { assert, AppError } from '../../core/src/errors';
@@ -33,6 +40,7 @@ async function invoke(
   observeResponse?: (response: unknown) => void,
   chat = false,
   nativeResponse = false,
+  output?: InferenceOutputSink,
 ): Promise<DecisionResponse> {
   // Fixed endpoints, no SDK retry defaults, no credential-bearing redirects.
   const upstream = await fetch(chat ? 'https://openrouter.ai/api/v1/chat/completions' : endpoints[provider], {
@@ -59,56 +67,110 @@ async function invoke(
     throw new AppError(502, 'decision_provider_failed', 'The decision provider rejected the request.', {
       provider,
       http_status: upstream.status,
-      request_id: upstream.headers.get('x-request-id') || upstream.headers.get('x-generation-id') || upstream.headers.get('request-id'),
+      request_id:
+        upstream.headers.get('x-request-id') ||
+        upstream.headers.get('x-generation-id') ||
+        upstream.headers.get('request-id'),
       response_body: responseBody,
     });
   }
-  const raw = await boundedJSON(upstream, 512 * 1024);
+  const streamed = body.stream === true ? await readInferenceStream(upstream, chat, output) : undefined;
+  const raw = streamed ? streamed.raw : await boundedJSON(upstream, 512 * 1024);
   // Preserve malformed model text for diagnostics too. Observers are never authority.
   try {
     observeResponse?.(raw);
   } catch {
     /* Diagnostic failure cannot change a provider result. */
   }
+  if (streamed?.incomplete) {
+    const u = objectUsage(raw, chat);
+    return {
+      value: raw,
+      refused: false,
+      requestId: typeof streamed.raw.id === 'string' ? streamed.raw.id : null,
+      modelRevision: typeof streamed.raw.model === 'string' ? streamed.raw.model : null,
+      usage: { ...u, complete: false },
+      incomplete: streamed.incomplete,
+    };
+  }
   if (nativeResponse) {
-    const parsed = response.parse(chat ? { ...z.record(z.string(), z.unknown()).parse(raw), usage: undefined } : raw);
-    const chatUsage = chat ? z.object({ usage: z.object({
-      prompt_tokens: count, completion_tokens: count,
-      prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
-    }).nullish() }).parse(raw).usage : undefined;
+    const parsed = response.parse(
+      chat ? { ...z.record(z.string(), z.unknown()).parse(raw), usage: undefined } : raw,
+    );
+    const chatUsage = chat
+      ? z
+          .object({
+            usage: z
+              .object({
+                prompt_tokens: count,
+                completion_tokens: count,
+                prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
+              })
+              .nullish(),
+          })
+          .parse(raw).usage
+      : undefined;
     const tokens = parsed.usage;
     return {
       value: raw,
       // A provider refusal is part of the native response, not a lost payload.
       refused: false,
-      requestId: parsed.id || upstream.headers.get('x-generation-id') || upstream.headers.get('x-request-id') || upstream.headers.get('x-typesafe-request-id'),
+      requestId:
+        parsed.id ||
+        upstream.headers.get('x-generation-id') ||
+        upstream.headers.get('x-request-id') ||
+        upstream.headers.get('x-typesafe-request-id'),
       modelRevision: parsed.model || null,
-      usage: chatUsage ? {
-        input: chatUsage.prompt_tokens, output: chatUsage.completion_tokens,
-        cached: chatUsage.prompt_tokens_details?.cached_tokens ?? 0, cacheWrite: 0, complete: true,
-      } : tokens ? {
-        input: tokens.input_tokens + (tokens.cache_read_input_tokens ?? 0) + (tokens.cache_creation_input_tokens ?? 0),
-        output: tokens.output_tokens, cached: tokens.cache_read_input_tokens ?? 0,
-        cacheWrite: tokens.cache_creation_input_tokens ?? 0, complete: true,
-      } : emptyUsage(),
+      usage: chatUsage
+        ? {
+            input: chatUsage.prompt_tokens,
+            output: chatUsage.completion_tokens,
+            cached: chatUsage.prompt_tokens_details?.cached_tokens ?? 0,
+            cacheWrite: 0,
+            complete: true,
+          }
+        : tokens
+          ? {
+              input:
+                tokens.input_tokens +
+                (tokens.cache_read_input_tokens ?? 0) +
+                (tokens.cache_creation_input_tokens ?? 0),
+              output: tokens.output_tokens,
+              cached: tokens.cache_read_input_tokens ?? 0,
+              cacheWrite: tokens.cache_creation_input_tokens ?? 0,
+              complete: true,
+            }
+          : emptyUsage(),
     };
   }
   if (chat) {
-    const parsed = z.object({
-      id: z.string().optional(),
-      model: z.string().optional(),
-      choices: z.array(z.object({
-        finish_reason: z.string().nullish(),
-        message: z.object({ content: z.string().nullish(), refusal: z.string().nullish() }),
-      })).length(1),
-      usage: z.object({
-        prompt_tokens: count,
-        completion_tokens: count,
-        prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
-      }).nullish(),
-    }).parse(raw);
-    assert(!parsed.model || parsed.model === body.model, 502, 'model_not_authorized',
-      'The provider returned a different model than requested.');
+    const parsed = z
+      .object({
+        id: z.string().optional(),
+        model: z.string().optional(),
+        choices: z
+          .array(
+            z.object({
+              finish_reason: z.string().nullish(),
+              message: z.object({ content: z.string().nullish(), refusal: z.string().nullish() }),
+            }),
+          )
+          .length(1),
+        usage: z
+          .object({
+            prompt_tokens: count,
+            completion_tokens: count,
+            prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
+          })
+          .nullish(),
+      })
+      .parse(raw);
+    assert(
+      !parsed.model || parsed.model === body.model,
+      502,
+      'model_not_authorized',
+      'The provider returned a different model than requested.',
+    );
     const choice = parsed.choices[0];
     let value: unknown;
     try {
@@ -122,13 +184,15 @@ async function invoke(
       requestId: parsed.id || upstream.headers.get('x-generation-id') || upstream.headers.get('x-request-id'),
       modelRevision: parsed.model || null,
       // OpenRouter completion_tokens already includes reasoning tokens.
-      usage: parsed.usage ? {
-        input: parsed.usage.prompt_tokens,
-        output: parsed.usage.completion_tokens,
-        cached: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
-        cacheWrite: 0,
-        complete: true,
-      } : emptyUsage(),
+      usage: parsed.usage
+        ? {
+            input: parsed.usage.prompt_tokens,
+            output: parsed.usage.completion_tokens,
+            cached: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
+            cacheWrite: 0,
+            complete: true,
+          }
+        : emptyUsage(),
     };
   }
   const parsed = response.parse(raw);
@@ -172,6 +236,7 @@ async function invoke(
     evidence = { confidence: answers.decision.confidence, probabilities: answers.decision.probabilities };
     value = answers.decision.type === 'choice' ? answers.decision.choice : answers.decision.score;
   }
+  if (provider === 'anthropic' && parsed.stop_reason === 'max_tokens') value = undefined;
   const tokens = parsed.usage;
   return {
     value,
@@ -205,11 +270,10 @@ function decisionPrompt(request: DecisionRequest) {
 const anthropic: DecisionProtocol = {
   version: 'anthropic-json/1',
   kinds: ['json', 'choice', 'score', 'provider'],
-  maxInputTokens: 128000,
   capabilities: {
     structuredOutput: true,
     brokeredTools: true,
-    streaming: false,
+    streaming: true,
     immutableModelRevision: false,
   },
   prepare(request) {
@@ -217,6 +281,7 @@ const anthropic: DecisionProtocol = {
     validateModelParameters(request.modelParameters, 'anthropic', request.model);
     return {
       model: request.model,
+      ...(request.stream ? { stream: true } : {}),
       max_tokens: request.maxOutputTokens,
       system: decisionPrompt(request),
       messages: [
@@ -231,13 +296,12 @@ const anthropic: DecisionProtocol = {
       ],
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse) =>
-    invoke('anthropic', body, secret, signal, observeResponse, false, nativeResponse),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
+    invoke('anthropic', body, secret, signal, observeResponse, false, nativeResponse, output),
 };
 const typesafe: DecisionProtocol = {
   version: 'typesafe-systemone/1',
   kinds: ['choice', 'score', 'provider'],
-  maxInputTokens: 32000,
   capabilities: {
     structuredOutput: false,
     brokeredTools: false,
@@ -245,7 +309,8 @@ const typesafe: DecisionProtocol = {
     immutableModelRevision: false,
   },
   prepare(request) {
-    if (request.definition.question.kind === 'provider') return nativeInferenceBody(request, 'typesafe', true);
+    if (request.definition.question.kind === 'provider')
+      return nativeInferenceBody(request, 'typesafe', true);
     validateModelParameters(request.modelParameters, 'typesafe', request.model);
     const question = request.definition.question;
     assert(
@@ -266,40 +331,45 @@ const typesafe: DecisionProtocol = {
       },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse) =>
-    invoke('typesafe', body, secret, signal, observeResponse, false, nativeResponse),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
+    invoke('typesafe', body, secret, signal, observeResponse, false, nativeResponse, output),
 };
 const openrouter: DecisionProtocol = {
   ...typesafe,
   version: 'openrouter-decisions/1',
   prepare(request) {
-    if (request.definition.question.kind === 'provider') return nativeInferenceBody(request, 'openrouter', true);
+    if (request.definition.question.kind === 'provider')
+      return nativeInferenceBody(request, 'openrouter', true);
     return {
       ...typesafe.prepare(request),
       provider: { allow_fallbacks: false, max_price: openRouterPriceCeiling(request.rates) },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse) =>
-    invoke('openrouter', body, secret, signal, observeResponse, false, nativeResponse),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
+    invoke('openrouter', body, secret, signal, observeResponse, false, nativeResponse, output),
 };
 
 const openrouterChat: DecisionProtocol = {
   version: 'openrouter-json/1',
   kinds: ['json', 'choice', 'score', 'provider'],
-  maxInputTokens: 128000,
   capabilities: {
     structuredOutput: true,
     brokeredTools: false,
-    streaming: false,
+    streaming: true,
     immutableModelRevision: false,
   },
   prepare(request) {
     if (request.definition.question.kind === 'provider') return nativeInferenceBody(request, 'openrouter');
     validateModelParameters(request.modelParameters, 'openrouter', request.model);
-    assert(request.modelParameters?.provider?.require_parameters !== false,
-      400, 'unsupported_model_parameters', 'Structured output requires strict provider parameter support.');
+    assert(
+      request.modelParameters?.provider?.require_parameters !== false,
+      400,
+      'unsupported_model_parameters',
+      'Structured output requires strict provider parameter support.',
+    );
     return {
       model: request.model,
+      ...(request.stream ? { stream: true, stream_options: { include_usage: true } } : {}),
       max_tokens: request.maxOutputTokens,
       messages: [
         { role: 'system', content: decisionPrompt(request) },
@@ -318,8 +388,8 @@ const openrouterChat: DecisionProtocol = {
       },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse) =>
-    invoke('openrouter', body, secret, signal, observeResponse, true, nativeResponse),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
+    invoke('openrouter', body, secret, signal, observeResponse, true, nativeResponse, output),
 };
 
 export function decisionProtocol(provider: string, model?: string): DecisionProtocol {
@@ -327,4 +397,22 @@ export function decisionProtocol(provider: string, model?: string): DecisionProt
   if (provider === 'typesafe') return typesafe;
   if (provider === 'openrouter') return model && model !== 'typesafe/jev-1.13' ? openrouterChat : openrouter;
   throw new Error('Unsupported decision provider.');
+}
+
+function objectUsage(raw: unknown, chat: boolean) {
+  const v = z.object({ usage: z.record(z.string(), z.unknown()).nullish() }).safeParse(raw);
+  const u = v.success ? v.data.usage : undefined;
+  const token = (key: string) => {
+    const result = count.safeParse(u?.[key]);
+    return result.success ? result.data : 0;
+  };
+  return {
+    input: chat
+      ? token('prompt_tokens')
+      : token('input_tokens') + token('cache_read_input_tokens') + token('cache_creation_input_tokens'),
+    output: token(chat ? 'completion_tokens' : 'output_tokens'),
+    cached: chat ? 0 : token('cache_read_input_tokens'),
+    cacheWrite: chat ? 0 : token('cache_creation_input_tokens'),
+    complete: false,
+  };
 }

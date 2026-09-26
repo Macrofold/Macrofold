@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.macrofold.model.DecisionBinding;
-import dev.macrofold.model.InferenceCreateContext;
+import dev.macrofold.model.DecisionTaskWakeContext;
 import dev.macrofold.model.InferenceCreateDefinition;
 import dev.macrofold.model.InferenceLimits;
 import java.util.Arrays;
@@ -44,7 +44,8 @@ import dev.macrofold.ApiClient;
   BoundedAgentCreate.JSON_PROPERTY_CONTEXT,
   BoundedAgentCreate.JSON_PROPERTY_MODEL_BINDING,
   BoundedAgentCreate.JSON_PROPERTY_LIMITS,
-  BoundedAgentCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS
+  BoundedAgentCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
+  BoundedAgentCreate.JSON_PROPERTY_STREAM
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class BoundedAgentCreate {
@@ -62,7 +63,7 @@ public class BoundedAgentCreate {
 
   public static final String JSON_PROPERTY_CONTEXT = "context";
   @javax.annotation.Nonnull
-  private InferenceCreateContext context;
+  private DecisionTaskWakeContext context;
 
   public static final String JSON_PROPERTY_MODEL_BINDING = "model_binding";
   @javax.annotation.Nonnull
@@ -75,6 +76,10 @@ public class BoundedAgentCreate {
   public static final String JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS = "queue_timeout_seconds";
   @javax.annotation.Nullable
   private Integer queueTimeoutSeconds;
+
+  public static final String JSON_PROPERTY_STREAM = "stream";
+  @javax.annotation.Nullable
+  private Boolean stream;
 
   public BoundedAgentCreate() { 
   }
@@ -151,7 +156,7 @@ public class BoundedAgentCreate {
   }
 
 
-  public BoundedAgentCreate context(@javax.annotation.Nonnull InferenceCreateContext context) {
+  public BoundedAgentCreate context(@javax.annotation.Nonnull DecisionTaskWakeContext context) {
     this.context = context;
     return this;
   }
@@ -163,14 +168,14 @@ public class BoundedAgentCreate {
   @javax.annotation.Nonnull
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public InferenceCreateContext getContext() {
+  public DecisionTaskWakeContext getContext() {
     return context;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setContext(@javax.annotation.Nonnull InferenceCreateContext context) {
+  public void setContext(@javax.annotation.Nonnull DecisionTaskWakeContext context) {
     this.context = context;
   }
 
@@ -249,6 +254,30 @@ public class BoundedAgentCreate {
   }
 
 
+  public BoundedAgentCreate stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+    return this;
+  }
+
+  /**
+   * Request incremental model output on the returned run stream. Omission or false preserves ordinary delivery. Unsupported protocols are rejected before admission.
+   * @return stream
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getStream() {
+    return stream;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
   /**
    * Return true if this BoundedAgentCreate object is equal to o.
    */
@@ -267,12 +296,13 @@ public class BoundedAgentCreate {
         Objects.equals(this.context, boundedAgentCreate.context) &&
         Objects.equals(this.modelBinding, boundedAgentCreate.modelBinding) &&
         Objects.equals(this.limits, boundedAgentCreate.limits) &&
-        Objects.equals(this.queueTimeoutSeconds, boundedAgentCreate.queueTimeoutSeconds);
+        Objects.equals(this.queueTimeoutSeconds, boundedAgentCreate.queueTimeoutSeconds) &&
+        Objects.equals(this.stream, boundedAgentCreate.stream);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, queueTimeoutSeconds);
+    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, queueTimeoutSeconds, stream);
   }
 
   @Override
@@ -286,6 +316,7 @@ public class BoundedAgentCreate {
     sb.append("    modelBinding: ").append(toIndentedString(modelBinding)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -363,6 +394,11 @@ public class BoundedAgentCreate {
     // add `queue_timeout_seconds` to the URL query string
     if (getQueueTimeoutSeconds() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%squeue_timeout_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueTimeoutSeconds()))));
+    }
+
+    // add `stream` to the URL query string
+    if (getStream() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstream%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStream()))));
     }
 
     return joiner.toString();

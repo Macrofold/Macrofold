@@ -12,15 +12,18 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DeleteTrigger200Response {
-    #[serde(rename = "deleted")]
-    pub deleted: bool,
+pub struct ListCustomerAgentRunEvents200Response {
+    #[serde(rename = "data")]
+    pub data: Vec<models::Event>,
+    #[serde(rename = "next_cursor", deserialize_with = "Option::deserialize")]
+    pub next_cursor: Option<String>,
 }
 
-impl DeleteTrigger200Response {
-    pub fn new(deleted: bool) -> DeleteTrigger200Response {
-        DeleteTrigger200Response {
-            deleted,
+impl ListCustomerAgentRunEvents200Response {
+    pub fn new(data: Vec<models::Event>, next_cursor: Option<String>) -> ListCustomerAgentRunEvents200Response {
+        ListCustomerAgentRunEvents200Response {
+            data,
+            next_cursor,
         }
     }
 }

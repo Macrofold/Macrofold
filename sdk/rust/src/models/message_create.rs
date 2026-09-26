@@ -14,65 +14,69 @@ use serde::{Deserialize, Serialize};
 /// MessageCreate : Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MessageCreate {
-    #[serde(rename = "prompt")]
-    pub prompt: String,
-    #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
-    pub limits: Option<Box<models::Limits>>,
     #[serde(rename = "webhook_endpoint_ids", skip_serializing_if = "Option::is_none")]
     pub webhook_endpoint_ids: Option<Vec<uuid::Uuid>>,
-    #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
-    pub queue_if_busy: Option<bool>,
-    /// Optional model override within the pinned harness catalog; never changes the active run.
-    #[serde(rename = "model", skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-    /// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-    #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
-    pub queue_timeout_seconds: Option<i32>,
-    /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-    #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
-    pub scheduling_class: Option<SchedulingClass>,
-    #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
-    pub permissions: Option<Box<models::AgentPermissions>>,
-    /// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-    #[serde(rename = "connection_grants", skip_serializing_if = "Option::is_none")]
-    pub connection_grants: Option<Vec<models::Grant>>,
     /// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
     #[serde(rename = "connection_access_overrides", skip_serializing_if = "Option::is_none")]
     pub connection_access_overrides: Option<Vec<models::Grant>>,
-    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
-    pub attachments: Option<Vec<String>>,
+    /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+    #[serde(rename = "stream", skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(rename = "prompt")]
+    pub prompt: String,
+    /// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+    #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
+    pub queue_timeout_seconds: Option<i32>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
-    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
-    pub worker_id: Option<uuid::Uuid>,
     /// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
     #[serde(rename = "memory_mib", skip_serializing_if = "Option::is_none")]
     pub memory_mib: Option<i32>,
     /// Advanced per-Run CPU allocation in millicores on an explicit Worker.
     #[serde(rename = "cpu_millis", skip_serializing_if = "Option::is_none")]
     pub cpu_millis: Option<i32>,
+    #[serde(rename = "worker_id", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<uuid::Uuid>,
+    /// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+    #[serde(rename = "connection_grants", skip_serializing_if = "Option::is_none")]
+    pub connection_grants: Option<Vec<models::Grant>>,
+    /// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+    #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
+    pub scheduling_class: Option<SchedulingClass>,
+    #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
+    pub limits: Option<Box<models::Limits>>,
+    /// Optional model override within the pinned harness catalog; never changes the active run.
+    #[serde(rename = "model", skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(rename = "permissions", skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Box<models::AgentPermissions>>,
+    #[serde(rename = "queue_if_busy", skip_serializing_if = "Option::is_none")]
+    pub queue_if_busy: Option<bool>,
+    /// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+    #[serde(rename = "attachments", skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<String>>,
 }
 
 impl MessageCreate {
     /// Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
     pub fn new(prompt: String) -> MessageCreate {
         MessageCreate {
-            prompt,
-            limits: None,
             webhook_endpoint_ids: None,
-            queue_if_busy: None,
-            model: None,
-            queue_timeout_seconds: None,
-            scheduling_class: None,
-            permissions: None,
-            connection_grants: None,
             connection_access_overrides: None,
-            attachments: None,
+            stream: None,
+            prompt,
+            queue_timeout_seconds: None,
             model_parameters: None,
-            worker_id: None,
             memory_mib: None,
             cpu_millis: None,
+            worker_id: None,
+            connection_grants: None,
+            scheduling_class: None,
+            limits: None,
+            model: None,
+            permissions: None,
+            queue_if_busy: None,
+            attachments: None,
         }
     }
 }

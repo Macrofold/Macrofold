@@ -12,11 +12,15 @@ import type { operations } from './schema.js';
 import { streamRunText, waitForRun, type WaitOptions } from './run-helpers.js';
 export const DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)};
 export type RequestSettings = { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string,string> };
-type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent'>;`,
+type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent' | 'streamInference'>;`,
   ];
   for (const group of groups) {
     const methods: string[] = [];
     for (const op of operations.filter((o) => o.group === group)) {
+      if (op.id === 'createInference')
+        methods.push(
+          `stream(request: Schema['InferenceCreate'], options: RequestSettings = {}) { return this.client.streamInference(request, options); }`,
+        );
       if (op.id === 'streamCustomerAgentRun') {
         methods.push(`/** Stream through the optional customer-agent integration path. */
           streamRun(customerId: string, customerAgentId: string, runId: string, options: {after?: string; signal?: AbortSignal} = {}) { return this.client.streamCustomerAgent(customerId, customerAgentId, runId, options); }
@@ -95,6 +99,7 @@ type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent'>;`,
   }
   content.push(`export abstract class Resources {
     abstract request<O extends Operation>(operation: O, options?: RequestOptions<O>): Promise<Result<O>>;
+    abstract streamInference(body: Schema['InferenceCreate'], options?: RequestSettings): AsyncGenerator<Schema['InferenceStreamEvent']>;
     abstract stream(runId: string, options?: {after?:string; signal?:AbortSignal}): AsyncGenerator<Schema['Event']>;
     abstract streamCustomerAgent(customerId: string, customerAgentId: string, runId: string, options?: {after?:string; signal?:AbortSignal}): AsyncGenerator<Schema['Event']>;
     ${groups.map((group) => `readonly ${group} = new ${pascal(group)}Resource(this);`).join('\n')}

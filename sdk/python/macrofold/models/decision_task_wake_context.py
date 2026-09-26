@@ -23,11 +23,11 @@ from pydantic import StrictStr, Field
 from typing import Union, List, Set, Optional, Dict
 from typing_extensions import Literal, Self
 
-INFERENCECREATECONTEXT_ONE_OF_SCHEMAS = ["ContextReference", "ExplicitContext"]
+DECISIONTASKWAKECONTEXT_ONE_OF_SCHEMAS = ["ContextReference", "ExplicitContext"]
 
-class InferenceCreateContext(BaseModel):
+class DecisionTaskWakeContext(BaseModel):
     """
-    InferenceCreateContext
+    DecisionTaskWakeContext
     """
     # data type: ExplicitContext
     oneof_schema_1_validator: Optional[ExplicitContext] = None
@@ -54,7 +54,7 @@ class InferenceCreateContext(BaseModel):
 
     @field_validator('actual_instance')
     def actual_instance_must_validate_oneof(cls, v):
-        instance = InferenceCreateContext.model_construct()
+        instance = DecisionTaskWakeContext.model_construct()
         error_messages = []
         match = 0
         # validate data type: ExplicitContext
@@ -69,10 +69,10 @@ class InferenceCreateContext(BaseModel):
             match += 1
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when setting `actual_instance` in InferenceCreateContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when setting `actual_instance` in DecisionTaskWakeContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when setting `actual_instance` in InferenceCreateContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when setting `actual_instance` in DecisionTaskWakeContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
         else:
             return v
 
@@ -102,10 +102,10 @@ class InferenceCreateContext(BaseModel):
 
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when deserializing the JSON string into InferenceCreateContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when deserializing the JSON string into DecisionTaskWakeContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when deserializing the JSON string into InferenceCreateContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when deserializing the JSON string into DecisionTaskWakeContext with oneOf schemas: ContextReference, ExplicitContext. Details: " + ", ".join(error_messages))
         else:
             return instance
 

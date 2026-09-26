@@ -43,51 +43,56 @@ import dev.macrofold.ApiClient;
  * Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
  */
 @JsonPropertyOrder({
+  RunCreate.JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS,
+  RunCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
+  RunCreate.JSON_PROPERTY_STREAM,
   RunCreate.JSON_PROPERTY_PROMPT,
-  RunCreate.JSON_PROPERTY_WORKSPACE_ID,
-  RunCreate.JSON_PROPERTY_WORKTREE_ID,
-  RunCreate.JSON_PROPERTY_SESSION_ID,
-  RunCreate.JSON_PROPERTY_AGENT_ID,
+  RunCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
+  RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
   RunCreate.JSON_PROPERTY_HARNESS,
+  RunCreate.JSON_PROPERTY_MEMORY_MIB,
+  RunCreate.JSON_PROPERTY_CPU_MILLIS,
+  RunCreate.JSON_PROPERTY_AGENT_ID,
+  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE,
+  RunCreate.JSON_PROPERTY_SESSION_ID,
+  RunCreate.JSON_PROPERTY_CONNECTION_GRANTS,
+  RunCreate.JSON_PROPERTY_WORKER_ID,
+  RunCreate.JSON_PROPERTY_SCHEDULING_CLASS,
   RunCreate.JSON_PROPERTY_MODEL,
   RunCreate.JSON_PROPERTY_BILLING_MODE,
-  RunCreate.JSON_PROPERTY_PROVIDER_CONNECTION_ID,
-  RunCreate.JSON_PROPERTY_CONNECTION_GRANTS,
   RunCreate.JSON_PROPERTY_LIMITS,
-  RunCreate.JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS,
-  RunCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
-  RunCreate.JSON_PROPERTY_SCHEDULING_CLASS,
+  RunCreate.JSON_PROPERTY_WORKTREE_ID,
   RunCreate.JSON_PROPERTY_QUEUE_IF_BUSY,
+  RunCreate.JSON_PROPERTY_PROVIDER_CONNECTION_ID,
   RunCreate.JSON_PROPERTY_PERMISSIONS,
-  RunCreate.JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES,
   RunCreate.JSON_PROPERTY_ATTACHMENTS,
-  RunCreate.JSON_PROPERTY_MODEL_PARAMETERS,
-  RunCreate.JSON_PROPERTY_HARNESS_PROMPT_MODE,
-  RunCreate.JSON_PROPERTY_WORKER_ID,
-  RunCreate.JSON_PROPERTY_MEMORY_MIB,
-  RunCreate.JSON_PROPERTY_CPU_MILLIS
+  RunCreate.JSON_PROPERTY_WORKSPACE_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunCreate {
+  public static final String JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS = "webhook_endpoint_ids";
+  @javax.annotation.Nullable
+  private List<UUID> webhookEndpointIds = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES = "connection_access_overrides";
+  @javax.annotation.Nullable
+  private List<Grant> connectionAccessOverrides = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_STREAM = "stream";
+  @javax.annotation.Nullable
+  private Boolean stream;
+
   public static final String JSON_PROPERTY_PROMPT = "prompt";
   @javax.annotation.Nonnull
   private String prompt;
 
-  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
+  public static final String JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS = "queue_timeout_seconds";
   @javax.annotation.Nullable
-  private UUID workspaceId;
+  private Integer queueTimeoutSeconds;
 
-  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
   @javax.annotation.Nullable
-  private UUID worktreeId;
-
-  public static final String JSON_PROPERTY_SESSION_ID = "session_id";
-  @javax.annotation.Nullable
-  private UUID sessionId;
-
-  public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
-  @javax.annotation.Nullable
-  private UUID agentId;
+  private ModelParameters modelParameters;
 
   /**
    * Gets or Sets harness
@@ -136,6 +141,108 @@ public class RunCreate {
   @javax.annotation.Nullable
   private HarnessEnum harness;
 
+  public static final String JSON_PROPERTY_MEMORY_MIB = "memory_mib";
+  @javax.annotation.Nullable
+  private Integer memoryMib;
+
+  public static final String JSON_PROPERTY_CPU_MILLIS = "cpu_millis";
+  @javax.annotation.Nullable
+  private Integer cpuMillis;
+
+  public static final String JSON_PROPERTY_AGENT_ID = "agent_id";
+  @javax.annotation.Nullable
+  private UUID agentId;
+
+  /**
+   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+   */
+  public enum HarnessPromptModeEnum {
+    REPLACE(String.valueOf("replace")),
+
+    EXTEND(String.valueOf("extend"));
+
+    private String value;
+
+    HarnessPromptModeEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static HarnessPromptModeEnum fromValue(String value) {
+      for (HarnessPromptModeEnum b : HarnessPromptModeEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_HARNESS_PROMPT_MODE = "harness_prompt_mode";
+  @javax.annotation.Nullable
+  private HarnessPromptModeEnum harnessPromptMode;
+
+  public static final String JSON_PROPERTY_SESSION_ID = "session_id";
+  @javax.annotation.Nullable
+  private UUID sessionId;
+
+  public static final String JSON_PROPERTY_CONNECTION_GRANTS = "connection_grants";
+  @javax.annotation.Nullable
+  private List<Grant> connectionGrants = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  @javax.annotation.Nullable
+  private UUID workerId;
+
+  /**
+   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+   */
+  public enum SchedulingClassEnum {
+    BACKGROUND(String.valueOf("background")),
+
+    INTERACTIVE(String.valueOf("interactive"));
+
+    private String value;
+
+    SchedulingClassEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static SchedulingClassEnum fromValue(String value) {
+      for (SchedulingClassEnum b : SchedulingClassEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_SCHEDULING_CLASS = "scheduling_class";
+  @javax.annotation.Nullable
+  private SchedulingClassEnum schedulingClass;
+
   public static final String JSON_PROPERTY_MODEL = "model";
   @javax.annotation.Nullable
   private String model;
@@ -181,410 +288,36 @@ public class RunCreate {
   @javax.annotation.Nullable
   private BillingModeEnum billingMode;
 
-  public static final String JSON_PROPERTY_PROVIDER_CONNECTION_ID = "provider_connection_id";
-  @javax.annotation.Nullable
-  private UUID providerConnectionId;
-
-  public static final String JSON_PROPERTY_CONNECTION_GRANTS = "connection_grants";
-  @javax.annotation.Nullable
-  private List<Grant> connectionGrants = new ArrayList<>();
-
   public static final String JSON_PROPERTY_LIMITS = "limits";
   @javax.annotation.Nullable
   private Limits limits;
 
-  public static final String JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS = "webhook_endpoint_ids";
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
   @javax.annotation.Nullable
-  private List<UUID> webhookEndpointIds = new ArrayList<>();
-
-  public static final String JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS = "queue_timeout_seconds";
-  @javax.annotation.Nullable
-  private Integer queueTimeoutSeconds;
-
-  /**
-   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-   */
-  public enum SchedulingClassEnum {
-    BACKGROUND(String.valueOf("background")),
-
-    INTERACTIVE(String.valueOf("interactive"));
-
-    private String value;
-
-    SchedulingClassEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static SchedulingClassEnum fromValue(String value) {
-      for (SchedulingClassEnum b : SchedulingClassEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
-    }
-  }
-
-  public static final String JSON_PROPERTY_SCHEDULING_CLASS = "scheduling_class";
-  @javax.annotation.Nullable
-  private SchedulingClassEnum schedulingClass;
+  private UUID worktreeId;
 
   public static final String JSON_PROPERTY_QUEUE_IF_BUSY = "queue_if_busy";
   @javax.annotation.Nullable
   private Boolean queueIfBusy;
 
+  public static final String JSON_PROPERTY_PROVIDER_CONNECTION_ID = "provider_connection_id";
+  @javax.annotation.Nullable
+  private UUID providerConnectionId;
+
   public static final String JSON_PROPERTY_PERMISSIONS = "permissions";
   @javax.annotation.Nullable
   private AgentPermissions permissions;
-
-  public static final String JSON_PROPERTY_CONNECTION_ACCESS_OVERRIDES = "connection_access_overrides";
-  @javax.annotation.Nullable
-  private List<Grant> connectionAccessOverrides = new ArrayList<>();
 
   public static final String JSON_PROPERTY_ATTACHMENTS = "attachments";
   @javax.annotation.Nullable
   private Set<String> attachments = new LinkedHashSet<>();
 
-  public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
+  public static final String JSON_PROPERTY_WORKSPACE_ID = "workspace_id";
   @javax.annotation.Nullable
-  private ModelParameters modelParameters;
-
-  /**
-   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
-   */
-  public enum HarnessPromptModeEnum {
-    REPLACE(String.valueOf("replace")),
-
-    EXTEND(String.valueOf("extend"));
-
-    private String value;
-
-    HarnessPromptModeEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static HarnessPromptModeEnum fromValue(String value) {
-      for (HarnessPromptModeEnum b : HarnessPromptModeEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
-    }
-  }
-
-  public static final String JSON_PROPERTY_HARNESS_PROMPT_MODE = "harness_prompt_mode";
-  @javax.annotation.Nullable
-  private HarnessPromptModeEnum harnessPromptMode;
-
-  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
-  @javax.annotation.Nullable
-  private UUID workerId;
-
-  public static final String JSON_PROPERTY_MEMORY_MIB = "memory_mib";
-  @javax.annotation.Nullable
-  private Integer memoryMib;
-
-  public static final String JSON_PROPERTY_CPU_MILLIS = "cpu_millis";
-  @javax.annotation.Nullable
-  private Integer cpuMillis;
+  private UUID workspaceId;
 
   public RunCreate() { 
   }
-
-  public RunCreate prompt(@javax.annotation.Nonnull String prompt) {
-    this.prompt = prompt;
-    return this;
-  }
-
-  /**
-   * Get prompt
-   * @return prompt
-   */
-  @javax.annotation.Nonnull
-  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public String getPrompt() {
-    return prompt;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPrompt(@javax.annotation.Nonnull String prompt) {
-    this.prompt = prompt;
-  }
-
-
-  public RunCreate workspaceId(@javax.annotation.Nullable UUID workspaceId) {
-    this.workspaceId = workspaceId;
-    return this;
-  }
-
-  /**
-   * Get workspaceId
-   * @return workspaceId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getWorkspaceId() {
-    return workspaceId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
-    this.workspaceId = workspaceId;
-  }
-
-
-  public RunCreate worktreeId(@javax.annotation.Nullable UUID worktreeId) {
-    this.worktreeId = worktreeId;
-    return this;
-  }
-
-  /**
-   * Get worktreeId
-   * @return worktreeId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getWorktreeId() {
-    return worktreeId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
-    this.worktreeId = worktreeId;
-  }
-
-
-  public RunCreate sessionId(@javax.annotation.Nullable UUID sessionId) {
-    this.sessionId = sessionId;
-    return this;
-  }
-
-  /**
-   * Get sessionId
-   * @return sessionId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getSessionId() {
-    return sessionId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSessionId(@javax.annotation.Nullable UUID sessionId) {
-    this.sessionId = sessionId;
-  }
-
-
-  public RunCreate agentId(@javax.annotation.Nullable UUID agentId) {
-    this.agentId = agentId;
-    return this;
-  }
-
-  /**
-   * Get agentId
-   * @return agentId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_AGENT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getAgentId() {
-    return agentId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_AGENT_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAgentId(@javax.annotation.Nullable UUID agentId) {
-    this.agentId = agentId;
-  }
-
-
-  public RunCreate harness(@javax.annotation.Nullable HarnessEnum harness) {
-    this.harness = harness;
-    return this;
-  }
-
-  /**
-   * Get harness
-   * @return harness
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public HarnessEnum getHarness() {
-    return harness;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHarness(@javax.annotation.Nullable HarnessEnum harness) {
-    this.harness = harness;
-  }
-
-
-  public RunCreate model(@javax.annotation.Nullable String model) {
-    this.model = model;
-    return this;
-  }
-
-  /**
-   * Get model
-   * @return model
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public String getModel() {
-    return model;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setModel(@javax.annotation.Nullable String model) {
-    this.model = model;
-  }
-
-
-  public RunCreate billingMode(@javax.annotation.Nullable BillingModeEnum billingMode) {
-    this.billingMode = billingMode;
-    return this;
-  }
-
-  /**
-   * Get billingMode
-   * @return billingMode
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_BILLING_MODE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public BillingModeEnum getBillingMode() {
-    return billingMode;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_BILLING_MODE, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setBillingMode(@javax.annotation.Nullable BillingModeEnum billingMode) {
-    this.billingMode = billingMode;
-  }
-
-
-  public RunCreate providerConnectionId(@javax.annotation.Nullable UUID providerConnectionId) {
-    this.providerConnectionId = providerConnectionId;
-    return this;
-  }
-
-  /**
-   * Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-   * @return providerConnectionId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PROVIDER_CONNECTION_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getProviderConnectionId() {
-    return providerConnectionId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PROVIDER_CONNECTION_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setProviderConnectionId(@javax.annotation.Nullable UUID providerConnectionId) {
-    this.providerConnectionId = providerConnectionId;
-  }
-
-
-  public RunCreate connectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
-    this.connectionGrants = connectionGrants;
-    return this;
-  }
-
-  public RunCreate addConnectionGrantsItem(Grant connectionGrantsItem) {
-    if (this.connectionGrants == null) {
-      this.connectionGrants = new ArrayList<>();
-    }
-    this.connectionGrants.add(connectionGrantsItem);
-    return this;
-  }
-
-  /**
-   * Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-   * @return connectionGrants
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public List<Grant> getConnectionGrants() {
-    return connectionGrants;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setConnectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
-    this.connectionGrants = connectionGrants;
-  }
-
-
-  public RunCreate limits(@javax.annotation.Nullable Limits limits) {
-    this.limits = limits;
-    return this;
-  }
-
-  /**
-   * Get limits
-   * @return limits
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Limits getLimits() {
-    return limits;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLimits(@javax.annotation.Nullable Limits limits) {
-    this.limits = limits;
-  }
-
 
   public RunCreate webhookEndpointIds(@javax.annotation.Nullable List<UUID> webhookEndpointIds) {
     this.webhookEndpointIds = webhookEndpointIds;
@@ -615,104 +348,6 @@ public class RunCreate {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setWebhookEndpointIds(@javax.annotation.Nullable List<UUID> webhookEndpointIds) {
     this.webhookEndpointIds = webhookEndpointIds;
-  }
-
-
-  public RunCreate queueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-    return this;
-  }
-
-  /**
-   * Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-   * minimum: 1
-   * maximum: 86400
-   * @return queueTimeoutSeconds
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Integer getQueueTimeoutSeconds() {
-    return queueTimeoutSeconds;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-  }
-
-
-  public RunCreate schedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
-    return this;
-  }
-
-  /**
-   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-   * @return schedulingClass
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public SchedulingClassEnum getSchedulingClass() {
-    return schedulingClass;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSchedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
-  }
-
-
-  public RunCreate queueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
-    this.queueIfBusy = queueIfBusy;
-    return this;
-  }
-
-  /**
-   * Only session follow-ups can queue behind worktree work.
-   * @return queueIfBusy
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Boolean getQueueIfBusy() {
-    return queueIfBusy;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
-    this.queueIfBusy = queueIfBusy;
-  }
-
-
-  public RunCreate permissions(@javax.annotation.Nullable AgentPermissions permissions) {
-    this.permissions = permissions;
-    return this;
-  }
-
-  /**
-   * Get permissions
-   * @return permissions
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public AgentPermissions getPermissions() {
-    return permissions;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPermissions(@javax.annotation.Nullable AgentPermissions permissions) {
-    this.permissions = permissions;
   }
 
 
@@ -748,36 +383,77 @@ public class RunCreate {
   }
 
 
-  public RunCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
-    this.attachments = attachments;
-    return this;
-  }
-
-  public RunCreate addAttachmentsItem(String attachmentsItem) {
-    if (this.attachments == null) {
-      this.attachments = new LinkedHashSet<>();
-    }
-    this.attachments.add(attachmentsItem);
+  public RunCreate stream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
     return this;
   }
 
   /**
-   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-   * @return attachments
+   * Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
+   * @return stream
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Set<String> getAttachments() {
-    return attachments;
+  public Boolean getStream() {
+    return stream;
   }
 
 
-  @JsonDeserialize(as = LinkedHashSet.class)
-  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonProperty(value = JSON_PROPERTY_STREAM, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
-    this.attachments = attachments;
+  public void setStream(@javax.annotation.Nullable Boolean stream) {
+    this.stream = stream;
+  }
+
+
+  public RunCreate prompt(@javax.annotation.Nonnull String prompt) {
+    this.prompt = prompt;
+    return this;
+  }
+
+  /**
+   * Get prompt
+   * @return prompt
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public String getPrompt() {
+    return prompt;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PROMPT, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setPrompt(@javax.annotation.Nonnull String prompt) {
+    this.prompt = prompt;
+  }
+
+
+  public RunCreate queueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
+    this.queueTimeoutSeconds = queueTimeoutSeconds;
+    return this;
+  }
+
+  /**
+   * Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+   * minimum: 1
+   * maximum: 86400
+   * @return queueTimeoutSeconds
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Integer getQueueTimeoutSeconds() {
+    return queueTimeoutSeconds;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setQueueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
+    this.queueTimeoutSeconds = queueTimeoutSeconds;
   }
 
 
@@ -805,51 +481,27 @@ public class RunCreate {
   }
 
 
-  public RunCreate harnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
-    this.harnessPromptMode = harnessPromptMode;
+  public RunCreate harness(@javax.annotation.Nullable HarnessEnum harness) {
+    this.harness = harness;
     return this;
   }
 
   /**
-   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
-   * @return harnessPromptMode
+   * Get harness
+   * @return harness
    */
   @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public HarnessPromptModeEnum getHarnessPromptMode() {
-    return harnessPromptMode;
+  public HarnessEnum getHarness() {
+    return harness;
   }
 
 
-  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonProperty(value = JSON_PROPERTY_HARNESS, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHarnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
-    this.harnessPromptMode = harnessPromptMode;
-  }
-
-
-  public RunCreate workerId(@javax.annotation.Nullable UUID workerId) {
-    this.workerId = workerId;
-    return this;
-  }
-
-  /**
-   * Get workerId
-   * @return workerId
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public UUID getWorkerId() {
-    return workerId;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
-    this.workerId = workerId;
+  public void setHarness(@javax.annotation.Nullable HarnessEnum harness) {
+    this.harness = harness;
   }
 
 
@@ -905,6 +557,383 @@ public class RunCreate {
   }
 
 
+  public RunCreate agentId(@javax.annotation.Nullable UUID agentId) {
+    this.agentId = agentId;
+    return this;
+  }
+
+  /**
+   * Get agentId
+   * @return agentId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_AGENT_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getAgentId() {
+    return agentId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_AGENT_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAgentId(@javax.annotation.Nullable UUID agentId) {
+    this.agentId = agentId;
+  }
+
+
+  public RunCreate harnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
+    this.harnessPromptMode = harnessPromptMode;
+    return this;
+  }
+
+  /**
+   * OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+   * @return harnessPromptMode
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public HarnessPromptModeEnum getHarnessPromptMode() {
+    return harnessPromptMode;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_HARNESS_PROMPT_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setHarnessPromptMode(@javax.annotation.Nullable HarnessPromptModeEnum harnessPromptMode) {
+    this.harnessPromptMode = harnessPromptMode;
+  }
+
+
+  public RunCreate sessionId(@javax.annotation.Nullable UUID sessionId) {
+    this.sessionId = sessionId;
+    return this;
+  }
+
+  /**
+   * Get sessionId
+   * @return sessionId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getSessionId() {
+    return sessionId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSessionId(@javax.annotation.Nullable UUID sessionId) {
+    this.sessionId = sessionId;
+  }
+
+
+  public RunCreate connectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
+    this.connectionGrants = connectionGrants;
+    return this;
+  }
+
+  public RunCreate addConnectionGrantsItem(Grant connectionGrantsItem) {
+    if (this.connectionGrants == null) {
+      this.connectionGrants = new ArrayList<>();
+    }
+    this.connectionGrants.add(connectionGrantsItem);
+    return this;
+  }
+
+  /**
+   * Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+   * @return connectionGrants
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public List<Grant> getConnectionGrants() {
+    return connectionGrants;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CONNECTION_GRANTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setConnectionGrants(@javax.annotation.Nullable List<Grant> connectionGrants) {
+    this.connectionGrants = connectionGrants;
+  }
+
+
+  public RunCreate workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+    return this;
+  }
+
+  /**
+   * Get workerId
+   * @return workerId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorkerId() {
+    return workerId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = workerId;
+  }
+
+
+  public RunCreate schedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
+    this.schedulingClass = schedulingClass;
+    return this;
+  }
+
+  /**
+   * Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+   * @return schedulingClass
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public SchedulingClassEnum getSchedulingClass() {
+    return schedulingClass;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSchedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
+    this.schedulingClass = schedulingClass;
+  }
+
+
+  public RunCreate model(@javax.annotation.Nullable String model) {
+    this.model = model;
+    return this;
+  }
+
+  /**
+   * Get model
+   * @return model
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getModel() {
+    return model;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MODEL, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setModel(@javax.annotation.Nullable String model) {
+    this.model = model;
+  }
+
+
+  public RunCreate billingMode(@javax.annotation.Nullable BillingModeEnum billingMode) {
+    this.billingMode = billingMode;
+    return this;
+  }
+
+  /**
+   * Get billingMode
+   * @return billingMode
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_BILLING_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public BillingModeEnum getBillingMode() {
+    return billingMode;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_BILLING_MODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setBillingMode(@javax.annotation.Nullable BillingModeEnum billingMode) {
+    this.billingMode = billingMode;
+  }
+
+
+  public RunCreate limits(@javax.annotation.Nullable Limits limits) {
+    this.limits = limits;
+    return this;
+  }
+
+  /**
+   * Get limits
+   * @return limits
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Limits getLimits() {
+    return limits;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_LIMITS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLimits(@javax.annotation.Nullable Limits limits) {
+    this.limits = limits;
+  }
+
+
+  public RunCreate worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
+    return this;
+  }
+
+  /**
+   * Get worktreeId
+   * @return worktreeId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorktreeId() {
+    return worktreeId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = worktreeId;
+  }
+
+
+  public RunCreate queueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
+    this.queueIfBusy = queueIfBusy;
+    return this;
+  }
+
+  /**
+   * Only session follow-ups can queue behind worktree work.
+   * @return queueIfBusy
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getQueueIfBusy() {
+    return queueIfBusy;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_QUEUE_IF_BUSY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setQueueIfBusy(@javax.annotation.Nullable Boolean queueIfBusy) {
+    this.queueIfBusy = queueIfBusy;
+  }
+
+
+  public RunCreate providerConnectionId(@javax.annotation.Nullable UUID providerConnectionId) {
+    this.providerConnectionId = providerConnectionId;
+    return this;
+  }
+
+  /**
+   * Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+   * @return providerConnectionId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_PROVIDER_CONNECTION_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getProviderConnectionId() {
+    return providerConnectionId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PROVIDER_CONNECTION_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setProviderConnectionId(@javax.annotation.Nullable UUID providerConnectionId) {
+    this.providerConnectionId = providerConnectionId;
+  }
+
+
+  public RunCreate permissions(@javax.annotation.Nullable AgentPermissions permissions) {
+    this.permissions = permissions;
+    return this;
+  }
+
+  /**
+   * Get permissions
+   * @return permissions
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public AgentPermissions getPermissions() {
+    return permissions;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_PERMISSIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setPermissions(@javax.annotation.Nullable AgentPermissions permissions) {
+    this.permissions = permissions;
+  }
+
+
+  public RunCreate attachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+    return this;
+  }
+
+  public RunCreate addAttachmentsItem(String attachmentsItem) {
+    if (this.attachments == null) {
+      this.attachments = new LinkedHashSet<>();
+    }
+    this.attachments.add(attachmentsItem);
+    return this;
+  }
+
+  /**
+   * Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+   * @return attachments
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Set<String> getAttachments() {
+    return attachments;
+  }
+
+
+  @JsonDeserialize(as = LinkedHashSet.class)
+  @JsonProperty(value = JSON_PROPERTY_ATTACHMENTS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAttachments(@javax.annotation.Nullable Set<String> attachments) {
+    this.attachments = attachments;
+  }
+
+
+  public RunCreate workspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
+    return this;
+  }
+
+  /**
+   * Get workspaceId
+   * @return workspaceId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getWorkspaceId() {
+    return workspaceId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WORKSPACE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWorkspaceId(@javax.annotation.Nullable UUID workspaceId) {
+    this.workspaceId = workspaceId;
+  }
+
+
   /**
    * Return true if this RunCreate object is equal to o.
    */
@@ -917,63 +946,65 @@ public class RunCreate {
       return false;
     }
     RunCreate runCreate = (RunCreate) o;
-    return Objects.equals(this.prompt, runCreate.prompt) &&
-        Objects.equals(this.workspaceId, runCreate.workspaceId) &&
-        Objects.equals(this.worktreeId, runCreate.worktreeId) &&
-        Objects.equals(this.sessionId, runCreate.sessionId) &&
-        Objects.equals(this.agentId, runCreate.agentId) &&
+    return Objects.equals(this.webhookEndpointIds, runCreate.webhookEndpointIds) &&
+        Objects.equals(this.connectionAccessOverrides, runCreate.connectionAccessOverrides) &&
+        Objects.equals(this.stream, runCreate.stream) &&
+        Objects.equals(this.prompt, runCreate.prompt) &&
+        Objects.equals(this.queueTimeoutSeconds, runCreate.queueTimeoutSeconds) &&
+        Objects.equals(this.modelParameters, runCreate.modelParameters) &&
         Objects.equals(this.harness, runCreate.harness) &&
+        Objects.equals(this.memoryMib, runCreate.memoryMib) &&
+        Objects.equals(this.cpuMillis, runCreate.cpuMillis) &&
+        Objects.equals(this.agentId, runCreate.agentId) &&
+        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode) &&
+        Objects.equals(this.sessionId, runCreate.sessionId) &&
+        Objects.equals(this.connectionGrants, runCreate.connectionGrants) &&
+        Objects.equals(this.workerId, runCreate.workerId) &&
+        Objects.equals(this.schedulingClass, runCreate.schedulingClass) &&
         Objects.equals(this.model, runCreate.model) &&
         Objects.equals(this.billingMode, runCreate.billingMode) &&
-        Objects.equals(this.providerConnectionId, runCreate.providerConnectionId) &&
-        Objects.equals(this.connectionGrants, runCreate.connectionGrants) &&
         Objects.equals(this.limits, runCreate.limits) &&
-        Objects.equals(this.webhookEndpointIds, runCreate.webhookEndpointIds) &&
-        Objects.equals(this.queueTimeoutSeconds, runCreate.queueTimeoutSeconds) &&
-        Objects.equals(this.schedulingClass, runCreate.schedulingClass) &&
+        Objects.equals(this.worktreeId, runCreate.worktreeId) &&
         Objects.equals(this.queueIfBusy, runCreate.queueIfBusy) &&
+        Objects.equals(this.providerConnectionId, runCreate.providerConnectionId) &&
         Objects.equals(this.permissions, runCreate.permissions) &&
-        Objects.equals(this.connectionAccessOverrides, runCreate.connectionAccessOverrides) &&
         Objects.equals(this.attachments, runCreate.attachments) &&
-        Objects.equals(this.modelParameters, runCreate.modelParameters) &&
-        Objects.equals(this.harnessPromptMode, runCreate.harnessPromptMode) &&
-        Objects.equals(this.workerId, runCreate.workerId) &&
-        Objects.equals(this.memoryMib, runCreate.memoryMib) &&
-        Objects.equals(this.cpuMillis, runCreate.cpuMillis);
+        Objects.equals(this.workspaceId, runCreate.workspaceId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(prompt, workspaceId, worktreeId, sessionId, agentId, harness, model, billingMode, providerConnectionId, connectionGrants, limits, webhookEndpointIds, queueTimeoutSeconds, schedulingClass, queueIfBusy, permissions, connectionAccessOverrides, attachments, modelParameters, harnessPromptMode, workerId, memoryMib, cpuMillis);
+    return Objects.hash(webhookEndpointIds, connectionAccessOverrides, stream, prompt, queueTimeoutSeconds, modelParameters, harness, memoryMib, cpuMillis, agentId, harnessPromptMode, sessionId, connectionGrants, workerId, schedulingClass, model, billingMode, limits, worktreeId, queueIfBusy, providerConnectionId, permissions, attachments, workspaceId);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class RunCreate {\n");
-    sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
-    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
-    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
-    sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
-    sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
-    sb.append("    harness: ").append(toIndentedString(harness)).append("\n");
-    sb.append("    model: ").append(toIndentedString(model)).append("\n");
-    sb.append("    billingMode: ").append(toIndentedString(billingMode)).append("\n");
-    sb.append("    providerConnectionId: ").append(toIndentedString(providerConnectionId)).append("\n");
-    sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
-    sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
     sb.append("    webhookEndpointIds: ").append(toIndentedString(webhookEndpointIds)).append("\n");
-    sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
-    sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
-    sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
-    sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("    connectionAccessOverrides: ").append(toIndentedString(connectionAccessOverrides)).append("\n");
-    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
+    sb.append("    prompt: ").append(toIndentedString(prompt)).append("\n");
+    sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
-    sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
-    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
+    sb.append("    harness: ").append(toIndentedString(harness)).append("\n");
     sb.append("    memoryMib: ").append(toIndentedString(memoryMib)).append("\n");
     sb.append("    cpuMillis: ").append(toIndentedString(cpuMillis)).append("\n");
+    sb.append("    agentId: ").append(toIndentedString(agentId)).append("\n");
+    sb.append("    harnessPromptMode: ").append(toIndentedString(harnessPromptMode)).append("\n");
+    sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
+    sb.append("    connectionGrants: ").append(toIndentedString(connectionGrants)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
+    sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
+    sb.append("    model: ").append(toIndentedString(model)).append("\n");
+    sb.append("    billingMode: ").append(toIndentedString(billingMode)).append("\n");
+    sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
+    sb.append("    queueIfBusy: ").append(toIndentedString(queueIfBusy)).append("\n");
+    sb.append("    providerConnectionId: ").append(toIndentedString(providerConnectionId)).append("\n");
+    sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
+    sb.append("    attachments: ").append(toIndentedString(attachments)).append("\n");
+    sb.append("    workspaceId: ").append(toIndentedString(workspaceId)).append("\n");
     sb.append("}");
     return sb.toString();
   }

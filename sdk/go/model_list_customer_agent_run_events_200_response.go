@@ -15,39 +15,39 @@ import (
 	"fmt"
 )
 
-// checks if the ListRunEvents200Response type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &ListRunEvents200Response{}
+// checks if the ListCustomerAgentRunEvents200Response type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &ListCustomerAgentRunEvents200Response{}
 
-// ListRunEvents200Response struct for ListRunEvents200Response
-type ListRunEvents200Response struct {
+// ListCustomerAgentRunEvents200Response struct for ListCustomerAgentRunEvents200Response
+type ListCustomerAgentRunEvents200Response struct {
 	Data []Event `json:"data"`
 	NextCursor NullableString `json:"next_cursor"`
 	AdditionalProperties map[string]interface{}
 }
 
-type _ListRunEvents200Response ListRunEvents200Response
+type _ListCustomerAgentRunEvents200Response ListCustomerAgentRunEvents200Response
 
-// NewListRunEvents200Response instantiates a new ListRunEvents200Response object
+// NewListCustomerAgentRunEvents200Response instantiates a new ListCustomerAgentRunEvents200Response object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewListRunEvents200Response(data []Event, nextCursor NullableString) *ListRunEvents200Response {
-	this := ListRunEvents200Response{}
+func NewListCustomerAgentRunEvents200Response(data []Event, nextCursor NullableString) *ListCustomerAgentRunEvents200Response {
+	this := ListCustomerAgentRunEvents200Response{}
 	this.Data = data
 	this.NextCursor = nextCursor
 	return &this
 }
 
-// NewListRunEvents200ResponseWithDefaults instantiates a new ListRunEvents200Response object
+// NewListCustomerAgentRunEvents200ResponseWithDefaults instantiates a new ListCustomerAgentRunEvents200Response object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewListRunEvents200ResponseWithDefaults() *ListRunEvents200Response {
-	this := ListRunEvents200Response{}
+func NewListCustomerAgentRunEvents200ResponseWithDefaults() *ListCustomerAgentRunEvents200Response {
+	this := ListCustomerAgentRunEvents200Response{}
 	return &this
 }
 
 // GetData returns the Data field value
-func (o *ListRunEvents200Response) GetData() []Event {
+func (o *ListCustomerAgentRunEvents200Response) GetData() []Event {
 	if o == nil {
 		var ret []Event
 		return ret
@@ -58,7 +58,7 @@ func (o *ListRunEvents200Response) GetData() []Event {
 
 // GetDataOk returns a tuple with the Data field value
 // and a boolean to check if the value has been set.
-func (o *ListRunEvents200Response) GetDataOk() ([]Event, bool) {
+func (o *ListCustomerAgentRunEvents200Response) GetDataOk() ([]Event, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -66,13 +66,13 @@ func (o *ListRunEvents200Response) GetDataOk() ([]Event, bool) {
 }
 
 // SetData sets field value
-func (o *ListRunEvents200Response) SetData(v []Event) {
+func (o *ListCustomerAgentRunEvents200Response) SetData(v []Event) {
 	o.Data = v
 }
 
 // GetNextCursor returns the NextCursor field value
 // If the value is explicit nil, the zero value for string will be returned
-func (o *ListRunEvents200Response) GetNextCursor() string {
+func (o *ListCustomerAgentRunEvents200Response) GetNextCursor() string {
 	if o == nil || o.NextCursor.Get() == nil {
 		var ret string
 		return ret
@@ -84,7 +84,7 @@ func (o *ListRunEvents200Response) GetNextCursor() string {
 // GetNextCursorOk returns a tuple with the NextCursor field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *ListRunEvents200Response) GetNextCursorOk() (*string, bool) {
+func (o *ListCustomerAgentRunEvents200Response) GetNextCursorOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -92,11 +92,11 @@ func (o *ListRunEvents200Response) GetNextCursorOk() (*string, bool) {
 }
 
 // SetNextCursor sets field value
-func (o *ListRunEvents200Response) SetNextCursor(v string) {
+func (o *ListCustomerAgentRunEvents200Response) SetNextCursor(v string) {
 	o.NextCursor.Set(&v)
 }
 
-func (o ListRunEvents200Response) MarshalJSON() ([]byte, error) {
+func (o ListCustomerAgentRunEvents200Response) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -104,7 +104,7 @@ func (o ListRunEvents200Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o ListRunEvents200Response) ToMap() (map[string]interface{}, error) {
+func (o ListCustomerAgentRunEvents200Response) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["data"] = o.Data
 	toSerialize["next_cursor"] = o.NextCursor.Get()
@@ -116,7 +116,7 @@ func (o ListRunEvents200Response) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-func (o *ListRunEvents200Response) UnmarshalJSON(data []byte) (err error) {
+func (o *ListCustomerAgentRunEvents200Response) UnmarshalJSON(data []byte) (err error) {
 	// This validates that all required properties are included in the JSON object
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
@@ -139,15 +139,15 @@ func (o *ListRunEvents200Response) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	varListRunEvents200Response := _ListRunEvents200Response{}
+	varListCustomerAgentRunEvents200Response := _ListCustomerAgentRunEvents200Response{}
 
-	err = json.Unmarshal(data, &varListRunEvents200Response)
+	err = json.Unmarshal(data, &varListCustomerAgentRunEvents200Response)
 
 	if err != nil {
 		return err
 	}
 
-	*o = ListRunEvents200Response(varListRunEvents200Response)
+	*o = ListCustomerAgentRunEvents200Response(varListCustomerAgentRunEvents200Response)
 
 	additionalProperties := make(map[string]interface{})
 
@@ -160,38 +160,38 @@ func (o *ListRunEvents200Response) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-type NullableListRunEvents200Response struct {
-	value *ListRunEvents200Response
+type NullableListCustomerAgentRunEvents200Response struct {
+	value *ListCustomerAgentRunEvents200Response
 	isSet bool
 }
 
-func (v NullableListRunEvents200Response) Get() *ListRunEvents200Response {
+func (v NullableListCustomerAgentRunEvents200Response) Get() *ListCustomerAgentRunEvents200Response {
 	return v.value
 }
 
-func (v *NullableListRunEvents200Response) Set(val *ListRunEvents200Response) {
+func (v *NullableListCustomerAgentRunEvents200Response) Set(val *ListCustomerAgentRunEvents200Response) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableListRunEvents200Response) IsSet() bool {
+func (v NullableListCustomerAgentRunEvents200Response) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableListRunEvents200Response) Unset() {
+func (v *NullableListCustomerAgentRunEvents200Response) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableListRunEvents200Response(val *ListRunEvents200Response) *NullableListRunEvents200Response {
-	return &NullableListRunEvents200Response{value: val, isSet: true}
+func NewNullableListCustomerAgentRunEvents200Response(val *ListCustomerAgentRunEvents200Response) *NullableListCustomerAgentRunEvents200Response {
+	return &NullableListCustomerAgentRunEvents200Response{value: val, isSet: true}
 }
 
-func (v NullableListRunEvents200Response) MarshalJSON() ([]byte, error) {
+func (v NullableListCustomerAgentRunEvents200Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableListRunEvents200Response) UnmarshalJSON(src []byte) error {
+func (v *NullableListCustomerAgentRunEvents200Response) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

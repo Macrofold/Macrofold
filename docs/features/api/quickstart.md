@@ -55,6 +55,8 @@ Run `python example.py`. You'll see the agent's response after execution and fil
 
 ## Next steps
 
+- [Stream direct model calls or agent output](streaming.md), with complete REST and SDK examples.
+
 - [Approve connector access](../identity-integrations/connection-access.md) and choose inherited, specific, or no tools.
 
 - [Stream text](../../../sdk/python/README.md#text-structured-events-or-a-complete-result) as the agent works.

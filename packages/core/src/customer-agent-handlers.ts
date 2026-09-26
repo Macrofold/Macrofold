@@ -55,6 +55,7 @@ export function customerAgentHandlers(core: Primitives): HandlerMap {
         {
           prompt: value.prompt,
           attachments: value.attachments,
+          stream: value.stream,
           limits: value.limits,
           queue_if_busy: value.queue_if_busy,
           ...(value.conversation_id

@@ -87,11 +87,11 @@ pub async fn list_webhook_deliveries(configuration: &configuration::Configuratio
 }
 
 ///
-pub async fn replay_webhook_delivery(configuration: &configuration::Configuration, delivery_id: &str, idempotency_key: &str, body: serde_json::Value, x_organization_id: Option<&str>) -> Result<models::Operation, Error<ReplayWebhookDeliveryError>> {
+pub async fn replay_webhook_delivery(configuration: &configuration::Configuration, delivery_id: &str, idempotency_key: &str, request_body: std::collections::HashMap<String, serde_json::Value>, x_organization_id: Option<&str>) -> Result<models::Operation, Error<ReplayWebhookDeliveryError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_path_delivery_id = delivery_id;
     let p_header_idempotency_key = idempotency_key;
-    let p_body_body = body;
+    let p_body_request_body = request_body;
     let p_header_x_organization_id = x_organization_id;
 
     let uri_str = format!("{}/v1/webhook-deliveries/{delivery_id}/replay", configuration.base_path, delivery_id=crate::apis::urlencode(p_path_delivery_id));
@@ -110,7 +110,7 @@ pub async fn replay_webhook_delivery(configuration: &configuration::Configuratio
     if let Some(ref token) = configuration.bearer_access_token {
         req_builder = req_builder.bearer_auth(token.to_owned());
     };
-    req_builder = req_builder.json(&p_body_body);
+    req_builder = req_builder.json(&p_body_request_body);
 
     let req = req_builder.build()?;
     let resp = configuration.client.execute(req).await?;

@@ -57,6 +57,43 @@ var client = Macrofold.builder()
     .build();
 ```
 
+## Stream a model response
+
+For a direct model call without a harness, use `inferences.stream` (Go: `Inferences.Stream`). The helper sets `stream: true`. Set `MACROFOLD_API_KEY` with `runs:write` and `runs:read`; this example requires a configured Anthropic provider and managed credit. Its $0.10 budget is a ceiling, not a price estimate. Workspace-restricted keys must also supply their authorized `workspace_id`.
+
+```java
+import dev.macrofold.Macrofold;
+import dev.macrofold.model.DecisionBinding;
+import dev.macrofold.model.InferenceCreate;
+import dev.macrofold.model.InferenceLimits;
+import java.util.List;
+import java.util.Map;
+
+public class StreamExample {
+    public static void main(String[] args) throws Exception {
+        var client = new Macrofold();
+        var request = new InferenceCreate()
+            .modelBinding(new DecisionBinding()
+                .provider(DecisionBinding.ProviderEnum.ANTHROPIC)
+                .model("claude-haiku-4-5-20251001")
+                .billingMode(DecisionBinding.BillingModeEnum.MANAGED))
+            .input(Map.of("messages", List.of(Map.of(
+                "role", "user", "content", "Explain worktrees in two sentences.")), "max_tokens", 256))
+            .limits(new InferenceLimits().timeoutSeconds(60).maxOutputTokens(256).maxCostMicroUsd("100000"));
+        client.inferences().stream(request, event -> {
+            if (event.getType().equals("run.accepted")) System.out.println("Run: " + event.getRunId());
+            if (event.getType().equals("output.delta")) System.out.print(event.getData().getText());
+            if (event.getType().startsWith("run.") && !event.getType().equals("run.accepted")) {
+                System.out.println(event.getType() + " " + event.getData().getResult());
+            }
+            return true;
+        });
+    }
+}
+```
+
+Direct events are live-only and do not reconnect or replay tokens. Save the accepted run ID to retrieve its final result after a disconnect; detaching leaves execution running. Terminal failures arrive as events, so inspect them even when the helper returns normally. For recovery across process restarts, persist your own idempotency key using the request options described below. See [streaming](../../docs/features/api/streaming.md) for supported providers, events, limits, and REST examples.
+
 ## Resource methods
 
 `client.runs().get(id)` fetches a run; `client.runs().cancel(id)` cancels it. Query/header options use named parameter classes: `client.workspaces().list(new Resources.ListWorkspacesParams().limit(20))`. `client.workspaces().list()` uses defaults. Import `dev.macrofold.Resources` for parameter classes.

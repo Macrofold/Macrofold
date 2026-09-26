@@ -184,6 +184,8 @@ class Client(Resources):
 
     def request(self, operation: str, **kwargs: Any) -> Any:
         """`path`, `query`, `body`, `headers`, `idempotency_key` map directly to OpenAPI."""
+        if operation == "createInference" and isinstance(kwargs.get("body"), dict) and kwargs["body"].get("stream") is True:
+            raise ValueError("Use inferences.stream(request) for incremental inference output.")
         if operation in ROUTES and ROUTES[operation]["method"] not in {"GET", "HEAD"}:
             kwargs["idempotency_key"] = kwargs.get("idempotency_key") or str(uuid.uuid4())
         response = self._raw(operation, **kwargs)
@@ -207,6 +209,25 @@ class Client(Resources):
             time.sleep(0.75)
         raise TransportError(f"Operation {operation_id} is still pending; inspect its ID later")
 
+    def stream_inference(self, body: Mapping[str, Any], *, idempotency_key: str | None = None, headers: Mapping[str, str] | None = None) -> Generator[dict[str, Any], None, None]:
+        """Deliver a single POST stream. Closing detaches; recover using its run ID."""
+        identity = idempotency_key or str(uuid.uuid4())
+        response = self._raw("createInference", body={**body, "stream": True}, idempotency_key=identity, headers={**(headers or {}), "Accept": "text/event-stream"}, stream=True)
+        try:
+            if "text/event-stream" not in response.headers.get("content-type", ""):
+                raise TransportError("Expected a direct event stream.", identity)
+            for event in _sse_events(response):
+                yield event
+                if event.get("type") == "transport.error":
+                    raise TransportError("Stream interrupted; retrieve the saved run result.", identity)
+                if event.get("type") in {f"run.{status}" for status in TERMINAL}:
+                    return
+            raise TransportError("Stream ended before its terminal result; retrieve the saved run result.", identity)
+        except (ValueError, httpx.TransportError) as error:
+            raise TransportError("Stream interrupted; retrieve the saved run result.", identity) from error
+        finally:
+            response.close()
+
     def stream(self, run_id: str, *, after: str = "0") -> Generator[dict[str, Any], None, None]:
         return self._stream_path(run_id, {"run_id": run_id}, ("streamRun", "getRun", "listRunEvents"), after)
 
@@ -222,24 +243,13 @@ class Client(Resources):
             try:
                 response = self._raw(operations[0], path=path, query={"after": str(cursor)}, headers={"Accept": "text/event-stream", "Last-Event-ID": str(cursor)}, stream=True)
                 try:
-                    data: list[str] = []
-                    size = 0
-                    for line in response.iter_lines():
-                        size += len(line.encode())
-                        if size > 4 * 1024 * 1024:
-                            raise ValueError("SSE frame exceeds 4 MiB")
-                        if not line:
-                            if data:
-                                event = json.loads("\n".join(data))
-                                sequence = str(event.get("sequence", ""))
-                                if re.fullmatch(r"\d+", sequence) and int(sequence) > cursor:
-                                    cursor, failures = int(sequence), 0
-                                    yield event
-                                    if event.get("type") in {f"run.{status}" for status in TERMINAL}:
-                                        return
-                            data, size = [], 0
-                        elif line.startswith("data:"):
-                            data.append(line[5:].removeprefix(" "))
+                    for event in _sse_events(response):
+                        sequence = str(event.get("sequence", ""))
+                        if re.fullmatch(r"\d+", sequence) and int(sequence) > cursor:
+                            cursor, failures = int(sequence), 0
+                            yield event
+                            if event.get("type") in {f"run.{status}" for status in TERMINAL}:
+                                return
                 finally:
                     response.close()
                 run = self.request(operations[1], path=path)
@@ -254,3 +264,18 @@ class Client(Resources):
                 if failures > 8:
                     raise TransportError(f"Stream for {run_id} disconnected. Reattach after {cursor}.") from error
             time.sleep(min(10, 0.25 * 2**failures))
+
+
+def _sse_events(response: httpx.Response) -> Generator[dict[str, Any], None, None]:
+    data: list[str] = []
+    size = 0
+    for line in response.iter_lines():
+        size += len(line.encode())
+        if size > 4 * 1024 * 1024:
+            raise ValueError("SSE frame exceeds 4 MiB")
+        if not line:
+            if data:
+                yield json.loads("\n".join(data))
+            data, size = [], 0
+        elif line.startswith("data:"):
+            data.append(line[5:].removeprefix(" "))

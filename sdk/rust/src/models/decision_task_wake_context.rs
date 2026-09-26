@@ -15,12 +15,12 @@ use serde_repr::{Serialize_repr,Deserialize_repr};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum InferenceCreateContext {
+pub enum DecisionTaskWakeContext {
     ExplicitContext(Box<models::ExplicitContext>),
     ContextReference(Box<models::ContextReference>),
 }
 
-impl Default for InferenceCreateContext {
+impl Default for DecisionTaskWakeContext {
     fn default() -> Self {
         Self::ExplicitContext(Default::default())
     }

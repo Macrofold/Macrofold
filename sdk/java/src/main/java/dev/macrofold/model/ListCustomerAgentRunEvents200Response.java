@@ -33,14 +33,14 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import dev.macrofold.ApiClient;
 /**
- * ListRunEvents200Response
+ * ListCustomerAgentRunEvents200Response
  */
 @JsonPropertyOrder({
-  ListRunEvents200Response.JSON_PROPERTY_DATA,
-  ListRunEvents200Response.JSON_PROPERTY_NEXT_CURSOR
+  ListCustomerAgentRunEvents200Response.JSON_PROPERTY_DATA,
+  ListCustomerAgentRunEvents200Response.JSON_PROPERTY_NEXT_CURSOR
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
-public class ListRunEvents200Response {
+public class ListCustomerAgentRunEvents200Response {
   public static final String JSON_PROPERTY_DATA = "data";
   @javax.annotation.Nonnull
   private List<Event> data = new ArrayList<>();
@@ -49,15 +49,15 @@ public class ListRunEvents200Response {
   @javax.annotation.Nullable
   private String nextCursor;
 
-  public ListRunEvents200Response() { 
+  public ListCustomerAgentRunEvents200Response() { 
   }
 
-  public ListRunEvents200Response data(@javax.annotation.Nonnull List<Event> data) {
+  public ListCustomerAgentRunEvents200Response data(@javax.annotation.Nonnull List<Event> data) {
     this.data = data;
     return this;
   }
 
-  public ListRunEvents200Response addDataItem(Event dataItem) {
+  public ListCustomerAgentRunEvents200Response addDataItem(Event dataItem) {
     if (this.data == null) {
       this.data = new ArrayList<>();
     }
@@ -84,7 +84,7 @@ public class ListRunEvents200Response {
   }
 
 
-  public ListRunEvents200Response nextCursor(@javax.annotation.Nullable String nextCursor) {
+  public ListCustomerAgentRunEvents200Response nextCursor(@javax.annotation.Nullable String nextCursor) {
     this.nextCursor = nextCursor;
     return this;
   }
@@ -109,7 +109,7 @@ public class ListRunEvents200Response {
 
 
   /**
-   * Return true if this listRunEvents_200_response object is equal to o.
+   * Return true if this listCustomerAgentRunEvents_200_response object is equal to o.
    */
   @Override
   public boolean equals(Object o) {
@@ -119,9 +119,9 @@ public class ListRunEvents200Response {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ListRunEvents200Response listRunEvents200Response = (ListRunEvents200Response) o;
-    return Objects.equals(this.data, listRunEvents200Response.data) &&
-        Objects.equals(this.nextCursor, listRunEvents200Response.nextCursor);
+    ListCustomerAgentRunEvents200Response listCustomerAgentRunEvents200Response = (ListCustomerAgentRunEvents200Response) o;
+    return Objects.equals(this.data, listCustomerAgentRunEvents200Response.data) &&
+        Objects.equals(this.nextCursor, listCustomerAgentRunEvents200Response.nextCursor);
   }
 
   @Override
@@ -132,7 +132,7 @@ public class ListRunEvents200Response {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ListRunEvents200Response {\n");
+    sb.append("class ListCustomerAgentRunEvents200Response {\n");
     sb.append("    data: ").append(toIndentedString(data)).append("\n");
     sb.append("    nextCursor: ").append(toIndentedString(nextCursor)).append("\n");
     sb.append("}");

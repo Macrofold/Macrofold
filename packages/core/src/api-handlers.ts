@@ -720,7 +720,7 @@ const primitiveHandlers = {
           ? 'simulation'
           : process.env[`${h.id.replace('-', '_').toUpperCase()}_VERSION`] || 'configured',
         enabled: true,
-        capabilities: Object.keys(h.capabilities),
+        capabilities: Object.entries(h.capabilities).filter(([, enabled]) => enabled).map(([name]) => name),
       })),
     ),
   listModels: async (c) =>

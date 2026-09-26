@@ -12,129 +12,914 @@ if TYPE_CHECKING:
     from .client import Client
 DEFAULT_ORIGIN = "https://app.macrofold.ai"
 
-class WorkspacesResource:
+class TasksResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def cancel_deletion(self, workspace_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Workspace:
+    def close_decision(self, task_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DecisionTask:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("cancelWorkspaceDeletion",
-            path=parameters({"workspace_id": workspace_id}),
+        result = self._client.request("closeDecisionTask",
+            path=parameters({"task_id": task_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.Workspace, result, identity)
+        return decode(models.DecisionTask, result, identity)
 
-    def create(self, *, name: str, persistence: Literal["persistent", "ephemeral"] | Omit = OMIT, github: params.CreateWorkspaceGithubParams | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+    def create_decision(self, *, workspace_id: str | UUID, objective: str, decide: params.TaskStepDefinitionParams, investigate: params.TaskStepDefinitionParams | Omit = OMIT, investigate_when: object | Omit = OMIT, max_cost_micro_usd: str, max_runs: int, evidence_horizon_seconds: int, request_options: RequestOptions | None = None) -> models.DecisionTask:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createWorkspace",
+        result = self._client.request("createDecisionTask",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"persistence": persistence,"github": github,"permissions": permissions}),
+            body=payload({"workspace_id": workspace_id,"objective": objective,"decide": decide,"investigate": investigate,"investigate_when": investigate_when,"max_cost_micro_usd": max_cost_micro_usd,"max_runs": max_runs,"evidence_horizon_seconds": evidence_horizon_seconds}),
         )
-        return decode(models.Workspace, result, identity)
+        return decode(models.DecisionTask, result, identity)
 
-    def create_worktree(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, checkpoint_id: str | UUID | Omit = OMIT, branch: str | Omit = OMIT, source: params.WorktreeSourceParams | Omit = OMIT, branch_mode: Literal["auto", "new", "existing"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
+    def get_decision(self, task_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DecisionTask:
         options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createWorktree",
-            path=parameters({"workspace_id": workspace_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"checkpoint_id": checkpoint_id,"branch": branch,"source": source,"branch_mode": branch_mode,"permissions": permissions}),
-        )
-        return decode(models.Operation, result, identity)
-
-    def delete(self, workspace_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteWorkspace",
-            path=parameters({"workspace_id": workspace_id}),
+        identity = options.identity(False)
+        result = self._client.request("getDecisionTask",
+            path=parameters({"task_id": task_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.Operation, result, identity)
+        return decode(models.DecisionTask, result, identity)
 
-    def get(self, workspace_id: str | UUID, *, include_connections: bool | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+    def record_outcome(self, task_id: str | UUID, *, event_id: str, wake_id: str | UUID, outcome: Literal["accepted", "rejected", "unknown"], evidence: dict[str, str], note: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.DecisionTask:
         options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getWorkspace",
-            path=parameters({"workspace_id": workspace_id}),
-            query=parameters({"include_connections": include_connections,"agent_id": agent_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
+        identity = options.identity(True)
+        result = self._client.request("recordTaskOutcome",
+            path=parameters({"task_id": task_id}),
+            query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-
+            body=payload({"event_id": event_id,"wake_id": wake_id,"outcome": outcome,"evidence": evidence,"note": note}),
         )
-        return decode(models.Workspace, result, identity)
+        return decode(models.DecisionTask, result, identity)
 
-    def get_worktree_options(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, branch: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.WorktreeOptions:
+    def wake_decision(self, task_id: str | UUID, *, event_id: str, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams, request_options: RequestOptions | None = None) -> models.DecisionTask:
         options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getWorktreeOptions",
-            path=parameters({"workspace_id": workspace_id}),
-            query=parameters({"name": name,"branch": branch}),
+        identity = options.identity(True)
+        result = self._client.request("wakeDecisionTask",
+            path=parameters({"task_id": task_id}),
+            query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-
+            body=payload({"event_id": event_id,"input": input,"context": context}),
         )
-        return decode(models.WorktreeOptions, result, identity)
+        return decode(models.DecisionTask, result, identity)
 
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, archived: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWorkspaces200Response:
+class WebhookDeliveriesResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWebhookDeliveries200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("listWorkspaces",
+        result = self._client.request("listWebhookDeliveries",
             path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit,"query": query,"archived": archived}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListWorkspaces200Response, result, identity)
-
-    def list_worktrees(self, workspace_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWorktrees200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listWorktrees",
-            path=parameters({"workspace_id": workspace_id}),
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.ListWorktrees200Response, result, identity)
+        return decode(models.ListWebhookDeliveries200Response, result, identity)
 
-    def schedule_deletion(self, workspace_id: str | UUID, *, confirmation: str, password: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+    def replay(self, delivery_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("scheduleWorkspaceDeletion",
-            path=parameters({"workspace_id": workspace_id}),
+        result = self._client.request("replayWebhookDelivery",
+            path=parameters({"delivery_id": delivery_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"confirmation": confirmation,"password": password}),
+            body=payload({}),
         )
-        return decode(models.Workspace, result, identity)
+        return decode(models.Operation, result, identity)
 
-    def update(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, github: params.UpdateWorkspaceGithubParams | Omit = OMIT, archived: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+class RunsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def cancel(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("updateWorkspace",
-            path=parameters({"workspace_id": workspace_id}),
+        result = self._client.request("cancelRun",
+            path=parameters({"run_id": run_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"github": github,"archived": archived,"permissions": permissions}),
+            body=payload({}),
         )
-        return decode(models.Workspace, result, identity)
+        return decode(models.Run, result, identity)
+
+    def create(self, *, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, stream: bool | Omit = OMIT, prompt: str, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, memory_mib: int | Omit = OMIT, cpu_millis: int | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness_prompt_mode: Literal["replace", "extend"] | Omit = OMIT, session_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, attachments: list[str] | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createRun",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"webhook_endpoint_ids": webhook_endpoint_ids,"connection_access_overrides": connection_access_overrides,"stream": stream,"prompt": prompt,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"harness": harness,"memory_mib": memory_mib,"cpu_millis": cpu_millis,"agent_id": agent_id,"harness_prompt_mode": harness_prompt_mode,"session_id": session_id,"connection_grants": connection_grants,"worker_id": worker_id,"scheduling_class": scheduling_class,"model": model,"billing_mode": billing_mode,"limits": limits,"worktree_id": worktree_id,"queue_if_busy": queue_if_busy,"provider_connection_id": provider_connection_id,"permissions": permissions,"attachments": attachments,"workspace_id": workspace_id}),
+        )
+        return decode(models.NativeRunAccepted, result, identity)
+
+    def get(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getRun",
+            path=parameters({"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Run, result, identity)
+
+    def get_result(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.RunResult:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getRunResult",
+            path=parameters({"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.RunResult, result, identity)
+
+    def list_artifacts(self, run_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListArtifacts200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listArtifacts",
+            path=parameters({"run_id": run_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListArtifacts200Response, result, identity)
+
+    def list_events(self, run_id: str | UUID, *, after: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListCustomerAgentRunEvents200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listRunEvents",
+            path=parameters({"run_id": run_id}),
+            query=parameters({"after": after,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListCustomerAgentRunEvents200Response, result, identity)
+
+    def list(self, *, status: str | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRuns200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listRuns",
+            path=parameters({}),
+            query=parameters({"status": status,"workspace_id": workspace_id,"from": from_,"to": to,"cursor": cursor,"limit": limit,"worktree_id": worktree_id,"session_id": session_id,"worker_id": worker_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListRuns200Response, result, identity)
+
+    def stream(self, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
+        stream = self._client.stream(str(run_id), after=after)
+        try:
+            for event in stream:
+                yield models.Event.model_validate(event)
+        finally:
+            stream.close()
+
+    def events(self, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
+        return self.stream(run_id, after=after)
+
+    def stream_text(self, run_id: str | UUID, *, after: str = '0') -> Generator[str, None, None]:
+        return stream_run_text(self.events(run_id, after=after), lambda: self.wait(run_id))
+
+    def wait(self, run_id: str | UUID, *, timeout: float | None = None, poll_interval: float = 1) -> models.RunResult:
+        return wait_for_run(self._client, str(run_id), timeout=timeout, poll_interval=poll_interval)
+
+    def submit_input(self, run_id: str | UUID, *, input_request_id: str | UUID, answer: dict[str, object], request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("submitRunInput",
+            path=parameters({"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"input_request_id": input_request_id,"answer": answer}),
+        )
+        return decode(models.Run, result, identity)
+
+class OrganizationsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create_invitation(self, *, email: str, role: Literal["admin", "member", "viewer"], request_options: RequestOptions | None = None) -> models.Invitation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createInvitation",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"email": email,"role": role}),
+        )
+        return decode(models.Invitation, result, identity)
+
+    def create(self, *, name: str, request_options: RequestOptions | None = None) -> models.Organization:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createOrganization",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name}),
+        )
+        return decode(models.Organization, result, identity)
+
+    def get_execution_policy(self, *, request_options: RequestOptions | None = None) -> models.ExecutionPolicy:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getExecutionPolicy",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ExecutionPolicy, result, identity)
+
+    def list_invitations(self, *, request_options: RequestOptions | None = None) -> models.ListInvitations200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listInvitations",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListInvitations200Response, result, identity)
+
+    def list_members(self, *, request_options: RequestOptions | None = None) -> models.ListMembers200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listMembers",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListMembers200Response, result, identity)
+
+    def list_audit(self, *, request_options: RequestOptions | None = None) -> models.ListOrganizationAudit200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listOrganizationAudit",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListOrganizationAudit200Response, result, identity)
+
+    def remove_member(self, user_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("removeMember",
+            path=parameters({"user_id": user_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def revoke_invitation(self, invitation_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("revokeInvitation",
+            path=parameters({"invitation_id": invitation_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def update_execution_policy(self, *, concurrency_limit: int | None | Omit = OMIT, max_timeout_seconds: int | None | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ExecutionPolicy:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateExecutionPolicy",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"concurrency_limit": concurrency_limit,"max_timeout_seconds": max_timeout_seconds}),
+        )
+        return decode(models.ExecutionPolicy, result, identity)
+
+    def update_member(self, user_id: str | UUID, *, role: Literal["owner", "admin", "member", "viewer"], request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateMember",
+            path=parameters({"user_id": user_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"role": role}),
+        )
+        return None
+
+    def update(self, *, name: str, request_options: RequestOptions | None = None) -> models.Organization:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateOrganization",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name}),
+        )
+        return decode(models.Organization, result, identity)
+
+class CheckpointsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def export_archive(self, checkpoint_id: str | UUID, *, format: Literal["git_bundle", "portable_archive"], request_options: RequestOptions | None = None) -> models.ExportOperation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("exportCheckpoint",
+            path=parameters({"checkpoint_id": checkpoint_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"format": format}),
+        )
+        return decode(models.ExportOperation, result, identity)
+
+    def update_retention(self, checkpoint_id: str | UUID, *, pinned: bool, request_options: RequestOptions | None = None) -> models.Checkpoint:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateCheckpointRetention",
+            path=parameters({"checkpoint_id": checkpoint_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"pinned": pinned}),
+        )
+        return decode(models.Checkpoint, result, identity)
+
+class ConnectionsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def authorize(self, connection_id: str | UUID, *, return_to: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AuthorizationLink:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("authorizeConnection",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"return_to": return_to}),
+        )
+        return decode(models.AuthorizationLink, result, identity)
+
+    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createConnection",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
+        )
+        return decode(models.Connection, result, identity)
+
+    def create_access_rule(self, connection_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createConnectionAccessRule",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload(input),
+        )
+        return decode(models.ConnectionAccessRuleMutation, result, identity)
+
+    def delete(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteConnection",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def delete_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleDeleted:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteConnectionAccessRule",
+            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectionAccessRuleDeleted, result, identity)
+
+    def get(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Connection:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getConnection",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Connection, result, identity)
+
+    def get_access(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getConnectionAccess",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectionAccess, result, identity)
+
+    def list_access_rules(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, sort: Literal["workspace", "agent", "created_at"] | Omit = OMIT, direction: Literal["asc", "desc"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessRulePage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listConnectionAccessRules",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id,"sort": sort,"direction": direction}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectionAccessRulePage, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ContextualConnectionPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listConnections",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ContextualConnectionPage, result, identity)
+
+    def list_tools(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListConnectionTools200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listConnectionTools",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListConnectionTools200Response, result, identity)
+
+    def list_connector_catalog(self, *, request_options: RequestOptions | None = None) -> models.ConnectorCatalog:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listConnectorCatalog",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ConnectorCatalog, result, identity)
+
+    def list_stdio_packages(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.StdioPackagePage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listStdioPackages",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.StdioPackagePage, result, identity)
+
+    def resolve_access(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessResolutionPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("resolveConnectionAccess",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"permissions": permissions}),
+        )
+        return decode(models.ConnectionAccessResolutionPage, result, identity)
+
+    def test(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionTest:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("testConnection",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.ConnectionTest, result, identity)
+
+    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateConnection",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
+        )
+        return decode(models.Connection, result, identity)
+
+    def update_access(self, connection_id: str | UUID, *, if_match: str, organization_wide: bool | Omit = OMIT, tools: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateConnectionAccess",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"organization_wide": organization_wide,"tools": tools}),
+        )
+        return decode(models.ConnectionAccess, result, identity)
+
+    def update_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateConnectionAccessRule",
+            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload(input),
+        )
+        return decode(models.ConnectionAccessRuleMutation, result, identity)
+
+class TriggersResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create(self, *, name: str, workspace_id: str | UUID, agent_id: str | UUID, kind: Literal["slack", "webhook", "schedule"], prompt: str, enabled: bool | Omit = OMIT, max_runs_per_day: int | Omit = OMIT, cron: str | Omit = OMIT, timezone: str | Omit = OMIT, slack_connection_id: str | UUID | Omit = OMIT, channel_id: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NewTrigger:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createTrigger",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"kind": kind,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
+        )
+        return decode(models.NewTrigger, result, identity)
+
+    def delete(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DeleteSlackConnection200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteTrigger",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.DeleteSlackConnection200Response, result, identity)
+
+    def get(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Trigger:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getTrigger",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Trigger, result, identity)
+
+    def list_deliveries(self, trigger_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListTriggerDeliveries200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listTriggerDeliveries",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListTriggerDeliveries200Response, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, kind: Literal["slack", "webhook", "schedule"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListTriggers200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listTriggers",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"kind": kind}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListTriggers200Response, result, identity)
+
+    def retry_reply(self, trigger_id: str | UUID, delivery_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerDelivery:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("retryTriggerReply",
+            path=parameters({"trigger_id": trigger_id,"delivery_id": delivery_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.TriggerDelivery, result, identity)
+
+    def rotate_secret(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerSecret:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("rotateTriggerSecret",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.TriggerSecret, result, identity)
+
+    def run(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerDelivery:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("runTrigger",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.TriggerDelivery, result, identity)
+
+    def update(self, trigger_id: str | UUID, *, name: str | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, prompt: str | Omit = OMIT, enabled: bool | Omit = OMIT, max_runs_per_day: int | Omit = OMIT, cron: str | Omit = OMIT, timezone: str | Omit = OMIT, slack_connection_id: str | UUID | Omit = OMIT, channel_id: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Trigger:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateTrigger",
+            path=parameters({"trigger_id": trigger_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
+        )
+        return decode(models.Trigger, result, identity)
+
+class CustomerAgentsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def authorize_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, return_url: str, request_options: RequestOptions | None = None) -> models.CustomerConnectionAuthorization:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("authorizeCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"return_url": return_url}),
+        )
+        return decode(models.CustomerConnectionAuthorization, result, identity)
+
+    def cancel_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("cancelCustomerAgentRun",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({}),
+        )
+        return decode(models.Run, result, identity)
+
+    def complete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, code: str, request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("completeCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"code": code}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
+
+    def create_connection(self, customer_id: str, customer_agent_id: str | UUID, *, name: str, provider: str, capabilities: list[params.ConnectionCapabilityParams], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"provider": provider,"capabilities": capabilities}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
+
+    def delete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteCustomerAgentConnection",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def ensure(self, customer_id: str, *, key: str, name: str, configuration: params.CustomerAgentConfigurationParams, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("ensureCustomerAgent",
+            path=parameters({"customer_id": customer_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"key": key,"name": name,"configuration": configuration}),
+        )
+        return decode(models.CustomerAgentBinding, result, identity)
+
+    def get(self, customer_id: str, customer_agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgent",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentBinding, result, identity)
+
+    def get_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgentRun",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Run, result, identity)
+
+    def get_run_result(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.RunResult:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getCustomerAgentRunResult",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.RunResult, result, identity)
+
+    def list_connections(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentConnectionPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentConnections",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentConnectionPage, result, identity)
+
+    def list_conversations(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSessions200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentConversations",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListSessions200Response, result, identity)
+
+    def list_files(self, customer_id: str, customer_agent_id: str | UUID, *, path: str | Omit = OMIT, query: str | Omit = OMIT, recursive: bool | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.FileListing:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentFiles",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"path": path,"query": query,"recursive": recursive,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.FileListing, result, identity)
+
+    def list_run_events(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListCustomerAgentRunEvents200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgentRunEvents",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+            query=parameters({"after": after,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListCustomerAgentRunEvents200Response, result, identity)
+
+    def list(self, customer_id: str, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listCustomerAgents",
+            path=parameters({"customer_id": customer_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.CustomerAgentPage, result, identity)
+
+    def read_file(self, customer_id: str, customer_agent_id: str | UUID, *, download: bool | Omit = OMIT, path: str, request_options: RequestOptions | None = None) -> bytes:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("readCustomerAgentFile",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({"download": download,"path": path}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return result
+
+    def send_message(self, customer_id: str, customer_agent_id: str | UUID, *, prompt: str, conversation_id: str | UUID | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, attachments: list[str] | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("sendCustomerAgentMessage",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"prompt": prompt,"conversation_id": conversation_id,"limits": limits,"queue_if_busy": queue_if_busy,"attachments": attachments,"stream": stream}),
+        )
+        return decode(models.NativeRunAccepted, result, identity)
+
+    def stream_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
+        stream = self._client.stream_customer_agent(customer_id, str(customer_agent_id), str(run_id), after=after)
+        try:
+            for event in stream:
+                yield models.Event.model_validate(event)
+        finally:
+            stream.close()
+
+    def update_connection_permissions(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, if_match: str, capability_ids: list[str], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateCustomerAgentConnectionPermissions",
+            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({"If-Match": if_match})},
+            idempotency_key=identity,
+            body=payload({"capability_ids": capability_ids}),
+        )
+        return decode(models.CustomerAgentConnection, result, identity)
 
 class WorktreesResource:
     def __init__(self, client: Client):
@@ -356,762 +1141,281 @@ class WorktreesResource:
         )
         return decode(models.Operation, result, identity)
 
-class AgentsResource:
+class SlackConnectionsResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create(self, *, name: str, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+    def create(self, *, name: str, bot_token: str, signing_secret: str, request_options: RequestOptions | None = None) -> models.SlackConnection:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createAgent",
+        result = self._client.request("createSlackConnection",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
+            body=payload({"name": name,"bot_token": bot_token,"signing_secret": signing_secret}),
         )
-        return decode(models.Agent, result, identity)
+        return decode(models.SlackConnection, result, identity)
 
-    def delete(self, agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+    def delete(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DeleteSlackConnection200Response:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("deleteAgent",
-            path=parameters({"agent_id": agent_id}),
+        result = self._client.request("deleteSlackConnection",
+            path=parameters({"connection_id": connection_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return None
+        return decode(models.DeleteSlackConnection200Response, result, identity)
 
-    def get(self, agent_id: str | UUID, *, include_connections: bool | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+    def list_channels(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSlackConnectionChannels200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getAgent",
-            path=parameters({"agent_id": agent_id}),
-            query=parameters({"include_connections": include_connections,"workspace_id": workspace_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
+        result = self._client.request("listSlackConnectionChannels",
+            path=parameters({"connection_id": connection_id}),
+            query=parameters({"cursor": cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.Agent, result, identity)
+        return decode(models.ListSlackConnectionChannels200Response, result, identity)
 
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListAgents200Response:
+    def list(self, *, request_options: RequestOptions | None = None) -> models.ListSlackConnections200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("listAgents",
+        result = self._client.request("listSlackConnections",
             path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit,"query": query}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListAgents200Response, result, identity)
-
-    def update(self, agent_id: str | UUID, *, name: str | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | None | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateAgent",
-            path=parameters({"agent_id": agent_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
-        )
-        return decode(models.Agent, result, identity)
 
-class SessionsResource:
+        )
+        return decode(models.ListSlackConnections200Response, result, identity)
+
+class WorkspacesResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def continue_run(self, session_id: str | UUID, *, prompt: str, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, model: str | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, memory_mib: int | Omit = OMIT, cpu_millis: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
+    def cancel_deletion(self, workspace_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Workspace:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("continueSession",
-            path=parameters({"session_id": session_id}),
+        result = self._client.request("cancelWorkspaceDeletion",
+            path=parameters({"workspace_id": workspace_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"prompt": prompt,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_if_busy": queue_if_busy,"model": model,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"permissions": permissions,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"model_parameters": model_parameters,"worker_id": worker_id,"memory_mib": memory_mib,"cpu_millis": cpu_millis}),
-        )
-        return decode(models.NativeRunAccepted, result, identity)
 
-    def create(self, *, worktree_id: str | UUID, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
+        )
+        return decode(models.Workspace, result, identity)
+
+    def create(self, *, name: str, persistence: Literal["persistent", "ephemeral"] | Omit = OMIT, github: params.CreateWorkspaceGithubParams | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createSession",
+        result = self._client.request("createWorkspace",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"worktree_id": worktree_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"model_parameters": model_parameters}),
+            body=payload({"name": name,"persistence": persistence,"github": github,"permissions": permissions}),
         )
-        return decode(models.Session, result, identity)
+        return decode(models.Workspace, result, identity)
 
-    def get(self, session_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Session:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getSession",
-            path=parameters({"session_id": session_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Session, result, identity)
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSessions200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listSessions",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit,"worktree_id": worktree_id}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListSessions200Response, result, identity)
-
-class RunsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def cancel(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+    def create_worktree(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, checkpoint_id: str | UUID | Omit = OMIT, branch: str | Omit = OMIT, source: params.WorktreeSourceParams | Omit = OMIT, branch_mode: Literal["auto", "new", "existing"] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("cancelRun",
-            path=parameters({"run_id": run_id}),
+        result = self._client.request("createWorktree",
+            path=parameters({"workspace_id": workspace_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.Run, result, identity)
-
-    def create(self, *, prompt: str, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, attachments: list[str] | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, harness_prompt_mode: Literal["replace", "extend"] | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, memory_mib: int | Omit = OMIT, cpu_millis: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createRun",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"prompt": prompt,"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"webhook_endpoint_ids": webhook_endpoint_ids,"queue_timeout_seconds": queue_timeout_seconds,"scheduling_class": scheduling_class,"queue_if_busy": queue_if_busy,"permissions": permissions,"connection_access_overrides": connection_access_overrides,"attachments": attachments,"model_parameters": model_parameters,"harness_prompt_mode": harness_prompt_mode,"worker_id": worker_id,"memory_mib": memory_mib,"cpu_millis": cpu_millis}),
-        )
-        return decode(models.NativeRunAccepted, result, identity)
-
-    def get(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getRun",
-            path=parameters({"run_id": run_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Run, result, identity)
-
-    def get_result(self, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.RunResult:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getRunResult",
-            path=parameters({"run_id": run_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.RunResult, result, identity)
-
-    def list_artifacts(self, run_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListArtifacts200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listArtifacts",
-            path=parameters({"run_id": run_id}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListArtifacts200Response, result, identity)
-
-    def list_events(self, run_id: str | UUID, *, after: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRunEvents200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listRunEvents",
-            path=parameters({"run_id": run_id}),
-            query=parameters({"after": after,"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListRunEvents200Response, result, identity)
-
-    def list(self, *, status: str | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRuns200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listRuns",
-            path=parameters({}),
-            query=parameters({"status": status,"workspace_id": workspace_id,"from": from_,"to": to,"cursor": cursor,"limit": limit,"worktree_id": worktree_id,"session_id": session_id,"worker_id": worker_id}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListRuns200Response, result, identity)
-
-    def stream(self, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
-        stream = self._client.stream(str(run_id), after=after)
-        try:
-            for event in stream:
-                yield models.Event.model_validate(event)
-        finally:
-            stream.close()
-
-    def events(self, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
-        return self.stream(run_id, after=after)
-
-    def stream_text(self, run_id: str | UUID, *, after: str = '0') -> Generator[str, None, None]:
-        return stream_run_text(self.events(run_id, after=after), lambda: self.wait(run_id))
-
-    def wait(self, run_id: str | UUID, *, timeout: float | None = None, poll_interval: float = 1) -> models.RunResult:
-        return wait_for_run(self._client, str(run_id), timeout=timeout, poll_interval=poll_interval)
-
-    def submit_input(self, run_id: str | UUID, *, input_request_id: str | UUID, answer: dict[str, object], request_options: RequestOptions | None = None) -> models.Run:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("submitRunInput",
-            path=parameters({"run_id": run_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"input_request_id": input_request_id,"answer": answer}),
-        )
-        return decode(models.Run, result, identity)
-
-class ArtifactsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def delete(self, artifact_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteArtifact",
-            path=parameters({"artifact_id": artifact_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-    def download(self, artifact_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Download:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("downloadArtifact",
-            path=parameters({"artifact_id": artifact_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Download, result, identity)
-
-class ConnectionsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def authorize(self, connection_id: str | UUID, *, return_to: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.AuthorizationLink:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("authorizeConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"return_to": return_to}),
-        )
-        return decode(models.AuthorizationLink, result, identity)
-
-    def create(self, *, name: str, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"], provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"], secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createConnection",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
-        )
-        return decode(models.Connection, result, identity)
-
-    def create_access_rule(self, connection_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createConnectionAccessRule",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({"If-Match": if_match})},
-            idempotency_key=identity,
-            body=payload(input),
-        )
-        return decode(models.ConnectionAccessRuleMutation, result, identity)
-
-    def delete(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-    def delete_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleDeleted:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteConnectionAccessRule",
-            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({"If-Match": if_match})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ConnectionAccessRuleDeleted, result, identity)
-
-    def get(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Connection:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Connection, result, identity)
-
-    def get_access(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getConnectionAccess",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ConnectionAccess, result, identity)
-
-    def list_access_rules(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, sort: Literal["workspace", "agent", "created_at"] | Omit = OMIT, direction: Literal["asc", "desc"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessRulePage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listConnectionAccessRules",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id,"sort": sort,"direction": direction}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ConnectionAccessRulePage, result, identity)
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ContextualConnectionPage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listConnections",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ContextualConnectionPage, result, identity)
-
-    def list_tools(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListConnectionTools200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listConnectionTools",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListConnectionTools200Response, result, identity)
-
-    def list_connector_catalog(self, *, request_options: RequestOptions | None = None) -> models.ConnectorCatalog:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listConnectorCatalog",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ConnectorCatalog, result, identity)
-
-    def list_stdio_packages(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.StdioPackagePage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listStdioPackages",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.StdioPackagePage, result, identity)
-
-    def resolve_access(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccessResolutionPage:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("resolveConnectionAccess",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"permissions": permissions}),
-        )
-        return decode(models.ConnectionAccessResolutionPage, result, identity)
-
-    def test(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.ConnectionTest:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("testConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.ConnectionTest, result, identity)
-
-    def update(self, connection_id: str | UUID, *, name: str | Omit = OMIT, kind: Literal["model", "mcp_remote", "mcp_stdio", "composio", "search", "claude_subscription"] | Omit = OMIT, provider: str | Omit = OMIT, url: str | Omit = OMIT, auth_method: Literal["oauth", "bearer", "headers", "api_key", "none", "claude_code"] | Omit = OMIT, secret: str | Omit = OMIT, secret_headers: dict[str, str] | Omit = OMIT, package: str | Omit = OMIT, package_version: str | Omit = OMIT, args: list[str] | Omit = OMIT, secret_env: dict[str, str] | Omit = OMIT, api_fallback: params.ClaudeApiFallbackParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Connection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
-        )
-        return decode(models.Connection, result, identity)
-
-    def update_access(self, connection_id: str | UUID, *, if_match: str, organization_wide: bool | Omit = OMIT, tools: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ConnectionAccess:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateConnectionAccess",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({"If-Match": if_match})},
-            idempotency_key=identity,
-            body=payload({"organization_wide": organization_wide,"tools": tools}),
-        )
-        return decode(models.ConnectionAccess, result, identity)
-
-    def update_access_rule(self, connection_id: str | UUID, rule_id: str | UUID, *, if_match: str, input: params.ConnectionAccessRuleInputParams, request_options: RequestOptions | None = None) -> models.ConnectionAccessRuleMutation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateConnectionAccessRule",
-            path=parameters({"connection_id": connection_id,"rule_id": rule_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({"If-Match": if_match})},
-            idempotency_key=identity,
-            body=payload(input),
-        )
-        return decode(models.ConnectionAccessRuleMutation, result, identity)
-
-class ApiKeysResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def create(self, *, name: str, scopes: list[str], workspace_id: str | UUID | Omit = OMIT, expires_at: str | datetime | Omit = OMIT, worker_ids: list[str | UUID] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NewApiKey:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createApiKey",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"scopes": scopes,"workspace_id": workspace_id,"expires_at": expires_at,"worker_ids": worker_ids}),
-        )
-        return decode(models.NewApiKey, result, identity)
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListApiKeys200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listApiKeys",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListApiKeys200Response, result, identity)
-
-    def revoke(self, key_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("revokeApiKey",
-            path=parameters({"key_id": key_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-class WebhookEndpointsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def create(self, *, url: str, events: list[Literal["run.completed", "run.failed", "run.cancelled", "git_sync.updated", "connection.expired"]], request_options: RequestOptions | None = None) -> models.NewWebhook:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createWebhookEndpoint",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"url": url,"events": events}),
-        )
-        return decode(models.NewWebhook, result, identity)
-
-    def delete(self, endpoint_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteWebhookEndpoint",
-            path=parameters({"endpoint_id": endpoint_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWebhookEndpoints200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listWebhookEndpoints",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListWebhookEndpoints200Response, result, identity)
-
-    def rotate_webhook_secret(self, endpoint_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.NewWebhook:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("rotateWebhookSecret",
-            path=parameters({"endpoint_id": endpoint_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.NewWebhook, result, identity)
-
-    def update(self, endpoint_id: str | UUID, *, url: str | Omit = OMIT, events: list[Literal["run.completed", "run.failed", "run.cancelled", "git_sync.updated", "connection.expired"]] | Omit = OMIT, enabled: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Webhook:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateWebhookEndpoint",
-            path=parameters({"endpoint_id": endpoint_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"url": url,"events": events,"enabled": enabled}),
-        )
-        return decode(models.Webhook, result, identity)
-
-class WebhookDeliveriesResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWebhookDeliveries200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listWebhookDeliveries",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListWebhookDeliveries200Response, result, identity)
-
-    def replay(self, delivery_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("replayWebhookDelivery",
-            path=parameters({"delivery_id": delivery_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
+            body=payload({"name": name,"checkpoint_id": checkpoint_id,"branch": branch,"source": source,"branch_mode": branch_mode,"permissions": permissions}),
         )
         return decode(models.Operation, result, identity)
 
-class UsageResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def get(self, *, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, group_by: Literal["day", "hour", "organization", "model", "provider", "harness", "billing_mode"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Report:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getUsage",
-            path=parameters({}),
-            query=parameters({"from": from_,"to": to,"group_by": group_by}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Report, result, identity)
-
-class RequestsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def list(self, *, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRequests200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listRequests",
-            path=parameters({}),
-            query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListRequests200Response, result, identity)
-
-class BillingResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def create_portal(self, *, request_options: RequestOptions | None = None) -> models.Redirect:
+    def delete(self, workspace_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createBillingPortal",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.Redirect, result, identity)
-
-    def create_checkout(self, *, kind: Literal["topup", "subscription"], amount_micro_usd: str | Omit = OMIT, plan: Literal["pro", "scale"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Redirect:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createCheckout",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"kind": kind,"amount_micro_usd": amount_micro_usd,"plan": plan}),
-        )
-        return decode(models.Redirect, result, identity)
-
-    def get(self, *, request_options: RequestOptions | None = None) -> models.Billing:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getBilling",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Billing, result, identity)
-
-    def get_storage(self, *, request_options: RequestOptions | None = None) -> models.Storage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getStorage",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Storage, result, identity)
-
-    def list_usage(self, *, from_: str | datetime, to: str | datetime, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, run_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, customer_id: str | Omit = OMIT, agent_key: str | Omit = OMIT, provider: str | Omit = OMIT, model: str | Omit = OMIT, kind: Literal["model", "tool", "compute", "storage"] | Omit = OMIT, billing_mode: Literal["managed", "byok"] | Omit = OMIT, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.BillingUsagePage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listBillingUsage",
-            path=parameters({}),
-            query=parameters({"from": from_,"to": to,"workspace_id": workspace_id,"worktree_id": worktree_id,"run_id": run_id,"session_id": session_id,"customer_id": customer_id,"agent_key": agent_key,"provider": provider,"model": model,"kind": kind,"billing_mode": billing_mode,"cursor": cursor,"limit": limit,"worker_id": worker_id}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.BillingUsagePage, result, identity)
-
-    def update_storage_policy(self, *, overage_enabled: bool, monthly_budget_micro_usd: str, request_options: RequestOptions | None = None) -> models.Storage:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateStoragePolicy",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"overage_enabled": overage_enabled,"monthly_budget_micro_usd": monthly_budget_micro_usd}),
-        )
-        return decode(models.Storage, result, identity)
-
-class HarnessesResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListHarnesses200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listHarnesses",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListHarnesses200Response, result, identity)
-
-class ModelsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def list(self, *, harness: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListModels200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listModels",
-            path=parameters({}),
-            query=parameters({"harness": harness,"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListModels200Response, result, identity)
-
-class OperationsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def get(self, operation_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getOperation",
-            path=parameters({"operation_id": operation_id}),
+        result = self._client.request("deleteWorkspace",
+            path=parameters({"workspace_id": workspace_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
         return decode(models.Operation, result, identity)
+
+    def get(self, workspace_id: str | UUID, *, include_connections: bool | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getWorkspace",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({"include_connections": include_connections,"agent_id": agent_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Workspace, result, identity)
+
+    def get_worktree_options(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, branch: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.WorktreeOptions:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getWorktreeOptions",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({"name": name,"branch": branch}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.WorktreeOptions, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, archived: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWorkspaces200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listWorkspaces",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"query": query,"archived": archived}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListWorkspaces200Response, result, identity)
+
+    def list_worktrees(self, workspace_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWorktrees200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listWorktrees",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListWorktrees200Response, result, identity)
+
+    def schedule_deletion(self, workspace_id: str | UUID, *, confirmation: str, password: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("scheduleWorkspaceDeletion",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"confirmation": confirmation,"password": password}),
+        )
+        return decode(models.Workspace, result, identity)
+
+    def update(self, workspace_id: str | UUID, *, name: str | Omit = OMIT, github: params.UpdateWorkspaceGithubParams | Omit = OMIT, archived: bool | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Workspace:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateWorkspace",
+            path=parameters({"workspace_id": workspace_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"github": github,"archived": archived,"permissions": permissions}),
+        )
+        return decode(models.Workspace, result, identity)
+
+class WorkersResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create(self, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createWorker",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd}),
+        )
+        return decode(models.Worker, result, identity)
+
+    def destroy(self, worker_id: str | UUID, *, force: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("destroyWorker",
+            path=parameters({"worker_id": worker_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"force": force}),
+        )
+        return decode(models.Worker, result, identity)
+
+    def get(self, worker_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getWorker",
+            path=parameters({"worker_id": worker_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Worker, result, identity)
+
+    def list_offerings(self, *, request_options: RequestOptions | None = None) -> models.WorkerOfferings:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listWorkerOfferings",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.WorkerOfferings, result, identity)
+
+    def list(self, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.WorkerPage:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listWorkers",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.WorkerPage, result, identity)
+
+    def patch(self, worker_id: str | UUID, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, expected_revision: int, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("patchWorker",
+            path=parameters({"worker_id": worker_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd,"expected_revision": expected_revision}),
+        )
+        return decode(models.Worker, result, identity)
+
+    def pause(self, worker_id: str | UUID, *, force: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("pauseWorker",
+            path=parameters({"worker_id": worker_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"force": force}),
+        )
+        return decode(models.Worker, result, identity)
+
+    def resume(self, worker_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Worker:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("resumeWorker",
+            path=parameters({"worker_id": worker_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Worker, result, identity)
 
 class OperatorResource:
     def __init__(self, client: Client):
@@ -1237,78 +1541,6 @@ class OperatorResource:
         )
         return decode(models.ReportSnapshotPage, result, identity)
 
-class CheckpointsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def export_archive(self, checkpoint_id: str | UUID, *, format: Literal["git_bundle", "portable_archive"], request_options: RequestOptions | None = None) -> models.ExportOperation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("exportCheckpoint",
-            path=parameters({"checkpoint_id": checkpoint_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"format": format}),
-        )
-        return decode(models.ExportOperation, result, identity)
-
-    def update_retention(self, checkpoint_id: str | UUID, *, pinned: bool, request_options: RequestOptions | None = None) -> models.Checkpoint:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateCheckpointRetention",
-            path=parameters({"checkpoint_id": checkpoint_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"pinned": pinned}),
-        )
-        return decode(models.Checkpoint, result, identity)
-
-class MeResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def get(self, *, request_options: RequestOptions | None = None) -> models.Identity:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getIdentity",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Identity, result, identity)
-
-class TransfersResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def apply(self, transfer_id: str | UUID, *, expected_revision: str, completed_paths: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("applyTransfer",
-            path=parameters({"transfer_id": transfer_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"expected_revision": expected_revision,"completed_paths": completed_paths}),
-        )
-        return decode(models.Operation, result, identity)
-
-    def get(self, transfer_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Transfer:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getTransfer",
-            path=parameters({"transfer_id": transfer_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Transfer, result, identity)
-
 class IntegrationsResource:
     def __init__(self, client: Client):
         self._client = client
@@ -1349,363 +1581,115 @@ class IntegrationsResource:
         )
         return decode(models.GithubRepositories, result, identity)
 
-class OrganizationsResource:
+class BillingResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create_invitation(self, *, email: str, role: Literal["admin", "member", "viewer"], request_options: RequestOptions | None = None) -> models.Invitation:
+    def create_portal(self, *, request_options: RequestOptions | None = None) -> models.Redirect:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createInvitation",
+        result = self._client.request("createBillingPortal",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"email": email,"role": role}),
+            body=payload({}),
         )
-        return decode(models.Invitation, result, identity)
+        return decode(models.Redirect, result, identity)
 
-    def create(self, *, name: str, request_options: RequestOptions | None = None) -> models.Organization:
+    def create_checkout(self, *, kind: Literal["topup", "subscription"], amount_micro_usd: str | Omit = OMIT, plan: Literal["pro", "scale"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Redirect:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createOrganization",
+        result = self._client.request("createCheckout",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name}),
+            body=payload({"kind": kind,"amount_micro_usd": amount_micro_usd,"plan": plan}),
         )
-        return decode(models.Organization, result, identity)
+        return decode(models.Redirect, result, identity)
 
-    def get_execution_policy(self, *, request_options: RequestOptions | None = None) -> models.ExecutionPolicy:
+    def get(self, *, request_options: RequestOptions | None = None) -> models.Billing:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getExecutionPolicy",
+        result = self._client.request("getBilling",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.ExecutionPolicy, result, identity)
+        return decode(models.Billing, result, identity)
 
-    def list_invitations(self, *, request_options: RequestOptions | None = None) -> models.ListInvitations200Response:
+    def get_storage(self, *, request_options: RequestOptions | None = None) -> models.Storage:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("listInvitations",
+        result = self._client.request("getStorage",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.ListInvitations200Response, result, identity)
+        return decode(models.Storage, result, identity)
 
-    def list_members(self, *, request_options: RequestOptions | None = None) -> models.ListMembers200Response:
+    def list_usage(self, *, from_: str | datetime, to: str | datetime, workspace_id: str | UUID | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, run_id: str | UUID | Omit = OMIT, session_id: str | UUID | Omit = OMIT, customer_id: str | Omit = OMIT, agent_key: str | Omit = OMIT, provider: str | Omit = OMIT, model: str | Omit = OMIT, kind: Literal["model", "tool", "compute", "storage"] | Omit = OMIT, billing_mode: Literal["managed", "byok"] | Omit = OMIT, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.BillingUsagePage:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("listMembers",
+        result = self._client.request("listBillingUsage",
+            path=parameters({}),
+            query=parameters({"from": from_,"to": to,"workspace_id": workspace_id,"worktree_id": worktree_id,"run_id": run_id,"session_id": session_id,"customer_id": customer_id,"agent_key": agent_key,"provider": provider,"model": model,"kind": kind,"billing_mode": billing_mode,"cursor": cursor,"limit": limit,"worker_id": worker_id}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.BillingUsagePage, result, identity)
+
+    def update_storage_policy(self, *, overage_enabled: bool, monthly_budget_micro_usd: str, request_options: RequestOptions | None = None) -> models.Storage:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateStoragePolicy",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-
+            body=payload({"overage_enabled": overage_enabled,"monthly_budget_micro_usd": monthly_budget_micro_usd}),
         )
-        return decode(models.ListMembers200Response, result, identity)
+        return decode(models.Storage, result, identity)
 
-    def list_audit(self, *, request_options: RequestOptions | None = None) -> models.ListOrganizationAudit200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listOrganizationAudit",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListOrganizationAudit200Response, result, identity)
-
-    def remove_member(self, user_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("removeMember",
-            path=parameters({"user_id": user_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-    def revoke_invitation(self, invitation_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("revokeInvitation",
-            path=parameters({"invitation_id": invitation_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return None
-
-    def update_execution_policy(self, *, concurrency_limit: int | None | Omit = OMIT, max_timeout_seconds: int | None | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ExecutionPolicy:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateExecutionPolicy",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"concurrency_limit": concurrency_limit,"max_timeout_seconds": max_timeout_seconds}),
-        )
-        return decode(models.ExecutionPolicy, result, identity)
-
-    def update_member(self, user_id: str | UUID, *, role: Literal["owner", "admin", "member", "viewer"], request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateMember",
-            path=parameters({"user_id": user_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"role": role}),
-        )
-        return None
-
-    def update(self, *, name: str, request_options: RequestOptions | None = None) -> models.Organization:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateOrganization",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name}),
-        )
-        return decode(models.Organization, result, identity)
-
-class TriggersResource:
+class ApiKeysResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create(self, *, name: str, workspace_id: str | UUID, agent_id: str | UUID, kind: Literal["slack", "webhook", "schedule"], prompt: str, enabled: bool | Omit = OMIT, max_runs_per_day: int | Omit = OMIT, cron: str | Omit = OMIT, timezone: str | Omit = OMIT, slack_connection_id: str | UUID | Omit = OMIT, channel_id: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NewTrigger:
+    def create(self, *, name: str, scopes: list[str], workspace_id: str | UUID | Omit = OMIT, expires_at: str | datetime | Omit = OMIT, worker_ids: list[str | UUID] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NewApiKey:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("createTrigger",
+        result = self._client.request("createApiKey",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"kind": kind,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
+            body=payload({"name": name,"scopes": scopes,"workspace_id": workspace_id,"expires_at": expires_at,"worker_ids": worker_ids}),
         )
-        return decode(models.NewTrigger, result, identity)
+        return decode(models.NewApiKey, result, identity)
 
-    def delete(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DeleteTrigger200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteTrigger",
-            path=parameters({"trigger_id": trigger_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.DeleteTrigger200Response, result, identity)
-
-    def get(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Trigger:
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListApiKeys200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getTrigger",
-            path=parameters({"trigger_id": trigger_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Trigger, result, identity)
-
-    def list_deliveries(self, trigger_id: str | UUID, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListTriggerDeliveries200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listTriggerDeliveries",
-            path=parameters({"trigger_id": trigger_id}),
+        result = self._client.request("listApiKeys",
+            path=parameters({}),
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.ListTriggerDeliveries200Response, result, identity)
+        return decode(models.ListApiKeys200Response, result, identity)
 
-    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, kind: Literal["slack", "webhook", "schedule"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListTriggers200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listTriggers",
-            path=parameters({}),
-            query=parameters({"cursor": cursor,"limit": limit,"kind": kind}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListTriggers200Response, result, identity)
-
-    def retry_reply(self, trigger_id: str | UUID, delivery_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerDelivery:
+    def revoke(self, key_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("retryTriggerReply",
-            path=parameters({"trigger_id": trigger_id,"delivery_id": delivery_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.TriggerDelivery, result, identity)
-
-    def rotate_secret(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerSecret:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("rotateTriggerSecret",
-            path=parameters({"trigger_id": trigger_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.TriggerSecret, result, identity)
-
-    def run(self, trigger_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.TriggerDelivery:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("runTrigger",
-            path=parameters({"trigger_id": trigger_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.TriggerDelivery, result, identity)
-
-    def update(self, trigger_id: str | UUID, *, name: str | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, agent_id: str | UUID | Omit = OMIT, prompt: str | Omit = OMIT, enabled: bool | Omit = OMIT, max_runs_per_day: int | Omit = OMIT, cron: str | Omit = OMIT, timezone: str | Omit = OMIT, slack_connection_id: str | UUID | Omit = OMIT, channel_id: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Trigger:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateTrigger",
-            path=parameters({"trigger_id": trigger_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
-        )
-        return decode(models.Trigger, result, identity)
-
-class SlackConnectionsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def create(self, *, name: str, bot_token: str, signing_secret: str, request_options: RequestOptions | None = None) -> models.SlackConnection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createSlackConnection",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"bot_token": bot_token,"signing_secret": signing_secret}),
-        )
-        return decode(models.SlackConnection, result, identity)
-
-    def delete(self, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DeleteTrigger200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteSlackConnection",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.DeleteTrigger200Response, result, identity)
-
-    def list_channels(self, connection_id: str | UUID, *, cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSlackConnectionChannels200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listSlackConnectionChannels",
-            path=parameters({"connection_id": connection_id}),
-            query=parameters({"cursor": cursor}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListSlackConnectionChannels200Response, result, identity)
-
-    def list(self, *, request_options: RequestOptions | None = None) -> models.ListSlackConnections200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listSlackConnections",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListSlackConnections200Response, result, identity)
-
-class CustomerAgentsResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def authorize_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, return_url: str, request_options: RequestOptions | None = None) -> models.CustomerConnectionAuthorization:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("authorizeCustomerAgentConnection",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"return_url": return_url}),
-        )
-        return decode(models.CustomerConnectionAuthorization, result, identity)
-
-    def cancel_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("cancelCustomerAgentRun",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({}),
-        )
-        return decode(models.Run, result, identity)
-
-    def complete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, code: str, request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("completeCustomerAgentConnection",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"code": code}),
-        )
-        return decode(models.CustomerAgentConnection, result, identity)
-
-    def create_connection(self, customer_id: str, customer_agent_id: str | UUID, *, name: str, provider: str, capabilities: list[params.ConnectionCapabilityParams], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createCustomerAgentConnection",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"provider": provider,"capabilities": capabilities}),
-        )
-        return decode(models.CustomerAgentConnection, result, identity)
-
-    def delete_connection(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("deleteCustomerAgentConnection",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
+        result = self._client.request("revokeApiKey",
+            path=parameters({"key_id": key_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
@@ -1713,163 +1697,63 @@ class CustomerAgentsResource:
         )
         return None
 
-    def ensure(self, customer_id: str, *, key: str, name: str, configuration: params.CustomerAgentConfigurationParams, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+class SessionsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def continue_run(self, session_id: str | UUID, *, webhook_endpoint_ids: list[str | UUID] | Omit = OMIT, connection_access_overrides: list[params.GrantParams] | Omit = OMIT, stream: bool | Omit = OMIT, prompt: str, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, memory_mib: int | Omit = OMIT, cpu_millis: int | Omit = OMIT, worker_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, scheduling_class: Literal["background", "interactive"] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, model: str | Omit = OMIT, permissions: params.AgentPermissionsParams | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, attachments: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("ensureCustomerAgent",
-            path=parameters({"customer_id": customer_id}),
+        result = self._client.request("continueSession",
+            path=parameters({"session_id": session_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"key": key,"name": name,"configuration": configuration}),
+            body=payload({"webhook_endpoint_ids": webhook_endpoint_ids,"connection_access_overrides": connection_access_overrides,"stream": stream,"prompt": prompt,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"memory_mib": memory_mib,"cpu_millis": cpu_millis,"worker_id": worker_id,"connection_grants": connection_grants,"scheduling_class": scheduling_class,"limits": limits,"model": model,"permissions": permissions,"queue_if_busy": queue_if_busy,"attachments": attachments}),
         )
-        return decode(models.CustomerAgentBinding, result, identity)
+        return decode(models.NativeRunAccepted, result, identity)
 
-    def get(self, customer_id: str, customer_agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.CustomerAgentBinding:
+    def create(self, *, worktree_id: str | UUID, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Session:
         options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getCustomerAgent",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
+        identity = options.identity(True)
+        result = self._client.request("createSession",
+            path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-
+            body=payload({"worktree_id": worktree_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"model_parameters": model_parameters}),
         )
-        return decode(models.CustomerAgentBinding, result, identity)
+        return decode(models.Session, result, identity)
 
-    def get_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Run:
+    def get(self, session_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Session:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getCustomerAgentRun",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Run, result, identity)
-
-    def get_run_result(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.RunResult:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getCustomerAgentRunResult",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
+        result = self._client.request("getSession",
+            path=parameters({"session_id": session_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.RunResult, result, identity)
+        return decode(models.Session, result, identity)
 
-    def list_connections(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentConnectionPage:
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, worktree_id: str | UUID | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSessions200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("listCustomerAgentConnections",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.CustomerAgentConnectionPage, result, identity)
-
-    def list_conversations(self, customer_id: str, customer_agent_id: str | UUID, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListSessions200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listCustomerAgentConversations",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({"cursor": cursor,"limit": limit}),
+        result = self._client.request("listSessions",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"worktree_id": worktree_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
         return decode(models.ListSessions200Response, result, identity)
 
-    def list_files(self, customer_id: str, customer_agent_id: str | UUID, *, path: str | Omit = OMIT, query: str | Omit = OMIT, recursive: bool | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.FileListing:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listCustomerAgentFiles",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({"path": path,"query": query,"recursive": recursive,"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.FileListing, result, identity)
-
-    def list_run_events(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRunEvents200Response:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listCustomerAgentRunEvents",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"run_id": run_id}),
-            query=parameters({"after": after,"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.ListRunEvents200Response, result, identity)
-
-    def list(self, customer_id: str, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.CustomerAgentPage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listCustomerAgents",
-            path=parameters({"customer_id": customer_id}),
-            query=parameters({"cursor": cursor,"limit": limit}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.CustomerAgentPage, result, identity)
-
-    def read_file(self, customer_id: str, customer_agent_id: str | UUID, *, download: bool | Omit = OMIT, path: str, request_options: RequestOptions | None = None) -> bytes:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("readCustomerAgentFile",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({"download": download,"path": path}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return result
-
-    def send_message(self, customer_id: str, customer_agent_id: str | UUID, *, prompt: str, conversation_id: str | UUID | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, queue_if_busy: bool | Omit = OMIT, attachments: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.NativeRunAccepted:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("sendCustomerAgentMessage",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"prompt": prompt,"conversation_id": conversation_id,"limits": limits,"queue_if_busy": queue_if_busy,"attachments": attachments}),
-        )
-        return decode(models.NativeRunAccepted, result, identity)
-
-    def stream_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
-        stream = self._client.stream_customer_agent(customer_id, str(customer_agent_id), str(run_id), after=after)
-        try:
-            for event in stream:
-                yield models.Event.model_validate(event)
-        finally:
-            stream.close()
-
-    def update_connection_permissions(self, customer_id: str, customer_agent_id: str | UUID, connection_id: str | UUID, *, if_match: str, capability_ids: list[str], request_options: RequestOptions | None = None) -> models.CustomerAgentConnection:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("updateCustomerAgentConnectionPermissions",
-            path=parameters({"customer_id": customer_id,"customer_agent_id": customer_agent_id,"connection_id": connection_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({"If-Match": if_match})},
-            idempotency_key=identity,
-            body=payload({"capability_ids": capability_ids}),
-        )
-        return decode(models.CustomerAgentConnection, result, identity)
-
 class InferencesResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def create_bounded_agent_run(self, *, workspace_id: str | UUID, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
+    def create_bounded_agent_run(self, *, workspace_id: str | UUID, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.RunAccepted:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createBoundedAgentRun",
@@ -1877,7 +1761,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds}),
+            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"stream": stream}),
         )
         return decode(models.RunAccepted, result, identity)
 
@@ -1905,7 +1789,16 @@ class InferencesResource:
         )
         return decode(models.DecisionDefinition, result, identity)
 
-    def create(self, *, prefer: Literal["respond-async"] | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
+    def stream(self, request: params.InferenceCreateParams, *, request_options: RequestOptions | None = None) -> Generator[models.InferenceStreamEvent, None, None]:
+        options = request_options or RequestOptions()
+        stream = self._client.stream_inference(payload(request), idempotency_key=options.idempotency_key, headers=options.headers)
+        try:
+            for event in stream:
+                yield models.InferenceStreamEvent.model_validate(event)
+        finally:
+            stream.close()
+
+    def create(self, *, prefer: Literal["respond-async"] | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createInference",
@@ -1913,7 +1806,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"Prefer": prefer})},
             idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters}),
+            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"stream": stream}),
         )
         return decode(models.InferenceResponse, result, identity)
 
@@ -1965,197 +1858,313 @@ class InferencesResource:
         )
         return decode(models.DecisionDefinition, result, identity)
 
-class TasksResource:
+class WebhookEndpointsResource:
     def __init__(self, client: Client):
         self._client = client
 
-    def close_decision(self, task_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DecisionTask:
+    def create(self, *, url: str, events: list[Literal["run.completed", "run.failed", "run.cancelled", "git_sync.updated", "connection.expired"]], request_options: RequestOptions | None = None) -> models.NewWebhook:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("closeDecisionTask",
-            path=parameters({"task_id": task_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.DecisionTask, result, identity)
-
-    def create_decision(self, *, workspace_id: str | UUID, objective: str, decide: params.TaskStepDefinitionParams, investigate: params.TaskStepDefinitionParams | Omit = OMIT, investigate_when: object | Omit = OMIT, max_cost_micro_usd: str, max_runs: int, evidence_horizon_seconds: int, request_options: RequestOptions | None = None) -> models.DecisionTask:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createDecisionTask",
+        result = self._client.request("createWebhookEndpoint",
             path=parameters({}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"objective": objective,"decide": decide,"investigate": investigate,"investigate_when": investigate_when,"max_cost_micro_usd": max_cost_micro_usd,"max_runs": max_runs,"evidence_horizon_seconds": evidence_horizon_seconds}),
+            body=payload({"url": url,"events": events}),
         )
-        return decode(models.DecisionTask, result, identity)
+        return decode(models.NewWebhook, result, identity)
 
-    def get_decision(self, task_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.DecisionTask:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("getDecisionTask",
-            path=parameters({"task_id": task_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.DecisionTask, result, identity)
-
-    def record_outcome(self, task_id: str | UUID, *, event_id: str, wake_id: str | UUID, outcome: Literal["accepted", "rejected", "unknown"], evidence: dict[str, str], note: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.DecisionTask:
+    def delete(self, endpoint_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("recordTaskOutcome",
-            path=parameters({"task_id": task_id}),
+        result = self._client.request("deleteWebhookEndpoint",
+            path=parameters({"endpoint_id": endpoint_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"event_id": event_id,"wake_id": wake_id,"outcome": outcome,"evidence": evidence,"note": note}),
+
         )
-        return decode(models.DecisionTask, result, identity)
+        return None
 
-    def wake_decision(self, task_id: str | UUID, *, event_id: str, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams, request_options: RequestOptions | None = None) -> models.DecisionTask:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("wakeDecisionTask",
-            path=parameters({"task_id": task_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"event_id": event_id,"input": input,"context": context}),
-        )
-        return decode(models.DecisionTask, result, identity)
-
-class WorkersResource:
-    def __init__(self, client: Client):
-        self._client = client
-
-    def create(self, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("createWorker",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd}),
-        )
-        return decode(models.Worker, result, identity)
-
-    def destroy(self, worker_id: str | UUID, *, force: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
-        options = request_options or RequestOptions()
-        identity = options.identity(True)
-        result = self._client.request("destroyWorker",
-            path=parameters({"worker_id": worker_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-            body=payload({"force": force}),
-        )
-        return decode(models.Worker, result, identity)
-
-    def get(self, worker_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Worker:
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListWebhookEndpoints200Response:
         options = request_options or RequestOptions()
         identity = options.identity(False)
-        result = self._client.request("getWorker",
-            path=parameters({"worker_id": worker_id}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.Worker, result, identity)
-
-    def list_offerings(self, *, request_options: RequestOptions | None = None) -> models.WorkerOfferings:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listWorkerOfferings",
-            path=parameters({}),
-            query=parameters({}),
-            headers={**options.headers, **parameters({})},
-            idempotency_key=identity,
-
-        )
-        return decode(models.WorkerOfferings, result, identity)
-
-    def list(self, *, cursor: str | UUID | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.WorkerPage:
-        options = request_options or RequestOptions()
-        identity = options.identity(False)
-        result = self._client.request("listWorkers",
+        result = self._client.request("listWebhookEndpoints",
             path=parameters({}),
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.WorkerPage, result, identity)
+        return decode(models.ListWebhookEndpoints200Response, result, identity)
 
-    def patch(self, worker_id: str | UUID, *, name: str | Omit = OMIT, compute: Literal["server", "sandbox"] | Omit = OMIT, dedicated: bool | Omit = OMIT, isolate_runs: bool | Omit = OMIT, region: str | Omit = OMIT, runtime: str | Omit = OMIT, size: str | None | Omit = OMIT, min_instances: int | Omit = OMIT, max_instances: int | Omit = OMIT, max_concurrency: int | Omit = OMIT, idle_timeout_seconds: int | None | Omit = OMIT, expires_at: str | datetime | None | Omit = OMIT, max_hourly_compute_cost_micro_usd: str | Omit = OMIT, expected_revision: int, request_options: RequestOptions | None = None) -> models.Worker:
+    def rotate_webhook_secret(self, endpoint_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.NewWebhook:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("patchWorker",
-            path=parameters({"worker_id": worker_id}),
+        result = self._client.request("rotateWebhookSecret",
+            path=parameters({"endpoint_id": endpoint_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd,"expected_revision": expected_revision}),
+            body=payload({}),
         )
-        return decode(models.Worker, result, identity)
+        return decode(models.NewWebhook, result, identity)
 
-    def pause(self, worker_id: str | UUID, *, force: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Worker:
+    def update(self, endpoint_id: str | UUID, *, url: str | Omit = OMIT, events: list[Literal["run.completed", "run.failed", "run.cancelled", "git_sync.updated", "connection.expired"]] | Omit = OMIT, enabled: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Webhook:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("pauseWorker",
-            path=parameters({"worker_id": worker_id}),
+        result = self._client.request("updateWebhookEndpoint",
+            path=parameters({"endpoint_id": endpoint_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"force": force}),
+            body=payload({"url": url,"events": events,"enabled": enabled}),
         )
-        return decode(models.Worker, result, identity)
+        return decode(models.Webhook, result, identity)
 
-    def resume(self, worker_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Worker:
+class ArtifactsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def delete(self, artifact_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
         options = request_options or RequestOptions()
         identity = options.identity(True)
-        result = self._client.request("resumeWorker",
-            path=parameters({"worker_id": worker_id}),
+        result = self._client.request("deleteArtifact",
+            path=parameters({"artifact_id": artifact_id}),
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
 
         )
-        return decode(models.Worker, result, identity)
+        return None
+
+    def download(self, artifact_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Download:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("downloadArtifact",
+            path=parameters({"artifact_id": artifact_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Download, result, identity)
+
+class TransfersResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def apply(self, transfer_id: str | UUID, *, expected_revision: str, completed_paths: list[str] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("applyTransfer",
+            path=parameters({"transfer_id": transfer_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"expected_revision": expected_revision,"completed_paths": completed_paths}),
+        )
+        return decode(models.Operation, result, identity)
+
+    def get(self, transfer_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Transfer:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getTransfer",
+            path=parameters({"transfer_id": transfer_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Transfer, result, identity)
+
+class UsageResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def get(self, *, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, group_by: Literal["day", "hour", "organization", "model", "provider", "harness", "billing_mode"] | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Report:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getUsage",
+            path=parameters({}),
+            query=parameters({"from": from_,"to": to,"group_by": group_by}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Report, result, identity)
+
+class OperationsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def get(self, operation_id: str | UUID, *, request_options: RequestOptions | None = None) -> models.Operation:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getOperation",
+            path=parameters({"operation_id": operation_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Operation, result, identity)
+
+class ModelsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def list(self, *, harness: str | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListModels200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listModels",
+            path=parameters({}),
+            query=parameters({"harness": harness,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListModels200Response, result, identity)
+
+class AgentsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def create(self, *, name: str, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"], model: str, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"], provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("createAgent",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
+        )
+        return decode(models.Agent, result, identity)
+
+    def delete(self, agent_id: str | UUID, *, request_options: RequestOptions | None = None) -> None:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("deleteAgent",
+            path=parameters({"agent_id": agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return None
+
+    def get(self, agent_id: str | UUID, *, include_connections: bool | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, connections_limit: int | Omit = OMIT, connections_cursor: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getAgent",
+            path=parameters({"agent_id": agent_id}),
+            query=parameters({"include_connections": include_connections,"workspace_id": workspace_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Agent, result, identity)
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, query: str | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListAgents200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listAgents",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit,"query": query}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListAgents200Response, result, identity)
+
+    def update(self, agent_id: str | UUID, *, name: str | Omit = OMIT, harness: Literal["codex", "claude-code", "opencode", "hermes", "deepseek", "pi"] | Omit = OMIT, model: str | Omit = OMIT, instructions: str | Omit = OMIT, billing_mode: Literal["byok", "managed", "subscription"] | Omit = OMIT, provider_connection_id: str | UUID | Omit = OMIT, connection_grants: list[params.GrantParams] | None | Omit = OMIT, limits: params.LimitsParams | Omit = OMIT, request_options: RequestOptions | None = None) -> models.Agent:
+        options = request_options or RequestOptions()
+        identity = options.identity(True)
+        result = self._client.request("updateAgent",
+            path=parameters({"agent_id": agent_id}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+            body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
+        )
+        return decode(models.Agent, result, identity)
+
+class MeResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def get(self, *, request_options: RequestOptions | None = None) -> models.Identity:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("getIdentity",
+            path=parameters({}),
+            query=parameters({}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.Identity, result, identity)
+
+class RequestsResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def list(self, *, from_: str | datetime | Omit = OMIT, to: str | datetime | Omit = OMIT, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListRequests200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listRequests",
+            path=parameters({}),
+            query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListRequests200Response, result, identity)
+
+class HarnessesResource:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def list(self, *, cursor: str | Omit = OMIT, limit: int | Omit = OMIT, request_options: RequestOptions | None = None) -> models.ListHarnesses200Response:
+        options = request_options or RequestOptions()
+        identity = options.identity(False)
+        result = self._client.request("listHarnesses",
+            path=parameters({}),
+            query=parameters({"cursor": cursor,"limit": limit}),
+            headers={**options.headers, **parameters({})},
+            idempotency_key=identity,
+
+        )
+        return decode(models.ListHarnesses200Response, result, identity)
 
 class Resources:
     def _init_resources(self, client: Client) -> None:
-        self.workspaces = WorkspacesResource(client)
-        self.worktrees = WorktreesResource(client)
-        self.agents = AgentsResource(client)
-        self.sessions = SessionsResource(client)
-        self.runs = RunsResource(client)
-        self.artifacts = ArtifactsResource(client)
-        self.connections = ConnectionsResource(client)
-        self.api_keys = ApiKeysResource(client)
-        self.webhook_endpoints = WebhookEndpointsResource(client)
-        self.webhook_deliveries = WebhookDeliveriesResource(client)
-        self.usage = UsageResource(client)
-        self.requests = RequestsResource(client)
-        self.billing = BillingResource(client)
-        self.harnesses = HarnessesResource(client)
-        self.models = ModelsResource(client)
-        self.operations = OperationsResource(client)
-        self.operator = OperatorResource(client)
-        self.checkpoints = CheckpointsResource(client)
-        self.me = MeResource(client)
-        self.transfers = TransfersResource(client)
-        self.integrations = IntegrationsResource(client)
-        self.organizations = OrganizationsResource(client)
-        self.triggers = TriggersResource(client)
-        self.slack_connections = SlackConnectionsResource(client)
-        self.customer_agents = CustomerAgentsResource(client)
-        self.inferences = InferencesResource(client)
         self.tasks = TasksResource(client)
+        self.webhook_deliveries = WebhookDeliveriesResource(client)
+        self.runs = RunsResource(client)
+        self.organizations = OrganizationsResource(client)
+        self.checkpoints = CheckpointsResource(client)
+        self.connections = ConnectionsResource(client)
+        self.triggers = TriggersResource(client)
+        self.customer_agents = CustomerAgentsResource(client)
+        self.worktrees = WorktreesResource(client)
+        self.slack_connections = SlackConnectionsResource(client)
+        self.workspaces = WorkspacesResource(client)
         self.workers = WorkersResource(client)
+        self.operator = OperatorResource(client)
+        self.integrations = IntegrationsResource(client)
+        self.billing = BillingResource(client)
+        self.api_keys = ApiKeysResource(client)
+        self.sessions = SessionsResource(client)
+        self.inferences = InferencesResource(client)
+        self.webhook_endpoints = WebhookEndpointsResource(client)
+        self.artifacts = ArtifactsResource(client)
+        self.transfers = TransfersResource(client)
+        self.usage = UsageResource(client)
+        self.operations = OperationsResource(client)
+        self.models = ModelsResource(client)
+        self.agents = AgentsResource(client)
+        self.me = MeResource(client)
+        self.requests = RequestsResource(client)
+        self.harnesses = HarnessesResource(client)

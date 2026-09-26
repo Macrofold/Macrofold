@@ -12,6 +12,7 @@ Add the local crate to your application's `Cargo.toml`:
 [dependencies]
 macrofold = { path = "/absolute/path/to/Macrofold/sdk/rust" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde_json = "1"
 ```
 
 Tested with Rust 1.94.1. Native TLS is the default; select `default-features = false, features = ["rustls"]` to use Rustls.
@@ -51,6 +52,47 @@ let client = Macrofold::builder()
     .api_key("YOUR_LOCAL_API_KEY")
     .build()?;
 ```
+
+## Stream a model response
+
+For a direct model call without a harness, use `inferences.stream` (Go: `Inferences.Stream`). The helper sets `stream: true`. Set `MACROFOLD_API_KEY` with `runs:write` and `runs:read`; this example requires a configured Anthropic provider and managed credit. Its $0.10 budget is a ceiling, not a price estimate. Workspace-restricted keys must also supply their authorized `workspace_id`.
+
+```rust
+use macrofold::{Macrofold, ClientError, models::InferenceCreate};
+use std::io::Write;
+
+#[tokio::main]
+async fn main() -> Result<(), ClientError> {
+    let client = Macrofold::new()?;
+    let request: InferenceCreate = serde_json::from_value(serde_json::json!({
+        "model_binding": {
+            "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "billing_mode": "managed"
+        },
+        "input": {
+            "messages": [{"role": "user", "content": "Explain worktrees in two sentences."}],
+            "max_tokens": 256
+        },
+        "limits": {"timeout_seconds": 60, "max_output_tokens": 256, "max_cost_micro_usd": "100000"}
+    }))?;
+    client.inferences().stream(request, |event| {
+        match event.r#type.as_str() {
+            "run.accepted" => println!("Run: {}", event.run_id),
+            "output.delta" => {
+                print!("{}", event.data.text.as_deref().unwrap_or(""));
+                std::io::stdout().flush().expect("stdout write failed");
+            },
+            "run.succeeded" | "run.failed" | "run.cancelled" | "run.timed_out" => {
+                println!("{} {:?}", event.r#type, event.data.result);
+            },
+            _ => {},
+        }
+        true
+    }).await?;
+    Ok(())
+}
+```
+
+Direct events are live-only and do not reconnect or replay tokens. Save the accepted run ID to retrieve its final result after a disconnect; detaching leaves execution running. Terminal failures arrive as events, so inspect them even when the helper returns normally. For recovery across process restarts, persist your own idempotency key using the request options described below. See [streaming](../../docs/features/api/streaming.md) for supported providers, events, limits, and REST examples.
 
 ## Resource methods
 

@@ -124,7 +124,7 @@ it('uses OpenRouter decision routing and accepted price ceilings without enablin
   });
   for (const model of ['~typesafe/jev-latest', 'openrouter/auto', 'jev-1.13.0']) {
     expect(() => decisionModel({ provider: 'openrouter', model, billing_mode: 'managed' })).toThrow(
-      'explicitly supported decision model',
+      expect.objectContaining({ status: 400, code: 'decision_model_unavailable' }),
     );
   }
   expect(() => decisionProtocol('unknown')).toThrow('Unsupported decision provider');

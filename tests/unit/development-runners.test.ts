@@ -7,13 +7,13 @@ import { expect, it } from 'vitest';
 const exec = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '../..');
 it.each(['dev', 'worker', 'doctor'])(
-  'loads the same explicit Docker overlay for %s without editing either env file',
+  'loads the shared Docker configuration for %s without reading a retired overlay',
   async (action) => {
     const directory = await mkdtemp(path.join(tmpdir(), 'platform-mode-'));
     try {
       const base =
-        'PLATFORM_MODE=local\nEXECUTION_PROVIDER=simulator\nALLOW_PAID_EXECUTION=false\nORCHESTRATION_BACKEND=workflow\nAPP_ORIGIN=http://localhost:3210\n';
-      const overlay = 'EXECUTION_PROVIDER=docker\nORCHESTRATION_BACKEND=poller\nALLOW_PAID_EXECUTION=false\n';
+        'PLATFORM_MODE=local\nEXECUTION_PROVIDER=docker\nALLOW_PAID_EXECUTION=false\nORCHESTRATION_BACKEND=poller\nAPP_ORIGIN=http://localhost:3210\n';
+      const overlay = 'EXECUTION_PROVIDER=simulator\nORCHESTRATION_BACKEND=workflow\nALLOW_PAID_EXECUTION=true\n';
       await writeFile(path.join(directory, '.env'), base);
       await writeFile(path.join(directory, '.env.docker'), overlay);
       await mkdir(path.join(directory, 'bin'));

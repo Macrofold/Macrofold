@@ -27,6 +27,9 @@ process.env.XDG_CACHE_HOME = `${configuration.stateHome}/.cache`;
 process.env.PI_OFFLINE = '1';
 process.env.OPENCODE_DISABLE_AUTOUPDATE = 'true';
 process.env.OPENCODE_DISABLE_MODELS_FETCH = 'true';
+// SDK-hosted OpenCode disables questions by default; our adapter forwards them
+// through the existing Run input/answer contract and its permission policy.
+process.env.OPENCODE_ENABLE_QUESTION_TOOL = 'true';
 process.chdir(configuration.workspace);
 let controller = new AbortController();
 process.on('SIGTERM', () => {

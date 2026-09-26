@@ -20,6 +20,7 @@ if (media)
     target: 'node24',
     format: 'esm',
     packages: 'external',
+    sourcemap: true,
   });
 const stdio = process.argv.includes('--stdio');
 const warm = process.argv.includes('--warm');
@@ -51,9 +52,9 @@ for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNa
     `type=bind,src=${root}/tests/fixtures,dst=/tests,readonly`,
   ];
   if (media)
-    args.push(
+    for (const suffix of ['', '.map']) args.push(
       '--mount',
-      `type=bind,src=${root}/packages/runtime/dist/media-validation.mjs,dst=/opt/platform/media-validation.mjs,readonly`,
+      `type=bind,src=${root}/packages/runtime/dist/media-validation.mjs${suffix},dst=/opt/platform/media-validation.mjs${suffix},readonly`,
     );
   const coverage = process.env.NATIVE_COVERAGE_DIR
     ? path.resolve(process.env.NATIVE_COVERAGE_DIR, randomUUID())
@@ -79,9 +80,9 @@ for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNa
         'document-worker',
         'snapshot-page', 'stdio-call',
       ])
-    args.push(
+    for (const suffix of ['', '.map']) args.push(
       '--mount',
-      `type=bind,src=${root}/packages/runtime/dist/${name}.mjs,dst=/opt/platform/${name}.mjs,readonly`,
+      `type=bind,src=${root}/packages/runtime/dist/${name}.mjs${suffix},dst=/opt/platform/${name}.mjs${suffix},readonly`,
     );
   if (!imageOnly)
     args.push(

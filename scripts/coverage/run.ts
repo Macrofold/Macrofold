@@ -52,7 +52,7 @@ export async function withCoverageRun(destination: string, collect: (directory: 
     } finally {
       await rm(lock, { recursive: true });
     }
-    await rm(temporary, { recursive: true, force: true });
+    await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     console.log(`Coverage results (${status}): ${destination}`);
   }
 }
@@ -82,7 +82,9 @@ export async function withCoverageBuild(webRoot: string, use: (directory: string
         else await writeFile(nextEnv, previousEnv);
       }
     } finally {
-      await rm(directory, { recursive: true, force: true });
+      // Late writes from exiting server children can briefly repopulate the build tree.
+      // Node retries ENOTEMPTY/EBUSY here; a persistent failure still fails the run.
+      await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     }
   }
 }

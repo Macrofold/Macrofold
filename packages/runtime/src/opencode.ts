@@ -30,7 +30,8 @@ export class OpenCodeAdapter implements HarnessAdapter {
       this.server ||
       (await createOpencodeServer({
         hostname: '127.0.0.1',
-        port: 4096,
+        // The OS assigns an unused port for each resident harness on this Host.
+        port: 0,
         // A cold one-shot worker shares its run signal. Resident servers outlive it;
         // the root supervisor still bounds startup and terminates cancelled workers.
         signal: c.warm ? undefined : signal,
@@ -59,7 +60,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
           },
           ...(guarded
             ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
-            : { permission: { edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+            : { permission: { question: 'allow' as const, edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
           mcp: {
             ...(c.toolGrants
               ? {
@@ -94,7 +95,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     const controller = new AbortController();
     const transportSignal = AbortSignal.any([controller.signal, signal]);
     let consume: Promise<void> | undefined;
-    const questions = createOpencodeClient({ baseUrl: 'http://127.0.0.1:4096' });
+    const questions = createOpencodeClient({ baseUrl: server.url });
     try {
       if (!sessionId) {
         setStage?.('session_create');

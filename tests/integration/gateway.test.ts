@@ -14,6 +14,7 @@ import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { saveConnection } from '../../packages/core/src/connections';
 import * as tracing from '../../packages/core/src/tracing';
+import { retireFixtureRuns } from '../fixtures/account';
 
 let p: Principal;
 const original = { ...config };
@@ -73,6 +74,8 @@ afterEach(async () => {
   await pool.query("UPDATE memberships SET role='owner' WHERE user_id=$1", [p.userId]);
 });
 afterAll(async () => {
+  // Gateway cases hold synthetic running Runs; release their global capacity.
+  await retireFixtureRuns(p.organizationId);
   await pool.end();
   await authPool.end();
 });

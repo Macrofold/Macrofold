@@ -227,7 +227,8 @@ it('traces explicit decision context, billing, actor and final receipt under one
   const runId = await submit();
   await complete(runId);
   const observations = trace.mock.calls.map(([o])=>o);
-  expect(observations.find(o=>o.name==='decision.response')).toMatchObject({type:'event',output:{content:expect.any(Array)},context:{run_id:runId}});
+  // Successful output belongs to the settled generation, not a duplicate raw-response event.
+  expect(observations.filter(o=>o.type==='generation')).toHaveLength(1);
   const generation = observations.find(o=>o.type==='generation')!;
   expect(generation).toMatchObject({name:'decision.generate',chargedMicroUsd:'150',context:{run_id:runId,workspace_id:workspaceId,worktree_id:null,actor_id:'actor-1',definition_revision:'triage/1'},metadata:{provider_request_id:'provider-fixture',provisional:false,provider_cost_status:'estimated_from_usage'}});
   expect(JSON.stringify(generation.input)).toContain('overdue');
@@ -972,7 +973,7 @@ it('submits, streams, waits, retrieves and cancels using the generated client ov
     expect(events).toContain('run.succeeded');
     expect((await client.runs.wait(accepted.run_id)).inference?.value).toBe('review');
     expect((await client.runs.getResult(accepted.run_id)).inference?.validation.status).toBe('passed');
-    const queued = await client.request('createInference', { body: input() });
+    const queued = await client.request('createInference', { body: input(), headers: { Prefer: 'respond-async' } });
     await client.runs.cancel(queued.run_id);
     expect((await client.runs.get(queued.run_id)).status).toBe('cancelled');
   } finally {

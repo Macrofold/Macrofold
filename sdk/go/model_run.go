@@ -57,8 +57,8 @@ type Run struct {
 	Kind string `json:"kind"`
 	WorkspaceId NullableString `json:"workspace_id"`
 	TaskId NullableString `json:"task_id,omitempty"`
-	// Reusable compute ID, when selected or created by keep_warm_seconds.
-	SandboxId NullableString `json:"sandbox_id,omitempty"`
+	// Explicit reusable compute target, independent of the Run context.
+	WorkerId NullableString `json:"worker_id,omitempty"`
 }
 
 type _Run Run
@@ -1028,46 +1028,46 @@ func (o *Run) UnsetTaskId() {
 	o.TaskId.Unset()
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *Run) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId.Get()) {
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Run) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.SandboxId.Get()
+	return *o.WorkerId.Get()
 }
 
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *Run) GetSandboxIdOk() (*string, bool) {
+func (o *Run) GetWorkerIdOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.SandboxId.Get(), o.SandboxId.IsSet()
+	return o.WorkerId.Get(), o.WorkerId.IsSet()
 }
 
-// HasSandboxId returns a boolean if a field has been set.
-func (o *Run) HasSandboxId() bool {
-	if o != nil && o.SandboxId.IsSet() {
+// HasWorkerId returns a boolean if a field has been set.
+func (o *Run) HasWorkerId() bool {
+	if o != nil && o.WorkerId.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetSandboxId gets a reference to the given NullableString and assigns it to the SandboxId field.
-func (o *Run) SetSandboxId(v string) {
-	o.SandboxId.Set(&v)
+// SetWorkerId gets a reference to the given NullableString and assigns it to the WorkerId field.
+func (o *Run) SetWorkerId(v string) {
+	o.WorkerId.Set(&v)
 }
-// SetSandboxIdNil sets the value for SandboxId to be an explicit nil
-func (o *Run) SetSandboxIdNil() {
-	o.SandboxId.Set(nil)
+// SetWorkerIdNil sets the value for WorkerId to be an explicit nil
+func (o *Run) SetWorkerIdNil() {
+	o.WorkerId.Set(nil)
 }
 
-// UnsetSandboxId ensures that no value is present for SandboxId, not even an explicit nil
-func (o *Run) UnsetSandboxId() {
-	o.SandboxId.Unset()
+// UnsetWorkerId ensures that no value is present for WorkerId, not even an explicit nil
+func (o *Run) UnsetWorkerId() {
+	o.WorkerId.Unset()
 }
 
 func (o Run) MarshalJSON() ([]byte, error) {
@@ -1150,8 +1150,8 @@ func (o Run) ToMap() (map[string]interface{}, error) {
 	if o.TaskId.IsSet() {
 		toSerialize["task_id"] = o.TaskId.Get()
 	}
-	if o.SandboxId.IsSet() {
-		toSerialize["sandbox_id"] = o.SandboxId.Get()
+	if o.WorkerId.IsSet() {
+		toSerialize["worker_id"] = o.WorkerId.Get()
 	}
 	return toSerialize, nil
 }

@@ -22,7 +22,8 @@ with tempfile.TemporaryDirectory(prefix="hosted-terminal-") as directory:
     def own_terminal():
         os.setsid()
         fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-    child = subprocess.Popen(cli + ["chat", "--workspace", workspace["id"], "--harness", "codex", "--model", "fixture-model"], stdin=slave, stdout=slave, stderr=slave, env=env, cwd=directory)
+    # This child owns a real PTY. Ink otherwise defers every frame until exit in CI.
+    child = subprocess.Popen(cli + ["chat", "--workspace", workspace["id"], "--harness", "codex", "--model", "fixture-model"], stdin=slave, stdout=slave, stderr=slave, env={**env, "CI": "false"}, cwd=directory)
     transcript = bytearray()
 
     def until(needle, timeout=30):

@@ -34,6 +34,21 @@ Use `fixture-model` instead of `YOUR_ENABLED_MODEL` for free local simulation. U
 
 When the harness exposes readable thinking, the CLI shows it with `Thinking` labels separately from assistant answers, including completion or interruption. In plain redirected output, thinking and progress go to stderr; stdout contains the final answer. `--jsonl` preserves the structured reasoning events for your own renderer.
 
+## Select reusable compute
+
+Most Runs need no Worker selection. For explicit compute limits or reuse, discover the offerings and target a [Worker](../execution/workers.md):
+
+```sh
+macrofold worker offerings
+macrofold worker list
+macrofold worker show WORKER_ID
+macrofold run "Review this project" --worker WORKER_ID --harness codex --model YOUR_ENABLED_MODEL
+```
+
+Worker permissions require explicit additional consent. Add `--scope workers:read --scope workers:use` to `login` to inspect and use granted compute; add `--scope workers:write` only when administrative lifecycle control is needed. Normal login does not silently grant Worker administration. A scoped API key can supply the same permissions. Worker access does not grant file, model, or connector access.
+
+Run/chat accept `--worker`, with `--memory-mib` and `--cpu-millis` for explicit per-Run resources. Use Worker command help for creation, revision-fenced updates, pause, resume, and destruction. UUIDs remain identity; exact live names are a convenience. A sleeping zero-baseline Worker wakes from submitted demand, not from polling, so submit before waiting for readiness. Ending one conversation should cancel its own Run rather than destroy compute shared by other conversations.
+
 ## Work in parallel
 
 ```sh

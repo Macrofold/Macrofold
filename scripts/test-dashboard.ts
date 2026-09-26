@@ -91,6 +91,9 @@ async function collect(directory: string) {
           PORT: String(port),
           HOSTNAME: '127.0.0.1',
           NODE_V8_COVERAGE: path.join(directory, 'server'),
+          // Every serial journey signs in as the same fixture principal, so the per-minute
+          // bucket measures suite pacing, not a user. Integration tests own rate-limit behavior.
+          API_RATE_LIMIT_PER_MINUTE: '5000',
         },
         path.join(directory, 'server.log'),
       );

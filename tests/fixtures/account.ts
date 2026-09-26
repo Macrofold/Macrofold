@@ -28,3 +28,18 @@ export async function fixtureAccount(label: string) {
     .join('; ');
   return { p, key: key.secret, cookie };
 }
+
+/** Fixtures that arrange synthetic active states without a worker must retire them.
+ * Scheduling is global: a leftover active or claimable Run consumes capacity or the
+ * fair turn for every later test file that shares this disposable database. */
+export async function retireFixtureRuns(organizationId: string) {
+  await transaction(organizationId, async (tx) => {
+    await tx.query(
+      "UPDATE runs SET status='cancelled',completed_at=now() WHERE organization_id=$1 AND status NOT IN ('succeeded','failed','cancelled','timed_out')",
+      [organizationId],
+    );
+    await tx.query("UPDATE dispatch_jobs SET state='done' WHERE organization_id=$1 AND kind='run'", [
+      organizationId,
+    ]);
+  });
+}

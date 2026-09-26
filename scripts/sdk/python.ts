@@ -78,8 +78,12 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
       `class ${pascal(group)}Resource:\n    def __init__(self, client: Client):\n        self._client = client\n`,
     );
     for (const op of ops.filter((o) => o.contract.group === group)) {
-      if (op.originalId === 'createInference')
-        content.push(`    def stream(self, request: params.InferenceCreateParams, *, request_options: RequestOptions | None = None) -> Generator[models.InferenceStreamEvent, None, None]:
+      if (op.originalId === 'createInference') {
+        if (!op.contract.body || op.contract.body.binary)
+          throw new Error('Inference streaming requires a structured request schema');
+        const requestType = type(op.contract.body.schema, 'InferenceCreate')
+          .replace(/\b(\w+Params)\b/g, 'params.$1');
+        content.push(`    def stream(self, request: ${requestType}, *, request_options: RequestOptions | None = None) -> Generator[models.InferenceStreamEvent, None, None]:
         options = request_options or RequestOptions()
         stream = self._client.stream_inference(payload(request), idempotency_key=options.idempotency_key, headers=options.headers)
         try:
@@ -88,6 +92,7 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
         finally:
             stream.close()
 `);
+      }
       if (op.originalId === 'streamCustomerAgentRun') {
         content.push(`    def stream_run(self, customer_id: str, customer_agent_id: str | UUID, run_id: str | UUID, *, after: str = '0') -> Generator[models.Event, None, None]:
         stream = self._client.stream_customer_agent(customer_id, str(customer_agent_id), str(run_id), after=after)

@@ -107,6 +107,14 @@ for await (const text of client.runs.streamText(run.run_id)) process.stdout.writ
 
 Use `runs.events` for tools, lifecycle events and model-call boundaries. Session/customer-agent messages accept the same boolean and validate the resolved session or preset harness. Native/bounded execution can queue normally. `/v1/harnesses` includes `incremental_output` only on harnesses that emit incremental assistant text; `streaming` alone means run-event delivery, including completed messages.
 
+### Native streaming on reusable Workers
+
+Add a top-level `worker_id` to a native Run or Session follow-up to select reusable compute. The caller also needs `workers:use` for that Worker, independently of the existing data, harness and tool permissions. `stream: true` still validates incremental-output capability and `runs:read`; it does not bypass Worker capacity, cost limits or persistence. Unsupported harnesses are rejected rather than silently routed elsewhere.
+
+The response remains HTTP 202 with a Run receipt, not a direct inference stream. Submit to a sleeping zero-baseline Worker before waiting for readiness, then attach to the Run's durable stream. Polling or keeping a stream open does not keep idle compute alive. Closing a reader detaches; cancelling an individual Run does not pause or destroy a Worker shared by other Runs. Keep Worker lifecycle control with the application's compute owner.
+
+A displayed text delta is not a verified persisted result. Read the final Run result for execution, persistence and usage outcomes. Direct `/v1/inferences` and bounded investigations remain independent of native Worker compute and retain their separate delivery and admission rules. See the [Worker guide](../execution/workers.md) for lifecycle and billing.
+
 ## Show thinking without mixing it into the answer
 
 Native runs expose readable reasoning supplied by the harness/provider through the same authenticated run stream. No extra endpoint, subscription or model call is needed. Use `runs.events`, rather than the answer-only `runs.streamText` helper:

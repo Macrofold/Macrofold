@@ -1,0 +1,58 @@
+import { z } from 'zod';
+
+export const hostRunContextSchema = z.object({
+  assignmentId: z.uuid(),
+  handleId: z.uuid(),
+  worktreeId: z.uuid(),
+  sessionId: z.uuid().nullable().optional(),
+  uid: z.number().int().min(20000).max(2147483646),
+  memoryMiB: z.number().int().positive().max(1048576),
+});
+export type HostRunContext = z.infer<typeof hostRunContextSchema>;
+export function hostRunPaths(context: HostRunContext) {
+  const value = hostRunContextSchema.parse(context);
+  return {
+    control: `/platform-control/assignments/${value.assignmentId}`,
+    workspace: `/host-data/worktrees/${value.worktreeId}`,
+    handle: `/host-data/handles/${value.handleId}`,
+    // Native continuation databases can contain absolute paths. Keep HOME stable
+    // for a Session across cold handles/Hosts without making it a public resource.
+    home: value.sessionId
+      ? `/host-data/continuations/${value.sessionId}`
+      : `/host-data/handles/${value.handleId}/home`,
+    temp: `/host-data/handles/${value.handleId}/tmp`,
+  };
+}
+/** Protected restore and stdio commands act only on the roots assigned to their control directory. */
+export function assignedRoots(
+  configuration: { hostRun?: HostRunContext; workspace: string; stateHome: string },
+  control: string,
+) {
+  const assigned = configuration.hostRun ? hostRunPaths(configuration.hostRun) : undefined;
+  if (
+    configuration.workspace !== (assigned?.workspace ?? '/workspace') ||
+    configuration.stateHome !== (assigned?.home ?? '/agent-home') ||
+    (assigned && assigned.control !== control)
+  )
+    throw new Error('Unexpected runtime roots');
+  return {
+    workspace: configuration.workspace,
+    home: configuration.stateHome,
+    uid: configuration.hostRun?.uid ?? 10001,
+  };
+}
+/** Only unrelated assignments may mutate concurrently; no global slow-command queue. */
+export class KeyedCommands {
+  private readonly tails = new Map<string, Promise<unknown>>();
+  run<T>(key: string, action: () => Promise<T>): Promise<T> {
+    const previous = this.tails.get(key) || Promise.resolve();
+    const task = previous.catch(() => {}).then(action);
+    this.tails.set(key, task);
+    void task
+      .finally(() => {
+        if (this.tails.get(key) === task) this.tails.delete(key);
+      })
+      .catch(() => {});
+    return task;
+  }
+}

@@ -145,24 +145,31 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 			if e != nil {
 				err = e
 			} else if run.Status == "succeeded" || run.Status == "failed" || run.Status == "cancelled" || run.Status == "timed_out" {
-				var remaining *ListRunEvents200Response
+				// Infer each generated response locally: equivalent inline schemas may
+				// acquire different names when another endpoint is added to OpenAPI.
+				var hasRemaining bool
 				if bindingID == "" {
 					history := c.RunsAPI.ListRunEvents(ctx, runID).After(cursor.String()).Limit(1)
 					if settings.organization != "" {
 						history = history.XOrganizationId(settings.organization)
 					}
-					remaining, _, e = history.Execute()
+					remaining, _, historyError := history.Execute()
+					if historyError != nil {
+						return historyError
+					}
+					hasRemaining = len(remaining.Data) > 0
 				} else {
 					history := c.CustomerAgentsAPI.ListCustomerAgentRunEvents(ctx, customerID, bindingID, runID).After(cursor.String()).Limit(1)
 					if settings.organization != "" {
 						history = history.XOrganizationId(settings.organization)
 					}
-					remaining, _, e = history.Execute()
+					remaining, _, historyError := history.Execute()
+					if historyError != nil {
+						return historyError
+					}
+					hasRemaining = len(remaining.Data) > 0
 				}
-				if e != nil {
-					return e
-				}
-				if len(remaining.Data) == 0 {
+				if !hasRemaining {
 					return nil
 				}
 			}

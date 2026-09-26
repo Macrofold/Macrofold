@@ -2,10 +2,11 @@ import { fixtureConnector, fixtureOperator } from '../fixtures/operator';
 import { it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { seal } from '../../packages/core/src/crypto';
+import { credit } from '../../packages/core/src/ledger';
 import * as accessResolution from '../../packages/core/src/connection-access-resolution';
 import { patchAccess, saveRule } from '../../packages/core/src/connection-access';
 import { executeGrantedTool, handleRuntimeMcp, exposedToolName } from '../../packages/core/src/tool-broker';
@@ -27,6 +28,9 @@ let account: Awaited<ReturnType<typeof fixtureAccount>>;
 beforeAll(async () => {
   await fixtureConnector();
   account = await fixtureAccount('Broker fixtures');
+  // A simulated admission holds no credit; priced platform tools still require funding.
+  await transaction(account.p.organizationId, tx =>
+    credit(tx, account.p.organizationId, 10000000n, `broker-fixture:${account.p.organizationId}`));
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -94,6 +98,8 @@ it.each([undefined, 'customer_opaque-app-subject'])(
   },
 );
 afterAll(async () => {
+  // Broker cases hold synthetic running Runs; release their global capacity.
+  await retireFixtureRuns(account.p.organizationId);
   await fixtureOperator((db) => db.query("DELETE FROM connector_enablement WHERE toolkit='gmail'"));
   await pool.end();
   await authPool.end();

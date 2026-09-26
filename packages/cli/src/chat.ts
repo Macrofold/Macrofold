@@ -1,5 +1,6 @@
 import type { Schema } from '../../../sdk/typescript/src/client';
 import { Context, execution, limits, scheduling } from './context';
+import { workerRunOptions } from './workers';
 import { CliError, prompt, terminalText } from './output';
 import { terminal, type TerminalState } from './terminal';
 import { eventLine, followRun, streamCommand, waitingLine } from './stream';
@@ -11,6 +12,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
     throw new CliError('Chat requires a terminal. Use macrofold run --prompt-file - for stdin.');
   const client = context.client,
     settings = execution(context.flags);
+  const placement = await workerRunOptions(context);
   let session = existing || (await context.session());
   const worktree = session
     ? await client.request('getWorktree', { params: { path: { worktree_id: session.worktree_id } } })
@@ -65,6 +67,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
         params: { path: { session_id: session!.id } },
         body: {
           ...scheduling(context.flags),
+          ...placement,
           prompt: text,
           queue_if_busy: true,
           model: settings.model,
@@ -271,6 +274,7 @@ export async function chat(context: Context, existing?: Schema['Session']) {
       params: { path: { session_id: (await ensureSession()).id } },
       body: {
         ...scheduling(context.flags),
+          ...placement,
         prompt: text,
         queue_if_busy: true,
         model: settings.model,

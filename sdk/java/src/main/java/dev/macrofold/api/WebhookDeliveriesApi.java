@@ -311,13 +311,13 @@ public class WebhookDeliveriesApi {
    *
    * @param deliveryId  (required)
    * @param idempotencyKey  (required)
-   * @param body  (required)
+   * @param requestBody  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return Operation
    * @throws ApiException if fails to make API call
    */
-  public Operation replayWebhookDelivery(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Object body, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return replayWebhookDelivery(deliveryId, idempotencyKey, body, xOrganizationId, null);
+  public Operation replayWebhookDelivery(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Map<String, Object> requestBody, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return replayWebhookDelivery(deliveryId, idempotencyKey, requestBody, xOrganizationId, null);
   }
 
   /**
@@ -325,14 +325,14 @@ public class WebhookDeliveriesApi {
    *
    * @param deliveryId  (required)
    * @param idempotencyKey  (required)
-   * @param body  (required)
+   * @param requestBody  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
    * @return Operation
    * @throws ApiException if fails to make API call
    */
-  public Operation replayWebhookDelivery(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Object body, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<Operation> localVarResponse = replayWebhookDeliveryWithHttpInfo(deliveryId, idempotencyKey, body, xOrganizationId, headers);
+  public Operation replayWebhookDelivery(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Map<String, Object> requestBody, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<Operation> localVarResponse = replayWebhookDeliveryWithHttpInfo(deliveryId, idempotencyKey, requestBody, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
@@ -341,13 +341,13 @@ public class WebhookDeliveriesApi {
    *
    * @param deliveryId  (required)
    * @param idempotencyKey  (required)
-   * @param body  (required)
+   * @param requestBody  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @return ApiResponse&lt;Operation&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Operation> replayWebhookDeliveryWithHttpInfo(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Object body, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return replayWebhookDeliveryWithHttpInfo(deliveryId, idempotencyKey, body, xOrganizationId, null);
+  public ApiResponse<Operation> replayWebhookDeliveryWithHttpInfo(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Map<String, Object> requestBody, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return replayWebhookDeliveryWithHttpInfo(deliveryId, idempotencyKey, requestBody, xOrganizationId, null);
   }
 
   /**
@@ -355,14 +355,14 @@ public class WebhookDeliveriesApi {
    *
    * @param deliveryId  (required)
    * @param idempotencyKey  (required)
-   * @param body  (required)
+   * @param requestBody  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;Operation&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Operation> replayWebhookDeliveryWithHttpInfo(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Object body, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = replayWebhookDeliveryRequestBuilder(deliveryId, idempotencyKey, body, xOrganizationId, headers);
+  public ApiResponse<Operation> replayWebhookDeliveryWithHttpInfo(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Map<String, Object> requestBody, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = replayWebhookDeliveryRequestBuilder(deliveryId, idempotencyKey, requestBody, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -409,7 +409,7 @@ public class WebhookDeliveriesApi {
     }
   }
 
-  private HttpRequest.Builder replayWebhookDeliveryRequestBuilder(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Object body, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder replayWebhookDeliveryRequestBuilder(@javax.annotation.Nonnull UUID deliveryId, @javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nonnull Map<String, Object> requestBody, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'deliveryId' is set
     if (deliveryId == null) {
       throw new ApiException(400, "Missing the required parameter 'deliveryId' when calling replayWebhookDelivery");
@@ -418,9 +418,9 @@ public class WebhookDeliveriesApi {
     if (idempotencyKey == null) {
       throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling replayWebhookDelivery");
     }
-    // verify the required parameter 'body' is set
-    if (body == null) {
-      throw new ApiException(400, "Missing the required parameter 'body' when calling replayWebhookDelivery");
+    // verify the required parameter 'requestBody' is set
+    if (requestBody == null) {
+      throw new ApiException(400, "Missing the required parameter 'requestBody' when calling replayWebhookDelivery");
     }
 
     HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
@@ -440,7 +440,7 @@ public class WebhookDeliveriesApi {
     localVarRequestBuilder.header("Accept", "application/json");
 
     try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(body);
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(requestBody);
       localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
     } catch (IOException e) {
       throw new ApiException(e);

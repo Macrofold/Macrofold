@@ -96,11 +96,11 @@ function assertPathAvailable(files: FileRecord[], path: string) {
   );
   assertFileTree([...files, { path }]);
 }
-export async function ensureWritable(tx: Tx, worktreeId: string) {
+export async function ensureWritable(tx: Tx, worktreeId: string, completedRunId?: string) {
   await lock(tx, `worktree:${worktreeId}`);
   const active = await tx.query(
-    "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting')",
-    [worktreeId],
+    "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting') UNION ALL SELECT run_id AS id FROM host_runs WHERE worktree_id=$1 AND released_at IS NULL AND ($2::uuid IS NULL OR run_id<>$2)",
+    [worktreeId,completedRunId || null],
   );
   assert(
     !active.rowCount,
@@ -178,7 +178,9 @@ export async function prepareCheckpoint(
   };
 }
 
-async function saveCheckpoint(tx: Tx, p: Principal, data: Awaited<ReturnType<typeof prepareCheckpoint>>) {
+/** Publish already-prepared immutable bytes. The caller owns the storage guard,
+ * authorization, writer/lease fence and source-revision check. No object I/O here. */
+export async function saveCheckpoint(tx: Tx, p: Principal, data: Awaited<ReturnType<typeof prepareCheckpoint>>) {
   const snapshot = await resources.create(tx, 'checkpoints', p.organizationId, { ...data, created_by: p.id });
   await tx.query('UPDATE organizations SET storage_due_at=least(storage_due_at,now()) WHERE id=$1', [
     p.organizationId,

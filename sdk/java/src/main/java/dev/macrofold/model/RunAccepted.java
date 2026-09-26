@@ -52,7 +52,7 @@ import dev.macrofold.ApiClient;
   RunAccepted.JSON_PROPERTY_RESERVED_MICRO_USD,
   RunAccepted.JSON_PROPERTY_SCHEDULING_CLASS,
   RunAccepted.JSON_PROPERTY_KIND,
-  RunAccepted.JSON_PROPERTY_SANDBOX_ID
+  RunAccepted.JSON_PROPERTY_WORKER_ID
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class RunAccepted {
@@ -141,7 +141,29 @@ public class RunAccepted {
 
     LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
 
-    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity"));
+    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity")),
+
+    WORKER_PAUSED(String.valueOf("worker_paused")),
+
+    WORKER_DESTROYED(String.valueOf("worker_destroyed")),
+
+    WORKER_EXPIRED(String.valueOf("worker_expired")),
+
+    WORKER_CONCURRENCY(String.valueOf("worker_concurrency")),
+
+    WORKER_COST_LIMIT(String.valueOf("worker_cost_limit")),
+
+    WORKER_INSTANCE_LIMIT(String.valueOf("worker_instance_limit")),
+
+    WORKER_STARTING(String.valueOf("worker_starting")),
+
+    WORKER_CAPACITY(String.valueOf("worker_capacity")),
+
+    WORKER_LIFETIME(String.valueOf("worker_lifetime")),
+
+    COMPUTE_UNAVAILABLE(String.valueOf("compute_unavailable")),
+
+    INSUFFICIENT_CREDITS(String.valueOf("insufficient_credits"));
 
     private String value;
 
@@ -257,8 +279,8 @@ public class RunAccepted {
   @javax.annotation.Nullable
   private KindEnum kind;
 
-  public static final String JSON_PROPERTY_SANDBOX_ID = "sandbox_id";
-  private JsonNullable<UUID> sandboxId = JsonNullable.<UUID>undefined();
+  public static final String JSON_PROPERTY_WORKER_ID = "worker_id";
+  private JsonNullable<UUID> workerId = JsonNullable.<UUID>undefined();
 
   public RunAccepted() { 
   }
@@ -536,35 +558,35 @@ public class RunAccepted {
   }
 
 
-  public RunAccepted sandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+  public RunAccepted workerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
     return this;
   }
 
   /**
-   * Reusable compute ID, when selected or created by keep_warm_seconds.
-   * @return sandboxId
+   * Explicit reusable compute target, independent of conversation and files.
+   * @return workerId
    */
   @javax.annotation.Nullable
   @JsonIgnore
-  public UUID getSandboxId() {
-        return sandboxId.orElse(null);
+  public UUID getWorkerId() {
+        return workerId.orElse(null);
   }
 
-  @JsonProperty(value = JSON_PROPERTY_SANDBOX_ID, required = false)
+  @JsonProperty(value = JSON_PROPERTY_WORKER_ID, required = false)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public JsonNullable<UUID> getSandboxId_JsonNullable() {
-    return sandboxId;
+  public JsonNullable<UUID> getWorkerId_JsonNullable() {
+    return workerId;
   }
 
-  @JsonProperty(JSON_PROPERTY_SANDBOX_ID)
-  public void setSandboxId_JsonNullable(JsonNullable<UUID> sandboxId) {
-    this.sandboxId = sandboxId;
+  @JsonProperty(JSON_PROPERTY_WORKER_ID)
+  public void setWorkerId_JsonNullable(JsonNullable<UUID> workerId) {
+    this.workerId = workerId;
   }
 
-  public void setSandboxId(@javax.annotation.Nullable UUID sandboxId) {
-    this.sandboxId = JsonNullable.<UUID>of(sandboxId);
+  public void setWorkerId(@javax.annotation.Nullable UUID workerId) {
+    this.workerId = JsonNullable.<UUID>of(workerId);
   }
 
 
@@ -591,7 +613,7 @@ public class RunAccepted {
         Objects.equals(this.reservedMicroUsd, runAccepted.reservedMicroUsd) &&
         Objects.equals(this.schedulingClass, runAccepted.schedulingClass) &&
         Objects.equals(this.kind, runAccepted.kind) &&
-        equalsNullable(this.sandboxId, runAccepted.sandboxId);
+        equalsNullable(this.workerId, runAccepted.workerId);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -600,7 +622,7 @@ public class RunAccepted {
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind, hashCodeNullable(sandboxId));
+    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind, hashCodeNullable(workerId));
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -625,7 +647,7 @@ public class RunAccepted {
     sb.append("    reservedMicroUsd: ").append(toIndentedString(reservedMicroUsd)).append("\n");
     sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
     sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
-    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -725,9 +747,9 @@ public class RunAccepted {
       joiner.add(String.format(java.util.Locale.ROOT, "%skind%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKind()))));
     }
 
-    // add `sandbox_id` to the URL query string
-    if (getSandboxId() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%ssandbox_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSandboxId()))));
+    // add `worker_id` to the URL query string
+    if (getWorkerId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworker_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorkerId()))));
     }
 
     return joiner.toString();

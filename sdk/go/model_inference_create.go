@@ -24,7 +24,7 @@ type InferenceCreate struct {
 	WorkspaceId *string `json:"workspace_id,omitempty"`
 	Definition *InferenceCreateDefinition `json:"definition,omitempty"`
 	Input interface{} `json:"input"`
-	Context *InferenceCreateContext `json:"context,omitempty"`
+	Context *DecisionTaskWakeContext `json:"context,omitempty"`
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
@@ -145,9 +145,9 @@ func (o *InferenceCreate) SetInput(v interface{}) {
 }
 
 // GetContext returns the Context field value if set, zero value otherwise.
-func (o *InferenceCreate) GetContext() InferenceCreateContext {
+func (o *InferenceCreate) GetContext() DecisionTaskWakeContext {
 	if o == nil || IsNil(o.Context) {
-		var ret InferenceCreateContext
+		var ret DecisionTaskWakeContext
 		return ret
 	}
 	return *o.Context
@@ -155,7 +155,7 @@ func (o *InferenceCreate) GetContext() InferenceCreateContext {
 
 // GetContextOk returns a tuple with the Context field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *InferenceCreate) GetContextOk() (*InferenceCreateContext, bool) {
+func (o *InferenceCreate) GetContextOk() (*DecisionTaskWakeContext, bool) {
 	if o == nil || IsNil(o.Context) {
 		return nil, false
 	}
@@ -171,8 +171,8 @@ func (o *InferenceCreate) HasContext() bool {
 	return false
 }
 
-// SetContext gets a reference to the given InferenceCreateContext and assigns it to the Context field.
-func (o *InferenceCreate) SetContext(v InferenceCreateContext) {
+// SetContext gets a reference to the given DecisionTaskWakeContext and assigns it to the Context field.
+func (o *InferenceCreate) SetContext(v DecisionTaskWakeContext) {
 	o.Context = &v
 }
 

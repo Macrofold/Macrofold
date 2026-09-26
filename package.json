@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @platform/web dev",
     "build": "pnpm --filter @platform/web build",
     "start": "pnpm --filter @platform/web start",
-    "check": "pnpm sdk:build && tsc --noEmit",
+    "check": "pnpm docs:generate && pnpm sdk:build && tsc --noEmit",
     "test": "tsx scripts/test-domain.ts",
     "test:integration": "tsx scripts/test-domain.ts tests/integration",
     "test:e2e": "playwright test",
@@ -54,7 +54,9 @@
     "example:personal-agent": "tsx examples/personal-agent/start.ts",
     "example:mcp": "tsx examples/integrations/start-mcp.ts",
     "recovery": "tsx scripts/recovery.ts",
-    "guidance:check": "tsx scripts/check-agent-guidance.ts"
+    "guidance:check": "tsx scripts/check-agent-guidance.ts",
+    "test:workers:native": "tsx scripts/test-workers-native.ts",
+    "perf:workers": "tsx scripts/workers/stress.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.261",

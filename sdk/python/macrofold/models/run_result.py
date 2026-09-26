@@ -43,6 +43,7 @@ class RunResult(BaseModel):
     content_expired: Optional[StrictBool] = None
     content_expired_at: Optional[datetime] = None
     inference: Optional[InferenceReceipt] = None
+    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["run_id", "final", "output_text", "structured_output", "artifact_ids", "checkpoint_id", "execution_outcome", "persistence_status", "error", "content_expired", "content_expired_at", "inference"]
 
     model_config = ConfigDict(
@@ -75,8 +76,10 @@ class RunResult(BaseModel):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
+        * Fields in `self.additional_properties` are added to the output dict.
         """
         excluded_fields: Set[str] = set([
+            "additional_properties",
         ])
 
         _dict = self.model_dump(
@@ -90,6 +93,11 @@ class RunResult(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of inference
         if self.inference:
             _dict['inference'] = self.inference.to_dict()
+        # puts key-value pairs in additional_properties in the top level
+        if self.additional_properties is not None:
+            for _key, _value in self.additional_properties.items():
+                _dict[_key] = _value
+
         return _dict
 
     @classmethod
@@ -115,6 +123,11 @@ class RunResult(BaseModel):
             "content_expired_at": obj.get("content_expired_at"),
             "inference": InferenceReceipt.from_dict(obj["inference"]) if obj.get("inference") is not None else None
         })
+        # store additional fields in additional_properties
+        for _key in obj.keys():
+            if _key not in cls.__properties:
+                _obj.additional_properties[_key] = obj.get(_key)
+
         return _obj
 
 

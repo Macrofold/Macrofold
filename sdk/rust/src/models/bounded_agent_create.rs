@@ -20,7 +20,7 @@ pub struct BoundedAgentCreate {
     #[serde(rename = "input", deserialize_with = "Option::deserialize")]
     pub input: Option<serde_json::Value>,
     #[serde(rename = "context")]
-    pub context: Box<models::InferenceCreateContext>,
+    pub context: Box<models::DecisionTaskWakeContext>,
     #[serde(rename = "model_binding")]
     pub model_binding: Box<models::DecisionBinding>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
@@ -33,7 +33,7 @@ pub struct BoundedAgentCreate {
 }
 
 impl BoundedAgentCreate {
-    pub fn new(workspace_id: uuid::Uuid, definition: models::InferenceCreateDefinition, input: Option<serde_json::Value>, context: models::InferenceCreateContext, model_binding: models::DecisionBinding) -> BoundedAgentCreate {
+    pub fn new(workspace_id: uuid::Uuid, definition: models::InferenceCreateDefinition, input: Option<serde_json::Value>, context: models::DecisionTaskWakeContext, model_binding: models::DecisionBinding) -> BoundedAgentCreate {
         BoundedAgentCreate {
             workspace_id,
             definition: Box::new(definition),

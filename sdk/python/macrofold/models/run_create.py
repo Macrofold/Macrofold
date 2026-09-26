@@ -33,31 +33,31 @@ class RunCreate(BaseModel):
     """
     Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
     """ # noqa: E501
+    webhook_endpoint_ids: Optional[List[UUID]] = None
+    connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
+    stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
     prompt: Annotated[str, Field(min_length=1, strict=True, max_length=100000)]
-    workspace_id: Optional[UUID] = None
-    worktree_id: Optional[UUID] = None
-    session_id: Optional[UUID] = None
-    agent_id: Optional[UUID] = None
+    queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
+    model_parameters: Optional[ModelParameters] = None
     harness: Optional[StrictStr] = None
+    memory_mib: Optional[Annotated[int, Field(le=1048576, strict=True, ge=128)]] = Field(default=None, description="Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.")
+    cpu_millis: Optional[Annotated[int, Field(le=1024000, strict=True, ge=1)]] = Field(default=None, description="Advanced per-Run CPU allocation in millicores on an explicit Worker.")
+    agent_id: Optional[UUID] = None
+    harness_prompt_mode: Optional[StrictStr] = Field(default=None, description="OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.")
+    session_id: Optional[UUID] = None
+    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
+    worker_id: Optional[UUID] = None
+    scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
     model: Optional[StrictStr] = None
     billing_mode: Optional[StrictStr] = None
-    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
-    connection_grants: Optional[List[Grant]] = Field(default=None, description="Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.")
     limits: Optional[Limits] = None
-    webhook_endpoint_ids: Optional[List[UUID]] = None
-    queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = Field(default=None, description="Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.")
-    scheduling_class: Optional[StrictStr] = Field(default=None, description="Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.")
+    worktree_id: Optional[UUID] = None
     queue_if_busy: Optional[StrictBool] = Field(default=None, description="Only session follow-ups can queue behind worktree work.")
+    provider_connection_id: Optional[UUID] = Field(default=None, description="Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.")
     permissions: Optional[AgentPermissions] = None
-    connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")
     attachments: Optional[Annotated[List[Annotated[str, Field(min_length=1, strict=True, max_length=4096)]], Field(max_length=5)]] = Field(default=None, description="Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.")
-    sandbox_id: Optional[UUID] = None
-    keep_warm_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=0)]] = Field(default=None, description="Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.")
-    sandbox_max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.")
-    model_parameters: Optional[ModelParameters] = None
-    harness_prompt_mode: Optional[StrictStr] = Field(default=None, description="OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.")
-    stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
-    __properties: ClassVar[List[str]] = ["prompt", "workspace_id", "worktree_id", "session_id", "agent_id", "harness", "model", "billing_mode", "provider_connection_id", "connection_grants", "limits", "webhook_endpoint_ids", "queue_timeout_seconds", "scheduling_class", "queue_if_busy", "permissions", "connection_access_overrides", "attachments", "sandbox_id", "keep_warm_seconds", "sandbox_max_cost_micro_usd", "model_parameters", "harness_prompt_mode", "stream"]
+    workspace_id: Optional[UUID] = None
+    __properties: ClassVar[List[str]] = ["webhook_endpoint_ids", "connection_access_overrides", "stream", "prompt", "queue_timeout_seconds", "model_parameters", "harness", "memory_mib", "cpu_millis", "agent_id", "harness_prompt_mode", "session_id", "connection_grants", "worker_id", "scheduling_class", "model", "billing_mode", "limits", "worktree_id", "queue_if_busy", "provider_connection_id", "permissions", "attachments", "workspace_id"]
 
     @field_validator('harness')
     def harness_validate_enum(cls, value):
@@ -69,14 +69,14 @@ class RunCreate(BaseModel):
             raise ValueError("must be one of enum values ('codex', 'claude-code', 'opencode', 'hermes', 'deepseek', 'pi')")
         return value
 
-    @field_validator('billing_mode')
-    def billing_mode_validate_enum(cls, value):
+    @field_validator('harness_prompt_mode')
+    def harness_prompt_mode_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in set(['byok', 'managed', 'subscription']):
-            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
+        if value not in set(['replace', 'extend']):
+            raise ValueError("must be one of enum values ('replace', 'extend')")
         return value
 
     @field_validator('scheduling_class')
@@ -89,24 +89,14 @@ class RunCreate(BaseModel):
             raise ValueError("must be one of enum values ('background', 'interactive')")
         return value
 
-    @field_validator('sandbox_max_cost_micro_usd', mode="before")
-    def sandbox_max_cost_micro_usd_validate_regular_expression(cls, value):
-        """Validates the regular expression"""
-        if value is None:
-            return value
-
-        if isinstance(value, str) and not re.match(r"^[0-9]{1,12}$", value):
-            raise ValueError(r"must validate the regular expression /^[0-9]{1,12}$/")
-        return value
-
-    @field_validator('harness_prompt_mode')
-    def harness_prompt_mode_validate_enum(cls, value):
+    @field_validator('billing_mode')
+    def billing_mode_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in set(['replace', 'extend']):
-            raise ValueError("must be one of enum values ('replace', 'extend')")
+        if value not in set(['byok', 'managed', 'subscription']):
+            raise ValueError("must be one of enum values ('byok', 'managed', 'subscription')")
         return value
 
     model_config = ConfigDict(
@@ -148,6 +138,16 @@ class RunCreate(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in connection_access_overrides (list)
+        _items = []
+        if self.connection_access_overrides:
+            for _item_connection_access_overrides in self.connection_access_overrides:
+                if _item_connection_access_overrides:
+                    _items.append(_item_connection_access_overrides.to_dict())
+            _dict['connection_access_overrides'] = _items
+        # override the default output from pydantic by calling `to_dict()` of model_parameters
+        if self.model_parameters:
+            _dict['model_parameters'] = self.model_parameters.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in connection_grants (list)
         _items = []
         if self.connection_grants:
@@ -161,21 +161,6 @@ class RunCreate(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of permissions
         if self.permissions:
             _dict['permissions'] = self.permissions.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in connection_access_overrides (list)
-        _items = []
-        if self.connection_access_overrides:
-            for _item_connection_access_overrides in self.connection_access_overrides:
-                if _item_connection_access_overrides:
-                    _items.append(_item_connection_access_overrides.to_dict())
-            _dict['connection_access_overrides'] = _items
-        # override the default output from pydantic by calling `to_dict()` of model_parameters
-        if self.model_parameters:
-            _dict['model_parameters'] = self.model_parameters.to_dict()
-        # set to None if keep_warm_seconds (nullable) is None
-        # and model_fields_set contains the field
-        if self.keep_warm_seconds is None and "keep_warm_seconds" in self.model_fields_set:
-            _dict['keep_warm_seconds'] = None
-
         return _dict
 
     @classmethod
@@ -188,30 +173,30 @@ class RunCreate(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "webhook_endpoint_ids": obj.get("webhook_endpoint_ids"),
+            "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None,
+            "stream": obj.get("stream"),
             "prompt": obj.get("prompt"),
-            "workspace_id": obj.get("workspace_id"),
-            "worktree_id": obj.get("worktree_id"),
-            "session_id": obj.get("session_id"),
-            "agent_id": obj.get("agent_id"),
+            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
+            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
             "harness": obj.get("harness"),
+            "memory_mib": obj.get("memory_mib"),
+            "cpu_millis": obj.get("cpu_millis"),
+            "agent_id": obj.get("agent_id"),
+            "harness_prompt_mode": obj.get("harness_prompt_mode"),
+            "session_id": obj.get("session_id"),
+            "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
+            "worker_id": obj.get("worker_id"),
+            "scheduling_class": obj.get("scheduling_class"),
             "model": obj.get("model"),
             "billing_mode": obj.get("billing_mode"),
-            "provider_connection_id": obj.get("provider_connection_id"),
-            "connection_grants": [Grant.from_dict(_item) for _item in obj["connection_grants"]] if obj.get("connection_grants") is not None else None,
             "limits": Limits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
-            "webhook_endpoint_ids": obj.get("webhook_endpoint_ids"),
-            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
-            "scheduling_class": obj.get("scheduling_class"),
+            "worktree_id": obj.get("worktree_id"),
             "queue_if_busy": obj.get("queue_if_busy"),
+            "provider_connection_id": obj.get("provider_connection_id"),
             "permissions": AgentPermissions.from_dict(obj["permissions"]) if obj.get("permissions") is not None else None,
-            "connection_access_overrides": [Grant.from_dict(_item) for _item in obj["connection_access_overrides"]] if obj.get("connection_access_overrides") is not None else None,
             "attachments": obj.get("attachments"),
-            "sandbox_id": obj.get("sandbox_id"),
-            "keep_warm_seconds": obj.get("keep_warm_seconds"),
-            "sandbox_max_cost_micro_usd": obj.get("sandbox_max_cost_micro_usd"),
-            "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
-            "harness_prompt_mode": obj.get("harness_prompt_mode"),
-            "stream": obj.get("stream")
+            "workspace_id": obj.get("workspace_id")
         })
         return _obj
 

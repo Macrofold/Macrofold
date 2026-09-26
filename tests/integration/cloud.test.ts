@@ -336,6 +336,38 @@ describe('durable cloud lifecycle with fault injection', () => {
     );
     expect(journal.rows[0].balance).toBe('0');
   });
+  it('continues a session on a prepared Host by restoring only the namespaces that Host lacks', async () => {
+    const s = await scenario();
+    let done = false;
+    for (let i = 0; i < 60 && !done; i++) done = (await advanceCloudRun(s.org, s.runId, new FaultMachine())).done;
+    expect(done).toBe(true);
+    const followUp = await transaction(s.org, async (tx) => {
+      const first = await getRun(tx, s.runId);
+      const next = await admitRun(tx, s.p, { session_id: first.session_id, prompt: 'Continue on a warm Host' });
+      await reserve(tx, s.org, 2_000_000n);
+      await tx.query('UPDATE runs SET reservation_micro_usd=2000000 WHERE id=$1', [next.run_id]);
+      return next.run_id;
+    });
+    // The Host already holds a clean materialization of this Worktree; only native home state is missing.
+    const host = new FaultMachine();
+    host.prepared = { reused: false, restoreNamespaces: ['home'] };
+    done = false;
+    for (let i = 0; i < 60 && !done; i++) done = (await advanceCloudRun(s.org, followUp, host)).done;
+    expect(done).toBe(true);
+    const pages = await transaction(s.org, (tx) =>
+      tx.query<{ data: { entries: { namespace: string; path: string }[] } }>(
+        "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='input_page'",
+        [followUp],
+      ),
+    );
+    const staged = pages.rows.flatMap((row) => row.data.entries).map((e) => `${e.namespace}/${e.path}`);
+    expect(staged).toEqual(['home/.codex/state.json']);
+    const restored = JSON.parse(host.stageFiles.get('/platform-control/restore/page-0.json')!.toString());
+    expect(restored.map((e: { namespace: string }) => e.namespace)).toEqual(['home']);
+    const run = await transaction(s.org, (tx) => getRun(tx, followUp));
+    expect(run).toMatchObject({ status: 'succeeded', session_id: (await transaction(s.org, (tx) => getRun(tx, s.runId))).session_id });
+    expect(run.result.persistence_status).toBe('verified');
+  });
   it('runs the same durable lifecycle through competing standalone pollers', async () => {
     const s = await scenario(),
       provider = new FaultMachine();

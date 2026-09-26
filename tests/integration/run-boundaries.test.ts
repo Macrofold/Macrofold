@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authPool, pool, transaction } from '../../packages/db';
-import { admitRun, cancelRun, getRun, submitInput } from '../../packages/core/src/runs';
+import { admitRun, cancelRun, createSession, getRun, submitInput } from '../../packages/core/src/runs';
 import { claimRun } from '../../packages/core/src/engine';
 import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { id } from '../../packages/core/src/crypto';
 import { config } from '../../packages/core/src/config';
 import * as catalog from '../../packages/core/src/catalog';
@@ -23,27 +23,24 @@ afterEach(async () => {
   config.allowPaid = paidExecution;
   // These tests deliberately arrange intermediate states without starting a worker.
   // Retire them so later capacity tests never see a synthetic active execution.
-  await transaction(account.p.organizationId, async (tx) => {
-    await tx.query(
-      "UPDATE runs SET status='cancelled',completed_at=now() WHERE organization_id=$1 AND status NOT IN ('succeeded','failed','cancelled','timed_out')",
-      [account.p.organizationId],
-    );
-    await tx.query("UPDATE dispatch_jobs SET state='done' WHERE organization_id=$1 AND kind='run'", [
-      account.p.organizationId,
-    ]);
-  });
+  await retireFixtureRuns(account.p.organizationId);
 });
 afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function queued(limits?: { timeout_seconds: number; max_cost_micro_usd: string }) {
+async function freshWorktree() {
   return transaction(account.p.organizationId, async (tx) => {
     const workspace = await resources.create(tx, 'workspaces', account.p.organizationId, {
       name: 'State fixture',
     });
     const created = await createWorktree(tx, account.p, workspace.id, { name: 'main', branch: 'main' });
-    const worktree = (created.result as { worktree_id: string }).worktree_id;
+    return (created.result as { worktree_id: string }).worktree_id;
+  });
+}
+async function queued(limits?: { timeout_seconds: number; max_cost_micro_usd: string }) {
+  const worktree = await freshWorktree();
+  return transaction(account.p.organizationId, async (tx) => {
     return admitRun(tx, account.p, {
       worktree_id: worktree,
       harness: 'codex',
@@ -64,7 +61,8 @@ describe('run state transitions and concurrent requests', () => {
     vi.spyOn(catalog, 'models').mockResolvedValue(models);
     config.execution = 'docker';
     config.allowPaid = true;
-    vi.stubEnv('COMPUTE_MICRO_USD_PER_MINUTE', '8000');
+    // Local Docker is free. Exercise the accepted billable quote, not its local default.
+    vi.spyOn(catalog, 'computeRate').mockReturnValue('8000');
     await transaction(account.p.organizationId, (tx) =>
       credit(tx, account.p.organizationId, 100000n, `compute:${id()}`),
     );
@@ -202,5 +200,71 @@ describe('run state transitions and concurrent requests', () => {
       (await query("SELECT id FROM run_events WHERE run_id=$1 AND type='input.received'", [run.run_id]))
         .rowCount,
     ).toBe(0);
+  });
+});
+
+describe('explicit sessions and native stream admission', () => {
+  const runsIn = (worktree: string) =>
+    query('SELECT id FROM runs WHERE worktree_id=$1', [worktree]).then((result) => result.rowCount);
+  it('creates a validated session and admits follow-up runs into it without changing its harness', async () => {
+    const worktree = await freshWorktree();
+    await expect(
+      transaction(account.p.organizationId, (tx) =>
+        createSession(tx, account.p, {
+          worktree_id: id(),
+          harness: 'codex',
+          model: 'fixture-model',
+          billing_mode: 'managed',
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    const session = await transaction(account.p.organizationId, (tx) =>
+      createSession(tx, account.p, {
+        worktree_id: worktree,
+        harness: 'codex',
+        model: 'fixture-model',
+        billing_mode: 'managed',
+      }),
+    );
+    expect(session).toMatchObject({ worktree_id: worktree, harness: 'codex', agent_id: null });
+    expect(session).not.toHaveProperty('rate_card');
+    const run = await transaction(account.p.organizationId, (tx) =>
+      admitRun(tx, account.p, { session_id: session.id, prompt: 'Continue the explicit session' }),
+    );
+    expect(run).toMatchObject({ session_id: session.id, worktree_id: worktree, status: 'queued' });
+    await expect(
+      transaction(account.p.organizationId, (tx) =>
+        admitRun(tx, account.p, {
+          session_id: session.id,
+          harness: 'opencode',
+          prompt: 'Change harness',
+          queue_if_busy: true,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'session_harness_immutable' });
+    expect(await runsIn(worktree)).toBe(1);
+  });
+  it('requires run read access and an incremental harness before accepting a stream', async () => {
+    const worktree = await freshWorktree();
+    const writeOnly = { ...account.p, scopes: account.p.scopes.filter((scope) => scope !== 'runs:read') };
+    const admit = (principal: typeof account.p, harness: 'codex' | 'deepseek') =>
+      transaction(account.p.organizationId, (tx) =>
+        admitRun(tx, principal, {
+          worktree_id: worktree,
+          harness,
+          model: 'fixture-model',
+          billing_mode: 'managed',
+          prompt: 'Stream this run',
+          stream: true,
+        }),
+      );
+    await expect(admit(writeOnly, 'codex')).rejects.toMatchObject({ status: 403, code: 'forbidden' });
+    await expect(admit(account.p, 'deepseek')).rejects.toMatchObject({
+      status: 400,
+      code: 'streaming_not_supported',
+    });
+    expect(await runsIn(worktree)).toBe(0);
+    await expect(admit(account.p, 'codex')).resolves.toMatchObject({ worktree_id: worktree, status: 'queued' });
+    expect(await runsIn(worktree)).toBe(1);
   });
 });

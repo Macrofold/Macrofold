@@ -38,6 +38,7 @@ class Event(BaseModel):
     occurred_at: datetime
     ingested_at: datetime
     data: Dict[str, Any] = Field(description="Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.")
+    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["id", "schema_version", "run_id", "sequence", "type", "occurred_at", "ingested_at", "data"]
 
     @field_validator('schema_version')
@@ -84,8 +85,10 @@ class Event(BaseModel):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
+        * Fields in `self.additional_properties` are added to the output dict.
         """
         excluded_fields: Set[str] = set([
+            "additional_properties",
         ])
 
         _dict = self.model_dump(
@@ -93,6 +96,11 @@ class Event(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # puts key-value pairs in additional_properties in the top level
+        if self.additional_properties is not None:
+            for _key, _value in self.additional_properties.items():
+                _dict[_key] = _value
+
         return _dict
 
     @classmethod
@@ -114,6 +122,11 @@ class Event(BaseModel):
             "ingested_at": obj.get("ingested_at"),
             "data": obj.get("data")
         })
+        # store additional fields in additional_properties
+        for _key in obj.keys():
+            if _key not in cls.__properties:
+                _obj.additional_properties[_key] = obj.get(_key)
+
         return _obj
 
 

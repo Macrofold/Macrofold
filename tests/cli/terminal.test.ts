@@ -248,6 +248,79 @@ describe('packaged CLI against the local API and worker', () => {
     expect(preflags.version).toBe('0.1.0');
     expect(terminalText('\x1b]52;c;c2VjcmV0\x07Hello\x1b[31m world')).toBe('Hello world');
   }, 60000);
+  it('manages a Worker by exact name and resolves Run compute only from an explicit --worker', async () => {
+    const offerings = await json(['worker', 'offerings']);
+    expect(
+      offerings.data.some(
+        (item: { compute: string; isolate_runs: boolean }) => item.compute === 'sandbox' && item.isolate_runs,
+      ),
+    ).toBe(true);
+    const name = `cli-worker-${Date.now()}`;
+    const created = await json([
+      'worker',
+      'create',
+      name,
+      '--compute',
+      'sandbox',
+      '--pooled',
+      '--isolated-runs',
+      '--max-hourly-cost',
+      '1.5',
+    ]);
+    expect(created).toMatchObject({
+      name,
+      compute: 'sandbox',
+      dedicated: false,
+      isolate_runs: true,
+      max_hourly_compute_cost_micro_usd: '1500000',
+    });
+    expect((await json(['worker', 'show', name])).id).toBe(created.id);
+    expect(
+      (await json(['worker', 'list', '--limit', '100'])).data.map((w: { id: string }) => w.id),
+    ).toContain(created.id);
+    const updated = await json(['worker', 'update', name, '--max-concurrency', '2']);
+    expect(updated).toMatchObject({ id: created.id, max_concurrency: 2, revision: created.revision + 1 });
+    expect(await json(['worker', 'pause', name])).toMatchObject({ desired_state: 'paused' });
+    expect(await json(['worker', 'resume', created.id])).toMatchObject({ desired_state: 'enabled' });
+
+    // Invalid money and resource overrides fail before any request; unknown names are distinct not-found errors.
+    const cost = await command(['worker', 'create', 'bad-cost', '--max-hourly-cost', '1.1234567', '--json']);
+    expect(cost.code).not.toBe(0);
+    expect(cost.stdout + cost.stderr).toContain('at most six decimal places');
+    const resources = await command([
+      'run',
+      'prompt',
+      '--harness',
+      'codex',
+      '--model',
+      'fixture-model',
+      '--memory-mib',
+      '512',
+      '--detach',
+      '--json',
+    ]);
+    expect(resources.code).not.toBe(0);
+    expect(resources.stdout + resources.stderr).toContain('Per-Run resource overrides require --worker.');
+    const missing = await command([
+      'run',
+      'prompt',
+      '--harness',
+      'codex',
+      '--model',
+      'fixture-model',
+      '--worker',
+      `${name}-missing`,
+      '--detach',
+      '--json',
+    ]);
+    expect(missing.code).toBe(5);
+    expect(missing.stdout + missing.stderr).toContain('Worker not found');
+
+    expect(await json(['worker', 'destroy', name, '--yes'])).toMatchObject({ desired_state: 'destroyed' });
+    // A destroyed Worker keeps its identity but no longer resolves by display name.
+    expect((await command(['worker', 'show', name, '--json'])).code).toBe(5);
+    expect((await json(['worker', 'show', created.id])).desired_state).toBe('destroyed');
+  }, 60000);
   it('links without upload, isolates remote worktrees, transfers explicit files, streams and restores', async () => {
     const workspace = await json(['workspace', 'create', `CLI integration ${Date.now()}`]);
     const repo = path.join(directory, 'repo');

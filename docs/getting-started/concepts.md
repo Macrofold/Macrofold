@@ -27,7 +27,7 @@ A workspace's **worktrees** are independent working copies used to edit and exec
 
 A run ends; its saved work remains. Verified workspace files persist independently of the execution environment, so keeping a report or repository does not require a dedicated, always-running computer.
 
-Compatible native session state supports conversation continuation, but it is not interchangeable across harness families. File persistence does not imply preserving live RAM, running processes, or every system-level installation. Optional warm compute has its own [lifecycle and cost](../features/execution/sandboxes.md).
+Compatible native session state supports conversation continuation, but it is not interchangeable across harness families. File persistence does not imply preserving live RAM, running processes, or every system-level installation. Optional reusable [Worker compute](../features/execution/workers.md) has its own lifecycle and cost.
 
 Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.
 

@@ -4,6 +4,7 @@ import { chown, lstat, mkdir, open, readFile, readdir, rename, symlink, unlink }
 import path from 'node:path';
 import { atomicJSON, relativePath, type SnapshotEntry } from './manifest';
 import { isNativeAuthPath } from './auth-paths';
+import { assignedRoots } from './host-paths';
 
 /** Restore into a new, unstarted VM only. Links are created last so they cannot redirect a write. */
 export async function restoreSnapshot(
@@ -81,27 +82,27 @@ export async function restoreSnapshot(
   }
 }
 
-if (process.argv[1]?.endsWith('/restore.mjs')) {
-  let claimed = true;
+/** Claims the single restore for a control directory and records its outcome for the Host.
+ * Returns null when another invocation already claimed it, so a retried command never restores twice. */
+export async function restoreAssigned(control: string) {
   try {
-    await mkdir(`${controlDirectory()}/restore.lock`);
+    await mkdir(`${control}/restore.lock`);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') claimed = false;
-    else throw error;
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return null;
+    throw error;
   }
-  if (claimed)
-    try {
-      await restoreSnapshot(
-        `${controlDirectory()}/restore`,
-        { workspace: '/workspace', home: '/agent-home' },
-        10001,
-      );
-      await atomicJSON(`${controlDirectory()}/restore-result.json`, { ok: true });
-    } catch {
-      await atomicJSON(`${controlDirectory()}/restore-result.json`, {
-        ok: false,
-        code: 'restore_integrity_failure',
-      });
-      process.exitCode = 1;
-    }
+  try {
+    const { runtimeConfiguration } = await import('./supervisor');
+    const configuration = JSON.parse(await readFile(`${control}/config.json`, 'utf8'));
+    const roots = assignedRoots(runtimeConfiguration.parse(configuration), control);
+    await restoreSnapshot(`${control}/restore`, roots, roots.uid);
+    await atomicJSON(`${control}/restore-result.json`, { ok: true });
+    return true;
+  } catch {
+    await atomicJSON(`${control}/restore-result.json`, { ok: false, code: 'restore_integrity_failure' });
+    return false;
+  }
 }
+
+if (process.argv[1]?.endsWith('/restore.mjs') && (await restoreAssigned(controlDirectory())) === false)
+  process.exitCode = 1;

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 import { captureSnapshot, relativePath, type SnapshotEntry } from '../../packages/runtime/src/manifest';
-import { restoreSnapshot } from '../../packages/runtime/src/restore';
+import { restoreAssigned, restoreSnapshot } from '../../packages/runtime/src/restore';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -255,3 +255,54 @@ it('does not publish a partial capture after process death and rebuilds its inde
   expect(result.entries[0].sha256).toBe(f.index.entries[0].sha256);
   expect(await readFile(path.join(f.source.workspace, 'file.txt'), 'utf8')).toBe('verified new content');
 });
+
+describe('assigned restore command', () => {
+  async function control(configuration: unknown) {
+    const { root, snapshot, target } = await fixture();
+    // The captured snapshot doubles as this control directory's staged restore input.
+    const directory = path.join(root, 'control');
+    await mkdir(directory);
+    await rename(snapshot, path.join(directory, 'restore'));
+    await writeFile(path.join(directory, 'config.json'), JSON.stringify(configuration));
+    const result = async () => JSON.parse(await readFile(path.join(directory, 'restore-result.json'), 'utf8'));
+    return { directory, target, result };
+  }
+  const configuration = (workspace: string, stateHome: string) => ({
+    runId: '019e1700-0000-7000-8000-000000000010',
+    harness: 'codex',
+    model: 'fixture-model',
+    provider: 'openai',
+    prompt: '',
+    workspace,
+    stateHome,
+    gatewayURL: 'http://127.0.0.1:9/',
+    toolURL: 'http://127.0.0.1:9/',
+    token: 'fixture-token',
+    deadline: new Date(Date.now() + 60_000).toISOString(),
+    toolGrants: false,
+  });
+  it('records an integrity failure without writing when the configuration names unassigned roots', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-roots-'));
+    directories.push(root);
+    const redirected = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+    const { directory, result } = await control(configuration(redirected.workspace, redirected.home));
+    expect(await restoreAssigned(directory)).toBe(false);
+    expect(await result()).toEqual({ ok: false, code: 'restore_integrity_failure' });
+    await expect(readFile(path.join(redirected.workspace, 'file.txt'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+  it('records an integrity failure for an incomplete configuration', async () => {
+    const { directory, result } = await control({ runId: '019e1700-0000-7000-8000-000000000010' });
+    expect(await restoreAssigned(directory)).toBe(false);
+    expect(await result()).toEqual({ ok: false, code: 'restore_integrity_failure' });
+  });
+  it('runs at most once per control directory and keeps the first recorded outcome', async () => {
+    const { directory, result } = await control({});
+    expect(await restoreAssigned(directory)).toBe(false);
+    const first = await readFile(path.join(directory, 'restore-result.json'), 'utf8');
+    await writeFile(path.join(directory, 'config.json'), JSON.stringify(configuration('/workspace', '/agent-home')));
+    expect(await restoreAssigned(directory)).toBeNull();
+    expect(await readFile(path.join(directory, 'restore-result.json'), 'utf8')).toBe(first);
+    expect(await result()).toMatchObject({ ok: false });
+  });
+});
+

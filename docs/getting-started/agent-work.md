@@ -16,7 +16,7 @@ Three ideas are enough to begin: a **workspace** keeps files, an **agent** suppl
 
 Workspace files outlive an individual run. After verified persistence, the next run can read the saved report, code, notes, or other files even when the earlier execution environment is gone. Your application does not need to reserve an always-running computer just to retain those files.
 
-Files, conversations, and live processes are different. A compatible session can continue a native conversation; changing harnesses starts a new conversation over the saved files. Stopping compute does not promise preservation of arbitrary process memory or every system-level installation. Optional [warm compute](../features/execution/sandboxes.md) has its own lifecycle and charges. Storage, model, and tool charges remain subject to your [billing configuration](../features/billing/README.md).
+Files, conversations, and live processes are different. A compatible session can continue a native conversation; changing harnesses starts a new conversation over the saved files. Stopping compute does not promise preservation of arbitrary process memory or every system-level installation. Optional reusable [Worker compute](../features/execution/workers.md) has its own lifecycle and charges. Storage, model, and tool charges remain subject to your [billing configuration](../features/billing/README.md).
 
 ## Set up an agent once
 

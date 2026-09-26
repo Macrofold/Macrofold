@@ -563,6 +563,7 @@ type ApiListBillingUsageRequest struct {
 	cursor *string
 	limit *int32
 	xOrganizationId *string
+	workerId *string
 }
 
 // Inclusive RFC3339 interval start.
@@ -641,6 +642,12 @@ func (r ApiListBillingUsageRequest) Limit(limit int32) ApiListBillingUsageReques
 // Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context.
 func (r ApiListBillingUsageRequest) XOrganizationId(xOrganizationId string) ApiListBillingUsageRequest {
 	r.xOrganizationId = &xOrganizationId
+	return r
+}
+
+// Filter by the Worker charged for compute. Organization usage authority is still required.
+func (r ApiListBillingUsageRequest) WorkerId(workerId string) ApiListBillingUsageRequest {
+	r.workerId = &workerId
 	return r
 }
 
@@ -731,6 +738,9 @@ func (a *BillingAPIService) ListBillingUsageExecute(r ApiListBillingUsageRequest
 		var defaultValue int32 = 25
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
+	}
+	if r.workerId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "worker_id", r.workerId, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

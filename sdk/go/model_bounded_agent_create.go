@@ -24,7 +24,7 @@ type BoundedAgentCreate struct {
 	WorkspaceId string `json:"workspace_id"`
 	Definition InferenceCreateDefinition `json:"definition"`
 	Input interface{} `json:"input"`
-	Context InferenceCreateContext `json:"context"`
+	Context DecisionTaskWakeContext `json:"context"`
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
 	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
@@ -38,7 +38,7 @@ type _BoundedAgentCreate BoundedAgentCreate
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewBoundedAgentCreate(workspaceId string, definition InferenceCreateDefinition, input interface{}, context InferenceCreateContext, modelBinding DecisionBinding) *BoundedAgentCreate {
+func NewBoundedAgentCreate(workspaceId string, definition InferenceCreateDefinition, input interface{}, context DecisionTaskWakeContext, modelBinding DecisionBinding) *BoundedAgentCreate {
 	this := BoundedAgentCreate{}
 	this.WorkspaceId = workspaceId
 	this.Definition = definition
@@ -131,9 +131,9 @@ func (o *BoundedAgentCreate) SetInput(v interface{}) {
 }
 
 // GetContext returns the Context field value
-func (o *BoundedAgentCreate) GetContext() InferenceCreateContext {
+func (o *BoundedAgentCreate) GetContext() DecisionTaskWakeContext {
 	if o == nil {
-		var ret InferenceCreateContext
+		var ret DecisionTaskWakeContext
 		return ret
 	}
 
@@ -142,7 +142,7 @@ func (o *BoundedAgentCreate) GetContext() InferenceCreateContext {
 
 // GetContextOk returns a tuple with the Context field value
 // and a boolean to check if the value has been set.
-func (o *BoundedAgentCreate) GetContextOk() (*InferenceCreateContext, bool) {
+func (o *BoundedAgentCreate) GetContextOk() (*DecisionTaskWakeContext, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -150,7 +150,7 @@ func (o *BoundedAgentCreate) GetContextOk() (*InferenceCreateContext, bool) {
 }
 
 // SetContext sets field value
-func (o *BoundedAgentCreate) SetContext(v InferenceCreateContext) {
+func (o *BoundedAgentCreate) SetContext(v DecisionTaskWakeContext) {
 	o.Context = v
 }
 

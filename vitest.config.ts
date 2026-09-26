@@ -15,7 +15,7 @@ export default defineConfig({
       include: [
         'packages/*/src/**/*.{ts,tsx}',
         'packages/db/index.ts',
-        'sdk/typescript/src/**/*.ts',
+        'sdk/typescript/src/**/*.{ts,tsx}',
         'apps/web/{app,components,lib,workflows}/**/*.{ts,tsx}',
       ],
       exclude: ['**/*.d.ts', 'sdk/typescript/src/routes.ts'],

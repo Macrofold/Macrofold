@@ -13,7 +13,6 @@ package macrofold
 import (
 	"encoding/json"
 	"time"
-	"bytes"
 	"fmt"
 )
 
@@ -35,6 +34,7 @@ type RunResult struct {
 	ContentExpired *bool `json:"content_expired,omitempty"`
 	ContentExpiredAt *time.Time `json:"content_expired_at,omitempty"`
 	Inference *InferenceReceipt `json:"inference,omitempty"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _RunResult RunResult
@@ -450,6 +450,11 @@ func (o RunResult) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Inference) {
 		toSerialize["inference"] = o.Inference
 	}
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -480,15 +485,31 @@ func (o *RunResult) UnmarshalJSON(data []byte) (err error) {
 
 	varRunResult := _RunResult{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varRunResult)
+	err = json.Unmarshal(data, &varRunResult)
 
 	if err != nil {
 		return err
 	}
 
 	*o = RunResult(varRunResult)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "run_id")
+		delete(additionalProperties, "final")
+		delete(additionalProperties, "output_text")
+		delete(additionalProperties, "structured_output")
+		delete(additionalProperties, "artifact_ids")
+		delete(additionalProperties, "checkpoint_id")
+		delete(additionalProperties, "execution_outcome")
+		delete(additionalProperties, "persistence_status")
+		delete(additionalProperties, "error")
+		delete(additionalProperties, "content_expired")
+		delete(additionalProperties, "content_expired_at")
+		delete(additionalProperties, "inference")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

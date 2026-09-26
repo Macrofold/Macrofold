@@ -6,9 +6,12 @@ import { config } from '../../packages/core/src/config';
 import { id, seal } from '../../packages/core/src/crypto';
 import { admitRun } from '../../packages/core/src/runs';
 import * as resources from '../../packages/core/src/resources';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 
+let fixtureOrganization: string | undefined;
 afterAll(async () => {
+  // The accepted history Run is never executed; keep it from holding a later fair turn.
+  if (fixtureOrganization) await retireFixtureRuns(fixtureOrganization);
   await pool.end();
   await authPool.end();
 });
@@ -18,6 +21,7 @@ it('migrates explicit sharing and tool ceilings without touching credential iden
   // Never allow its DDL against the developer preview or a deployed database.
   expect(new URL(config.ownerDatabaseUrl).pathname).toMatch(/^\/platform_test_[a-f0-9]+$/);
   const account = await fixtureAccount('Migration fixture');
+  fixtureOrganization = account.p.organizationId;
   const accepted = await transaction(account.p.organizationId, async (tx) => {
     const workspace = await resources.create(tx, 'workspaces', account.p.organizationId, { name: 'History' });
     return admitRun(tx, account.p, {

@@ -1,6 +1,8 @@
 import type { RequestListener } from 'node:http';
 export function nativeModelFixture(options?: {
   journey?: boolean;
+  /** Native working directory the scripted commands target; defaults to /workspace. */
+  workspace?: string;
   questionMode?: boolean;
   toolMode?: boolean;
   failureMode?: boolean;

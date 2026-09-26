@@ -257,7 +257,7 @@ pub async fn get_storage(configuration: &configuration::Configuration, x_organiz
 }
 
 /// Read paginated model, tool, compute and storage usage for an explicit time interval. Requires an organization credential with usage:read and no workspace restrictions. Filters are combined with AND. A model/provider filter returns model entries only; resource filters exclude organization-level storage. Amounts and token counts are decimal strings; missing usage is null. BYOK provider estimates are separate from Macrofold charges. Charges are usage accruals, not payments, invoices or outstanding reservations; sum charged_micro_usd across all pages, not budget or provider costs. Compute is the remaining finalized run charge after model/tool fees. Full prompts and outputs are available through authorized run history/tracing, not this financial API. Records may arrive late; repeat a window for reconciliation and deduplicate by id.
-pub async fn list_billing_usage(configuration: &configuration::Configuration, from: chrono::DateTime<chrono::FixedOffset>, to: chrono::DateTime<chrono::FixedOffset>, workspace_id: Option<&str>, worktree_id: Option<&str>, run_id: Option<&str>, session_id: Option<&str>, customer_id: Option<&str>, agent_key: Option<&str>, provider: Option<&str>, model: Option<&str>, kind: Option<&str>, billing_mode: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>) -> Result<models::BillingUsagePage, Error<ListBillingUsageError>> {
+pub async fn list_billing_usage(configuration: &configuration::Configuration, from: chrono::DateTime<chrono::FixedOffset>, to: chrono::DateTime<chrono::FixedOffset>, workspace_id: Option<&str>, worktree_id: Option<&str>, run_id: Option<&str>, session_id: Option<&str>, customer_id: Option<&str>, agent_key: Option<&str>, provider: Option<&str>, model: Option<&str>, kind: Option<&str>, billing_mode: Option<&str>, cursor: Option<&str>, limit: Option<i32>, x_organization_id: Option<&str>, worker_id: Option<&str>) -> Result<models::BillingUsagePage, Error<ListBillingUsageError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_query_from = from;
     let p_query_to = to;
@@ -274,6 +274,7 @@ pub async fn list_billing_usage(configuration: &configuration::Configuration, fr
     let p_query_cursor = cursor;
     let p_query_limit = limit;
     let p_header_x_organization_id = x_organization_id;
+    let p_query_worker_id = worker_id;
 
     let uri_str = format!("{}/v1/billing/usage", configuration.base_path);
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
@@ -315,6 +316,9 @@ pub async fn list_billing_usage(configuration: &configuration::Configuration, fr
     }
     if let Some(ref param_value) = p_query_limit {
         req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_query_worker_id {
+        req_builder = req_builder.query(&[("worker_id", &param_value.to_string())]);
     }
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());

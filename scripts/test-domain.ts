@@ -1,6 +1,9 @@
 import { withFixtureDatabase } from './fixture-database';
 import { command } from './coverage/processes';
 
+// Fresh checkouts do not contain the generated public documentation module.
+await command(['docs:generate']);
+
 await withFixtureDatabase((env) =>
   command(
     [

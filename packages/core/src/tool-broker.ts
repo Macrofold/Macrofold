@@ -19,7 +19,7 @@ import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
 import type { components } from '../../contracts/api';
 import { approvedStdio } from './stdio-catalog';
-import type { SandboxTools, MachineBinding } from './ports';
+import type { MachineTools, MachineBinding } from './ports';
 import { searchWeb, searchKey } from './search';
 type Tool = components['schemas']['Tool'];
 const ajv = new Ajv({ strict: false });
@@ -72,7 +72,7 @@ export async function executeGrantedTool(
   tool: Tool,
   args: Record<string, unknown>,
   callKey: string,
-  sandboxTools?: SandboxTools,
+  machineTools?: MachineTools,
 ) {
   assert(
     realExecutionEnabled(),
@@ -206,7 +206,7 @@ export async function executeGrantedTool(
       const entry = approvedStdio(connection.package, connection.package_version);
       const binding = (run.execution_binding as { machine?: MachineBinding } | null)?.machine;
       assert(binding, 409, 'execution_unavailable', 'The running sandbox is unavailable.');
-      const executor = sandboxTools || (await import('../../providers/src/machines')).machines(run);
+      const executor = machineTools || (await import('../../providers/src/machines')).machines(run);
       result = await executor.invokeStdio(binding, {
         id: admission.id,
         runId: run.id,

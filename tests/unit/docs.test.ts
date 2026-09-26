@@ -71,7 +71,7 @@ it('keeps the setup prompt readable and its links scoped to the documentation de
   }
 });
 it('publishes distinct hosting setup and shared product guides in a simple entry order', () => {
-  expect(pages.slice(0, 3).map((page) => page.slug)).toEqual(['', 'agents', 'api/quickstart']);
+  expect(pages.slice(0, 4).map((page) => page.slug)).toEqual(['', 'agent-work', 'agents', 'api/quickstart']);
   expect(findPage('cloud')?.section).toBe(findPage('self-hosting')?.section);
   expect(findPage('api/conventions')).toBeDefined();
   expect(findPage('api/http-quickstart')).toBeDefined();

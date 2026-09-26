@@ -23,7 +23,7 @@ var _ MappedNullable = &DecisionTaskWake{}
 type DecisionTaskWake struct {
 	EventId string `json:"event_id"`
 	Input interface{} `json:"input"`
-	Context InferenceCreateContext `json:"context"`
+	Context DecisionTaskWakeContext `json:"context"`
 }
 
 type _DecisionTaskWake DecisionTaskWake
@@ -32,7 +32,7 @@ type _DecisionTaskWake DecisionTaskWake
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewDecisionTaskWake(eventId string, input interface{}, context InferenceCreateContext) *DecisionTaskWake {
+func NewDecisionTaskWake(eventId string, input interface{}, context DecisionTaskWakeContext) *DecisionTaskWake {
 	this := DecisionTaskWake{}
 	this.EventId = eventId
 	this.Input = input
@@ -99,9 +99,9 @@ func (o *DecisionTaskWake) SetInput(v interface{}) {
 }
 
 // GetContext returns the Context field value
-func (o *DecisionTaskWake) GetContext() InferenceCreateContext {
+func (o *DecisionTaskWake) GetContext() DecisionTaskWakeContext {
 	if o == nil {
-		var ret InferenceCreateContext
+		var ret DecisionTaskWakeContext
 		return ret
 	}
 
@@ -110,7 +110,7 @@ func (o *DecisionTaskWake) GetContext() InferenceCreateContext {
 
 // GetContextOk returns a tuple with the Context field value
 // and a boolean to check if the value has been set.
-func (o *DecisionTaskWake) GetContextOk() (*InferenceCreateContext, bool) {
+func (o *DecisionTaskWake) GetContextOk() (*DecisionTaskWakeContext, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -118,7 +118,7 @@ func (o *DecisionTaskWake) GetContextOk() (*InferenceCreateContext, bool) {
 }
 
 // SetContext sets field value
-func (o *DecisionTaskWake) SetContext(v InferenceCreateContext) {
+func (o *DecisionTaskWake) SetContext(v DecisionTaskWakeContext) {
 	o.Context = v
 }
 

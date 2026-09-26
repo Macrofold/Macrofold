@@ -134,7 +134,7 @@ it.each((['codex', 'opencode', 'hermes', 'deepseek', 'pi'] as const).flatMap((ha
           })
         : undefined;
     const accepted = await submit(connection?.id, harness);
-    expect((await client.request('getBilling')).reserved_micro_usd).toBe('2000000');
+    expect((await client.request('getBilling')).reserved_micro_usd).toBe(billing === 'byok' ? '0' : '2000000');
     const machine = new FaultMachine();
     machine.lostLaunch = true;
     for (let step = 0; step < 15; step++) {

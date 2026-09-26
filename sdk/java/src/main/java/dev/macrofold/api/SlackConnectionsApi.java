@@ -18,7 +18,7 @@ import dev.macrofold.ApiResponse;
 import dev.macrofold.Configuration;
 import dev.macrofold.Pair;
 
-import dev.macrofold.model.DeleteTrigger200Response;
+import dev.macrofold.model.DeleteSlackConnection200Response;
 import dev.macrofold.model.Error;
 import dev.macrofold.model.ListSlackConnectionChannels200Response;
 import dev.macrofold.model.ListSlackConnections200Response;
@@ -314,10 +314,10 @@ public class SlackConnectionsApi {
    *
    * @param connectionId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return DeleteTrigger200Response
+   * @return DeleteSlackConnection200Response
    * @throws ApiException if fails to make API call
    */
-  public DeleteTrigger200Response deleteSlackConnection(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+  public DeleteSlackConnection200Response deleteSlackConnection(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
     return deleteSlackConnection(connectionId, xOrganizationId, null);
   }
 
@@ -327,11 +327,11 @@ public class SlackConnectionsApi {
    * @param connectionId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return DeleteTrigger200Response
+   * @return DeleteSlackConnection200Response
    * @throws ApiException if fails to make API call
    */
-  public DeleteTrigger200Response deleteSlackConnection(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<DeleteTrigger200Response> localVarResponse = deleteSlackConnectionWithHttpInfo(connectionId, xOrganizationId, headers);
+  public DeleteSlackConnection200Response deleteSlackConnection(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<DeleteSlackConnection200Response> localVarResponse = deleteSlackConnectionWithHttpInfo(connectionId, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
@@ -340,10 +340,10 @@ public class SlackConnectionsApi {
    *
    * @param connectionId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @return ApiResponse&lt;DeleteTrigger200Response&gt;
+   * @return ApiResponse&lt;DeleteSlackConnection200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<DeleteTrigger200Response> deleteSlackConnectionWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+  public ApiResponse<DeleteSlackConnection200Response> deleteSlackConnectionWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
     return deleteSlackConnectionWithHttpInfo(connectionId, xOrganizationId, null);
   }
 
@@ -353,10 +353,10 @@ public class SlackConnectionsApi {
    * @param connectionId  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;DeleteTrigger200Response&gt;
+   * @return ApiResponse&lt;DeleteSlackConnection200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<DeleteTrigger200Response> deleteSlackConnectionWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  public ApiResponse<DeleteSlackConnection200Response> deleteSlackConnectionWithHttpInfo(@javax.annotation.Nonnull UUID connectionId, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     HttpRequest.Builder localVarRequestBuilder = deleteSlackConnectionRequestBuilder(connectionId, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
@@ -372,7 +372,7 @@ public class SlackConnectionsApi {
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<DeleteTrigger200Response>(
+          return new ApiResponse<DeleteSlackConnection200Response>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -382,10 +382,10 @@ public class SlackConnectionsApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        DeleteTrigger200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<DeleteTrigger200Response>() {});
+        DeleteSlackConnection200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<DeleteSlackConnection200Response>() {});
 
 
-        return new ApiResponse<DeleteTrigger200Response>(
+        return new ApiResponse<DeleteSlackConnection200Response>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue

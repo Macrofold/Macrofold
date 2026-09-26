@@ -16,6 +16,7 @@ const WebhooksView = dynamic(() => import('./webhooks').then((m) => m.WebhooksVi
 const TriggersView = dynamic(() => import('./triggers').then((m) => m.TriggersView), { loading });
 const SecurityView = dynamic(() => import('./security').then((m) => m.SecurityView), { loading });
 const TeamView = dynamic(() => import('./team').then((m) => m.TeamView), { loading });
+const WorkersView = dynamic(() => import('./workers').then((m) => m.WorkersView), { loading });
 const WorkspacesView = dynamic(() => import('./workspaces').then((m) => m.WorkspacesView), { loading });
 const WorktreeView = dynamic(() => import('./workspaces').then((m) => m.WorktreeView), { loading });
 const RunDetail = dynamic(() => import('./runs').then((m) => m.RunDetail), { loading });
@@ -48,6 +49,7 @@ export function Dashboard({ segments }: { segments: string[] }) {
     ) : (
       <RunsView onRun={() => setCompose(true)} />
     );
+  else if (route === 'workers') content = <WorkersView />;
   else if (route === 'connections') content = <ConnectionsView />;
   else if (route === 'webhooks') content = <WebhooksView />;
   else if (route === 'triggers') content = <TriggersView key="triggers" />;

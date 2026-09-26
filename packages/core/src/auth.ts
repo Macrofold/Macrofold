@@ -193,6 +193,7 @@ export type Principal = {
   kind: 'user' | 'api_key' | 'operator';
   scopes: string[];
   workspaceIds: string[];
+  workerIds?: string[];
   operator: boolean;
   oauthTokenId?: string;
   oauthAudience?: string;
@@ -207,6 +208,7 @@ export async function identify(request: Request, audience = `${config.origin}/v1
     principalId = '',
     scopes: string[] = customerScopes,
     workspaces: string[] = [],
+    workers: string[] = [],
     keyOrg: string | undefined,
     kind: Principal['kind'] = 'user',
     oauthTokenId: string | undefined;
@@ -222,6 +224,7 @@ export async function identify(request: Request, audience = `${config.origin}/v1
     principalId = key.id;
     scopes = key.scopes;
     workspaces = key.workspace_ids;
+    workers = key.worker_ids || [];
     keyOrg = key.organization_id;
     kind = 'api_key';
     assert(
@@ -361,6 +364,7 @@ export async function identify(request: Request, audience = `${config.origin}/v1
     kind,
     scopes,
     workspaceIds: workspaces,
+    workerIds: workers,
     operator,
     oauthTokenId,
     ...(oauthTokenId ? { oauthAudience: audience } : {}),

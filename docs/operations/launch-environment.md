@@ -2,18 +2,18 @@
 
 Keep one configuration source per environment. Local development, serving processes, and database administration have different credential needs.
 
-## Local Docker overlay
+## Shared local configuration
 
-Keep `.env` for free simulation. The separate `.env.docker` overlay is loaded only by `pnpm dev:docker`, `pnpm worker:docker`, and `pnpm doctor:docker`; exported variables take precedence. Use `.env.docker.example` for Docker/poller selection, zero local compute rate and initially disabled inference. `DOCKER_RUNTIME_IMAGE` selects a locally built runtime image; `DOCKER_NETWORK` optionally selects a local bridge. These settings do not replace production configuration. Follow the [Docker guide](../getting-started/local-development/docker.md) for model/BYOK setup, costs and acceptance.
+The API and dispatcher read the same `.env`; exported variables take precedence. For free simulation use `EXECUTION_PROVIDER=simulator`. For native Docker use `PLATFORM_MODE=local`, `EXECUTION_PROVIDER=docker`, and `ORCHESTRATION_BACKEND=poller`; keep inference disabled until a budget is approved. The Docker command aliases validate these settings rather than load a second overlay. Restart both processes after a configuration change. `DOCKER_RUNTIME_IMAGE` selects a locally built image and `DOCKER_NETWORK` an optional bridge. Keep hosted credentials separate. Follow the [Docker guide](../getting-started/local-development/docker.md) for model/BYOK setup, costs and acceptance.
 
 ## Where settings belong
 
-| Location                                        | Purpose                                                        |
-| ----------------------------------------------- | -------------------------------------------------------------- |
-| Repository `.env`                               | Local simulation; created by `pnpm run setup`                  |
-| Hosting secret manager or private `runtime.env` | One staging or production runtime environment                  |
-| Private `migration.env`                         | Owner database credential for administrative commands only     |
-| Provider consoles                               | Account-level quotas, callbacks, domains, and billing controls |
+| Location | Purpose |
+| --- | --- |
+| Repository `.env` | One local simulation or Docker environment; created by `pnpm run setup` |
+| Hosting secret manager or private `runtime.env` | One staging or production runtime environment |
+| Private `migration.env` | Owner database credential for administrative commands only |
+| Provider consoles | Account-level quotas, callbacks, domains, and billing controls |
 
 Use [`.env.example`](../../.env.example) as the setting inventory, not as a production-ready secret file. No `.data` worksheet or developer-specific helper is required. Avoid multiple `.env.local` files that give Next.js and command-line workers different values.
 
@@ -29,49 +29,53 @@ Store private files outside version control with owner-only permissions. Parse d
 
 ## Application and identity
 
-| Setting                                     | Purpose                                                             |
-| ------------------------------------------- | ------------------------------------------------------------------- |
-| `PRODUCT_NAME`                              | Display name; does not change domain identifiers                    |
-| `APP_ORIGIN`                                | Exact public HTTPS origin for application, API, callbacks, and docs |
-| `PLATFORM_MODE`                             | `local` for fixtures; `production` for hosting                      |
-| `AUTH_SECRET`                               | Independent secret of at least 32 characters                        |
-| `VAULT_KEY`                                 | Retained encryption key, independent of the auth secret             |
-| `CRON_SECRET`                               | Authentication for scheduled maintenance                            |
-| `OPERATOR_EMAILS`                           | Comma-separated verified operator identities                        |
-| `RESEND_API_KEY`, `EMAIL_FROM`              | Identity email credentials and verified sender                      |
-| `SUPPORT_EMAIL`, `PRIVACY_URL`, `TERMS_URL` | Deployment contact and policy links                                 |
+| Setting | Purpose |
+| --- | --- |
+| `PRODUCT_NAME` | Display name; does not change domain identifiers |
+| `APP_ORIGIN` | Exact public HTTPS origin for application, API, callbacks, and docs |
+| `PLATFORM_MODE` | `local` for fixtures; `production` for hosting |
+| `AUTH_SECRET` | Independent secret of at least 32 characters |
+| `VAULT_KEY` | Retained encryption key, independent of the auth secret |
+| `CRON_SECRET` | Authentication for scheduled maintenance |
+| `OPERATOR_EMAILS` | Comma-separated verified operator identities |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Identity email credentials and verified sender |
+| `SUPPORT_EMAIL`, `PRIVACY_URL`, `TERMS_URL` | Deployment contact and policy links |
 
 For rotation, configure `VAULT_ACTIVE_KEY_ID` and `VAULT_KEYRING_JSON`, retain old decrypt keys, rehearse restoration, and use the reviewed rewrap procedure. Do not replace the only copy of an old key.
 
 ## Database and storage
 
-| Setting                                    | Purpose                                                                   |
-| ------------------------------------------ | ------------------------------------------------------------------------- |
-| `DATABASE_URL`                             | Restricted pooled domain connection                                       |
-| `AUTH_DATABASE_URL`                        | Restricted direct identity connection                                     |
-| `DATABASE_RUNTIME_ROLE`                    | Restricted runtime SQL role, default `platform_app`                       |
-| `MIGRATION_DATABASE_URL`                   | Direct owner URL; administrative environment only                         |
-| `R2_ENDPOINT`, `R2_BUCKET`                 | Private object-store location                                             |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Bucket-scoped object credentials                                          |
-| `DATA_DIR`                                 | Local working data; use temporary space for serverless control-plane work |
+| Setting | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Restricted pooled domain connection |
+| `AUTH_DATABASE_URL` | Restricted direct identity connection |
+| `DATABASE_RUNTIME_ROLE` | Restricted runtime SQL role, default `platform_app` |
+| `MIGRATION_DATABASE_URL` | Direct owner URL; administrative environment only |
+| `R2_ENDPOINT`, `R2_BUCKET` | Private object-store location |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Bucket-scoped object credentials |
+| `DATA_DIR` | Local working data; use temporary space for serverless control-plane work |
 
 See [database setup](neon.md) and [hosting](hosting.md). Database backups alone cannot restore encrypted project content.
 
 ## Execution and admission
 
-| Setting                       | Hosted configuration                             |
-| ----------------------------- | ------------------------------------------------ |
-| `EXECUTION_PROVIDER`          | `vercel`                                         |
-| `ORCHESTRATION_BACKEND`       | `workflow` on Vercel                             |
-| `RUNTIME_IMAGE`               | Ready VCR image with immutable SHA-256 digest    |
-| `ALLOW_PAID_EXECUTION`        | Keep `false` until controlled acceptance         |
-| `RUN_ADMISSION_ENABLED`       | Pause or resume new accepted work                |
-| `PUBLIC_SIGNUP_ENABLED`       | Control public registration                      |
-| `GLOBAL_CONCURRENT_RUN_LIMIT` | Ceiling within verified vendor capacity          |
-| `SANDBOX_EGRESS_DOMAINS`      | Reviewed additional outbound destinations        |
-| `WORKER_CONCURRENCY`          | Concurrent phase steps for the standalone poller |
+| Setting | Hosted configuration |
+| --- | --- |
+| `EXECUTION_PROVIDER` | `vercel` |
+| `ORCHESTRATION_BACKEND` | `workflow` on Vercel |
+| `RUNTIME_IMAGE` | Ready VCR image with immutable SHA-256 digest |
+| `ALLOW_PAID_EXECUTION` | Keep `false` until controlled acceptance |
+| `RUN_ADMISSION_ENABLED` | Pause or resume new accepted work |
+| `PUBLIC_SIGNUP_ENABLED` | Control public registration |
+| `GLOBAL_CONCURRENT_RUN_LIMIT` | Ceiling within verified vendor capacity |
+| `SANDBOX_EGRESS_DOMAINS` | Reviewed additional outbound destinations |
+| `WORKER_CONCURRENCY` | Concurrent phase steps for the standalone poller |
 
 The Sandbox adapter currently uses Vercel OIDC. Static `VERCEL_TOKEN`, team, and project fields do not enable production execution on another host by themselves.
+
+## Worker offerings
+
+Hosted server-backed Workers are enabled with `RENDER_WORKER_ENABLED=true` only after configuring the Render account, owner, compatible immutable image, supported service plan/region, and reviewed `RENDER_COMPUTE_MICRO_USD_PER_MINUTE`. The [Worker operations guide](../features/execution/workers/operations.md) owns accepted quotes, capability validation, funding, and shutdown verification. A Worker price or lifecycle setting does not replace provider quotas or deployment-wide admission limits.
 
 ## Models, tools, and billing
 

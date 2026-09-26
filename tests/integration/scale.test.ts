@@ -1,6 +1,6 @@
 import { it, expect, afterAll } from 'vitest';
 import { pool, authPool, transaction } from '../../packages/db';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { handleApi } from '../../packages/core/src/http';
 import { config } from '../../packages/core/src/config';
 import { id } from '../../packages/core/src/crypto';
@@ -101,13 +101,14 @@ it('shares global execution capacity across simultaneous tenants and keeps uncla
         }),
       ),
     );
-    let claimed = await Promise.all(admitted.map((r, i) => claimRun(accounts[i].p.organizationId, r.run_id)));
+    // Simultaneous claims may all back off (claims use try-locks), but can never exceed capacity.
+    const claimed = await Promise.all(admitted.map((r, i) => claimRun(accounts[i].p.organizationId, r.run_id)));
+    expect(claimed.filter(Boolean).length).toBeLessThanOrEqual(2);
     // A targeted attempt can arrive before that organization's fair turn. Real
-    // workers poll again; a single unordered Promise.all is not one dispatch cycle.
+    // dispatchers poll again and admit sequentially, as local-dispatch does.
     for (let wave = 0; wave < accounts.length && claimed.filter(Boolean).length < 2; wave++)
-      claimed = await Promise.all(
-        admitted.map((r, i) => claimed[i] || claimRun(accounts[i].p.organizationId, r.run_id)),
-      );
+      for (let i = 0; i < accounts.length; i++)
+        claimed[i] ||= await claimRun(accounts[i].p.organizationId, admitted[i].run_id);
     expect(claimed.filter(Boolean)).toHaveLength(2);
     for (let i = 0; i < accounts.length; i++)
       await transaction(accounts[i].p.organizationId, async (tx) => {
@@ -132,6 +133,8 @@ it('shares global execution capacity across simultaneous tenants and keeps uncla
   } finally {
     if (before === undefined) delete process.env.GLOBAL_CONCURRENT_RUN_LIMIT;
     else process.env.GLOBAL_CONCURRENT_RUN_LIMIT = before;
+    // A failed assertion must not leave claimed or claimable capacity for later files.
+    for (const account of accounts) await retireFixtureRuns(account.p.organizationId);
   }
 });
 it('can pause admission and signup without deleting existing customer data', async () => {

@@ -24,11 +24,11 @@ This register tracks accepted decisions likely to change, not unresolved choices
 
 ## RP03 — Reusable compute architecture
 
-**Current policy:** [Implemented reusable compute](../architecture/decisions.md#reusable-compute-is-separate-from-runs); [accepted Worker/shared-host target](../architecture/worker-execution.md).
+**Current policy:** [Implemented cost-controlled Workers](../architecture/decisions.md#cost-controlled-reusable-compute) and their [architecture](../architecture/worker-execution.md).
 
-**Why revisit:** The accepted replacement separates public Workers from internal Hosts and worktree persistence, but it is not the shipped runtime contract.
+**Why revisit:** Public Workers are separate from internal Hosts and Worktree persistence. Hosted provider acceptance, cross-customer physical packing and the OpenLegend caller migration remain separate gates.
 
-**Review trigger:** Work on that migration or any change to compute/run identity, scheduling, reservations or recovery. Follow the existing migration plan and acceptance work; do not silently apply target assumptions to sandbox bug fixes.
+**Review trigger:** Any change to compute/run identity, scheduling, reservations or recovery, or to those remaining gates. Follow the existing acceptance work; do not reintroduce Worktree-owned compute or assume unaccepted hosted behavior.
 
 **Decision authority:** Maintainer through the agreed architecture/migration scope. Current authorization, durable state and money safeguards survive the transition.
 

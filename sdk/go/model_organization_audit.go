@@ -13,6 +13,7 @@ package macrofold
 import (
 	"encoding/json"
 	"time"
+	"bytes"
 	"fmt"
 )
 
@@ -27,7 +28,6 @@ type OrganizationAudit struct {
 	SubjectId NullableString `json:"subject_id"`
 	Data map[string]interface{} `json:"data"`
 	CreatedAt time.Time `json:"created_at"`
-	AdditionalProperties map[string]interface{}
 }
 
 type _OrganizationAudit OrganizationAudit
@@ -217,11 +217,6 @@ func (o OrganizationAudit) ToMap() (map[string]interface{}, error) {
 	toSerialize["subject_id"] = o.SubjectId.Get()
 	toSerialize["data"] = o.Data
 	toSerialize["created_at"] = o.CreatedAt
-
-	for key, value := range o.AdditionalProperties {
-		toSerialize[key] = value
-	}
-
 	return toSerialize, nil
 }
 
@@ -254,25 +249,15 @@ func (o *OrganizationAudit) UnmarshalJSON(data []byte) (err error) {
 
 	varOrganizationAudit := _OrganizationAudit{}
 
-	err = json.Unmarshal(data, &varOrganizationAudit)
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varOrganizationAudit)
 
 	if err != nil {
 		return err
 	}
 
 	*o = OrganizationAudit(varOrganizationAudit)
-
-	additionalProperties := make(map[string]interface{})
-
-	if err = json.Unmarshal(data, &additionalProperties); err == nil {
-		delete(additionalProperties, "id")
-		delete(additionalProperties, "actor_id")
-		delete(additionalProperties, "action")
-		delete(additionalProperties, "subject_id")
-		delete(additionalProperties, "data")
-		delete(additionalProperties, "created_at")
-		o.AdditionalProperties = additionalProperties
-	}
 
 	return err
 }

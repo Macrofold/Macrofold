@@ -183,7 +183,8 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
       await tx.query('DELETE FROM storage_preparations WHERE expires_at<=now()');
       const active = (
         await tx.query(
-          "SELECT 1 FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting') UNION ALL SELECT 1 FROM storage_preparations WHERE expires_at>now() LIMIT 1",
+          // A terminal Run may still own a writer while Host cleanup finishes.
+          "SELECT 1 FROM runs WHERE status IN ('queued','provisioning','running','waiting_for_input','persisting') UNION ALL SELECT 1 FROM host_runs WHERE released_at IS NULL UNION ALL SELECT 1 FROM storage_preparations WHERE expires_at>now() LIMIT 1",
         )
       ).rowCount;
       let deleted = 0,

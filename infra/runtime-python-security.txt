@@ -1,4 +1,6 @@
 # Security overlay on the pinned Hermes lock. Remove when upstream locks these versions.
 # Same HTTPX2/HTTPCore2 release, hashed wheels; dependency consistency is checked in the image.
+# AnyIO 4.14.2 fixes CVE-2026-63374 in the locked 4.12.1; same MIT package and dependency set.
 httpx2==2.12.0 --hash=sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36
 httpcore2==2.12.0 --hash=sha256:7e04258ce01013d7d615e5b910a3b27fac937d7a95038227e79652b4ba3b4ceb
+anyio==4.14.2 --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494

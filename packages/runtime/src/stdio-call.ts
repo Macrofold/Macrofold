@@ -1,4 +1,5 @@
 import { controlDirectory } from './control-directory';
+import { assignedRoots } from './host-paths';
 import { readFile, mkdir, unlink } from 'node:fs/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -18,7 +19,9 @@ const input = z
     arguments: z.record(z.string(), z.unknown()),
   })
   .parse(JSON.parse(await readFile(file, 'utf8')));
-const configuration = JSON.parse(await readFile(`${root}/config.json`, 'utf8'));
+const { runtimeConfiguration } = await import('./supervisor');
+const configuration = runtimeConfiguration.parse(JSON.parse(await readFile(`${root}/config.json`, 'utf8')));
+const { workspace, home, uid } = assignedRoots(configuration, root);
 if (configuration.runId !== input.runId || Date.parse(configuration.deadline) <= Date.now())
   throw new Error('Run is no longer available');
 try {
@@ -32,16 +35,16 @@ await unlink(file);
 // They never run on the API host or receive the root supervisor's access.
 for (const key of Object.keys(process.env)) delete process.env[key];
 process.env.PATH = '/opt/platform/node_modules/.bin:/usr/local/bin:/usr/bin:/bin';
-process.env.HOME = '/agent-home';
+process.env.HOME = home;
 process.setgroups!([]);
-process.setgid!(10001);
-process.setuid!(10001);
-process.chdir('/workspace');
+process.setgid!(uid);
+process.setuid!(uid);
+process.chdir(workspace);
 const transport = new StdioClientTransport({
   command: input.command,
   args: input.args,
   env: { PATH: process.env.PATH, HOME: process.env.HOME, ...input.environment },
-  cwd: '/workspace',
+  cwd: workspace,
   stderr: 'ignore',
   maxBufferSize: 2 * 1024 * 1024,
 });

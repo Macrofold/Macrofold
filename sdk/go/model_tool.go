@@ -12,7 +12,6 @@ package macrofold
 
 import (
 	"encoding/json"
-	"bytes"
 	"fmt"
 )
 
@@ -26,6 +25,7 @@ type Tool struct {
 	// Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
 	InputSchema map[string]interface{} `json:"input_schema"`
 	Granted bool `json:"granted"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _Tool Tool
@@ -170,6 +170,11 @@ func (o Tool) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["input_schema"] = o.InputSchema
 	toSerialize["granted"] = o.Granted
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -199,15 +204,23 @@ func (o *Tool) UnmarshalJSON(data []byte) (err error) {
 
 	varTool := _Tool{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varTool)
+	err = json.Unmarshal(data, &varTool)
 
 	if err != nil {
 		return err
 	}
 
 	*o = Tool(varTool)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "name")
+		delete(additionalProperties, "description")
+		delete(additionalProperties, "input_schema")
+		delete(additionalProperties, "granted")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

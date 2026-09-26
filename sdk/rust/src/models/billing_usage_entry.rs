@@ -50,9 +50,12 @@ pub struct BillingUsageEntry {
     pub tool: Option<Box<models::BillingUsageEntryTool>>,
     #[serde(rename = "storage", skip_serializing_if = "Option::is_none")]
     pub storage: Option<Box<models::BillingUsageEntryStorage>>,
-    /// Compute allocation charged independently of individual runs, when present.
-    #[serde(rename = "sandbox_id", skip_serializing_if = "Option::is_none")]
-    pub sandbox_id: Option<uuid::Uuid>,
+    /// Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run.
+    #[serde(rename = "worker_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub worker_id: Option<Option<uuid::Uuid>>,
+    /// Financial allocation identifier; not a controllable physical-machine API resource.
+    #[serde(rename = "compute_allocation_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub compute_allocation_id: Option<Option<uuid::Uuid>>,
 }
 
 impl BillingUsageEntry {
@@ -74,7 +77,8 @@ impl BillingUsageEntry {
             model_usage: None,
             tool: None,
             storage: None,
-            sandbox_id: None,
+            worker_id: None,
+            compute_allocation_id: None,
         }
     }
 }

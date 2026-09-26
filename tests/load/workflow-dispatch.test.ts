@@ -14,6 +14,7 @@ import { agentRun } from '../../apps/web/workflows/run';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { renewWorkflow, releaseWorkflow } from '../../packages/core/src/workflow-ownership';
 import { maintainRuns } from '../../packages/core/src/engine';
+import { pendingRunCandidates } from '../../packages/core/src/scheduling';
 import type { MachineProvider } from '../../packages/core/src/ports';
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
@@ -359,7 +360,11 @@ it('24-hour SQL waiting survives dispatcher recovery; cancellation and expiry re
   expect(waiting.available_at.getTime()).toBeLessThanOrEqual(
     (await transaction(org, (tx) => getRun(tx, queued.run_id))).queue_expires_at.getTime(),
   );
-  expect(waiting.available_at.getTime() - Date.now()).toBeGreaterThan(40_000);
+  // A full ceiling excludes doomed waiting work from dispatch hints, so a recovered
+  // dispatcher neither leases nor claims it on every tick; it stays queued in SQL.
+  expect((await pendingRunCandidates(100)).map((c) => c.resource_id)).not.toContain(queued.run_id);
+  expect(waiting).toMatchObject({ state: 'pending', lease_until: null });
+  expect(start).toHaveBeenCalledTimes(1);
   expect(await held(org)).toBe('4000000');
   expect((await transaction(org, (tx) => getRun(tx, queued.run_id))).started_at).toBeNull();
   await transaction(org, (tx) => cancelRun(tx, a.p, queued.run_id));

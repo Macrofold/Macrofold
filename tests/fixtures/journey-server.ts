@@ -27,10 +27,12 @@ const model = createServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
-  const key = String(req.headers['x-fixture-session']) + pathname;
+  const [harness, worktree] = String(req.headers['x-fixture-session']).split(':');
+  const key = `${harness}:${worktree}${pathname}`;
   let fixture = fixtures.get(key);
   if (!fixture) {
-    fixture = nativeModelFixture({ journey: true });
+    // Automatic execution runs in the Host's per-Worktree root, not the image's /workspace.
+    fixture = nativeModelFixture({ journey: true, workspace: `/host-data/worktrees/${worktree}` });
     fixtures.set(key, fixture);
   }
   fixture.handler(req, res);
@@ -60,10 +62,10 @@ const fixtureTransport =
     )
       throw new Error('Unexpected credential in model fixture');
     // The gateway performs authentication first, including optional unauthenticated native probes.
-    const harness = await fixtureHarness(request, runId);
+    const { harness, worktree } = await fixtureRun(request, runId);
     return networkFetch(`http://127.0.0.1:${modelPort}${url.pathname.replace(/^\/api\//, '/')}`, {
       ...init,
-      headers: { ...Object.fromEntries(headers), 'x-fixture-session': harness },
+      headers: { ...Object.fromEntries(headers), 'x-fixture-session': `${harness}:${worktree}` },
       redirect: 'error',
     });
   };
@@ -112,7 +114,8 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-async function fixtureHarness(request: Request, runId: string) {
+async function fixtureRun(request: Request, runId: string) {
   const cap = verifyRuntime(request, runId);
-  return transaction(cap.organization, async (tx) => (await getRun(tx, runId)).config.harness);
+  const run = await transaction(cap.organization, (tx) => getRun(tx, runId));
+  return { harness: run.config.harness, worktree: run.worktree_id };
 }

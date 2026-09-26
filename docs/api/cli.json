@@ -29,12 +29,60 @@
       "connections:read",
       "usage:read"
     ],
-    "additional_consent_scopes": ["connections:write"],
+    "additional_consent_scopes": ["connections:write", "workers:read", "workers:use", "workers:write"],
     "ci_mode": "environment API key or --api-key-stdin",
     "token_storage": "permission-protected plaintext; no repository credentials",
     "login_flags": ["host", "profile", "scope", "api-key-stdin"]
   },
   "commands": [
+    {
+      "command": "worker list",
+      "operation_ids": ["listWorkers"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker offerings",
+      "operation_ids": ["listWorkerOfferings"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker create",
+      "operation_ids": ["createWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker show",
+      "operation_ids": ["getWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker update",
+      "operation_ids": ["getWorker", "patchWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker pause",
+      "operation_ids": ["pauseWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker resume",
+      "operation_ids": ["resumeWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
+    {
+      "command": "worker destroy",
+      "operation_ids": ["destroyWorker"],
+      "local_only": false,
+      "protocol_only": false
+    },
     {
       "command": "login",
       "operation_ids": [],
@@ -344,7 +392,10 @@
     "prompt-file",
     "queue-timeout",
     "scheduling",
-    "agent"
+    "agent",
+    "worker",
+    "memory-mib",
+    "cpu-millis"
   ],
   "transfer_flags": ["dry-run", "yes", "include-ignored", "delete"],
   "scope_catalog": {
@@ -367,7 +418,10 @@
     "organizations:write": "Manage organizations, roles and invitations",
     "workspaces:delete": "Schedule or cancel permanent workspace deletion (owner/admin only)",
     "triggers:read": "Read authorized incoming triggers, schedules and deliveries",
-    "triggers:write": "Manage incoming triggers and scheduled tasks"
+    "triggers:write": "Manage incoming triggers and scheduled tasks",
+    "workers:read": "Inspect authorized Worker capacity, lifecycle and compute charges",
+    "workers:use": "Target authorized Worker compute without granting data access",
+    "workers:write": "Manage authorized Worker configuration and lifecycle (owner/admin only)"
   },
   "json_output_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

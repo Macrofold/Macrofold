@@ -18,7 +18,10 @@ export class FaultMachine implements MachineProvider {
   async provision(name: string): Promise<MachineBinding> {
     return { name, sessionId: 'original-vm', createdAt: new Date().toISOString() };
   }
-  async prepare() {}
+  prepared: Awaited<ReturnType<MachineProvider['prepare']>> = undefined;
+  async prepare(): ReturnType<MachineProvider['prepare']> {
+    return this.prepared;
+  }
   async stage(_binding: MachineBinding, files: { path: string; content: Buffer }[]) {
     for (const f of files) this.stageFiles.set(f.path, f.content);
   }

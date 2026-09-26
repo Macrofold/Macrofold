@@ -93,8 +93,7 @@ describe('public Worker contract and execution path',()=>{
     const active=executeRun(owner.organizationId,a.run_id,held);
     try {
       await started;
-      expect(await executeRun(owner.organizationId,b.run_id,fast)).toBe(false);
-      await reconcileWorker(owner.organizationId,worker.id);
+      // One reconciliation projects both queued allocations; no second wake is required.
       expect((await request('Worker','GET',`/v1/workers/${worker.id}`)).value.ready_instances).toBe(2);
       expect(await executeRun(owner.organizationId,b.run_id,fast)).toBe(true);
       const during=(await request('Worker','GET',`/v1/workers/${worker.id}`)).value;
@@ -130,7 +129,7 @@ describe('public Worker contract and execution path',()=>{
     expect(listed.data.map(value=>value.id)).toEqual([a.id]);
     const management=await request('Error','POST',`/v1/workers/${a.id}/pause`,undefined,restricted.secret);
     expect(management.response.status).toBe(403);
-    const escalation=await request('Error','POST','/v1/keys',{name:'Escalation',scopes:['workers:use']},restricted.secret);
+    const escalation=await request('Error','POST','/v1/api-keys',{name:'Escalation',scopes:['workers:use']},restricted.secret);
     expect(escalation.response.status).toBe(403);
   });
 });

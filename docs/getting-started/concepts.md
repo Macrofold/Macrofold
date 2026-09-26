@@ -1,8 +1,8 @@
 # Core concepts
 
-A **workspace owns a distinct file tree**. Its **worktrees are checkouts** used to edit and execute against that tree. A run is one task.
+Start with three ideas: a **workspace** keeps files, an **agent** does work using the instructions and tools you choose, and a **run** is one task. You can select a supported harness directly for a run or save its configuration as an agent preset.
 
-**Projects are not implemented yet.** They will be grouping containers for organizing workspaces; they do not appear as a current API resource.
+A workspace's **worktrees** are independent working copies used to edit and execute against its file tree. Use the main worktree first; add another when tasks need separate branches. [From one task to ongoing work](agent-work.md) shows how these concepts support a useful workflow.
 
 ## Resource model
 
@@ -17,13 +17,19 @@ A **workspace owns a distinct file tree**. Its **worktrees are checkouts** used 
 | Connection   | Grants access to a provider or tool                 | An MCP server or model key      |
 | Agent preset | Reuses harness, model, and run configuration        | A code-review setup             |
 
+**Projects are not implemented yet.** They will group workspaces; they are not a current API resource.
+
 ## Optional integration paths
 
 [Customer agents](../features/customer-agents/README.md) is a use-case-specific shortcut over this resource model. It binds your application's authenticated customer to a dedicated workspace, worktree and preset, and checks ownership when sending messages or managing connections. It is not a new core agent type or a requirement for running agents.
 
 ## What persists
 
-Persistent workspace files and compatible native session state survive ordinary run completion. Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.
+A run ends; its saved work remains. Verified workspace files persist independently of the execution environment, so keeping a report or repository does not require a dedicated, always-running computer.
+
+Compatible native session state supports conversation continuation, but it is not interchangeable across harness families. File persistence does not imply preserving live RAM, running processes, or every system-level installation. Optional warm compute has its own [lifecycle and cost](../features/execution/sandboxes.md).
+
+Checkpoints provide verified recovery points. Detailed output and tool history have a separate plan retention policy. GitHub synchronization adds a remote version-control copy; it does not replace checkpoint persistence.
 
 A lost sandbox can lose changes since the last published checkpoint. Saved checkpoints, current file revisions, and Git status are visible separately so you can identify what is recoverable.
 

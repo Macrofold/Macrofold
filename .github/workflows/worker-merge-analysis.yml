@@ -23,19 +23,17 @@ jobs:
           git merge --no-commit --no-ff origin/main
           code=$?
           set -e
+          mkdir -p /tmp/merge-conflicts
+          git diff --name-only --diff-filter=U | while IFS= read -r path; do
+            mkdir -p "/tmp/merge-conflicts/$(dirname "$path")"
+            cp "$path" "/tmp/merge-conflicts/$path" 2>/dev/null || true
+          done
+          git diff --cc > /tmp/merge-conflicts/conflicts.diff || true
+          git diff --name-only --diff-filter=U > /tmp/merge-conflicts/conflicts.txt || true
           echo "MERGE_EXIT=$code"
-          echo "CONFLICTS_BEGIN"
-          git diff --name-only --diff-filter=U
-          echo "CONFLICTS_END"
-          echo "STATUS_BEGIN"
-          git status --short
-          echo "STATUS_END"
-          mkdir -p /tmp/merge-analysis
-          git diff --cc > /tmp/merge-analysis/conflicts.diff || true
-          git diff --name-only --diff-filter=U > /tmp/merge-analysis/conflicts.txt || true
-          tar --exclude=.git -czf /tmp/merge-analysis/working-tree.tar.gz .
+          cat /tmp/merge-conflicts/conflicts.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worker-merge-analysis
-          path: /tmp/merge-analysis/
+          name: worker-merge-conflicts
+          path: /tmp/merge-conflicts/
           retention-days: 7

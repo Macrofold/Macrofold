@@ -6,7 +6,7 @@ import { credit } from '../../packages/core/src/ledger';
 import { createWorker, getWorker, changeWorker, patchWorker, presentWorker, workerForRun } from '../../packages/core/src/workers';
 import { reserveHost, getHost, hostSnapshots, claimHostRun, activeHostRun, releaseHostRun, settleHostSample } from '../../packages/core/src/host-allocations';
 import { reconcileWorker } from '../../packages/core/src/worker-reconciler';
-import { admitRun, getNativeRun } from '../../packages/core/src/runs';
+import { admitRun, cancelRun, getNativeRun } from '../../packages/core/src/runs';
 import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import type { Principal } from '../../packages/core/src/auth';
@@ -43,7 +43,10 @@ beforeAll(async()=>{
   });
 });
 afterEach(async()=>{
-  await tx(t=>t.query("UPDATE runs SET cancel_requested=true WHERE config ? 'worker_id' AND status='queued'").then(()=>{}));
+  // Retire our synthetic queue entries, not merely request cancellation.
+  // Global candidate discovery intentionally prioritizes pending cleanup.
+  const queued=await tx(t=>t.query<{id:string}>("SELECT id FROM runs WHERE config ? 'worker_id' AND status='queued'"));
+  for(const run of queued.rows)await tx(t=>cancelRun(t,principal,run.id));
 });
 afterAll(async()=>{await pool.end();await authPool.end();});
 async function worker(input:Parameters<typeof createWorker>[2]={}){
@@ -97,6 +100,7 @@ describe('Worker authority and desired lifecycle',()=>{
     expect((await tx(t=>workerForRun(t,user,created.id))).id).toBe(created.id);
     await expect(tx(t=>changeWorker(t,user,created.id,'pause'))).rejects.toMatchObject({status:403});
     await expect(tx(t=>getWorker(t,created.id,{...principal,scopes:['workers:use']}))).rejects.toMatchObject({status:403});
+    await expect(tx(t=>changeWorker(t,{...principal,scopes:['workers:use']}),created.id,'pause')).rejects.toMatchObject({status:403});
     await expect(tx(t=>changeWorker(t,{...principal,workspaceIds:[id()]},created.id,'pause'))).rejects.toMatchObject({code:'worker_management_forbidden'});
   });
   it('manual pause cannot be undone by incoming traffic, while explicit resume re-enables it',async()=>{

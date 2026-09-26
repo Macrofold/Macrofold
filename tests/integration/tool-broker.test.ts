@@ -6,6 +6,7 @@ import { fixtureAccount } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { seal } from '../../packages/core/src/crypto';
+import { credit } from '../../packages/core/src/ledger';
 import * as accessResolution from '../../packages/core/src/connection-access-resolution';
 import { patchAccess, saveRule } from '../../packages/core/src/connection-access';
 import { executeGrantedTool, handleRuntimeMcp, exposedToolName } from '../../packages/core/src/tool-broker';
@@ -27,6 +28,9 @@ let account: Awaited<ReturnType<typeof fixtureAccount>>;
 beforeAll(async () => {
   await fixtureConnector();
   account = await fixtureAccount('Broker fixtures');
+  // A simulated admission holds no credit; priced platform tools still require funding.
+  await transaction(account.p.organizationId, tx =>
+    credit(tx, account.p.organizationId, 10000000n, `broker-fixture:${account.p.organizationId}`));
 });
 afterEach(() => {
   vi.restoreAllMocks();

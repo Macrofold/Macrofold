@@ -18,11 +18,11 @@ pub struct DecisionTaskWake {
     #[serde(rename = "input", deserialize_with = "Option::deserialize")]
     pub input: Option<serde_json::Value>,
     #[serde(rename = "context")]
-    pub context: Box<models::InferenceCreateContext>,
+    pub context: Box<models::DecisionTaskWakeContext>,
 }
 
 impl DecisionTaskWake {
-    pub fn new(event_id: String, input: Option<serde_json::Value>, context: models::InferenceCreateContext) -> DecisionTaskWake {
+    pub fn new(event_id: String, input: Option<serde_json::Value>, context: models::DecisionTaskWakeContext) -> DecisionTaskWake {
         DecisionTaskWake {
             event_id,
             input,

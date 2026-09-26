@@ -21,41 +21,41 @@ var _ MappedNullable = &RunCreate{}
 
 // RunCreate Exactly one workspace/worktree/session selector. A new session requires an agent preset or explicit harness and model. BYOK requires a compatible provider connection. Session harness is immutable. Runtime validates these ownership/catalog-dependent rules.
 type RunCreate struct {
-	Prompt string `json:"prompt"`
-	WorkspaceId *string `json:"workspace_id,omitempty"`
-	WorktreeId *string `json:"worktree_id,omitempty"`
-	SessionId *string `json:"session_id,omitempty"`
-	AgentId *string `json:"agent_id,omitempty"`
-	Harness *string `json:"harness,omitempty"`
-	Model *string `json:"model,omitempty"`
-	BillingMode *string `json:"billing_mode,omitempty"`
-	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
-	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
-	// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
-	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
-	Limits *Limits `json:"limits,omitempty"`
 	WebhookEndpointIds []string `json:"webhook_endpoint_ids,omitempty"`
-	// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
-	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
-	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
-	SchedulingClass *string `json:"scheduling_class,omitempty"`
-	// Only session follow-ups can queue behind worktree work.
-	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
-	Permissions *AgentPermissions `json:"permissions,omitempty"`
 	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.
 	ConnectionAccessOverrides []Grant `json:"connection_access_overrides,omitempty"`
-	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
-	Attachments []string `json:"attachments,omitempty"`
-	SandboxId *string `json:"sandbox_id,omitempty"`
-	// Seconds to retain idle compute after a run. 0 or null on a run releases compute. Omitted inherits the sandbox policy.
-	KeepWarmSeconds NullableInt32 `json:"keep_warm_seconds,omitempty"`
-	// Compute allocation for a sandbox created automatically by keep_warm_seconds. Separate from the model/tool run budget.
-	SandboxMaxCostMicroUsd *string `json:"sandbox_max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]{1\\,12}$"`
-	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
-	// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
-	HarnessPromptMode *string `json:"harness_prompt_mode,omitempty"`
 	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
 	Stream *bool `json:"stream,omitempty"`
+	Prompt string `json:"prompt"`
+	// Maximum wait before execution starts, measured from submission. Shorten per request; never extends execution or retention.
+	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
+	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
+	Harness *string `json:"harness,omitempty"`
+	// Advanced per-Run memory allocation on an explicit Worker. Omitted uses the managed harness estimate.
+	MemoryMib *int32 `json:"memory_mib,omitempty"`
+	// Advanced per-Run CPU allocation in millicores on an explicit Worker.
+	CpuMillis *int32 `json:"cpu_millis,omitempty"`
+	AgentId *string `json:"agent_id,omitempty"`
+	// OpenCode only. replace omits the built-in coding persona (default); extend retains it. Configured agent instructions still apply in both modes. Other harnesses reject an explicit value.
+	HarnessPromptMode *string `json:"harness_prompt_mode,omitempty"`
+	SessionId *string `json:"session_id,omitempty"`
+	// Exact tool selection for this run; omitted inherits the session/preset default, [] selects none. Selection does not grant access.
+	ConnectionGrants []Grant `json:"connection_grants,omitempty"`
+	WorkerId *string `json:"worker_id,omitempty"`
+	// Interactive work receives first consideration at a free slot; no preemption or immediate-capacity guarantee.
+	SchedulingClass *string `json:"scheduling_class,omitempty"`
+	Model *string `json:"model,omitempty"`
+	BillingMode *string `json:"billing_mode,omitempty"`
+	Limits *Limits `json:"limits,omitempty"`
+	WorktreeId *string `json:"worktree_id,omitempty"`
+	// Only session follow-ups can queue behind worktree work.
+	QueueIfBusy *bool `json:"queue_if_busy,omitempty"`
+	// Exact owned model API-key or Claude subscription connection. A new connection never changes existing presets or sessions. Subscription runs remain gated.
+	ProviderConnectionId *string `json:"provider_connection_id,omitempty"`
+	Permissions *AgentPermissions `json:"permissions,omitempty"`
+	// Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported.
+	Attachments []string `json:"attachments,omitempty"`
+	WorkspaceId *string `json:"workspace_id,omitempty"`
 }
 
 type _RunCreate RunCreate
@@ -76,6 +76,102 @@ func NewRunCreate(prompt string) *RunCreate {
 func NewRunCreateWithDefaults() *RunCreate {
 	this := RunCreate{}
 	return &this
+}
+
+// GetWebhookEndpointIds returns the WebhookEndpointIds field value if set, zero value otherwise.
+func (o *RunCreate) GetWebhookEndpointIds() []string {
+	if o == nil || IsNil(o.WebhookEndpointIds) {
+		var ret []string
+		return ret
+	}
+	return o.WebhookEndpointIds
+}
+
+// GetWebhookEndpointIdsOk returns a tuple with the WebhookEndpointIds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetWebhookEndpointIdsOk() ([]string, bool) {
+	if o == nil || IsNil(o.WebhookEndpointIds) {
+		return nil, false
+	}
+	return o.WebhookEndpointIds, true
+}
+
+// HasWebhookEndpointIds returns a boolean if a field has been set.
+func (o *RunCreate) HasWebhookEndpointIds() bool {
+	if o != nil && !IsNil(o.WebhookEndpointIds) {
+		return true
+	}
+
+	return false
+}
+
+// SetWebhookEndpointIds gets a reference to the given []string and assigns it to the WebhookEndpointIds field.
+func (o *RunCreate) SetWebhookEndpointIds(v []string) {
+	o.WebhookEndpointIds = v
+}
+
+// GetConnectionAccessOverrides returns the ConnectionAccessOverrides field value if set, zero value otherwise.
+func (o *RunCreate) GetConnectionAccessOverrides() []Grant {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionAccessOverrides
+}
+
+// GetConnectionAccessOverridesOk returns a tuple with the ConnectionAccessOverrides field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetConnectionAccessOverridesOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionAccessOverrides) {
+		return nil, false
+	}
+	return o.ConnectionAccessOverrides, true
+}
+
+// HasConnectionAccessOverrides returns a boolean if a field has been set.
+func (o *RunCreate) HasConnectionAccessOverrides() bool {
+	if o != nil && !IsNil(o.ConnectionAccessOverrides) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionAccessOverrides gets a reference to the given []Grant and assigns it to the ConnectionAccessOverrides field.
+func (o *RunCreate) SetConnectionAccessOverrides(v []Grant) {
+	o.ConnectionAccessOverrides = v
+}
+
+// GetStream returns the Stream field value if set, zero value otherwise.
+func (o *RunCreate) GetStream() bool {
+	if o == nil || IsNil(o.Stream) {
+		var ret bool
+		return ret
+	}
+	return *o.Stream
+}
+
+// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetStreamOk() (*bool, bool) {
+	if o == nil || IsNil(o.Stream) {
+		return nil, false
+	}
+	return o.Stream, true
+}
+
+// HasStream returns a boolean if a field has been set.
+func (o *RunCreate) HasStream() bool {
+	if o != nil && !IsNil(o.Stream) {
+		return true
+	}
+
+	return false
+}
+
+// SetStream gets a reference to the given bool and assigns it to the Stream field.
+func (o *RunCreate) SetStream(v bool) {
+	o.Stream = &v
 }
 
 // GetPrompt returns the Prompt field value
@@ -102,100 +198,164 @@ func (o *RunCreate) SetPrompt(v string) {
 	o.Prompt = v
 }
 
-// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
-func (o *RunCreate) GetWorkspaceId() string {
-	if o == nil || IsNil(o.WorkspaceId) {
-		var ret string
+// GetQueueTimeoutSeconds returns the QueueTimeoutSeconds field value if set, zero value otherwise.
+func (o *RunCreate) GetQueueTimeoutSeconds() int32 {
+	if o == nil || IsNil(o.QueueTimeoutSeconds) {
+		var ret int32
 		return ret
 	}
-	return *o.WorkspaceId
+	return *o.QueueTimeoutSeconds
 }
 
-// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
+// GetQueueTimeoutSecondsOk returns a tuple with the QueueTimeoutSeconds field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetWorkspaceIdOk() (*string, bool) {
-	if o == nil || IsNil(o.WorkspaceId) {
+func (o *RunCreate) GetQueueTimeoutSecondsOk() (*int32, bool) {
+	if o == nil || IsNil(o.QueueTimeoutSeconds) {
 		return nil, false
 	}
-	return o.WorkspaceId, true
+	return o.QueueTimeoutSeconds, true
 }
 
-// HasWorkspaceId returns a boolean if a field has been set.
-func (o *RunCreate) HasWorkspaceId() bool {
-	if o != nil && !IsNil(o.WorkspaceId) {
+// HasQueueTimeoutSeconds returns a boolean if a field has been set.
+func (o *RunCreate) HasQueueTimeoutSeconds() bool {
+	if o != nil && !IsNil(o.QueueTimeoutSeconds) {
 		return true
 	}
 
 	return false
 }
 
-// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
-func (o *RunCreate) SetWorkspaceId(v string) {
-	o.WorkspaceId = &v
+// SetQueueTimeoutSeconds gets a reference to the given int32 and assigns it to the QueueTimeoutSeconds field.
+func (o *RunCreate) SetQueueTimeoutSeconds(v int32) {
+	o.QueueTimeoutSeconds = &v
 }
 
-// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise.
-func (o *RunCreate) GetWorktreeId() string {
-	if o == nil || IsNil(o.WorktreeId) {
-		var ret string
+// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
+func (o *RunCreate) GetModelParameters() ModelParameters {
+	if o == nil || IsNil(o.ModelParameters) {
+		var ret ModelParameters
 		return ret
 	}
-	return *o.WorktreeId
+	return *o.ModelParameters
 }
 
-// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
+// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetWorktreeIdOk() (*string, bool) {
-	if o == nil || IsNil(o.WorktreeId) {
+func (o *RunCreate) GetModelParametersOk() (*ModelParameters, bool) {
+	if o == nil || IsNil(o.ModelParameters) {
 		return nil, false
 	}
-	return o.WorktreeId, true
+	return o.ModelParameters, true
 }
 
-// HasWorktreeId returns a boolean if a field has been set.
-func (o *RunCreate) HasWorktreeId() bool {
-	if o != nil && !IsNil(o.WorktreeId) {
+// HasModelParameters returns a boolean if a field has been set.
+func (o *RunCreate) HasModelParameters() bool {
+	if o != nil && !IsNil(o.ModelParameters) {
 		return true
 	}
 
 	return false
 }
 
-// SetWorktreeId gets a reference to the given string and assigns it to the WorktreeId field.
-func (o *RunCreate) SetWorktreeId(v string) {
-	o.WorktreeId = &v
+// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
+func (o *RunCreate) SetModelParameters(v ModelParameters) {
+	o.ModelParameters = &v
 }
 
-// GetSessionId returns the SessionId field value if set, zero value otherwise.
-func (o *RunCreate) GetSessionId() string {
-	if o == nil || IsNil(o.SessionId) {
+// GetHarness returns the Harness field value if set, zero value otherwise.
+func (o *RunCreate) GetHarness() string {
+	if o == nil || IsNil(o.Harness) {
 		var ret string
 		return ret
 	}
-	return *o.SessionId
+	return *o.Harness
 }
 
-// GetSessionIdOk returns a tuple with the SessionId field value if set, nil otherwise
+// GetHarnessOk returns a tuple with the Harness field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetSessionIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SessionId) {
+func (o *RunCreate) GetHarnessOk() (*string, bool) {
+	if o == nil || IsNil(o.Harness) {
 		return nil, false
 	}
-	return o.SessionId, true
+	return o.Harness, true
 }
 
-// HasSessionId returns a boolean if a field has been set.
-func (o *RunCreate) HasSessionId() bool {
-	if o != nil && !IsNil(o.SessionId) {
+// HasHarness returns a boolean if a field has been set.
+func (o *RunCreate) HasHarness() bool {
+	if o != nil && !IsNil(o.Harness) {
 		return true
 	}
 
 	return false
 }
 
-// SetSessionId gets a reference to the given string and assigns it to the SessionId field.
-func (o *RunCreate) SetSessionId(v string) {
-	o.SessionId = &v
+// SetHarness gets a reference to the given string and assigns it to the Harness field.
+func (o *RunCreate) SetHarness(v string) {
+	o.Harness = &v
+}
+
+// GetMemoryMib returns the MemoryMib field value if set, zero value otherwise.
+func (o *RunCreate) GetMemoryMib() int32 {
+	if o == nil || IsNil(o.MemoryMib) {
+		var ret int32
+		return ret
+	}
+	return *o.MemoryMib
+}
+
+// GetMemoryMibOk returns a tuple with the MemoryMib field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetMemoryMibOk() (*int32, bool) {
+	if o == nil || IsNil(o.MemoryMib) {
+		return nil, false
+	}
+	return o.MemoryMib, true
+}
+
+// HasMemoryMib returns a boolean if a field has been set.
+func (o *RunCreate) HasMemoryMib() bool {
+	if o != nil && !IsNil(o.MemoryMib) {
+		return true
+	}
+
+	return false
+}
+
+// SetMemoryMib gets a reference to the given int32 and assigns it to the MemoryMib field.
+func (o *RunCreate) SetMemoryMib(v int32) {
+	o.MemoryMib = &v
+}
+
+// GetCpuMillis returns the CpuMillis field value if set, zero value otherwise.
+func (o *RunCreate) GetCpuMillis() int32 {
+	if o == nil || IsNil(o.CpuMillis) {
+		var ret int32
+		return ret
+	}
+	return *o.CpuMillis
+}
+
+// GetCpuMillisOk returns a tuple with the CpuMillis field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetCpuMillisOk() (*int32, bool) {
+	if o == nil || IsNil(o.CpuMillis) {
+		return nil, false
+	}
+	return o.CpuMillis, true
+}
+
+// HasCpuMillis returns a boolean if a field has been set.
+func (o *RunCreate) HasCpuMillis() bool {
+	if o != nil && !IsNil(o.CpuMillis) {
+		return true
+	}
+
+	return false
+}
+
+// SetCpuMillis gets a reference to the given int32 and assigns it to the CpuMillis field.
+func (o *RunCreate) SetCpuMillis(v int32) {
+	o.CpuMillis = &v
 }
 
 // GetAgentId returns the AgentId field value if set, zero value otherwise.
@@ -230,36 +390,164 @@ func (o *RunCreate) SetAgentId(v string) {
 	o.AgentId = &v
 }
 
-// GetHarness returns the Harness field value if set, zero value otherwise.
-func (o *RunCreate) GetHarness() string {
-	if o == nil || IsNil(o.Harness) {
+// GetHarnessPromptMode returns the HarnessPromptMode field value if set, zero value otherwise.
+func (o *RunCreate) GetHarnessPromptMode() string {
+	if o == nil || IsNil(o.HarnessPromptMode) {
 		var ret string
 		return ret
 	}
-	return *o.Harness
+	return *o.HarnessPromptMode
 }
 
-// GetHarnessOk returns a tuple with the Harness field value if set, nil otherwise
+// GetHarnessPromptModeOk returns a tuple with the HarnessPromptMode field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetHarnessOk() (*string, bool) {
-	if o == nil || IsNil(o.Harness) {
+func (o *RunCreate) GetHarnessPromptModeOk() (*string, bool) {
+	if o == nil || IsNil(o.HarnessPromptMode) {
 		return nil, false
 	}
-	return o.Harness, true
+	return o.HarnessPromptMode, true
 }
 
-// HasHarness returns a boolean if a field has been set.
-func (o *RunCreate) HasHarness() bool {
-	if o != nil && !IsNil(o.Harness) {
+// HasHarnessPromptMode returns a boolean if a field has been set.
+func (o *RunCreate) HasHarnessPromptMode() bool {
+	if o != nil && !IsNil(o.HarnessPromptMode) {
 		return true
 	}
 
 	return false
 }
 
-// SetHarness gets a reference to the given string and assigns it to the Harness field.
-func (o *RunCreate) SetHarness(v string) {
-	o.Harness = &v
+// SetHarnessPromptMode gets a reference to the given string and assigns it to the HarnessPromptMode field.
+func (o *RunCreate) SetHarnessPromptMode(v string) {
+	o.HarnessPromptMode = &v
+}
+
+// GetSessionId returns the SessionId field value if set, zero value otherwise.
+func (o *RunCreate) GetSessionId() string {
+	if o == nil || IsNil(o.SessionId) {
+		var ret string
+		return ret
+	}
+	return *o.SessionId
+}
+
+// GetSessionIdOk returns a tuple with the SessionId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetSessionIdOk() (*string, bool) {
+	if o == nil || IsNil(o.SessionId) {
+		return nil, false
+	}
+	return o.SessionId, true
+}
+
+// HasSessionId returns a boolean if a field has been set.
+func (o *RunCreate) HasSessionId() bool {
+	if o != nil && !IsNil(o.SessionId) {
+		return true
+	}
+
+	return false
+}
+
+// SetSessionId gets a reference to the given string and assigns it to the SessionId field.
+func (o *RunCreate) SetSessionId(v string) {
+	o.SessionId = &v
+}
+
+// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
+func (o *RunCreate) GetConnectionGrants() []Grant {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		var ret []Grant
+		return ret
+	}
+	return o.ConnectionGrants
+}
+
+// GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetConnectionGrantsOk() ([]Grant, bool) {
+	if o == nil || IsNil(o.ConnectionGrants) {
+		return nil, false
+	}
+	return o.ConnectionGrants, true
+}
+
+// HasConnectionGrants returns a boolean if a field has been set.
+func (o *RunCreate) HasConnectionGrants() bool {
+	if o != nil && !IsNil(o.ConnectionGrants) {
+		return true
+	}
+
+	return false
+}
+
+// SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
+func (o *RunCreate) SetConnectionGrants(v []Grant) {
+	o.ConnectionGrants = v
+}
+
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise.
+func (o *RunCreate) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId) {
+		var ret string
+		return ret
+	}
+	return *o.WorkerId
+}
+
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetWorkerIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkerId) {
+		return nil, false
+	}
+	return o.WorkerId, true
+}
+
+// HasWorkerId returns a boolean if a field has been set.
+func (o *RunCreate) HasWorkerId() bool {
+	if o != nil && !IsNil(o.WorkerId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerId gets a reference to the given string and assigns it to the WorkerId field.
+func (o *RunCreate) SetWorkerId(v string) {
+	o.WorkerId = &v
+}
+
+// GetSchedulingClass returns the SchedulingClass field value if set, zero value otherwise.
+func (o *RunCreate) GetSchedulingClass() string {
+	if o == nil || IsNil(o.SchedulingClass) {
+		var ret string
+		return ret
+	}
+	return *o.SchedulingClass
+}
+
+// GetSchedulingClassOk returns a tuple with the SchedulingClass field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetSchedulingClassOk() (*string, bool) {
+	if o == nil || IsNil(o.SchedulingClass) {
+		return nil, false
+	}
+	return o.SchedulingClass, true
+}
+
+// HasSchedulingClass returns a boolean if a field has been set.
+func (o *RunCreate) HasSchedulingClass() bool {
+	if o != nil && !IsNil(o.SchedulingClass) {
+		return true
+	}
+
+	return false
+}
+
+// SetSchedulingClass gets a reference to the given string and assigns it to the SchedulingClass field.
+func (o *RunCreate) SetSchedulingClass(v string) {
+	o.SchedulingClass = &v
 }
 
 // GetModel returns the Model field value if set, zero value otherwise.
@@ -326,70 +614,6 @@ func (o *RunCreate) SetBillingMode(v string) {
 	o.BillingMode = &v
 }
 
-// GetProviderConnectionId returns the ProviderConnectionId field value if set, zero value otherwise.
-func (o *RunCreate) GetProviderConnectionId() string {
-	if o == nil || IsNil(o.ProviderConnectionId) {
-		var ret string
-		return ret
-	}
-	return *o.ProviderConnectionId
-}
-
-// GetProviderConnectionIdOk returns a tuple with the ProviderConnectionId field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetProviderConnectionIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ProviderConnectionId) {
-		return nil, false
-	}
-	return o.ProviderConnectionId, true
-}
-
-// HasProviderConnectionId returns a boolean if a field has been set.
-func (o *RunCreate) HasProviderConnectionId() bool {
-	if o != nil && !IsNil(o.ProviderConnectionId) {
-		return true
-	}
-
-	return false
-}
-
-// SetProviderConnectionId gets a reference to the given string and assigns it to the ProviderConnectionId field.
-func (o *RunCreate) SetProviderConnectionId(v string) {
-	o.ProviderConnectionId = &v
-}
-
-// GetConnectionGrants returns the ConnectionGrants field value if set, zero value otherwise.
-func (o *RunCreate) GetConnectionGrants() []Grant {
-	if o == nil || IsNil(o.ConnectionGrants) {
-		var ret []Grant
-		return ret
-	}
-	return o.ConnectionGrants
-}
-
-// GetConnectionGrantsOk returns a tuple with the ConnectionGrants field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetConnectionGrantsOk() ([]Grant, bool) {
-	if o == nil || IsNil(o.ConnectionGrants) {
-		return nil, false
-	}
-	return o.ConnectionGrants, true
-}
-
-// HasConnectionGrants returns a boolean if a field has been set.
-func (o *RunCreate) HasConnectionGrants() bool {
-	if o != nil && !IsNil(o.ConnectionGrants) {
-		return true
-	}
-
-	return false
-}
-
-// SetConnectionGrants gets a reference to the given []Grant and assigns it to the ConnectionGrants field.
-func (o *RunCreate) SetConnectionGrants(v []Grant) {
-	o.ConnectionGrants = v
-}
-
 // GetLimits returns the Limits field value if set, zero value otherwise.
 func (o *RunCreate) GetLimits() Limits {
 	if o == nil || IsNil(o.Limits) {
@@ -422,100 +646,36 @@ func (o *RunCreate) SetLimits(v Limits) {
 	o.Limits = &v
 }
 
-// GetWebhookEndpointIds returns the WebhookEndpointIds field value if set, zero value otherwise.
-func (o *RunCreate) GetWebhookEndpointIds() []string {
-	if o == nil || IsNil(o.WebhookEndpointIds) {
-		var ret []string
-		return ret
-	}
-	return o.WebhookEndpointIds
-}
-
-// GetWebhookEndpointIdsOk returns a tuple with the WebhookEndpointIds field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetWebhookEndpointIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.WebhookEndpointIds) {
-		return nil, false
-	}
-	return o.WebhookEndpointIds, true
-}
-
-// HasWebhookEndpointIds returns a boolean if a field has been set.
-func (o *RunCreate) HasWebhookEndpointIds() bool {
-	if o != nil && !IsNil(o.WebhookEndpointIds) {
-		return true
-	}
-
-	return false
-}
-
-// SetWebhookEndpointIds gets a reference to the given []string and assigns it to the WebhookEndpointIds field.
-func (o *RunCreate) SetWebhookEndpointIds(v []string) {
-	o.WebhookEndpointIds = v
-}
-
-// GetQueueTimeoutSeconds returns the QueueTimeoutSeconds field value if set, zero value otherwise.
-func (o *RunCreate) GetQueueTimeoutSeconds() int32 {
-	if o == nil || IsNil(o.QueueTimeoutSeconds) {
-		var ret int32
-		return ret
-	}
-	return *o.QueueTimeoutSeconds
-}
-
-// GetQueueTimeoutSecondsOk returns a tuple with the QueueTimeoutSeconds field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetQueueTimeoutSecondsOk() (*int32, bool) {
-	if o == nil || IsNil(o.QueueTimeoutSeconds) {
-		return nil, false
-	}
-	return o.QueueTimeoutSeconds, true
-}
-
-// HasQueueTimeoutSeconds returns a boolean if a field has been set.
-func (o *RunCreate) HasQueueTimeoutSeconds() bool {
-	if o != nil && !IsNil(o.QueueTimeoutSeconds) {
-		return true
-	}
-
-	return false
-}
-
-// SetQueueTimeoutSeconds gets a reference to the given int32 and assigns it to the QueueTimeoutSeconds field.
-func (o *RunCreate) SetQueueTimeoutSeconds(v int32) {
-	o.QueueTimeoutSeconds = &v
-}
-
-// GetSchedulingClass returns the SchedulingClass field value if set, zero value otherwise.
-func (o *RunCreate) GetSchedulingClass() string {
-	if o == nil || IsNil(o.SchedulingClass) {
+// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise.
+func (o *RunCreate) GetWorktreeId() string {
+	if o == nil || IsNil(o.WorktreeId) {
 		var ret string
 		return ret
 	}
-	return *o.SchedulingClass
+	return *o.WorktreeId
 }
 
-// GetSchedulingClassOk returns a tuple with the SchedulingClass field value if set, nil otherwise
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetSchedulingClassOk() (*string, bool) {
-	if o == nil || IsNil(o.SchedulingClass) {
+func (o *RunCreate) GetWorktreeIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorktreeId) {
 		return nil, false
 	}
-	return o.SchedulingClass, true
+	return o.WorktreeId, true
 }
 
-// HasSchedulingClass returns a boolean if a field has been set.
-func (o *RunCreate) HasSchedulingClass() bool {
-	if o != nil && !IsNil(o.SchedulingClass) {
+// HasWorktreeId returns a boolean if a field has been set.
+func (o *RunCreate) HasWorktreeId() bool {
+	if o != nil && !IsNil(o.WorktreeId) {
 		return true
 	}
 
 	return false
 }
 
-// SetSchedulingClass gets a reference to the given string and assigns it to the SchedulingClass field.
-func (o *RunCreate) SetSchedulingClass(v string) {
-	o.SchedulingClass = &v
+// SetWorktreeId gets a reference to the given string and assigns it to the WorktreeId field.
+func (o *RunCreate) SetWorktreeId(v string) {
+	o.WorktreeId = &v
 }
 
 // GetQueueIfBusy returns the QueueIfBusy field value if set, zero value otherwise.
@@ -550,6 +710,38 @@ func (o *RunCreate) SetQueueIfBusy(v bool) {
 	o.QueueIfBusy = &v
 }
 
+// GetProviderConnectionId returns the ProviderConnectionId field value if set, zero value otherwise.
+func (o *RunCreate) GetProviderConnectionId() string {
+	if o == nil || IsNil(o.ProviderConnectionId) {
+		var ret string
+		return ret
+	}
+	return *o.ProviderConnectionId
+}
+
+// GetProviderConnectionIdOk returns a tuple with the ProviderConnectionId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunCreate) GetProviderConnectionIdOk() (*string, bool) {
+	if o == nil || IsNil(o.ProviderConnectionId) {
+		return nil, false
+	}
+	return o.ProviderConnectionId, true
+}
+
+// HasProviderConnectionId returns a boolean if a field has been set.
+func (o *RunCreate) HasProviderConnectionId() bool {
+	if o != nil && !IsNil(o.ProviderConnectionId) {
+		return true
+	}
+
+	return false
+}
+
+// SetProviderConnectionId gets a reference to the given string and assigns it to the ProviderConnectionId field.
+func (o *RunCreate) SetProviderConnectionId(v string) {
+	o.ProviderConnectionId = &v
+}
+
 // GetPermissions returns the Permissions field value if set, zero value otherwise.
 func (o *RunCreate) GetPermissions() AgentPermissions {
 	if o == nil || IsNil(o.Permissions) {
@@ -580,38 +772,6 @@ func (o *RunCreate) HasPermissions() bool {
 // SetPermissions gets a reference to the given AgentPermissions and assigns it to the Permissions field.
 func (o *RunCreate) SetPermissions(v AgentPermissions) {
 	o.Permissions = &v
-}
-
-// GetConnectionAccessOverrides returns the ConnectionAccessOverrides field value if set, zero value otherwise.
-func (o *RunCreate) GetConnectionAccessOverrides() []Grant {
-	if o == nil || IsNil(o.ConnectionAccessOverrides) {
-		var ret []Grant
-		return ret
-	}
-	return o.ConnectionAccessOverrides
-}
-
-// GetConnectionAccessOverridesOk returns a tuple with the ConnectionAccessOverrides field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetConnectionAccessOverridesOk() ([]Grant, bool) {
-	if o == nil || IsNil(o.ConnectionAccessOverrides) {
-		return nil, false
-	}
-	return o.ConnectionAccessOverrides, true
-}
-
-// HasConnectionAccessOverrides returns a boolean if a field has been set.
-func (o *RunCreate) HasConnectionAccessOverrides() bool {
-	if o != nil && !IsNil(o.ConnectionAccessOverrides) {
-		return true
-	}
-
-	return false
-}
-
-// SetConnectionAccessOverrides gets a reference to the given []Grant and assigns it to the ConnectionAccessOverrides field.
-func (o *RunCreate) SetConnectionAccessOverrides(v []Grant) {
-	o.ConnectionAccessOverrides = v
 }
 
 // GetAttachments returns the Attachments field value if set, zero value otherwise.
@@ -646,206 +806,36 @@ func (o *RunCreate) SetAttachments(v []string) {
 	o.Attachments = v
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
-func (o *RunCreate) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId) {
+// GetWorkspaceId returns the WorkspaceId field value if set, zero value otherwise.
+func (o *RunCreate) GetWorkspaceId() string {
+	if o == nil || IsNil(o.WorkspaceId) {
 		var ret string
 		return ret
 	}
-	return *o.SandboxId
+	return *o.WorkspaceId
 }
 
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// GetWorkspaceIdOk returns a tuple with the WorkspaceId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RunCreate) GetSandboxIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SandboxId) {
+func (o *RunCreate) GetWorkspaceIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkspaceId) {
 		return nil, false
 	}
-	return o.SandboxId, true
+	return o.WorkspaceId, true
 }
 
-// HasSandboxId returns a boolean if a field has been set.
-func (o *RunCreate) HasSandboxId() bool {
-	if o != nil && !IsNil(o.SandboxId) {
+// HasWorkspaceId returns a boolean if a field has been set.
+func (o *RunCreate) HasWorkspaceId() bool {
+	if o != nil && !IsNil(o.WorkspaceId) {
 		return true
 	}
 
 	return false
 }
 
-// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
-func (o *RunCreate) SetSandboxId(v string) {
-	o.SandboxId = &v
-}
-
-// GetKeepWarmSeconds returns the KeepWarmSeconds field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *RunCreate) GetKeepWarmSeconds() int32 {
-	if o == nil || IsNil(o.KeepWarmSeconds.Get()) {
-		var ret int32
-		return ret
-	}
-	return *o.KeepWarmSeconds.Get()
-}
-
-// GetKeepWarmSecondsOk returns a tuple with the KeepWarmSeconds field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *RunCreate) GetKeepWarmSecondsOk() (*int32, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return o.KeepWarmSeconds.Get(), o.KeepWarmSeconds.IsSet()
-}
-
-// HasKeepWarmSeconds returns a boolean if a field has been set.
-func (o *RunCreate) HasKeepWarmSeconds() bool {
-	if o != nil && o.KeepWarmSeconds.IsSet() {
-		return true
-	}
-
-	return false
-}
-
-// SetKeepWarmSeconds gets a reference to the given NullableInt32 and assigns it to the KeepWarmSeconds field.
-func (o *RunCreate) SetKeepWarmSeconds(v int32) {
-	o.KeepWarmSeconds.Set(&v)
-}
-// SetKeepWarmSecondsNil sets the value for KeepWarmSeconds to be an explicit nil
-func (o *RunCreate) SetKeepWarmSecondsNil() {
-	o.KeepWarmSeconds.Set(nil)
-}
-
-// UnsetKeepWarmSeconds ensures that no value is present for KeepWarmSeconds, not even an explicit nil
-func (o *RunCreate) UnsetKeepWarmSeconds() {
-	o.KeepWarmSeconds.Unset()
-}
-
-// GetSandboxMaxCostMicroUsd returns the SandboxMaxCostMicroUsd field value if set, zero value otherwise.
-func (o *RunCreate) GetSandboxMaxCostMicroUsd() string {
-	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
-		var ret string
-		return ret
-	}
-	return *o.SandboxMaxCostMicroUsd
-}
-
-// GetSandboxMaxCostMicroUsdOk returns a tuple with the SandboxMaxCostMicroUsd field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetSandboxMaxCostMicroUsdOk() (*string, bool) {
-	if o == nil || IsNil(o.SandboxMaxCostMicroUsd) {
-		return nil, false
-	}
-	return o.SandboxMaxCostMicroUsd, true
-}
-
-// HasSandboxMaxCostMicroUsd returns a boolean if a field has been set.
-func (o *RunCreate) HasSandboxMaxCostMicroUsd() bool {
-	if o != nil && !IsNil(o.SandboxMaxCostMicroUsd) {
-		return true
-	}
-
-	return false
-}
-
-// SetSandboxMaxCostMicroUsd gets a reference to the given string and assigns it to the SandboxMaxCostMicroUsd field.
-func (o *RunCreate) SetSandboxMaxCostMicroUsd(v string) {
-	o.SandboxMaxCostMicroUsd = &v
-}
-
-// GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
-func (o *RunCreate) GetModelParameters() ModelParameters {
-	if o == nil || IsNil(o.ModelParameters) {
-		var ret ModelParameters
-		return ret
-	}
-	return *o.ModelParameters
-}
-
-// GetModelParametersOk returns a tuple with the ModelParameters field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetModelParametersOk() (*ModelParameters, bool) {
-	if o == nil || IsNil(o.ModelParameters) {
-		return nil, false
-	}
-	return o.ModelParameters, true
-}
-
-// HasModelParameters returns a boolean if a field has been set.
-func (o *RunCreate) HasModelParameters() bool {
-	if o != nil && !IsNil(o.ModelParameters) {
-		return true
-	}
-
-	return false
-}
-
-// SetModelParameters gets a reference to the given ModelParameters and assigns it to the ModelParameters field.
-func (o *RunCreate) SetModelParameters(v ModelParameters) {
-	o.ModelParameters = &v
-}
-
-// GetHarnessPromptMode returns the HarnessPromptMode field value if set, zero value otherwise.
-func (o *RunCreate) GetHarnessPromptMode() string {
-	if o == nil || IsNil(o.HarnessPromptMode) {
-		var ret string
-		return ret
-	}
-	return *o.HarnessPromptMode
-}
-
-// GetHarnessPromptModeOk returns a tuple with the HarnessPromptMode field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetHarnessPromptModeOk() (*string, bool) {
-	if o == nil || IsNil(o.HarnessPromptMode) {
-		return nil, false
-	}
-	return o.HarnessPromptMode, true
-}
-
-// HasHarnessPromptMode returns a boolean if a field has been set.
-func (o *RunCreate) HasHarnessPromptMode() bool {
-	if o != nil && !IsNil(o.HarnessPromptMode) {
-		return true
-	}
-
-	return false
-}
-
-// SetHarnessPromptMode gets a reference to the given string and assigns it to the HarnessPromptMode field.
-func (o *RunCreate) SetHarnessPromptMode(v string) {
-	o.HarnessPromptMode = &v
-}
-
-// GetStream returns the Stream field value if set, zero value otherwise.
-func (o *RunCreate) GetStream() bool {
-	if o == nil || IsNil(o.Stream) {
-		var ret bool
-		return ret
-	}
-	return *o.Stream
-}
-
-// GetStreamOk returns a tuple with the Stream field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RunCreate) GetStreamOk() (*bool, bool) {
-	if o == nil || IsNil(o.Stream) {
-		return nil, false
-	}
-	return o.Stream, true
-}
-
-// HasStream returns a boolean if a field has been set.
-func (o *RunCreate) HasStream() bool {
-	if o != nil && !IsNil(o.Stream) {
-		return true
-	}
-
-	return false
-}
-
-// SetStream gets a reference to the given bool and assigns it to the Stream field.
-func (o *RunCreate) SetStream(v bool) {
-	o.Stream = &v
+// SetWorkspaceId gets a reference to the given string and assigns it to the WorkspaceId field.
+func (o *RunCreate) SetWorkspaceId(v string) {
+	o.WorkspaceId = &v
 }
 
 func (o RunCreate) MarshalJSON() ([]byte, error) {
@@ -858,21 +848,48 @@ func (o RunCreate) MarshalJSON() ([]byte, error) {
 
 func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.WebhookEndpointIds) {
+		toSerialize["webhook_endpoint_ids"] = o.WebhookEndpointIds
+	}
+	if !IsNil(o.ConnectionAccessOverrides) {
+		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
+	}
+	if !IsNil(o.Stream) {
+		toSerialize["stream"] = o.Stream
+	}
 	toSerialize["prompt"] = o.Prompt
-	if !IsNil(o.WorkspaceId) {
-		toSerialize["workspace_id"] = o.WorkspaceId
+	if !IsNil(o.QueueTimeoutSeconds) {
+		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
 	}
-	if !IsNil(o.WorktreeId) {
-		toSerialize["worktree_id"] = o.WorktreeId
+	if !IsNil(o.ModelParameters) {
+		toSerialize["model_parameters"] = o.ModelParameters
 	}
-	if !IsNil(o.SessionId) {
-		toSerialize["session_id"] = o.SessionId
+	if !IsNil(o.Harness) {
+		toSerialize["harness"] = o.Harness
+	}
+	if !IsNil(o.MemoryMib) {
+		toSerialize["memory_mib"] = o.MemoryMib
+	}
+	if !IsNil(o.CpuMillis) {
+		toSerialize["cpu_millis"] = o.CpuMillis
 	}
 	if !IsNil(o.AgentId) {
 		toSerialize["agent_id"] = o.AgentId
 	}
-	if !IsNil(o.Harness) {
-		toSerialize["harness"] = o.Harness
+	if !IsNil(o.HarnessPromptMode) {
+		toSerialize["harness_prompt_mode"] = o.HarnessPromptMode
+	}
+	if !IsNil(o.SessionId) {
+		toSerialize["session_id"] = o.SessionId
+	}
+	if !IsNil(o.ConnectionGrants) {
+		toSerialize["connection_grants"] = o.ConnectionGrants
+	}
+	if !IsNil(o.WorkerId) {
+		toSerialize["worker_id"] = o.WorkerId
+	}
+	if !IsNil(o.SchedulingClass) {
+		toSerialize["scheduling_class"] = o.SchedulingClass
 	}
 	if !IsNil(o.Model) {
 		toSerialize["model"] = o.Model
@@ -880,53 +897,26 @@ func (o RunCreate) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.BillingMode) {
 		toSerialize["billing_mode"] = o.BillingMode
 	}
-	if !IsNil(o.ProviderConnectionId) {
-		toSerialize["provider_connection_id"] = o.ProviderConnectionId
-	}
-	if !IsNil(o.ConnectionGrants) {
-		toSerialize["connection_grants"] = o.ConnectionGrants
-	}
 	if !IsNil(o.Limits) {
 		toSerialize["limits"] = o.Limits
 	}
-	if !IsNil(o.WebhookEndpointIds) {
-		toSerialize["webhook_endpoint_ids"] = o.WebhookEndpointIds
-	}
-	if !IsNil(o.QueueTimeoutSeconds) {
-		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
-	}
-	if !IsNil(o.SchedulingClass) {
-		toSerialize["scheduling_class"] = o.SchedulingClass
+	if !IsNil(o.WorktreeId) {
+		toSerialize["worktree_id"] = o.WorktreeId
 	}
 	if !IsNil(o.QueueIfBusy) {
 		toSerialize["queue_if_busy"] = o.QueueIfBusy
 	}
+	if !IsNil(o.ProviderConnectionId) {
+		toSerialize["provider_connection_id"] = o.ProviderConnectionId
+	}
 	if !IsNil(o.Permissions) {
 		toSerialize["permissions"] = o.Permissions
-	}
-	if !IsNil(o.ConnectionAccessOverrides) {
-		toSerialize["connection_access_overrides"] = o.ConnectionAccessOverrides
 	}
 	if !IsNil(o.Attachments) {
 		toSerialize["attachments"] = o.Attachments
 	}
-	if !IsNil(o.SandboxId) {
-		toSerialize["sandbox_id"] = o.SandboxId
-	}
-	if o.KeepWarmSeconds.IsSet() {
-		toSerialize["keep_warm_seconds"] = o.KeepWarmSeconds.Get()
-	}
-	if !IsNil(o.SandboxMaxCostMicroUsd) {
-		toSerialize["sandbox_max_cost_micro_usd"] = o.SandboxMaxCostMicroUsd
-	}
-	if !IsNil(o.ModelParameters) {
-		toSerialize["model_parameters"] = o.ModelParameters
-	}
-	if !IsNil(o.HarnessPromptMode) {
-		toSerialize["harness_prompt_mode"] = o.HarnessPromptMode
-	}
-	if !IsNil(o.Stream) {
-		toSerialize["stream"] = o.Stream
+	if !IsNil(o.WorkspaceId) {
+		toSerialize["workspace_id"] = o.WorkspaceId
 	}
 	return toSerialize, nil
 }

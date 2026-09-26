@@ -1876,7 +1876,7 @@ func (r ApiListCustomerAgentRunEventsRequest) Limit(limit int32) ApiListCustomer
 	return r
 }
 
-func (r ApiListCustomerAgentRunEventsRequest) Execute() (*ListRunEvents200Response, *http.Response, error) {
+func (r ApiListCustomerAgentRunEventsRequest) Execute() (*ListCustomerAgentRunEvents200Response, *http.Response, error) {
 	return r.ApiService.ListCustomerAgentRunEventsExecute(r)
 }
 
@@ -1902,13 +1902,13 @@ func (a *CustomerAgentsAPIService) ListCustomerAgentRunEvents(ctx context.Contex
 }
 
 // Execute executes the request
-//  @return ListRunEvents200Response
-func (a *CustomerAgentsAPIService) ListCustomerAgentRunEventsExecute(r ApiListCustomerAgentRunEventsRequest) (*ListRunEvents200Response, *http.Response, error) {
+//  @return ListCustomerAgentRunEvents200Response
+func (a *CustomerAgentsAPIService) ListCustomerAgentRunEventsExecute(r ApiListCustomerAgentRunEventsRequest) (*ListCustomerAgentRunEvents200Response, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *ListRunEvents200Response
+		localVarReturnValue  *ListCustomerAgentRunEvents200Response
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "CustomerAgentsAPIService.ListCustomerAgentRunEvents")

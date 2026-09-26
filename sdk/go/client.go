@@ -84,8 +84,6 @@ type APIClient struct {
 
 	RunsAPI *RunsAPIService
 
-	SandboxesAPI *SandboxesAPIService
-
 	SessionsAPI *SessionsAPIService
 
 	SlackConnectionsAPI *SlackConnectionsAPIService
@@ -101,6 +99,8 @@ type APIClient struct {
 	WebhookDeliveriesAPI *WebhookDeliveriesAPIService
 
 	WebhookEndpointsAPI *WebhookEndpointsAPIService
+
+	WorkersAPI *WorkersAPIService
 
 	WorkspacesAPI *WorkspacesAPIService
 
@@ -140,7 +140,6 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.OrganizationsAPI = (*OrganizationsAPIService)(&c.common)
 	c.RequestsAPI = (*RequestsAPIService)(&c.common)
 	c.RunsAPI = (*RunsAPIService)(&c.common)
-	c.SandboxesAPI = (*SandboxesAPIService)(&c.common)
 	c.SessionsAPI = (*SessionsAPIService)(&c.common)
 	c.SlackConnectionsAPI = (*SlackConnectionsAPIService)(&c.common)
 	c.TasksAPI = (*TasksAPIService)(&c.common)
@@ -149,6 +148,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.UsageAPI = (*UsageAPIService)(&c.common)
 	c.WebhookDeliveriesAPI = (*WebhookDeliveriesAPIService)(&c.common)
 	c.WebhookEndpointsAPI = (*WebhookEndpointsAPIService)(&c.common)
+	c.WorkersAPI = (*WorkersAPIService)(&c.common)
 	c.WorkspacesAPI = (*WorkspacesAPIService)(&c.common)
 	c.WorktreesAPI = (*WorktreesAPIService)(&c.common)
 

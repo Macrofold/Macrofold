@@ -21,6 +21,9 @@ pub struct KeyCreate {
     pub workspace_id: Option<uuid::Uuid>,
     #[serde(rename = "expires_at", skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<chrono::DateTime<chrono::FixedOffset>>,
+    /// Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access.
+    #[serde(rename = "worker_ids", skip_serializing_if = "Option::is_none")]
+    pub worker_ids: Option<Vec<uuid::Uuid>>,
 }
 
 impl KeyCreate {
@@ -30,6 +33,7 @@ impl KeyCreate {
             scopes,
             workspace_id: None,
             expires_at: None,
+            worker_ids: None,
         }
     }
 }

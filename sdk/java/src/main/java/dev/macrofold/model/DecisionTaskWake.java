@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import dev.macrofold.model.InferenceCreateContext;
+import dev.macrofold.model.DecisionTaskWakeContext;
 import java.util.Arrays;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -50,7 +50,7 @@ public class DecisionTaskWake {
 
   public static final String JSON_PROPERTY_CONTEXT = "context";
   @javax.annotation.Nonnull
-  private InferenceCreateContext context;
+  private DecisionTaskWakeContext context;
 
   public DecisionTaskWake() { 
   }
@@ -103,7 +103,7 @@ public class DecisionTaskWake {
   }
 
 
-  public DecisionTaskWake context(@javax.annotation.Nonnull InferenceCreateContext context) {
+  public DecisionTaskWake context(@javax.annotation.Nonnull DecisionTaskWakeContext context) {
     this.context = context;
     return this;
   }
@@ -115,14 +115,14 @@ public class DecisionTaskWake {
   @javax.annotation.Nonnull
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public InferenceCreateContext getContext() {
+  public DecisionTaskWakeContext getContext() {
     return context;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_CONTEXT, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setContext(@javax.annotation.Nonnull InferenceCreateContext context) {
+  public void setContext(@javax.annotation.Nonnull DecisionTaskWakeContext context) {
     this.context = context;
   }
 

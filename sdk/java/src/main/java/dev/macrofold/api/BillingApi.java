@@ -702,11 +702,12 @@ public class BillingApi {
    * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Filter by the Worker charged for compute. Organization usage authority is still required. (optional)
    * @return BillingUsagePage
    * @throws ApiException if fails to make API call
    */
-  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listBillingUsage(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, null);
+  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId) throws ApiException {
+    return listBillingUsage(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, workerId, null);
   }
 
   /**
@@ -727,12 +728,13 @@ public class BillingApi {
    * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Filter by the Worker charged for compute. Organization usage authority is still required. (optional)
    * @param headers Optional headers to include in the request
    * @return BillingUsagePage
    * @throws ApiException if fails to make API call
    */
-  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    ApiResponse<BillingUsagePage> localVarResponse = listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, headers);
+  public BillingUsagePage listBillingUsage(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
+    ApiResponse<BillingUsagePage> localVarResponse = listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, workerId, headers);
     return localVarResponse.getData();
   }
 
@@ -754,11 +756,12 @@ public class BillingApi {
    * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Filter by the Worker charged for compute. Organization usage authority is still required. (optional)
    * @return ApiResponse&lt;BillingUsagePage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
-    return listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, null);
+  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId) throws ApiException {
+    return listBillingUsageWithHttpInfo(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, workerId, null);
   }
 
   /**
@@ -779,12 +782,13 @@ public class BillingApi {
    * @param cursor Use next_cursor unchanged with the same filters. Records are ordered by descending opaque record ID. (optional)
    * @param limit  (optional, default to 25)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
+   * @param workerId Filter by the Worker charged for compute. Organization usage authority is still required. (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;BillingUsagePage&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = listBillingUsageRequestBuilder(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, headers);
+  public ApiResponse<BillingUsagePage> listBillingUsageWithHttpInfo(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listBillingUsageRequestBuilder(from, to, workspaceId, worktreeId, runId, sessionId, customerId, agentKey, provider, model, kind, billingMode, cursor, limit, xOrganizationId, workerId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -831,7 +835,7 @@ public class BillingApi {
     }
   }
 
-  private HttpRequest.Builder listBillingUsageRequestBuilder(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder listBillingUsageRequestBuilder(@javax.annotation.Nonnull OffsetDateTime from, @javax.annotation.Nonnull OffsetDateTime to, @javax.annotation.Nullable UUID workspaceId, @javax.annotation.Nullable UUID worktreeId, @javax.annotation.Nullable UUID runId, @javax.annotation.Nullable UUID sessionId, @javax.annotation.Nullable String customerId, @javax.annotation.Nullable String agentKey, @javax.annotation.Nullable String provider, @javax.annotation.Nullable String model, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String billingMode, @javax.annotation.Nullable UUID cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable UUID workerId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'from' is set
     if (from == null) {
       throw new ApiException(400, "Missing the required parameter 'from' when calling listBillingUsage");
@@ -876,6 +880,8 @@ public class BillingApi {
     localVarQueryParams.addAll(ApiClient.parameterToPairs("cursor", cursor));
     localVarQueryParameterBaseName = "limit";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("limit", limit));
+    localVarQueryParameterBaseName = "worker_id";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("worker_id", workerId));
 
     if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");

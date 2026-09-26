@@ -26,6 +26,8 @@ type KeyCreate struct {
 	Scopes []string `json:"scopes"`
 	WorkspaceId *string `json:"workspace_id,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// Restrict Worker authority to these IDs. Empty/omitted means all otherwise authorized Workers; it never grants data access.
+	WorkerIds []string `json:"worker_ids,omitempty"`
 }
 
 type _KeyCreate KeyCreate
@@ -161,6 +163,38 @@ func (o *KeyCreate) SetExpiresAt(v time.Time) {
 	o.ExpiresAt = &v
 }
 
+// GetWorkerIds returns the WorkerIds field value if set, zero value otherwise.
+func (o *KeyCreate) GetWorkerIds() []string {
+	if o == nil || IsNil(o.WorkerIds) {
+		var ret []string
+		return ret
+	}
+	return o.WorkerIds
+}
+
+// GetWorkerIdsOk returns a tuple with the WorkerIds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *KeyCreate) GetWorkerIdsOk() ([]string, bool) {
+	if o == nil || IsNil(o.WorkerIds) {
+		return nil, false
+	}
+	return o.WorkerIds, true
+}
+
+// HasWorkerIds returns a boolean if a field has been set.
+func (o *KeyCreate) HasWorkerIds() bool {
+	if o != nil && !IsNil(o.WorkerIds) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkerIds gets a reference to the given []string and assigns it to the WorkerIds field.
+func (o *KeyCreate) SetWorkerIds(v []string) {
+	o.WorkerIds = v
+}
+
 func (o KeyCreate) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -178,6 +212,9 @@ func (o KeyCreate) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ExpiresAt) {
 		toSerialize["expires_at"] = o.ExpiresAt
+	}
+	if !IsNil(o.WorkerIds) {
+		toSerialize["worker_ids"] = o.WorkerIds
 	}
 	return toSerialize, nil
 }

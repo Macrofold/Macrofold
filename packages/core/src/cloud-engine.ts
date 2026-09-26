@@ -1,9 +1,8 @@
-import { releaseSandbox } from './sandboxes';
 import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { transaction, afterCommit, type Tx } from '../../db';
+import { transaction, afterCommit, lock, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
 import { observeWorkerStep } from './worker-diagnostics';
@@ -18,12 +17,12 @@ import { settle } from './ledger';
 import { computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
 import * as resources from './resources';
-import { checkpoint, checkpointState, type FileRecord } from './files';
+import { prepareCheckpoint, saveCheckpoint, checkpointState, type FileRecord } from './files';
+import { storagePreparation } from './storage-preparation';
 import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { isNativeAuthPath } from '../../runtime/src/auth-paths';
-import { isHiddenSnapshotPath } from '../../runtime/src/snapshot-paths';
 import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
 import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
@@ -47,6 +46,8 @@ export type ExecutionState = {
   phase: Phase;
   machine?: MachineBinding;
   inputOffset?: number;
+  workerPrepared?: boolean;
+  restoreNamespaces?: ('workspace' | 'home')[];
   indexOffset?: number;
   eventOffset?: number;
   result?: NonNullable<RuntimeProbe['result']>;
@@ -125,7 +126,7 @@ export async function advanceCloudRun(
   }
   let state = (run.execution_binding || {
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
-    phase: 'input',
+    phase: 'provision',
   }) as ExecutionState;
   if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
@@ -175,7 +176,8 @@ export async function advanceCloudRun(
               : ws.git_files || []) as FileRecord[]
           ).map((f) => ({ ...f, namespace: 'workspace' as const })),
           ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ].filter((file) => !isNativeAuthPath(file.namespace, file.path));
+        ].filter((file) => !isNativeAuthPath(file.namespace, file.path) &&
+          (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)));
       });
       const offset = state.inputOffset || 0;
       const entries: SnapshotEntry[] = [];
@@ -197,7 +199,7 @@ export async function advanceCloudRun(
       if (entries.length)
         await transaction(org, (tx) => object(tx, org, runId, 'input_page', String(offset), { entries }));
       state.inputOffset = offset + entries.length;
-      if (state.inputOffset >= source.length) state.phase = 'provision';
+      if (state.inputOffset >= source.length) state.phase = state.workerPrepared ? 'hydrate' : 'provision';
     } else if (state.phase === 'provision') {
       assert(
         !run.cancel_requested && run.deadline!.getTime() > Date.now(),
@@ -219,24 +221,6 @@ export async function advanceCloudRun(
       assert(model, 503, 'model_unavailable', 'The configured model is unavailable.');
       const configuration: NativeConfiguration = {
         runId,
-        ...(run.config.sandbox_id
-          ? {
-              warm: {
-                sessionId: run.session_id,
-                checkpointId: await transaction(
-                  org,
-                  async (tx) =>
-                    (await resources.get(tx, 'worktrees', run.worktree_id)).latest_checkpoint_id ?? null,
-                ),
-                toolFingerprint: sha256(
-                  JSON.stringify({
-                    grants: run.config.connection_grants || [],
-                    access: run.config.connection_access || [],
-                  }),
-                ),
-              },
-            }
-          : {}),
         harness: run.config.harness,
         model: run.config.model,
         provider: model.provider,
@@ -260,7 +244,9 @@ export async function advanceCloudRun(
         permissions: run.config.permission_layers,
       };
       const prepared = await provider.prepare(state.machine, configuration);
-      state.phase = prepared?.reused ? 'launch' : 'hydrate';
+      state.restoreNamespaces = prepared?.restoreNamespaces;
+      state.workerPrepared = true;
+      state.phase = prepared?.reused ? 'launch' : state.workerPrepared ? 'input' : 'hydrate';
     } else if (state.phase === 'hydrate') {
       const objects = await pending<RestoreObject>(
         org,
@@ -362,7 +348,7 @@ export async function advanceCloudRun(
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
-          if (isHiddenSnapshotPath(entry.path) || isNativeAuthPath(entry.namespace, entry.path)) continue;
+          if (isNativeAuthPath(entry.namespace, entry.path)) continue;
           await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
           for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
         }
@@ -423,8 +409,7 @@ export async function advanceCloudRun(
         const recovery = await provider.close(state.machine, Boolean(state.preserve));
         state.snapshotId = recovery.snapshotId;
       }
-      if (!state.machine && run.config.sandbox_id)
-        await releaseSandbox(org, run.config.sandbox_id, runId, 0, true);
+      if (!state.machine) await provider.cleanupUnbound?.();
       state.phase = 'done';
       await transaction(org, (tx) =>
         tx.query(
@@ -435,7 +420,7 @@ export async function advanceCloudRun(
     }
     state.failures = 0;
   } catch (error) {
-    if (error instanceof AppError && error.code === 'sandbox_starting') {
+    if (error instanceof AppError && error.code === 'worker_starting') {
       return { done: false, delaySeconds: 3 };
     }
     state.failures = (state.failures || 0) + 1;
@@ -478,47 +463,49 @@ export async function advanceCloudRun(
 }
 
 async function publishCloudRun(org: string, runId: string, state: ExecutionState) {
-  await transaction(org, (tx) =>
-    tx.query(
-      "UPDATE runs SET status='persisting' WHERE id=$1 AND status NOT IN ('succeeded','failed','cancelled','timed_out')",
-      [runId],
-    ),
-  );
-  // Requests without a final usage frame are conservatively settled from their held reservation.
-  await settleOrphanModelRequests(org, runId);
-  await transaction(org, async (tx) => {
+  const verified = !state.error && state.result?.persistence === 'captured';
+  const publication = await storagePreparation(org, async tx => {
+    const run = await getNativeRun(tx, runId);
+    if (terminal(run.status)) return null;
+    assert((run.execution_binding as ExecutionState | null)?.lock === state.lock,
+      409, 'lease_lost', 'Execution publication is owned by another controller step.');
+    const worktree = await resources.get(tx, 'worktrees', run.worktree_id);
+    const objects = verified ? (await tx.query<{ data: SnapshotEntry & { record: FileRecord } }>(
+      "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' AND processed", [runId])).rows : [];
+    await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
+    return { run, worktree, objects };
+  });
+  try {
+    if (!publication.value) return;
+    const { run: expectedRun, worktree: baseline, objects } = publication.value;
+    let files = objects.filter(o => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git')).map(o => o.data.record);
+    const gitFiles = objects.filter(o => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git')).map(o => o.data.record);
+    const home = objects.filter(o => o.data.namespace === 'home').map(o => o.data.record);
+    const guarded = guardedToolsRequired(expectedRun.config.permission_layers || []);
+    if (guarded) files = permissionOutput(expectedRun.config.permission_layers || [], baseline.files || [], files);
+    // Verified object bytes and Git preparation are independent from the short SQL
+    // publication. The storage guard protects them while no connection is held.
+    const preparedCheckpoint = verified ? await prepareCheckpoint(org, baseline, files, 'Agent run',
+      guarded ? baseline.git_files : gitFiles) : null;
+    await settleOrphanModelRequests(org, runId);
+    await transaction(org, async (tx) => {
+      await lock(tx, `worktree:${expectedRun.worktree_id}`);
+      if (expectedRun.config.worker_id) await lock(tx, `worker:${expectedRun.config.worker_id}`);
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
     const run = await getNativeRun(tx, runId);
     if (terminal(run.status)) return;
+    assert(run.lease_generation === expectedRun.lease_generation &&
+      (run.execution_binding as ExecutionState | null)?.lock === state.lock,
+      409, 'lease_lost', 'Execution ownership changed before publication.');
+    await publication.assertActive(tx);
     const ws = await resources.get(tx, 'worktrees', run.worktree_id);
-    const verified = !state.error && state.result?.persistence === 'captured';
+    assert(ws.revision === baseline.revision, 409, 'publication_revision_changed',
+      'Worktree state changed while preparing execution output.');
     let checkpointId: string | undefined;
     let artifactIds: string[] = [];
     if (verified) {
-      const objects = (
-        await tx.query('SELECT data FROM execution_objects WHERE run_id=$1 AND kind=$2 AND processed', [
-          runId,
-          'output_entry',
-        ])
-      ).rows as { data: SnapshotEntry & { record: FileRecord } }[];
-      let files = objects
-        .filter((o) => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git'))
-        .map((o) => o.data.record);
-      const gitFiles = objects
-        .filter((o) => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git'))
-        .map((o) => o.data.record);
-      const home = objects.filter((o) => o.data.namespace === 'home').map((o) => o.data.record);
-      if (guardedToolsRequired(run.config.permission_layers || []))
-        files = permissionOutput(run.config.permission_layers || [], ws.files || [], files);
-      // Every object was read back and hash-verified before reaching this transaction.
-      const cp = await checkpoint(
-        tx,
-        principalFor(run),
-        run.worktree_id,
-        'Agent run',
-        files,
-        guardedToolsRequired(run.config.permission_layers || []) ? ws.git_files : gitFiles,
-      );
+      assert(preparedCheckpoint, 500, 'checkpoint_missing', 'Verified execution requires prepared durable state.');
+      const cp = await saveCheckpoint(tx, principalFor(run), preparedCheckpoint);
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       checkpointId = cp.id;
       artifactIds = await publishArtifacts(tx, run, ws.files || [], files);
@@ -604,5 +591,8 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
       "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
       [id(), org, run.config.user_id],
     );
-  });
+    });
+  } finally {
+    await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+  }
 }

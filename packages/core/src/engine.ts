@@ -1,19 +1,21 @@
-import { acquireSandbox, changeSandbox, getSandbox, sandboxCost } from './sandboxes';
-import { computeMaximum } from './catalog';
+import { getWorker } from './workers';
+import { workerAdmissionBlock } from './worker-policy';
+import { claimHostRun, activeHostRun, releaseHostRun } from './host-allocations';
 import { createHash } from 'node:crypto';
 import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
-import { pool, transaction, lock, type Tx } from '../../db';
+import { pool, transaction, lock, tryLock, type Tx } from '../../db';
 import { config, isLocal } from './config';
 import { id } from './crypto';
-import { AppError, assert } from './errors';
+import { assert } from './errors';
 import { emit } from './events';
-import { getRun, terminal, requireNativeRun, type RunRow } from './runs';
+import { getRun, terminal, requireNativeRun, type RunRow, type NativeRunRow } from './runs';
 import { settle } from './ledger';
 import * as resources from './resources';
-import { checkpointState, checkpoint, normalizePath, type FileRecord } from './files';
+import { checkpointState, prepareCheckpoint, saveCheckpoint, normalizePath, type FileRecord } from './files';
+import { storagePreparation } from './storage-preparation';
 import { readContent, saveContent } from '../../providers/src/storage';
 import { Simulator, type ExecutionProvider } from '../../providers/src/execution';
 import { customerScopes, type Principal } from './auth';
@@ -37,14 +39,21 @@ export function principalFor(row: RunRow): Principal {
   };
 }
 export async function claimRun(org: string, runId: string) {
-  return transaction(org, (tx) => claimRunInTransaction(tx, org, runId));
+  return transaction(org, async tx => {
+    // A burst of queued Runs must not fill every connection waiting for the
+    // same organization lock while active Runs need connections to finish.
+    if (!await tryLock(tx, `organization:${org}`)) return null;
+    return claimRunInTransaction(tx, org, runId);
+  });
 }
 
 /** Direct inference claims capacity in its admission transaction: no queued worker hop. */
 export async function claimRunInTransaction(tx: Tx, org: string, runId: string, direct = false) {
     let run = await getRun(tx, runId);
     await lock(tx, `organization:${org}`);
-    await lock(tx, run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`);
+    const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
+    if (direct) await lock(tx, contextLock);
+    else if (!await tryLock(tx, contextLock)) return null;
     run = await getRun(tx, runId);
     if (run.status !== 'queued') {
       // Old outbox entries must not starve newer work. An active execution is never replayed.
@@ -69,20 +78,10 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       ['deleting', 'degraded', 'restoring'].includes(String(worktree?.status));
     const policy = await getExecutionPolicy(tx, org);
     const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
-    let sandbox = run.kind === 'native_agent' && run.config.sandbox_id ? await getSandbox(tx, run.config.sandbox_id) : null;
-    // An accepted message can wait longer than the idle window. Resume only while its actor remains authorized.
-    if (sandbox?.status === 'paused' && !denied && !unavailable && !run.cancel_requested && !timeoutUnavailable && run.queue_expires_at.getTime() > Date.now()) {
-      try {
-        await changeSandbox(tx, principalFor(run), sandbox.id, 'resume');
-        sandbox = await getSandbox(tx, sandbox.id);
-      } catch (error) {
-        if (!(error instanceof AppError)) throw error;
-        if (['sandbox_limit', 'sandbox_busy'].includes(error.code)) return null;
-        if (error.status !== 402) throw error;
-        // Insufficient funds fail below and release the already-reserved run budget.
-      }
-    }
-    const sandboxUnavailable = sandbox && (!['ready','creating','pausing'].includes(sandbox.status) || BigInt(sandbox.reserved_micro_usd) - sandboxCost(sandbox) < computeMaximum(run.config.limits?.timeout_seconds || 900, sandbox.rate_micro_usd_per_minute));
+    const worker = run.kind === 'native_agent' && run.config.worker_id ? await getWorker(tx,run.config.worker_id) : null;
+    const workerState = worker ? workerAdmissionBlock(worker,Date.now()) : null;
+    const workerUnavailable = workerState === 'worker_destroyed' || workerState === 'worker_expired' ||
+      (worker && worker.settings.expires_at_ms !== null && worker.settings.expires_at_ms < Date.now()+((run.config.limits?.timeout_seconds || 900)+180)*1000);
     const subscriptionUnavailable = run.kind === 'native_agent' && run.config.billing_mode === 'subscription';
     if (
       run.cancel_requested ||
@@ -90,7 +89,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
       denied ||
       unavailable ||
       timeoutUnavailable ||
-      subscriptionUnavailable || sandboxUnavailable
+      subscriptionUnavailable || workerUnavailable
     ) {
       // Deletion and billing controls cancel queued rows without invoking the public
       // cancel handler. Honor that flag before provisioning or any native side effect.
@@ -103,8 +102,8 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
             ? 'worktree_unavailable'
             : timeoutUnavailable
               ? 'execution_limit_changed'
-              : sandboxUnavailable
-                ? 'sandbox_unavailable'
+              : workerUnavailable
+                ? workerState || 'worker_lifetime'
                 : subscriptionUnavailable
                 ? 'claude_subscription_unavailable'
                 : 'queue_expired';
@@ -129,14 +128,14 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     // A simulator left running must never impersonate a newly admitted native execution.
     // Cancellation and queue expiry above still settle work even under the wrong local profile.
     if (run.kind === 'native_agent' && run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
-    if (sandbox?.status === 'pausing') return null;
-    if (sandbox && ((sandbox.active_run_id && sandbox.active_run_id !== runId) || (sandbox.lease_until && sandbox.lease_until.getTime() > Date.now()))) return null;
+    if (workerState === 'worker_paused') return null;
     // Capacity and weighted turns commit together under the existing global lock.
     // A Workflow retry for a specific run must obey the same scheduler as a poller.
-    await lock(tx, 'capacity:global');
+    if (direct) await lock(tx, 'capacity:global');
+    else if (!await tryLock(tx, 'capacity:global')) return null;
     const turn = await schedulerTurn(tx);
     if (!turn || turn.id !== runId) return null;
-    if (sandbox && run.kind === 'native_agent') await acquireSandbox(tx, sandbox.id, runId, run.worktree_id);
+    if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx,run))) return null;
     await recordTurn(tx, org, turn);
     await tx.query(
       "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
@@ -156,17 +155,29 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     return getRun(tx, runId);
 }
 
-/** Claims serialize writers. A crashed execution is never silently re-run. */
-export async function executeRun(org: string, runId: string, provider?: ExecutionProvider) {
+/** Separate the short admission claim from long-running execution. Dispatchers
+ * await claims in fair-candidate order while already-started Runs remain parallel. */
+export async function startRun(org: string, runId: string, provider?: ExecutionProvider) {
   const candidate = await transaction(org, (tx) => getRun(tx, runId));
   if (candidate.kind !== 'native_agent') {
     const { advanceInference } = await import('./inference-engine');
-    await advanceInference(org, runId);
-    return true;
+    return { completion: advanceInference(org, runId).then(() => true) };
   }
   const run = await claimRun(org, runId);
-  if (!run) return false;
+  if (!run) return null;
   requireNativeRun(run);
+  return { completion: executeClaimedNativeRun(run, provider) };
+}
+
+/** Claims serialize writers. A crashed execution is never silently re-run. */
+export async function executeRun(org: string, runId: string, provider?: ExecutionProvider) {
+  const started = await startRun(org, runId, provider);
+  return started ? started.completion : false;
+}
+
+async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionProvider) {
+  const org = run.organization_id;
+  const runId = run.id;
   const p = principalFor(run);
   const abort = new AbortController();
   let stopped = false;
@@ -278,8 +289,22 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         mode: file.mode,
       });
     }
-    await transaction(org, async (tx) => {
+    const publication = await storagePreparation(org, async tx => {
+      const current = await getRun(tx, runId);
+      assert(current.lease_generation === run.lease_generation && !terminal(current.status),
+        409, 'lease_lost', 'Execution no longer owns its publication.');
+      return resources.get(tx, 'worktrees', run.worktree_id);
+    });
+    try {
+      const baseline = publication.value;
+      const output = guardedToolsRequired(run.config.permission_layers || [])
+        ? permissionOutput(run.config.permission_layers || [], baseline.files || [], saved) : saved;
+      // Hash verification and Git export may be expensive. Keep them outside the
+      // five-connection domain pool and recheck ownership at the small commit boundary.
+      const preparedCheckpoint = await prepareCheckpoint(org, baseline, output, 'Run completed', undefined, baseline.files || []);
+      await transaction(org, async (tx) => {
       await lock(tx, `worktree:${run.worktree_id}`);
+      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
       assert(
         current.lease_generation === run.lease_generation && !terminal(current.status),
@@ -287,20 +312,12 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         'lease_lost',
         'Execution lease was lost before publication.',
       );
-      const previousFiles = (await resources.get(tx, 'worktrees', run.worktree_id)).files || [];
-      const cp = await checkpoint(
-        tx,
-        p,
-        run.worktree_id,
-        'Run completed',
-        guardedToolsRequired(run.config.permission_layers || [])
-          ? permissionOutput(
-              run.config.permission_layers || [],
-              (await resources.get(tx, 'worktrees', run.worktree_id)).files || [],
-              saved,
-            )
-          : saved,
-      );
+      await publication.assertActive(tx);
+      const currentWorktree = await resources.get(tx, 'worktrees', run.worktree_id);
+      assert(currentWorktree.revision === baseline.revision, 409, 'publication_revision_changed',
+        'Worktree state changed while preparing execution output.');
+      const previousFiles = baseline.files || [];
+      const cp = await saveCheckpoint(tx, p, preparedCheckpoint);
       await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
       await resources.update(tx, 'worktrees', run.worktree_id, {
         ...checkpointState(cp),
@@ -345,10 +362,15 @@ export async function executeRun(org: string, runId: string, provider?: Executio
         [id(), org, run.config.user_id],
       );
     });
+    } finally {
+      await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+    }
     stopped = true;
     return true;
   } catch (error) {
     await transaction(org, async (tx) => {
+      await lock(tx,`worktree:${run.worktree_id}`);
+      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
       if (terminal(current.status) || current.lease_generation !== run.lease_generation) return;
       const reason = abort.signal.reason instanceof Error ? abort.signal.reason.message : '';
@@ -388,6 +410,15 @@ export async function executeRun(org: string, runId: string, provider?: Executio
     return true;
   } finally {
     clearInterval(heartbeat);
+    if (run.config.worker_id) await transaction(org,async tx=>{
+      await lock(tx,`worktree:${run.worktree_id}`);
+      const assignment=await activeHostRun(tx,run.id);
+      if(assignment) {
+        const current=await getRun(tx,run.id);
+        const worktree=await resources.get(tx,'worktrees',run.worktree_id);
+        await releaseHostRun(tx,assignment,current.result.persistence_status==='verified',worktree.latest_checkpoint_id ?? null);
+      }
+    });
     if (!stopped) abort.abort();
   }
 }
@@ -398,7 +429,8 @@ export const pendingRuns = pendingRunCandidates;
  * Cloud executions recover through their durable machine state instead. */
 export async function maintainRuns() {
   const expired = await pool.query(`SELECT organization_id,id FROM reporting.scheduling_runs
-    WHERE status='queued' AND (queue_expires_at<=now() OR cancel_requested OR unavailable)
+    WHERE status='queued' AND (queue_expires_at<=now() OR cancel_requested OR unavailable OR id IN
+      (SELECT id FROM reporting.worker_placement WHERE waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime')))
     ORDER BY queue_expires_at,id LIMIT 100`);
   for (const row of expired.rows) await claimRun(row.organization_id, row.id);
   let abandoned = 0;
@@ -411,6 +443,7 @@ export async function maintainRuns() {
         let run = await getRun(tx, row.id);
         if (run.kind !== 'native_agent') return;
         await lock(tx, `worktree:${run.worktree_id}`);
+        if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
         await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [row.id]);
         run = await getRun(tx, row.id);
         requireNativeRun(run);
@@ -442,6 +475,8 @@ export async function maintainRuns() {
           "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
           [row.id],
         );
+        const assignment=await activeHostRun(tx,run.id);
+        if(assignment)await releaseHostRun(tx,assignment,false,null);
         abandoned++;
       });
   }

@@ -43,6 +43,7 @@ class Report(BaseModel):
     evidence_urls: Optional[List[StrictStr]] = None
     recommendations: Optional[List[Recommendation]] = None
     scheduling: Optional[SchedulingReport] = None
+    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["definition_version", "from", "to", "timezone", "observed_at", "complete_through", "missing_sources", "filters", "metrics", "evidence_urls", "recommendations", "scheduling"]
 
     @field_validator('timezone')
@@ -82,8 +83,10 @@ class Report(BaseModel):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
+        * Fields in `self.additional_properties` are added to the output dict.
         """
         excluded_fields: Set[str] = set([
+            "additional_properties",
         ])
 
         _dict = self.model_dump(
@@ -108,6 +111,11 @@ class Report(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of scheduling
         if self.scheduling:
             _dict['scheduling'] = self.scheduling.to_dict()
+        # puts key-value pairs in additional_properties in the top level
+        if self.additional_properties is not None:
+            for _key, _value in self.additional_properties.items():
+                _dict[_key] = _value
+
         return _dict
 
     @classmethod
@@ -133,6 +141,11 @@ class Report(BaseModel):
             "recommendations": [Recommendation.from_dict(_item) for _item in obj["recommendations"]] if obj.get("recommendations") is not None else None,
             "scheduling": SchedulingReport.from_dict(obj["scheduling"]) if obj.get("scheduling") is not None else None
         })
+        # store additional fields in additional_properties
+        for _key in obj.keys():
+            if _key not in cls.__properties:
+                _obj.additional_properties[_key] = obj.get(_key)
+
         return _obj
 
 

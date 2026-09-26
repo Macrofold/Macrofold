@@ -32,7 +32,7 @@ import dev.macrofold.model.CustomerConnectionComplete;
 import dev.macrofold.model.Error;
 import java.io.File;
 import dev.macrofold.model.FileListing;
-import dev.macrofold.model.ListRunEvents200Response;
+import dev.macrofold.model.ListCustomerAgentRunEvents200Response;
 import dev.macrofold.model.ListSessions200Response;
 import dev.macrofold.model.NativeRunAccepted;
 import dev.macrofold.model.Run;
@@ -2049,10 +2049,10 @@ public class CustomerAgentsApi {
    * @param after  (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @return ListRunEvents200Response
+   * @return ListCustomerAgentRunEvents200Response
    * @throws ApiException if fails to make API call
    */
-  public ListRunEvents200Response listCustomerAgentRunEvents(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit) throws ApiException {
+  public ListCustomerAgentRunEvents200Response listCustomerAgentRunEvents(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit) throws ApiException {
     return listCustomerAgentRunEvents(customerId, customerAgentId, runId, xOrganizationId, after, cursor, limit, null);
   }
 
@@ -2067,11 +2067,11 @@ public class CustomerAgentsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param headers Optional headers to include in the request
-   * @return ListRunEvents200Response
+   * @return ListCustomerAgentRunEvents200Response
    * @throws ApiException if fails to make API call
    */
-  public ListRunEvents200Response listCustomerAgentRunEvents(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, Map<String, String> headers) throws ApiException {
-    ApiResponse<ListRunEvents200Response> localVarResponse = listCustomerAgentRunEventsWithHttpInfo(customerId, customerAgentId, runId, xOrganizationId, after, cursor, limit, headers);
+  public ListCustomerAgentRunEvents200Response listCustomerAgentRunEvents(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, Map<String, String> headers) throws ApiException {
+    ApiResponse<ListCustomerAgentRunEvents200Response> localVarResponse = listCustomerAgentRunEventsWithHttpInfo(customerId, customerAgentId, runId, xOrganizationId, after, cursor, limit, headers);
     return localVarResponse.getData();
   }
 
@@ -2085,10 +2085,10 @@ public class CustomerAgentsApi {
    * @param after  (optional)
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
-   * @return ApiResponse&lt;ListRunEvents200Response&gt;
+   * @return ApiResponse&lt;ListCustomerAgentRunEvents200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListRunEvents200Response> listCustomerAgentRunEventsWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit) throws ApiException {
+  public ApiResponse<ListCustomerAgentRunEvents200Response> listCustomerAgentRunEventsWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit) throws ApiException {
     return listCustomerAgentRunEventsWithHttpInfo(customerId, customerAgentId, runId, xOrganizationId, after, cursor, limit, null);
   }
 
@@ -2103,10 +2103,10 @@ public class CustomerAgentsApi {
    * @param cursor  (optional)
    * @param limit  (optional, default to 25)
    * @param headers Optional headers to include in the request
-   * @return ApiResponse&lt;ListRunEvents200Response&gt;
+   * @return ApiResponse&lt;ListCustomerAgentRunEvents200Response&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ListRunEvents200Response> listCustomerAgentRunEventsWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, Map<String, String> headers) throws ApiException {
+  public ApiResponse<ListCustomerAgentRunEvents200Response> listCustomerAgentRunEventsWithHttpInfo(@javax.annotation.Nonnull String customerId, @javax.annotation.Nonnull UUID customerAgentId, @javax.annotation.Nonnull UUID runId, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String after, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, Map<String, String> headers) throws ApiException {
     HttpRequest.Builder localVarRequestBuilder = listCustomerAgentRunEventsRequestBuilder(customerId, customerAgentId, runId, xOrganizationId, after, cursor, limit, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
@@ -2122,7 +2122,7 @@ public class CustomerAgentsApi {
         }
         localVarResponseBody = ApiClient.getResponseBody(localVarResponse);
         if (localVarResponseBody == null) {
-          return new ApiResponse<ListRunEvents200Response>(
+          return new ApiResponse<ListCustomerAgentRunEvents200Response>(
               localVarResponse.statusCode(),
               localVarResponse.headers().map(),
               null
@@ -2132,10 +2132,10 @@ public class CustomerAgentsApi {
 
 
         String responseBody = new String(localVarResponseBody.readAllBytes());
-        ListRunEvents200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListRunEvents200Response>() {});
+        ListCustomerAgentRunEvents200Response responseValue = responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ListCustomerAgentRunEvents200Response>() {});
 
 
-        return new ApiResponse<ListRunEvents200Response>(
+        return new ApiResponse<ListCustomerAgentRunEvents200Response>(
             localVarResponse.statusCode(),
             localVarResponse.headers().map(),
             responseValue

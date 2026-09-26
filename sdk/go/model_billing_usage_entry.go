@@ -42,8 +42,10 @@ type BillingUsageEntry struct {
 	ModelUsage *BillingModelUsage `json:"model_usage,omitempty"`
 	Tool *BillingUsageEntryTool `json:"tool,omitempty"`
 	Storage *BillingUsageEntryStorage `json:"storage,omitempty"`
-	// Compute allocation charged independently of individual runs, when present.
-	SandboxId *string `json:"sandbox_id,omitempty"`
+	// Worker charged for shared compute. Whole-Worker compute is not attributed to an individual Run.
+	WorkerId NullableString `json:"worker_id,omitempty"`
+	// Financial allocation identifier; not a controllable physical-machine API resource.
+	ComputeAllocationId NullableString `json:"compute_allocation_id,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -507,36 +509,88 @@ func (o *BillingUsageEntry) SetStorage(v BillingUsageEntryStorage) {
 	o.Storage = &v
 }
 
-// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
-func (o *BillingUsageEntry) GetSandboxId() string {
-	if o == nil || IsNil(o.SandboxId) {
+// GetWorkerId returns the WorkerId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *BillingUsageEntry) GetWorkerId() string {
+	if o == nil || IsNil(o.WorkerId.Get()) {
 		var ret string
 		return ret
 	}
-	return *o.SandboxId
+	return *o.WorkerId.Get()
 }
 
-// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// GetWorkerIdOk returns a tuple with the WorkerId field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *BillingUsageEntry) GetSandboxIdOk() (*string, bool) {
-	if o == nil || IsNil(o.SandboxId) {
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *BillingUsageEntry) GetWorkerIdOk() (*string, bool) {
+	if o == nil {
 		return nil, false
 	}
-	return o.SandboxId, true
+	return o.WorkerId.Get(), o.WorkerId.IsSet()
 }
 
-// HasSandboxId returns a boolean if a field has been set.
-func (o *BillingUsageEntry) HasSandboxId() bool {
-	if o != nil && !IsNil(o.SandboxId) {
+// HasWorkerId returns a boolean if a field has been set.
+func (o *BillingUsageEntry) HasWorkerId() bool {
+	if o != nil && o.WorkerId.IsSet() {
 		return true
 	}
 
 	return false
 }
 
-// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
-func (o *BillingUsageEntry) SetSandboxId(v string) {
-	o.SandboxId = &v
+// SetWorkerId gets a reference to the given NullableString and assigns it to the WorkerId field.
+func (o *BillingUsageEntry) SetWorkerId(v string) {
+	o.WorkerId.Set(&v)
+}
+// SetWorkerIdNil sets the value for WorkerId to be an explicit nil
+func (o *BillingUsageEntry) SetWorkerIdNil() {
+	o.WorkerId.Set(nil)
+}
+
+// UnsetWorkerId ensures that no value is present for WorkerId, not even an explicit nil
+func (o *BillingUsageEntry) UnsetWorkerId() {
+	o.WorkerId.Unset()
+}
+
+// GetComputeAllocationId returns the ComputeAllocationId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *BillingUsageEntry) GetComputeAllocationId() string {
+	if o == nil || IsNil(o.ComputeAllocationId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.ComputeAllocationId.Get()
+}
+
+// GetComputeAllocationIdOk returns a tuple with the ComputeAllocationId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *BillingUsageEntry) GetComputeAllocationIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.ComputeAllocationId.Get(), o.ComputeAllocationId.IsSet()
+}
+
+// HasComputeAllocationId returns a boolean if a field has been set.
+func (o *BillingUsageEntry) HasComputeAllocationId() bool {
+	if o != nil && o.ComputeAllocationId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetComputeAllocationId gets a reference to the given NullableString and assigns it to the ComputeAllocationId field.
+func (o *BillingUsageEntry) SetComputeAllocationId(v string) {
+	o.ComputeAllocationId.Set(&v)
+}
+// SetComputeAllocationIdNil sets the value for ComputeAllocationId to be an explicit nil
+func (o *BillingUsageEntry) SetComputeAllocationIdNil() {
+	o.ComputeAllocationId.Set(nil)
+}
+
+// UnsetComputeAllocationId ensures that no value is present for ComputeAllocationId, not even an explicit nil
+func (o *BillingUsageEntry) UnsetComputeAllocationId() {
+	o.ComputeAllocationId.Unset()
 }
 
 func (o BillingUsageEntry) MarshalJSON() ([]byte, error) {
@@ -571,8 +625,11 @@ func (o BillingUsageEntry) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Storage) {
 		toSerialize["storage"] = o.Storage
 	}
-	if !IsNil(o.SandboxId) {
-		toSerialize["sandbox_id"] = o.SandboxId
+	if o.WorkerId.IsSet() {
+		toSerialize["worker_id"] = o.WorkerId.Get()
+	}
+	if o.ComputeAllocationId.IsSet() {
+		toSerialize["compute_allocation_id"] = o.ComputeAllocationId.Get()
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -645,7 +702,8 @@ func (o *BillingUsageEntry) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "model_usage")
 		delete(additionalProperties, "tool")
 		delete(additionalProperties, "storage")
-		delete(additionalProperties, "sandbox_id")
+		delete(additionalProperties, "worker_id")
+		delete(additionalProperties, "compute_allocation_id")
 		o.AdditionalProperties = additionalProperties
 	}
 

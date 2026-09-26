@@ -12,7 +12,6 @@ package macrofold
 
 import (
 	"encoding/json"
-	"bytes"
 	"fmt"
 )
 
@@ -24,6 +23,7 @@ type RunInput struct {
 	InputRequestId string `json:"input_request_id"`
 	// Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
 	Answer map[string]interface{} `json:"answer"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _RunInput RunInput
@@ -107,6 +107,11 @@ func (o RunInput) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["input_request_id"] = o.InputRequestId
 	toSerialize["answer"] = o.Answer
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -135,15 +140,21 @@ func (o *RunInput) UnmarshalJSON(data []byte) (err error) {
 
 	varRunInput := _RunInput{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varRunInput)
+	err = json.Unmarshal(data, &varRunInput)
 
 	if err != nil {
 		return err
 	}
 
 	*o = RunInput(varRunInput)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "input_request_id")
+		delete(additionalProperties, "answer")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

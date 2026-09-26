@@ -13,7 +13,6 @@ package macrofold
 import (
 	"encoding/json"
 	"time"
-	"bytes"
 	"fmt"
 )
 
@@ -32,6 +31,7 @@ type Event struct {
 	IngestedAt time.Time `json:"ingested_at"`
 	// Versioned metadata; secrets and unbounded arbitrary payloads are prohibited.
 	Data map[string]interface{} `json:"data"`
+	AdditionalProperties map[string]interface{}
 }
 
 type _Event Event
@@ -271,6 +271,11 @@ func (o Event) ToMap() (map[string]interface{}, error) {
 	toSerialize["occurred_at"] = o.OccurredAt
 	toSerialize["ingested_at"] = o.IngestedAt
 	toSerialize["data"] = o.Data
+
+	for key, value := range o.AdditionalProperties {
+		toSerialize[key] = value
+	}
+
 	return toSerialize, nil
 }
 
@@ -305,15 +310,27 @@ func (o *Event) UnmarshalJSON(data []byte) (err error) {
 
 	varEvent := _Event{}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varEvent)
+	err = json.Unmarshal(data, &varEvent)
 
 	if err != nil {
 		return err
 	}
 
 	*o = Event(varEvent)
+
+	additionalProperties := make(map[string]interface{})
+
+	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "id")
+		delete(additionalProperties, "schema_version")
+		delete(additionalProperties, "run_id")
+		delete(additionalProperties, "sequence")
+		delete(additionalProperties, "type")
+		delete(additionalProperties, "occurred_at")
+		delete(additionalProperties, "ingested_at")
+		delete(additionalProperties, "data")
+		o.AdditionalProperties = additionalProperties
+	}
 
 	return err
 }

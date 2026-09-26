@@ -10,3 +10,7 @@ Dependency versions: pnpm-lock.yaml and packages/runtime/package.json.
 Architectural references and primary-source attribution: docs/architecture/research.md.
 A release must include the original third-party license files bundled in its
 installed dependencies. Do not strip those files from container or package builds.
+
+Contributor guidance includes copied/adapted OpenLegend instruction text.
+Its upstream provenance and AGPL-3.0-only notice are retained in .agents/NOTICE.md
+and .agents/licenses/OpenLegend-AGPL-3.0.txt. The application code license is unchanged.

@@ -35,6 +35,28 @@ Update a published page's metadata and parent navigation when its purpose change
 
 Create a parent/index link for every new document. Prefer one authoritative home per topic and link from related features. Do not introduce another numbered flat document series. When moving a document, update inbound links, relative source paths, requirement mappings, scripts, and agent entry points together. Keep a redirect stub only for a concrete compatibility need.
 
+Project-specific proposals and implementation plans belong in [docs/projects/](../../docs/projects/README.md); requested specification/design pairs follow the [design workflow](../skills/macrofold-design/SKILL.md). Existing feature and architecture guides remain the current behavior owners. Do not move an existing accepted design just to fit the new project directory.
+
+## Keep maintainer work synchronized
+
+Before code or design changes, find related items through the [maintainer index](../../docs/maintainers/README.md) and [central TODO](../../docs/maintainers/TODO.md), even if none is named. Read their design owners, decisions, dependencies and exit criteria; cite tracker paths/IDs in the PR or handoff.
+
+Update affected items with the work, not afterward: completed/partial scope, blockers, dependencies and remaining tasks. Check only satisfied exit criteria; preserve unverified acceptance checks and reopen regressions. Keep IDs stable; remove only obsolete work and link replacements. Add uncovered substantive work under its feature in the central TODO; do not create parallel TODO documents. Reconcile status against the final diff and evidence before handoff.
+
+For accepted policies expected to change, maintain [Policies to revisit](../../docs/maintainers/revisitable-policies.md). Keep the current policy in its canonical owner; record why, when and by whom it should be reconsidered. Consult relevant entries when changing that policy or crossing its trigger. Update the owner, affected summaries and register together; a review trigger does not authorize relaxing the rule.
+
+## Project approval and current truth
+
+When the developer approves the discussed project plan for work **in chat**, follow the [chat-approval workflow](../skills/macrofold-design/SKILL.md#approval-to-implementation): create/update related maintainer work referencing both project files and integrate relevant accepted behavior/decisions into their persistent cross-project owners before coding, then implement. This is not a GitHub PR approval or a document-status change. Mark approved-but-unimplemented capabilities as targets, not current runtime behavior; update those owners and task states as each slice ships. Project docs retain project-specific scope, context and history, referencing canonical contracts rather than becoming competing current specifications. For a single implementation plan, link that plan instead of manufacturing a design pair.
+
+Code/evidence establishes current behavior; accepted requirements establish targets. Explain changed assumptions and reconcile owners when improving a design. Never relax a specification to hide a bug or substitute an unaccepted proposal. Record unresolved material choices in the decision owner.
+
+For conversation capture, extract agreed decisions, requirements, examples, limits, tasks and questions into their owners; compare the diff against that inventory. Keep proposals distinct. Silence means agreement only when explicitly granted for that conversation, never permission for destructive, paid or permission-changing actions.
+
+Before consolidating/deleting, migrate unique current requirements, tasks, facts, criteria, questions and needed references. Preserve IDs, checkbox state, dependencies, blockers and valid exit criteria. Current specs/trackers state current truth, not dated diaries.
+
+Review the full diff for lost meaning, duplicate owners, stale status and misplaced decisions. For moved paths/headings, search repository-wide, including code comments, and fix inbound links before removing the source. Update local why-comments when their reason changes. Verify relative targets and anchors. Edit only affected owners; record concrete follow-up work, not duplicate generic risks.
+
 ## Decisions and provenance
 
 Explain accepted decisions and current tradeoffs in the main document. Historical provenance belongs **only at the bottom**, in an optional `Changelog` section. Include changes necessary to understand why the current system was built this way: an architectural reversal, a durability/security boundary change, or another consequential decision. Omit routine edits, daily progress logs, patch-by-patch test totals, and redundant dated introductions.

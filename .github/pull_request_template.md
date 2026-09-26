@@ -15,3 +15,15 @@ Contract, migration, billing, persistence or deployment implications:
 Provider calls made and whether they can incur charges:
 
 -
+
+Relevant project plan / canonical guide / maintainer TODO paths or IDs:
+
+-
+
+Major decisions, assumptions and intentionally excluded scope:
+
+-
+
+Deferred checks and open decisions (link their owner; do not mark unmet acceptance complete):
+
+-

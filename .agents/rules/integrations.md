@@ -18,8 +18,16 @@ For Stripe/GitHub/other webhooks, verify signatures against the required raw pay
 
 Test the actual serialization and transport boundary with deterministic fixtures. Live acceptance is opt-in, bounded, synthetic, and separately documented; an API key in `.env` is not permission to spend or send messages. Retain the existing provider test safeguards and record unsupported endpoints honestly.
 
+## Internal AI practices and customer freedom
+
+Internal Jev/LLM usage conventions apply only to Macrofold-owned prompts, evaluations, examples and internal consumers. They do not define what customers or the Macrofold platform may do with AI. Do not turn internal choices about models, question/candidate structure, batching, output formats, memory or workflows into public API/SDK validators, provider restrictions, injected instructions or product-wide architecture limits. Keep supported customer usage open to different patterns and conventions.
+
+On native pass-through paths, preserve customer-supplied prompts, state, arbitrary question names, endpoint parameters and supported response content except for documented platform-owned execution, authorization, routing, spending and transport controls. A restriction needs an actual product contract, provider capability or safety/accounting boundary; internal preference alone is not a reason. This does not imply support for unimplemented or unmetered capabilities. Verify transformations at the real serialization boundary.
+
 ## Public API, SDKs, and CLI
 
 Keep OpenAPI and generated clients aligned using `pnpm contracts`. Preserve operation IDs, selectors, scopes, stable error codes, pagination, idempotency, and SSE recovery. Errors should state what failed and offer a valid next action when one is known; do not invent remediations.
 
 The CLI and TypeScript/Python SDKs use the public API. Keep machine-readable stdout separate from progress, preserve exit/cancellation/detach semantics, and do not leak keys in argv. Python uses existing HTTPX/resource management and Decimal for money. Project linking does not imply upload or sync; explicit transfer and Git conflict handling remain user-visible.
+
+For coordinated cross-repository integrations, record both source revisions and verify the actual contract on the intended release branch. Another repository's target design, fixture or caller implementation does not prove this checkout or deployment supports it. Keep caller/server rollout, authorization/scopes, cancellation and accounting acceptance explicit; do not import another project's consent or spending grants.

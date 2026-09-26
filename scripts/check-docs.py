@@ -9,8 +9,8 @@ from urllib.parse import unquote
 
 root = pathlib.Path(__file__).resolve().parent.parent
 failures = []
-files = list((root / 'docs').rglob('*.md')) + list(root.glob('*.md')) + list((root / '.agents/rules').rglob('*.md'))
-files += [root / 'packages/cli/README.md', *root.glob('sdk/*/README.md')]
+files = list((root / 'docs').rglob('*.md')) + list(root.glob('*.md')) + list((root / '.agents').rglob('*.md'))
+files += [root / 'packages/cli/README.md', *root.glob('sdk/*/README.md'), root / '.github/pull_request_template.md']
 # Git's inventory includes new instruction files without traversing dependencies, builds, or private artifacts.
 instruction_paths = subprocess.run(
     ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--',
@@ -25,8 +25,27 @@ ignored = subprocess.run(
 ).stdout.split('\0')
 files = [f for f in files if str(f.relative_to(root)) not in set(ignored)]
 
+def prose(text, strip_inline=True):
+    # Match guidance validation: examples and comments are not links or sections.
+    # Both checkers run against the same fixtures in agent-guidance.test.ts.
+    text = re.sub(r'^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)', '', text)
+    text = re.sub(r'<!--[\s\S]*?-->', '', text)
+    lines, fence = [], ''
+    for line in text.split('\n'):
+        marker = re.match(r'^ {0,3}(`{3,}|~{3,})(.*)$', line)
+        if marker:
+            if not fence:
+                fence = marker[1]
+            elif marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
+                fence = ''
+        elif not fence:
+            lines.append(line)
+    text = '\n'.join(lines)
+    return re.sub(r'(`+)[\s\S]*?\1(?!`)', '', text) if strip_inline else text
+
 def headings(source):
-    text = re.sub(r'^```[^\n]*\n[\s\S]*?^```\s*$', '', source.read_text(), flags=re.M)
+    # Inline code contributes visible text to a heading's anchor.
+    text = prose(source.read_text(), strip_inline=False)
     values, counts = set(), {}
     for heading in re.findall(r'^#{1,6} (.+)$', text, re.M):
         slug = re.sub(r'[^\w\s-]', '', heading.lower())
@@ -40,11 +59,12 @@ anchors = {source: headings(source) for source in files}
 links = {}
 for source in files:
     links[source] = set()
+    text = prose(source.read_text())
     if source.name == 'CLAUDE.md':
-        for target in re.findall(r'^@([^\s]+)$', source.read_text(), re.M):
+        for target in re.findall(r'^@([^\s]+)$', text, re.M):
             if not (source.parent / target).is_file():
                 failures.append(f'{source.relative_to(root)}: missing instruction import {target}')
-    for target in re.findall(r'\]\(([^\s)]+)(?:\s+[^)]*)?\)', source.read_text()):
+    for target in re.findall(r'\]\(([^\s)]+)(?:\s+[^)]*)?\)', text):
         if target.startswith(('http:', 'https:', 'mailto:')):
             continue
         clean = unquote(target.split('#', 1)[0]).strip('<>')
@@ -58,7 +78,7 @@ for source in files:
             if anchor and anchor not in anchors[destination]:
                 failures.append(f'{source.relative_to(root)}: missing heading {target}')
     # Provenance must be the last section, rather than interleaved progress notes.
-    sections = re.findall(r'^## (.+)$', source.read_text(), re.M)
+    sections = re.findall(r'^## (.+)$', prose(source.read_text(), strip_inline=False), re.M)
     if 'Changelog' in sections and sections[-1] != 'Changelog':
         failures.append(f'{source.relative_to(root)}: Changelog must be the final section')
 reachable, pending = set(), [root / 'docs/README.md']

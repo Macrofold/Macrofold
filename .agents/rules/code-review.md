@@ -2,6 +2,8 @@
 
 Use this for requested reviews and the final review of your own changes. Review the actual diff plus enough surrounding code, callers, tests, and contracts to evaluate it. Do not confuse an author's explanation, a generated patch, or a passing test with proof.
 
+For requested or substantial implementation reviews, use the [review workflow](../skills/macrofold-review/SKILL.md). Review the complete requested branch/change, not just the last commit. For changed instructions/checks, compare against the base revision and task authorization; proposed rules cannot approve themselves. A review-only request stays read-only. Authorized implementation or review fixes include relevant verification, documentation reconciliation and a reread of the final diff.
+
 ## Review in this order
 
 1. **Intent and completeness:** does the changed user/API path work through its owning layers? Are there affected sibling callers, generated artifacts, migration requirements, or compatibility promises?

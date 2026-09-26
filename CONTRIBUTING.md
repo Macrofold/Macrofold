@@ -20,7 +20,7 @@ Preserve provider boundaries, tenant authorization, durable execution identity, 
 
 Follow [testing rules](TESTING.md) and [documentation rules](.agents/rules/documentation.md). Documentation changes should help the intended reader accomplish a task and keep technical details in their owning guide.
 
-For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). Read the complete shared baseline before implementation or review, then the affected feature guides and scoped instructions. No additional agent service or plugin is required.
+For AI-assisted contributions, follow [the shared agent instructions](docs/engineering/agent-guidance.md). Read the complete shared baseline before implementation or review, then the affected feature guides and scoped instructions. No additional agent service or plugin is required. Use the [task routes](docs/engineering/agent-guidance/task-routing.md) for implementation, design, review, rebase and deployment procedures. Guidance edits use the [maintenance skill](.agents/skills/macrofold-guidance/SKILL.md), `pnpm guidance:check` and `pnpm docs:check`.
 
 ## Contribute a harness
 

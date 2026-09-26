@@ -31,3 +31,5 @@ __pycache__/
 
 /sdk/java/target/
 /sdk/rust/target/
+
+/.claude/worktrees/

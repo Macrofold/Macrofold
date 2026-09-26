@@ -16,34 +16,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Exercise the pinned native question path and inspect fixture-only failures
+      - name: Exercise native input and retain fixture-only failures
         run: |
           mkdir -p /tmp/final-diagnostics
           docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 . > /tmp/final-diagnostics/build.log 2>&1 || { tail -100 /tmp/final-diagnostics/build.log; exit 1; }
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('tests/fixtures/native-mock.mjs');s=p.read_text()
-          before="  assert.equal(answered, 1, 'Interactive question must reach the supervisor');"
-          if s.count(before)!=1:raise RuntimeError('Unexpected question assertion')
-          p.write_text(s.replace(before,"  console.info('QUESTION_MODEL_OBSERVATIONS',JSON.stringify(observed));\n"+before))
-          PY
           cat > tests/fixtures/.reconciliation-question.mjs <<'JS'
-          import {readFile,readdir} from 'node:fs/promises';
-          import {createRequire} from 'node:module';
-          const require=createRequire('/opt/platform/node_modules/@opencode-ai/sdk/package.json');
+          import {readFile} from 'node:fs/promises';
           console.info('NATIVE_FLAG_COMPILED',(await readFile('/opt/platform/native-worker.mjs','utf8')).includes('OPENCODE_ENABLE_QUESTION_TOOL'));
-          const server=await readFile(require.resolve('@opencode-ai/sdk/v2/server'),'utf8');
-          console.info('SDK_SERVER_SOURCE',server);
           process.argv=[process.execPath,'/tests/native-mock.mjs','opencode','questions'];
           try {await import('/tests/native-mock.mjs');}
           catch(error){
             for(const path of ['/platform-control/result.json','/platform-control/events.jsonl']) {
               console.error(path,await readFile(path,'utf8').catch(()=>'<absent>'));
-            }
-            for(const file of await readdir('/agent-home/.local/share/opencode/log').catch(()=>[])){
-              const text=await readFile('/agent-home/.local/share/opencode/log/'+file,'utf8');
-              const lines=text.split('\n').filter(line=>/question|ERROR/.test(line));
-              console.error('FIXTURE_OPENCODE_LOG',lines.slice(-20).join('\n'));
             }
             throw error;
           }

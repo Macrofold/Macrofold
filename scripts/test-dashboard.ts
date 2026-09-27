@@ -9,6 +9,7 @@ import { pack } from './coverage/pack';
 import { withCoverageRun, withCoverageBuild } from './coverage/run';
 import { currentSourceManifest, sameSources } from './coverage/maps';
 
+const browserWorkers = Math.max(1, Math.min(8, Number(process.env.PLAYWRIGHT_WORKERS || 1)));
 async function collect(directory: string) {
   await withCoverageBuild(path.resolve('apps/web'), async (buildDirectory) => {
     // A separate loopback port prevents attaching to or disrupting the running preview.
@@ -56,6 +57,13 @@ async function collect(directory: string) {
       for (const surface of ['browser', 'server', 'worker', 'cli'])
         await mkdir(path.join(directory, surface));
       await command(['exec', 'tsx', 'scripts/seed.ts'], env);
+      // Each parallel Playwright worker signs in as its own identically seeded account.
+      for (let worker = 0; worker < browserWorkers; worker++)
+        await command(['exec', 'tsx', 'scripts/seed.ts'], {
+          ...env,
+          SEED_EMAIL: `browser-worker-${worker}@example.test`,
+          SEED_OUTPUT: `browser-worker-${worker}.json`,
+        });
       const buildSources = await currentSourceManifest(process.cwd());
       await command(['build'], env);
       if (!sameSources(buildSources, await currentSourceManifest(process.cwd())))

@@ -1,11 +1,16 @@
 import { thresholds } from './scripts/coverage/policy.ts';
 import { defineConfig } from 'vitest/config';
+// The domain wrapper provides one cloned database per worker (tests/fixtures/worker-database.ts).
+// Without it, files share one database and must stay serial because scheduling is global.
+const workers = Math.max(1, Number(process.env.DOMAIN_TEST_WORKERS || 1));
 export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
-    fileParallelism: false,
+    fileParallelism: workers > 1,
+    maxWorkers: workers,
+    setupFiles: ['./tests/fixtures/worker-database.ts'],
     coverage: {
       provider: 'v8',
       reportsDirectory: process.env.VITEST_COVERAGE_DIR || 'coverage/domain',

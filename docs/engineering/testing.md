@@ -81,10 +81,12 @@ Negative checks deliberately zeroed the runtime-capability branches and then all
 
 | Job                                | Purpose                                                                                                                                                                                        |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `acceptance`                       | Strict TypeScript, production/coverage builds, domain and browser/CLI coverage, load/installation/package checks, Python and cost tests, documentation, generated contracts, dependency audit. |
+| `Change scope`                     | On pull requests, decides whether application acceptance is needed from the changed paths. Pushes, the merge queue, schedules and manual runs always run it.                                    |
+| `acceptance`                       | Strict TypeScript and production build, parallel domain tests with module floors, load/installation/package checks, Python and cost tests, documentation, generated contracts, dependency audit. Each step runs even after an earlier failure. |
+| `Application acceptance`           | Browser journeys on parallel workers (one seeded account each, shared-state files afterwards and serially), CLI subprocesses, the POSIX terminal and Python HTTP/SSE checks, with coverage observations. |
 | `Generated SDK contracts and transports` | Pinned generation drift, all five resource journeys, Python type checking, native HTTP/SSE fixtures, and actual API/simulator execution on a disposable database. |
 | `Native runtime image`             | Current Docker image, three real harnesses, restore/continuation, OpenCode input and stdio MCP with external networking disabled; native coverage observations.                                |
-| `Combined coverage gates`          | Merge observations from that workflow run, require mapped surfaces, enforce shared floors, retain reports and optionally upload distinct TypeScript/Python Codecov flags.                      |
+| `Combined coverage gates`          | Required aggregate: fails when acceptance, application or native verification failed. Then merges that run's observations, enforces the application and combined floors, retains reports and optionally uploads Codecov flags. |
 | `Critical policy mutation tests`   | Fast runtime-credential and execution-plan mutation checks on PR/push/merge-queue/manual events; 90% minimum.                                                                                  |
 | `Extended critical mutation tests` | Separate weekly/manual workflow for database authorization, financial and restore mutations; 85% minimum with a 90% target.                                                                    |
 
@@ -94,6 +96,6 @@ These are implemented workflow definitions; a local pass does not establish a Gi
 
 ## Codecov and branch protection
 
-The repository ruleset requires pull requests but does not yet require status checks, so a red gate can reach `main`; enabling required checks is tracked in [release TODO](../maintainers/TODO.md#verification-speed-and-main-health). The optional Codecov upload uses `CODECOV_ENABLED=true` with approved tokenless public uploads and separate TypeScript/Python flags. Forks receive no production or upload secrets. Enabled upload failures fail the job.
+The `Main requires verification` ruleset requires `acceptance`, `Native runtime image`, `Combined coverage gates`, `Critical policy mutation tests` and `Generated SDK contracts and transports` on `main`. Commits reach `main` through pull requests whose checks passed; a locally merged commit pushed directly has no passing checks and is rejected. The optional Codecov upload uses `CODECOV_ENABLED=true` with approved tokenless public uploads and separate TypeScript/Python flags. Forks receive no production or upload secrets. Enabled upload failures fail the job.
 
 Coverage comparisons supplement the mandatory local/global/module floors. Repository connection, first hosted verification, and badge activation are tracked in [release TODO](../maintainers/TODO.md).

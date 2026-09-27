@@ -387,10 +387,11 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 
 ## Verification speed and main health
 
-Worker reconciliation spent most of its time rediscovering failures that were already latent on `main`, one CI gate at a time, and repeating 25–30 minute local acceptance runs. Guidance now requires [a targeted verification loop](../../TESTING.md#keep-the-verification-loop-fast); these code and repository changes remove the remaining causes:
+Worker reconciliation spent most of its time rediscovering failures that were already latent on `main`, one CI gate at a time, and repeating 25–30 minute local acceptance runs. Guidance now requires [a targeted verification loop](../../TESTING.md#keep-the-verification-loop-fast); the [verification speed plan](../projects/verification-speed.md) records the implementation.
 
-- [ ] Require the `acceptance`, `Native runtime image`, `Combined coverage gates` and `Critical policy mutation tests` checks on `main` (repository ruleset). Without them a red gate can merge, and later branches inherit its failures.
-- [ ] Report every acceptance surface in one CI run: execute the domain, browser, CLI and remaining acceptance steps independently (`if: always()` or separate jobs) instead of stopping at the first failure. Keep the job failing when any surface fails.
-- [ ] Split browser acceptance into its own CI job and shard it. Give each journey its own fixture account first, which removes shared-state bleed and the acceptance server's raised per-principal API limit.
-- [ ] Run application acceptance and its coverage gate on pull requests only when web, API, CLI or SDK paths change, and always in the merge queue and on `main`. Domain, SDK, native and mutation checks keep their current triggers.
-- [ ] Measure a parallel domain suite. Today `fileParallelism: false` serializes all files against one database because scheduling is global; per-file databases or schemas would allow parallel files without weakening isolation.
+- [x] Require `acceptance`, `Native runtime image`, `Combined coverage gates`, `Critical policy mutation tests` and `Generated SDK contracts and transports` on `main` (ruleset `Main requires verification`).
+- [x] Report every acceptance surface in one CI run: acceptance steps run after earlier failures, application acceptance is a separate job, and the local full command attempts every surface before failing.
+- [x] Run browser journeys on parallel workers, each with its own seeded account; shared-state files run afterwards and serially.
+- [x] Run application acceptance on pull requests only when an application surface changes; pushes, the merge queue, schedules and manual runs always run it. `Combined coverage gates` fails when any verification job failed.
+- [x] Run domain test files in parallel with one cloned database per worker.
+- [ ] Split the remaining shared-state browser files so they can run in the parallel project with their own accounts or deployment fixtures.

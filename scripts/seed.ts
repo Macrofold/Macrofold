@@ -9,8 +9,11 @@ import { credit } from '../packages/core/src/ledger';
 import { executeRun } from '../packages/core/src/engine';
 import { id } from '../packages/core/src/crypto';
 if (!isLocal()) throw new Error('Demo seeding is only permitted in local mode.');
-const email = 'demo@example.test',
-  password = 'local-only-demo-2026';
+// Parallel browser acceptance seeds one identical account per worker; defaults are the documented demo.
+const email = process.env.SEED_EMAIL || 'demo@example.test',
+  password = process.env.SEED_PASSWORD || 'local-only-demo-2026';
+const output = process.env.SEED_OUTPUT || 'demo.json';
+if (!/^[a-z0-9-]+\.json$/.test(output)) throw new Error('SEED_OUTPUT must be a local JSON file name.');
 let user = (await pool.query('SELECT * FROM auth."user" WHERE email=$1', [email])).rows[0];
 if (!user) {
   await auth.api.signUpEmail({ body: { email, password, name: 'Alex Morgan' } });
@@ -93,7 +96,7 @@ if (!existing.data.length) {
 }
 await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
 await writeFile(
-  path.join(config.dataDir, 'demo.json'),
+  path.join(config.dataDir, output),
   JSON.stringify({ email, password, organization_id: org, api_key: key.secret }, null, 2),
   { mode: 0o600 },
 );

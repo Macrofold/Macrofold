@@ -96,6 +96,6 @@ These are implemented workflow definitions; a local pass does not establish a Gi
 
 ## Codecov and branch protection
 
-The `Main requires verification` ruleset requires `acceptance`, `Native runtime image`, `Combined coverage gates`, `Critical policy mutation tests` and `Generated SDK contracts and transports` on `main`. Commits reach `main` through pull requests whose checks passed; a locally merged commit pushed directly has no passing checks and is rejected. The optional Codecov upload uses `CODECOV_ENABLED=true` with approved tokenless public uploads and separate TypeScript/Python flags. Forks receive no production or upload secrets. Enabled upload failures fail the job.
+The `Main requires verification` ruleset requires `acceptance`, `Native runtime image`, `Combined coverage gates`, `Critical policy mutation tests` and `Generated SDK contracts and transports` on `main`. Commits reach `main` through pull requests whose checks passed. Repository administrators can bypass the rule (for example to push a local merge); use that only when a check is broken for reasons unrelated to the change, and record why. The optional Codecov upload uses `CODECOV_ENABLED=true` with approved tokenless public uploads and separate TypeScript/Python flags. Forks receive no production or upload secrets. Enabled upload failures fail the job.
 
 Coverage comparisons supplement the mandatory local/global/module floors. Repository connection, first hosted verification, and badge activation are tracked in [release TODO](../maintainers/TODO.md).

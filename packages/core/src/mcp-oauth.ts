@@ -10,7 +10,7 @@ import { config, isLocal } from './config';
 import { assert, AppError } from './errors';
 import { id, seal, unseal, sameSecret } from './crypto';
 import * as resources from './resources';
-import { safeFetch, validatePublicURL } from '../../providers/src/network';
+import { mcpFetch, validateMcpURL } from '../../providers/src/network';
 import { enqueueWebhook } from './webhooks';
 
 type Stored = {
@@ -53,7 +53,7 @@ export class ConnectionOAuth implements OAuthClientProvider {
   }
   async redirectToAuthorization(url: URL) {
     assert(this.flowState, 409, 'connection_expired', 'Reconnect this MCP server from Connections.');
-    await validatePublicURL(url.href);
+    await validateMcpURL(url.href);
     this.redirect = url;
   }
   state() {
@@ -87,7 +87,7 @@ export class ConnectionOAuth implements OAuthClientProvider {
         'oauth_issuer_changed',
         'The authorization server changed. Create a new connection.',
       );
-    await validatePublicURL(discovery.authorizationServerUrl);
+    await validateMcpURL(discovery.authorizationServerUrl);
     this.data.discovery = discovery;
   }
   invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {
@@ -129,7 +129,7 @@ const responseHeaders = (state = '', age = 0) => ({
   'referrer-policy': 'no-referrer',
   'set-cookie': `${cookieName()}=${encodeURIComponent(state)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${isLocal() ? '' : '; Secure'}`,
 });
-export async function startMcpOAuth(request: Request, transport: typeof fetch = safeFetch) {
+export async function startMcpOAuth(request: Request, transport: typeof fetch = mcpFetch) {
   const url = new URL(request.url),
     org = url.searchParams.get('organization_id') || '',
     connectionId = url.searchParams.get('connection_id') || '';
@@ -175,7 +175,7 @@ export async function startMcpOAuth(request: Request, transport: typeof fetch = 
     });
   });
 }
-export async function finishMcpOAuth(request: Request, transport: typeof fetch = safeFetch) {
+export async function finishMcpOAuth(request: Request, transport: typeof fetch = mcpFetch) {
   const url = new URL(request.url),
     state = url.searchParams.get('state') || '',
     code = url.searchParams.get('code');
@@ -266,7 +266,7 @@ export async function withConnectionOAuth<T>(
     const provider = new ConnectionOAuth(stored(current));
     try {
       if (provider.data.expires && provider.data.expires < Date.now() + 30000)
-        await authenticate(provider, { serverUrl: String(current.url), fetchFn: safeFetch });
+        await authenticate(provider, { serverUrl: String(current.url), fetchFn: mcpFetch });
       const value = await fn(provider);
       await resources.update(tx, 'connections', current.id, { oauth_ciphertext: seal(provider.data) });
       return { value };

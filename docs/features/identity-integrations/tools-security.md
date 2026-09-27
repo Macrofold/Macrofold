@@ -20,6 +20,31 @@ Staging is protected by TLS and R2's encryption at rest, but is **not** applicat
 
 [Web search](web-search.md) supports Brave Search, Exa, Tavily, Parallel AI and Firecrawl through the shared broker tool. Every provider accepts encrypted customer API keys; Brave also retains managed funding and per-call budget admission. The feature reference owns setup, supported API modes, response limits, billing boundaries and verification. Native Codex search and Claude WebSearch/WebFetch remain disabled; the sandbox's ordinary network policy independently governs shell/network access.
 
+## Local MCP servers
+
+You can connect Macrofold to a tool server running on your computer without a tunnel. This applies to **outbound MCP connections**; another local app can already call Macrofold at `http://localhost:3210`.
+
+1. Start your MCP server with a Streamable HTTP endpoint, for example `http://127.0.0.1:59620/mcp`.
+2. Add its **origin**, without `/mcp`, to Macrofold's `.env`:
+
+   ```dotenv
+   LOCAL_MCP_ALLOWED_ORIGINS=http://127.0.0.1:59620
+   ```
+
+3. Restart both the Macrofold API and worker so they use the same configuration.
+4. In **Connections → Add connection → Remote MCP**, enter the full endpoint URL. Choose the server's authentication method and supply its credential if required.
+5. Test the connection, approve its tools, and configure **Access** for your workspace or preset. An allowed network destination does not grant an agent permission to call its tools.
+
+Existing API/SDK callers use the same `mcp_remote` connection fields (`url`, `auth_method`, and write-only `secret` for bearer authentication). There is no new request flag and no change to Worker selection or API-key scopes.
+
+The setting is a comma-separated list of exact HTTP or HTTPS origins. Ports and hostnames must match: `localhost` and `127.0.0.1` are separate origins. Paths, credentials, wildcards, query strings and fragments are not accepted. If OAuth uses another local origin for authorization, discovery, registration, tokens or revocation, list that origin too. OAuth still requires its normal client registration, callback and PKCE flow.
+
+Exceptions work only with `PLATFORM_MODE=local`, a loopback `APP_ORIGIN`, and no Vercel deployment environment. Each allowed local origin must resolve exclusively to loopback, private IPv4 or unique-local IPv6 addresses. Metadata/link-local and other reserved addresses remain blocked. DNS results are checked and pinned on each connection; redirects, timeouts and response limits retain their existing enforcement. Removing an origin and restarting blocks subsequent requests to it, including saved connections.
+
+The MCP broker makes these requests from the Macrofold control-plane process, not directly from an agent container. If the API/worker itself runs inside a container, use an explicitly listed hostname reachable from that container, such as `host.docker.internal` when it resolves to a permitted private address. Do not use `0.0.0.0` as the destination. For the usual host-based local API/worker with Docker agent execution, use the tool server's host loopback URL.
+
+Hosted deployments, webhooks, OAuth client-metadata fetching and other unrelated outbound requests still require public HTTPS. Only list local services you trust; HTTP does not encrypt traffic. Missing/unlisted origins return `unsafe_url`; malformed allowlist configuration returns `invalid_local_mcp_origins` and must be corrected by the operator. An unreachable allowed server is a separate URL/listener/firewall issue.
+
 ## Approved stdio MCP packages
 
 `GET /v1/stdio-packages` lists the operator-reviewed catalog. The default runtime image includes `@modelcontextprotocol/server-filesystem@2026.8.31`, exposing the reviewed read_text_file, write_file, list_directory and get_file_info tools. A user creates an `mcp_stdio` connection with package and package_version, approves tools and access rules, then inherits or selects them for a run. Discovery uses the reviewed schema catalog without launching a billable sandbox. The Test action clearly reports that live startup occurs during the first run.

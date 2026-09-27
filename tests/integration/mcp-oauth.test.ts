@@ -91,11 +91,11 @@ const transport: typeof fetch = async (input, init) => {
   throw new Error('Unexpected fixture URL');
 };
 beforeAll(async () => {
-  vi.spyOn(network, 'validatePublicURL').mockImplementation(async (value) => ({
+  vi.spyOn(network, 'validateMcpURL').mockImplementation(async (value) => ({
     url: new URL(value),
     addresses: [{ address: '93.184.216.34', family: 4 }],
   }));
-  vi.spyOn(network, 'safeFetch').mockImplementation(transport);
+  vi.spyOn(network, 'mcpFetch').mockImplementation(transport);
   account = await fixtureAccount('MCP OAuth fixture');
   connection = await transaction(account.p.organizationId, (tx) =>
     saveConnection(tx, account.p, {
@@ -345,7 +345,7 @@ it('marks revoked upstream refresh credentials expired without executing a tool 
     resources.update(tx, 'connections', current.id, { oauth_ciphertext: seal(data) }),
   );
   let calls = 0;
-  vi.mocked(network.safeFetch).mockImplementation(async (input, init) => {
+  vi.mocked(network.mcpFetch).mockImplementation(async (input, init) => {
     if (new URL(String(input)).pathname === '/token') {
       calls++;
       return Response.json({ error: 'invalid_grant' }, { status: 400 });
@@ -365,6 +365,6 @@ it('marks revoked upstream refresh credentials expired without executing a tool 
     await expect(withConnectionOAuth(current, tool)).rejects.toMatchObject({ code: 'connection_expired' });
     expect(calls).toBe(1);
   } finally {
-    vi.mocked(network.safeFetch).mockImplementation(transport);
+    vi.mocked(network.mcpFetch).mockImplementation(transport);
   }
 });

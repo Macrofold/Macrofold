@@ -10,7 +10,7 @@ import { assert, AppError } from './errors';
 import { seal, unseal } from './crypto';
 import { config } from './config';
 import * as resources from './resources';
-import { safeFetch, validatePublicURL } from '../../providers/src/network';
+import { mcpFetch, validateMcpURL, validatePublicURL } from '../../providers/src/network';
 import type { components } from '../../contracts/api';
 import { withConnectionOAuth } from './mcp-oauth';
 import { approvedStdio } from './stdio-catalog';
@@ -77,7 +77,8 @@ export async function saveConnection(
         ? existing.api_fallback
         : await validateClaudeFallback(tx, p, input.api_fallback);
   }
-  if (merged.url) await validatePublicURL(String(merged.url));
+  if (merged.url)
+    await (merged.kind === 'mcp_remote' ? validateMcpURL : validatePublicURL)(String(merged.url));
   if (merged.kind === 'search') {
     const provider = searchIdentity(merged);
     assert(
@@ -190,7 +191,7 @@ export async function withMcp<T>(
     const client = new Client({ name: 'hosted-agent-platform', version: '0.1.0' });
     const transport = new StreamableHTTPClientTransport(new URL(String(connection.url)), {
       requestInit: { headers: connectionHeaders(connection) },
-      fetch: safeFetch,
+      fetch: mcpFetch,
       authProvider,
     });
     try {

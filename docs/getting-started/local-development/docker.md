@@ -108,7 +108,7 @@ Choose `GLOBAL_CONCURRENT_RUN_LIMIT` and Worker limits within Docker's actual re
 
 ### Networking
 
-The Docker adapter rewrites only application model/MCP URLs to `host.docker.internal`, retaining the port and exact Run path. The app must listen on a container-reachable interface. Local firewall/VPN rules can affect reachability; production HTTPS and user-URL SSRF rules are unchanged. `DOCKER_HOST_GATEWAY_IP` is an optional exact IPv4 mapping for a controlled local network; ordinary development leaves it unset. See [Docker host networking](https://docs.docker.com/desktop/features/networking/) and [host-gateway mapping](https://docs.docker.com/reference/cli/docker/container/run/#add-host).
+The Docker adapter rewrites only application model/MCP URLs to `host.docker.internal`, retaining the port and exact Run path. The app must listen on a container-reachable interface. Local firewall/VPN rules can affect reachability; hosted HTTPS and default user-URL SSRF rules remain enforced. To connect a local tool server without a tunnel, configure the [local MCP origin allowlist](../../features/identity-integrations/tools-security.md#local-mcp-servers). `DOCKER_HOST_GATEWAY_IP` is an optional exact IPv4 mapping for a controlled local network; ordinary development leaves it unset. See [Docker host networking](https://docs.docker.com/desktop/features/networking/) and [host-gateway mapping](https://docs.docker.com/reference/cli/docker/container/run/#add-host).
 
 ### Recovery and cleanup
 

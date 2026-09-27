@@ -371,3 +371,7 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 
 - [x] Recheck the guidance adoption documentation failures on the merged checkout. `pnpm docs:check` passes without placeholder artifacts or relaxed checks; see [merge verification](../engineering/agent-guidance/verification.md#merge-verification).
 - [x] Recheck the guidance adoption TypeScript diagnostics on the merged checkout. `pnpm check` passes after installing the declared dependency from the frozen lockfile, without changing compiler settings; see the same [verification record](../engineering/agent-guidance/verification.md#merge-verification).
+
+## Local MCP development
+
+- [x] Implement and verify the [local MCP plan](../projects/local-mcp.md), preserving public-only policy for unrelated requests. Exact-origin/local-mode rejection, authenticated loopback discovery/invocation, OAuth policy, and existing broker/webhook regression checks pass.

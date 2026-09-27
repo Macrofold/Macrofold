@@ -18,7 +18,7 @@ Complete the application's **Connections** flow as a test user, grant a narrow t
 
 ## Remote and sandbox MCP
 
-Remote MCP servers must support the configured HTTP transport and an allowed public HTTPS destination. Use supported OAuth discovery or an exact-origin pre-registered entry in `MCP_OAUTH_CLIENTS_JSON`. Grant explicit tools; do not pass arbitrary server credentials through prompts.
+Remote MCP servers must support the configured HTTP transport and an allowed public HTTPS destination. Local development can explicitly allow [local MCP origins](../features/identity-integrations/tools-security.md#local-mcp-servers); hosted deployments ignore that setting. Use supported OAuth discovery or an exact-origin pre-registered entry in `MCP_OAUTH_CLIENTS_JSON`. Grant explicit tools; do not pass arbitrary server credentials through prompts.
 
 Sandbox stdio tools come from the reviewed `MCP_STDIO_CATALOG_JSON` and pinned runtime image. Rebuild and verify the image when changing executable packages. The [tool security guide](../features/identity-integrations/tools-security.md) specifies configuration and isolation requirements.
 

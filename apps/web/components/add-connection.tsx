@@ -310,7 +310,7 @@ export function AddConnectionDialog({ onClose }: { onClose: () => void }) {
                   <>
                     <Field
                       label="MCP endpoint URL"
-                      hint="Use the server’s public HTTPS Streamable HTTP endpoint."
+                      hint="Use a public HTTPS Streamable HTTP endpoint, or an operator-approved local endpoint for development."
                     >
                       <input
                         type="url"

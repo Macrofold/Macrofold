@@ -54,7 +54,7 @@ Disconnect immediately clears the approved tools and organization toggle and inc
 
 ## Network, files and external effects
 
-Use a public-HTTPS-only DNS-pinned network helper for user-configured remote endpoints, with private/reserved IP rejection, bounded request/response sizes and deadlines. Redirects do not silently forward credentials or bypass destination policy. GitHub smart HTTP is bound to the authorized repository endpoints. Webhook signature validation consumes exact raw bytes, not reserialized JSON.
+Use the shared DNS-pinned network helper for user-configured remote endpoints, with public HTTPS and private/reserved IP rejection by default, bounded response sizes and deadlines. Only the MCP-specific validator/transport permits explicitly configured local origins under `isLocal()`; connection saving, discovery, invocation and MCP OAuth use that same policy. See [local MCP servers](tools-security.md#local-mcp-servers) for setup and address restrictions. Webhooks, client metadata and search retain the public-only transport. Redirects do not silently forward credentials or bypass destination policy. GitHub smart HTTP is bound to the authorized repository endpoints. Webhook signature validation consumes exact raw bytes, not reserialized JSON.
 
 Sandbox shell/file tools can affect the customer's own filesystem and allowed network services. Runtime egress policy is an independent provider-enforced boundary. A microVM, not a directory/worktree on a shared privileged worker, isolates untrusted code. The supervisor's control directory is inaccessible to the agent UID. Captures exclude sockets/devices and reject traversal/symlink ancestors. Customer HTML never runs as a same-origin preview.
 

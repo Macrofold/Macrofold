@@ -4,7 +4,7 @@ import { isLocal } from './config';
 import type { Principal } from './auth';
 import { assertConnectionOwner, composio } from './connections';
 import * as resources from './resources';
-import { safeFetch } from '../../providers/src/network';
+import { mcpFetch } from '../../providers/src/network';
 import { assert } from './errors';
 
 export async function disconnectConnection(tx: Tx, p: Principal, c: resources.Document<'connections'>) {
@@ -28,7 +28,7 @@ export async function disconnectConnection(tx: Tx, p: Principal, c: resources.Do
 export async function cleanConnection(
   org: string,
   connectionId: string,
-  transport: typeof fetch = safeFetch,
+  transport: typeof fetch = mcpFetch,
   deleteApp = async (account: string) => {
     try {
       await composio().connectedAccounts.delete(account);

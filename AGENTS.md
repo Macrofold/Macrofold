@@ -50,6 +50,8 @@ The task determines whether to explain, design, review or implement; loading a s
 
 Before implementation, use the [rebase workflow](.agents/skills/macrofold-rebase/SKILL.md) to inspect ownership and prepare the intended base while preserving current work and previews. Follow its conflict-stop and reconciliation requirements.
 
+Keep verification proportional and parallel: iterate on targeted tests, publish early so CI runs full gates, and never repeat a full local suite CI already ran on the same tree. Check the base branch's CI before PR work and report pre-existing failures separately. See [the verification loop](TESTING.md#keep-the-verification-loop-fast).
+
 Comment non-obvious requirements, tradeoffs and extension seams beside the code. State the essential reason locally and link the canonical heading; explain why, not syntax. Update reasoning and links with behavior.
 
 When delegating or handing off, carry scope, relevant owners, verification limits, shared budget, current diff and remaining work. Coordinate writes and re-read changed shared files before committing; delegation does not multiply permissions or spending.

@@ -384,3 +384,13 @@ Formal test additions remain deferred at the user's request; runtime/load checks
 ## Local MCP development
 
 - [x] Implement and verify the [local MCP plan](../projects/local-mcp.md), preserving public-only policy for unrelated requests. Exact-origin/local-mode rejection, authenticated loopback discovery/invocation, OAuth policy, and existing broker/webhook regression checks pass.
+
+## Verification speed and main health
+
+Worker reconciliation spent most of its time rediscovering failures that were already latent on `main`, one CI gate at a time, and repeating 25–30 minute local acceptance runs. Guidance now requires [a targeted verification loop](../../TESTING.md#keep-the-verification-loop-fast); these code and repository changes remove the remaining causes:
+
+- [ ] Require the `acceptance`, `Native runtime image`, `Combined coverage gates` and `Critical policy mutation tests` checks on `main` (repository ruleset). Without them a red gate can merge, and later branches inherit its failures.
+- [ ] Report every acceptance surface in one CI run: execute the domain, browser, CLI and remaining acceptance steps independently (`if: always()` or separate jobs) instead of stopping at the first failure. Keep the job failing when any surface fails.
+- [ ] Split browser acceptance into its own CI job and shard it. Give each journey its own fixture account first, which removes shared-state bleed and the acceptance server's raised per-principal API limit.
+- [ ] Run application acceptance and its coverage gate on pull requests only when web, API, CLI or SDK paths change, and always in the merge queue and on `main`. Domain, SDK, native and mutation checks keep their current triggers.
+- [ ] Measure a parallel domain suite. Today `fileParallelism: false` serializes all files against one database because scheduling is global; per-file databases or schemas would allow parallel files without weakening isolation.

@@ -53,7 +53,7 @@ export class VercelHosts implements HostProvider {
     // The current provider shape derives memory from vCPU count; unsupported ratios fail before spending.
     assert(spec.resources.cpu_millis % 1000 === 0 && spec.resources.memory_mib === spec.resources.cpu_millis * 2048 / 1000,
       400, 'host_shape_unavailable', 'This sandbox offering must use the supported CPU-to-memory ratio.');
-    const binding = await this.machines.provision(spec.name, spec.lifetime_seconds, spec.resources);
+    const binding = await this.machines.provision(spec.name, spec.lifetime_seconds, spec.resources, spec.region);
     return binding;
   }
   start(binding: HostBinding, secret: string) { return this.machines.startHostControl(binding, secret); }
@@ -80,8 +80,8 @@ type Service = z.infer<typeof serviceSchema>;
 export class RenderHosts implements HostProvider {
   constructor(private readonly request: typeof fetch = fetch) {}
   private async api(path: string, method = 'GET', body?: unknown): Promise<unknown | null> {
-    assert(!isLocal() && config.allowPaid && process.env.RENDER_WORKER_ENABLED === 'true' &&
-      process.env.RENDER_API_KEY && process.env.RENDER_OWNER_ID, 503, 'render_unavailable', 'Render Host execution is not configured.');
+    // Disabling new paid capacity must never disable observation or teardown of existing liabilities.
+    assert(!isLocal() && process.env.RENDER_API_KEY && process.env.RENDER_OWNER_ID, 503, 'render_unavailable', 'Render Host execution is not configured.');
     const response = await this.request(`https://api.render.com/v1${path}`, {
       method, redirect: 'error', headers: { authorization: `Bearer ${process.env.RENDER_API_KEY}`, 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20000),
@@ -98,6 +98,8 @@ export class RenderHosts implements HostProvider {
     return found[0] || null;
   }
   async provision(spec: HostProvisionSpec): Promise<HostBinding | null> {
+    assert(config.allowPaid && process.env.RENDER_WORKER_ENABLED === 'true',
+      503, 'render_unavailable', 'New Render Host execution is disabled.');
     let service = await this.find(spec.name);
     if (!service) {
       const image = process.env.RENDER_RUNTIME_IMAGE;

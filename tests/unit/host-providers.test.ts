@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { APIError, Sandbox } from '@vercel/sandbox';
+import { config } from '../../packages/core/src/config';
 import { RenderHosts, VercelHosts } from '../../packages/providers/src/hosts';
 import type { HostBinding, HostHealth, HostProvisionSpec } from '../../packages/contracts/host-control';
 
@@ -48,6 +49,7 @@ const service = {
 };
 
 beforeEach(() => {
+  config.allowPaid = true;
   vi.stubEnv('RENDER_WORKER_ENABLED', 'true');
   vi.stubEnv('RENDER_API_KEY', 'synthetic-api-key');
   vi.stubEnv('RENDER_OWNER_ID', service.ownerId);
@@ -64,6 +66,7 @@ beforeEach(() => {
   vi.spyOn(Sandbox, 'create').mockRejectedValue(new Error('Unexpected SDK creation'));
 });
 afterEach(() => {
+  config.allowPaid = true;
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -80,6 +83,18 @@ function render(...responses: Response[]) {
 const listed = (...services: (typeof service)[]) => Response.json(services.map((service) => ({ service })));
 
 describe('Render Host lifecycle receipts', () => {
+  it.each(['paid', 'offering'])(
+    'permits confirmed cleanup after disabling %s execution, but prevents provisioning',
+    async (gate) => {
+      if (gate === 'paid') config.allowPaid = false;
+      else vi.stubEnv('RENDER_WORKER_ENABLED', 'false');
+      const { provider, request } = render(listed(service), new Response(null, { status: 202 }), listed());
+      await expect(provider.provision(spec)).rejects.toMatchObject({ code: 'render_unavailable' });
+      expect(request).not.toHaveBeenCalled();
+      expect(await provider.destroy(spec.name, binding)).toBe(true);
+    },
+  );
+
   it('creates only after confirmed absence, with an immutable image and protected controller credential', async () => {
     const { provider, request } = render(listed(), Response.json({ service }));
     expect(await provider.provision(spec)).toEqual({
@@ -221,10 +236,35 @@ function sandboxSession(
     delete: remove,
   };
   vi.mocked(Sandbox.get).mockResolvedValue(value as unknown as Awaited<ReturnType<typeof Sandbox.get>>);
-  return { writeFiles, runCommand, remove };
+  return { writeFiles, runCommand, remove, sandbox: value };
 }
 
 describe('Vercel Host generation and control boundaries', () => {
+  it('creates in the accepted offering region instead of the SDK default', async () => {
+    const { sandbox } = sandboxSession();
+    vi.mocked(Sandbox.get).mockRejectedValueOnce(new APIError(new Response(null, { status: 404 })));
+    vi.mocked(Sandbox.create).mockResolvedValue(
+      sandbox as unknown as Awaited<ReturnType<typeof Sandbox.create>>,
+    );
+    await new VercelHosts().provision({ ...spec, region: 'sfo1' });
+    expect(Sandbox.create).toHaveBeenCalledWith(expect.objectContaining({ name: spec.name, region: 'sfo1' }));
+  });
+
+  it('permits observation, final metering and deletion with paid execution disabled, but refuses launch', async () => {
+    config.allowPaid = false;
+    const { remove } = sandboxSession();
+    const provider = new VercelHosts();
+    expect(await provider.exists(binding, spec.secret)).toBe(true);
+    expect(await provider.control(binding, spec.secret, { action: 'quiesce' })).toEqual(health);
+    await expect(
+      provider.control(binding, spec.secret, { action: 'launch', run_id: boot, assignment_id: boot }),
+    ).rejects.toMatchObject({ code: 'paid_execution_disabled' });
+    await expect(provider.provision(spec)).rejects.toMatchObject({ code: 'paid_execution_disabled' });
+    expect(await provider.destroy(spec.name, binding)).toBe(false);
+    expect(remove).toHaveBeenCalledOnce();
+    expect(Sandbox.create).not.toHaveBeenCalled();
+  });
+
   it('starts protected Host control and transfers boot-fenced requests through the original SDK session', async () => {
     const { writeFiles, runCommand } = sandboxSession();
     const provider = new VercelHosts();

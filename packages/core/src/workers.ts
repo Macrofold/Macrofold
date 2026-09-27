@@ -132,6 +132,7 @@ function validateBaseline(settings: WorkerSettings, offerings: readonly HostOffe
   );
 }
 type WorkerObservation = {
+  host_failure_code: string | null;
   counts: { ready: number; provisioning: number; draining: number; occupied_slots: number };
   active_runs: number;
   queued_runs: number;
@@ -148,6 +149,7 @@ async function workerObservations(
     rows.map((row) => [
       row.id,
       {
+        host_failure_code: null,
         counts: { ready: 0, provisioning: 0, draining: 0, occupied_slots: 0 },
         active_runs: 0,
         queued_runs: 0,
@@ -162,17 +164,19 @@ async function workerObservations(
   const hosts = (
     await tx.query<{
       worker_id: string;
+      failure_code: string | null;
       status: 'ready' | 'provisioning' | 'draining';
       offering: HostOffering;
       reserved_micro_usd: string;
     }>(
-      "SELECT worker_id,status,offering,reserved_micro_usd FROM hosts WHERE worker_id=ANY($1::uuid[]) AND status<>'stopped'",
+      "SELECT worker_id,status,offering,reserved_micro_usd,failure_code FROM hosts WHERE worker_id=ANY($1::uuid[]) AND status<>'stopped' ORDER BY created_at,id",
       [ids],
     )
   ).rows;
   for (const host of hosts) {
     const observation = observations.get(host.worker_id)!;
     observation.counts[host.status]++;
+    observation.host_failure_code ??= host.failure_code;
     observation.reserved_micro_usd = (
       BigInt(observation.reserved_micro_usd) + BigInt(host.reserved_micro_usd)
     ).toString();
@@ -237,7 +241,7 @@ export async function presentWorker(tx: Tx, row: WorkerRow, observed?: WorkerObs
     cost_micro_usd: observation.charged_micro_usd,
     reserved_micro_usd: observation.reserved_micro_usd,
     accepted_offerings: row.offerings.map(publicOffering),
-    failure_code: row.failure_code,
+    failure_code: row.failure_code ?? observation.host_failure_code,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
     observed_at: new Date().toISOString(),

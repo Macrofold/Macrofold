@@ -4,9 +4,17 @@ Use this policy when adding features, fixing bugs, or reviewing changes. It supp
 
 The current stack is strict TypeScript on Node 24, Next.js 16/React 19, Vitest 4 with V8 coverage, Playwright with axe, PostgreSQL with `pg`, and Stryker. The Python SDK uses pytest, HTTPX, generated Pydantic response models, and Pyright contract checks; cost checks use `unittest` and `Decimal`. Use the pinned dependencies and existing helpers. Official documentation can describe newer versions: check compatibility before copying APIs or configuration.
 
-Go, Rust, and Java SDK changes also require their HTTP/SSE transport fixtures and `pnpm test:sdks`, which creates a disposable database, actual API handler, and simulator worker. Install Go, Rust, JDK 21, Maven, and the Python test extra (`python -m pip install './sdk/python[test]'`) first. The same command verifies TypeScript and Python resource journeys. API contract changes require `pnpm sdk:generate:all`; see [SDK ownership and testing](docs/features/api/sdks/implementation.md).
-
 When testing authentication libraries, explicitly enable the serving-mode protections being asserted: Better Auth disables origin checks under Vitest. Restore modified test context afterward. Crash-recovery tests should kill a real fixture process at a known publication boundary; thrown exceptions alone cannot demonstrate recovery after abrupt process death.
+
+## Scope local SDK verification
+
+- For unrelated UI, styling, documentation, or internal implementation changes that preserve API behavior, skip `pnpm test:sdks`, `pnpm sdk:generate:all`, and direct Rust, Java, Go, or Python SDK builds/tests. Continue the checks appropriate to the changed behavior.
+- Keep the TypeScript SDK build (`pnpm sdk:build`, included in `pnpm check`) required for application verification; the app consumes that SDK.
+- For SDK-specific changes, run the affected SDK's build, type, transport, and package/application checks as applicable. A change confined to one SDK does not require local verification of unrelated SDKs.
+- For shared public API-contract or transport changes, run full SDK verification with `pnpm test:sdks`. Regenerate all clients with `pnpm sdk:generate:all` when their contract changes. Judge scope by behavior, including authentication, errors, serialization, pagination, and streaming—not just OpenAPI edits.
+- Keep full generation/drift checking and all-language SDK verification in CI, regardless of which local checks the change requires.
+
+`pnpm test:sdks` uses a disposable database, actual API handler, and simulator worker for all five clients. It requires Go, Rust, JDK 21, Maven, and the Python test extra (`python -m pip install './sdk/python[test]'`). See [SDK ownership and testing](docs/features/api/sdks/implementation.md) for language commands and verification boundaries.
 
 ## When to add or update tests
 
@@ -132,7 +140,7 @@ pnpm docs:check
 
 Add `pnpm test:e2e` for browser workflows, `pnpm test:cli` for CLI behavior, `pnpm test:packages` for distributable clients, `pnpm test:native` for runtime changes, or `pnpm test:load` for scheduling/capacity changes. Browser and CLI journeys require an explicitly configured local app/worker with synthetic test data; they do not use the disposable domain wrapper. Use `pnpm build` when Next.js routing, server/client boundaries, or build configuration changes. See [CI](.github/workflows/verify.yml) for installation/restore, Python, POSIX terminal, and image-specific invocations and prerequisites.
 
-Run full acceptance before merging as configured in CI; do not repeat expensive suites after successful checks unless further edits, failures, or unresolved concerns justify it. Docs-only changes need documentation checks, not a new behavioral test or a local full-suite run.
+Require full acceptance in CI before merging; local verification follows the affected behavior and [SDK scope](#scope-local-sdk-verification). Do not repeat expensive suites after successful checks unless further edits, failures, or unresolved concerns justify it. Docs-only changes need documentation checks, not a new behavioral test or a local full-suite run.
 
 A pull request should state:
 

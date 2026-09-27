@@ -14,6 +14,9 @@ import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { assert } from '../../core/src/errors';
 import { config, isLocal } from '../../core/src/config';
 
+function hosted() {
+  assert(!isLocal(), 503, 'paid_execution_disabled', 'Hosted sandbox access is disabled locally.');
+}
 function paid() {
   assert(
     config.allowPaid && !isLocal(),
@@ -59,7 +62,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
     );
     return JSON.parse(await command.stdout()) as Record<string, unknown>;
   }
-  async provision(name: string, timeoutSeconds: number, resources?: { memory_mib: number; cpu_millis: number }): Promise<MachineBinding> {
+  async provision(name: string, timeoutSeconds: number, resources?: { memory_mib: number; cpu_millis: number }, region?: string): Promise<MachineBinding> {
     paid();
     assert(
       process.env.RUNTIME_IMAGE?.includes('@sha256:'),
@@ -80,6 +83,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
       try {
         sandbox = await Sandbox.create({
           name,
+          region,
           image: process.env.RUNTIME_IMAGE!,
           persistent: true,
           timeout: (timeoutSeconds + 1800) * 1000,
@@ -122,8 +126,8 @@ export class VercelMachines implements MachineProvider, MachineTools {
     );
     return { name, sessionId: session.sessionId, createdAt: session.createdAt.toISOString() };
   }
-  private async session(binding: MachineBinding) {
-    paid();
+  private async session(binding: MachineBinding, maintenance = false) {
+    if (maintenance) hosted(); else paid();
     const sandbox = await Sandbox.get({ name: binding.name, resume: false });
     const session = sandbox.currentSession();
     assert(
@@ -151,7 +155,10 @@ export class VercelMachines implements MachineProvider, MachineTools {
   startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
   hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
   private async controlRequest(binding: HostBinding, _secret: string, request: HostControlRequest, entry: 'host-control-cli') {
-    const session = await this.session(binding);
+    // Disabling paid execution must still permit cancellation, checkpoint recovery
+    // and final metering of the original generation, without starting more work.
+    const maintenance = ['health', 'quiesce', 'cancel', 'release', 'probe', 'snapshot', 'chunk', 'restored'].includes(request.action);
+    const session = await this.session(binding, maintenance);
     const path = `/platform-control/request-${randomUUID()}.json`;
     await session.writeFiles([{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })), mode: 0o600 }]);
     const result = await session.runCommand({ cmd: 'node', args: [`/opt/platform/${entry}.mjs`, path], sudo: true, timeoutMs: 60_000 });
@@ -159,7 +166,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
     return z.object({ value: z.unknown() }).parse(JSON.parse(await result.stdout())).value;
   }
   async generationRunning(binding: MachineBinding) {
-    paid();
+    hosted();
     let sandbox: Sandbox;
     try { sandbox = await Sandbox.get({ name: binding.name, resume: false }); }
     catch (error) { if (providerCode(error) === 404) return false; throw error; }
@@ -170,7 +177,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
     return true;
   }
   async environmentRunning(binding: MachineBinding) {
-    paid();
+    hosted();
     let sandbox: Sandbox;
     try { sandbox = await Sandbox.get({ name: binding.name, resume: false }); }
     catch (error) { if (providerCode(error) === 404) return false; throw error; }
@@ -178,7 +185,7 @@ export class VercelMachines implements MachineProvider, MachineTools {
     return session.status === 'running' && session.sessionId === binding.sessionId;
   }
   async destroyEnvironment(name: string) {
-    paid();
+    hosted();
     let sandbox: Sandbox;
     try { sandbox = await Sandbox.get({ name, resume: false }); }
     catch (error) { if (providerCode(error) === 404) return; throw error; }

@@ -198,6 +198,13 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
       if (meters) { const sample = meters; await mutateHost(org, hostId, leaseId, async (tx, current) => settleHostSample(tx, current, sample)); }
     }
     host = await transaction(org, tx => getHost(tx, hostId));
+    // A successful observation clears only this Host's transient error. Other
+    // Hosts and unresolved retirement/settlement failures remain visible.
+    if (host.status === 'ready' && host.failure_code) {
+      await mutateHost(org, hostId, leaseId, async tx => {
+        await tx.query('UPDATE hosts SET failure_code=NULL,updated_at=now() WHERE id=$1', [hostId]);
+      });
+    }
     if (host.status === 'draining' && host.stopped_at && !await hostOccupied(org, hostId)) {
       await mutateHost(org, hostId, leaseId, async (tx, current) => releaseHostFunding(tx, current));
     }
@@ -206,7 +213,6 @@ export async function advanceHost(org: string, hostId: string, providerFactory: 
     const code = error instanceof AppError ? error.code : 'host_provider_unavailable';
     await mutateHost(org, hostId, leaseId, async tx => {
       await tx.query('UPDATE hosts SET failure_code=$2,updated_at=now() WHERE id=$1', [hostId,code]);
-      await tx.query('UPDATE workers SET failure_code=$2,updated_at=now() WHERE id=$1', [host.worker_id,code]);
       if (['host_isolation_unavailable','host_meter_unavailable','host_stopped','host_funding_exhausted','host_generation_changed'].includes(code))
         await tx.query("UPDATE hosts SET status='draining' WHERE id=$1", [hostId]);
     });
@@ -236,6 +242,8 @@ export async function reconcileWorker(org: string, workerId: string, providerFac
   const hostIds = await transaction(org, async tx => {
     await lock(tx, `worker:${workerId}`);
     const worker = await getWorker(tx,workerId);
+    // Recompute capacity errors each pass; provider failures belong to live Hosts.
+    await tx.query('UPDATE workers SET failure_code=NULL WHERE id=$1 AND failure_code IS NOT NULL', [workerId]);
     const hosts = (await tx.query<HostRow>("SELECT * FROM hosts WHERE worker_id=$1 AND status<>'stopped' ORDER BY created_at,id",[workerId])).rows;
     const snapshots = await hostSnapshots(tx,workerId);
     const blocked = workerAdmissionBlock(worker,Date.now());

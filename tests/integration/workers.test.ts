@@ -140,6 +140,30 @@ describe('Worker authority and desired lifecycle',()=>{
 });
 
 describe('durable capacity and graceful shutdown',()=>{
+  it('clears recovered Host errors without hiding another allocation failure',async()=>{
+    const created=await worker({min_instances:2,max_instances:2});
+    const initial=await ensureBaseline(created.id);
+    const broken=new Set(initial.map(host=>host.id));
+    const failing:HostProvider={...provider,async control(binding,secret,request){
+      if(broken.has(binding.sessionId))throw new Error('Synthetic temporary outage');
+      return provider.control(binding,secret,request);
+    }};
+    const retry=async()=>{
+      await tx(t=>t.query('UPDATE hosts SET next_check_at=now() WHERE worker_id=$1',[created.id]).then(()=>{}));
+      await reconcileWorker(principal.organizationId,created.id,()=>failing);
+      return tx(async t=>presentWorker(t,await getWorker(t,created.id)));
+    };
+    expect((await retry()).failure_code).toBe('host_provider_unavailable');
+    broken.delete(initial[0].id);
+    expect((await retry()).failure_code).toBe('host_provider_unavailable');
+    expect((await tx(t=>getHost(t,initial[0].id))).failure_code).toBeNull();
+    broken.clear();
+    expect((await retry()).failure_code).toBeNull();
+    // A past capacity/reconciliation error must not remain after a healthy pass.
+    await tx(t=>t.query("UPDATE workers SET failure_code='insufficient_credits' WHERE id=$1",[created.id]).then(()=>{}));
+    expect((await retry()).failure_code).toBeNull();
+  });
+
   it('serializes duplicate reconcilers before creating paid capacity',async()=>{
     const created=await worker({min_instances:1,max_instances:1});
     const before=creates;

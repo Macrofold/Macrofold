@@ -58,6 +58,8 @@ Python adds [Pydantic](https://docs.pydantic.dev/latest/) 2 and typing-extension
 
 ## Verification and release boundaries
 
+Select local checks using [SDK verification scope](../../../../TESTING.md#scope-local-sdk-verification). Unrelated application changes do not require the multi-language toolchains; CI retains full generation and SDK verification.
+
 TypeScript/Python retain existing transport and installable-package acceptance. Go/Rust/Java fixtures use loopback HTTP servers to verify typed requests, exact JSON/binary bodies, preconditions, idempotency, monetary precision, authorization, stream rotation, replay suppression, UTF-8, and detachment. Generated compilation alone is not API acceptance.
 
 Run Go tests with `go -C sdk/go test ./...`, Rust with `cargo test --locked --manifest-path sdk/rust/Cargo.toml`, and Java with `mvn -B -f sdk/java/pom.xml verify`. Node/Python tests follow [testing policy](../../../../TESTING.md). Non-TypeScript coverage is separate; no Go/Rust/Java coverage is folded into the application's TypeScript percentage.

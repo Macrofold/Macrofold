@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect } from '../fixtures/browser';
+import { test, expect, fixtureOrigin } from '../fixtures/browser';
 
 test('creates, pauses, resumes, selects and destroys a Worker without touching files or Sessions', async ({
   page,
@@ -67,4 +67,39 @@ test('creates, pauses, resumes, selects and destroys a Worker without touching f
   await expect(destroy).toHaveCount(0);
   await expect(worker.getByRole('button', { name: 'Destroy', exact: true })).toBeDisabled();
   await expect(worker.getByRole('button', { name: 'Settings', exact: true })).toBeDisabled();
+});
+
+test('edits a Worker policy satisfied by a stronger isolated offering without changing the policy', async ({
+  page,
+}) => {
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page).not.toHaveURL(/login/);
+  const response = await page.request.post('/v1/workers', {
+    headers: { Origin: fixtureOrigin, 'Idempotency-Key': randomUUID() },
+    data: { name: `Stronger isolation ${randomUUID()}`, compute: 'sandbox', isolate_runs: false },
+  });
+  expect(response.status()).toBe(202);
+  const created = await response.json();
+  expect(created.accepted_offerings.every((offer: { isolate_runs: boolean }) => offer.isolate_runs)).toBe(
+    true,
+  );
+  await page.goto('/workers');
+  const worker = page.getByRole('region', { name: created.name, exact: true });
+  await worker.getByRole('button', { name: 'Settings', exact: true }).click();
+  const form = page.getByRole('dialog', { name: 'Worker settings' });
+  await expect(form.getByRole('combobox', { name: 'Compute offering', exact: true })).toContainText(
+    'trusted sharing',
+  );
+  await expect(form.getByRole('combobox', { name: 'Compute offering', exact: true })).toBeDisabled();
+  await page.screenshot({ path: test.info().outputPath('worker-settings.png') });
+  await form.getByLabel('Name', { exact: true }).fill(`${created.name} edited`);
+  const saved = page.waitForResponse(
+    (r) => r.url().endsWith(`/v1/workers/${created.id}`) && r.request().method() === 'PATCH',
+  );
+  await form.getByRole('button', { name: 'Save Worker', exact: true }).click();
+  const result = await saved;
+  expect(result.status()).toBe(200);
+  expect(await result.json()).toMatchObject({ isolate_runs: false, name: `${created.name} edited` });
+  await expect(form).toHaveCount(0);
 });

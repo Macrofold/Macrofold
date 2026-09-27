@@ -39,6 +39,12 @@ function WorkerForm({ initial, offerings, defaults, onSaved }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const choices = [...new Map([...offerings, ...(initial?.accepted_offerings || [])].map(item => [profile(item), item])).values()];
+  // An accepted offering may enforce stronger isolation than the requested policy.
+  // Preserve that policy when editing limits instead of changing it implicitly.
+  if (initial && !choices.some(item => profile(item) === profile(initial)) && initial.accepted_offerings[0]) {
+    choices.push({ ...initial.accepted_offerings[0], compute: initial.compute,
+      dedicated: initial.dedicated, isolate_runs: initial.isolate_runs });
+  }
   const selected = choices.find(item => profile(item) === selection);
   const retainIdle = !!selected?.dedicated && keepAlive;
   const disruptiveAllowed = !initial || (initial.status === 'paused' && initial.occupied_slots === 0 && initial.ready_instances + initial.starting_instances + initial.draining_instances === 0);

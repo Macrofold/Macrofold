@@ -40,6 +40,22 @@ pnpm worker:docker
 
 These aliases validate the Docker settings and start the existing application or dispatcher. They read `.env`, preserve it, and let exported environment variables take precedence. Open **http://localhost:3210**; the dashboard identifies **Local Docker**, and the existing local demo login works.
 
+## Update an existing local installation
+
+Keep the application, database schema, and runtime image on the same revision. Drain active work, stop the API and dispatcher, and preserve the existing `.env`, database, and encrypted content store. Take a [paired recovery backup](../../operations/recovery.md) before a schema-changing upgrade, then run:
+
+```sh
+pnpm db:migrate
+docker build -f infra/runtime.Dockerfile -t platform-runtime:0.1.0 .
+pnpm doctor:docker
+```
+
+Use your configured `DOCKER_RUNTIME_IMAGE` tag if different. Restart `pnpm dev:docker` and `pnpm worker:docker` in separate terminals after these commands succeed. Do not rerun setup or replace credentials to update an existing installation.
+
+The Worker cutover (migration 045) requires all previous Sandbox allocations to be destroyed and their reservations settled. Drain and destroy them through the previous version before upgrading; paused allocations also need retirement. If old records outlive their containers, reconcile their provider state and financial reservations before retiring them. Never bypass the migration guard or reset saved Runs, files, or Sessions.
+
+Repeated `maintenance_failed` messages for `workers` and `runs`, together with unavailable dispatch immediately after an update, can indicate unapplied migrations. Check the migration command's result before investigating provider availability. An old runtime image can separately prevent Host startup even after the schema is current.
+
 ## Run and continue a task
 
 Follow the [API quickstart](../../features/api/quickstart.md) against localhost with a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing a short note and read it back. Start with a 120-second timeout and an explicitly approved Run budget.

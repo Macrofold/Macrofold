@@ -24,6 +24,8 @@
 
 ## Worker cutover regression obligations
 
+- [x] Fix disabled-execution shutdown gates, Vercel region propagation, stale allocation errors, and editing a Worker backed by stronger isolation. Focused provider/database regressions and dashboard acceptance are recorded in [Worker verification](../features/execution/workers/verification.md); live hosted acceptance remains open.
+
 - [ ] Cover Worker creation with an otherwise administrative Worker-restricted key, immutable expired targets, explicit pooled instance settings on PATCH, and baseline affordability after raising `min_instances`. Default resolution must honor requested runtime/size before choosing region and rates. Cover `size: null` and CLI `--auto-size` returning to automatic sizing without weakening revision or pause requirements.
 
 - [ ] Cover native continuation databases with absolute paths: Session-scoped HOME stays stable across different handle IDs and fresh Hosts; permission changes, handle eviction and failed preparation remove only the owning continuation directory. Preserve credential exclusions and the separate per-handle temporary directory.

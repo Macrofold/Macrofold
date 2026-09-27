@@ -112,7 +112,7 @@ When capacity, credit, or cost limits prevent a start, the Run remains queued wi
 
 Money fields are integer micro-USD strings: `"1000000"` means $1. The CLI accepts ordinary dollar amounts and converts them exactly.
 
-The Worker response shows accepted rates, current committed hourly exposure, reserved funds, and settled compute cost. Starting, draining, and not-yet-confirmed-stopped allocations still count toward commitments. This avoids silently exceeding your ceiling during replacement or shutdown.
+The Worker response shows accepted rates, current committed hourly exposure, reserved funds, and settled compute cost. Its `failure_code` reports a current reconciliation or unresolved allocation problem; recovered errors clear automatically after reconciliation. Starting, draining, and not-yet-confirmed-stopped allocations still count toward commitments. This avoids silently exceeding your ceiling during replacement or shutdown.
 
 The hourly ceiling limits **compute rate**, not monthly spend or model/tool usage. Run budgets and account credit controls remain separate. Model, connector, and tool usage stay attributed to the Run; dedicated compute is charged once at the allocation level rather than once per concurrent Run. Filter [usage](../billing/usage.md) by `worker_id` to inspect compute charges.
 

@@ -20,6 +20,8 @@ Every Host has a stable provider identity and immutable accepted allocation. Per
 
 Host health carries rotation requests. Draining stops admissions but lets owned work finish. Provider hard lifetime, customer expiration, manual pause, lost funding, and resource pressure are distinct reasons; none changes durable Worktree or Session ownership. A new provider allocation does not extend an explicitly expired Worker.
 
+Disabling `ALLOW_PAID_EXECUTION` or `RENDER_WORKER_ENABLED` prevents new paid allocations; it must not prevent observing or deleting existing allocations. Keep provider credentials configured until shutdown and settlement are confirmed. Vercel maintenance commands also retain access for cancellation, checkpoint recovery, release and final metering, while new execution remains gated. Disabling execution is not itself a pause or destroy request: use Worker lifecycle actions to drain existing capacity.
+
 ## Finalize usage before releasing liability
 
 Dedicated allocation charging uses the accepted shape/rate and confirmed running interval. Resource-metered charging uses cumulative allocated-memory/CPU receipts. Sampling frequency must not change the total charge. Duplicate observations and duplicate shutdown acknowledgements must not duplicate settlement.

@@ -1,6 +1,6 @@
 # Worker implementation
 
-The branch's public contract is Workers; the controller and provider allocation are internal Hosts. This document maps code ownership and verified execution boundaries. It does not imply that an unmerged branch has been deployed to Macrofold Cloud.
+The public contract is Workers; the controller and provider allocation are internal Hosts. This document maps code ownership and verified execution boundaries. Local implementation evidence does not establish Macrofold Cloud deployment or hosted-provider acceptance.
 
 ## Owners
 
@@ -24,7 +24,7 @@ The branch's public contract is Workers; the controller and provider allocation 
 
 Worker creation accepts a capability-compatible economic contract and finite limits. A Run independently selects its authorized execution context and optional Worker. The scheduler considers placement eligibility before choosing a fair candidate; Worktree writer exclusion continues through HostRun cleanup.
 
-Reconciliation reads bounded queued requirements, projects consumption of existing/provisioning capacity, and authorizes additional Hosts within credit, instance, concurrency, and hourly ceilings. Physical provider identity is persisted before controller startup. Native operations carry boot and assignment fences. The controller keeps live harness handles separate from per-turn execution ownership and independently decides filesystem reuse versus process reuse.
+Reconciliation reads bounded queued requirements, projects consumption of existing/provisioning capacity, and authorizes additional Hosts within credit, instance, concurrency, and hourly ceilings. Physical provider identity is persisted before controller startup. Vercel provisioning passes the accepted offering region explicitly instead of inheriting the SDK default. Native operations carry boot and assignment fences. The controller keeps live harness handles separate from per-turn execution ownership and independently decides filesystem reuse versus process reuse.
 
 ### Demand-sized baseline and idle replacement
 
@@ -57,6 +57,12 @@ Changed controller generations and passed funding/lifetime boundaries require ph
 `WorkerMachines.cleanupUnbound` reconstructs the durable assignment binding and requests the existing controller release outside SQL locks. Missing orchestration state is not evidence that prepare never reached the Host. A failed/unconfirmed release retains the Worktree and resource claims; an unbound launch intent requires explicit recovery rather than replay or abandonment. Unlaunched cleanup does not send a cancellation command to an assignment the controller may never have seen.
 
 The Host controller serializes release of an unknown assignment with allocation and records a bounded tombstone before acknowledging it. A delayed prepare cannot recreate that writer. If preparation wins the race, cleanup retries against the now-known assignment. Commands queued behind a completed release recheck the released fence inside their assignment lock. These are extensions of existing ownership and queues, not another scheduler or persistence layer.
+
+### Recoverable allocation diagnostics
+
+Worker-level capacity/reconciliation errors are recomputed on each reconciliation pass. Provider errors stay on their owning Hosts; the existing batched observation query projects an unresolved live Host error into the public Worker response. A successful ready-Host reconciliation clears that Host's transient error without hiding a failing sibling. Stopped historical allocations do not keep a recovered Worker in error. Unresolved draining, usage and settlement failures remain visible until their existing recovery boundary completes. This adds no per-Worker observation query or provider polling.
+
+The dashboard preserves the requested compute/isolation policy when an accepted offering enforces stronger isolation. Editing a name or spending limit must not silently adopt the offering's stricter configuration or require an unrelated pause.
 
 ### Caller-facing and bounded-read changes
 

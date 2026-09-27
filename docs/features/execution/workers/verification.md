@@ -2,6 +2,21 @@
 
 Evidence is commit-specific. A green build is not native recovery or paid-provider evidence, and simulated external boundaries are not actual cloud resource measurements.
 
+## Post-merge lifecycle and dashboard review — September 26, 2026
+
+Working-tree fixes on `9d1ff962922bdcd6568620b93a2ebb0f71ea65a6` preserve the public schema and existing billing/ownership boundaries:
+
+- Disabled paid execution no longer blocks Render/Vercel observation and confirmed shutdown. Provisioning remains gated; Vercel cancellation, recovery and final metering can complete without authorizing new launches.
+- Vercel creation receives the accepted offering region explicitly.
+- Recovered Host errors clear independently; a failing sibling remains visible. Capacity errors are recomputed, and stopped historical failures do not remain on a healthy Worker.
+- The dashboard can edit a Worker whose accepted offering supplies stronger isolation without silently changing its requested policy.
+
+Executed with Node 24.13.0 and pinned dependencies: **35 provider tests, 78 policy/scaling tests, 26 database/API tests, and two Chromium journeys passed**. Browser acceptance uses actual Next.js/HTTP/database paths, includes the existing desktop accessibility/mobile layout checks, and verifies the new settings save through the real PATCH endpoint. Its synthetic settings screenshot was visually inspected. TypeScript checking (including the app's TypeScript SDK build), documentation generation/integrity and diff whitespace checks passed. No schema or SDK transport changed; unrelated language SDK verification was not rerun locally.
+
+The bounded workload completed **128/128 Runs**, with verified persistence, three peak Hosts, eleven peak synthetic executions and **zero ownership violations**. It exercised loopback HTTP, the TypeScript SDK, scheduling, PostgreSQL and the ledger with simulated compute/model boundaries. Observed elapsed time was 89.9 seconds, listing p95 471.63 ms and admission p95 982.69 ms while a separate development dashboard was compiling on the same machine. These contended measurements are functional evidence, not a controlled performance comparison or production capacity claim.
+
+Verification used a separate disposable PostgreSQL container/database and dashboard port. The existing preview was preserved. Initial browser attempts exposed missing local browser binaries, cold development compilation exceeding a journey deadline, and a new test incorrectly expecting 201 instead of the documented Worker-create 202. Installing the pinned browser, compiling development routes before interaction measurement, and correcting the assertion resolved these fixture issues without relaxing application checks. The local mail sink was stopped; fixture accounts were explicitly verified by the existing seeder, so email delivery was not tested. No paid provider calls were made; actual hosted region placement and shutdown remain release acceptance work.
+
 ## Cross-repository engineering review — September 25, 2026
 
 The [review](review.md) records findings, caller compatibility and decisions; [implementation](implementation.md) owns the corrected behavior. No new unit tests were authored. Existing tests and CI were preserved. Manual scenarios below execute actual application code without a test runner.

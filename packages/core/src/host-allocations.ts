@@ -11,6 +11,7 @@ import type { HostOffering } from './worker-catalog';
 import type { HostSnapshot, RunDemand, ResourceAllocation } from './worker-types';
 import type { NativeRunRow } from './runs';
 import type { MachineBinding } from './ports';
+import { CONNECTOR_TOOL_NAME_VERSION } from './tool-names';
 
 export type HostBinding = MachineBinding & { controlBootId?: string; providerId?: string; url?: string };
 export type HostRow = {
@@ -79,7 +80,8 @@ export async function runDemand(tx: Tx, run: NativeRunRow): Promise<RunDemand> {
     session: { id: run.session_id, revision: String(session.revision) }, permission_view: permissionView,
     compatibility_key: sha256(JSON.stringify({ harness: run.config.harness, model: run.config.model, instructions: run.config.instructions,
       model_parameters: run.config.model_parameters, harness_prompt_mode: run.config.harness_prompt_mode,
-      permissions: run.config.permission_layers, connections: run.config.connection_access, grants: run.config.connection_grants })),
+      permissions: run.config.permission_layers, connections: run.config.connection_access, grants: run.config.connection_grants,
+      connector_tool_names: CONNECTOR_TOOL_NAME_VERSION })),
   };
 }
 /** Called with the Worker's advisory lock. Quotes are selected from its accepted immutable snapshot. */

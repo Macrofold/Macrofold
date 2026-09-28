@@ -4460,6 +4460,11 @@ export interface components {
             /** @enum {string} */
             shell?: "allow" | "deny";
             tools?: components["schemas"]["PermissionPatterns"];
+            /**
+             * @description Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+             * @enum {string}
+             */
+            questions?: "allow" | "deny";
         };
         ConnectorCatalogEntry: {
             slug: string;

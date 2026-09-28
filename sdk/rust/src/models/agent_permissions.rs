@@ -24,6 +24,9 @@ pub struct AgentPermissions {
     pub shell: Option<Shell>,
     #[serde(rename = "tools", skip_serializing_if = "Option::is_none")]
     pub tools: Option<Box<models::PermissionPatterns>>,
+    /// Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+    #[serde(rename = "questions", skip_serializing_if = "Option::is_none")]
+    pub questions: Option<Questions>,
 }
 
 impl AgentPermissions {
@@ -34,6 +37,7 @@ impl AgentPermissions {
             files: None,
             shell: None,
             tools: None,
+            questions: None,
         }
     }
 }
@@ -68,6 +72,20 @@ pub enum Shell {
 
 impl Default for Shell {
     fn default() -> Shell {
+        Self::Allow
+    }
+}
+/// Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Questions {
+    #[serde(rename = "allow")]
+    Allow,
+    #[serde(rename = "deny")]
+    Deny,
+}
+
+impl Default for Questions {
+    fn default() -> Questions {
         Self::Allow
     }
 }

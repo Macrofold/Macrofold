@@ -41,7 +41,7 @@ ModelParametersProviderParams = TypedDict('ModelParametersProviderParams', {"req
 
 LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]"})
 
-AgentPermissionsParams = TypedDict('AgentPermissionsParams', {"version": "Literal[1]", "files": "NotRequired[AgentPermissionsFilesParams]", "shell": "NotRequired[Literal[\"allow\", \"deny\"]]", "tools": "NotRequired[PermissionPatternsParams]"})
+AgentPermissionsParams = TypedDict('AgentPermissionsParams', {"version": "Literal[1]", "files": "NotRequired[AgentPermissionsFilesParams]", "shell": "NotRequired[Literal[\"allow\", \"deny\"]]", "tools": "NotRequired[PermissionPatternsParams]", "questions": "NotRequired[Literal[\"allow\", \"deny\"]]"})
 
 PermissionPatternsParams = TypedDict('PermissionPatternsParams', {"include": "NotRequired[list[str]]", "exclude": "NotRequired[list[str]]"})
 

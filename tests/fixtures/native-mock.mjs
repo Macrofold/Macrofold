@@ -14,6 +14,7 @@ const mediaValidator = mediaMode
 const questionMode = process.argv[3] === 'questions';
 const toolMode = process.argv[3] === 'tools';
 const permissionMode = process.argv[3] === 'permissions';
+const denyQuestions = harness === 'opencode' && permissionMode;
 // Guarded/media matrices include cold native startup and extraction after restore.
 const duration = permissionMode || mediaMode ? 120_000 : 60_000;
 const cancellation = process.argv[3] === 'cancel';
@@ -65,6 +66,7 @@ const configuration = {
         permissions: [
           {
             version: 1,
+            ...(denyQuestions ? { questions: 'deny' } : {}),
             files: { read: { exclude: ['**/*.env'] }, write: { include: ['native.txt', 'docs/**'] } },
           },
           { version: 1, files: { write: { exclude: ['docs/private/**'] } } },
@@ -200,7 +202,11 @@ await writeFile('/completed-control/snapshot/page-0.json', JSON.stringify(index.
 await rm('/workspace', { recursive: true, force: true });
 await rm('/agent-home', { recursive: true, force: true });
 const { restoreSnapshot } = await import('/opt/platform/restore.mjs');
-await restoreSnapshot('/completed-control/snapshot', { workspace: '/workspace', home: '/agent-home', harness }, 10001);
+await restoreSnapshot(
+  '/completed-control/snapshot',
+  { workspace: '/workspace', home: '/agent-home', harness },
+  10001,
+);
 await mkdir('/platform-control');
 await writeFile(
   '/platform-control/config.json',
@@ -236,4 +242,11 @@ if (permissionMode)
     observed.slice(previousCount).some((o) => o.fileRead),
     'Restored sessions must reconnect to checked file tools',
   );
+if (denyQuestions) {
+  assert(observed.length > 0);
+  assert(
+    observed.every((request) => !request.tools?.includes('question')),
+    'Denied native question schemas must be absent before and after restore',
+  );
+}
 console.log('Portable filesystem restore and native session continuation verified.');

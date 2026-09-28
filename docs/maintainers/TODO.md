@@ -70,7 +70,7 @@ No unit or integration suites are written or run for this continuation, as reque
 
 ## Native harness tool permissions
 
-- Readable connector aliases are implemented in the [authoring affordances plan](../projects/authoring-agent-affordances.md), with complete-identity disambiguation and warm-interface versioning. Three focused naming cases and 21 disposable-PostgreSQL broker cases pass. Local live activation and the separate native-question permission contract remain pending.
+- Readable connector aliases are implemented in the [authoring affordances plan](../projects/authoring-agent-affordances.md), with complete-identity disambiguation and warm-interface versioning. Three focused naming cases and 21 disposable-PostgreSQL broker cases pass. The optional native-question permission contract is approved and implemented for OpenCode; defaults remain unchanged and unsupported harness denials fail before reservation. Focused unit/API, actual native default/deny and warm/restore fixtures pass. Local live activation remains pending.
 
 - [ ] Expose native harness tool selection through the existing API permissions model and permission adapters, including disabling OpenCode’s built-in `question` tool. Map supported restrictions to each harness’s native configuration so disabled tools and their descriptions are omitted from model requests, not merely discouraged by instructions. Preserve connector and file-access restrictions; report unsupported mappings explicitly. Cover run-level overrides and inherited policy, add focused adapter/API tests, and document copyable request examples.
 

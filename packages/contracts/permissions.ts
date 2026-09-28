@@ -25,6 +25,7 @@ export const agentPermissionsSchema: z.ZodType<AgentPermissions> = z
     version: z.literal(1),
     files: z.object({ read: patterns.optional(), write: patterns.optional() }).strict().optional(),
     shell: z.enum(['allow', 'deny']).optional(),
+    questions: z.enum(['allow', 'deny']).optional(),
     tools: patterns.optional(),
   })
   .strict();
@@ -80,4 +81,8 @@ export function shellAllowed(layers: PermissionLayers) {
 }
 export function guardedToolsRequired(layers: PermissionLayers) {
   return filesRestricted(layers) || !shellAllowed(layers);
+}
+
+export function questionsAllowed(layers: PermissionLayers) {
+  return !layers.some((policy) => policy.questions === 'deny');
 }

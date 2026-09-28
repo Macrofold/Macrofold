@@ -8,6 +8,7 @@ import {
   permissionLayers,
   shellAllowed,
   toolAllowed,
+  questionsAllowed,
 } from '../../packages/contracts/permissions';
 import { permissionAdapters } from '../../packages/contracts/permission-adapters';
 import { permissionFileTools } from '../../packages/runtime/src/permission-files';
@@ -93,4 +94,15 @@ it('guards real file IO, filters listings and refuses symlink and parent travers
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+it('keeps native questions independent of connector patterns and intersects denials', () => {
+  expect(questionsAllowed([])).toBe(true);
+  expect(questionsAllowed([{ version: 1, tools: { include: [] } }])).toBe(true);
+  const layers = permissionLayers({ version: 1, questions: 'deny' }, { version: 1, questions: 'allow' });
+  expect(questionsAllowed(layers)).toBe(false);
+  expect(permissionAdapters.opencode.translate(layers)).toEqual({ mode: 'native', shell: 'allow' });
+  for (const harness of harnessNames.filter((name) => name !== 'opencode'))
+    expect(() => permissionAdapters[harness].translate(layers)).toThrow('only by OpenCode');
+  expect(agentPermissionsSchema.safeParse({ version: 1, questions: true }).success).toBe(false);
 });

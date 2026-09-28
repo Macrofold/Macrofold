@@ -100,6 +100,7 @@ async function start(value,expectWarm=false) {
     model:harness==='claude-code'?'claude-sonnet-4-6':'gpt-5.4',
     prompt:value.resumeId?'Confirm the prior task is complete.':'Create native.txt with a short note, then finish.',
     workspace:'/workspace',stateHome:'/agent-home',gatewayURL:'http://127.0.0.1:8787',toolURL:'http://127.0.0.1:8787/mcp',
+    ...(harness==='opencode'?{permissions:[{version:1,questions:'deny'}]}:{}),
     token:value.token,deadline:new Date(Date.now()+90000).toISOString(),toolGrants:false,resumeId:value.resumeId};
   const prepare=scoped(run,'prepare',{configuration,worktree_id:value.worktree,session_id:value.session,
     permission_view:digest('fixture-permissions'),checkpoint_id:value.checkpoint,session_revision:value.revision,
@@ -128,6 +129,10 @@ async function finish(run,outcome='success',expectWarm=false) {
   if(outcome==='success')assert(probe.events.some(event=>event.type==='runtime.started' && event.data.reused===expectWarm),
     `native adapter ${harness} must report actual process reuse`);
   const value=run.character;
+  if(harness==='opencode') {
+    if(outcome==='success')assert(value.fixture.observed.length>0);
+    assert(value.fixture.observed.every(request=>!request.tools?.includes('question')), 'Questions stay absent on cold, warm and replacement-host turns');
+  }
   value.entries=[];
   let total=1;
   while(value.entries.length<total){const page=await request(scoped(run,'snapshot',{offset:value.entries.length}));value.entries.push(...page.entries);total=page.total;}

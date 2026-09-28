@@ -49,10 +49,10 @@ trust_level = "untrusted"
 `;
 }
 
-export function openCodePermissionSettings(toolGrants: boolean): PermissionConfig {
+export function openCodePermissionSettings(toolGrants: boolean, questions = true): PermissionConfig {
   return {
     '*': 'deny',
-    question: 'allow',
+    question: questions ? 'allow' : 'deny',
     worktree_worktree_files: 'allow',
     ...(toolGrants ? { 'platform_*': 'allow' as const } : {}),
   };

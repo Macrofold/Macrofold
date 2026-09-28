@@ -4,6 +4,7 @@ import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
 import type { HarnessAdapter, HarnessContext, NativeResult } from './types';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { openCodePermissionSettings } from './permission-settings';
+import { questionsAllowed } from '../../contracts/permissions';
 export class OpenCodeAdapter implements HarnessAdapter {
   private server?: Awaited<ReturnType<typeof createOpencodeServer>>;
   private sessionId?: string;
@@ -21,6 +22,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
     setStage,
   }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
+    const allowQuestions = questionsAllowed(c.permissions || []);
     if (guarded && !fileTools) throw new Error('Checked file service unavailable.');
     const npm = c.provider === 'anthropic' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible';
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
@@ -59,8 +61,19 @@ export class OpenCodeAdapter implements HarnessAdapter {
             },
           },
           ...(guarded
-            ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
-            : { permission: { question: 'allow' as const, edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+            ? {
+                permission: openCodePermissionSettings(c.toolGrants, allowQuestions),
+                lsp: false,
+                formatter: false,
+              }
+            : {
+                permission: {
+                  question: allowQuestions ? ('allow' as const) : ('deny' as const),
+                  edit: 'allow' as const,
+                  bash: 'allow' as const,
+                  webfetch: 'deny' as const,
+                },
+              }),
           mcp: {
             ...(c.toolGrants
               ? {
@@ -126,6 +139,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
           // Drain to the session boundary, including all model/tool turns.
           if (raw.type === 'session.idle' && raw.properties.sessionID === sessionId) return;
           if (raw.type === 'question.asked' && raw.properties.sessionID === sessionId) {
+            if (!allowQuestions) throw new Error('Native questions are disabled for this run.');
             const request = raw.properties as {
               id: string;
               sessionID: string;

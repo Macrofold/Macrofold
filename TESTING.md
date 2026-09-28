@@ -16,6 +16,26 @@ When testing authentication libraries, explicitly enable the serving-mode protec
 
 `pnpm test:sdks` uses a disposable database, actual API handler, and simulator worker for all five clients. It requires Go, Rust, JDK 21, Maven, and the Python test extra (`python -m pip install './sdk/python[test]'`). See [SDK ownership and testing](docs/features/api/sdks/implementation.md) for language commands and verification boundaries.
 
+## Keep the verification loop fast
+
+Iterate on the smallest set that can detect the defect, and let CI run the full gates in parallel. Local measurements (Apple Silicon, September 2026) guide the choice:
+
+| Check                                                    | Typical time           | Use                                                                  |
+| -------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| One unit file (`pnpm exec vitest run tests/unit/<file>`) | seconds                | Inner loop for pure logic                                            |
+| One database-backed file (`pnpm test:domain <file>`)     | ~1 min                 | Inner loop for SQL, scheduling and lifecycle                         |
+| Full domain suite with coverage (`pnpm test:coverage`)   | ~1.5 min               | Once, when domain module floors or cross-file isolation are at stake |
+| Application acceptance (`pnpm test:coverage:all`)        | ~12 min                | CI; browser journeys on four workers take ~7 min                     |
+| Native image and harness matrix (`pnpm test:native`)     | 5–8 min build + ~7 min | Runtime or image changes                                             |
+| Docker API journeys (`pnpm test:journey:docker`)         | ~16 min                | Execution-path changes; otherwise CI                                 |
+
+- Before starting PR work, check the base branch's latest CI result. Report failures already present on the base separately; fix them only when authorized or when they block the task, never by rediscovering them through repeated local full runs.
+- Publish early and let CI's parallel jobs report every gate. Do not use a full local suite as the edit–verify loop, and do not repeat one locally after CI has run it on the same tree. Run a full local suite at most once, to reproduce a CI-only failure or when CI is unavailable.
+- Both coverage gates measure runtime (V8) execution. The domain gate counts Vitest only; the application gate also merges browser, server, worker and CLI observations. To close a gap, read the per-file numbers from the latest report (the `typescript-coverage` CI artifact or `coverage/full/merged/coverage-summary.json`), size the missing lines, write the tests once, then verify once.
+- Diagnose order-dependent or flaky failures on the smallest reproducing set with targeted instrumentation. Confirm isolation with one `--sequence.shuffle.files` run, not repeated full-suite trials.
+- Re-run a timed-out file in isolation before suspecting code; host load stretches serial suites. A timeout that passes in isolation is environmental unless it recurs in CI.
+- After a rebase, verify by what changed. A base that moved only in documentation or guidance needs `pnpm docs:check` and affected tests, not another full acceptance cycle.
+
 ## When to add or update tests
 
 - **New or changed behavior:** include tests in the same pull request. Identify the observable success result, meaningful rejection/failure cases, and relevant boundaries before implementing. Cover existing behavior that the change could break.
@@ -58,6 +78,8 @@ Use provider ports or transport handlers for deterministic external fixtures. Do
 Restore spies, replaced implementations, environment variables, globals, and timers after each test. Clearing a mock's call history does not restore its implementation. Be aware that `vi.mock` is hoisted before imports, and reset fake time with `vi.useRealTimers()`. Prefer explicit dependency injection over brittle import-order tricks. [Vitest mocking guidance](https://vitest.dev/guide/mocking.html).
 
 Each test must own its mutable fixtures: tenant IDs, temporary directories, ports, subprocesses, and caches. Use teardown/finally blocks, release database connections, and terminate only processes created by the test. Do not delete shared preview data or stop somebody else's preview worker. Keep [Vitest](vitest.config.ts) and [Playwright](playwright.config.ts) concurrency settings unchanged unless fixture, pool, and port isolation have been demonstrated.
+
+The domain wrapper runs files on parallel workers (`DOMAIN_TEST_WORKERS`, default up to four), each with its own clone of the migrated database; load tests stay serial. Files on one worker still share a database, and admission grants capacity only to the global fair turn. A leftover active or claimable Run blocks claims in every later file on that worker, so failures depend on file order. Fixtures that promote Runs to active states or leave accepted Runs unexecuted must retire them in teardown (`retireFixtureRuns` in [the account fixture](tests/fixtures/account.ts)). Browser files run on `PLAYWRIGHT_WORKERS` parallel workers (four in CI); each worker signs in as its own identically seeded account. Files that use the demo principal directly, database fixtures or deployment-wide surfaces are listed in [the Playwright configuration](playwright.config.ts) and run afterwards, serially, as the demo. Journeys on one worker still share an account: delete organization-wide resources a journey creates, and do not rely on another journey's state.
 
 Inject clocks or use explicit timestamps for expiry tests. JavaScript fake timers do not advance PostgreSQL time. For races, use separate connections/transactions and barriers or observable events that establish the ordering being tested. `Promise.all` alone does not prove competing operations overlapped. Test committed outcomes after both operations finish; arbitrary sleeps are not synchronization.
 

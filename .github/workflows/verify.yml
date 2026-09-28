@@ -52,6 +52,35 @@ jobs:
       - name: Stop SDK fixture infrastructure
         if: always()
         run: docker compose -f infra/compose.yml down -v
+  changes:
+    name: Change scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      application: ${{ steps.scope.outputs.application }}
+    steps:
+      # Browser/CLI acceptance runs on pull requests only when an application surface changed.
+      # Pushes to main, the merge queue, schedules and manual runs always run everything.
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then echo application=true >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename')
+          count=$(printf '%s\n' "$files" | grep -c . || true)
+          pattern='^(apps/web/|packages/|sdk/typescript/|examples/personal-agent/|tests/(browser|cli|fixtures)/|scripts/|infra/compose\.yml|docs/navigation\.json|docs/api/|playwright\.config\.ts|vitest\.config\.ts|package\.json|pnpm-lock\.yaml|\.github/workflows/verify\.yml)'
+          # The files API stops at 3,000 entries; treat a truncated list as an application change.
+          if [ "$count" -ge 3000 ] || printf '%s\n' "$files" | grep -Eq "$pattern"; then
+            echo application=true >> "$GITHUB_OUTPUT"
+          else
+            echo application=false >> "$GITHUB_OUTPUT"
+          fi
   acceptance:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -72,30 +101,47 @@ jobs:
           python-version: '3.12'
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run setup
-      - run: pnpm docs:check && pnpm check && pnpm build
+      # Every step after setup runs even when an earlier one fails, so one run reports every
+      # failure. The job still fails if any step fails.
+      - name: Documentation, types and production build
+        if: ${{ !cancelled() }}
+        run: pnpm docs:check && pnpm check && pnpm build
+      - name: Domain tests and coverage floors
+        if: ${{ !cancelled() }}
+        run: pnpm exec tsx scripts/coverage/all.ts --domain
       - name: Isolated Prisma recipe
+        if: ${{ !cancelled() }}
         run: |
           pnpm --dir examples/integrations/prisma --ignore-workspace install --frozen-lockfile
           pnpm --dir examples/integrations/prisma test
           pnpm --dir examples/integrations/prisma --ignore-workspace audit --audit-level high
-      - name: Domain, contract and package acceptance
+      - name: Scheduling load
+        if: ${{ !cancelled() }}
+        run: pnpm test:load
+      - name: Installation and restore
+        if: ${{ !cancelled() }}
+        run: pnpm exec tsx scripts/test-install.ts
+      - name: Package installation
+        if: ${{ !cancelled() }}
+        run: pnpm test:packages
+      - name: Python SDK and cost coverage
+        if: ${{ !cancelled() }}
         run: |
           python -m pip install './sdk/python' pytest 'coverage==7.13.5'
-          pnpm test:coverage:all
-          pnpm test:load
-          pnpm exec tsx scripts/test-install.ts
-          pnpm test:packages
           mkdir -p coverage/python
           COVERAGE_FILE=coverage/python/.coverage PYTHONPATH=sdk/python python -m coverage run -m pytest sdk/python/tests tests/test_costs.py
           COVERAGE_FILE=coverage/python/.coverage python -m coverage report
           COVERAGE_FILE=coverage/python/.coverage python -m coverage xml
           COVERAGE_FILE=coverage/python/.coverage python -m coverage json -o coverage/python/coverage.json
-          pnpm docs:check
+      - name: Generated contract drift
+        if: ${{ !cancelled() }}
+        run: |
           pnpm contracts
           git diff --exit-code -- packages/contracts/api.d.ts sdk/typescript/src/schema.d.ts sdk/typescript/src/routes.ts sdk/typescript/src/resources.ts sdk/python/macrofold/routes.json docs/features/api/sdks/reference.md
-          pnpm audit --audit-level high
+      - name: Dependency audit
+        if: ${{ !cancelled() }}
+        run: pnpm audit --audit-level high
       - name: Coverage report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -104,12 +150,53 @@ jobs:
           path: coverage/
           if-no-files-found: warn
           retention-days: 7
+      - name: Stop fixture infrastructure
+        if: always()
+        run: docker compose -f infra/compose.yml down -v
+  application:
+    name: Application acceptance
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PLATFORM_MODE: local
+      EXECUTION_PROVIDER: simulator
+      ALLOW_PAID_EXECUTION: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Parallel browser workers each sign in as their own seeded account.
+      PLAYWRIGHT_WORKERS: '4'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.13.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: python -m pip install './sdk/python'
+      - run: pnpm run setup
+      - name: Browser, server, CLI, terminal and Python journeys
+        run: pnpm exec tsx scripts/test-dashboard.ts
+      - name: Application coverage observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: application-coverage
+          path: coverage/full/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Browser failure evidence
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: browser-failure-evidence
-          path: test-results
+          path: coverage/full/test-results
           retention-days: 7
       - name: Stop fixture infrastructure
         if: always()
@@ -200,30 +287,63 @@ jobs:
           retention-days: 7
   coverage:
     name: Combined coverage gates
-    needs: [acceptance, native]
+    needs: [acceptance, application, native]
+    # Always report: this required check aggregates every verification job. It fails, rather
+    # than skipping, when any of them failed; application acceptance may be skipped by scope.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - name: Require upstream verification
+        env:
+          ACCEPTANCE: ${{ needs.acceptance.result }}
+          APPLICATION: ${{ needs.application.result }}
+          NATIVE: ${{ needs.native.result }}
+        run: |
+          echo "acceptance=$ACCEPTANCE application=$APPLICATION native=$NATIVE"
+          [ "$ACCEPTANCE" = success ] && [ "$NATIVE" = success ] && { [ "$APPLICATION" = success ] || [ "$APPLICATION" = skipped ]; }
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: needs.application.result == 'success'
         with:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: needs.application.result == 'success'
         with:
           node-version: 24.13.0
-      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
-      - run: pnpm install --frozen-lockfile
+      - if: needs.application.result == 'success'
+        run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - if: needs.application.result == 'success'
+        run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.application.result == 'success'
         with:
           name: typescript-coverage
           path: coverage/
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.application.result == 'success'
+        with:
+          name: application-coverage
+          path: coverage/full/
+      - name: Application coverage gate
+        if: needs.application.result == 'success'
+        run: pnpm coverage:merge
+        env:
+          COVERAGE_REQUIRED_SURFACES: browser,server,worker,cli
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.application.result == 'success'
         with:
           name: native-coverage
           path: coverage/full/native/
-      - run: pnpm coverage:merge
+      - name: Combined coverage gate
+        if: needs.application.result == 'success'
+        run: pnpm coverage:merge
         env:
           COVERAGE_REQUIRED_SURFACES: browser,server,worker,cli,native
+      - name: Application acceptance not required
+        if: needs.application.result == 'skipped'
+        run: echo "No application surface changed; acceptance enforced the domain floors."
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: needs.application.result == 'success'
         with:
           name: combined-coverage
           path: |
@@ -231,7 +351,7 @@ jobs:
             coverage/python/
           retention-days: 7
       - name: Publish public TypeScript coverage
-        if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
+        if: needs.application.result == 'success' && vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
         uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
         with:
           files: coverage/full/merged/lcov.info
@@ -239,7 +359,7 @@ jobs:
           disable_search: true
           fail_ci_if_error: true
       - name: Publish separate Python coverage
-        if: vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
+        if: needs.application.result == 'success' && vars.CODECOV_ENABLED == 'true' && github.event.repository.private == false
         uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
         with:
           files: coverage/python/coverage.xml

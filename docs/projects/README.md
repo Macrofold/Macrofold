@@ -8,6 +8,10 @@ Specs describe observable outcomes, journeys, scope, failures, acceptance and fe
 
 Project documents retain proposal-specific context. Current feature behavior stays in `docs/features/`, cross-cutting architecture in `docs/architecture/`, and unfinished implementation/acceptance work in [maintainer TODO](../maintainers/TODO.md). Link each new project here and from affected owners. The [design approval workflow](../../.agents/skills/macrofold-design/SKILL.md#approval-to-implementation) owns the transition from documents to implementation.
 
+## Plans
+
+- [Verification speed](verification-speed.md): required checks, targeted verification, parallel domain and browser suites, path-scoped application acceptance.
+
 ## Existing accepted targets
 
 - [Workers and shared hosts](../architecture/worker-execution.md) remains in its existing authoritative location; do not move or duplicate it merely to use this directory. Its linked migration work remains separate from implemented sandbox behavior.

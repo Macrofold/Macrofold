@@ -6,13 +6,18 @@ import pg from 'pg';
 import { config, isLocal } from '../packages/core/src/config';
 import { command } from './coverage/processes';
 
-export async function withFixtureDatabase(run: (env: NodeJS.ProcessEnv) => Promise<void>) {
+/** `workers` > 1 clones the migrated database once per parallel Vitest worker. */
+export async function withFixtureDatabase(
+  run: (env: NodeJS.ProcessEnv) => Promise<void>,
+  { workers = 1 }: { workers?: number } = {},
+) {
   if (!isLocal() || config.allowPaid || config.execution !== 'simulator')
     throw new Error('Acceptance requires the unpaid local profile.');
   const database = 'platform_test_' + randomUUID().replaceAll('-', '');
   const directory = await mkdtemp(path.join(tmpdir(), 'platform-tests-'));
   const owner = new pg.Client({ connectionString: config.ownerDatabaseUrl });
   let created = false;
+  const clones: string[] = [];
   try {
     await owner.connect();
     await owner.query('CREATE DATABASE ' + database);
@@ -57,9 +62,19 @@ export async function withFixtureDatabase(run: (env: NodeJS.ProcessEnv) => Promi
     } finally {
       await fixture.end();
     }
-    await run(env);
+    // Scheduling, capacity and advisory locks are per database. A template clone per worker
+    // keeps files isolated without repeating migrations; names keep the fixture-only prefix.
+    for (let worker = 1; workers > 1 && worker <= workers; worker++) {
+      const clone = 'platform_test_' + randomUUID().replaceAll('-', '');
+      await owner.query('CREATE DATABASE ' + clone + ' TEMPLATE ' + database);
+      clones.push(clone);
+    }
+    await run(
+      clones.length ? { ...env, FIXTURE_DATABASES: clones.join(','), FIXTURE_DATA_ROOT: directory } : env,
+    );
   } finally {
     try {
+      for (const clone of clones) await owner.query('DROP DATABASE ' + clone + ' WITH (FORCE)');
       if (created) await owner.query('DROP DATABASE ' + database + ' WITH (FORCE)');
     } finally {
       await owner.end();

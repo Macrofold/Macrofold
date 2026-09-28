@@ -8,7 +8,45 @@ export const fixtureOrigin = process.env.APP_ORIGIN || 'http://localhost:3210';
 
 /** Instrument all pages, including explicit second tabs, before their first navigation.
  * Capture before close and before fixture teardown; never call an external source-map URL. */
-export const test = base.extend<{ coverage: void }>({
+export const test = base.extend<{ coverage: void; workerAccount: void }>({
+  // Parallel workers share one app and database. Each signs in as its own identically seeded
+  // account, so organization state never crosses files. Shared-state journeys keep the demo.
+  workerAccount: [
+    async ({ browser, context }, use, testInfo) => {
+      const dataDir = process.env.DATA_DIR;
+      if (testInfo.project.name !== 'isolated' || !dataDir) return use();
+      let account: { email: string; password: string };
+      try {
+        account = JSON.parse(
+          await readFile(path.join(dataDir, `browser-worker-${testInfo.parallelIndex}.json`), 'utf8'),
+        );
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return use();
+        throw error;
+      }
+      const reroute = (value: BrowserContext) =>
+        value.route('**/auth/sign-in/email', async (route) => {
+          const body = route.request().postDataJSON() as { email?: string } | null;
+          if (body?.email !== 'demo@example.test') return route.continue();
+          await route.continue({
+            postData: JSON.stringify({ ...body, email: account.email, password: account.password }),
+          });
+        });
+      await reroute(context);
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (options) => {
+        const value = await newContext(options);
+        await reroute(value);
+        return value;
+      };
+      try {
+        await use();
+      } finally {
+        browser.newContext = newContext;
+      }
+    },
+    { auto: true },
+  ],
   coverage: [
     async ({ browser, context }, use) => {
       if (!process.env.BROWSER_COVERAGE_DIR) return use();

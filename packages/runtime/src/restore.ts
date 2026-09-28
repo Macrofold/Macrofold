@@ -4,12 +4,13 @@ import { chown, lstat, mkdir, open, readFile, readdir, rename, symlink, unlink }
 import path from 'node:path';
 import { atomicJSON, relativePath, type SnapshotEntry } from './manifest';
 import { isNativeAuthPath } from './auth-paths';
+import { isPersistentPath, type SnapshotRoots } from './persistence-paths';
 import { assignedRoots } from './host-paths';
 
 /** Restore into a new, unstarted VM only. Links are created last so they cannot redirect a write. */
 export async function restoreSnapshot(
   directory: string,
-  roots: { workspace: string; home: string },
+  roots: SnapshotRoots,
   uid?: number,
 ) {
   const entries: SnapshotEntry[] = [];
@@ -38,6 +39,8 @@ export async function restoreSnapshot(
     ...entries.filter((e) => e.type === 'file'),
     ...entries.filter((e) => e.type === 'symlink'),
   ]) {
+    // Validate every entry above, but fetch bytes only for this harness's durable state.
+    if (!isPersistentPath(roots.harness, entry.namespace, entry.path)) continue;
     const root = roots[entry.namespace],
       dest = path.join(root, entry.path);
     const parents = entry.path.split('/').slice(0, -1);
@@ -94,8 +97,9 @@ export async function restoreAssigned(control: string) {
   try {
     const { runtimeConfiguration } = await import('./supervisor');
     const configuration = JSON.parse(await readFile(`${control}/config.json`, 'utf8'));
-    const roots = assignedRoots(runtimeConfiguration.parse(configuration), control);
-    await restoreSnapshot(`${control}/restore`, roots, roots.uid);
+    const parsed = runtimeConfiguration.parse(configuration);
+    const roots = assignedRoots(parsed, control);
+    await restoreSnapshot(`${control}/restore`, { ...roots, harness: parsed.harness }, roots.uid);
     await atomicJSON(`${control}/restore-result.json`, { ok: true });
     return true;
   } catch {

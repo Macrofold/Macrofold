@@ -15,13 +15,13 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-fault-'));
   directories.push(root);
-  const source = { workspace: path.join(root, 'source'), home: path.join(root, 'home') };
+  const source = { harness: 'codex' as const, workspace: path.join(root, 'source'), home: path.join(root, 'home') };
   await mkdir(source.workspace);
   await mkdir(source.home);
   await writeFile(path.join(source.workspace, 'file.txt'), 'verified new content');
   const snapshot = path.join(root, 'snapshot');
   const index = await captureSnapshot(source, snapshot);
-  const target = { workspace: path.join(root, 'target'), home: path.join(root, 'target-home') };
+  const target = { harness: 'codex' as const, workspace: path.join(root, 'target'), home: path.join(root, 'target-home') };
   await mkdir(target.workspace);
   await writeFile(path.join(target.workspace, 'file.txt'), 'retained content');
   const publish = () => writeFile(path.join(snapshot, 'page-0.json'), JSON.stringify(index.entries));
@@ -92,7 +92,8 @@ describe('checkpoint validation and atomic file publication', () => {
   });
   it('rejects an extra entry without publishing a partial checkpoint index', async () => {
     const f = await fixture();
-    await writeFile(path.join(f.source.home, 'session.txt'), 'session');
+    await mkdir(path.join(f.source.home, '.codex/sessions'), { recursive: true });
+    await writeFile(path.join(f.source.home, '.codex/sessions/history.jsonl'), 'session');
     const output = path.join(f.root, 'entry-limit');
     await expect(captureSnapshot(f.source, output, { bytes: 1000, entries: 1 })).rejects.toThrow(
       'checkpoint_entry_limit',
@@ -284,7 +285,7 @@ describe('assigned restore command', () => {
   it('records an integrity failure without writing when the configuration names unassigned roots', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-roots-'));
     directories.push(root);
-    const redirected = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+    const redirected = { harness: 'codex' as const, workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
     const { directory, result } = await control(configuration(redirected.workspace, redirected.home));
     expect(await restoreAssigned(directory)).toBe(false);
     expect(await result()).toEqual({ ok: false, code: 'restore_integrity_failure' });

@@ -45,6 +45,14 @@ The MCP broker makes these requests from the Macrofold control-plane process, no
 
 Hosted deployments, webhooks, OAuth client-metadata fetching and other unrelated outbound requests still require public HTTPS. Only list local services you trust; HTTP does not encrypt traffic. Missing/unlisted origins return `unsafe_url`; malformed allowlist configuration returns `invalid_local_mcp_origins` and must be corrected by the operator. An unreachable allowed server is a separate URL/listener/firewall issue.
 
+## Tool input schemas
+
+The tool broker validates arguments before charging or invoking a connector. Input schemas may declare JSON Schema draft-7 or draft 2020-12 with `$schema`; schemas without a declaration retain draft-7 behavior. A 2020-12 declaration uses that dialect's validation rules, including `prefixItems` and `unevaluatedProperties`.
+
+Provide self-contained schemas: local `$ref` references within the schema are supported, but Macrofold does not download external schema references or resolve them against another connection's catalog. Asynchronous AJV schema extensions are unsupported.
+
+An argument mismatch returns `invalid_tool_arguments`. An invalid schema, unsupported dialect or unresolved reference returns `invalid_tool_schema`; ask the connector maintainer to correct the schema. Runtime MCP returns these as tool errors (`isError: true`) containing the standard error object. Neither rejection invokes the tool or incurs its connector fee.
+
 ## Approved stdio MCP packages
 
 `GET /v1/stdio-packages` lists the operator-reviewed catalog. The default runtime image includes `@modelcontextprotocol/server-filesystem@2026.8.31`, exposing the reviewed read_text_file, write_file, list_directory and get_file_info tools. A user creates an `mcp_stdio` connection with package and package_version, approves tools and access rules, then inherits or selects them for a run. Discovery uses the reviewed schema catalog without launching a billable sandbox. The Test action clearly reports that live startup occurs during the first run.

@@ -66,6 +66,8 @@ Completed persistence, editor saves, and accepted transfers publish verified che
 
 A catastrophic sandbox loss can lose edits since the last published checkpoint. Current files and compatible native conversation state persist separately from detailed run-history retention.
 
+Your worktree is the durable file tree: all its files, including hidden files and dependencies, survive checkpoints. Each harness also preserves its native conversation history and declared memory, skills and related resources. The rest of the agent's private home is disposable runtime state; caches and installed dependencies are rebuilt on a cold worker. Put deliverables and shared files in the worktree, not in home or temporary directories. Warm reuse can retain caches but does not make them durable.
+
 ## Connect GitHub
 
 Authorize the deployment's GitHub App for a repository you can access. Choose a target branch and synchronization behavior. Runs can queue a separate sync after their checkpoint is saved. Protected branches, conflicts, or revoked access can block a push while leaving your files available.

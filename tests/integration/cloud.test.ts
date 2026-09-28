@@ -70,6 +70,41 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('durable cloud lifecycle with fault injection', () => {
+  it('skips regenerable home objects before restoration and upload while publishing native history', async () => {
+    const s = await scenario(), provider = new FaultMachine();
+    const saved = await saveContent(s.org, Buffer.from('synthetic native history'));
+    const history: FileRecord = { ...saved, path: '.codex/memories_1.sqlite', type: 'file',
+      mode: 0o600, git_ignored: true, modified_at: new Date().toISOString() };
+    await transaction(s.org, async tx => {
+      const run = await getRun(tx, s.runId);
+      await resources.update(tx, 'sessions', run.session_id, { state_files: [history, {
+        ...history, path: '.unknown-runtime/install-v2/plugin.js', sha256: '0'.repeat(64),
+        key: `${s.org}/content/${'0'.repeat(64)}`,
+      }] });
+    });
+    const snapshot = provider.snapshotPage.bind(provider);
+    vi.spyOn(provider, 'snapshotPage').mockImplementation(async (binding, offset) => {
+      const page = await snapshot(binding, offset);
+      return { ...page, total: page.total + 2, entries: [...page.entries,
+        { ...page.entries[2], path: '.codex/memories_1.sqlite' },
+        { ...page.entries[2], path: '.unknown-runtime/downloads-v2/cache', sha256: '0'.repeat(64),
+          chunks: [{ hash: '0'.repeat(64), size: provider.bytes.length }] },
+      ] };
+    });
+    for (let i = 0; i < 40; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
+    const run = await transaction(s.org, tx => getRun(tx, s.runId));
+    expect(run.status).toBe('succeeded');
+    expect(run.result.persistence_status).toBe('verified');
+    expect(provider.stageFiles.get(`/platform-control/restore/chunks/${history.sha256}`)).toEqual(Buffer.from('synthetic native history'));
+    const pages = [...provider.stageFiles.entries()].filter(([name]) => /page-\d+\.json$/.test(name));
+    expect(pages.length).toBeGreaterThan(0);
+    for (const [, bytes] of pages) expect(bytes.toString()).not.toContain('.unknown-runtime/install-v2');
+    const session = await transaction(s.org, tx => resources.get(tx, 'sessions', run.session_id));
+    expect(session.state_files?.map(file => file.path).sort()).toEqual(['.codex/memories_1.sqlite', '.codex/sessions/history.jsonl']);
+    for (const file of session.state_files || []) expect(await readContent(file.key, file.sha256)).toEqual(provider.bytes);
+    expect(provider.starts).toBe(1);
+  });
+
   it('advances ready phases immediately, batches restoration, and preserves progress after a lost upload acknowledgement', async () => {
     const s = await scenario(),
       provider = new FaultMachine();
@@ -330,7 +365,7 @@ describe('durable cloud lifecycle with fault injection', () => {
     expect((saved.ws.git_files as FileRecord[])[0].path).toBe('.git/HEAD');
     const session = await transaction(s.org, (tx) => resources.get(tx, 'sessions', saved.run.session_id));
     expect(session.native_session_id).toBe('native-session');
-    expect((session.state_files as FileRecord[])[0].path).toBe('.codex/state.json');
+    expect((session.state_files as FileRecord[])[0].path).toBe('.codex/sessions/history.jsonl');
     const journal = await transaction(s.org, (tx) =>
       tx.query('SELECT sum(amount_micro_usd) AS balance FROM ledger WHERE reference=$1', [`run:${s.runId}`]),
     );
@@ -361,7 +396,7 @@ describe('durable cloud lifecycle with fault injection', () => {
       ),
     );
     const staged = pages.rows.flatMap((row) => row.data.entries).map((e) => `${e.namespace}/${e.path}`);
-    expect(staged).toEqual(['home/.codex/state.json']);
+    expect(staged).toEqual(['home/.codex/sessions/history.jsonl']);
     const restored = JSON.parse(host.stageFiles.get('/platform-control/restore/page-0.json')!.toString());
     expect(restored.map((e: { namespace: string }) => e.namespace)).toEqual(['home']);
     const run = await transaction(s.org, (tx) => getRun(tx, followUp));
@@ -372,6 +407,25 @@ describe('durable cloud lifecycle with fault injection', () => {
     const s = await scenario(),
       provider = new FaultMachine();
     provider.lostLaunch = true;
+    // Establish real overlap. Promise.all alone also allows sequential ready
+    // phases to finish and be claimed again, which is valid immediate progress.
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const provision = provider.provision.bind(provider);
+    vi.spyOn(provider, 'provision').mockImplementationOnce(async name => {
+      entered();
+      await gate;
+      return provision(name);
+    });
+    const first = dispatchCloudPoller(provider, 1, s.org);
+    try {
+      await started;
+      expect(await dispatchCloudPoller(provider, 1, s.org)).toMatchObject({ advanced: 0, failed: 0 });
+    } finally {
+      release();
+      await first;
+    }
     let done = false;
     for (let i = 0; i < 60 && !done; i++) {
       await pool.query("UPDATE dispatch_jobs SET available_at=now() WHERE kind='run' AND resource_id=$1", [
@@ -381,9 +435,9 @@ describe('durable cloud lifecycle with fault injection', () => {
         dispatchCloudPoller(provider, 1, s.org),
         dispatchCloudPoller(provider, 1, s.org),
       ]);
-      expect(results.reduce((n, r) => n + r.advanced, 0)).toBeLessThanOrEqual(1);
+      expect(results.every(result => result.failed === 0)).toBe(true);
       const row = await transaction(s.org, (tx) => getRun(tx, s.runId));
-      done = (row.execution_binding as any)?.phase === 'done';
+      done = row.execution_binding?.phase === 'done';
     }
     expect(done).toBe(true);
     expect(provider.starts).toBe(1);

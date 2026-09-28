@@ -13,3 +13,4 @@ Project documents retain proposal-specific context. Current feature behavior sta
 - [Workers and shared hosts](../architecture/worker-execution.md) remains in its existing authoritative location; do not move or duplicate it merely to use this directory. Its linked migration work remains separate from implemented sandbox behavior.
 
 - [Local MCP development](local-mcp.md): explicit local-origin policy and verification.
+- [Native home persistence](native-home-persistence.md): explicit durable state per harness, disposable runtime home, and verified cold continuation.

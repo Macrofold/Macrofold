@@ -23,6 +23,10 @@ export class HermesAdapter implements HarnessAdapter {
           HOME: c.stateHome,
           LANG: 'C.UTF-8',
           HERMES_HOME: `${c.stateHome}/.hermes`,
+          // Dependencies are pinned in the image. Provider discovery otherwise
+          // attempts optional pip installs on every cold home (even for Bedrock,
+          // which is not our gateway route). See runtime.md#native-home-persistence.
+          HERMES_DISABLE_LAZY_INSTALLS: '1',
           HERMES_YOLO_MODE: '1',
           TERMINAL_ENV: 'local',
           TERMINAL_CWD: c.workspace,

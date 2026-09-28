@@ -72,19 +72,44 @@ Pi uses `createAgentSession`, the official `SessionManager`, in-memory runtime c
 
 Hermes and DeepSeek share only their private process framing/cleanup helper. The existing supervisor still owns cancellation, deadlines, execution identity, process-tree shutdown and capture for every harness. No scheduler, hosting provider or public streaming system was added.
 
-Native session files include `.hermes`, `.dsh/sessions` and `.pi/agent/sessions`, as well as the hidden state used by OpenCode, Claude and Codex. Capture preserves required local continuation state, including dot-prefixed paths; a native conversation ID alone does not substitute for missing local history. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from workspace files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
+Each harness declares its durable native state under the [native home persistence contract](#native-home-persistence), including hidden session/history and memory paths. Capture preserves required local continuation state, including dot-prefixed paths; a native conversation ID alone does not substitute for missing local history. Temporary gateway/MCP configuration and recognized authentication files are excluded before capture and rejected on restore; they are rebuilt for each admitted run. Capability-bearing config is separate from workspace files, Git and exports. This is not an authentication vault, and cannot hide a credential from tools running as the same OS user.
 
 Pinned versions, image cost and release checks are recorded in [dependency review](../../engineering/dependencies.md) and [harness acceptance](../../engineering/testing/harnesses.md).
 
 ## Portable persistence
 
-Portable checkpoints include ordinary and hidden files, Git metadata, adapter-native continuation state, and symbolic links. Recognized authentication paths remain excluded during capture and rejected on restore. Control-plane indexing preserves the same accepted entries rather than discarding hidden paths a second time. Symlinks are recorded without traversing them. Runtime sockets and FIFOs are excluded because they are process resources. Empty directories are not represented. Hard links restore as independent files with identical content. Restore creates ordinary files before links and rejects any entry that descends through a symlink, preventing a checkpoint from redirecting writes outside its restore root.
+Portable checkpoints include ordinary and hidden worktree files, Git metadata, adapter-native continuation state, and symbolic links. Recognized authentication paths remain excluded during capture and rejected on restore. Only declared native home state is retained under the [native home policy](#native-home-persistence). Control-plane indexing preserves the same accepted entries rather than discarding hidden paths a second time. Symlinks are recorded without traversing them. Runtime sockets and FIFOs are excluded because they are process resources. Empty directories are not represented. Hard links restore as independent files with identical content. Restore creates ordinary files before links and rejects any entry that descends through a symlink, preventing a checkpoint from redirecting writes outside its restore root.
 
 Files are split into 4 MiB content-addressed chunks. Each chunk is encrypted before object storage. An encrypted manifest records chunk hashes, complete file hash, size, mode and timestamp. The control plane verifies chunks and the complete file hash before atomically publishing a checkpoint. Large file verification streams chunks, bounding memory use. Public file transfer and editor limits remain separate from the internal checkpoint format.
 
 The initial runtime limits are 10 GiB and 100,000 persistent file entries across worktree and native home. Exceeding a capture limit fails persistence explicitly. The last verified checkpoint stays available, automatic compute retains provider recovery state where supported; shared-Host failures quarantine only the affected materialization, and further writers are blocked until recovery or an explicit restore. Provider recovery snapshots expire after seven days by default; they are an emergency recovery mechanism, not the long-term source of truth. Successful portable publication permits VM and temporary snapshot cleanup.
 
 Git data is stored separately from the dashboard's editable file collection. Native home state belongs to the session and is restored when that session continues. The same run model rate card is frozen at admission, so configuration changes cannot retroactively alter its retail token rates.
+
+### Native home persistence
+
+[`persistence-paths.ts`](../../../packages/runtime/src/persistence-paths.ts) owns a typed, exhaustive durable-state profile for every pinned harness. The admitted harness selects it at capture, control-plane restore preparation, output indexing and runtime restoration. A manifest cannot select or broaden the profile.
+
+- **Worktree:** all ordinary/hidden files, Git metadata and dependencies remain durable, subject to existing permissions and checkpoint limits. Creator, extension and `.gitignore` do not decide durability.
+- **Native home:** only declared session stores, associated assets, memory and authored resources are durable. Directory declarations include descendants; file declarations match exactly. Ancestors are traversed only to reach those roots, never followed through symlinks.
+- **Other runtime state:** installations, logs, locks, caches and arbitrary files elsewhere in home are disposable. Unknown new directories require no additional ignore rule. Warm handles may retain them, but a replacement Host does not restore them. Store deliverables in the worktree.
+
+| Harness | Durable native state |
+| --- | --- |
+| Codex | Sessions/archived sessions, memory, skills, agent guidance and session index; pinned state, memory, goal, queue and thread-history SQLite databases. |
+| Claude Code | Project transcripts, subagents, auto-memory and tool results; task/todo state, plans, file history and referenced pasted/image assets; skills, commands, agents, rules and agent memory. |
+| OpenCode | Session database, tool-output overflow and undo snapshots; declared configuration files and authored agents, commands, skills, tools and plugins. Installed packages are rebuilt. |
+| Hermes | Session database/transcripts, memory, skills and SOUL guidance. |
+| DeepSeek | Native session directory. Runtime configuration is rebuilt. |
+| Pi | Sessions, skills and recognized global agent/system guidance. Credentials and runtime model configuration are rebuilt. |
+
+The registry is the exact path contract for the dependency versions in the runtime image. SQLite databases include WAL, SHM and rollback-journal companions: writers must be stopped or suspended before capture, so committed history still in a WAL is retained. Do not open/checkpoint their databases from the supervisor. Recognized authentication paths remain excluded during capture and rejected on restore, independently of the profile. Declaring a resource durable does not enable disabled native features or override Macrofold's managed settings.
+
+The same policy filters home records before object-store reads and runtime output chunks before scheduling transfers. Restore validates every supplied entry's path, namespace, credential exclusion and symlink ancestry before skipping undeclared state. Retained content keeps hash/size checks, atomic publication and recovery behavior. Previous checkpoint objects are not rewritten or purged; ordinary retention owns their eventual collection.
+
+A cold Host rebuilds disposable state. Required offline dependencies belong in the pinned runtime image; optional plugins may need package access/startup time again. Hermes uses its upstream `HERMES_DISABLE_LAZY_INSTALLS=1` switch: optional provider discovery must not attempt package installation into the immutable environment on every cold start. Enabled Hermes toolsets use image dependencies; terminal commands in the worktree remain subject to normal run permissions. Native skill/resource directories are durable as a whole, so dependencies deliberately placed inside those directories also persist. This contract avoids guessing authorship or parsing package-manager layouts. Keep regenerable packages outside durable resource directories; keep shared outputs in the worktree.
+
+For a harness upgrade, inspect changed upstream storage paths, update its profile, and prove native continuation **in a fresh container**, including associated assets and learned resources. Missing native history must fail rather than silently start a new conversation. See the [UHI contribution procedure](unified-harness-interface.md#contribute-a-harness) and [implementation/acceptance record](../../projects/native-home-persistence.md). Rebuild runtime images and restart only idle control-plane pollers to activate both sides; existing Hosts retain their original image. Public API/SDK fields, financial settlement, execution identity and cancellation are unchanged.
 
 ## Model and connector accounting
 
@@ -145,4 +170,3 @@ The Host controller owns a bounded collection of live harness handles, independe
 The loopback model/tool bridge captures the current Run capability on each request and rejects requests while idle. Capabilities, deadline, tracing identity and budget are refreshed for every turn. The root supervisor suspends retained native processes, terminates tool descendants and verifies quiescence before capture. Failed/cancelled turns discard their live handle; only published durable state can be resumed later.
 
 Warm retention is bounded by idle expiry, process count and memory pressure. It can disappear after an external edit, configuration change, pause, process loss or Host replacement. Global placement currently uses persisted authorized Worktree materializations; a local compatible handle can accelerate a selected Host, but no durable global warm-process registry is required for correctness. See [Workers](workers.md) for the public contract.
-

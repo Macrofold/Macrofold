@@ -24,6 +24,8 @@ Checkpoints preserve regular files, ignored files, safe symlink objects, executa
 
 Known native authentication files, runtime configuration and Claude configuration backups are excluded before snapshot chunk creation and cloud transfer. Restore rejects an authentication entry before writing any files. This prevents ordinary credential persistence; it does not make a secret readable by the native UID safe from that UID's tools. Subscription login remains unavailable pending a separately isolated, approved authentication design.
 
+Each harness declares its durable home state through the shared [persistence contract](../execution/runtime.md#native-home-persistence): native history, SQLite companions, associated assets and supported memory/resources. Everything else in native home is disposable without a cache denylist. All worktree files remain durable; existing checkpoint objects are not deleted or rewritten.
+
 This replaces the proposed per-worktree restic repositories. The benefit is direct bounded file browsing and one verified representation shared by local and cloud execution. The cost is application-owned manifest validation, reachability and garbage collection; those have dedicated corruption, symlink, retention, concurrency and restore tests. R2 and provider snapshots are independent copies. A provider snapshot is a seven-day emergency recovery cache, not the durable workspace filesystem.
 
 ## Publication and restore

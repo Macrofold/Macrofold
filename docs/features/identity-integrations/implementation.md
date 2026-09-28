@@ -52,6 +52,12 @@ Approved stdio packages execute inside the already allocated customer's sandbox,
 
 Disconnect immediately clears the approved tools and organization toggle and increments the shared access version; retained rules cannot authorize a disconnected account. Durable cleanup separately deletes the Composio account or invokes supported MCP revocation. Unsupported revocation and provider API keys need explicit upstream revocation if the user intends to invalidate them everywhere. No background health check calls paid tools merely to color a dashboard badge: test/discovery and actual runtime outcomes supply status, and external setup still requires operator verification.
 
+## Tool schema validation
+
+The broker delegates input checking to [tool-arguments.ts](../../../packages/core/src/tool-arguments.ts) before fee reservation or dispatch. Separate installed AJV validators preserve draft-7 behavior and implement declared draft 2020-12 semantics; [AJV's dialect guidance](https://ajv.js.org/json-schema.html#draft-2020-12-breaking) explains why adding only the newer meta-schema is insufficient. Discovery schemas are self-contained and compiled without registering shared remote IDs. Weakly held validators follow schema-object lifetime instead of retaining every rediscovered catalog in AJV's process-wide cache.
+
+Compilation failures return a safe `invalid_tool_schema` error without raw schema/compiler content. Argument mismatches retain `invalid_tool_arguments`; asynchronous schema validators are rejected rather than treating a Promise as successful validation. The [public schema contract](tools-security.md#tool-input-schemas) and [verification record](../../maintainers/evidence/tools-security.md) describe caller behavior and coverage.
+
 ## Network, files and external effects
 
 Use the shared DNS-pinned network helper for user-configured remote endpoints, with public HTTPS and private/reserved IP rejection by default, bounded response sizes and deadlines. Only the MCP-specific validator/transport permits explicitly configured local origins under `isLocal()`; connection saving, discovery, invocation and MCP OAuth use that same policy. See [local MCP servers](tools-security.md#local-mcp-servers) for setup and address restrictions. Webhooks, client metadata and search retain the public-only transport. Redirects do not silently forward credentials or bypass destination policy. GitHub smart HTTP is bound to the authorized repository endpoints. Webhook signature validation consumes exact raw bytes, not reserialized JSON.

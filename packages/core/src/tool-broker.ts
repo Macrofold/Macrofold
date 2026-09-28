@@ -3,7 +3,7 @@ import { runtimeConnectionTools } from './connection-access-resolution';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import Ajv from 'ajv';
+import { validateToolArguments } from './tool-arguments';
 import { transaction } from '../../db';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
 import { getNativeRun as getRun } from './runs';
@@ -22,7 +22,6 @@ import { approvedStdio } from './stdio-catalog';
 import type { MachineTools, MachineBinding } from './ports';
 import { searchWeb, searchKey } from './search';
 type Tool = components['schemas']['Tool'];
-const ajv = new Ajv({ strict: false });
 export const exposedToolName = (connectionId: string, name: string) =>
   `c_${connectionId.replaceAll('-', '').slice(0, 16)}_${sha256(name).slice(0, 16)}`;
 async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: string) {
@@ -80,12 +79,7 @@ export async function executeGrantedTool(
     'paid_execution_disabled',
     'External connector actions are disabled in local simulation.',
   );
-  assert(
-    ajv.compile(tool.input_schema)(args),
-    400,
-    'invalid_tool_arguments',
-    'Tool arguments do not match the connector schema.',
-  );
+  validateToolArguments(tool.input_schema, args);
   const { run, connections } = await authorize(cap, connectionId, tool.name);
   let connection: resources.Document<'connections'> = connections[0];
   const rate =

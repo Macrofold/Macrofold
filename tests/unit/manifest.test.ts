@@ -10,7 +10,7 @@ describe('portable filesystem checkpoints', () => {
   it('excludes native credentials and their backups while preserving resumable session history', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-auth-checkpoint-'));
     try {
-      const roots = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+      const roots = { harness: 'claude-code' as const, workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
       await mkdir(roots.workspace);
       const secretPaths = [
         '.claude/.credentials.json',
@@ -44,6 +44,7 @@ describe('portable filesystem checkpoints', () => {
       );
       await writeFile(path.join(output, 'page-0.json'), JSON.stringify(snapshot.entries));
       await restoreSnapshot(output, {
+        harness: 'claude-code',
         workspace: path.join(root, 'new-workspace'),
         home: path.join(root, 'new-home'),
       });
@@ -56,6 +57,7 @@ describe('portable filesystem checkpoints', () => {
       );
       await expect(
         restoreSnapshot(output, {
+          harness: 'claude-code',
           workspace: path.join(root, 'rejected-workspace'),
           home: path.join(root, 'rejected-home'),
         }),
@@ -67,6 +69,7 @@ describe('portable filesystem checkpoints', () => {
       );
       await expect(
         restoreSnapshot(output, {
+          harness: 'claude-code',
           workspace: path.join(root, 'rejected-workspace'),
           home: path.join(root, 'rejected-home'),
         }),
@@ -77,13 +80,13 @@ describe('portable filesystem checkpoints', () => {
   });
   it('round-trips multi-chunk files, executable mode, symlinks, ignored Git data and native session state', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-checkpoint-'));
-    const roots = { workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+    const roots = { harness: 'codex' as const, workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
     await mkdir(path.join(roots.workspace, '.git'), { recursive: true });
-    await mkdir(roots.home);
+    await mkdir(path.join(roots.home, '.codex/sessions'), { recursive: true });
     const large = Buffer.alloc(CHUNK_BYTES + 123, 42);
     await writeFile(path.join(roots.workspace, 'large.bin'), large, { mode: 0o755 });
     await writeFile(path.join(roots.workspace, '.git', 'HEAD'), 'ref: refs/heads/main\n');
-    await writeFile(path.join(roots.home, 'session.json'), 'native history');
+    await writeFile(path.join(roots.home, '.codex/sessions/history.jsonl'), 'native history');
     await symlink('large.bin', path.join(roots.workspace, 'relative-link'));
     await symlink('/does/not/exist', path.join(roots.workspace, 'external-link'));
     const output = path.join(root, 'snapshot');
@@ -91,6 +94,7 @@ describe('portable filesystem checkpoints', () => {
     expect(index.entries.find((e) => e.path === 'large.bin')?.chunks).toHaveLength(2);
     await writeFile(path.join(output, 'page-0.json'), JSON.stringify(index.entries));
     const restored = {
+      harness: 'codex' as const,
       workspace: path.join(root, 'restored-workspace'),
       home: path.join(root, 'restored-home'),
     };
@@ -100,7 +104,7 @@ describe('portable filesystem checkpoints', () => {
     expect((await readFile(path.join(restored.workspace, 'large.bin'))).equals(large)).toBe(true);
     expect((await stat(path.join(restored.workspace, 'large.bin'))).mode & 0o777).toBe(0o755);
     expect(await readlink(path.join(restored.workspace, 'external-link'))).toBe('/does/not/exist');
-    expect(await readFile(path.join(restored.home, 'session.json'), 'utf8')).toBe('native history');
+    expect(await readFile(path.join(restored.home, '.codex/sessions/history.jsonl'), 'utf8')).toBe('native history');
     expect(await readFile(path.join(restored.workspace, '.git', 'HEAD'), 'utf8')).toBe(
       'ref: refs/heads/main\n',
     );
@@ -119,7 +123,7 @@ describe('portable filesystem checkpoints', () => {
     try {
       const roots = await Promise.all(
         [0, 1, 2, 3, 4].map(async (n) => {
-          const value = { workspace: path.join(root, `w${n}`), home: path.join(root, `h${n}`) };
+          const value = { harness: 'codex' as const, workspace: path.join(root, `w${n}`), home: path.join(root, `h${n}`) };
           await mkdir(value.workspace);
           await mkdir(value.home);
           await writeFile(path.join(value.workspace, 'file.txt'), `capture ${n}`);
@@ -164,7 +168,7 @@ describe('portable filesystem checkpoints', () => {
       ]),
     );
     await expect(
-      restoreSnapshot(root, { workspace: path.join(root, 'w'), home: path.join(root, 'h') }),
+      restoreSnapshot(root, { harness: 'codex' as const, workspace: path.join(root, 'w'), home: path.join(root, 'h') }),
     ).rejects.toThrow('symlink');
   });
 });

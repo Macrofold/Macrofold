@@ -15,9 +15,9 @@ fs.promises.rename = async (from, to) => {
 syncBuiltinESMExports();
 if (mode === 'capture') {
   const { captureSnapshot } = await import('../../packages/runtime/src/manifest.ts');
-  await captureSnapshot({ workspace, home }, snapshot);
+  await captureSnapshot({ workspace, home, harness: 'codex' }, snapshot);
 } else {
   const { restoreSnapshot } = await import('../../packages/runtime/src/restore.ts');
-  await restoreSnapshot(snapshot, { workspace, home });
+  await restoreSnapshot(snapshot, { workspace, home, harness: 'codex' });
 }
 throw new Error('The crash barrier was not reached');

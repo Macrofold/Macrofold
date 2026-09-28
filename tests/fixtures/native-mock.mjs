@@ -200,7 +200,7 @@ await writeFile('/completed-control/snapshot/page-0.json', JSON.stringify(index.
 await rm('/workspace', { recursive: true, force: true });
 await rm('/agent-home', { recursive: true, force: true });
 const { restoreSnapshot } = await import('/opt/platform/restore.mjs');
-await restoreSnapshot('/completed-control/snapshot', { workspace: '/workspace', home: '/agent-home' }, 10001);
+await restoreSnapshot('/completed-control/snapshot', { workspace: '/workspace', home: '/agent-home', harness }, 10001);
 await mkdir('/platform-control');
 await writeFile(
   '/platform-control/config.json',

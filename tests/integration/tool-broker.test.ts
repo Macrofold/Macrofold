@@ -2,6 +2,9 @@ import { fixtureConnector, fixtureOperator } from '../fixtures/operator';
 import { it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { pool, authPool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
@@ -308,6 +311,76 @@ it('search is scoped, budgeted, replay-safe and uses the selected funding key wi
     code: 'search_not_configured',
   });
   expect(requests).toBe(1);
+});
+it('discovers and calls a 2020-12 MCP tool while rejecting invalid arguments and schemas before dispatch', async () => {
+  const a = await prepared('mcp_remote');
+  const inputSchema = {
+    type: 'object' as const,
+    properties: { contextHandle: { type: 'string', minLength: 32, maxLength: 256 } },
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    additionalProperties: false,
+  };
+  let advertisedSchema = inputSchema;
+  const invoke = vi.fn(async (args: Record<string, unknown> | undefined) => ({
+    content: [{ type: 'text' as const, text: JSON.stringify(args) }],
+  }));
+  // Use the official protocol on both sides of the broker; only upstream network I/O is replaced.
+  vi.spyOn(network, 'mcpFetch').mockImplementation(async (input, init) => {
+    const upstream = new Server({ name: 'schema-fixture', version: '1' }, { capabilities: { tools: {} } });
+    upstream.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [{ name: a.tool.name, inputSchema: advertisedSchema }],
+    }));
+    upstream.setRequestHandler(CallToolRequestSchema, async (call) => invoke(call.params.arguments));
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    await upstream.connect(transport);
+    try {
+      return await transport.handleRequest(new Request(input, init));
+    } finally {
+      await upstream.close();
+    }
+  });
+  const client = new Client({ name: 'schema-client', version: '1' });
+  await client.connect(new StreamableHTTPClientTransport(
+    new URL(config.origin + '/runtime/runs/' + a.runId + '/mcp'),
+    {
+      requestInit: { headers: { Authorization: 'Bearer ' + runtimeToken(a.cap) } },
+      fetch: async (input, init) => handleRuntimeMcp(new Request(input, init), a.runId),
+    },
+  ));
+  try {
+    const name = exposedToolName(a.connection.id, a.tool.name);
+    expect((await client.listTools()).tools).toEqual([
+      expect.objectContaining({ name, inputSchema }),
+    ]);
+    for (const args of [{ contextHandle: 'short' }, { unexpected: true }]) {
+      expect(await client.callTool({ name, arguments: args })).toMatchObject({
+        isError: true,
+        content: [{ type: 'text', text: expect.stringContaining('"invalid_tool_arguments"') }],
+      });
+    }
+    advertisedSchema = { ...inputSchema, $schema: 'https://fixture.invalid/unsupported' };
+    expect(await client.callTool({ name, arguments: {} })).toMatchObject({
+      isError: true,
+      content: [{ type: 'text', text: expect.stringContaining('"invalid_tool_schema"') }],
+    });
+    expect(invoke).not.toHaveBeenCalled();
+    const saved = await transaction(a.p.organizationId, async (tx) => ({
+      run: (await tx.query('SELECT cost_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [a.runId])).rows[0],
+      invocations: (await tx.query('SELECT id FROM tool_invocations WHERE run_id=$1', [a.runId])).rows,
+    }));
+    expect(saved).toEqual({ run: { cost_micro_usd: '0', budget_used_micro_usd: '0' }, invocations: [] });
+    advertisedSchema = inputSchema;
+    const args = { contextHandle: 'a'.repeat(32) };
+    expect(await client.callTool({ name, arguments: args })).toMatchObject({
+      content: [{ type: 'text', text: JSON.stringify(args) }],
+    });
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(args);
+  } finally {
+    await client.close();
+  }
 });
 it('ambiguous external actions are never automatically replayed and revoked grants reject new actions', async () => {
   const a = await prepared('mcp_remote');

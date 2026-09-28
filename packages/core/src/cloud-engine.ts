@@ -22,7 +22,7 @@ import { storagePreparation } from './storage-preparation';
 import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
-import { isNativeAuthPath } from '../../runtime/src/auth-paths';
+import { isPersistentPath } from '../../runtime/src/persistence-paths';
 import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
 import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
@@ -175,7 +175,7 @@ export async function advanceCloudRun(
               : ws.git_files || []) as FileRecord[]
           ).map((f) => ({ ...f, namespace: 'workspace' as const })),
           ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ].filter((file) => !isNativeAuthPath(file.namespace, file.path) &&
+        ].filter((file) => isPersistentPath(run.config.harness, file.namespace, file.path) &&
           (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)));
       });
       const offset = state.inputOffset || 0;
@@ -350,7 +350,7 @@ export async function advanceCloudRun(
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
-          if (isNativeAuthPath(entry.namespace, entry.path)) continue;
+          if (!isPersistentPath(run.config.harness, entry.namespace, entry.path)) continue;
           await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
           for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
         }

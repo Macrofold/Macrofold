@@ -302,7 +302,7 @@ export async function supervise(configurationPath: string, workerPath: string, r
     if ([...live.values()].some((state) => !retained || state !== 'T'))
       throw new Error('checkpoint_writers_remain');
     const snapshot = await captureSnapshot(
-      { workspace: c.workspace, home: c.stateHome },
+      { workspace: c.workspace, home: c.stateHome, harness: c.harness },
       path.join(directory, 'snapshot'),
     );
     snapshotBytes = snapshot.totalBytes;

@@ -94,7 +94,7 @@ export class FaultMachine implements MachineProvider {
       },
       {
         namespace: 'home',
-        path: '.codex/state.json',
+        path: '.codex/sessions/history.jsonl',
         type: 'file',
         size: this.bytes.length,
         sha256: hash,

@@ -4,11 +4,38 @@ import { nativeBroker } from './native-broker.mjs';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { chown, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 const harness=process.argv[2] || 'codex';
 const mode=process.argv[3] || 'concurrent';
+const durableNote={
+  codex:'.codex/memories/persistence-fixture.md',
+  'claude-code':'.claude/projects/persistence-fixture/memory/MEMORY.md',
+  opencode:'.config/opencode/skills/persistence-fixture/SKILL.md',
+  hermes:'.hermes/memories/MEMORY.md',
+  deepseek:'.dsh/sessions/persistence-fixture/note.txt',
+  pi:'.pi/agent/skills/persistence-fixture/SKILL.md',
+}[harness];
+assert(durableNote,'fixture needs a durable resource for every harness');
+const note='---\nname: persistence-fixture\ndescription: Offline persistence acceptance note.\n---\nSynthetic durable note.\n';
+const ephemeral='.arbitrary-runtime-state/installed-module.txt';
+async function verifyPersistenceBoundary(value) {
+  const home=`/host-data/continuations/${value.session}`;
+  if(value.resumeId) {
+    assert.equal(await readFile(`${home}/${durableNote}`,'utf8'),note,'native authored resource survives continuation');
+    assert.equal(await readFile(`/host-data/worktrees/${value.worktree}/node_modules/user-file.txt`,'utf8'),note);
+    return;
+  }
+  const {uid,gid}=await stat(home);
+  for(const [root,name] of [[home,durableNote],[home,ephemeral],[`/host-data/worktrees/${value.worktree}`,'node_modules/user-file.txt']]) {
+    let parent=root;
+    for(const segment of name.split('/').slice(0,-1)) {
+      parent+=`/${segment}`;await mkdir(parent,{recursive:true});await chown(parent,uid,gid);
+    }
+    await writeFile(`${root}/${name}`,note);await chown(`${root}/${name}`,uid,gid);
+  }
+}
 const secret='synthetic-worker-control-secret-offline-only';
 const control=spawn('node',['/opt/platform/host-control.mjs'],{
   env:{PATH:process.env.PATH,NODE_ENV:'production',HOST_CONTROL_SECRET:secret,PORT:'10000'},stdio:'inherit',
@@ -18,23 +45,33 @@ const tokens=new Map();
 const characters=[];
 const pendingSockets=new Set();
 let boot;
+function serveModel(character,req,res) {
+  return character.fixture.handler(req,res).catch(error=>{
+    // Cancellation/fixture shutdown can abort a held request before its body is
+    // read. Only that expected disconnect is benign; fixture assertions still fail.
+    if(error.code!=='ECONNRESET' || !req.aborted)throw error;
+  });
+}
 const model=createServer((req,res)=>{
   const token=(req.headers.authorization || `Bearer ${req.headers['x-api-key']}`).replace(/^Bearer /,'');
   const character=tokens.get(token);
   if(!character){res.writeHead(401).end();return;}
   if(character.hold && req.url!=='/mcp') {
     character.blocked=true;
-    const release=()=>{pendingSockets.delete(release);if(!res.destroyed)character.fixture.handler(req,res);};
-    character.releaseModel=release;pendingSockets.add(release);
+    const release=()=>{character.pendingModel.delete(release);pendingSockets.delete(release);if(!res.destroyed)serveModel(character,req,res);};
+    character.pendingModel.add(release);pendingSockets.add(release);
     return;
   }
-  return req.url==='/mcp'?character.broker.handle(req,res):character.fixture.handler(req,res);
+  return req.url==='/mcp'?character.broker.handle(req,res):serveModel(character,req,res);
 });
 await new Promise(resolve=>model.listen(8787,'127.0.0.1',resolve));
 function character(saved) {
   const value={worktree:saved?.worktree || randomUUID(),session:saved?.session || randomUUID(),revision:saved?.revision || '0',
     checkpoint:saved?.checkpoint || null,resumeId:saved?.resumeId,entries:saved?.entries || [],chunks:saved?.chunks || [],
-    hold:false,blocked:false,releaseModel:undefined,token:undefined};
+    hold:false,blocked:false,pendingModel:new Set(),token:undefined};
+  // A harness can issue more than one model request; releasing one character
+  // must drain all its held requests without releasing its neighbor.
+  value.releaseModel=()=>{ for(const release of value.pendingModel)release(); };
   value.fixture=nativeModelFixture({workspace:`/host-data/worktrees/${value.worktree}`});
   value.broker=nativeBroker(()=>value.token);
   characters.push(value);
@@ -78,6 +115,7 @@ async function start(value,expectWarm=false) {
     await request(scoped(run,'restore'));
     await until(async()=>{const result=await request(scoped(run,'restored'));assert.notEqual(result,'failure');return result==='success';},'verified restore');
   }
+  await verifyPersistenceBoundary(value);
   await request(scoped(run,'launch'));
   await request(scoped(run,'launch'));
   return run;
@@ -100,6 +138,9 @@ async function finish(run,outcome='success',expectWarm=false) {
   if(outcome==='success')assert(value.entries.some(entry=>entry.namespace==='workspace'&&entry.path==='native.txt'),'tool output was captured');
   const excluded=['.runtime-config.json','.claude/.credentials.json','.codex/auth.json','.codex/config.toml','.local/share/opencode/auth.json','.hermes/auth.json','.pi/agent/auth.json'];
   assert(!value.entries.some(entry=>entry.namespace==='home' && excluded.includes(entry.path)),'native credentials cannot enter a checkpoint');
+  assert(value.entries.some(entry=>entry.namespace==='home' && entry.path===durableNote),'declared authored resource is durable');
+  assert(value.entries.some(entry=>entry.namespace==='workspace' && entry.path==='node_modules/user-file.txt'),'all worktree files are durable');
+  assert(!value.entries.some(entry=>entry.namespace==='home' && entry.path===ephemeral),'unknown runtime home files are ephemeral without a cache denylist');
   value.resumeId=result.resumeId;
   value.checkpoint=randomUUID();value.revision=String(Number(value.revision)+1);
   await until(async()=>{
@@ -125,6 +166,7 @@ try {
     assert.equal(saved.harness,harness);
     const restored=character(saved);
     const run=await start(restored,false);
+    await assert.rejects(readFile(`/host-data/continuations/${restored.session}/${ephemeral}`),{code:'ENOENT'});
     await finish(run,'success',false);
     assert(restored.fixture.observed.some(event=>event.hasPriorPrompt),'a fresh Host recovered native conversation history');
     assert.equal(await readFile(`/host-data/worktrees/${restored.worktree}/native.txt`,'utf8'),'native tool persisted\n');

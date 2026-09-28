@@ -120,6 +120,7 @@ try {
       const prepared = await prepareAttachments(c, controller.signal);
       c.prompt = prepared.prompt;
       c.instructions = [
+        `Your persistent worktree is ${c.workspace}. Save requested deliverables and shared files there. Native home checkpoints include only harness session history, memory and declared resources; other home files and /tmp are disposable. Verify output files in the worktree before reporting completion.`,
         c.instructions,
         'Save user-facing deliverables in outputs/ inside the worktree. Only verified files from that directory are listed as downloadable run outputs.',
       ]

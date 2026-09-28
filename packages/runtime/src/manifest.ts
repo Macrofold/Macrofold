@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open, readdir, readFile, readlink, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { isNativeAuthPath } from './auth-paths';
+import { isPersistentPath, mayContainPersistentPath, type SnapshotRoots } from './persistence-paths';
 
 export const CHUNK_BYTES = 4 * 1024 * 1024;
 export type SnapshotEntry = {
@@ -36,7 +36,7 @@ export function relativePath(value: string) {
 /** The supervisor calls this only after the current handle's writers are stopped or safely suspended.
  * Symlinks are recorded as links, never traversed. Chunks bound control-plane memory use. */
 async function captureSnapshotOwned(
-  roots: { workspace: string; home: string },
+  roots: SnapshotRoots,
   output: string,
   limits = { bytes: 10 * 1024 ** 3, entries: 100_000 },
 ): Promise<SnapshotIndex> {
@@ -58,12 +58,13 @@ async function captureSnapshotOwned(
       for (const name of (await readdir(directory)).sort()) {
         const absolute = path.join(directory, name),
           relative = relativePath(path.relative(root, absolute));
-        if (isNativeAuthPath(namespace, relative)) continue;
+        if (!mayContainPersistentPath(roots.harness, namespace, relative)) continue;
         const stat = await lstat(absolute);
         if (stat.isDirectory()) {
           await walk(absolute);
           continue;
         }
+        if (!isPersistentPath(roots.harness, namespace, relative)) continue;
         // Runtime sockets and FIFOs have no persistent file content and cannot be restored meaningfully.
         if (!stat.isFile() && !stat.isSymbolicLink()) continue;
         if (index.entries.length >= limits.entries) throw new Error('checkpoint_entry_limit');
@@ -112,7 +113,7 @@ async function captureSnapshotOwned(
 let captures = 0;
 const captureWaiters: (() => void)[] = [];
 export async function captureSnapshot(
-  roots: { workspace: string; home: string }, output: string,
+  roots: SnapshotRoots, output: string,
   limits = { bytes: 10 * 1024 ** 3, entries: 100_000 },
 ): Promise<SnapshotIndex> {
   if (captures >= 2) await new Promise<void>(resolve => captureWaiters.push(resolve));

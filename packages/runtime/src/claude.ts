@@ -69,12 +69,7 @@ export class ClaudeAdapter implements HarnessAdapter {
           systemPrompt: {
             type: 'preset',
             preset: 'claude_code',
-            append: [
-              `Your persistent worktree is ${c.workspace}. Save requested deliverables there. Files in /tmp or elsewhere outside the workspace are not included in workspace checkpoints. Verify output files in the workspace before reporting completion.`,
-              c.instructions,
-            ]
-              .filter(Boolean)
-              .join('\n\n'),
+            append: c.instructions || '',
           },
           mcpServers: {
             ...(c.toolGrants

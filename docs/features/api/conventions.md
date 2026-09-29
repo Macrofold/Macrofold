@@ -59,6 +59,8 @@ Errors include `error.code`, `message`, `request_id`, `details`, and `retryable`
 | 429                           | Honor `Retry-After` and reduce request rate                        |
 | Provider or transport failure | Check whether the outcome is known before repeating a mutation     |
 
+For native Runs, opt in to `limits.stop_on_model_error: true` when your application must prevent automatic model retries after failures. It permits one outstanding model request and stops further provider calls after an error or unconfirmed usage; [billing behavior](../billing/implementation.md#financial-implementation) explains the retained costs. The default remains unchanged.
+
 Do not automatically repeat an external side effect whose outcome is uncertain. See [troubleshooting](../../getting-started/troubleshooting.md) for recovery paths.
 
 ## Streaming, clients, and protocols

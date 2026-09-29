@@ -3943,6 +3943,8 @@ export interface components {
             provider_connection_id?: string;
         };
         Limits: {
+            /** @description Cancel this native Run after a provider rejection, model transport/stream error or missing final usage, fencing further model calls before they reach the provider. Allows only one outstanding model request, so lost settlement blocks another dispatch. Existing work and provisional costs remain accounted. Omission preserves the harness's normal retry behavior. This does not retry or refund the failed request. */
+            stop_on_model_error?: boolean;
             /** @description Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap. */
             timeout_seconds?: number;
             /**

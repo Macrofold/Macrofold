@@ -30,5 +30,7 @@ export interface ModelProtocol {
   readonly cacheWrites: boolean;
   prepare(payload: Record<string, unknown>, path: string, bounds: ModelRequestBounds): void;
   headers(secret: string, incoming: Headers): Record<string, string>;
+  terminal(event: Record<string, unknown>): boolean;
+  failed(event: Record<string, unknown>): boolean;
   usage(event: Record<string, unknown>, previous: ModelUsage): ModelUsage;
 }

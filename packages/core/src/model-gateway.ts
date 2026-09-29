@@ -1,7 +1,7 @@
 import { modelInputBound } from './model-content';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
-import { transaction } from '../../db';
+import { transaction, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
 import { ModelOutputCapture } from '../../providers/src/model-output-capture';
@@ -50,6 +50,15 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       'run_timeout',
       'The run deadline has passed.',
     );
+    if (run.config.limits?.stop_on_model_error) {
+      // A lost settlement cannot become an authorized retry. Opted-in runs have one
+      // outstanding model request; see docs/features/billing/implementation.md.
+      const pending = await tx.query(
+        "SELECT 1 FROM gateway_requests WHERE run_id=$1 AND status <> 'complete' LIMIT 1",
+        [cap.run],
+      );
+      assert(!pending.rowCount, 409, 'model_request_unsettled', 'The previous model request is not settled.');
+    }
     const model = run.config.rate_card;
     assert(
       model && model.id === payload.model,
@@ -110,6 +119,7 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
         url: `${protocol.base}/${path}`,
         reserved: 0n,
         metered: false,
+        stopOnModelError: run.config.limits?.stop_on_model_error === true,
         deadline: run.deadline,
       };
     // Text bytes plus bounded native-image tokens; hosted tools remain disabled.
@@ -156,10 +166,22 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
       url: `${protocol.base}/${path}`,
       reserved,
       metered: true,
+      stopOnModelError: run.config.limits?.stop_on_model_error === true,
       deadline: run.deadline,
     };
   });
 }
+async function stopOnModelError(tx: Tx, cap: RuntimeCapability) {
+  // A provider failure belongs to the Run even if its execution lease changed.
+  const stopped = await tx.query(
+    `UPDATE runs SET cancel_requested=true WHERE id=$1
+     AND config->'limits'->>'stop_on_model_error'='true' AND NOT cancel_requested RETURNING id`,
+    [cap.run],
+  );
+  if (stopped.rowCount)
+    await emit(tx, cap.organization, cap.run, 'run.cancel_requested', { reason: 'model_error_policy' });
+}
+
 export async function settleModelRequest(
   cap: RuntimeCapability,
   requestId: string,
@@ -167,6 +189,7 @@ export async function settleModelRequest(
   usage: Usage,
   upstreamRejected = false,
   providerCostModel?: Model,
+  modelFailed = false,
 ) {
   return transaction(cap.organization, async (tx) => {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
@@ -196,6 +219,7 @@ export async function settleModelRequest(
       )
     )
       usage = emptyUsage();
+    if (upstreamRejected || modelFailed || !usage.complete) await stopOnModelError(tx, cap);
     const reported = upstreamRejected
       ? 0n
       : usage.complete
@@ -374,6 +398,8 @@ export async function handleModelRequest(
           admission.model,
           usage,
           upstreamRejected,
+          undefined,
+          modelFailed || level === 'ERROR',
         );
     };
     const finishTrace = () => {
@@ -409,7 +435,8 @@ export async function handleModelRequest(
     );
     let ownsStream = false,
       usage = emptyUsage(),
-      rejected = false;
+      rejected = false,
+      modelFailed = false;
     try {
       const headers = admission.protocol.headers(admission.secret, request.headers);
       const upstream = await transport(admission.url, {
@@ -443,6 +470,8 @@ export async function handleModelRequest(
           unknown
         >;
         usage = admission.protocol.usage(data, usage);
+        modelFailed = admission.protocol.failed(data);
+        if (modelFailed) level = 'ERROR';
         output = data;
         if (typeof data.id === 'string') providerRequestId ||= data.id;
         await settleRequest();
@@ -472,16 +501,32 @@ export async function handleModelRequest(
               while ((newline = buffer.indexOf('\n')) !== -1) {
                 const line = buffer.slice(0, newline).trim();
                 buffer = buffer.slice(newline + 1);
-                if (line.startsWith('data:') && line.slice(5).trim() !== '[DONE]') {
+                if (line.startsWith('data:') && line.slice(5).trim() === '[DONE]') {
+                  // A native consumer may start its next generation before TCP EOF.
+                  // Commit the previous request before forwarding its terminal marker.
+                  if (admission.stopOnModelError) await settleRequest();
+                } else if (line.startsWith('data:')) {
+                  let frame;
                   try {
-                    const frame = JSON.parse(line.slice(5));
-                    usage = admission.protocol.usage(frame, usage);
-                    capture?.add(frame);
-                    const responseId = frame?.response?.id ?? frame?.message?.id ?? frame?.id;
-                    if (typeof responseId === 'string') providerRequestId ||= responseId;
+                    frame = JSON.parse(line.slice(5));
                   } catch {
-                    /* SSE keepalives and non-JSON control frames are not usage. */
+                    // SSE keepalives and non-JSON control frames are not usage.
+                    continue;
                   }
+                  if (!frame || typeof frame !== 'object') continue;
+                  usage = admission.protocol.usage(frame, usage);
+                  capture?.add(frame);
+                  if (!modelFailed && admission.protocol.failed(frame)) {
+                    modelFailed = true;
+                    level = 'ERROR';
+                    // Fence before forwarding an error: a native harness can retry as
+                    // soon as it sees the frame, before this stream finishes settling.
+                    if (admission.stopOnModelError)
+                      await transaction(cap.organization, (tx) => stopOnModelError(tx, cap));
+                  }
+                  if (admission.stopOnModelError && admission.protocol.terminal(frame)) await settleRequest();
+                  const responseId = frame?.response?.id ?? frame?.message?.id ?? frame?.id;
+                  if (typeof responseId === 'string') providerRequestId ||= responseId;
                 }
               }
               if (!closed) downstream.enqueue(part.value);

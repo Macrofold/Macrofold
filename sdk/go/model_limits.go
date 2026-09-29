@@ -19,6 +19,8 @@ var _ MappedNullable = &Limits{}
 
 // Limits struct for Limits
 type Limits struct {
+	// Cancel this native Run after a provider rejection, model transport/stream error or missing final usage, fencing further model calls before they reach the provider. Allows only one outstanding model request, so lost settlement blocks another dispatch. Existing work and provisional costs remain accounted. Omission preserves the harness's normal retry behavior. This does not retry or refund the failed request.
+	StopOnModelError *bool `json:"stop_on_model_error,omitempty"`
 	// Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap.
 	TimeoutSeconds *int32 `json:"timeout_seconds,omitempty"`
 	// Integer micro-USD as a decimal string.
@@ -44,6 +46,38 @@ func NewLimitsWithDefaults() *Limits {
 	var maxCostMicroUsd string = "2000000"
 	this.MaxCostMicroUsd = &maxCostMicroUsd
 	return &this
+}
+
+// GetStopOnModelError returns the StopOnModelError field value if set, zero value otherwise.
+func (o *Limits) GetStopOnModelError() bool {
+	if o == nil || IsNil(o.StopOnModelError) {
+		var ret bool
+		return ret
+	}
+	return *o.StopOnModelError
+}
+
+// GetStopOnModelErrorOk returns a tuple with the StopOnModelError field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Limits) GetStopOnModelErrorOk() (*bool, bool) {
+	if o == nil || IsNil(o.StopOnModelError) {
+		return nil, false
+	}
+	return o.StopOnModelError, true
+}
+
+// HasStopOnModelError returns a boolean if a field has been set.
+func (o *Limits) HasStopOnModelError() bool {
+	if o != nil && !IsNil(o.StopOnModelError) {
+		return true
+	}
+
+	return false
+}
+
+// SetStopOnModelError gets a reference to the given bool and assigns it to the StopOnModelError field.
+func (o *Limits) SetStopOnModelError(v bool) {
+	o.StopOnModelError = &v
 }
 
 // GetTimeoutSeconds returns the TimeoutSeconds field value if set, zero value otherwise.
@@ -120,6 +154,9 @@ func (o Limits) MarshalJSON() ([]byte, error) {
 
 func (o Limits) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.StopOnModelError) {
+		toSerialize["stop_on_model_error"] = o.StopOnModelError
+	}
 	if !IsNil(o.TimeoutSeconds) {
 		toSerialize["timeout_seconds"] = o.TimeoutSeconds
 	}

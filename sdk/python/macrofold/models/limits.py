@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from typing import Optional, Set
@@ -28,9 +28,10 @@ class Limits(BaseModel):
     """
     Limits
     """ # noqa: E501
+    stop_on_model_error: Optional[StrictBool] = Field(default=None, description="Cancel this native Run after a provider rejection, model transport/stream error or missing final usage, fencing further model calls before they reach the provider. Allows only one outstanding model request, so lost settlement blocks another dispatch. Existing work and provisional costs remain accounted. Omission preserves the harness's normal retry behavior. This does not retry or refund the failed request.")
     timeout_seconds: Optional[Annotated[int, Field(le=7200, strict=True, ge=1)]] = Field(default=None, description="Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap.")
     max_cost_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default='2000000', description="Integer micro-USD as a decimal string.")
-    __properties: ClassVar[List[str]] = ["timeout_seconds", "max_cost_micro_usd"]
+    __properties: ClassVar[List[str]] = ["stop_on_model_error", "timeout_seconds", "max_cost_micro_usd"]
 
     @field_validator('max_cost_micro_usd', mode="before")
     def max_cost_micro_usd_validate_regular_expression(cls, value):
@@ -93,6 +94,7 @@ class Limits(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "stop_on_model_error": obj.get("stop_on_model_error"),
             "timeout_seconds": obj.get("timeout_seconds"),
             "max_cost_micro_usd": obj.get("max_cost_micro_usd") if obj.get("max_cost_micro_usd") is not None else '2000000'
         })

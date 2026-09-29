@@ -154,6 +154,11 @@ function protocol(
       } else headers.Authorization = `Bearer ${secret}`;
       return headers;
     },
+    terminal: (event) =>
+      ['message_stop', 'response.completed', 'response.failed', 'response.incomplete'].includes(
+        String(event.type),
+      ),
+    failed: (event) => Boolean(event.error) || event.type === 'error' || event.type === 'response.failed',
     usage: (event, previous) => usageFromEvent(provider, event, previous),
   };
 }

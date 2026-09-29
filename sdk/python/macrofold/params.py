@@ -39,7 +39,7 @@ ModelParametersReasoningParams = TypedDict('ModelParametersReasoningParams', {"e
 
 ModelParametersProviderParams = TypedDict('ModelParametersProviderParams', {"require_parameters": "bool"})
 
-LimitsParams = TypedDict('LimitsParams', {"timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]"})
+LimitsParams = TypedDict('LimitsParams', {"stop_on_model_error": "NotRequired[bool]", "timeout_seconds": "NotRequired[int]", "max_cost_micro_usd": "NotRequired[str]"})
 
 AgentPermissionsParams = TypedDict('AgentPermissionsParams', {"version": "Literal[1]", "files": "NotRequired[AgentPermissionsFilesParams]", "shell": "NotRequired[Literal[\"allow\", \"deny\"]]", "tools": "NotRequired[PermissionPatternsParams]", "questions": "NotRequired[Literal[\"allow\", \"deny\"]]"})
 

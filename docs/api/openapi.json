@@ -19220,6 +19220,10 @@
       "Limits": {
         "type": "object",
         "properties": {
+          "stop_on_model_error": {
+            "type": "boolean",
+            "description": "Cancel this native Run after a provider rejection, model transport/stream error or missing final usage, fencing further model calls before they reach the provider. Allows only one outstanding model request, so lost settlement blocks another dispatch. Existing work and provisional costs remain accounted. Omission preserves the harness's normal retry behavior. This does not retry or refund the failed request."
+          },
           "timeout_seconds": {
             "type": "integer",
             "minimum": 1,

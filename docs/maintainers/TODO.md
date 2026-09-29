@@ -57,7 +57,6 @@ No unit or integration suites are written or run for this continuation, as reque
 - [x] Cover cold native continuation and hidden Git/session files while excluding credentials; real native fixtures recover from a fresh physical container. See [native home persistence](#native-home-persistence).
 - [ ] Cover spending ceilings during provisioning and draining, same-Worker concurrent writers, late generation callbacks, graceful pause, and pool/instance resource exhaustion.
 
-
 ## Native startup failure diagnostics
 
 - Local manual acceptance: the activated diagnostic image and restarted Docker poller export `runtime.failed` through the event API and as an ERROR observation in Langfuse. Fresh OpenCode/OpenRouter requests succeed. A fresh warm session successfully recalls a synthetic marker on its second turn with `reused: true`. These checks used `meta/muse-spark-1.3-contributor`, BYOK, no tools and a $0.24 cap per run. No automated tests were written or run.
@@ -69,6 +68,10 @@ No unit or integration suites are written or run for this continuation, as reque
 - [ ] Publish a complete runtime image and verify the same paths on intended hosted providers. Local successful calls and trace readback do not establish hosted acceptance.
 
 ## Native harness tool permissions
+
+- [x] Implement and qualify explicit native `limits.stop_on_model_error` for callers requiring no automatic paid retry; preserve default behavior, reservations and original Run cancellation. See the [authoring integration guard](../projects/authoring-agent-affordances.md#required-no-retry-integration-guard).
+
+- Readable connector aliases are implemented in the [authoring affordances plan](../projects/authoring-agent-affordances.md), with complete-identity disambiguation and warm-interface versioning. Three focused naming cases and 21 disposable-PostgreSQL broker cases pass. The optional native-question permission contract is approved and implemented for OpenCode; defaults remain unchanged and unsupported harness denials fail before reservation. Focused unit/API, actual native default/deny and warm/restore fixtures pass. Local live activation remains pending.
 
 - [ ] Expose native harness tool selection through the existing API permissions model and permission adapters, including disabling OpenCode’s built-in `question` tool. Map supported restrictions to each harness’s native configuration so disabled tools and their descriptions are omitted from model requests, not merely discouraged by instructions. Preserve connector and file-access restrictions; report unsupported mappings explicitly. Cover run-level overrides and inherited policy, add focused adapter/API tests, and document copyable request examples.
 
@@ -351,7 +354,6 @@ Implemented the synchronous single-call API path; tests and feature documentatio
 - [ ] Add/run API and regenerated SDK regression coverage for the simplified default `POST /v1/inferences` body: only `model_binding`, native `input`, and `limits` are required. `definition`, `context`, and `question.kind` are no longer required for ordinary inference. Verify optional typed definitions still require their context, bounded agents still require definitions, missing limits fail before admission, and both synchronous/async paths retain billing and idempotency. Ad hoc execution through the actual request validator, internal normalization and provider adapter passed with a synthetic multi-question Jev response; TypeScript checking passed. Formal suites remain deferred by request.
 - [ ] Update the public/internal guides and calling-agent examples to make the simplified body the primary interface. Present definitions/context only as optional higher-level decision features. The server creates its executor envelope internally; callers need no provider-mode flag. Regenerate published docs after this deferred documentation update.
 - [ ] Add a Jev pass-through regression asserting caller state, arbitrary named questions, extra endpoint parameters and routing preferences survive serialization unchanged. Keep chat-only tool/output/service-tier validation off the Decisions path. Only the bound model and Macrofold routing/spending controls are platform-owned. Ad hoc adapter execution verified the OpenRouter Decisions URL, forwarded parameters and complete returned answers; formal tests/documentation remain deferred.
-
 
 ### Worker allocation receipt and metering regressions
 

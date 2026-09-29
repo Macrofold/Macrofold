@@ -79,7 +79,7 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function prepared() {
+async function prepared(stopOnModelError = false) {
   const runId = await transaction(p.organizationId, async (tx) => {
     const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Gateway fixture' });
     const worktree = (await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' })).result as {
@@ -91,7 +91,11 @@ async function prepared() {
       model: 'fixture-model',
       billing_mode: 'managed',
       prompt: 'Fixture',
-      limits: { max_cost_micro_usd: '2000000', timeout_seconds: 900 },
+      limits: {
+        max_cost_micro_usd: '2000000',
+        timeout_seconds: 900,
+        ...(stopOnModelError ? { stop_on_model_error: true } : {}),
+      },
     });
     await reserve(tx, p.organizationId, 2_000_000n);
     await tx.query(
@@ -138,6 +142,110 @@ async function prepared() {
   return { runId, token, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it('settles before forwarding terminal frames so the next opted-in generation does not race TCP EOF', async () => {
+    const s = await prepared(true);
+    let upstream!: ReadableStreamDefaultController<Uint8Array>;
+    s.fetch.mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          start(c) {
+            upstream = c;
+          },
+        }),
+      ),
+    );
+    const response = await s.call();
+    const reader = response.body!.getReader();
+    upstream.enqueue(
+      new TextEncoder().encode(
+        'data: {"type":"response.completed","response":{"usage":{"input_tokens":10,"output_tokens":2}}}\n\n',
+      ),
+    );
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('response.completed');
+    s.fetch.mockResolvedValueOnce(Response.json({ usage: { input_tokens: 10, output_tokens: 2 } }));
+    expect((await s.call({ stream: false })).status).toBe(200);
+    upstream.close();
+    expect((await reader.read()).done).toBe(true);
+    expect(s.fetch).toHaveBeenCalledTimes(2);
+    const facts = await transaction(p.organizationId, async (tx) => ({
+      run: await getRun(tx, s.runId),
+      usage: (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [s.runId])).rows,
+    }));
+    expect(facts.run.cancel_requested).toBe(false);
+    expect(facts.usage).toHaveLength(2);
+  });
+
+  it.each(['rejection', 'transport', 'missing-usage'])(
+    'fences opted-in native retries after %s and retains financial evidence',
+    async (failure) => {
+      const s = await prepared(true);
+      if (failure === 'rejection') s.fetch.mockResolvedValue(new Response('', { status: 503 }));
+      else if (failure === 'transport') s.fetch.mockRejectedValue(new Error('fixture interrupted'));
+      else s.fetch.mockResolvedValue(Response.json({ output: [] }));
+      const first = await s.call({ stream: false });
+      await first.text();
+      const retries = await Promise.all([s.call(), s.call()]);
+      expect(retries.map((r) => r.status)).toEqual([409, 409]);
+      expect(s.fetch).toHaveBeenCalledTimes(1);
+      const facts = await transaction(p.organizationId, async (tx) => ({
+        run: await getRun(tx, s.runId),
+        usage: (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [s.runId])).rows,
+      }));
+      expect(facts.run.cancel_requested).toBe(true);
+      expect(facts.usage).toHaveLength(1);
+      expect(facts.usage[0].completeness).toBe(failure === 'rejection' ? 'complete' : 'missing');
+      expect(BigInt(facts.usage[0].cost_micro_usd) > 0n).toBe(failure !== 'rejection');
+    },
+  );
+  it('fences an error frame before a native consumer can retry, even while the stream remains open', async () => {
+    const s = await prepared(true);
+    let upstream!: ReadableStreamDefaultController<Uint8Array>;
+    s.fetch.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(c) {
+            upstream = c;
+          },
+        }),
+      ),
+    );
+    const response = await s.call();
+    const reader = response.body!.getReader();
+    await transaction(p.organizationId, (tx) =>
+      tx.query('UPDATE runs SET lease_generation=2 WHERE id=$1', [s.runId]),
+    );
+    upstream.enqueue(new TextEncoder().encode('data: {"error":{"code":504,"message":"fixture"}}\n\n'));
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('504');
+    expect((await s.call()).status).toBe(409);
+    expect(s.fetch).toHaveBeenCalledTimes(1);
+    upstream.close();
+    expect((await reader.read()).done).toBe(true);
+    const run = await transaction(p.organizationId, (tx) => getRun(tx, s.runId));
+    expect(run.cancel_requested).toBe(true);
+  });
+  it('blocks a second opted-in request until settlement and allows the next successful generation', async () => {
+    const s = await prepared(true);
+    let release!: (r: Response) => void;
+    s.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const first = s.call({ stream: false });
+    await vi.waitFor(() => expect(s.fetch).toHaveBeenCalledTimes(1));
+    const duplicate = await s.call({ stream: false });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({ error: { code: 'model_request_unsettled' } });
+    release(Response.json({ usage: { input_tokens: 10, output_tokens: 2 } }));
+    expect((await first).status).toBe(200);
+    s.fetch.mockResolvedValue(Response.json({ usage: { input_tokens: 10, output_tokens: 2 } }));
+    expect((await s.call({ stream: false })).status).toBe(200);
+    expect(s.fetch).toHaveBeenCalledTimes(2);
+    const run = await transaction(p.organizationId, (tx) => getRun(tx, s.runId));
+    expect(run.cancel_requested).toBe(false);
+  });
+
   it('traces the actual streamed input/output and committed charges without forwarding credentials', async () => {
     const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
     vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);

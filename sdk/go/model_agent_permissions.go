@@ -24,6 +24,8 @@ type AgentPermissions struct {
 	Files *AgentPermissionsFiles `json:"files,omitempty"`
 	Shell *string `json:"shell,omitempty"`
 	Tools *PermissionPatterns `json:"tools,omitempty"`
+	// Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+	Questions *string `json:"questions,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -167,6 +169,38 @@ func (o *AgentPermissions) SetTools(v PermissionPatterns) {
 	o.Tools = &v
 }
 
+// GetQuestions returns the Questions field value if set, zero value otherwise.
+func (o *AgentPermissions) GetQuestions() string {
+	if o == nil || IsNil(o.Questions) {
+		var ret string
+		return ret
+	}
+	return *o.Questions
+}
+
+// GetQuestionsOk returns a tuple with the Questions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentPermissions) GetQuestionsOk() (*string, bool) {
+	if o == nil || IsNil(o.Questions) {
+		return nil, false
+	}
+	return o.Questions, true
+}
+
+// HasQuestions returns a boolean if a field has been set.
+func (o *AgentPermissions) HasQuestions() bool {
+	if o != nil && !IsNil(o.Questions) {
+		return true
+	}
+
+	return false
+}
+
+// SetQuestions gets a reference to the given string and assigns it to the Questions field.
+func (o *AgentPermissions) SetQuestions(v string) {
+	o.Questions = &v
+}
+
 func (o AgentPermissions) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -186,6 +220,9 @@ func (o AgentPermissions) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Tools) {
 		toSerialize["tools"] = o.Tools
+	}
+	if !IsNil(o.Questions) {
+		toSerialize["questions"] = o.Questions
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -234,6 +271,7 @@ func (o *AgentPermissions) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "files")
 		delete(additionalProperties, "shell")
 		delete(additionalProperties, "tools")
+		delete(additionalProperties, "questions")
 		o.AdditionalProperties = additionalProperties
 	}
 

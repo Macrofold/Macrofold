@@ -38,7 +38,8 @@ import dev.macrofold.ApiClient;
   AgentPermissions.JSON_PROPERTY_VERSION,
   AgentPermissions.JSON_PROPERTY_FILES,
   AgentPermissions.JSON_PROPERTY_SHELL,
-  AgentPermissions.JSON_PROPERTY_TOOLS
+  AgentPermissions.JSON_PROPERTY_TOOLS,
+  AgentPermissions.JSON_PROPERTY_QUESTIONS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class AgentPermissions {
@@ -125,6 +126,45 @@ public class AgentPermissions {
   public static final String JSON_PROPERTY_TOOLS = "tools";
   @javax.annotation.Nullable
   private PermissionPatterns tools;
+
+  /**
+   * Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+   */
+  public enum QuestionsEnum {
+    ALLOW(String.valueOf("allow")),
+
+    DENY(String.valueOf("deny"));
+
+    private String value;
+
+    QuestionsEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static QuestionsEnum fromValue(String value) {
+      for (QuestionsEnum b : QuestionsEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_QUESTIONS = "questions";
+  @javax.annotation.Nullable
+  private QuestionsEnum questions;
 
   public AgentPermissions() { 
   }
@@ -225,6 +265,30 @@ public class AgentPermissions {
   }
 
 
+  public AgentPermissions questions(@javax.annotation.Nullable QuestionsEnum questions) {
+    this.questions = questions;
+    return this;
+  }
+
+  /**
+   * Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.
+   * @return questions
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_QUESTIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public QuestionsEnum getQuestions() {
+    return questions;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_QUESTIONS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setQuestions(@javax.annotation.Nullable QuestionsEnum questions) {
+    this.questions = questions;
+  }
+
+
   /**
    * Return true if this AgentPermissions object is equal to o.
    */
@@ -240,12 +304,13 @@ public class AgentPermissions {
     return Objects.equals(this.version, agentPermissions.version) &&
         Objects.equals(this.files, agentPermissions.files) &&
         Objects.equals(this.shell, agentPermissions.shell) &&
-        Objects.equals(this.tools, agentPermissions.tools);
+        Objects.equals(this.tools, agentPermissions.tools) &&
+        Objects.equals(this.questions, agentPermissions.questions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(version, files, shell, tools);
+    return Objects.hash(version, files, shell, tools, questions);
   }
 
   @Override
@@ -256,6 +321,7 @@ public class AgentPermissions {
     sb.append("    files: ").append(toIndentedString(files)).append("\n");
     sb.append("    shell: ").append(toIndentedString(shell)).append("\n");
     sb.append("    tools: ").append(toIndentedString(tools)).append("\n");
+    sb.append("    questions: ").append(toIndentedString(questions)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -318,6 +384,11 @@ public class AgentPermissions {
     // add `tools` to the URL query string
     if (getTools() != null) {
       joiner.add(getTools().toUrlQueryString(prefix + "tools" + suffix));
+    }
+
+    // add `questions` to the URL query string
+    if (getQuestions() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%squestions%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQuestions()))));
     }
 
     return joiner.toString();

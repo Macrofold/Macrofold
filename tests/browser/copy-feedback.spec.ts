@@ -88,8 +88,9 @@ test('the copy check clears after three seconds and copying again restarts the t
 }) => {
   await page.goto('/docs/agents');
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: fixtureOrigin });
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  // The browser clock advances during transport; a host timestamp can already be past.
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
   const copy = page.locator('.docs-prompt-block').getByRole('button', { name: 'Copy prompt', exact: true });
   const icon = copy.locator('.copy-feedback-icon');
   const source = await page.getByRole('region', { name: 'Setup prompt', exact: true }).innerText();

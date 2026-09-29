@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from macrofold.models.agent_permissions_files import AgentPermissionsFiles
 from macrofold.models.permission_patterns import PermissionPatterns
@@ -33,8 +33,9 @@ class AgentPermissions(BaseModel):
     files: Optional[AgentPermissionsFiles] = None
     shell: Optional[StrictStr] = None
     tools: Optional[PermissionPatterns] = None
+    questions: Optional[StrictStr] = Field(default=None, description="Interactive native questions. Omitted retains current harness behavior; any denying layer wins. Denial currently supports OpenCode only; other harnesses reject it before reserving funds. Connector tool patterns do not control native questions.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["version", "files", "shell", "tools"]
+    __properties: ClassVar[List[str]] = ["version", "files", "shell", "tools", "questions"]
 
     @field_validator('version')
     def version_validate_enum(cls, value):
@@ -45,6 +46,16 @@ class AgentPermissions(BaseModel):
 
     @field_validator('shell')
     def shell_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['allow', 'deny']):
+            raise ValueError("must be one of enum values ('allow', 'deny')")
+        return value
+
+    @field_validator('questions')
+    def questions_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
@@ -120,7 +131,8 @@ class AgentPermissions(BaseModel):
             "version": obj.get("version"),
             "files": AgentPermissionsFiles.from_dict(obj["files"]) if obj.get("files") is not None else None,
             "shell": obj.get("shell"),
-            "tools": PermissionPatterns.from_dict(obj["tools"]) if obj.get("tools") is not None else None
+            "tools": PermissionPatterns.from_dict(obj["tools"]) if obj.get("tools") is not None else None,
+            "questions": obj.get("questions")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

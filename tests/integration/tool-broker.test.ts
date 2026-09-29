@@ -12,7 +12,7 @@ import { seal } from '../../packages/core/src/crypto';
 import { credit } from '../../packages/core/src/ledger';
 import * as accessResolution from '../../packages/core/src/connection-access-resolution';
 import { patchAccess, saveRule } from '../../packages/core/src/connection-access';
-import { executeGrantedTool, handleRuntimeMcp, exposedToolName } from '../../packages/core/src/tool-broker';
+import { executeGrantedTool, handleRuntimeMcp, exposedToolName, runtimeTools } from '../../packages/core/src/tool-broker';
 import { runtimeToken, type RuntimeCapability } from '../../packages/core/src/runtime-auth';
 import { admitRun } from '../../packages/core/src/runs';
 import { createWorktree } from '../../packages/core/src/files';
@@ -312,6 +312,15 @@ it('search is scoped, budgeted, replay-safe and uses the selected funding key wi
   });
   expect(requests).toBe(1);
 });
+it('rejects ambiguous granted tool catalogs before exposing an invocation target', async () => {
+  const a = await prepared('mcp_remote');
+  vi.spyOn(connections, 'connectionTools').mockResolvedValue([a.tool, a.tool]);
+  await expect(runtimeTools(a.cap)).rejects.toMatchObject({ code: 'ambiguous_tool_catalog' });
+  const count = await transaction(a.p.organizationId, async (tx) =>
+    (await tx.query('SELECT count(*)::int AS n FROM tool_invocations WHERE run_id=$1', [a.runId])).rows[0].n,
+  );
+  expect(count).toBe(0);
+});
 it('discovers and calls a 2020-12 MCP tool while rejecting invalid arguments and schemas before dispatch', async () => {
   const a = await prepared('mcp_remote');
   const inputSchema = {
@@ -352,6 +361,7 @@ it('discovers and calls a 2020-12 MCP tool while rejecting invalid arguments and
   ));
   try {
     const name = exposedToolName(a.connection.id, a.tool.name);
+    expect(name).toContain(a.tool.name.slice(0, 20));
     expect((await client.listTools()).tools).toEqual([
       expect.objectContaining({ name, inputSchema }),
     ]);

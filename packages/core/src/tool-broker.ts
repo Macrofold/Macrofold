@@ -21,9 +21,9 @@ import type { components } from '../../contracts/api';
 import { approvedStdio } from './stdio-catalog';
 import type { MachineTools, MachineBinding } from './ports';
 import { searchWeb, searchKey } from './search';
+import { exposedToolName } from './tool-names';
+export { exposedToolName } from './tool-names';
 type Tool = components['schemas']['Tool'];
-export const exposedToolName = (connectionId: string, name: string) =>
-  `c_${connectionId.replaceAll('-', '').slice(0, 16)}_${sha256(name).slice(0, 16)}`;
 async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: string) {
   return transaction(cap.organization, async (tx) => {
     const run = await getRun(tx, cap.run);
@@ -58,10 +58,16 @@ async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: s
 export async function runtimeTools(cap: RuntimeCapability) {
   const { connections } = await authorize(cap);
   const tools: { connection: resources.Document<'connections'> & { run_tools: string[] }; tool: Tool }[] = [];
+  const names = new Set<string>();
   for (const connection of connections) {
     const catalog = await connectionTools(connection);
     for (const tool of catalog)
-      if ((connection.run_tools as string[]).includes(tool.name)) tools.push({ connection, tool });
+      if ((connection.run_tools as string[]).includes(tool.name)) {
+        const name = exposedToolName(connection.id, tool.name);
+        assert(!names.has(name), 502, 'ambiguous_tool_catalog', 'The granted tools have ambiguous names.');
+        names.add(name);
+        tools.push({ connection, tool });
+      }
   }
   return tools;
 }

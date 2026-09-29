@@ -253,6 +253,7 @@ fn origin_and_financial_precision() {
     let limits = macrofold::models::Limits {
         timeout_seconds: Some(300),
         max_cost_micro_usd: Some("9007199254740993".into()),
+        ..Default::default()
     };
     assert_eq!(
         serde_json::to_value(limits).unwrap()["max_cost_micro_usd"],

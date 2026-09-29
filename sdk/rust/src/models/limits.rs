@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Limits {
+    /// Cancel this native Run after a provider rejection, model transport/stream error or missing final usage, fencing further model calls before they reach the provider. Allows only one outstanding model request, so lost settlement blocks another dispatch. Existing work and provisional costs remain accounted. Omission preserves the harness's normal retry behavior. This does not retry or refund the failed request.
+    #[serde(rename = "stop_on_model_error", skip_serializing_if = "Option::is_none")]
+    pub stop_on_model_error: Option<bool>,
     /// Execution lifecycle timeout, capped by the current account policy: Starter 1800, Pro 3600, Scale 7200 seconds. Includes provisioning and persistence. Omission uses the smaller of 900 seconds and the account cap.
     #[serde(rename = "timeout_seconds", skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<i32>,
@@ -24,6 +27,7 @@ pub struct Limits {
 impl Limits {
     pub fn new() -> Limits {
         Limits {
+            stop_on_model_error: None,
             timeout_seconds: None,
             max_cost_micro_usd: None,
         }

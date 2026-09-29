@@ -1,5 +1,6 @@
 import { prepareAttachments, AttachmentError } from './attachments';
 import { permissionAdapters } from '../../contracts/permission-adapters';
+import { questionsAllowed } from '../../contracts/permissions';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
@@ -18,7 +19,16 @@ import { reasoningEvents } from './reasoning-events';
 
 let configuration = JSON.parse(await readFile(process.argv[2], 'utf8')) as NativeConfiguration;
 // OpenCode's SDK inherits its parent's environment. Remove it before starting any harness.
-const allowed = new Set(['PATH', 'NODE_ENV', 'LANG', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'TMPDIR', 'USER', 'LOGNAME']);
+const allowed = new Set([
+  'PATH',
+  'NODE_ENV',
+  'LANG',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
+  'TMPDIR',
+  'USER',
+  'LOGNAME',
+]);
 for (const key of Object.keys(process.env)) if (!allowed.has(key)) delete process.env[key];
 process.env.HOME = configuration.stateHome;
 process.env.XDG_CONFIG_HOME = `${configuration.stateHome}/.config`;
@@ -30,7 +40,7 @@ process.env.OPENCODE_DISABLE_AUTOUPDATE = 'true';
 process.env.OPENCODE_DISABLE_MODELS_FETCH = 'true';
 // SDK-hosted OpenCode disables questions by default; our adapter forwards them
 // through the existing Run input/answer contract and its permission policy.
-process.env.OPENCODE_ENABLE_QUESTION_TOOL = 'true';
+process.env.OPENCODE_ENABLE_QUESTION_TOOL = String(questionsAllowed(configuration.permissions || []));
 process.chdir(configuration.workspace);
 let controller = new AbortController();
 process.on('SIGTERM', () => {

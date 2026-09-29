@@ -61,7 +61,9 @@ it.each(harnessNames)(
     expect(fileAllowed(row.config.permission_layers!, 'write', 'docs/guide.md')).toBe(true);
     for (const file of ['outside.md', 'docs/private/guide.md', 'docs/code.ts'])
       expect(fileAllowed(row.config.permission_layers!, 'write', file)).toBe(false);
-    await expect(client.workspaces.update(workspace.id, { permissions: { version: 1 } })).rejects.toMatchObject({
+    await expect(
+      client.workspaces.update(workspace.id, { permissions: { version: 1 } }),
+    ).rejects.toMatchObject({
       code: 'permissions_in_use',
     });
     await client.runs.cancel(run.run_id);
@@ -96,9 +98,9 @@ it('does not hydrate excluded contents, preserves them and accepts only permitte
   expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'secret.env' })).toString()).toBe(
     'secret.env',
   );
-  expect(
-    Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'docs/guide.md' })).toString(),
-  ).toBe('updated');
+  expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'docs/guide.md' })).toString()).toBe(
+    'updated',
+  );
   const before = await client.worktrees.get(worktreeId);
   const denied = await client.runs.create({
     worktree_id: worktreeId,
@@ -123,4 +125,36 @@ it('does not hydrate excluded contents, preserves them and accepts only permitte
   expect((await client.worktrees.listFiles(worktreeId)).entries.map((file) => file.path)).not.toContain(
     'outside.txt',
   );
+});
+
+it('freezes inherited native-question denial and rejects unsupported harnesses before creating runs', async () => {
+  const workspace = await client.workspaces.create({
+    name: 'Unattended agent',
+    permissions: { version: 1, questions: 'deny' },
+  });
+  assert(workspace.default_worktree_id);
+  const request = {
+    worktree_id: workspace.default_worktree_id,
+    model: 'fixture-model',
+    billing_mode: 'managed' as const,
+    prompt: 'Test',
+    permissions: { version: 1 as const, questions: 'allow' as const },
+  };
+  await expect(client.runs.create({ ...request, harness: 'codex' })).rejects.toMatchObject({
+    code: 'permissions_unsupported',
+  });
+  expect((await client.runs.list({ workspace_id: workspace.id })).data).toHaveLength(0);
+  const run = await client.runs.create({ ...request, harness: 'opencode' });
+  const row = await transaction(account.p.organizationId, (tx) => getRun(tx, run.run_id));
+  expect(row.config.permission_layers).toEqual([
+    { version: 1, questions: 'deny' },
+    { version: 1, questions: 'allow' },
+  ]);
+  await client.runs.cancel(run.run_id);
+  await client.workspaces.update(workspace.id, { permissions: { version: 1 } });
+  await expect(
+    client.sessions.continueRun(run.session_id, { prompt: 'Continue', queue_if_busy: true }),
+  ).rejects.toMatchObject({
+    code: 'session_permissions_changed',
+  });
 });

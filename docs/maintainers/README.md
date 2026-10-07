@@ -19,6 +19,7 @@ Release work and verification evidence live here, separate from user guides. Sta
 
 - [Documentation architecture](../engineering/documentation.md) and [research references](../engineering/documentation/research.md).
 - [Product scope](../product/README.md), [historical naming exploration](../product/naming.md), and [architecture research](../architecture/research.md).
+- [Claude-mem memory research](../architecture/claude-mem-research.md): direct developer use, optional cross-run recall, integration boundaries and unrun adoption gates.
 - [Requirements map](../requirements.csv): feature-to-implementation traceability.
 
 Keep secrets, personal contact details, account identifiers, and machine-specific deployment records in a private operator vault. Public maintainer documentation records the check and its outcome without publishing credentials or assuming access to a developer's local files.

@@ -8,6 +8,10 @@ Specs describe observable outcomes, journeys, scope, failures, acceptance and fe
 
 Project documents retain proposal-specific context. Current feature behavior stays in `docs/features/`, cross-cutting architecture in `docs/architecture/`, and unfinished implementation/acceptance work in [maintainer TODO](../maintainers/TODO.md). Link each new project here and from affected owners. The [design approval workflow](../../.agents/skills/macrofold-design/SKILL.md#approval-to-implementation) owns the transition from documents to implementation.
 
+## Proposed capability library
+
+- **Agent integration library:** [feature specification](agent-integration-library-feature-spec.md) and [technical design](agent-integration-library-tech-design.md) for optional, one-click memory architectures and reusable Skills/MCP/tool packs. Covers simple file memory, Hindsight and Claude-mem, complete lifecycle setup, permissions, funding, persistence and qualification. Develops the existing PRD-06, EX-03 and INT-05 proposals; no runtime integration or managed offering is delivered by these documents.
+
 ## Existing accepted targets
 
 - [Workers and shared hosts](../architecture/worker-execution.md) remains in its existing authoritative location; do not move or duplicate it merely to use this directory. Its linked migration work remains separate from implemented sandbox behavior.

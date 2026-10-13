@@ -1,4 +1,5 @@
 import { permissionAdapters } from '../../contracts/permission-adapters';
+import { questionsAllowed } from '../../contracts/permissions';
 import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
 import { query, createSdkMcpServer, tool, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { TurnInput } from './turn-input';
@@ -20,6 +21,7 @@ export class ClaudeAdapter implements HarnessAdapter {
     this.context = context;
     const { configuration: c, images = [], signal, emit } = context;
     const guarded = permissionAdapters['claude-code'].translate(c.permissions || []).mode === 'guarded';
+    const allowQuestions = questionsAllowed(c.permissions || []);
     const files = permissionFileTools(c.workspace, c.permissions || []);
     const definition = permissionFileDefinition(c.permissions || []);
     const controller = new AbortController();
@@ -53,11 +55,12 @@ export class ClaudeAdapter implements HarnessAdapter {
           disallowedTools: [
             'WebSearch',
             'WebFetch',
+            ...(!allowQuestions ? ['AskUserQuestion'] : []),
             ...(guarded
               ? ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Agent', 'Task', 'Skill', 'NotebookEdit']
               : []),
           ],
-          ...(guarded ? { tools: ['AskUserQuestion'] } : {}),
+          ...(guarded ? { tools: allowQuestions ? ['AskUserQuestion'] : [] } : {}),
           env: {
             NODE_ENV: 'production',
             PATH: process.env.PATH,
@@ -104,6 +107,8 @@ export class ClaudeAdapter implements HarnessAdapter {
           },
           canUseTool: async (name, input) => {
             if (name === 'AskUserQuestion') {
+              if (!questionsAllowed(this.context!.configuration.permissions || []))
+                return { behavior: 'deny', message: 'Native questions are denied by policy.' };
               const answer = await this.context!.ask(randomUUID(), 'Your agent has a question.', input);
               return { behavior: 'allow', updatedInput: { ...input, answers: answer.answers || answer } };
             }

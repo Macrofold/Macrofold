@@ -3950,6 +3950,8 @@ export interface components {
              * @default 2000000
              */
             max_cost_micro_usd: string;
+            /** @description Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. */
+            stop_on_model_error?: boolean;
         };
         Agent: {
             name: string;
@@ -4129,7 +4131,7 @@ export interface components {
              */
             worker_id?: string | null;
         };
-        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
+        /** @description Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start. */
         MessageCreate: {
             webhook_endpoint_ids?: string[];
             /** @description Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults. */
@@ -4460,6 +4462,11 @@ export interface components {
             /** @enum {string} */
             shell?: "allow" | "deny";
             tools?: components["schemas"]["PermissionPatterns"];
+            /**
+             * @description Allow native structured questions through the Run input API, or deny them. Omission inherits allowance; a denial at any workspace, worktree or Run layer wins. Does not add a question tool to harnesses without one. Session policy remains frozen.
+             * @enum {string}
+             */
+            questions?: "allow" | "deny";
         };
         ConnectorCatalogEntry: {
             slug: string;

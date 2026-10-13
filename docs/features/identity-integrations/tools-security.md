@@ -8,7 +8,7 @@ OAuth authorization-code consent displays only permissions from a signed, unexpi
 
 ## Large transfers
 
-Direct file reads/writes are limited to 4 MiB. Transfer plans support 1,000 files, 25 MiB per file and 250 MiB total, with ten pending upload plans per organization. The public plan contains temporary object URLs, expected hashes and required headers. `GET /v1/worktrees/{id}/file?path=...&download=true` issues a private streaming download redirect, including large files.
+Direct file reads/writes are limited to 4 MiB. Transfer plans support 1,000 files, 25 MiB per file and 250 MiB total, with 100 pending upload plans per organization by default (`ACTIVE_TRANSFERS_PER_ORG`). The public plan contains temporary object URLs, expected hashes and required headers. `GET /v1/worktrees/{id}/file?path=...&download=true` issues a private streaming download redirect, including large files.
 
 On R2, a plan signs a PUT for one random `staging/{organization}/{transfer}/{object}` key, with content type and exact content length bound to its signature. Fetch, browsers and curl calculate Content-Length from the uploaded body. Do not manually add this header when using Node's bundled fetch: importing Undici 8 currently exposes a dispatcher compatibility issue with duplicated lengths. The integration fixture independently validates real SigV4 PUT signatures and exercises the AWS SDK's HTTP reads/deletes. This is local protocol evidence, not a live R2 account test. [Undici issue](https://github.com/nodejs/undici/issues/5500), [R2 presigning](https://developers.cloudflare.com/r2/api/s3/presigned-urls/), [Vercel body limit](https://vercel.com/docs/functions/limitations).
 

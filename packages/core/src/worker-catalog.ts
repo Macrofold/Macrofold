@@ -80,7 +80,7 @@ export async function workerPolicyLimits(tx: Tx, organizationId: string, offerin
   const policy = await getExecutionPolicy(tx, organizationId);
   const preferred = offerings.find(item => item.compute === 'sandbox' && !item.dedicated);
   assert(preferred, 503, 'compute_unavailable', 'No automatic Worker offering is configured.');
-  const maximum = Math.max(1, Math.min(64, policy.concurrency_limit));
+  const maximum = policy.concurrency_limit;
   const defaults = Math.min(4, maximum);
   return {
     region: preferred.region, runtime: preferred.runtime,

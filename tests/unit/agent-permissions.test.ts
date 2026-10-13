@@ -8,10 +8,26 @@ import {
   permissionLayers,
   shellAllowed,
   toolAllowed,
+  questionsAllowed,
 } from '../../packages/contracts/permissions';
 import { permissionAdapters } from '../../packages/contracts/permission-adapters';
 import { permissionFileTools } from '../../packages/runtime/src/permission-files';
 import { harnessNames } from '../../packages/contracts/harnesses';
+
+it('allows questions by default and intersects explicit policies without granting other tools', () => {
+  expect(questionsAllowed([])).toBe(true);
+  expect(questionsAllowed(permissionLayers({ version: 1, questions: 'allow' }))).toBe(true);
+  for (const index of [0, 1, 2]) {
+    const layers = permissionLayers(
+      ...[0, 1, 2].map((i) => ({
+        version: 1 as const,
+        questions: i === index ? ('deny' as const) : ('allow' as const),
+      })),
+    );
+    expect(questionsAllowed(layers)).toBe(false);
+  }
+  expect(agentPermissionsSchema.safeParse({ version: 1, questions: 'ask' }).success).toBe(false);
+});
 
 it('intersects inherited include lists; child allows never override exclusions, including dotfiles', () => {
   const layers = permissionLayers(

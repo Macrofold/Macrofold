@@ -1,4 +1,4 @@
-import { fileAccess } from '../../contracts/permissions';
+import { fileAccess, questionsAllowed } from '../../contracts/permissions';
 import type { HarnessAdapter, HarnessContext } from './types';
 import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
@@ -35,6 +35,7 @@ export class HermesAdapter implements HarnessAdapter {
           PYTHONPATH: '/opt/hermes',
           // Deny-all has no file service, but must still disable native tools.
           PLATFORM_GUARDED: guarded ? '1' : '0',
+          PLATFORM_QUESTIONS: questionsAllowed(c.permissions || []) ? '1' : '0',
           ...(context.fileTools
             ? {
                 PLATFORM_FILE_TOOL_URL: context.fileTools.url,

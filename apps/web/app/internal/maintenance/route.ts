@@ -9,5 +9,6 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || !sameSecret(request.headers.get('authorization') || '', `Bearer ${secret}`))
     return Response.json({ error: 'unauthorized' }, { status: 401 });
-  return Response.json({ ...(await dispatchRuns()), ...(await dispatchMaintenance()) });
+  const [runs, maintenance] = await Promise.all([dispatchRuns(), dispatchMaintenance()]);
+  return Response.json({ ...runs, ...maintenance });
 }

@@ -34,7 +34,8 @@ import dev.macrofold.ApiClient;
  */
 @JsonPropertyOrder({
   Limits.JSON_PROPERTY_TIMEOUT_SECONDS,
-  Limits.JSON_PROPERTY_MAX_COST_MICRO_USD
+  Limits.JSON_PROPERTY_MAX_COST_MICRO_USD,
+  Limits.JSON_PROPERTY_STOP_ON_MODEL_ERROR
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class Limits {
@@ -45,6 +46,10 @@ public class Limits {
   public static final String JSON_PROPERTY_MAX_COST_MICRO_USD = "max_cost_micro_usd";
   @javax.annotation.Nullable
   private String maxCostMicroUsd = "2000000";
+
+  public static final String JSON_PROPERTY_STOP_ON_MODEL_ERROR = "stop_on_model_error";
+  @javax.annotation.Nullable
+  private Boolean stopOnModelError;
 
   public Limits() { 
   }
@@ -99,6 +104,30 @@ public class Limits {
   }
 
 
+  public Limits stopOnModelError(@javax.annotation.Nullable Boolean stopOnModelError) {
+    this.stopOnModelError = stopOnModelError;
+    return this;
+  }
+
+  /**
+   * Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+   * @return stopOnModelError
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STOP_ON_MODEL_ERROR, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public Boolean getStopOnModelError() {
+    return stopOnModelError;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STOP_ON_MODEL_ERROR, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStopOnModelError(@javax.annotation.Nullable Boolean stopOnModelError) {
+    this.stopOnModelError = stopOnModelError;
+  }
+
+
   /**
    * Return true if this Limits object is equal to o.
    */
@@ -112,12 +141,13 @@ public class Limits {
     }
     Limits limits = (Limits) o;
     return Objects.equals(this.timeoutSeconds, limits.timeoutSeconds) &&
-        Objects.equals(this.maxCostMicroUsd, limits.maxCostMicroUsd);
+        Objects.equals(this.maxCostMicroUsd, limits.maxCostMicroUsd) &&
+        Objects.equals(this.stopOnModelError, limits.stopOnModelError);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(timeoutSeconds, maxCostMicroUsd);
+    return Objects.hash(timeoutSeconds, maxCostMicroUsd, stopOnModelError);
   }
 
   @Override
@@ -126,6 +156,7 @@ public class Limits {
     sb.append("class Limits {\n");
     sb.append("    timeoutSeconds: ").append(toIndentedString(timeoutSeconds)).append("\n");
     sb.append("    maxCostMicroUsd: ").append(toIndentedString(maxCostMicroUsd)).append("\n");
+    sb.append("    stopOnModelError: ").append(toIndentedString(stopOnModelError)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -178,6 +209,11 @@ public class Limits {
     // add `max_cost_micro_usd` to the URL query string
     if (getMaxCostMicroUsd() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%smax_cost_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getMaxCostMicroUsd()))));
+    }
+
+    // add `stop_on_model_error` to the URL query string
+    if (getStopOnModelError() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstop_on_model_error%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStopOnModelError()))));
     }
 
     return joiner.toString();

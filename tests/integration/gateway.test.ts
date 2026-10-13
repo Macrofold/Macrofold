@@ -9,7 +9,8 @@ import { storage } from '../../packages/providers/src/storage';
 import * as resources from '../../packages/core/src/resources';
 import { createWorktree } from '../../packages/core/src/files';
 import { admitRun, getRun } from '../../packages/core/src/runs';
-import { handleModelRequest } from '../../packages/core/src/model-gateway';
+import { handleModelRequest, settleOrphanModelRequests } from '../../packages/core/src/model-gateway';
+import * as database from '../../packages/db';
 import { runtimeToken } from '../../packages/core/src/runtime-auth';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { saveConnection } from '../../packages/core/src/connections';
@@ -79,7 +80,7 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-async function prepared() {
+async function prepared(stopOnModelError = false) {
   const runId = await transaction(p.organizationId, async (tx) => {
     const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Gateway fixture' });
     const worktree = (await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' })).result as {
@@ -91,7 +92,7 @@ async function prepared() {
       model: 'fixture-model',
       billing_mode: 'managed',
       prompt: 'Fixture',
-      limits: { max_cost_micro_usd: '2000000', timeout_seconds: 900 },
+      limits: { max_cost_micro_usd: '2000000', timeout_seconds: 900, stop_on_model_error: stopOnModelError },
     });
     await reserve(tx, p.organizationId, 2_000_000n);
     await tx.query(
@@ -138,38 +139,196 @@ async function prepared() {
   return { runId, token, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it('retains unsettled liability when the failure fence write is unavailable, then fences on reconciliation', async () => {
+    const s = await prepared(true);
+    let fault: { mockRestore(): void } | undefined;
+    s.fetch.mockImplementationOnce(async () => {
+      fault = vi.spyOn(database, 'transaction').mockRejectedValueOnce(new Error('Synthetic database outage'));
+      return new Response('data: {"error":{"message":"synthetic"}}\n\n');
+    });
+    try {
+      await expect((await s.call()).text()).rejects.toThrow('Model stream interrupted');
+    } finally {
+      fault?.mockRestore();
+    }
+    const pending = await transaction(p.organizationId, (tx) =>
+      tx.query('SELECT status FROM gateway_requests WHERE run_id=$1', [s.runId]),
+    );
+    expect(pending.rows).toEqual([{ status: 'in_flight' }]);
+    await settleOrphanModelRequests(p.organizationId, s.runId);
+    expect((await s.call()).status).toBe(409);
+    expect(s.fetch).toHaveBeenCalledOnce();
+    const run = await transaction(p.organizationId, (tx) => getRun(tx, s.runId));
+    expect(run.model_error_request_id).toBeTruthy();
+    expect(BigInt(run.cost_micro_usd)).toBeGreaterThan(0n);
+  });
+  it.each(['rejection', 'server error', 'network', 'json error', 'EOF', 'stream error after usage'])(
+    'durably fences subsequent model requests after %s without losing accounting',
+    async (failure) => {
+      const s = await prepared(true);
+      if (failure === 'network') s.fetch.mockRejectedValueOnce(new TypeError('Synthetic connection loss'));
+      else if (failure === 'rejection') s.fetch.mockResolvedValueOnce(new Response('', { status: 429 }));
+      else if (failure === 'server error') s.fetch.mockResolvedValueOnce(new Response('', { status: 503 }));
+      else if (failure === 'json error')
+        s.fetch.mockResolvedValueOnce(Response.json({ error: { message: 'Synthetic' } }));
+      else
+        s.fetch.mockResolvedValueOnce(
+          new Response(
+            failure === 'EOF'
+              ? 'data: {"type":"response.output_text.delta","delta":"partial"}\n\n'
+              : 'data: {"type":"response.failed","response":{"status":"failed","usage":{"input_tokens":11,"output_tokens":3}}}\n\n',
+          ),
+        );
+      const stream = failure === 'EOF' || failure === 'stream error after usage';
+      const first = await s.call({ stream });
+      if (stream) await expect(first.text()).rejects.toThrow('Model stream interrupted');
+      else expect(first.status).toBeGreaterThanOrEqual(400);
+      const rejected = await s.call({ stream: false });
+      expect(rejected.status).toBe(409);
+      expect(await rejected.json()).toMatchObject({ error: { code: 'model_request_failed' } });
+      const facts = await transaction(p.organizationId, async (tx) => ({
+        run: await getRun(tx, s.runId),
+        usage: (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [s.runId])).rows,
+        requests: (await tx.query('SELECT * FROM gateway_requests WHERE run_id=$1', [s.runId])).rows,
+      }));
+      expect(facts.requests).toHaveLength(1);
+      expect(facts.usage).toHaveLength(1);
+      expect(facts.run.model_error_request_id).toBe(facts.requests[0].id);
+      expect(facts.run.cancel_requested).toBe(false);
+      if (failure === 'rejection')
+        expect(facts.usage[0]).toMatchObject({ cost_micro_usd: '0', completeness: 'complete' });
+      else if (failure === 'stream error after usage')
+        expect(facts.usage[0]).toMatchObject({
+          cost_micro_usd: '17',
+          input_tokens: '11',
+          output_tokens: '3',
+          completeness: 'complete',
+        });
+      else {
+        expect(facts.usage[0].completeness).toBe('missing');
+        expect(BigInt(facts.usage[0].cost_micro_usd)).toBeGreaterThan(0n);
+      }
+      // New process/capability generation cannot clear the persisted Run fence.
+      await transaction(p.organizationId, (tx) =>
+        tx.query('UPDATE runs SET lease_generation=2 WHERE id=$1', [s.runId]),
+      );
+      const token = runtimeToken({
+        organization: p.organizationId,
+        run: s.runId,
+        lease: '2',
+        expires: Date.now() + 60_000,
+      });
+      const recovered = await handleModelRequest(
+        new Request('https://fixture.invalid/runtime/model', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ model: model.id, input: 'Retry after recovery', stream: false }),
+        }),
+        s.runId,
+        'v1/responses',
+      );
+      expect(recovered.status).toBe(409);
+      expect(s.fetch).toHaveBeenCalledOnce();
+    },
+  );
+  it('allows retries when the stop limit is omitted, while an enabled limit allows repeated successes', async () => {
+    const s = await prepared();
+    s.fetch.mockResolvedValueOnce(new Response('', { status: 429 }));
+    expect((await s.call({ stream: false })).status).toBe(429);
+    s.fetch.mockImplementation(async () =>
+      Response.json({ id: 'synthetic', usage: { input_tokens: 11, output_tokens: 3 } }),
+    );
+    expect((await s.call({ stream: false })).status).toBe(200);
+    await transaction(p.organizationId, (tx) =>
+      tx.query("UPDATE runs SET config=jsonb_set(config,'{limits,stop_on_model_error}','true') WHERE id=$1", [
+        s.runId,
+      ]),
+    );
+    expect((await s.call({ stream: false })).status).toBe(200);
+    expect((await s.call({ stream: false })).status).toBe(200);
+    expect(s.fetch).toHaveBeenCalledTimes(4);
+  });
+  it('settles an already admitted concurrent response after the failure fence without reopening admission', async () => {
+    const s = await prepared(true);
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    s.fetch
+      .mockImplementationOnce(async () => {
+        entered();
+        await held;
+        return Response.json({ usage: { input_tokens: 11, output_tokens: 3 } });
+      })
+      .mockResolvedValueOnce(new Response('', { status: 429 }));
+    const active = s.call({ stream: false });
+    try {
+      await started;
+      expect((await s.call({ stream: false })).status).toBe(429);
+      expect((await s.call({ stream: false })).status).toBe(409);
+    } finally {
+      release();
+    }
+    expect((await active).status).toBe(200);
+    await settleOrphanModelRequests(p.organizationId, s.runId);
+    const run = await transaction(p.organizationId, (tx) => getRun(tx, s.runId));
+    expect(run.cost_micro_usd).toBe('17');
+    expect(run.model_error_request_id).toBeTruthy();
+    expect(s.fetch).toHaveBeenCalledTimes(2);
+  });
   it('traces the actual streamed input/output and committed charges without forwarding credentials', async () => {
     const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
     vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
     const s = await prepared();
-    s.fetch.mockResolvedValue(new Response([
-      'data: {"type":"response.output_text.delta","delta":"A traced answer"}',
-      'data: {"type":"response.completed","response":{"id":"response-fixture","output":[{"text":"A traced answer"}],"usage":{"input_tokens":11,"output_tokens":3}}}',
-      'data: [DONE]', '',
-    ].join('\n')));
+    s.fetch.mockResolvedValue(
+      new Response(
+        [
+          'data: {"type":"response.output_text.delta","delta":"A traced answer"}',
+          'data: {"type":"response.completed","response":{"id":"response-fixture","output":[{"text":"A traced answer"}],"usage":{"input_tokens":11,"output_tokens":3}}}',
+          'data: [DONE]',
+          '',
+        ].join('\n\n'),
+      ),
+    );
     const response = await s.call();
     expect(response.status).toBe(200);
     await response.text();
     await vi.waitFor(() => expect(trace.mock.calls.some(([o]) => o.type === 'generation')).toBe(true));
-    const generation = trace.mock.calls.map(([o]) => o).find(o => o.type === 'generation')!;
-    expect(generation).toMatchObject({ input:{input:'A local fixture'}, output:{id:'response-fixture'},
-      chargedMicroUsd:'17', context:{run_id:s.runId,organization_id:p.organizationId,billing_mode:'managed'},
-      metadata:{budget_cost_micro_usd:'17',provisional:false},usage:{input:11,output:3,complete:true} });
+    const generation = trace.mock.calls.map(([o]) => o).find((o) => o.type === 'generation')!;
+    expect(generation).toMatchObject({
+      input: { input: 'A local fixture' },
+      output: { id: 'response-fixture' },
+      chargedMicroUsd: '17',
+      context: { run_id: s.runId, organization_id: p.organizationId, billing_mode: 'managed' },
+      metadata: { budget_cost_micro_usd: '17', provisional: false },
+      usage: { input: 11, output: 3, complete: true },
+    });
     expect(JSON.stringify(trace.mock.calls)).not.toContain('fixture-key-no-provider-account');
     expect(generation.context.workspace_id).toBeTruthy();
     expect(generation.context.worktree_id).toBeTruthy();
   });
   it('records rejected and interrupted requests without claiming complete usage', async () => {
-    const trace = vi.spyOn(tracing,'recordTrace').mockImplementation(() => {});
-    vi.spyOn(tracing,'tracingEnabled').mockReturnValue(true);
+    const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+    vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
     const s = await prepared();
-    s.fetch.mockResolvedValueOnce(new Response('provider secret',{status:429}));
-    expect((await s.call({stream:false})).status).toBe(429);
-    expect(trace.mock.calls.map(([o])=>o).find(o=>o.type==='generation')).toMatchObject({level:'ERROR',chargedMicroUsd:'0',output:{http_status:429}});
+    s.fetch.mockResolvedValueOnce(new Response('provider secret', { status: 429 }));
+    expect((await s.call({ stream: false })).status).toBe(429);
+    expect(trace.mock.calls.map(([o]) => o).find((o) => o.type === 'generation')).toMatchObject({
+      level: 'ERROR',
+      chargedMicroUsd: '0',
+      output: { http_status: 429 },
+    });
     trace.mockClear();
     s.fetch.mockRejectedValueOnce(new Error('Bearer hidden-provider-secret'));
     expect((await s.call()).status).toBeGreaterThanOrEqual(400);
-    expect(trace.mock.calls.map(([o])=>o).find(o=>o.type==='generation')).toMatchObject({level:'ERROR',metadata:{provisional:true},usage:{complete:false}});
+    expect(trace.mock.calls.map(([o]) => o).find((o) => o.type === 'generation')).toMatchObject({
+      level: 'ERROR',
+      metadata: { provisional: true },
+      usage: { complete: false },
+    });
     expect(JSON.stringify(trace.mock.calls)).not.toContain('hidden-provider-secret');
   });
   it.each(['openai', 'anthropic', 'openrouter'])(
@@ -474,7 +633,7 @@ describe('model gateway metering without provider calls', () => {
         headers: { 'Content-Type': 'text/event-stream' },
       }),
     );
-    await (await s.call()).text();
+    await expect((await s.call()).text()).rejects.toThrow('Model stream interrupted');
     const usage = await transaction(
       p.organizationId,
       async (tx) => (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [s.runId])).rows[0],

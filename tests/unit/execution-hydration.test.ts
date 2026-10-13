@@ -86,7 +86,7 @@ it.each(['hash', 'size'])('rejects a corrupt %s without uploading or advancing p
   expect(stage).not.toHaveBeenCalled();
 });
 
-it('limits reads to four and drains outstanding reads before reporting a failure', async () => {
+it('limits reads to eight and drains outstanding reads before reporting a failure', async () => {
   let release = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -114,15 +114,15 @@ it('limits reads to four and drains outstanding reads before reporting a failure
   });
   const rejected = expect(result).rejects.toThrow('Unavailable object');
   try {
-    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(4));
-    expect(active).toBe(3);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(8));
+    expect(active).toBe(7);
     expect(settled).toBe(false);
   } finally {
     release();
   }
   await rejected;
   expect(active).toBe(0);
-  expect(peak).toBeLessThanOrEqual(4);
-  expect(read).toHaveBeenCalledTimes(4);
+  expect(peak).toBeLessThanOrEqual(8);
+  expect(read).toHaveBeenCalledTimes(8);
   expect(stage).not.toHaveBeenCalled();
 });

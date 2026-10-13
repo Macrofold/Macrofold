@@ -11,7 +11,7 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// MessageCreate : Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+/// MessageCreate : Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MessageCreate {
     #[serde(rename = "webhook_endpoint_ids", skip_serializing_if = "Option::is_none")]
@@ -58,7 +58,7 @@ pub struct MessageCreate {
 }
 
 impl MessageCreate {
-    /// Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+    /// Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
     pub fn new(prompt: String) -> MessageCreate {
         MessageCreate {
             webhook_endpoint_ids: None,

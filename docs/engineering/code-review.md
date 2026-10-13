@@ -46,7 +46,7 @@ Spacing, typography, tabular numbers, focus treatment and restrained transitions
 
 ## Deployment implications and limits
 
-Each process may open **five domain + three identity + two credential connections**. Vercel instances and standalone workers multiply that ceiling. Keep headroom for migrations and operations, use the provider's supported pooling, and measure database pressure before raising concurrency. Credential transactions preserve RLS and are used for OAuth credential changes and expiry-notification metadata, never filesystem-object changes. They use the normal restricted runtime role, not a separate SQL privilege boundary.
+Each process may open **20 domain + five identity + four credential connections by default**, with independent configuration. Vercel instances and standalone workers multiply that ceiling. Keep headroom for migrations and operations, use the provider's supported pooling, and measure database pressure before raising concurrency. Credential transactions preserve RLS and are used for OAuth credential changes and expiry-notification metadata, never filesystem-object changes. They use the normal restricted runtime role, not a separate SQL privilege boundary.
 
 The public HTTP contract remains compatible. The CLI's machine-readable error envelope adds one optional recovery-key field. No database migration is needed for this review. Rebuild the application, SDKs, worker and native runtime image from the same revision before release; an old image does not acquire source fixes automatically.
 

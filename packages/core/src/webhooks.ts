@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { createHmac } from 'node:crypto';
 import { pool, transaction, type Tx } from '../../db';
 import { id, unseal } from './crypto';
@@ -143,16 +144,18 @@ export async function deliverWebhook(org: string, deliveryId: string, transport:
 export async function dispatchWebhooks(transport?: typeof fetch) {
   if (isLocal() && !transport) return { webhook_deliveries: 0 };
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='webhook' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 10",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='webhook' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 100",
   );
-  await Promise.all(
-    jobs.rows.map(async (job) => {
-      try {
-        await deliverWebhook(job.organization_id, job.resource_id, transport);
-      } catch {
-        await dispatchFailed(job.organization_id, 'webhook', job.resource_id, 'webhook_dispatch_failed');
-      }
-    }),
-  );
-  return { webhook_deliveries: jobs.rowCount || 0 };
+  let processed = 0;
+  const deadline = Date.now() + 20_000;
+  await mapConcurrent(jobs.rows, 4, async (job) => {
+    if (Date.now() >= deadline) return;
+    processed++;
+    try {
+      await deliverWebhook(job.organization_id, job.resource_id, transport);
+    } catch {
+      await dispatchFailed(job.organization_id, 'webhook', job.resource_id, 'webhook_dispatch_failed');
+    }
+  });
+  return { webhook_deliveries: processed };
 }

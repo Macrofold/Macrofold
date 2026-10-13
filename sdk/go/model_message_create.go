@@ -19,7 +19,7 @@ import (
 // checks if the MessageCreate type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &MessageCreate{}
 
-// MessageCreate Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+// MessageCreate Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
 type MessageCreate struct {
 	WebhookEndpointIds []string `json:"webhook_endpoint_ids,omitempty"`
 	// Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.

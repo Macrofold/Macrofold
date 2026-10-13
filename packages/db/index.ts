@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { config } from '../core/src/config';
+import { capacitySetting } from '../core/src/capacity';
 export type Tx = pg.PoolClient;
 const commitObservers = new WeakMap<Tx, (() => void)[]>();
 /** Non-authoritative, synchronous notifications only. External I/O belongs in
@@ -17,13 +18,13 @@ const globals = globalThis as unknown as {
 // A lock or lost connection must return control to the bounded recovery path.
 // The server stops the statement before the client's wire deadline expires.
 const databaseTimeouts = {
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: capacitySetting('DATABASE_ACQUIRE_TIMEOUT_MS', 30_000, 60_000),
   query_timeout: 65000,
 };
 const databaseOptions = '-c statement_timeout=60000 -c idle_in_transaction_session_timeout=120000';
 export const pool = (globals.platformPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
-  max: 5,
+  max: capacitySetting('DATABASE_POOL_SIZE', 20, 1000),
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
   options: databaseOptions,
@@ -31,7 +32,7 @@ export const pool = (globals.platformPool ||= new pg.Pool({
 // Better Auth owns its own non-tenant schema; domain transactions use a separate role/context.
 export const authPool = (globals.authPool ||= new pg.Pool({
   connectionString: process.env.AUTH_DATABASE_URL || config.databaseUrl,
-  max: 3,
+  max: capacitySetting('AUTH_DATABASE_POOL_SIZE', 5, 1000),
   ...databaseTimeouts,
   options: `${databaseOptions} -c search_path=auth,public`,
 }));
@@ -39,7 +40,7 @@ export const authPool = (globals.authPool ||= new pg.Pool({
 // its pool can exhaust every connection with callers waiting for a nested refresh.
 export const credentialPool = (globals.credentialPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
-  max: 2,
+  max: capacitySetting('CREDENTIAL_DATABASE_POOL_SIZE', 4, 1000),
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
   options: databaseOptions,

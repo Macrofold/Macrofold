@@ -158,7 +158,9 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
   // A Workflow retry for a specific run must obey the same scheduler as a poller.
   if (direct) await lock(tx, 'capacity:global');
   else if (!(await tryLock(tx, 'capacity:global'))) return null;
-  const turn = await schedulerTurn(tx);
+  // Separate resource classes have independent turns. A native head whose
+  // dispatcher pool is full cannot prevent an eligible inference from starting.
+  const turn = await schedulerTurn(tx, run.kind === 'native_agent' ? 'native' : 'inference');
   if (!turn || turn.id !== runId) return null;
   if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx, run))) return null;
   await recordTurn(tx, org, turn);

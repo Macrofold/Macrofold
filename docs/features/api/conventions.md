@@ -43,7 +43,7 @@ Result retrieval reports `final=true` after terminalization. Available partial o
 
 Lists use `limit` and a cursor, returning `next_cursor`. The default page size is 25 and maximum is 100. Follow the returned cursor rather than constructing one.
 
-The default API rate is 300 requests per minute per credential within its organization. A 429 includes `Retry-After`. HTTP limits, run concurrency, and spending caps are independent.
+Each credential has independent per-minute budgets within its organization: 6,000 reads, 1,200 writes, and 600 Run cancellations/input answers by default. Polling cannot consume submission or cancellation capacity. Deployments may configure each budget. A 429 includes `Retry-After`. HTTP limits, run concurrency, and spending caps are independent.
 
 ## Errors and retries
 

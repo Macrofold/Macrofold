@@ -31,6 +31,27 @@ it('bounds concurrent bursts per credential, isolates neighbors, and records rej
       [a.p.organizationId],
     );
     expect(Object.fromEntries(rows.rows.map((r) => [r.status, r.n]))).toEqual({ '200': 10, '429': 22 });
+    const { admitRun } = await import('../../packages/core/src/runs');
+    const { createWorktree } = await import('../../packages/core/src/files');
+    const resources = await import('../../packages/core/src/resources');
+    const run = await transaction(a.p.organizationId, async tx => {
+      const workspace = await resources.create(tx, 'workspaces', a.p.organizationId, { name: 'Rate fixture' });
+      const worktree = await createWorktree(tx, a.p, workspace.id, {});
+      return admitRun(tx, a.p, {
+        worktree_id: worktree.result.worktree_id,
+        harness: 'codex', model: 'fixture-model', billing_mode: 'managed', prompt: 'Rate isolation fixture',
+      });
+    });
+    const post = (path: string, body: unknown) => handleApi(new Request(config.origin + path, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + a.key, 'Content-Type': 'application/json', 'Idempotency-Key': id() },
+      body: JSON.stringify(body),
+    }));
+    try {
+      const write = await post('/v1/workspaces', { name: 'Polling cannot block writes' });
+      expect(write.status).toBe(201);
+      const cancel = await post(`/v1/runs/${run.run_id}/cancel`, {});
+      expect(cancel.status).toBe(202);
+    } finally { await retireFixtureRuns(a.p.organizationId); }
   } finally {
     if (previous === undefined) delete process.env.API_RATE_LIMIT_PER_MINUTE;
     else process.env.API_RATE_LIMIT_PER_MINUTE = previous;

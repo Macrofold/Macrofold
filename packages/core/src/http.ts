@@ -13,6 +13,7 @@ import { streamEvents } from './events';
 import { adminReport } from './reports';
 import { organizationManager } from './organizations';
 import { boundedBody } from './body';
+import { requestCapacity } from './request-capacity';
 
 export async function handleApi(
   request: Request,
@@ -97,11 +98,12 @@ export async function handleApi(
         'organization_admin_required',
         'Organization webhook management requires an administrator credential without workspace restrictions.',
       );
+    const rate = requestCapacity(request.method, matched.operation.operationId);
     const count = await pool.query(
       'INSERT INTO rate_limits(key,bucket,count) VALUES($1,$2,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.bucket=excluded.bucket THEN rate_limits.count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count',
-      [`${p.organizationId}:${p.id}`, Math.floor(Date.now() / 60000)],
+      [`${p.organizationId}:${p.id}:${rate.group}`, Math.floor(Date.now() / 60000)],
     );
-    if (count.rows[0].count > Number(process.env.API_RATE_LIMIT_PER_MINUTE || 300)) {
+    if (count.rows[0].count > rate.limit) {
       headers.set('Retry-After', '60');
       throw new AppError(429, 'rate_limited', 'Too many requests. Retry in one minute.');
     }

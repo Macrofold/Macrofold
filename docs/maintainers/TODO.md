@@ -1,10 +1,15 @@
 # Engineering TODO
 
+## Resource capacity and progress
+
+- [x] Audit dispatch, admission, Worker scaling, maintenance, transfers, database pools and HTTP limits. Separate resource ownership, remove shared batch barriers and hard clamps, raise configurable defaults, and document retained safety/transport bounds. See [implementation and verification](../projects/resource-capacity.md).
+- [ ] Apply migration 051 and aligned capacity settings to hosted API/Workflow/poller deployments. Measure mixed native/inference bursts with slow transfer/provider/maintenance boundaries, queue-age fairness, database pool waits, provider throttles and memory. Establish sustainable throughput and replica/connection budgets before raising advertised commitments. Local fixtures and a production build do not certify thousands of active customers.
+
 ## Bounded operations and recovery
 
 - [x] Audit authored retry/poll/pagination/traversal paths, bound failed dispatch and native/Host recovery, and preserve checkpoints, execution identity and unresolved holds on exhaustion. Database/object/model I/O and SDK waits have finite deadlines; clients stop on the recovery notice. See [implementation plan](../projects/bounded-work.md) and [local evidence](../features/execution/workers/verification.md#bounded-work-and-recovery).
 - [x] Replace vague recovery labels with the failed processing step, safe cause, consecutive retry count, checkpoint confirmation and operator guidance. Add shared event diagnostics and prevent blocked queued Runs from taking scheduler turns without releasing uncertain active ownership. Migration 050 is applied locally; targeted fixtures and browser acceptance are recorded in Worker verification.
-- [ ] Complete full SDK verification for the actionable event diagnostics with the configured Python/Pyright, Go and JDK/Maven toolchains. The latest run passed the TypeScript API journey and 211 Python tests before missing Pyright stopped it; do not substitute earlier full-suite evidence for this tree.
+- [x] Complete full SDK verification for actionable event diagnostics. All five SDK checks pass with the configured toolchains on the resource-capacity working tree; see [current verification](../projects/resource-capacity.md#decisions-and-verification).
 - [ ] Accept migrations 048–050 and the rebuilt runtime in the hosted environment. Verify restricted reporting access, pooled PostgreSQL timeout options, provider provisioning/stop outages, retained obligations, blocked-queue fairness and raw SSE closure with actionable diagnostics after recovery exhaustion. Local fixtures do not establish hosted provider recovery or the caller's complete draft/approval journey.
 
 ## Native reasoning streams
@@ -40,7 +45,7 @@
 - [ ] Cover release failures during process discard, filesystem cleanup and final resource metering: keep Worktree and capacity ownership until cleanup succeeds, retry idempotently, and never advertise an unpublished cache. A transient health-meter failure must not skip releasing an already-metered assignment.
 - [ ] Cover a pending supervisor timer at the native result boundary and ensure it cannot cancel a later turn reusing the same UID. Cover bounded idle-cache maintenance without subsequent traffic and no unhandled supervisor-cleanup rejection.
 
-- [ ] Cover aggregate queued-demand scaling, existing provisioning as projected supply, mixed resource sizes, bounded four-allocation expansion, Worker caps, financial reservation rechecks, and no repeated provisioning for the same pending pressure.
+- [ ] Cover aggregate queued-demand scaling, existing provisioning as projected supply, mixed resource sizes, configurable allocation expansion, Worker caps, financial reservation rechecks, and no repeated provisioning for the same pending pressure.
 
 - [ ] Cover restore-marker-before-process-exit handoff: launch waits for the restore child, without touching another Run or spuriously failing an acknowledged restoration.
 - [ ] Cover warm harness incompatibility when model parameters or harness prompt mode change; old scoped runtime-control operations must not remain discoverable.
@@ -77,7 +82,8 @@ No unit or integration suites are written or run for this continuation, as reque
 
 ## Native harness tool permissions
 
-- [ ] Expose native harness tool selection through the existing API permissions model and permission adapters, including disabling OpenCode’s built-in `question` tool. Map supported restrictions to each harness’s native configuration so disabled tools and their descriptions are omitted from model requests, not merely discouraged by instructions. Preserve connector and file-access restrictions; report unsupported mappings explicitly. Cover run-level overrides and inherited policy, add focused adapter/API tests, and document copyable request examples.
+- [x] Add native question allowance/denial through the layered API permission model, including OpenCode tool omission and defensive runtime/control-plane enforcement. Add the durable `stop_on_model_error` spending safeguard with preserved checkpoint/accounting. [Plan and verification](../projects/native-run-controls.md), [public controls](../features/execution/README.md#stop-after-a-model-failure).
+- [ ] Extend selection to other native harness tools when needed. Preserve connector/file restrictions and use supported native configuration, not prompt-only restrictions. Document mappings that cannot hide tool schemas (Codex questions already use native execution denial plus the RPC guard); do not promise arbitrary native-tool parity.
 
 ## Harness prompt mode follow-up
 
@@ -88,7 +94,7 @@ No unit or integration suites are written or run for this continuation, as reque
 
 - [ ] Test shared `.env` loading for API, worker and Docker command aliases, including exported-variable precedence and unchanged paid-execution opt-in. Local Docker overrides were merged into `.env`; `.env.docker` and its example were retired. No tests were run at the operator's request.
 - [ ] Update local setup/development guides and remove `.env.docker` references. Explain switching `EXECUTION_PROVIDER` in one file, `ORCHESTRATION_BACKEND=poller` for Docker, and restarting both API and worker after configuration changes. Review the simulator-only setup guard for an already-configured Docker developer.
-- [ ] Revisit the local single-run global ceiling: retained checkpoint work occupied the sole slot and queued Jev until caller cancellation. Decide an appropriate local capacity explicitly; merging configuration does not change that ceiling or spending authorization.
+- [x] Separate native and lightweight fleet admission so retained checkpoints do not occupy the only inference budget. Explicit total/account ceilings still apply; see [resource capacity](../projects/resource-capacity.md). Local compute overrides remain separate from production defaults and spending authorization.
 
 ## Native home persistence
 
@@ -107,10 +113,11 @@ Implementation and verification: [plan](../projects/native-home-persistence.md);
 
 - [ ] Verify bounded parallel checkpoint upload (four chunks / eight manifests): successful items remain durable, hash/size verification remains enforced, failures drain all in-flight work before lease release, and recovery resumes only unfinished objects. Dedicated concurrent-failure coverage remains deferred. The separate [native-state investigation](../projects/native-home-persistence.md) now verifies exclusions and native conversation restoration.
 
-- [ ] Test `WORKER_DIAGNOSTICS=1`: correlated start/wait/complete/failure events, five-second pending progress, timer cleanup, disabled mode, unchanged results/errors, and no secret/content disclosure. Tests and documentation were deferred at the operator's request; this logging change has not been run or typechecked.
-- [ ] Exercise the Docker poller with a slow native persistence step plus newly queued inference. Its batch-wide `Promise.allSettled` and awaited maintenance can delay subsequent claims; establish the blocking phase before changing scheduling/cleanup. Preserve leases, capacity and checkpoint guarantees.
+- [ ] Test `WORKER_DIAGNOSTICS=1`: correlated start/wait/complete/failure events, five-second pending progress, timer cleanup, disabled mode, unchanged results/errors, and no secret/content disclosure. Local enabled execution and typechecking now pass with [poller progress](../projects/poller-progress.md#verification); dedicated diagnostic assertions remain open.
+- [x] Remove batch-wide and maintenance waits from the standalone poller, keeping bounded independent steps, SQL leases/capacity and checkpoint guarantees. A barrier-based PostgreSQL regression completes queued inference while native checkpoint upload remains blocked. See [poller progress](../projects/poller-progress.md).
 - [ ] Diagnose the observed cancelled native run remaining in checkpoint `upload`: use `worker.checkpoint_read.*` versus `worker.checkpoint_store.*` to separate sandbox chunk retrieval from encrypted content storage. The two affected inference runs had no `started_at`, confirming cancellation before provider execution; the exact reason for the upload stall remains unverified. Do not discard recoverable checkpoints or blindly replay provider requests.
-- [ ] Document retry/triage: restart the intended local worker with `WORKER_DIAGNOSTICS=1 pnpm worker:docker`, retain its stdout/stderr separately from `pnpm dev:docker`, and correlate `run_id` with `worker.*` events. `worker.inference_provider.started` establishes provider dispatch; `worker.advance.waiting` without it locates pre-provider work, while maintenance/candidates/claim/reschedule waiting events locate other stalls. Existing run API `waiting_reason` and `started_at` distinguish queueing from execution. These diagnostics are independent of Langfuse and do not retry, cancel, or reset work.
+- [x] Document [local queued-request triage](../getting-started/local-development/docker.md#diagnose-a-queued-request): separate diagnostic poller output, Run wait/start fields, provider-dispatch evidence and safe restarts without replay.
+- [ ] Verify independent poller progress in the hosted poller deployment and the caller's complete game scenario. Local fixtures and a tiny live inference do not establish hosted scheduling latency or complete game acceptance; [scope and evidence](../projects/poller-progress.md).
 
 This is the central list of unfinished implementation, testing, documentation, and deployment work. Add follow-ups here under the relevant feature instead of creating separate TODO documents. It is not part of the published documentation site's navigation, search index, or Markdown export. A checked-in adapter or a local simulation pass does not close a live deployment check.
 

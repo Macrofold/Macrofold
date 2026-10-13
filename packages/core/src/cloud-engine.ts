@@ -1,7 +1,7 @@
 import { blockRunRecovery } from './dispatch-failures';
 import type { RunRecoveryStep } from '../../contracts/run-recovery';
 import { publishArtifacts } from './artifacts';
-import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
+import { fileAllowed, guardedToolsRequired, questionsAllowed } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
 import { queueAutomaticSync } from './git-jobs';
 import { transaction, afterCommit, lock, type Tx } from '../../db';
@@ -29,6 +29,7 @@ import { describeContent, saveChunkManifest, saveContent } from '../../providers
 import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
+import { mapConcurrent } from './concurrent';
 
 type Phase =
   | 'input'
@@ -54,6 +55,7 @@ export type ExecutionState = {
   result?: NonNullable<RuntimeProbe['result']>;
   error?: string;
   inputId?: string;
+  questionDenied?: boolean;
   preserve?: boolean;
   snapshotId?: string;
   lock?: string;
@@ -319,7 +321,12 @@ export async function advanceCloudRun(
       await provider.launch(state.machine!);
       state.phase = 'poll';
     } else if (state.phase === 'poll') {
-      if (run.cancel_requested || run.deadline!.getTime() <= Date.now()) {
+      if (
+        run.cancel_requested ||
+        run.model_error_request_id ||
+        state.questionDenied ||
+        run.deadline!.getTime() <= Date.now()
+      ) {
         state.cancelStartedAt ??= Date.now();
         assert(
           Date.now() - state.cancelStartedAt < 60_000,
@@ -329,13 +336,17 @@ export async function advanceCloudRun(
         );
         await provider.cancel(state.machine!);
       }
-      if (run.input_request?.answer) {
+      if (run.input_request?.answer && !run.model_error_request_id && !state.questionDenied) {
         await provider.answer(state.machine!, run.input_request.id, run.input_request.answer);
         await transaction(org, (tx) =>
           tx.query("UPDATE runs SET status='running' WHERE id=$1 AND status='waiting_for_input'", [runId]),
         );
       }
       const result = await provider.probe(state.machine!, state.eventOffset || 0);
+      if (result.input && !questionsAllowed(run.config.permission_layers || [])) {
+        state.questionDenied = true;
+        await provider.cancel(state.machine!);
+      }
       assert(
         Number.isSafeInteger(result.nextOffset) &&
           result.nextOffset >= (state.eventOffset || 0) &&
@@ -364,16 +375,25 @@ export async function advanceCloudRun(
               id: `runtime:${run.lease_generation}`,
               sequence: e.sequence,
             });
-        if (result.input && state.inputId !== result.input.id) {
-          await tx.query("UPDATE runs SET status='waiting_for_input',input_request=$2 WHERE id=$1", [
-            runId,
-            JSON.stringify(result.input),
-          ]);
-          await emit(tx, org, runId, 'input.requested', {
-            input_request_id: result.input.id,
-            ...result.input,
-          });
-          state.inputId = result.input.id;
+        if (
+          result.input &&
+          !state.questionDenied &&
+          !run.model_error_request_id &&
+          state.inputId !== result.input.id
+        ) {
+          // The gateway can fence spending while a native probe is in flight.
+          const waiting = await tx.query(
+            `UPDATE runs SET status='waiting_for_input',input_request=$2 WHERE id=$1
+             AND model_error_request_id IS NULL AND NOT cancel_requested RETURNING id`,
+            [runId, JSON.stringify(result.input)],
+          );
+          if (waiting.rowCount) {
+            await emit(tx, org, runId, 'input.requested', {
+              input_request_id: result.input.id,
+              ...result.input,
+            });
+            state.inputId = result.input.id;
+          }
         }
       });
       state.eventOffset = result.nextOffset;
@@ -420,57 +440,51 @@ export async function advanceCloudRun(
       state.indexOffset = (state.indexOffset || 0) + page.entries.length;
       if (state.indexOffset >= page.total) state.phase = 'upload';
     } else if (state.phase === 'upload') {
-      const chunks = await pending(org, runId, ['output_chunk']);
+      const chunks = await pending(org, runId, ['output_chunk'], 4);
       // Drain bounded concurrent transfers before releasing the phase lease, even on failure.
-      const transfers = await Promise.allSettled(
-        chunks.map(async (item) => {
-          const bytes = await observeWorkerStep(
-            'checkpoint_read',
-            { organization_id: org, run_id: runId },
-            () => provider.chunk(state.machine!, item.name),
-          );
-          assert(
-            sha256(bytes) === item.name && bytes.length === Number(item.data.size),
-            502,
-            'checkpoint_corrupt',
-            'A runtime checkpoint chunk failed integrity verification.',
-          );
-          await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId }, () =>
-            saveContent(org, bytes),
-          );
-          await processed(org, [item]);
-        }),
-      );
-      for (const result of transfers) if (result.status === 'rejected') throw result.reason;
+      await mapConcurrent(chunks, 4, async (item) => {
+        const bytes = await observeWorkerStep(
+          'checkpoint_read',
+          { organization_id: org, run_id: runId },
+          () => provider.chunk(state.machine!, item.name),
+        );
+        assert(
+          sha256(bytes) === item.name && bytes.length === Number(item.data.size),
+          502,
+          'checkpoint_corrupt',
+          'A runtime checkpoint chunk failed integrity verification.',
+        );
+        await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId }, () =>
+          saveContent(org, bytes),
+        );
+        await processed(org, [item]);
+      });
       if (!chunks.length) {
         const entries = await pending(org, runId, ['output_entry'], 8);
-        const manifests = await Promise.allSettled(
-          entries.map(async (item) => {
-            const entry = item.data as unknown as SnapshotEntry;
-            const saved = await saveChunkManifest(
-              org,
-              entry.sha256,
-              entry.size,
-              entry.chunks.map((c) => ({ key: `${org}/content/${c.hash}`, sha256: c.hash, size: c.size })),
-            );
-            await transaction(org, (tx) =>
-              tx.query('UPDATE execution_objects SET data=data||$2::jsonb,processed=true WHERE id=$1', [
-                item.id,
-                JSON.stringify({
-                  record: {
-                    ...saved,
-                    path: entry.path,
-                    type: entry.type,
-                    mode: entry.mode,
-                    modified_at: entry.modifiedAt,
-                    git_ignored: entry.path.startsWith('.'),
-                  },
-                }),
-              ]),
-            );
-          }),
-        );
-        for (const result of manifests) if (result.status === 'rejected') throw result.reason;
+        await mapConcurrent(entries, 8, async (item) => {
+          const entry = item.data as unknown as SnapshotEntry;
+          const saved = await saveChunkManifest(
+            org,
+            entry.sha256,
+            entry.size,
+            entry.chunks.map((c) => ({ key: `${org}/content/${c.hash}`, sha256: c.hash, size: c.size })),
+          );
+          await transaction(org, (tx) =>
+            tx.query('UPDATE execution_objects SET data=data||$2::jsonb,processed=true WHERE id=$1', [
+              item.id,
+              JSON.stringify({
+                record: {
+                  ...saved,
+                  path: entry.path,
+                  type: entry.type,
+                  mode: entry.mode,
+                  modified_at: entry.modifiedAt,
+                  git_ignored: entry.path.startsWith('.'),
+                },
+              }),
+            ]),
+          );
+        });
         if (!entries.length) state.phase = 'publish';
       }
     } else if (state.phase === 'publish') {
@@ -678,13 +692,19 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
               ? 'timed_out'
               : 'failed';
       if (run.cancel_requested && status === 'failed') status = 'cancelled';
+      const controlFailure = run.model_error_request_id
+        ? 'model_request_failed'
+        : state.questionDenied
+          ? 'questions_denied'
+          : undefined;
+      if (controlFailure) status = 'failed';
       const value = {
         output_text: state.result?.output || '',
-        execution_outcome: state.result?.outcome || 'failure',
+        execution_outcome: controlFailure ? 'failure' : state.result?.outcome || 'failure',
         persistence_status: verified ? 'verified' : state.machine ? 'failed' : 'not_required',
         ...(checkpointId ? { checkpoint_id: checkpointId } : {}),
         last_verified_checkpoint_id: ws.latest_checkpoint_id,
-        failure_code: state.error || state.result?.failureCode,
+        failure_code: controlFailure || state.error || state.result?.failureCode,
         artifact_ids: artifactIds,
         sync_status: 'disabled',
       };

@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { planWorkerCapacity } from '../../packages/core/src/worker-scaling';
 import type { ComputeOffering, HostSnapshot, RunDemand, WorkerIdentity, WorkerSettings } from '../../packages/core/src/worker-types';
+
+afterEach(() => vi.unstubAllEnvs());
 
 const now = Date.parse('2026-09-01T00:00:00Z');
 const small: ComputeOffering = {
@@ -90,16 +92,19 @@ describe('queued Worker capacity planning', () => {
     const demands = Array.from({ length: 8 }, (_, index) => demand({ run_id: `run-${index}` }));
     expect(planWorkerCapacity(worker(settings), demands, [], [small], now).provision).toHaveLength(2);
   });
-  it('adds at most four allocations in one reconciliation pass', () => {
-    const demands = Array.from({ length: 20 }, (_, index) => demand({ run_id: `run-${index}` }));
-    expect(planWorkerCapacity(worker(), demands, [], [small], now).provision).toHaveLength(4);
+  it('uses a separately configurable provisioning burst bound', () => {
+    const demands = Array.from({ length: 64 }, (_, index) => demand({ run_id: `run-${index}` }));
+    const settings = worker({ max_instances: 64, max_concurrency: 128, max_hourly_compute_cost_micro_usd: '64000000' });
+    expect(planWorkerCapacity(settings, demands, [], [small], now).provision).toHaveLength(16);
+    vi.stubEnv('WORKER_PROVISION_BATCH', '2');
+    expect(planWorkerCapacity(settings, demands, [], [small], now).provision).toHaveLength(2);
   });
-  it('bounds the queue projection to 32 demands', () => {
+  it('accounts for demands beyond the former 32-item projection', () => {
     const quote = { ...large, concurrency: 64 };
     const demands = Array.from({ length: 33 }, (_, index) => demand({ run_id: `run-${index}`,
       resources: { memory_mib: 1, cpu_millis: 1 }, execution_seconds: index === 32 ? 5000 : 600 }));
     expect(planWorkerCapacity(worker({ max_concurrency: 64 }), demands, [], [quote], now).provision)
-      .toEqual([{ offering: quote, execution_seconds: 600 }]);
+      .toEqual([{ offering: quote, execution_seconds: 5000 }]);
   });
   it('funds the longest projected turn on a Host rather than adding simultaneous durations', () => {
     const demands = [300, 900, 600].map((seconds, index) => demand({ run_id: `run-${index}`,

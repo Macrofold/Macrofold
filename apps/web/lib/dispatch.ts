@@ -7,6 +7,8 @@ import { pendingRunCandidates } from '@platform/core/scheduling';
 import { claimRun } from '@platform/core/engine';
 import { renewWorkflow } from '@platform/core/workflow-ownership';
 import { flushTracesInBackground } from './trace-background';
+import { capacitySetting } from '@platform/core/capacity';
+import { mapConcurrent } from '@platform/core/concurrent';
 
 /** The committed outbox is authoritative. Losing a start() response may create a second
  * Workflow, but it cannot create a second native execution; the domain lease and VM marker fence it. */
@@ -20,18 +22,22 @@ export async function dispatchRuns(capacityFreed = false) {
 async function dispatchPendingRuns(capacityFreed: boolean) {
   if (isLocal() || config.execution !== 'vercel' || config.orchestration !== 'workflow')
     return { dispatched: 0 };
-  const pending = await pendingRunCandidates(100);
+  const batch = capacitySetting('WORKFLOW_DISPATCH_BATCH', 100, 1000);
+  const pending = await pendingRunCandidates(batch);
   const jobs = await pool.query(
     `UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',workflow_generation=workflow_generation+1
     WHERE id IN (SELECT id FROM dispatch_jobs WHERE kind='run' AND state IN ('pending','running')
       AND (available_at<=now() OR ($2 AND state='pending')) AND (lease_until IS NULL OR lease_until<now())
       AND (state='running' OR resource_id=ANY($1::uuid[]))
       ORDER BY CASE state WHEN 'running' THEN 0 ELSE 1 END,
-        array_position($1::uuid[],resource_id),available_at FOR UPDATE SKIP LOCKED LIMIT 10)
+        array_position($1::uuid[],resource_id),available_at FOR UPDATE SKIP LOCKED LIMIT $3)
     RETURNING organization_id,resource_id,state,workflow_generation`,
-    [pending.map((p) => p.resource_id), capacityFreed],
+    [pending.map((p) => p.resource_id), capacityFreed, batch],
   );
   let dispatched = 0;
+  // Keep admission ordered, but do not await slow Workflow start acknowledgements
+  // before claiming the next eligible Run. Starts have their own bounded pool.
+  const ready: typeof jobs.rows = [];
   for (const job of jobs.rows) {
     try {
       // Waiting lives in PostgreSQL, not a five-second Workflow sleep loop. A day
@@ -44,6 +50,19 @@ async function dispatchPendingRuns(capacityFreed: boolean) {
         continue;
       }
       if (!(await renewWorkflow(job.organization_id, job.resource_id, job.workflow_generation))) continue;
+      ready.push(job);
+    } catch {
+      await dispatchFailed(
+        job.organization_id,
+        'run',
+        job.resource_id,
+        'workflow_dispatch_failed',
+        job.workflow_generation,
+      );
+    }
+  }
+  await mapConcurrent(ready, capacitySetting('WORKFLOW_START_CONCURRENCY', 16, 256), async (job) => {
+    try {
       await start(agentRun, [job.organization_id, job.resource_id, job.workflow_generation]);
       dispatched++;
     } catch {
@@ -55,6 +74,6 @@ async function dispatchPendingRuns(capacityFreed: boolean) {
         job.workflow_generation,
       );
     }
-  }
+  });
   return { dispatched };
 }

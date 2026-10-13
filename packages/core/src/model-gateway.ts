@@ -18,6 +18,30 @@ import { requireRunActor } from './actor-authorization';
 import { boundedBody } from './body';
 import { emptyUsage, type ModelUsage as Usage } from './model-protocol';
 import { modelProtocol } from '../../providers/src/model-protocols';
+import {
+  modelResponseFailed,
+  modelResponseMaximumBytes,
+  observeModelStream,
+} from '../../providers/src/model-stream';
+
+/** Commit the spending fence before settlement or returning an upstream failure.
+ * Settlement may need recovery; that must never reopen model admission. */
+async function recordModelFailure(cap: RuntimeCapability, requestId: string) {
+  await transaction(cap.organization, async (tx) => {
+    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
+    const stopped = await tx.query(
+      `UPDATE runs SET model_error_request_id=$2 WHERE id=$1
+       AND kind='native_agent' AND config->'limits'->>'stop_on_model_error'='true'
+       AND model_error_request_id IS NULL AND completed_at IS NULL RETURNING id`,
+      [cap.run, requestId],
+    );
+    if (stopped.rowCount)
+      await emit(tx, cap.organization, cap.run, 'run.model_error', {
+        request_id: requestId,
+        failure_code: 'model_request_failed',
+      });
+  });
+}
 
 function roundedCost(tokens: number, rate: string) {
   return (BigInt(Math.max(0, Math.ceil(tokens))) * BigInt(rate) + 999999n) / 1000000n;
@@ -36,6 +60,12 @@ async function reserveRequest(cap: RuntimeCapability, payload: Record<string, un
     const run = await getRun(tx, cap.run);
     requireNativeRun(run);
     await requireRunActor(tx, run);
+    assert(
+      !run.model_error_request_id,
+      409,
+      'model_request_failed',
+      'An earlier model request failed. This Run does not allow further model requests.',
+    );
     assert(
       run.lease_generation === cap.lease &&
         ['running', 'waiting_for_input'].includes(run.status) &&
@@ -312,18 +342,15 @@ export async function settleOrphanModelRequests(org: string, runId: string) {
     const run = await transaction(org, (tx) => getRun(tx, runId));
     const model = run.config.rate_card;
     assert(model, 503, 'rate_card_unavailable', 'The run rate card is unavailable for reconciliation.');
-    await settleModelRequest(
-      {
-        purpose: 'runtime',
-        organization: org,
-        run: runId,
-        lease: String(request.lease_generation),
-        expires: Date.now(),
-      },
-      request.id,
-      model,
-      emptyUsage(),
-    );
+    const cap: RuntimeCapability = {
+      purpose: 'runtime',
+      organization: org,
+      run: runId,
+      lease: String(request.lease_generation),
+      expires: Date.now(),
+    };
+    await recordModelFailure(cap, request.id);
+    await settleModelRequest(cap, request.id, model, emptyUsage());
   }
 }
 export async function handleModelRequest(
@@ -375,6 +402,10 @@ export async function handleModelRequest(
     let billing: Awaited<ReturnType<typeof settleModelRequest>>;
     let level: TraceObservation['level'] = 'DEFAULT';
     let providerRequestId: string | null = null;
+    const failRequest = async () => {
+      level = 'ERROR';
+      if (admission.metered) await recordModelFailure(cap, admission.requestId);
+    };
     const settleRequest = async (upstreamRejected = false) => {
       if (admission.metered)
         billing = await settleModelRequest(
@@ -428,13 +459,16 @@ export async function handleModelRequest(
         signal: AbortSignal.any([controller.signal, request.signal]),
         redirect: 'error',
       });
-      rejected = !upstream.ok;
+      // A declared client rejection has no generation; server/timeout failures
+      // can have incurred usage and retain the normal provisional liability.
+      rejected = upstream.status >= 400 && upstream.status < 500 && upstream.status !== 408;
       providerRequestId = upstream.headers.get('x-request-id') || upstream.headers.get('request-id');
       if (!upstream.ok) {
         level = 'ERROR';
         output = { error: 'provider_rejected', http_status: upstream.status };
-        await upstream.body?.cancel();
-        await settleRequest(true);
+        await failRequest();
+        await upstream.body?.cancel().catch(() => {});
+        await settleRequest(rejected);
         return Response.json(
           {
             error: {
@@ -447,12 +481,17 @@ export async function handleModelRequest(
         );
       }
       if (!payload.stream) {
-        const data = JSON.parse((await boundedBody(upstream.body, 32 * 1024 * 1024)).toString()) as Record<
-          string,
-          unknown
-        >;
+        const data = JSON.parse(
+          (await boundedBody(upstream.body, modelResponseMaximumBytes)).toString(),
+        ) as Record<string, unknown>;
         usage = admission.protocol.usage(data, usage);
         output = data;
+        assert(
+          !modelResponseFailed(data),
+          502,
+          'model_provider_error',
+          'The provider reported a model failure.',
+        );
         if (typeof data.id === 'string') providerRequestId ||= data.id;
         await settleRequest();
         return Response.json(data);
@@ -460,7 +499,15 @@ export async function handleModelRequest(
       const reader = upstream.body!.getReader();
       ownsStream = true;
       const decoder = new TextDecoder();
-      let buffer = '';
+      const observer = observeModelStream(path, (frame) => {
+        usage = admission.protocol.usage(frame, usage);
+        capture?.add(frame);
+        const responseId =
+          (frame.response as { id?: unknown } | undefined)?.id ??
+          (frame.message as { id?: unknown } | undefined)?.id ??
+          frame.id;
+        if (typeof responseId === 'string') providerRequestId ||= responseId;
+      });
       let total = 0;
       let emptyChunks = 0;
       let closed = false;
@@ -470,35 +517,37 @@ export async function handleModelRequest(
             while (true) {
               const part = await reader.read();
               if (part.done) break;
-              assert(!controller.signal.aborted, 504, 'model_stream_timeout', 'Model stream exceeded its deadline.');
+              assert(
+                !controller.signal.aborted,
+                504,
+                'model_stream_timeout',
+                'Model stream exceeded its deadline.',
+              );
               emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
-              assert(emptyChunks < 16, 502, 'model_stream_not_progressing', 'Model stream did not make progress.');
+              assert(
+                emptyChunks < 16,
+                502,
+                'model_stream_not_progressing',
+                'Model stream did not make progress.',
+              );
               total += part.value.length;
               assert(
-                total < 32 * 1024 * 1024,
+                total <= modelResponseMaximumBytes,
                 413,
                 'response_too_large',
                 'Model output exceeded the stream limit.',
               );
-              buffer += decoder.decode(part.value, { stream: true });
-              let newline;
-              while ((newline = buffer.indexOf('\n')) !== -1) {
-                const line = buffer.slice(0, newline).trim();
-                buffer = buffer.slice(newline + 1);
-                if (line.startsWith('data:') && line.slice(5).trim() !== '[DONE]') {
-                  try {
-                    const frame = JSON.parse(line.slice(5));
-                    usage = admission.protocol.usage(frame, usage);
-                    capture?.add(frame);
-                    const responseId = frame?.response?.id ?? frame?.message?.id ?? frame?.id;
-                    if (typeof responseId === 'string') providerRequestId ||= responseId;
-                  } catch {
-                    /* SSE keepalives and non-JSON control frames are not usage. */
-                  }
-                }
-              }
+              observer.feed(decoder.decode(part.value, { stream: true }));
               if (!closed) downstream.enqueue(part.value);
             }
+            observer.feed(decoder.decode());
+            assert(
+              !controller.signal.aborted && !request.signal.aborted && !closed,
+              502,
+              'model_stream_interrupted',
+              'The model stream was interrupted.',
+            );
+            observer.finish();
             await settleRequest();
             if (!closed) {
               closed = true;
@@ -507,7 +556,13 @@ export async function handleModelRequest(
           } catch (error) {
             level = 'ERROR';
             controller.abort();
-            await settleRequest().catch(() => {});
+            try {
+              await failRequest();
+              await settleRequest();
+            } catch {
+              // Keep the in-flight reservation for reconciliation if the
+              // durable fence cannot commit. Settlement must not erase it.
+            }
             if (!closed) {
               closed = true;
               downstream.error(new Error('Model stream interrupted'));
@@ -535,6 +590,7 @@ export async function handleModelRequest(
     } catch (error) {
       level = 'ERROR';
       clearTimeout(timeout);
+      await failRequest();
       await settleRequest(rejected).catch(() => {});
       throw error;
     } finally {

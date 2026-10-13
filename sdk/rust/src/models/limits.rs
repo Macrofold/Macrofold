@@ -19,6 +19,9 @@ pub struct Limits {
     /// Integer micro-USD as a decimal string.
     #[serde(rename = "max_cost_micro_usd", skip_serializing_if = "Option::is_none")]
     pub max_cost_micro_usd: Option<String>,
+    /// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+    #[serde(rename = "stop_on_model_error", skip_serializing_if = "Option::is_none")]
+    pub stop_on_model_error: Option<bool>,
 }
 
 impl Limits {
@@ -26,6 +29,7 @@ impl Limits {
         Limits {
             timeout_seconds: None,
             max_cost_micro_usd: None,
+            stop_on_model_error: None,
         }
     }
 }

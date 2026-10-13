@@ -58,6 +58,18 @@ Repeated `maintenance_failed` messages for `workers` and `runs`, together with u
 
 If Runs stay queued, inspect the Worker's `failure_code` and run `pnpm doctor:docker`. `docker_image_missing` means the exact `DOCKER_RUNTIME_IMAGE` tag is unavailable. Rebuild that tag with the command above, or explicitly select an already-built compatible image; Docker never pulls or substitutes an image automatically. `docker_daemon_unavailable`, `docker_network_missing`, `docker_disk_full` and `docker_command_timeout` identify other local setup/health failures. Diagnostics omit raw Docker output. Repair the reported cause; provisioning will retry through the existing reconciliation loop. Do not restart a stopped execution container to replay an agent.
 
+### Diagnose a queued request
+
+Check `GET /v1/runs/{run_id}` for `waiting_reason`, `wait_seconds` and `started_at`. A null start means execution has not begun. Lightweight inference does not require a Docker Host, but `Prefer: respond-async` requests still need the standalone dispatcher. A healthy API alone does not prove the dispatcher or local PostgreSQL service is running.
+
+Stop the existing poller gracefully, then start it with content-free progress diagnostics in its own terminal:
+
+```sh
+WORKER_DIAGNOSTICS=1 pnpm worker:docker
+```
+
+Keep that terminal's output separate from `pnpm dev:docker`. Correlate the Run ID with `worker.advance.*` and `worker.inference_provider.started`. The latter confirms provider dispatch; five-second `*.waiting` messages identify an unfinished operation. `worker.maintenance.*`, `worker.candidates.*` and `worker.claim.*` locate other waits without exposing prompts or credentials. Logging does not cancel, retry or reset a Run. Restart the poller after dispatcher code changes; no runtime-image rebuild is needed for a control-plane-only fix.
+
 ## Run and continue a task
 
 Follow the [API quickstart](../../features/api/quickstart.md) against localhost with a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing a short note and read it back. Start with a 120-second timeout and an explicitly approved Run budget.
@@ -106,7 +118,7 @@ Docker is trusted contributor infrastructure, not a claim of production hostile-
 
 No host checkout, Docker socket, database credential, object-store credential, or upstream model key is mounted into the execution environment. Run-scoped gateway capabilities enter protected configuration through stdin. The adapter requires an already-built image and does not pull arbitrary images on admission. `DOCKER_RUNTIME_IMAGE` selects a compatible local image; `DOCKER_NETWORK` selects an optional bridge, not host networking.
 
-Choose `GLOBAL_CONCURRENT_RUN_LIMIT` and Worker limits within Docker's actual resource allocation, leaving room for the application and PostgreSQL. A high configured concurrency limit is not proof that a particular harness mix fits in memory. [Worker operations](../../features/execution/workers/operations.md) explains headroom, usage receipts, and deployment-specific guarantees.
+Choose `NATIVE_CONCURRENT_RUN_LIMIT` and Worker limits within Docker's actual resource allocation; configure lightweight inference separately with `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT`, leaving room for the application and PostgreSQL. A high configured concurrency limit is not proof that a particular harness mix fits in memory. [Worker operations](../../features/execution/workers/operations.md) explains headroom, usage receipts, and deployment-specific guarantees.
 
 ### Networking
 

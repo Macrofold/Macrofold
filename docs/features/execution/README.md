@@ -28,9 +28,26 @@ The API and dashboard expose elapsed waiting time, deadline, held credits, and t
 
 ## Continue, answer, or cancel
 
-Continue a session with another message. A busy session can accept a queued follow-up with `queue_if_busy=true`, up to ten queued messages per session. Answer explicit input requests using their request ID; a follow-up prompt is a separate task.
+Continue a session with another message. A busy session can accept a queued follow-up with `queue_if_busy=true`, up to 100 queued runs per session by default (the deployment can configure this limit). Answer explicit input requests using their request ID; a follow-up prompt is a separate task.
 
 Cancel with the dashboard, CLI, or `POST /v1/runs/{id}/cancel`. Queued cancellation releases reserved credits. Running cancellation saves available work and settles consumed usage. It does not undo external tool actions or cancel other queued follow-ups. Leaving a browser or terminal does not stop a run.
+
+## Stop after a model failure
+
+For native agents, add these fields to your Run configuration (also supported in saved preset/session limits):
+
+```json
+{
+  "permissions": {"version": 1, "questions": "deny"},
+  "limits": {"max_cost_micro_usd": "250000", "stop_on_model_error": true}
+}
+```
+
+`stop_on_model_error` defaults to false. With it enabled, the first failed upstream model request permanently closes model admission for that Run. This includes provider rejection, transport/timeout failure, malformed response, or interrupted/error stream. Native retries and reconnects receive HTTP 409 `model_request_failed` without another upstream call. Requests already admitted can still finish and incur usage; the safeguard cannot undo those calls or external tool effects. Non-generating token counting does not trip it. Invalid requests rejected before model admission do not count as provider failures.
+
+The Run emits `run.model_error`, stops the native harness, preserves its checkpoint and settles usage through normal finalization. Its terminal status is `failed` with `failure_code: "model_request_failed"`; fetch the result to inspect persistence separately. Known usage remains recorded. Missing usage stays provisional, and ambiguous server/transport errors are not reported as free successful calls. Independent new Runs have independent limits; restarting the same failed Run's worker cannot reset the safeguard.
+
+Use `questions: "allow"` instead when your application can present and answer native questions. Workspace/worktree denial still wins over Run allowance. See [permissions](permissions.md#native-questions) for inheritance and harness behavior. These fields are available in the REST schema and all five generated SDKs; inference/decision endpoints have their separate limit types.
 
 ## Learn more
 

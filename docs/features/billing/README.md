@@ -8,9 +8,9 @@ These are the application defaults. A hosted operator can configure subscription
 
 | Plan    | Monthly subscription | Included credits | Concurrent runs | Maximum execution | Storage | Detailed run history |
 | ------- | -------------------- | ---------------- | --------------- | ----------------- | ------- | -------------------- |
-| Starter | $0 + usage           | $0               | 2               | 30 minutes        | 1 GiB   | 30 days              |
-| Pro     | $29 + usage          | $10              | 10              | 60 minutes        | 10 GiB  | 90 days              |
-| Scale   | $199 + usage         | $50              | 50              | 120 minutes       | 50 GiB  | 90 days              |
+| Starter | $0 + usage           | $0               | 20              | 30 minutes        | 1 GiB   | 30 days              |
+| Pro     | $29 + usage          | $10              | 100             | 60 minutes        | 10 GiB  | 90 days              |
+| Scale   | $199 + usage         | $50              | 500             | 120 minutes       | 50 GiB  | 90 days              |
 
 Starter's API plan identifier is `payg`. Owners and admins can set lower organization concurrency and runtime limits. Concurrency is a maximum shared across workspaces, not an immediate-start guarantee. One writer per worktree still applies.
 

@@ -251,6 +251,7 @@ fn origin_and_financial_precision() {
         assert!(Client::with_credentials(origin, "fixture").is_err());
     }
     let limits = macrofold::models::Limits {
+        stop_on_model_error: Some(true),
         timeout_seconds: Some(300),
         max_cost_micro_usd: Some("9007199254740993".into()),
     };

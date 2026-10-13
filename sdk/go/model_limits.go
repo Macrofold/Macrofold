@@ -23,6 +23,8 @@ type Limits struct {
 	TimeoutSeconds *int32 `json:"timeout_seconds,omitempty"`
 	// Integer micro-USD as a decimal string.
 	MaxCostMicroUsd *string `json:"max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
+	// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+	StopOnModelError *bool `json:"stop_on_model_error,omitempty"`
 }
 
 // NewLimits instantiates a new Limits object
@@ -110,6 +112,38 @@ func (o *Limits) SetMaxCostMicroUsd(v string) {
 	o.MaxCostMicroUsd = &v
 }
 
+// GetStopOnModelError returns the StopOnModelError field value if set, zero value otherwise.
+func (o *Limits) GetStopOnModelError() bool {
+	if o == nil || IsNil(o.StopOnModelError) {
+		var ret bool
+		return ret
+	}
+	return *o.StopOnModelError
+}
+
+// GetStopOnModelErrorOk returns a tuple with the StopOnModelError field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Limits) GetStopOnModelErrorOk() (*bool, bool) {
+	if o == nil || IsNil(o.StopOnModelError) {
+		return nil, false
+	}
+	return o.StopOnModelError, true
+}
+
+// HasStopOnModelError returns a boolean if a field has been set.
+func (o *Limits) HasStopOnModelError() bool {
+	if o != nil && !IsNil(o.StopOnModelError) {
+		return true
+	}
+
+	return false
+}
+
+// SetStopOnModelError gets a reference to the given bool and assigns it to the StopOnModelError field.
+func (o *Limits) SetStopOnModelError(v bool) {
+	o.StopOnModelError = &v
+}
+
 func (o Limits) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -125,6 +159,9 @@ func (o Limits) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.MaxCostMicroUsd) {
 		toSerialize["max_cost_micro_usd"] = o.MaxCostMicroUsd
+	}
+	if !IsNil(o.StopOnModelError) {
+		toSerialize["stop_on_model_error"] = o.StopOnModelError
 	}
 	return toSerialize, nil
 }

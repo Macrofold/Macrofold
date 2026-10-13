@@ -3,6 +3,8 @@ import type { components } from '../../contracts/api';
 import { pool, type Tx } from '../../db';
 import { globalRunLimit } from './config';
 import { plans } from './plans';
+import { capacitySetting, fleetLimits } from './capacity';
+export type ExecutionClass = 'native' | 'inference';
 
 // Weighted virtual service counts starts, not runtime. Idle tenants join at the
 // current clock, so they neither hoard turns nor repay a lifetime of old usage.
@@ -13,7 +15,7 @@ import { plans } from './plans';
 // Worktree heads similarly replace per-candidate backlog scans. The clock is a
 // singleton even before ANALYZE; LIMIT 1 prevents inflated estimates and costly JIT.
 export const schedulingSQL = `WITH plan_limits AS (
- SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer)
+ SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(id text,concurrency_limit integer,scheduler_weight integer,lightweight_reserved integer,lightweight_limit integer,native_limit integer)
 ), worktree_heads AS MATERIALIZED (
  SELECT DISTINCT ON (worktree_id) worktree_id,id
  FROM reporting.scheduling_runs
@@ -26,7 +28,7 @@ export const schedulingSQL = `WITH plan_limits AS (
  WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id
 ), queue AS (
  SELECT r.*,coalesce(a.n,0) AS account_active,coalesce(a.native_n,0) AS native_active,coalesce(a.lightweight_n,0) AS lightweight_active,
- p.lightweight_reserved,p.lightweight_limit,
+ p.lightweight_reserved,p.lightweight_limit,p.native_limit,
  least(coalesce(o.run_concurrency_limit,p.concurrency_limit),p.concurrency_limit) AS account_limit,
  p.scheduler_weight,greatest(o.scheduler_finish,c.virtual_time) AS service,
  least(floor(extract(epoch FROM now()-r.created_at)/60),4)/16 AS age_bonus,
@@ -39,42 +41,39 @@ export const schedulingSQL = `WITH plan_limits AS (
  LEFT JOIN worker_placement wp ON wp.id=r.id LEFT JOIN active a ON a.organization_id=r.organization_id
  WHERE r.status='queued'
 ), eligible AS (
- SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY
+ SELECT *,row_number() OVER(PARTITION BY organization_id,(kind='native_agent') ORDER BY
  CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,created_at,id) AS account_order
  FROM queue WHERE NOT dispatch_blocked AND NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
  AND (kind<>'native_agent' OR native_active<greatest(0,account_limit-lightweight_reserved))
+ AND (kind<>'native_agent' OR (SELECT coalesce(sum(native_n),0) FROM active)<native_limit)
  AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
 )`;
 export const schedulingParameters = () => {
-  const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', 0);
-  const ceiling = capacitySetting('LIGHTWEIGHT_CONCURRENT_RUN_LIMIT', globalRunLimit());
+  const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', 0, 100_000, 0);
+  const limits = fleetLimits();
   return [
     JSON.stringify(
       plans().map((plan) => ({
         ...plan,
         lightweight_reserved: Math.min(plan.concurrency_limit, reserved),
-        lightweight_limit: Math.min(globalRunLimit(), ceiling),
+        lightweight_limit: limits.inference,
+        native_limit: limits.native,
       })),
     ),
   ];
 };
-function capacitySetting(name: string, fallback: number) {
-  const value = process.env[name];
-  if (value === undefined) return fallback;
-  if (!/^\d{1,5}$/.test(value)) throw new Error(`Invalid ${name} capacity configuration.`);
-  return Number(value);
-}
 
 /** Call under capacity:global. All workers, including Workflow steps, use this
  * decision at admission to execution, so a targeted retry cannot skip a tenant's turn. */
-export async function schedulerTurn(tx: Tx) {
+export async function schedulerTurn(tx: Tx, resource?: ExecutionClass) {
   return (
     await tx.query(
       `${schedulingSQL}
     SELECT id,organization_id,service,scheduler_weight FROM eligible
     WHERE account_order=1 AND (SELECT coalesce(sum(n),0) FROM active)<$2
+    AND ($3::text IS NULL OR (kind='native_agent')=($3='native'))
     ORDER BY CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,service-age_bonus,created_at,id LIMIT 1`,
-      [...schedulingParameters(), globalRunLimit()],
+      [...schedulingParameters(), globalRunLimit(), resource ?? null],
     )
   ).rows[0] as { id: string; organization_id: string; service: number; scheduler_weight: number } | undefined;
 }
@@ -91,25 +90,27 @@ export async function recordTurn(tx: Tx, org: string, turn: { service: number; s
  * Cleanup is considered before eligibility so expiry/cancellation cannot get stuck
  * behind a busy worktree or a full global ceiling. Runnable hints are capped by
  * observed free slots; a full deployment should not repeatedly claim doomed work. */
-export async function pendingRunCandidates(limit = 20) {
+export async function pendingRunCandidates(limit = 100, resource?: ExecutionClass) {
   return (
     await pool.query(
       `${schedulingSQL}, runnable AS (
-      SELECT organization_id,id,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END AS class,
+      SELECT organization_id,id,kind,CASE scheduling_class WHEN 'interactive' THEN 1 ELSE 2 END AS class,
         service-age_bonus+(account_order-1)::double precision/scheduler_weight AS score,created_at
       FROM eligible WHERE account_order<=greatest(0,account_limit-account_active)
+      AND ($4::text IS NULL OR (kind='native_agent')=($4='native'))
       ORDER BY class,score,created_at,id
       LIMIT greatest(0,least($2::integer,$3::integer-(SELECT coalesce(sum(n),0)::integer FROM active)))
     )
-    SELECT organization_id,id AS resource_id FROM (
-      SELECT q.organization_id,q.id,0 AS class,0::double precision AS score,q.created_at FROM queue q
-      WHERE q.cancel_requested OR q.queue_expires_at<=now() OR q.unavailable OR q.worker_waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime')
+    SELECT organization_id,id AS resource_id,kind FROM (
+      SELECT q.organization_id,q.id,q.kind,0 AS class,0::double precision AS score,q.created_at FROM queue q
+      WHERE ($4::text IS NULL OR (q.kind='native_agent')=($4='native'))
+      AND (q.cancel_requested OR q.queue_expires_at<=now() OR q.unavailable OR q.worker_waiting_reason IN ('worker_destroyed','worker_expired','worker_lifetime'))
       UNION ALL
-      SELECT organization_id,id,class,score,created_at FROM runnable
+      SELECT organization_id,id,kind,class,score,created_at FROM runnable
     ) candidates ORDER BY class,score,created_at,id LIMIT $2`,
-      [...schedulingParameters(), limit, globalRunLimit()],
+      [...schedulingParameters(), limit, globalRunLimit(), resource ?? null],
     )
-  ).rows as { organization_id: string; resource_id: string }[];
+  ).rows as { organization_id: string; resource_id: string; kind: string }[];
 }
 
 export async function queueObservations(tx: Tx, ids: string[]) {
@@ -125,6 +126,7 @@ export async function queueObservations(tx: Tx, ids: string[]) {
       WHEN account_active>=account_limit THEN 'account_concurrency'
       WHEN kind='native_agent' AND native_active>=greatest(0,account_limit-lightweight_reserved) THEN 'reserved_lightweight_capacity'
       WHEN kind<>'native_agent' AND (SELECT coalesce(sum(lightweight_n),0) FROM active)>=lightweight_limit THEN 'lightweight_capacity'
+      WHEN kind='native_agent' AND (SELECT coalesce(sum(native_n),0) FROM active)>=native_limit THEN 'global_capacity'
       WHEN (SELECT coalesce(sum(n),0) FROM active)>=$3 THEN 'global_capacity'
       ELSE 'scheduler_turn' END AS reason FROM queue WHERE id=ANY($2::uuid[])`,
       [...schedulingParameters(), ids, globalRunLimit()],

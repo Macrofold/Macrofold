@@ -6,7 +6,7 @@ import { Client } from '../../sdk/typescript/src/client';
 import { handleApi } from '../../packages/core/src/http';
 import { config } from '../../packages/core/src/config';
 import { executeRun } from '../../packages/core/src/engine';
-import { fileAllowed } from '../../packages/contracts/permissions';
+import { fileAllowed, questionsAllowed } from '../../packages/contracts/permissions';
 import { getNativeRun as getRun } from '../../packages/core/src/runs';
 import { harnessNames } from '../../packages/contracts/harnesses';
 let account: Awaited<ReturnType<typeof fixtureAccount>>, client: Client;
@@ -40,6 +40,31 @@ async function fixture() {
   }
   return { workspace, worktreeId };
 }
+it.each(['allow', 'deny'] as const)(
+  'accepts question %s and the stop limit through HTTP, preserving inherited denial',
+  async (questions) => {
+    const workspace = await client.workspaces.create({
+      name: 'Question policy',
+      permissions: { version: 1, questions },
+    });
+    const run = await client.runs.create({
+      worktree_id: workspace.default_worktree_id!,
+      harness: 'opencode',
+      model: 'fixture-model',
+      billing_mode: 'managed',
+      prompt: 'Fixture',
+      permissions: { version: 1, questions: 'allow' },
+      limits: { max_cost_micro_usd: '2000000', stop_on_model_error: true },
+    });
+    try {
+      const row = await transaction(account.p.organizationId, (tx) => getRun(tx, run.run_id));
+      expect(questionsAllowed(row.config.permission_layers!)).toBe(questions === 'allow');
+      expect((await client.runs.get(run.run_id)).limits).toMatchObject({ stop_on_model_error: true });
+    } finally {
+      await client.runs.cancel(run.run_id);
+    }
+  },
+);
 it.each(harnessNames)(
   'admits %s with all three layers and preserves the session permission boundary',
   async (harness) => {
@@ -61,7 +86,9 @@ it.each(harnessNames)(
     expect(fileAllowed(row.config.permission_layers!, 'write', 'docs/guide.md')).toBe(true);
     for (const file of ['outside.md', 'docs/private/guide.md', 'docs/code.ts'])
       expect(fileAllowed(row.config.permission_layers!, 'write', file)).toBe(false);
-    await expect(client.workspaces.update(workspace.id, { permissions: { version: 1 } })).rejects.toMatchObject({
+    await expect(
+      client.workspaces.update(workspace.id, { permissions: { version: 1 } }),
+    ).rejects.toMatchObject({
       code: 'permissions_in_use',
     });
     await client.runs.cancel(run.run_id);
@@ -96,9 +123,9 @@ it('does not hydrate excluded contents, preserves them and accepts only permitte
   expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'secret.env' })).toString()).toBe(
     'secret.env',
   );
-  expect(
-    Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'docs/guide.md' })).toString(),
-  ).toBe('updated');
+  expect(Buffer.from(await client.worktrees.readFile(worktreeId, { path: 'docs/guide.md' })).toString()).toBe(
+    'updated',
+  );
   const before = await client.worktrees.get(worktreeId);
   const denied = await client.runs.create({
     worktree_id: worktreeId,

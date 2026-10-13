@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool, transaction, lock, type Tx } from '../../db';
 import { id, unseal } from './crypto';
@@ -147,22 +148,20 @@ export async function cleanConnection(
 export async function dispatchConnectionCleanup() {
   if (isLocal()) return { connection_cleanups: 0 };
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='connection_cleanup' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 5",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='connection_cleanup' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 16",
   );
-  await Promise.all(
-    jobs.rows.map(async (job) => {
-      try {
-        await cleanConnection(job.organization_id, job.resource_id);
-        await dispatchSucceeded(job.organization_id, 'connection_cleanup', job.resource_id);
-      } catch {
-        await dispatchFailed(
-          job.organization_id,
-          'connection_cleanup',
-          job.resource_id,
-          'connection_cleanup_failed',
-        );
-      }
-    }),
-  );
+  await mapConcurrent(jobs.rows, 2, async (job) => {
+    try {
+      await cleanConnection(job.organization_id, job.resource_id);
+      await dispatchSucceeded(job.organization_id, 'connection_cleanup', job.resource_id);
+    } catch {
+      await dispatchFailed(
+        job.organization_id,
+        'connection_cleanup',
+        job.resource_id,
+        'connection_cleanup_failed',
+      );
+    }
+  });
   return { connection_cleanups: jobs.rowCount || 0 };
 }

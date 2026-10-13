@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool, transaction, type Tx } from '../../db';
 import { AppError } from './errors';
@@ -255,7 +256,7 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
     await pool.query(
       `SELECT organization_id,resource_id,kind FROM dispatch_jobs
     WHERE kind IN ('trigger','trigger_schedule') AND state IN ('pending','running') AND available_at<=$1 AND (lease_until IS NULL OR lease_until<=$1)
-    ORDER BY available_at,id LIMIT 25`,
+    ORDER BY available_at,id LIMIT 100`,
       [now],
     )
   ).rows;
@@ -263,8 +264,8 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
   // Bound the maintenance invocation even when Slack is slow. Remaining work stays durable in SQL.
   const deadline = Date.now() + 20000;
   let processed = 0;
-  for (const job of jobs) {
-    if (Date.now() >= deadline) break;
+  await mapConcurrent(jobs, 4, async (job) => {
+    if (Date.now() >= deadline) return;
     try {
       if (job.kind === 'trigger_schedule') await fireSchedule(job.organization_id, job.resource_id, now);
       else await dispatchTriggerDelivery(job.organization_id, job.resource_id, provider, now);
@@ -274,6 +275,6 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
       await dispatchFailed(job.organization_id, job.kind, job.resource_id, 'trigger_dispatch_failed');
     }
     processed++;
-  }
+  });
   return { triggers_processed: processed, triggers_failed: failed };
 }

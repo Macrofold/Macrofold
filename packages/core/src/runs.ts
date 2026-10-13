@@ -1,3 +1,4 @@
+import { capacitySetting } from './capacity';
 import { harnesses } from '../../contracts/harnesses';
 import { workerForRun } from './workers';
 import { validateWorkerResources } from './worker-pricing';
@@ -70,15 +71,25 @@ type RunEnvelope = {
   lease_generation: string;
   heartbeat_at: Date | null;
   cancel_requested: boolean;
+  model_error_request_id: string | null;
   event_sequence: string;
   reservation_micro_usd: string;
   cost_micro_usd: string;
   execution_binding: ExecutionState | null;
   input_request: { id: string; answer?: Record<string, unknown> } | null;
 };
-export type InferenceConfig = Pick<RunConfig,
-  'user_id' | 'principal_id' | 'principal_kind' | 'workspace_ids' | 'oauth_token_id' |
-  'oauth_audience' | 'client_type' | 'scheduling_class' | 'webhook_endpoint_ids'> & {
+export type InferenceConfig = Pick<
+  RunConfig,
+  | 'user_id'
+  | 'principal_id'
+  | 'principal_kind'
+  | 'workspace_ids'
+  | 'oauth_token_id'
+  | 'oauth_audience'
+  | 'client_type'
+  | 'scheduling_class'
+  | 'webhook_endpoint_ids'
+> & {
   stream?: boolean;
   executor_version: '1';
   task_id?: string;
@@ -100,11 +111,27 @@ export type InferenceConfig = Pick<RunConfig,
   context: import('./decision').ResolvedContext;
   context_digest: string;
 };
-export type NativeRunRow = RunEnvelope & { kind: 'native_agent'; workspace_id: string; worktree_id: string; session_id: string; config: RunConfig };
-export type InferenceRunRow = RunEnvelope & { kind: 'inference' | 'bounded_agent'; worktree_id: null; session_id: null; config: InferenceConfig };
+export type NativeRunRow = RunEnvelope & {
+  kind: 'native_agent';
+  workspace_id: string;
+  worktree_id: string;
+  session_id: string;
+  config: RunConfig;
+};
+export type InferenceRunRow = RunEnvelope & {
+  kind: 'inference' | 'bounded_agent';
+  worktree_id: null;
+  session_id: null;
+  config: InferenceConfig;
+};
 export type RunRow = NativeRunRow | InferenceRunRow;
 export function requireNativeRun(run: RunRow): asserts run is NativeRunRow {
-  assert(run.kind === 'native_agent', 409, 'run_kind_mismatch', 'This operation requires a native-agent run.');
+  assert(
+    run.kind === 'native_agent',
+    409,
+    'run_kind_mismatch',
+    'This operation requires a native-agent run.',
+  );
 }
 export async function getNativeRun(tx: Tx, runId: string, p?: Principal) {
   const run = await getRun(tx, runId, p);
@@ -339,7 +366,9 @@ export async function admitRun(
     assert(
       input.model_parameters === undefined ||
         canonical(input.model_parameters) === canonical(session.model_parameters ?? {}),
-      409, 'session_configuration_immutable', 'Start a new session to change model parameters.',
+      409,
+      'session_configuration_immutable',
+      'Start a new session to change model parameters.',
     );
     assert(
       !input.harness || input.harness === session.harness,
@@ -413,7 +442,7 @@ export async function admitRun(
   await lock(tx, `workspace-worktrees:${worktree.workspace_id}`);
   await lock(tx, `worktree:${worktree.id}`);
   const pending = await tx.query(
-    "SELECT id,session_id FROM runs WHERE worktree_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
+    "SELECT id,session_id,status FROM runs WHERE worktree_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
     [worktree.id],
   );
   assert(
@@ -422,11 +451,12 @@ export async function admitRun(
     'worktree_busy',
     'This worktree has pending work. Queue a session follow-up or create an independent worktree.',
   );
+  const queueLimit = capacitySetting('SESSION_QUEUED_RUN_LIMIT', 100, 10_000);
   assert(
-    pending.rows.filter((r) => r.session_id === session.id).length < 11,
+    pending.rows.filter((r) => r.session_id === session.id && r.status === 'queued').length < queueLimit,
     429,
     'queue_full',
-    'This session already has ten queued follow-ups.',
+    `This session already has ${queueLimit} queued runs. Wait for work to finish or cancel queued runs.`,
   );
   const configured = await validateConfiguration(tx, p, {
     ...session,
@@ -436,11 +466,19 @@ export async function admitRun(
   } as unknown as Schema['SessionCreate']);
   if (input.stream) {
     requireScopes(p, ['runs:read']);
-    assert(harnesses.find(h => h.id === configured.harness)?.capabilities.incremental_output,
-      400, 'streaming_not_supported', 'This harness does not emit incremental text. Omit stream to receive completed messages and progress.');
+    assert(
+      harnesses.find((h) => h.id === configured.harness)?.capabilities.incremental_output,
+      400,
+      'streaming_not_supported',
+      'This harness does not emit incremental text. Omit stream to receive completed messages and progress.',
+    );
   }
-  assert(input.harness_prompt_mode === undefined || configured.harness === 'opencode',
-    400, 'unsupported_prompt_mode', 'Harness prompt mode is currently supported by OpenCode only.');
+  assert(
+    input.harness_prompt_mode === undefined || configured.harness === 'opencode',
+    400,
+    'unsupported_prompt_mode',
+    'Harness prompt mode is currently supported by OpenCode only.',
+  );
   for (const endpoint of input.webhook_endpoint_ids || []) await resources.get(tx, 'webhooks', endpoint, p);
   const permissionLayers = await admitPermissions(
     tx,
@@ -473,14 +511,24 @@ export async function admitRun(
     input.connection_access_overrides,
   );
   const simulated = isLocal() && config.execution === 'simulator';
-  const worker = input.worker_id ? await workerForRun(tx,p,input.worker_id) : undefined;
-  assert(worker || (input.memory_mib === undefined && input.cpu_millis === undefined),400,'worker_required',
-    'Per-Run compute allocations require an explicit worker_id.');
-  const workerResources = worker ? {memory_mib:input.memory_mib ?? 1024,cpu_millis:input.cpu_millis ?? 250} : undefined;
-  if(workerResources) validateWorkerResources(workerResources);
-  if(worker && worker.settings.expires_at_ms !== null) assert(
-    worker.settings.expires_at_ms >= Date.now() + (configured.limits.timeout_seconds + 180) * 1000,
-    409,'worker_lifetime','This Run cannot finish inside the Worker expiration window.');
+  const worker = input.worker_id ? await workerForRun(tx, p, input.worker_id) : undefined;
+  assert(
+    worker || (input.memory_mib === undefined && input.cpu_millis === undefined),
+    400,
+    'worker_required',
+    'Per-Run compute allocations require an explicit worker_id.',
+  );
+  const workerResources = worker
+    ? { memory_mib: input.memory_mib ?? 1024, cpu_millis: input.cpu_millis ?? 250 }
+    : undefined;
+  if (workerResources) validateWorkerResources(workerResources);
+  if (worker && worker.settings.expires_at_ms !== null)
+    assert(
+      worker.settings.expires_at_ms >= Date.now() + (configured.limits.timeout_seconds + 180) * 1000,
+      409,
+      'worker_lifetime',
+      'This Run cannot finish inside the Worker expiration window.',
+    );
   const rate = worker ? '0' : computeRate();
   const minimum = computeMaximum(configured.limits.timeout_seconds, rate);
   assert(
@@ -492,9 +540,10 @@ export async function admitRun(
   );
   // BYOK usage still consumes the run budget, but local compute has no prepaid liability.
   // Billable connector fees are reserved atomically at dispatch by the tool broker.
-  const reservation = simulated || (isLocal() && config.execution === 'docker' && configured.billing_mode === 'byok')
-    ? 0n
-    : BigInt(configured.limits.max_cost_micro_usd);
+  const reservation =
+    simulated || (isLocal() && config.execution === 'docker' && configured.billing_mode === 'byok')
+      ? 0n
+      : BigInt(configured.limits.max_cost_micro_usd);
   await reserve(tx, p.organizationId, reservation);
   await nameWorktreeForRun(tx, p, worktree.id, input.prompt);
   const runId = id();
@@ -502,7 +551,9 @@ export async function admitRun(
     ...configured,
     worktree_id: worktree.id,
     instructions: session.instructions,
-    ...(configured.harness === 'opencode' ? { harness_prompt_mode: input.harness_prompt_mode ?? 'replace' } : {}),
+    ...(configured.harness === 'opencode'
+      ? { harness_prompt_mode: input.harness_prompt_mode ?? 'replace' }
+      : {}),
     agent_id: session.agent_id || null,
     agent_version: session.agent_version || null,
     connection_grants: resolved.grants,
@@ -583,7 +634,13 @@ export async function cancelRun(tx: Tx, p: Principal, runId: string) {
   if (row.status === 'queued') {
     await tx.query("UPDATE runs SET status='cancelled',completed_at=now(),result=$2 WHERE id=$1", [
       runId,
-      JSON.stringify({ execution_outcome: 'cancelled', persistence_status: 'not_required', ...(row.kind === 'native_agent' ? {} : { inference: { ...initialReceipt(row.config, row.id), outcome: 'failed' } }) }),
+      JSON.stringify({
+        execution_outcome: 'cancelled',
+        persistence_status: 'not_required',
+        ...(row.kind === 'native_agent'
+          ? {}
+          : { inference: { ...initialReceipt(row.config, row.id), outcome: 'failed' } }),
+      }),
     ]);
     await settle(tx, p.organizationId, runId, BigInt(row.reservation_micro_usd), 0n);
     await tx.query("UPDATE dispatch_jobs SET state='done' WHERE resource_id=$1", [runId]);
@@ -597,6 +654,7 @@ export async function submitInput(tx: Tx, p: Principal, runId: string, input: Sc
   assert(
     row.status === 'waiting_for_input' &&
       !row.cancel_requested &&
+      !row.model_error_request_id &&
       row.input_request?.id === input.input_request_id,
     409,
     'input_expired',

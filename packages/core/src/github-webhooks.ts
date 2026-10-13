@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { pool, transaction, lock } from '../../db';
@@ -147,9 +148,9 @@ export async function dispatchGithubPulls() {
     "UPDATE dispatch_jobs SET state='blocked',error='github_pull_expired' WHERE kind='github_pull' AND state IN ('pending','running') AND expires_at<=now()",
   );
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='github_pull' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 5",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='github_pull' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 100",
   );
-  for (const job of jobs.rows) {
+  await mapConcurrent(jobs.rows, 4, async (job) => {
     try {
       await transaction(job.organization_id, async (tx) => {
         const acquired = (
@@ -217,6 +218,6 @@ export async function dispatchGithubPulls() {
         'github_pull_dispatch_failed',
       );
     }
-  }
+  });
   return { github_notifications: jobs.rowCount || 0 };
 }

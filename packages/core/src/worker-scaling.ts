@@ -2,6 +2,7 @@ import { chooseWorkerPlacement, workerCommittedRate } from './worker-placement';
 import { workerAdmissionBlock, workerOfferingCompatible } from './worker-policy';
 import { workerHourlyExposure } from './worker-pricing';
 import type { ComputeOffering, HostSnapshot, RunDemand, WorkerIdentity } from './worker-types';
+import { capacitySetting } from './capacity';
 
 export type CapacityPlan = {
   provision: { offering: ComputeOffering; execution_seconds: number }[];
@@ -12,6 +13,7 @@ export type CapacityPlan = {
  * every queued Run from counting the same free memory. SQL remains authoritative. */
 export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly RunDemand[],
   hosts: readonly HostSnapshot[], offerings: readonly ComputeOffering[], nowMs: number): CapacityPlan {
+  const provisionLimit = capacitySetting('WORKER_PROVISION_BATCH', 16, 256);
   const plan: CapacityPlan = { provision: [], fund: new Map(), replace_idle_host_id: null };
   if (workerAdmissionBlock(worker, nowMs)) return plan;
   const projected: HostSnapshot[] = hosts.map(host => ({ ...host,
@@ -22,7 +24,7 @@ export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly Run
     return delta < 0n ? -1 : delta > 0n ? 1 : a.resources.memory_mib - b.resources.memory_mib || b.concurrency - a.concurrency;
   });
   function add(offering: ComputeOffering, executionSeconds: number) {
-    if (plan.provision.length >= 4 || projected.filter(host => host.status !== 'stopped').length >=
+    if (plan.provision.length >= provisionLimit || projected.filter(host => host.status !== 'stopped').length >=
       (worker.settings.max_instances ?? worker.settings.max_concurrency) ||
       workerCommittedRate(projected) + workerHourlyExposure(offering.price, offering.resources) >
       BigInt(worker.settings.max_hourly_compute_cost_micro_usd)) return undefined;
@@ -37,7 +39,7 @@ export function planWorkerCapacity(worker: WorkerIdentity, demands: readonly Run
     return host;
   }
   const waiting: RunDemand[] = [];
-  for (const demand of demands.slice(0, 32)) {
+  for (const demand of demands) {
     const placement = chooseWorkerPlacement(worker, demand, projected, offerings, nowMs);
     const selected = placement.action === 'place' ? projected.find(host => host.id === placement.host_id) :
       placement.action === 'provision' ? add(placement.offering, demand.execution_seconds) : undefined;

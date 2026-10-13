@@ -81,6 +81,9 @@ export function nativeModelFixture({
         /does not exist|not found|unknown tool|not allowed|denied|outside.*project|approval settings/i.test(
           toolResult,
         ),
+      questionRejected: /request_user_input.{0,60}(unavailable|not available)|questions are denied/i.test(
+        JSON.stringify((Array.isArray(body.input) ? body.input : []).filter(m => m.type === 'function_call_output')),
+      ),
       leakedSecret: JSON.stringify(body).includes('PERMISSION_SECRET_FIXTURE'),
     });
     if (pathname.endsWith('/count_tokens')) {
@@ -388,11 +391,17 @@ export function nativeModelFixture({
     ) {
       const tools = body.tools || [];
       const name =
+        (questionMode ? 'request_user_input' : undefined) ||
         (brokerTurn(turn) ? 'fixture_echo' : permissionMode ? 'worktree_files' : undefined) ||
         tools.find((t) => t.name === 'exec_command')?.name ||
         tools.find((t) => t.name === 'shell')?.name ||
         'exec_command';
-      const args = brokerTurn(turn)
+      const args = questionMode
+        ? { questions: [{ id: 'choice', header: 'Choice', question: 'Continue?', options: [
+          { label: 'Yes', description: 'Continue this fixture.' },
+          { label: 'No', description: 'Stop this fixture.' },
+        ] }] }
+        : brokerTurn(turn)
         ? { text: 'broker verified' }
         : permissionMode
           ? brokerTurn(turn)

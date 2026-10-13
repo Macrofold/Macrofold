@@ -40,7 +40,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import dev.macrofold.ApiClient;
 /**
- * Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+ * Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
  */
 @JsonPropertyOrder({
   MessageCreate.JSON_PROPERTY_WEBHOOK_ENDPOINT_IDS,

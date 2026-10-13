@@ -10,9 +10,9 @@ import {
 afterEach(() => vi.unstubAllEnvs());
 describe('plan limits cannot be raised by an account override', () => {
   it.each([
-    ['payg', 2, 1800],
-    ['pro', 10, 3600],
-    ['scale', 50, 7200],
+    ['payg', 20, 1800],
+    ['pro', 100, 3600],
+    ['scale', 500, 7200],
   ] as const)('%s caps override and default independently', (plan, concurrency, timeout) => {
     const defaults = executionPolicy({ plan, run_concurrency_limit: null, run_timeout_seconds: null });
     expect(defaults).toMatchObject({

@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { isSimulated } from './config';
 import { pool, transaction, type Tx } from '../../db';
@@ -11,6 +12,7 @@ import { GitHubHost, type RepositoryHost } from '../../providers/src/github';
 import { synchronizeGit } from '../../providers/src/git-sync';
 import { enqueueWebhook, dispatchWebhooks } from './webhooks';
 import { dispatchConnectionCleanup } from './connection-cleanup';
+import { MaintenanceDispatcher, type MaintenanceTask } from './maintenance-dispatch';
 export type SyncMode = 'push' | 'pull' | 'pull_request';
 export async function queueGitSync(
   tx: Tx,
@@ -248,11 +250,15 @@ export async function executeGitJob(
     );
   });
 }
-export async function dispatchMaintenance(host?: RepositoryHost) {
+async function dispatchGitJobs(host?: RepositoryHost) {
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='operation' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 1",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='operation' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 16",
   );
-  for (const job of jobs.rows) {
+  let processed = 0;
+  const deadline = Date.now() + 20_000;
+  await mapConcurrent(jobs.rows, 2, async (job) => {
+    if (Date.now() >= deadline) return;
+    processed++;
     try {
       await executeGitJob(job.organization_id, job.resource_id, host);
       await dispatchSucceeded(job.organization_id, 'operation', job.resource_id);
@@ -260,8 +266,12 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
       // A malformed historical job must not starve new work or unrelated maintenance.
       await dispatchFailed(job.organization_id, 'operation', job.resource_id, 'operation_dispatch_failed');
     }
-  }
+  });
+  return { operations: processed };
+}
+export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
   const tasks: [string, () => Promise<Record<string, number>>][] = [
+    ['git', () => dispatchGitJobs(host)],
     [
       'workers',
       async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() }),
@@ -287,16 +297,15 @@ export async function dispatchMaintenance(host?: RepositoryHost) {
       },
     ],
   ];
-  const result: Record<string, number> = { operations: jobs.rowCount || 0 };
-  for (const [name, task] of tasks) {
-    try {
-      Object.assign(result, await task());
-    } catch {
-      result[name + '_failed'] = 1;
-      console.error(JSON.stringify({ code: 'maintenance_failed', component: name }));
-    }
-  }
-  return result;
+  return tasks.map(([name, run]) => ({
+    name,
+    run,
+    intervalMs: ['workers', 'runs', 'decision_tasks', 'triggers'].includes(name) ? 2000 : 15000,
+  }));
+}
+const maintenance = new MaintenanceDispatcher(maintenanceTasks());
+export async function dispatchMaintenance(host?: RepositoryHost) {
+  return host ? new MaintenanceDispatcher(maintenanceTasks(host)).sweep() : maintenance.sweep();
 }
 
 export async function queueAutomaticSync(tx: Tx, p: Principal, worktreeId: string, runId: string) {

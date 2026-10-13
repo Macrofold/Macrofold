@@ -1,3 +1,4 @@
+import { capacitySetting } from './capacity';
 import type { Tx } from '../../db';
 import { boundedBody } from './body';
 import { AppError } from './errors';
@@ -135,7 +136,7 @@ export async function createTransfer(
       [p.organizationId],
     );
     assert(
-      Number(active.rows[0].count) < 10,
+      Number(active.rows[0].count) < capacitySetting('ACTIVE_TRANSFERS_PER_ORG', 100, 10_000),
       429,
       'too_many_transfers',
       'Complete existing transfers or wait for them to expire before planning more uploads.',

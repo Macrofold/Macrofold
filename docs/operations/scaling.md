@@ -10,7 +10,7 @@ This guide covers the implemented Vercel-first application, the smallest useful 
 
 Documentation answers what a provider offers, how its limits work, and how to configure it. It cannot establish our account's overrides, actual database pressure, or the throughput of this particular application.
 
-The app's **50 concurrent executions** is a configurable guardrail, not a limitation of Next.js. Current Vercel Pro documentation lists a much larger sandbox concurrency allowance. However, sandbox creation speed, control API traffic, Workflow history, database work, and model throughput can become limiting much earlier.
+The app's separate **200 native / 2,000 lightweight concurrent executions** defaults are configurable guardrails, not a limitation of Next.js. Current Vercel Pro documentation lists a much larger sandbox concurrency allowance. However, sandbox creation speed, control API traffic, Workflow history, database work, and model throughput can become limiting much earlier.
 
 Two implementation interactions deserve attention before the next capacity increase:
 
@@ -43,8 +43,8 @@ The standalone alternative runs the same domain and provider code with Node web/
 
 | Control | Implemented value or behavior | What changing it means |
 | --- | --- | --- |
-| `GLOBAL_CONCURRENT_RUN_LIMIT` | Defaults to `50`; validated from `1` through `10000` | Global execution admission ceiling; requires deploying updated scheduler configuration |
-| Organization concurrency | Starter: `2`; Pro: `10`; Scale: `50` | Additional plan ceiling; raising the global limit does not change these |
+| Fleet execution | Native `200`, lightweight `2000`, total defaults to their sum | Separate resource ceilings; matching configuration across all schedulers |
+| Organization concurrency | Starter: `20`; Pro: `100`; Scale: `500` | Additional plan ceiling; raising the global limit does not change these |
 | Active slot states | `provisioning`, `running`, `waiting_for_input`, `persisting` | Input waits and persistence occupy capacity too |
 | Worktree writer | One active execution per worktree | Independent worktree folders can run concurrently |
 | Queue expiry | New rows: creation time + `24 hours` | Request `queue_timeout_seconds` may shorten to 1–86,400 seconds; migrations 024/027 preserve old deadlines |
@@ -52,7 +52,7 @@ The standalone alternative runs the same domain and provider code with Node web/
 | Sandbox shape | `2` vCPUs; persistent sandbox, immutable runtime image | Resource sizing is currently adapter code, not a customer autoscaling control |
 | Sandbox timeout | Run timeout plus `1800` seconds | Allows lifecycle overhead; is not an extension of the user's execution deadline |
 | `ORCHESTRATION_BACKEND` | `workflow` by default; `poller` alternative | Selects the deployment's orchestration mechanism |
-| `WORKER_CONCURRENCY` | Poller default `4`; phase dispatcher clamps to `1..20` | Simultaneous orchestration steps per poller invocation, not the number of remote agents |
+| Standalone dispatch | Inference/provision/transfer/control: `64/16/8/64` per process | Separate refillable pools; no shared step ceiling |
 | Workflow queue checks | Queued work stays in PostgreSQL | Start Workflow only after claiming capacity; no day-long queue polling history |
 | Runtime checks | Normal cloud phase delay approximately `2` seconds | Actual interval also includes step and provider latency |
 | Detailed run SSE | Up to `55` seconds per connection, followed by reconnect/replay | Each reader polls independently, with at most one prefetched page |
@@ -64,6 +64,63 @@ The standalone alternative runs the same domain and provider code with Node web/
 Sources: [configuration](../../packages/core/src/config.ts), [run admission](../../packages/core/src/runs.ts), [claim coordination](../../packages/core/src/engine.ts), [initial schema](../../packages/db/001_initial.sql), [cloud phases](../../packages/core/src/cloud-engine.ts), [sandbox adapter](../../packages/providers/src/vercel.ts), [poller](../../packages/core/src/portable-dispatch.ts), [worker](../../scripts/worker.ts), and [SSE implementation](../../packages/core/src/events.ts).
 
 The single-writer boundary is the **worktree**, an independently writable checkout. A workspace can contain several. Merely choosing different Git branch names inside the same writable folder does not make concurrent writes safe.
+
+## Resource capacity settings
+
+Authoritative settings for the October 2026 capacity audit. Defaults are deployment starting points, not measured throughput promises. These do not derive from local Docker constraints. Configure the same fleet admission values in every API, Workflow and worker process. Use smaller explicit native-compute limits locally without reducing inference capacity. Integer configuration outside the supported range fails explicitly; it is never silently clamped.
+
+| Resource / setting | Default | Scope and reason |
+| --- | ---: | --- |
+| `NATIVE_CONCURRENT_RUN_LIMIT` | 200 | Fleet native occupancy; provider machines and lifecycle work |
+| `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` | 2,000 | Fleet direct LLM/Jev/bounded-agent occupancy; independent of native compute |
+| `GLOBAL_CONCURRENT_RUN_LIMIT` | Sum of both | Optional emergency total ceiling; explicitly lowering it can intentionally couple classes |
+| `DISPATCH_INFERENCE_CONCURRENCY` | 64 | Active lightweight advances per standalone process; max 1,024 |
+| `DISPATCH_PROVISION_CONCURRENCY` | 16 | Native provision steps/process; max 256 |
+| `DISPATCH_TRANSFER_CONCURRENCY` | 8 | Restore/checkpoint steps/process; max 256; each step has bounded object fan-out |
+| `DISPATCH_CONTROL_CONCURRENCY` | 64 | Lifecycle, probe, stop and cleanup steps/process; max 1,024; simulator native executions use this pool |
+| `WORKFLOW_DISPATCH_BATCH` / `WORKFLOW_START_CONCURRENCY` | 100 / 16 | Candidate page / simultaneous start acknowledgements per invocation; max 1,000 / 256 |
+| `WORKER_RECONCILE_CONCURRENCY` | 8 | Independent Workers per controller process; max 128; four Host operations per Worker |
+| `WORKER_PROVISION_BATCH` / `WORKER_DEMAND_BATCH` | 16 / 1,000 | New Hosts planned / runnable demands examined per Worker reconciliation; max 256 / 10,000 |
+| Plan entitlement | 20 / 100 / 500 | Starter/Pro/Scale aggregate organization occupancy; lower customer overrides preserved |
+| Worker `max_instances` | Up to plan concurrency | Removed the unrelated 64-instance clamp; accepted offering, CPU/memory, concurrency and hourly spending still govern placement |
+| `DATABASE_POOL_SIZE` / `AUTH_DATABASE_POOL_SIZE` / `CREDENTIAL_DATABASE_POOL_SIZE` | 20 / 5 / 4 | Separate connections per process, max 1,000 each; budget across replicas and the actual database |
+| `DATABASE_ACQUIRE_TIMEOUT_MS` | 30,000 | Pool/connect patience, max 60,000 ms; query/lock/idle-transaction safety deadlines remain |
+| `API_READ_RATE_LIMIT_PER_MINUTE` / `API_WRITE_RATE_LIMIT_PER_MINUTE` / `API_CONTROL_RATE_LIMIT_PER_MINUTE` | 6,000 / 1,200 / 600 | Separate credential/organization buckets. Run cancellation and input answers retain capacity during read/write bursts |
+| `SESSION_QUEUED_RUN_LIMIT` | 100 | Queued Runs per session, excluding the active Run; max 10,000; avoids the old ten-follow-up rejection |
+| `ACTIVE_TRANSFERS_PER_ORG` | 100 | Unfinished, unexpired push plans per organization; max 10,000; download/dry-run plans excluded |
+
+Native and lightweight fleet capacities each accept 1–100,000; the optional total ceiling accepts 1–200,000. HTTP buckets accept 1–1,000,000. `API_RATE_LIMIT_PER_MINUTE` is an optional fallback for each HTTP bucket; it does not merge them. `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` remains zero by default and can reserve part of the existing account entitlement for lightweight work. Account caps are entitlements, not proxies for process I/O capacity. `WORKER_CONCURRENCY` is removed; use the four dispatch settings.
+
+### Background work and transfers
+
+Each maintenance component has its own cadence and failure containment. Standalone Worker reconciliation refills slots without waiting for unrelated Host operations; Run expiry, task wake and trigger checks refresh every two seconds after completion. Other components use fifteen seconds. Cron owns and awaits its work rather than leaving background promises after the response.
+
+| Queue | Candidate page / active operations | Bound retained |
+| --- | --- | --- |
+| Git sync | 16 / 2 | Worktree/operation lock and conditional remote updates; stop taking work after 20 seconds, drain started I/O |
+| Webhooks | 100 / 4 | Ten-second destination timeout, bounded retries and delivery lock; stop taking work after 20 seconds |
+| Decision tasks / GitHub notifications | 100 / 4 | Short per-task/resource transactions and durable retry identity |
+| Triggers | 100 / 4 | Twenty-second admission window and per-trigger ordering/side-effect fences |
+| Connector cleanup | 16 / 2 | Credential revocation ownership and bounded provider I/O |
+| Finance | 100 / 2 | Twenty-second admission window; unstarted claims released; per-organization ledger reconciliation |
+| Storage | 16 organizations / 2 | Twenty-second admission window; unstarted claims released; eight parallel object reads/deletes per organization, exclusive reference-publication lock |
+| Restore | 32 objects / 4 MiB per step; eight parallel object reads | One verified provider upload; memory, decoded bytes and provider protocol envelope |
+| Checkpoint publish | Four chunk reads / eight manifest reads per step | Keep large-file hashing and phase leases bounded; free slots refill without batch barriers |
+
+When an operation fails, shared bounded mapping stops taking new work and drains started I/O before exposing the error. Already-started provider work retains its own deadlines; a 20-second admission window is not an unsafe cancellation of an external side effect. More process replicas multiply these pools; configure them together with connection/provider budgets.
+
+### Audited boundaries intentionally retained
+
+- One Worktree writer, durable execution/phase leases, funding reservations, customer budgets, permission/tool ceilings and ambiguous-effect retry bounds protect correctness. More customers do not justify weakening them.
+- Queue deadlines remain 24 hours; execution plan windows remain 30/60/120 minutes. Direct synchronous inference retains its hosted request-lifetime limit; longer work uses durable Runs. SDK wait/stream retry limits bound one attachment, not execution lifetime.
+- REST pages remain 100 with cursors; report dimensions remain bounded with explicit truncation. These do not cap the total number of resources a caller can retrieve.
+- Direct file upload remains 4 MiB; staged files allow 25 MiB and explicit transfers 250 MiB/1,000 entries. Media/model request staging avoids HTTP body limits. Raising inline payload bounds would exceed supported hosting and memory envelopes.
+- Runtime checkpoints retain 10 GiB/100,000 entries; native-home state and SQL snapshot limits retain memory/integrity protection. Larger formats need a tested transport/storage change, not a bigger scheduler setting.
+- Provider/model context, tool-result, schema and output bounds protect finite protocol/model/memory budgets. Exact provider token windows and accepted usage budgets remain independent from fleet concurrency.
+- Detailed SSE rotates after 55 seconds with cursor replay. Dashboard freshness retains 256 subscriptions/64 organizations per process and bounded shared reads; overflow retries/falls back to ordinary reconciliation. These are process memory/query protections, not organization or fleet ceilings.
+- Storage collection still excludes reference publication for the affected organization. Parallel reads/deletes shorten this window; removing the lock would risk deleting newly referenced bytes. Full reference-graph construction outside that lock is a separate persistence design, not a limit increase.
+
+Apply migration 051 before the corresponding API/worker build; it adds only derived dispatch classification to the restricted reporting view. Drain old processes gracefully and restart API/workers for environment changes. No runtime-image rebuild is required. Keep verified provider quotas and acquisition ramps below their account-specific bounds, monitor eligible queue age and pool waits, and lower only the resource responsible for pressure. Separate settings prevent one saturated class from consuming every other class's capacity; they do not manufacture provider/database capacity.
 
 ## 3. Provider limits to record
 
@@ -235,12 +292,12 @@ Current pools are instantiated per Node process/runtime instance:
 
 | Pool | Maximum clients |
 | --- | ---: |
-| Domain | 5 |
-| Authentication | 3 |
-| Credential refresh | 2 |
-| Total potential per process | 10 |
+| Domain | 20 |
+| Authentication | 5 |
+| Credential refresh | 4 |
+| Total potential per process | 29 |
 
-For example, 100 processes can potentially open 1,000 clients; this does **not** mean 100 agents need 1,000 database connections. Fluid instance reuse, lazy opening, and pooler multiplexing affect actual usage. A direct auth endpoint still consumes backend connections. Increasing process count and pool sizes together can amplify pressure.
+For example, 100 processes can potentially open 2,900 clients; this does **not** mean 100 agents need 2,900 database connections. Fluid instance reuse, lazy opening, and pooler multiplexing affect actual usage. A direct auth endpoint still consumes backend connections. Increasing process count and pool sizes together can amplify pressure.
 
 Add measurements of `pg.Pool.totalCount`, `idleCount`, and `waitingCount` if absent. Database session counts alone do not reveal clients waiting inside application pools. Keep the credential pool separate: the code uses it to avoid nested credential refresh exhausting the caller's pool.
 
@@ -310,7 +367,7 @@ If spending or data integrity is at risk, use the existing emergency controls an
 
 On the preferred topology, Vercel scales request/step compute and each execution uses a separate sandbox. We increase usable capacity by removing measured bottlenecks and adjusting limits; we do not provision one dedicated API server per agent.
 
-On the standalone topology, add worker replicas using the existing Docker worker service and shared SQL leases. Increase replica count or `WORKER_CONCURRENCY` only if phase backlog/latency warrants it, while budgeting each replica's connections and provider calls. The default of four means four concurrent phase advances, which can service more than four remote agents.
+On the standalone topology, add worker replicas using the existing Docker worker service and shared SQL leases. Increase replica count or the saturated resource-specific dispatch pool only if phase backlog/latency warrants it, while budgeting each replica's connections and provider calls. Step slots bound active control-plane work; remote agents need not occupy a slot while idle.
 
 Both topologies retain a finite PostgreSQL primary and external account limits. Horizontally scalable components do not make the whole system infinitely scalable.
 
@@ -460,7 +517,7 @@ Complete this before production launch and every material increase. An unknown i
 | Item | Value / evidence to fill in |
 | --- | --- |
 | Production team/project, plan, region | Not inspected for this guide |
-| Global cap in every live scheduler deployment | Code default 50; deployed value unknown |
+| Global cap in every live scheduler deployment | Code defaults 200 native / 2,000 lightweight / 2,200 total; deployed overrides require inspection |
 | Sandbox concurrency, creation and control quotas | Compare actual account with section 3 |
 | Actual requests per runtime check and per run | Requires SDK instrumentation and cloud acceptance |
 | Queue policy and worst-case Workflow history | 24-hour new-job default; SQL waiting and bounded Workflow continuations implemented; staging acceptance pending |

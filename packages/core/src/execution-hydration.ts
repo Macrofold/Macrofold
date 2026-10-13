@@ -2,11 +2,12 @@ import type { MachineBinding, MachineProvider } from './ports';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { readContent, type StoredChunk } from '../../providers/src/storage';
 import { assert } from './errors';
+import { mapConcurrent } from './concurrent';
 
 export const RESTORE_BATCH_OBJECTS = 32;
 // Fits both the Vercel upload and Docker's five-MiB write limit, including one full chunk.
 const RESTORE_BATCH_BYTES = 4 * 1024 ** 2;
-const RESTORE_READ_CONCURRENCY = 4;
+const RESTORE_READ_CONCURRENCY = 8;
 export type RestoreObject = { id: string; name: string } & (
   { kind: 'input_chunk'; data: StoredChunk } | { kind: 'input_page'; data: { entries: SnapshotEntry[] } }
 );
@@ -33,25 +34,13 @@ export async function stageRestoreObjects(
     batch.push({ item, size, page });
     bytes += size;
   }
-  const files: { path: string; content: Buffer }[] = [];
-  for (let offset = 0; offset < batch.length; offset += RESTORE_READ_CONCURRENCY) {
-    // Drain in-flight reads before releasing the phase lease on any failure.
-    const results = await Promise.allSettled(
-      batch.slice(offset, offset + RESTORE_READ_CONCURRENCY).map(async ({ item, size, page }) => {
-        const content =
-          item.kind === 'input_chunk'
-            ? await readContent(item.data.key, item.data.sha256)
-            : Buffer.from(page);
-        assert(content.length === size, 502, 'restore_failed', 'Restore object size mismatch.');
-        const dest = item.kind === 'input_chunk' ? `chunks/${item.name}` : `page-${item.name}.json`;
-        return { path: `/platform-control/restore/${dest}`, content };
-      }),
-    );
-    for (const result of results) {
-      if (result.status === 'rejected') throw result.reason;
-      files.push(result.value);
-    }
-  }
+  const files = await mapConcurrent(batch, RESTORE_READ_CONCURRENCY, async ({ item, size, page }) => {
+    const content =
+      item.kind === 'input_chunk' ? await readContent(item.data.key, item.data.sha256) : Buffer.from(page);
+    assert(content.length === size, 502, 'restore_failed', 'Restore object size mismatch.');
+    const dest = item.kind === 'input_chunk' ? `chunks/${item.name}` : `page-${item.name}.json`;
+    return { path: `/platform-control/restore/${dest}`, content };
+  });
   if (files.length) await provider.stage(machine, files);
   return batch.map(({ item }) => item);
 }

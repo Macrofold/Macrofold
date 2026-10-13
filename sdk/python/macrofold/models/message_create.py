@@ -31,7 +31,7 @@ from pydantic_core import to_jsonable_python
 
 class MessageCreate(BaseModel):
     """
-    Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
+    Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.
     """ # noqa: E501
     webhook_endpoint_ids: Optional[List[UUID]] = None
     connection_access_overrides: Optional[List[Grant]] = Field(default=None, description="Owner-authorized access exception for this run only; requires connections:write and runs:write. Does not expand approved tools or saved defaults.")

@@ -18,6 +18,8 @@ import {
 } from './worker-pricing';
 import { hostProvider } from '../../providers/src/hosts';
 import { hostHealth, type HostProvider } from '../../contracts/host-control';
+import { mapConcurrent } from './concurrent';
+import { capacitySetting } from './capacity';
 
 export type HostProviderFactory = (driver: HostRow['provider']) => HostProvider;
 const providerLeaseMs = 120000;
@@ -460,8 +462,8 @@ async function queuedDemand(tx: Tx, workerId: string): Promise<QueuedRequirement
     AND NOT EXISTS(SELECT 1 FROM runs earlier WHERE earlier.worktree_id=r.worktree_id AND earlier.id<>r.id AND
       (earlier.status IN ('provisioning','running','waiting_for_input','persisting') OR
       (earlier.status='queued' AND (earlier.created_at,earlier.id)<(r.created_at,r.id))))
-    ORDER BY CASE r.config->>'scheduling_class' WHEN 'interactive' THEN 0 ELSE 1 END,r.created_at,r.id LIMIT 32`,
-      [workerId],
+    ORDER BY CASE r.config->>'scheduling_class' WHEN 'interactive' THEN 0 ELSE 1 END,r.created_at,r.id LIMIT $2`,
+      [workerId, capacitySetting('WORKER_DEMAND_BATCH', 1000, 10000)],
     )
   ).rows;
 }
@@ -576,14 +578,11 @@ export async function reconcileWorker(
     return hosts.map((host) => host.id);
   });
   // Bound provider fan-out; every operation still has its own durable Host lease.
-  for (let offset = 0; offset < hostIds.length; offset += 4)
-    await Promise.all(
-      hostIds.slice(offset, offset + 4).map((hostId) => advanceHost(org, hostId, providerFactory)),
-    );
+  await mapConcurrent(hostIds, 4, (hostId) => advanceHost(org, hostId, providerFactory));
 }
 
 export async function dispatchWorkers(
-  limit = 10,
+  limit = 100,
   providerFactory: HostProviderFactory = hostProvider,
 ): Promise<number> {
   const rows = (
@@ -592,31 +591,66 @@ export async function dispatchWorkers(
       [limit],
     )
   ).rows;
-  for (let offset = 0; offset < rows.length; offset += 4)
-    await Promise.all(
-      rows.slice(offset, offset + 4).map(async (row) => {
-        try {
-          await reconcileWorker(row.organization_id, row.id, providerFactory);
-          await transaction(row.organization_id, (tx) =>
-            tx.query('UPDATE workers SET failure_attempts=0 WHERE id=$1', [row.id]),
-          );
-        } catch (error) {
-          await transaction(row.organization_id, (tx) =>
-            tx
-              .query(
-                `UPDATE workers SET failure_attempts=failure_attempts+1,
-        failure_code=CASE WHEN failure_attempts+1 >= $3 THEN 'worker_retry_exhausted' ELSE $2 END,
-        next_check_at=now()+interval '30 seconds' WHERE id=$1`,
-                [
-                  row.id,
-                  error instanceof AppError ? error.code : 'worker_reconciliation_failed',
-                  MAX_HOST_FAILURES,
-                ],
-              )
-              .then(() => {}),
-          );
-        }
-      }),
+  let processed = 0;
+  const deadline = Date.now() + 20_000;
+  await mapConcurrent(rows, capacitySetting('WORKER_RECONCILE_CONCURRENCY', 8, 128), async (row) => {
+    if (Date.now() >= deadline) return;
+    processed++;
+    await reconcileScheduledWorker(row, providerFactory);
+  });
+  return processed;
+}
+async function reconcileScheduledWorker(
+  row: { id: string; organization_id: string },
+  providerFactory: HostProviderFactory,
+) {
+  try {
+    await reconcileWorker(row.organization_id, row.id, providerFactory);
+    await transaction(row.organization_id, (tx) =>
+      tx.query('UPDATE workers SET failure_attempts=0 WHERE id=$1', [row.id]),
     );
-  return rows.length;
+  } catch (error) {
+    await transaction(row.organization_id, (tx) =>
+      tx
+        .query(
+          `UPDATE workers SET failure_attempts=failure_attempts+1,
+  failure_code=CASE WHEN failure_attempts+1 >= $3 THEN 'worker_retry_exhausted' ELSE $2 END,
+  next_check_at=now()+interval '30 seconds' WHERE id=$1`,
+          [
+            row.id,
+            error instanceof AppError ? error.code : 'worker_reconciliation_failed',
+            MAX_HOST_FAILURES,
+          ],
+        )
+        .then(() => {}),
+    );
+  }
+}
+
+/** Standalone lifetime: a slow Host operation occupies one Worker slot, not a
+ * whole maintenance batch. Hosted sweeps still await all work before returning. */
+export class WorkerDispatcher {
+  private readonly active = new Map<string, Promise<void>>();
+  constructor(private readonly provider: HostProviderFactory = hostProvider) {}
+  async tick() {
+    const free = capacitySetting('WORKER_RECONCILE_CONCURRENCY', 8, 128) - this.active.size;
+    if (free <= 0) return { workers_checked: 0 };
+    const rows = (
+      await pool.query<{ id: string; organization_id: string }>(
+        `SELECT id,organization_id FROM reporting.worker_schedule WHERE next_check_at<=now()
+        AND NOT(id=ANY($1::uuid[])) ORDER BY next_check_at,id LIMIT $2`,
+        [[...this.active.keys()], free],
+      )
+    ).rows;
+    for (const row of rows) {
+      const task = reconcileScheduledWorker(row, this.provider)
+        .catch(() => console.error(JSON.stringify({ code: 'worker_reconciliation_unavailable' })))
+        .finally(() => this.active.delete(row.id));
+      this.active.set(row.id, task);
+    }
+    return { workers_checked: rows.length };
+  }
+  async drain() {
+    await Promise.allSettled(this.active.values());
+  }
 }

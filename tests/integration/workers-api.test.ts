@@ -113,7 +113,7 @@ describe('public Worker contract and execution path',()=>{
   it('returns a sanitized offering catalog and finite effective limits',async()=>{
     const result=await request('WorkerOfferings','GET','/v1/worker-offerings');
     expect(result.value.data.length).toBeGreaterThan(0);
-    expect(result.value.limits.max_concurrency).toBe(50);
+    expect(result.value.limits.max_concurrency).toBe(500);
     expect(JSON.stringify(result.value)).not.toContain('secret_ciphertext');
     expect(result.value.data.every(offer=>!Object.hasOwn(offer,'driver'))).toBe(true);
   });

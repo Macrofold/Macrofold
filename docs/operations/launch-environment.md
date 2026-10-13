@@ -67,11 +67,14 @@ See [database setup](neon.md) and [hosting](hosting.md). Database backups alone 
 | `ALLOW_PAID_EXECUTION` | Keep `false` until controlled acceptance |
 | `RUN_ADMISSION_ENABLED` | Pause or resume new accepted work |
 | `PUBLIC_SIGNUP_ENABLED` | Control public registration |
-| `GLOBAL_CONCURRENT_RUN_LIMIT` | Ceiling within verified vendor capacity |
+| `NATIVE_CONCURRENT_RUN_LIMIT`, `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` | Separate fleet native/inference ceilings; defaults 200/2,000 |
+| `GLOBAL_CONCURRENT_RUN_LIMIT` | Optional total emergency ceiling; defaults to their sum |
 | `SANDBOX_EGRESS_DOMAINS` | Reviewed additional outbound destinations |
-| `WORKER_CONCURRENCY` | Concurrent phase steps for the standalone poller |
+| `DISPATCH_INFERENCE_CONCURRENCY`, `DISPATCH_PROVISION_CONCURRENCY`, `DISPATCH_TRANSFER_CONCURRENCY`, `DISPATCH_CONTROL_CONCURRENCY` | Independent per-process pools; defaults 64/16/8/64 |
 
 The Sandbox adapter currently uses Vercel OIDC. Static `VERCEL_TOKEN`, team, and project fields do not enable production execution on another host by themselves.
+
+All schedulers must use matching fleet settings. The old shared `WORKER_CONCURRENCY` setting is removed. See [capacity settings](scaling.md#resource-capacity-settings) for database, Workflow, maintenance, HTTP and pending-work controls. Apply migration 051 before deploying the matching dispatcher.
 
 ## Worker offerings
 

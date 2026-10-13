@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { pool, authPool, transaction, type Tx } from '../../db';
 import { expireCredits } from './ledger';
 
@@ -59,10 +60,15 @@ export async function reconcileFinance(tx: Tx, org: string) {
 export async function dispatchOrganizationMaintenance() {
   // Claims rotate fairly and recover after a worker disappears. Financial checks do no provider IO.
   const claims =
-    await pool.query(`WITH candidates AS (SELECT id FROM organizations WHERE maintenance_due_at<=now() ORDER BY maintenance_due_at LIMIT 5 FOR NO KEY UPDATE SKIP LOCKED)
+    await pool.query(`WITH candidates AS (SELECT id FROM organizations WHERE maintenance_due_at<=now() ORDER BY maintenance_due_at LIMIT 100 FOR NO KEY UPDATE SKIP LOCKED)
     UPDATE organizations o SET maintenance_due_at=now()+interval '1 hour' FROM candidates c WHERE o.id=c.id RETURNING o.id`);
   let completed = 0;
-  for (const org of claims.rows) {
+  const deadline = Date.now() + 20_000;
+  await mapConcurrent(claims.rows, 2, async (org) => {
+    if (Date.now() >= deadline) {
+      await pool.query('UPDATE organizations SET maintenance_due_at=now() WHERE id=$1', [org.id]);
+      return;
+    }
     try {
       await transaction(org.id, async (tx) => {
         await reconcileFinance(tx, org.id);
@@ -92,7 +98,7 @@ export async function dispatchOrganizationMaintenance() {
         org.id,
       ]);
     }
-  }
+  });
   await pool.query("DELETE FROM github_webhook_receipts WHERE received_at<now()-interval '90 days'");
   await pool.query('DELETE FROM rate_limits WHERE bucket<$1', [Math.floor(Date.now() / 60000) - 60]);
   await authPool.query(

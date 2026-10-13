@@ -10,6 +10,12 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
+- [Native Run controls](native-run-controls.md): layered question permission and durable stop-on-model-error admission/accounting.
+
+- [Resource-specific capacity](resource-capacity.md): independent execution/admission/I/O pools, production defaults, and maintenance progress.
+
+- [Independent poller progress](poller-progress.md): bounded execution steps and maintenance that do not block unrelated queued work.
+
 - [Bounded operations and recovery](bounded-work.md): finite retry, polling, transfer and pagination budgets; protected uncertain state.
 
 - [Verification speed](verification-speed.md): required checks, targeted verification, parallel domain and browser suites, path-scoped application acceptance.

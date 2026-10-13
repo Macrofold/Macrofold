@@ -16,6 +16,8 @@ Event payloads can include assistant text, tool activity, lifecycle changes, and
 
 ## When automatic recovery stops
 
+With native Run `limits.stop_on_model_error: true`, `run.model_error` records `{ "request_id": "<failed-model-request-id>", "failure_code": "model_request_failed" }` once. Further model admissions are blocked immediately, including reconnects. This event precedes shutdown/checkpoint/settlement; continue following the Run to its terminal failure and final accounting. It is a durable Run event, not a separate webhook subscription type. See [model failure behavior](../execution/README.md#stop-after-a-model-failure).
+
 `run.recovery_required` means repeated failures stopped automatic run processing. This may happen while dispatching work, saving a checkpoint, settling charges, recording the result, or cleaning up the worker. It does not mean the agent is restoring a conversation or restarting its task.
 
 Its `data` identifies the failed operation and last safe error code:

@@ -313,7 +313,7 @@ it('authorizes execution policy mutations and validates deadline input through t
   const saved = await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 1 });
   expect(saved.status).toBe(200);
   expect((await saved.json()).concurrency_limit).toBe(1);
-  expect((await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 3 })).status).toBe(
+  expect((await request('/v1/organization/execution-policy', 'PATCH', { concurrency_limit: 21 })).status).toBe(
     400,
   );
   const run = await submit(a);

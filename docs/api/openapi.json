@@ -19231,6 +19231,10 @@
             "pattern": "^[0-9]+$",
             "description": "Integer micro-USD as a decimal string.",
             "default": "2000000"
+          },
+          "stop_on_model_error": {
+            "type": "boolean",
+            "description": "Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior."
           }
         },
         "required": [],
@@ -19926,7 +19930,7 @@
             "description": "Paths of files already uploaded to this worktree. Requires files:read. PNG/JPEG/WebP use native image input on supported Codex/Claude Code models; PDF/DOCX/TXT/MD/CSV/JSON are extracted to bounded text. Five files, 20 MiB total; images 1 MiB and 2048 px per side; documents 10 MiB. The admitted content hash must still match at execution. Audio/video analysis is not supported."
           }
         },
-        "description": "Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to ten queued follow-ups. Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.",
+        "description": "Follow-up to pinned session configuration. queue_if_busy accepts ordered worktree work with a reserved budget, up to 100 queued runs per session by default (deployment-configurable). Default queue deadline is 24 hours; queue_timeout_seconds can shorten it. Authorization and current execution limits are revalidated before start.",
         "required": [
           "prompt"
         ]
@@ -21024,6 +21028,14 @@
           },
           "tools": {
             "$ref": "#/components/schemas/PermissionPatterns"
+          },
+          "questions": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "description": "Allow native structured questions through the Run input API, or deny them. Omission inherits allowance; a denial at any workspace, worktree or Run layer wins. Does not add a question tool to harnesses without one. Session policy remains frozen."
           }
         }
       },

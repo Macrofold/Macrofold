@@ -59,7 +59,7 @@ Migrations 035–038 add run kinds/shape constraints, mode-aware scheduling proj
 4. Configure provider credentials and paid-execution authorization. Admission, scheduling and dispatch support lightweight runs by default.
 5. To stop new work while draining, set `RUN_ADMISSION_ENABLED=false` and keep compatible dispatchers running to finish already admitted work. Never roll back to a native-only reader while lightweight rows remain.
 
-Optional lower bounds: `DECISION_INPUT_MAX_BYTES` (262144), `DECISION_CONTEXT_MAX_BYTES` (2097152), `DECISION_CONTEXT_MAX_ITEMS` (64). Invalid or expanded values fail configuration checks. `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` adds a class ceiling under the existing global cap; `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` defaults to zero and withholds that many account slots from native claims. It never expands account/global capacity or preempts an active run. Reserving all account slots prevents new native claims, so choose this deliberately.
+Optional lower bounds: `DECISION_INPUT_MAX_BYTES` (262144), `DECISION_CONTEXT_MAX_BYTES` (2097152), `DECISION_CONTEXT_MAX_ITEMS` (64). Invalid or expanded values fail configuration checks. `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` defaults to 2,000 lightweight Runs independently of the 200-native fleet ceiling; the total emergency ceiling defaults to their sum; `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` defaults to zero and withholds that many account slots from native claims. It never expands account/global capacity or preempts an active run. Reserving all account slots prevents new native claims, so choose this deliberately.
 
 ## Measurements and deliberate limits
 

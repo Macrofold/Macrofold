@@ -88,6 +88,95 @@ async function advanceTo(s: Awaited<ReturnType<typeof scenario>>, provider: Faul
   throw new Error(`Fixture did not reach ${phase}`);
 }
 describe('finite native recovery', () => {
+  it.each(['poll', 'publish'])(
+    'preserves checkpoint and provisional settlement after a model failure at %s',
+    async (phase) => {
+      const s = await scenario(),
+        provider = new FaultMachine();
+      await advanceTo(s, provider, phase);
+      const requestId = id();
+      await transaction(s.org, async (tx) => {
+        await tx.query(
+          `UPDATE runs SET config=jsonb_set(config,'{limits,stop_on_model_error}','true'),
+        model_reserved_micro_usd=17,model_error_request_id=$2 WHERE id=$1`,
+          [s.runId, phase === 'poll' ? requestId : null],
+        );
+        await tx.query(
+          `INSERT INTO gateway_requests(id,organization_id,run_id,lease_generation,model,provider,billing_mode,status,reserved_micro_usd)
+        VALUES($1,$2,$3,1,'fixture-model','openai','managed','in_flight',17)`,
+          [requestId, s.org, s.runId],
+        );
+      });
+      // At publish this emulates recovery of a lost model response: orphan
+      // reconciliation must not let the nominal harness success win.
+      await advanceTo(s, provider, 'done');
+      const result = await transaction(s.org, async (tx) => ({
+        run: await getRun(tx, s.runId),
+        usage: (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [s.runId])).rows,
+        org: (await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [s.org])).rows[0],
+      }));
+      expect(result.run).toMatchObject({
+        status: 'failed',
+        cancel_requested: false,
+        model_error_request_id: requestId,
+        result: {
+          execution_outcome: 'failure',
+          persistence_status: 'verified',
+          failure_code: 'model_request_failed',
+        },
+      });
+      expect(result.usage).toHaveLength(1);
+      expect(result.usage[0]).toMatchObject({ completeness: 'missing', cost_micro_usd: '17' });
+      expect(result.org.reserved_micro_usd).toBe('0');
+      expect(provider.starts).toBe(1);
+      if (phase === 'poll') expect(provider.cancellations).toBeGreaterThan(0);
+    },
+  );
+  it.each(['questions_denied', 'model_request_failed'] as const)(
+    'rejects a native question after %s without losing the checkpoint',
+    async (failureCode) => {
+      const s = await scenario(undefined, {
+        version: 1,
+        questions: failureCode === 'questions_denied' ? 'deny' : 'allow',
+      });
+      const provider = new FaultMachine();
+      const probe = provider.probe.bind(provider);
+      vi.spyOn(provider, 'probe').mockImplementation(async (...args) => {
+        if (provider.cancellations) return probe(...args);
+        // A model failure committed after the poller's initial Run read must
+        // suppress even an otherwise permitted question returned by this probe.
+        if (failureCode === 'model_request_failed')
+          await transaction(s.org, (tx) =>
+            tx.query('UPDATE runs SET model_error_request_id=$2 WHERE id=$1', [s.runId, id()]),
+          );
+        return {
+          events: [],
+          nextOffset: args[1],
+          status: { state: 'running' },
+          result: null,
+          input: { id: 'denied-question', question: 'Synthetic question', details: {} },
+        };
+      });
+      await advanceTo(s, provider, 'done');
+      const saved = await transaction(s.org, async (tx) => ({
+        run: await getRun(tx, s.runId),
+        questions: (
+          await tx.query("SELECT 1 FROM run_events WHERE run_id=$1 AND type='input.requested'", [s.runId])
+        ).rowCount,
+      }));
+      expect(saved.run).toMatchObject({
+        status: 'failed',
+        input_request: null,
+        result: {
+          failure_code: failureCode,
+          execution_outcome: 'failure',
+          persistence_status: 'verified',
+        },
+      });
+      expect(saved.questions).toBe(0);
+      expect(provider.cancellations).toBeGreaterThan(0);
+    },
+  );
   it('stops exhausted publication without releasing money, replacing files or replaying the agent', async () => {
     const s = await scenario(),
       provider = new FaultMachine();

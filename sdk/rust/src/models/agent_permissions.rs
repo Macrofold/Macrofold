@@ -24,6 +24,9 @@ pub struct AgentPermissions {
     pub shell: Option<Shell>,
     #[serde(rename = "tools", skip_serializing_if = "Option::is_none")]
     pub tools: Option<Box<models::PermissionPatterns>>,
+    /// Allow native structured questions through the Run input API, or deny them. Omission inherits allowance; a denial at any workspace, worktree or Run layer wins. Does not add a question tool to harnesses without one. Session policy remains frozen.
+    #[serde(rename = "questions", skip_serializing_if = "Option::is_none")]
+    pub questions: Option<Questions>,
 }
 
 impl AgentPermissions {
@@ -34,6 +37,7 @@ impl AgentPermissions {
             files: None,
             shell: None,
             tools: None,
+            questions: None,
         }
     }
 }
@@ -68,6 +72,20 @@ pub enum Shell {
 
 impl Default for Shell {
     fn default() -> Shell {
+        Self::Allow
+    }
+}
+/// Allow native structured questions through the Run input API, or deny them. Omission inherits allowance; a denial at any workspace, worktree or Run layer wins. Does not add a question tool to harnesses without one. Session policy remains frozen.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Questions {
+    #[serde(rename = "allow")]
+    Allow,
+    #[serde(rename = "deny")]
+    Deny,
+}
+
+impl Default for Questions {
+    fn default() -> Questions {
         Self::Allow
     }
 }

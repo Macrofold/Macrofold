@@ -19,6 +19,18 @@ The server freezes the three permission layers at admission, before reserving fu
 
 ## Harness support
 
+### Native questions
+
+Set `"permissions": {"version": 1, "questions": "deny"}` when your application cannot receive and answer structured human questions. Use `"allow"` when it implements that bridge. The field is accepted on workspace/worktree creation or updates and fresh Run admission. Omission inherits allowance; denial in any workspace, worktree or Run layer wins. Like other permissions, a session freezes its policy; start a new session to change it.
+
+OpenCode omits its `question` tool when denied. Claude Code disables `AskUserQuestion`, and Hermes excludes its clarification toolset. Codex's pinned native binary retains the `request_user_input` schema but rejects it in Default mode; Macrofold also rejects unexpected question RPCs. Pi and DeepSeek do not currently expose structured native questions. Allowance enables only capabilities the harness actually supports.
+
+The shared runtime and control plane enforce denial independently of native settings. Unexpected questions cannot place a denied Run into `waiting_for_input`; the control plane stops it with `questions_denied` while preserving session capture. Question permission grants no file or connector access. It cannot prevent ordinary assistant prose from containing a question.
+
+Applications using `allow` consume `input.requested` and submit the matching `input_request_id` through `POST /v1/runs/{id}/input`; see [interaction events](../api/streaming.md). Merely allowing questions does not supply a user interface or automatically answer them.
+
+### Files and connectors
+
 Connector include/exclude rules apply to all six harnesses at broker discovery and again at dispatch. File read/write patterns and disabling shell also work with all six pinned runtimes:
 
 | Harness | Native permission mapping | Checked file transport |
@@ -56,4 +68,4 @@ Use the existing permissions field; no separate filesystem-mode option is requir
 
 This omits native and checked file tools. Authorized remote connectors can still save application data through their own tools. To allow reading while forbidding changes, omit `files.read` and keep the empty `files.write.include`. The checked listing tool accepts `path: "."` for the worktree root; other paths remain relative and confined.
 
-`pnpm test:native --file-access --image-only` checks actual model-facing tool visibility and independent session capture for both modes across all six harnesses.
+`pnpm test:native --file-access --image-only` checks actual model-facing tool visibility and independent session capture for both file modes across all six harnesses. It also verifies question denial without file restrictions, including an attempted Codex question call.

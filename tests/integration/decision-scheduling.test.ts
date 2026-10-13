@@ -46,7 +46,7 @@ it('preserves account caps while reserving one slot for lightweight work; never 
   vi.stubEnv('ANTHROPIC_API_KEY', 'fixture');
   config.allowPaid = true;
   const { first, second, light1, light2 } = await transaction(p.organizationId, async (tx) => {
-    await tx.query("UPDATE organizations SET plan='payg' WHERE id=$1", [p.organizationId]);
+    await tx.query("UPDATE organizations SET plan='payg',run_concurrency_limit=2 WHERE id=$1", [p.organizationId]);
     await credit(tx, p.organizationId, 10000000n, 'mixed-fixture');
     const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Mixed modes' });
     const a = await createWorktree(tx, p, workspace.id, { name: 'main', branch: 'main' }),

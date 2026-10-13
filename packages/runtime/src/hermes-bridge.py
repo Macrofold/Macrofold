@@ -27,6 +27,8 @@ def emit(kind, **data):
 
 
 def clarify(question, choices=None):
+    if os.environ.get("PLATFORM_QUESTIONS") == "0":
+        raise PermissionError("Native questions are denied by policy")
     request_id = str(uuid.uuid4())
     send({"type": "input", "id": request_id, "question": question,
           "details": {"choices": choices or []}})
@@ -113,7 +115,9 @@ def main():
     history = db.get_messages_as_conversation(session_id, include_ancestors=True) if c.get("resumeId") else None
     if c.get("resumeId") and not history:
         raise ValueError("Hermes session conversation missing")
-    toolsets = ["clarify"] if guarded else ["terminal", "file", "skills", "memory", "clarify"]
+    toolsets = [] if guarded else ["terminal", "file", "skills", "memory"]
+    if os.environ.get("PLATFORM_QUESTIONS") != "0":
+        toolsets.append("clarify")
     if guarded and os.environ.get("PLATFORM_FILE_TOOL_URL"):
         register_file_tools(os.environ["PLATFORM_FILE_TOOL_URL"], os.environ["PLATFORM_FILE_TOOL_TOKEN"])
         toolsets.append("worktree")

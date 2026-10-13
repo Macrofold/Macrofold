@@ -2,6 +2,14 @@
 
 Evidence is commit-specific. A green build is not native recovery or paid-provider evidence, and simulated external boundaries are not actual cloud resource measurements.
 
+## Resource-specific capacity
+
+The [capacity implementation record](../../../projects/resource-capacity.md#decisions-and-verification), based on `132d549b` plus the working tree, covers independent resource/fleet admission, full transfer-pool isolation, more than twenty concurrent phase steps, session queue bounds, separate HTTP buckets, bounded refill/drain and maintenance isolation. Existing scheduling/load, Worker, storage, decision, trigger and delivery regression slices pass after updating obsolete quota expectations and test setup. All five SDK checks, TypeScript, the isolated production build and documentation integrity pass. Policy mutation verification passes at 93.33%. Migration 051 is applied locally; the idle API/poller were restarted, health and Docker diagnostics pass, and the authenticated billing response confirms the new plan caps. Local native capacity remains explicitly ten, independently of 2,000 lightweight slots. These are local functional results with scripted provider boundaries, not measured hosted throughput or a completed caller journey.
+
+## Independent poller progress
+
+The [poller progress record](../../../projects/poller-progress.md#verification), based on `132d549b` plus its change, covers bounded independent steps, stalled checkpoint/maintenance barriers, unchanged scheduler limits and local asynchronous GPT-5 execution. The worker was restarted only after confirming no active or queued work. Historical October 11 records establish pre-execution cancellation, but do not identify the precise blocking operation. Full caller-scenario and hosted acceptance remain separate.
+
 ## Bounded work and recovery
 
 The [bounded-work audit](../../../projects/bounded-work.md), based on `9948ba64` plus the working tree, has these local results:

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config as loadEnv } from 'dotenv';
 import { AppError } from './errors';
+import { fleetLimits } from './capacity';
 
 // Next, the worker, and the CLI start in different directories. Share one local store.
 let root = process.cwd();
@@ -102,12 +103,5 @@ export function readinessErrors() {
   ].filter((x): x is string => Boolean(x));
 }
 export function globalRunLimit() {
-  const value = Number(process.env.GLOBAL_CONCURRENT_RUN_LIMIT || 50);
-  if (!Number.isSafeInteger(value) || value < 1 || value > 10000)
-    throw new AppError(
-      503,
-      'invalid_capacity_configuration',
-      'The operator must configure a global run limit between 1 and 10000.',
-    );
-  return value;
+  return fleetLimits().total;
 }

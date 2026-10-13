@@ -1,3 +1,4 @@
+import { mapConcurrent } from './concurrent';
 import { planFor } from './plans';
 import { pool, transaction, type Tx } from '../../db';
 import { storage, type ObjectStore } from '../../providers/src/storage';
@@ -200,7 +201,7 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
             [[...reachable]],
           )
         ).rows;
-        for (const item of unknown.slice(0, 50)) {
+        await mapConcurrent(unknown.slice(0, 50), 8, async (item) => {
           const manifest = unseal<{ version: number; chunks: { key: string }[] }>(
             (await store.get(item.key)).toString(),
           );
@@ -216,7 +217,7 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
             item.key,
             JSON.stringify(manifest.chunks.map((c) => c.key)),
           ]);
-        }
+        });
         const childRows = (
           await tx.query(
             'SELECT jsonb_array_elements_text(children) AS key FROM storage_objects WHERE key=ANY($1::text[])',
@@ -245,11 +246,11 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
               [new Date(at.getTime() - GRACE)],
             )
           ).rows;
-          for (const item of expired) {
+          await mapConcurrent(expired, 8, async (item) => {
             await store.delete(item.key);
             await tx.query('DELETE FROM storage_objects WHERE key=$1', [item.key]);
             deleted++;
-          }
+          });
         }
       }
       const totals = (
@@ -275,9 +276,16 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
 }
 export async function dispatchStorageMaintenance() {
   const jobs =
-    await pool.query(`WITH candidate AS (SELECT id FROM organizations WHERE storage_due_at<=now() ORDER BY storage_due_at LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED)
+    await pool.query(`WITH candidate AS (SELECT id FROM organizations WHERE storage_due_at<=now() ORDER BY storage_due_at LIMIT 16 FOR NO KEY UPDATE SKIP LOCKED)
     UPDATE organizations o SET storage_due_at=now()+interval '1 hour' FROM candidate c WHERE o.id=c.id RETURNING o.id`);
-  for (const row of jobs.rows) {
+  let checked = 0;
+  const deadline = Date.now() + 20_000;
+  await mapConcurrent(jobs.rows, 2, async (row) => {
+    if (Date.now() >= deadline) {
+      await pool.query('UPDATE organizations SET storage_due_at=now() WHERE id=$1', [row.id]);
+      return;
+    }
+    checked++;
     try {
       const result = await maintainStorage(row.id);
       if (result.scan === 'in_progress' || result.graph_pending)
@@ -295,6 +303,6 @@ export async function dispatchStorageMaintenance() {
         row.id,
       ]);
     }
-  }
-  return { storage_accounts_checked: jobs.rowCount || 0 };
+  });
+  return { storage_accounts_checked: checked };
 }

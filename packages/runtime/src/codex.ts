@@ -4,6 +4,7 @@ import { JsonRpcProcess, type RpcMessage } from './jsonrpc';
 import type { HarnessAdapter, HarnessContext, NativeResult, NativeEvent } from './types';
 import { z } from 'zod';
 import { permissionAdapters } from '../../contracts/permission-adapters';
+import { questionsAllowed } from '../../contracts/permissions';
 import { codexPermissionSettings, codexPermissionProfile } from './permission-settings';
 import { fileToolName, permissionFileDefinition, permissionFileTools } from './permission-files';
 
@@ -89,6 +90,9 @@ export class CodexAdapter implements HarnessAdapter {
       'model_providers.platform.wire_api': 'responses',
       'model_providers.platform.requires_openai_auth': false,
       approval_policy: 'never',
+      // Codex keeps the tool schema when disabled, but rejects its execution
+      // in Default mode. The RPC guard below also covers unexpected requests.
+      'features.default_mode_request_user_input': questionsAllowed(c.permissions || []),
       ...(guarded ? codexPermissionSettings() : { sandbox_mode: 'danger-full-access' }),
       web_search: 'disabled',
       'analytics.enabled': false,
@@ -150,6 +154,13 @@ export class CodexAdapter implements HarnessAdapter {
           }
           rpc.send({ id: message.id, result: { success, contentItems: [{ type: 'inputText', text }] } });
         } else if (message.method === 'item/tool/requestUserInput') {
+          if (!questionsAllowed(c.permissions || [])) {
+            rpc.send({
+              id: message.id,
+              error: { code: -32600, message: 'Native questions are denied by policy.' },
+            });
+            return;
+          }
           const requestId = randomUUID(),
             questions = (message.params?.questions || []) as { id: string; question: string }[];
           const answer = await ask(requestId, questions.map((q) => q.question).join('\n'), { questions });

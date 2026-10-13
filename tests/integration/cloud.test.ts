@@ -5,14 +5,22 @@ import { authPool, pool, transaction } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import * as resources from '../../packages/core/src/resources';
 import { createWorktree, type FileRecord } from '../../packages/core/src/files';
-import { admitRun, getNativeRun as getRun } from '../../packages/core/src/runs';
+import { admitRun, getNativeRun as getRun, presentRun } from '../../packages/core/src/runs';
 import { credit, reserve } from '../../packages/core/src/ledger';
 import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
-import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
+import {
+  advanceCloudRun,
+  MAX_RUN_ADVANCES,
+  MAX_RECOVERY_FAILURES,
+} from '../../packages/core/src/cloud-engine';
 import { FaultMachine } from '../fixtures/cloud-machine';
 import { readContent, saveContent } from '../../packages/providers/src/storage';
+import type { AgentPermissions } from '../../packages/contracts/permissions';
+import { AppError } from '../../packages/core/src/errors';
+import { streamEvents } from '../../packages/core/src/events';
+import { dispatchFailed, MAX_DISPATCH_FAILURES } from '../../packages/core/src/dispatch-failures';
 
-async function scenario(attachments?: string[]) {
+async function scenario(attachments?: string[], permissions?: AgentPermissions) {
   const user = (
     await auth.api.signUpEmail({
       body: {
@@ -53,6 +61,7 @@ async function scenario(attachments?: string[]) {
       billing_mode: 'managed',
       prompt: 'Fixture',
       attachments,
+      permissions,
       limits: { timeout_seconds: 900, max_cost_micro_usd: '2000000' },
     });
     // Local admission intentionally holds no real money. This test funds a ledger reservation explicitly.
@@ -66,42 +75,336 @@ afterAll(async () => {
   await authPool.end();
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.useRealTimers();
 });
+async function advanceTo(s: Awaited<ReturnType<typeof scenario>>, provider: FaultMachine, phase: string) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    if (run.execution_binding?.phase === phase) return;
+    await advanceCloudRun(s.org, s.runId, provider);
+  }
+  throw new Error(`Fixture did not reach ${phase}`);
+}
+describe('finite native recovery', () => {
+  it('stops exhausted publication without releasing money, replacing files or replaying the agent', async () => {
+    const s = await scenario(),
+      provider = new FaultMachine();
+    await advanceTo(s, provider, 'publish');
+    const before = await transaction(s.org, (tx) => resources.get(tx, 'worktrees', s.worktreeId));
+    const update = resources.update;
+    vi.spyOn(resources, 'update').mockImplementation(async (...args) => {
+      if (args[1] === 'worktrees')
+        throw new AppError(503, 'fixture_publication_failure', 'Synthetic persistence outage');
+      return update(...args);
+    });
+    let done = false;
+    for (let attempt = 0; attempt < MAX_RECOVERY_FAILURES + 5 && !done; attempt++)
+      done = (await advanceCloudRun(s.org, s.runId, provider)).done;
+    expect(done).toBe(true);
+    const saved = await transaction(s.org, async (tx) => ({
+      run: await getRun(tx, s.runId),
+      worktree: await resources.get(tx, 'worktrees', s.worktreeId),
+      holds: (await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [s.org])).rows[0]
+        .reserved_micro_usd,
+      job: (await tx.query("SELECT state FROM dispatch_jobs WHERE kind='run' AND resource_id=$1", [s.runId]))
+        .rows[0],
+      recoveryEvents: (
+        await tx.query(
+          "SELECT count(*)::integer AS count FROM run_events WHERE run_id=$1 AND type='run.recovery_required'",
+          [s.runId],
+        )
+      ).rows[0].count,
+    }));
+    expect(saved.run.execution_binding).toMatchObject({ recoveryBlocked: true });
+    expect(saved.run.result.failure_code).toBe('run_recovery_required');
+    expect(presentRun(saved.run).failure_code).toBe('run_recovery_required');
+    expect(saved.worktree.files).toEqual(before.files);
+    expect(saved.worktree.latest_checkpoint_id).toBe(before.latest_checkpoint_id);
+    expect(saved.holds).toBe('2000000');
+    expect(saved.job.state).toBe('blocked');
+    expect(saved.recoveryEvents).toBe(1);
+    const replay = await new Response(
+      await streamEvents(s.org, s.runId, '0', new AbortController().signal),
+    ).text();
+    expect(replay).toContain('event: run.recovery_required');
+    expect(replay).toContain('"step":"finalization"');
+    expect(replay).toContain('"cause":"fixture_publication_failure"');
+    expect(replay).toContain('"attempts":8');
+    const starts = provider.starts;
+    expect((await advanceCloudRun(s.org, s.runId, provider)).done).toBe(true);
+    expect(provider.starts).toBe(starts);
+  });
+  it('reports dispatch failure before execution without pretending that files were lost', async () => {
+    const s = await scenario();
+    for (let attempt = 0; attempt < MAX_DISPATCH_FAILURES; attempt++)
+      await dispatchFailed(s.org, 'run', s.runId, 'docker_image_missing');
+    const saved = await transaction(s.org, async (tx) => ({
+      run: await getRun(tx, s.runId),
+      events: (
+        await tx.query("SELECT data FROM run_events WHERE run_id=$1 AND type='run.recovery_required'", [
+          s.runId,
+        ])
+      ).rows,
+    }));
+    expect(saved.run.started_at).toBeNull();
+    expect(saved.events).toEqual([
+      {
+        data: { code: 'run_recovery_required', step: 'dispatch', cause: 'docker_image_missing', attempts: 8 },
+      },
+    ]);
+  });
+  it.each(['billing', 'cleanup'] as const)(
+    'records the actual failed %s step and preserves checkpoint/charge distinctions',
+    async (step) => {
+      const s = await scenario(),
+        provider = new FaultMachine();
+      await advanceTo(s, provider, step === 'billing' ? 'publish' : 'close');
+      if (step === 'billing')
+        await transaction(s.org, (tx) =>
+          tx.query('UPDATE runs SET cost_micro_usd=2000001 WHERE id=$1', [s.runId]),
+        );
+      else
+        vi.spyOn(provider, 'close').mockRejectedValue(
+          new AppError(503, 'docker_command_timeout', 'Unsafe provider error must not be emitted'),
+        );
+      let done = false;
+      for (let attempt = 0; attempt < MAX_RECOVERY_FAILURES + 5 && !done; attempt++)
+        done = (await advanceCloudRun(s.org, s.runId, provider)).done;
+      expect(done).toBe(true);
+      const saved = await transaction(s.org, async (tx) => ({
+        run: await getRun(tx, s.runId),
+        event: (
+          await tx.query("SELECT data FROM run_events WHERE run_id=$1 AND type='run.recovery_required'", [
+            s.runId,
+          ])
+        ).rows[0].data,
+        holds: (await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [s.org])).rows[0]
+          .reserved_micro_usd,
+      }));
+      expect(saved.event).toMatchObject({
+        step,
+        attempts: 8,
+        cause: step === 'billing' ? 'accounting_bound_failed' : 'docker_command_timeout',
+      });
+      expect(JSON.stringify(saved.event)).not.toContain('Unsafe provider error');
+      expect(saved.run.result.persistence_status).toBe(step === 'cleanup' ? 'verified' : undefined);
+      expect(saved.holds).toBe(step === 'cleanup' ? '0' : '2000000');
+      expect(provider.starts).toBe(1);
+    },
+  );
+  it.each(['events', 'snapshot', 'advances', 'cancellation'] as const)(
+    'bounds stalled %s without a new native launch',
+    async (failure) => {
+      const s = await scenario(),
+        provider = new FaultMachine();
+      await advanceTo(s, provider, failure === 'snapshot' ? 'index' : 'poll');
+      if (failure === 'events')
+        vi.spyOn(provider, 'probe').mockImplementation(async (_binding, offset) => ({
+          events: [{ sequence: 1, type: 'output.delta', data: { text: 'fixture' } }],
+          nextOffset: offset,
+          status: { state: 'running' },
+          input: null,
+          result: null,
+        }));
+      if (failure === 'snapshot')
+        vi.spyOn(provider, 'snapshotPage').mockResolvedValue({ entries: [], total: 1, totalBytes: 1 });
+      if (failure === 'advances')
+        await transaction(s.org, (tx) =>
+          tx.query(
+            `UPDATE runs SET execution_binding=jsonb_set(execution_binding,'{advances}',$2::jsonb) WHERE id=$1`,
+            [s.runId, String(MAX_RUN_ADVANCES)],
+          ),
+        );
+      if (failure === 'cancellation') {
+        provider.pendingPolls = 100;
+        vi.spyOn(provider, 'cancel').mockResolvedValue(undefined);
+        await transaction(s.org, (tx) =>
+          tx.query(
+            `UPDATE runs SET cancel_requested=true,execution_binding=jsonb_set(execution_binding,'{cancelStartedAt}',$2::jsonb) WHERE id=$1`,
+            [s.runId, String(Date.now() - 61_000)],
+          ),
+        );
+      }
+      let done = false;
+      for (let attempt = 0; attempt < 15 && !done; attempt++)
+        done = (await advanceCloudRun(s.org, s.runId, provider)).done;
+      expect(done).toBe(true);
+      expect(provider.starts).toBe(1);
+      const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+      expect(run.result.failure_code).toBe(
+        {
+          events: 'runtime_cursor_stalled',
+          snapshot: 'checkpoint_cursor_stalled',
+          advances: 'execution_progress_exhausted',
+          cancellation: 'cancellation_unconfirmed',
+        }[failure],
+      );
+    },
+  );
+});
 describe('durable cloud lifecycle with fault injection', () => {
+  it.each(['restore', 'poll', 'publish'] as const)(
+    'finalizes guarded %s failure without deleting protected files, replacing session state or replaying execution',
+    async (phase) => {
+      const s = await scenario(undefined, {
+        version: 1,
+        files: { read: { include: ['**'] }, write: { include: ['**'], exclude: ['initial.txt'] } },
+        shell: 'deny',
+      });
+      const provider = new FaultMachine();
+      if (phase === 'restore')
+        vi.spyOn(provider, 'restore').mockRejectedValue(
+          new AppError(503, 'restore_failed', 'Fixture restore failure'),
+        );
+      if (phase === 'poll') provider.lostVM = true;
+      // The verified fixture output omits protected initial.txt: that deletion must still be rejected.
+      const before = await transaction(s.org, async (tx) => {
+        const run = await getRun(tx, s.runId);
+        await resources.update(tx, 'sessions', run.session_id, { native_session_id: 'previous-session' });
+        return {
+          worktree: await resources.get(tx, 'worktrees', s.worktreeId),
+          session: await resources.get(tx, 'sessions', run.session_id),
+        };
+      });
+      let done = false;
+      for (let i = 0; i < 40 && !done; i++) done = (await advanceCloudRun(s.org, s.runId, provider)).done;
+      expect(done).toBe(true);
+      // Retrying terminal completion must neither launch again nor settle twice.
+      expect((await advanceCloudRun(s.org, s.runId, provider)).done).toBe(true);
+      const saved = await transaction(s.org, async (tx) => {
+        const run = await getRun(tx, s.runId);
+        return {
+          run,
+          worktree: await resources.get(tx, 'worktrees', s.worktreeId),
+          session: await resources.get(tx, 'sessions', run.session_id),
+          reserved: (await tx.query('SELECT reserved_micro_usd FROM organizations WHERE id=$1', [s.org]))
+            .rows[0].reserved_micro_usd,
+          journals: (
+            await tx.query(
+              'SELECT count(DISTINCT journal_id)::int AS n,sum(amount_micro_usd) AS balance FROM ledger WHERE reference=$1',
+              [`run:${s.runId}`],
+            )
+          ).rows[0],
+        };
+      });
+      expect(saved.run).toMatchObject({
+        status: 'failed',
+        result: {
+          persistence_status: 'failed',
+          last_verified_checkpoint_id: before.worktree.latest_checkpoint_id,
+          failure_code:
+            phase === 'restore'
+              ? 'restore_failed'
+              : phase === 'poll'
+                ? 'execution_transport_failed'
+                : 'file_permission_denied',
+        },
+      });
+      expect(saved.run.result.checkpoint_id).toBeUndefined();
+      expect(saved.worktree).toMatchObject({
+        status: 'degraded',
+        files: before.worktree.files,
+        latest_checkpoint_id: before.worktree.latest_checkpoint_id,
+      });
+      expect(saved.session).toEqual(before.session);
+      expect(saved.reserved).toBe('0');
+      expect(saved.journals).toEqual({ n: 1, balance: '0' });
+      expect(provider.starts).toBe(phase === 'restore' ? 0 : 1);
+      expect(provider.closes.every(Boolean)).toBe(true);
+    },
+  );
+
+  it('finalizes cancelled guarded capture failure while preserving the last verified checkpoint', async () => {
+    const s = await scenario(undefined, {
+      version: 1,
+      files: { read: { include: ['**'] }, write: { include: [] } },
+      shell: 'deny',
+    });
+    const provider = new FaultMachine();
+    provider.lostVM = true;
+    for (let i = 0; i < 25; i++) {
+      await advanceCloudRun(s.org, s.runId, provider);
+      if ((await transaction(s.org, (tx) => getRun(tx, s.runId))).execution_binding?.phase === 'publish')
+        break;
+    }
+    await transaction(s.org, (tx) =>
+      tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [s.runId]),
+    );
+    let done = false;
+    for (let i = 0; i < 10 && !done; i++) done = (await advanceCloudRun(s.org, s.runId, provider)).done;
+    expect(done).toBe(true);
+    const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
+    expect(run).toMatchObject({
+      status: 'cancelled',
+      result: { persistence_status: 'failed', failure_code: 'execution_transport_failed' },
+    });
+    expect(run.result.checkpoint_id).toBeUndefined();
+    expect(provider.starts).toBe(1);
+  });
+
   it('skips regenerable home objects before restoration and upload while publishing native history', async () => {
-    const s = await scenario(), provider = new FaultMachine();
+    const s = await scenario(),
+      provider = new FaultMachine();
     const saved = await saveContent(s.org, Buffer.from('synthetic native history'));
-    const history: FileRecord = { ...saved, path: '.codex/memories_1.sqlite', type: 'file',
-      mode: 0o600, git_ignored: true, modified_at: new Date().toISOString() };
-    await transaction(s.org, async tx => {
+    const history: FileRecord = {
+      ...saved,
+      path: '.codex/memories_1.sqlite',
+      type: 'file',
+      mode: 0o600,
+      git_ignored: true,
+      modified_at: new Date().toISOString(),
+    };
+    await transaction(s.org, async (tx) => {
       const run = await getRun(tx, s.runId);
-      await resources.update(tx, 'sessions', run.session_id, { state_files: [history, {
-        ...history, path: '.unknown-runtime/install-v2/plugin.js', sha256: '0'.repeat(64),
-        key: `${s.org}/content/${'0'.repeat(64)}`,
-      }] });
+      await resources.update(tx, 'sessions', run.session_id, {
+        state_files: [
+          history,
+          {
+            ...history,
+            path: '.unknown-runtime/install-v2/plugin.js',
+            sha256: '0'.repeat(64),
+            key: `${s.org}/content/${'0'.repeat(64)}`,
+          },
+        ],
+      });
     });
     const snapshot = provider.snapshotPage.bind(provider);
     vi.spyOn(provider, 'snapshotPage').mockImplementation(async (binding, offset) => {
       const page = await snapshot(binding, offset);
-      return { ...page, total: page.total + 2, entries: [...page.entries,
-        { ...page.entries[2], path: '.codex/memories_1.sqlite' },
-        { ...page.entries[2], path: '.unknown-runtime/downloads-v2/cache', sha256: '0'.repeat(64),
-          chunks: [{ hash: '0'.repeat(64), size: provider.bytes.length }] },
-      ] };
+      return {
+        ...page,
+        total: page.total + 2,
+        entries: [
+          ...page.entries,
+          { ...page.entries[2], path: '.codex/memories_1.sqlite' },
+          {
+            ...page.entries[2],
+            path: '.unknown-runtime/downloads-v2/cache',
+            sha256: '0'.repeat(64),
+            chunks: [{ hash: '0'.repeat(64), size: provider.bytes.length }],
+          },
+        ],
+      };
     });
     for (let i = 0; i < 40; i++) if ((await advanceCloudRun(s.org, s.runId, provider)).done) break;
-    const run = await transaction(s.org, tx => getRun(tx, s.runId));
+    const run = await transaction(s.org, (tx) => getRun(tx, s.runId));
     expect(run.status).toBe('succeeded');
     expect(run.result.persistence_status).toBe('verified');
-    expect(provider.stageFiles.get(`/platform-control/restore/chunks/${history.sha256}`)).toEqual(Buffer.from('synthetic native history'));
+    expect(provider.stageFiles.get(`/platform-control/restore/chunks/${history.sha256}`)).toEqual(
+      Buffer.from('synthetic native history'),
+    );
     const pages = [...provider.stageFiles.entries()].filter(([name]) => /page-\d+\.json$/.test(name));
     expect(pages.length).toBeGreaterThan(0);
     for (const [, bytes] of pages) expect(bytes.toString()).not.toContain('.unknown-runtime/install-v2');
-    const session = await transaction(s.org, tx => resources.get(tx, 'sessions', run.session_id));
-    expect(session.state_files?.map(file => file.path).sort()).toEqual(['.codex/memories_1.sqlite', '.codex/sessions/history.jsonl']);
-    for (const file of session.state_files || []) expect(await readContent(file.key, file.sha256)).toEqual(provider.bytes);
+    const session = await transaction(s.org, (tx) => resources.get(tx, 'sessions', run.session_id));
+    expect(session.state_files?.map((file) => file.path).sort()).toEqual([
+      '.codex/memories_1.sqlite',
+      '.codex/sessions/history.jsonl',
+    ]);
+    for (const file of session.state_files || [])
+      expect(await readContent(file.key, file.sha256)).toEqual(provider.bytes);
     expect(provider.starts).toBe(1);
   });
 
@@ -374,11 +677,15 @@ describe('durable cloud lifecycle with fault injection', () => {
   it('continues a session on a prepared Host by restoring only the namespaces that Host lacks', async () => {
     const s = await scenario();
     let done = false;
-    for (let i = 0; i < 60 && !done; i++) done = (await advanceCloudRun(s.org, s.runId, new FaultMachine())).done;
+    for (let i = 0; i < 60 && !done; i++)
+      done = (await advanceCloudRun(s.org, s.runId, new FaultMachine())).done;
     expect(done).toBe(true);
     const followUp = await transaction(s.org, async (tx) => {
       const first = await getRun(tx, s.runId);
-      const next = await admitRun(tx, s.p, { session_id: first.session_id, prompt: 'Continue on a warm Host' });
+      const next = await admitRun(tx, s.p, {
+        session_id: first.session_id,
+        prompt: 'Continue on a warm Host',
+      });
       await reserve(tx, s.org, 2_000_000n);
       await tx.query('UPDATE runs SET reservation_micro_usd=2000000 WHERE id=$1', [next.run_id]);
       return next.run_id;
@@ -400,7 +707,10 @@ describe('durable cloud lifecycle with fault injection', () => {
     const restored = JSON.parse(host.stageFiles.get('/platform-control/restore/page-0.json')!.toString());
     expect(restored.map((e: { namespace: string }) => e.namespace)).toEqual(['home']);
     const run = await transaction(s.org, (tx) => getRun(tx, followUp));
-    expect(run).toMatchObject({ status: 'succeeded', session_id: (await transaction(s.org, (tx) => getRun(tx, s.runId))).session_id });
+    expect(run).toMatchObject({
+      status: 'succeeded',
+      session_id: (await transaction(s.org, (tx) => getRun(tx, s.runId))).session_id,
+    });
     expect(run.result.persistence_status).toBe('verified');
   });
   it('runs the same durable lifecycle through competing standalone pollers', async () => {
@@ -410,10 +720,14 @@ describe('durable cloud lifecycle with fault injection', () => {
     // Establish real overlap. Promise.all alone also allows sequential ready
     // phases to finish and be claimed again, which is valid immediate progress.
     let entered!: () => void, release!: () => void;
-    const started = new Promise<void>(resolve => { entered = resolve; });
-    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const provision = provider.provision.bind(provider);
-    vi.spyOn(provider, 'provision').mockImplementationOnce(async name => {
+    vi.spyOn(provider, 'provision').mockImplementationOnce(async (name) => {
       entered();
       await gate;
       return provision(name);
@@ -435,7 +749,7 @@ describe('durable cloud lifecycle with fault injection', () => {
         dispatchCloudPoller(provider, 1, s.org),
         dispatchCloudPoller(provider, 1, s.org),
       ]);
-      expect(results.every(result => result.failed === 0)).toBe(true);
+      expect(results.every((result) => result.failed === 0)).toBe(true);
       const row = await transaction(s.org, (tx) => getRun(tx, s.runId));
       done = row.execution_binding?.phase === 'done';
     }

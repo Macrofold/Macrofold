@@ -5,13 +5,14 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import type { PermissionLayers } from '../../contracts/permissions';
-import { fileToolDescription, fileToolName, fileToolSchema, permissionFileTools } from './permission-files';
+import { permissionFileDefinition, fileToolName, permissionFileTools } from './permission-files';
 
 /** Loopback transport for harnesses with MCP extension points. The policy and
  * serialized filesystem implementation remain shared with in-process tools.
  * It has no arbitrary command/resource/proxy endpoint and no vendor credential. */
 export async function startPermissionFileServer(root: string, layers: PermissionLayers) {
   const execute = permissionFileTools(root, layers);
+  const definition = permissionFileDefinition(layers);
   const token = randomBytes(32).toString('hex');
   const connections = new Set<Server>();
   const http = createServer((req, res) => {
@@ -23,13 +24,15 @@ export async function startPermissionFileServer(root: string, layers: Permission
       const server = new Server({ name: 'worktree', version: '1.0.0' }, { capabilities: { tools: {} } });
       connections.add(server);
       server.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: [
-          {
-            name: fileToolName,
-            description: fileToolDescription,
-            inputSchema: { ...z.toJSONSchema(fileToolSchema), type: 'object' as const },
-          },
-        ],
+        tools: definition
+          ? [
+              {
+                name: fileToolName,
+                description: definition.description,
+                inputSchema: { ...z.toJSONSchema(definition.schema), type: 'object' as const },
+              },
+            ]
+          : [],
       }));
       server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {

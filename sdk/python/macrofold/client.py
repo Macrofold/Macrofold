@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import time
 import uuid
@@ -69,6 +70,8 @@ class Client(Resources):
         credential = api_key if api_key is not None else token if token is not None else os.environ.get("MACROFOLD_API_KEY", "")
         if not callable(credential) and not credential.strip():
             raise ValueError("Missing Macrofold API key. Pass api_key or set MACROFOLD_API_KEY.")
+        if not isinstance(retries, int) or isinstance(retries, bool) or not 0 <= retries <= 8:
+            raise ValueError('retries must be an integer between 0 and 8')
         self._token, self.organization, self.retries = credential, organization, retries
         self._init_resources(self)
         self._http = httpx.Client(
@@ -99,6 +102,11 @@ class Client(Resources):
         if operation not in ROUTES:
             raise ValueError(f"Unknown operation: {operation}")
         route = ROUTES[operation]
+        # HTTPX read timeouts apply per chunk. An absolute deadline also bounds
+        # a response that trickles bytes forever; event streams enforce their own.
+        wait_deadline = _deadline
+        request_seconds = 300 if operation == 'createInference' else 70
+        _deadline = min(_deadline, time.monotonic() + request_seconds) if _deadline is not None else time.monotonic() + request_seconds
 
         def parameter(match: re.Match[str]) -> str:
             name = match.group(1)
@@ -113,8 +121,10 @@ class Client(Resources):
         def remaining() -> float:
             value = 65 if _deadline is None else _deadline - time.monotonic()
             if value <= 0:
-                raise TimeoutError('Wait deadline expired')
-            return min(65, value)
+                if wait_deadline is not None and time.monotonic() >= wait_deadline:
+                    raise TimeoutError('Wait deadline expired')
+                raise TransportError('Request deadline expired. Inspect the resource or reuse the mutation identity.', identity)
+            return min(request_seconds, value)
 
         def pause(seconds: float) -> None:
             time.sleep(seconds if _deadline is None else min(seconds, remaining()))
@@ -137,11 +147,11 @@ class Client(Resources):
             request = self._http.build_request(
                 route["method"], self.base_url + endpoint, headers=request_headers,
                 params={k: str(v).lower() if isinstance(v, bool) else v for k, v in (query or {}).items() if v is not None}, content=payload,
-                **({'timeout': remaining()} if _deadline is not None else {}),
+                timeout=httpx.Timeout(remaining(), connect=min(15, remaining())),
             )
             try:
                 response = self._http.send(request, stream=stream or _deadline is not None)
-                if _deadline is not None and not response.is_stream_consumed:
+                if (not stream or not 200 <= response.status_code < 300) and not response.is_stream_consumed:
                     # Enforce the wait deadline while reading too, including a slowly arriving body.
                     try:
                         chunks = []
@@ -201,12 +211,14 @@ class Client(Resources):
             response.close()
 
     def wait_operation(self, operation_id: str, *, timeout: float = 300) -> dict[str, Any]:
+        if not math.isfinite(timeout) or timeout < 0:
+            raise ValueError('timeout must be finite and non-negative')
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            operation = self.request("getOperation", path={"operation_id": operation_id})
+            operation = self.request("getOperation", path={"operation_id": operation_id}, _deadline=deadline)
             if operation["status"] in {"succeeded", "failed", "cancelled"}:
                 return operation
-            time.sleep(0.75)
+            time.sleep(min(0.75, max(0, deadline - time.monotonic())))
         raise TransportError(f"Operation {operation_id} is still pending; inspect its ID later")
 
     def stream_inference(self, body: Mapping[str, Any], *, idempotency_key: str | None = None, headers: Mapping[str, str] | None = None) -> Generator[dict[str, Any], None, None]:
@@ -216,11 +228,11 @@ class Client(Resources):
         try:
             if "text/event-stream" not in response.headers.get("content-type", ""):
                 raise TransportError("Expected a direct event stream.", identity)
-            for event in _sse_events(response):
+            for event in _sse_events(response, lifetime=300):
                 yield event
                 if event.get("type") == "transport.error":
                     raise TransportError("Stream interrupted; retrieve the saved run result.", identity)
-                if event.get("type") in {f"run.{status}" for status in TERMINAL}:
+                if event.get("type") in {f"run.{status}" for status in TERMINAL} | {"run.recovery_required"}:
                     return
             raise TransportError("Stream ended before its terminal result; retrieve the saved run result.", identity)
         except (ValueError, httpx.TransportError) as error:
@@ -239,7 +251,7 @@ class Client(Resources):
         if not re.fullmatch(r"\d+", after):
             raise ValueError("Use a numeric event cursor")
         cursor, failures = int(after), 0
-        while True:
+        for _connection in range(2048):
             try:
                 response = self._raw(operations[0], path=path, query={"after": str(cursor)}, headers={"Accept": "text/event-stream", "Last-Event-ID": str(cursor)}, stream=True)
                 try:
@@ -248,11 +260,13 @@ class Client(Resources):
                         if re.fullmatch(r"\d+", sequence) and int(sequence) > cursor:
                             cursor, failures = int(sequence), 0
                             yield event
-                            if event.get("type") in {f"run.{status}" for status in TERMINAL}:
+                            if event.get("type") in {f"run.{status}" for status in TERMINAL} | {"run.recovery_required"}:
                                 return
                 finally:
                     response.close()
                 run = self.request(operations[1], path=path)
+                if run.get("failure_code") == "run_recovery_required":
+                    return
                 if run["status"] in TERMINAL:
                     remaining = self.request(operations[2], path=path, query={"after": str(cursor), "limit": 100})
                     if not remaining["data"]:
@@ -264,18 +278,29 @@ class Client(Resources):
                 if failures > 8:
                     raise TransportError(f"Stream for {run_id} disconnected. Reattach after {cursor}.") from error
             time.sleep(min(10, 0.25 * 2**failures))
+        raise TransportError(f'Stream attachment limit reached. Reattach after {cursor}; the run has not been cancelled.')
 
 
-def _sse_events(response: httpx.Response) -> Generator[dict[str, Any], None, None]:
+def _sse_events(response: httpx.Response, *, lifetime: float = 70) -> Generator[dict[str, Any], None, None]:
     data: list[str] = []
+    pending = b''
     size = 0
-    for line in response.iter_lines():
-        size += len(line.encode())
-        if size > 4 * 1024 * 1024:
-            raise ValueError("SSE frame exceeds 4 MiB")
-        if not line:
-            if data:
-                yield json.loads("\n".join(data))
-            data, size = [], 0
-        elif line.startswith("data:"):
-            data.append(line[5:].removeprefix(" "))
+    deadline = time.monotonic() + lifetime
+    for chunk in response.iter_bytes():
+        if time.monotonic() >= deadline:
+            raise httpx.ReadTimeout('Stream connection deadline exceeded')
+        pending += chunk
+        while b'\n' in pending:
+            raw, pending = pending.split(b'\n', 1)
+            size += len(raw) + 1
+            if size > 4 * 1024 * 1024:
+                raise ValueError('SSE frame exceeds 4 MiB')
+            line = raw.rstrip(b'\r').decode('utf-8')
+            if not line:
+                if data:
+                    yield json.loads('\n'.join(data))
+                data, size = [], 0
+            elif line.startswith('data:'):
+                data.append(line[5:].removeprefix(' '))
+        if len(pending) + size > 4 * 1024 * 1024:
+            raise ValueError('SSE frame exceeds 4 MiB')

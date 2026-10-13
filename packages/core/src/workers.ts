@@ -21,6 +21,7 @@ export type WorkerRow = WorkerIdentity & {
   expires_at: Date | null;
   next_check_at: Date;
   failure_code: string | null;
+  failure_attempts: number;
   created_at: Date;
   updated_at: Date;
 };
@@ -350,7 +351,7 @@ export async function patchWorker(tx: Tx, p: Principal, workerId: string, patch:
   const name = patch.name === undefined ? row.name : nameValue(patch.name);
   await nameAvailable(tx, name, workerId);
   await tx.query(
-    'UPDATE workers SET name=$2,settings=$3,offerings=$4,expires_at=$5,revision=revision+1,next_check_at=now(),updated_at=now(),failure_code=NULL WHERE id=$1',
+    "UPDATE workers SET name=$2,settings=$3,offerings=$4,expires_at=$5,revision=revision+1,next_check_at=now(),updated_at=now(),failure_code=CASE WHEN failure_code='worker_retry_exhausted' THEN failure_code END WHERE id=$1",
     [
       workerId,
       name,
@@ -377,6 +378,19 @@ export async function changeWorker(
       'UPDATE workers SET desired_state=$2,revision=revision+1,next_check_at=now(),updated_at=now(),failure_code=NULL WHERE id=$1',
       [workerId, desired],
     );
+  // An explicit lifecycle action starts a new bounded cleanup budget, never an
+  // automatic replay. Exhausted generations stay draining with all their holds.
+  if (row.failure_code === 'worker_retry_exhausted') {
+    await tx.query(
+      'UPDATE workers SET failure_code=NULL,failure_attempts=0,next_check_at=now() WHERE id=$1',
+      [workerId],
+    );
+    await tx.query(
+      `UPDATE hosts SET failure_attempts=0,retry_exhausted_at=NULL,drain_started_at=NULL,next_check_at=now()
+      WHERE worker_id=$1 AND status<>'stopped'`,
+      [workerId],
+    );
+  }
   if (action === 'destroy' || force)
     await tx.query(
       `UPDATE runs SET cancel_requested=true WHERE config->>'worker_id'=$1 AND
@@ -402,6 +416,12 @@ export async function listWorkers(tx: Tx, p: Principal, query: URLSearchParams) 
 export async function workerForRun(tx: Tx, p: Principal, workerId: string) {
   await lock(tx, `worker:${workerId}`);
   const worker = await getWorker(tx, workerId, p, 'workers:use');
+  assert(
+    worker.failure_code !== 'worker_retry_exhausted',
+    503,
+    'worker_retry_exhausted',
+    'Automatic Worker recovery stopped. Correct its setup, then explicitly resume cleanup.',
+  );
   const reason = workerAdmissionBlock(worker, Date.now());
   assert(
     !reason,

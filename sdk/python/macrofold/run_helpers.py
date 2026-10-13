@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class RunFailedError(Exception):
     def __init__(self, run_id: str, status: str, result: RunResult, failure_code: str | None = None):
         self.run_id, self.status, self.result, self.failure_code = run_id, status, result, failure_code
-        super().__init__(f'Run {run_id} ended with status {status} (persistence: {result.persistence_status}).')
+        super().__init__(f'Run {run_id} cannot complete successfully (status: {status}, persistence: {result.persistence_status}).')
 
 
 class WaitTimeoutError(TimeoutError):
@@ -27,16 +27,17 @@ def wait_for_run(client: 'Client', run_id: str, *, timeout: float | None = None,
         raise ValueError('poll_interval must be positive')
     if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
         raise ValueError('timeout must be a non-negative number')
-    deadline = None if timeout is None else time.monotonic() + timeout
+    deadline = time.monotonic() + (30 * 60 * 60 if timeout is None else timeout)
     try:
         while True:
             if deadline is not None and time.monotonic() >= deadline:
                 raise WaitTimeoutError(run_id)
             run = decode(Run, client.request('getRun', path={'run_id': run_id}, _deadline=deadline), None)
-            if run.status in {'succeeded', 'failed', 'cancelled', 'timed_out'}:
+            recovery = run.failure_code == 'run_recovery_required'
+            if run.status in {'succeeded', 'failed', 'cancelled', 'timed_out'} or recovery:
                 result = decode(RunResult, client.request('getRunResult', path={'run_id': run_id}, _deadline=deadline), None)
-                if result.final and result.persistence_status != 'pending':
-                    if run.status != 'succeeded' or result.execution_outcome != 'success' or result.persistence_status not in {'verified', 'not_required'}:
+                if recovery or (result.final and result.persistence_status != 'pending'):
+                    if recovery or run.status != 'succeeded' or result.execution_outcome != 'success' or result.persistence_status not in {'verified', 'not_required'}:
                         raise RunFailedError(run_id, run.status, result, run.failure_code)
                     return result
             delay = poll_interval if deadline is None else min(poll_interval, max(0, deadline - time.monotonic()))

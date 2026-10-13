@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../contracts/pagination';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
@@ -14,6 +15,7 @@ export async function piBrokerTools(c: NativeConfiguration, signal: AbortSignal)
         requestInit: { headers: { Authorization: `Bearer ${c.token}` }, signal },
       }),
     );
+    const pages = new PaginationCursor(100);
     let cursor: string | undefined;
     do {
       const page = await client.listTools({ cursor }, { signal });
@@ -37,7 +39,9 @@ export async function piBrokerTools(c: NativeConfiguration, signal: AbortSignal)
             return { content: [{ type: 'text', text: JSON.stringify(result) }], details: {} };
           },
         });
-      cursor = page.nextCursor;
+      if (tools.length > 5000)
+        throw new Error('Tool discovery exceeds 5,000 tools. Configure a smaller catalog.');
+      cursor = pages.next(page.nextCursor);
     } while (cursor);
     return { tools, close: () => client.close() };
   } catch (error) {

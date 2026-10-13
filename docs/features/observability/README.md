@@ -44,9 +44,19 @@ Langfuse user/session keys include tenant context where needed. These labels hel
 
 Each generation includes model, timing, input/output token usage, cache usage when reported, and its Macrofold charge in USD. Missing usage remains unknown instead of being presented as zero. Input, cached-input and cache-write categories are disjoint to avoid counting the same tokens twice.
 
-Billing metadata distinguishes `charged_micro_usd`, `budget_cost_micro_usd`, the reserved ceiling, reported cost, provisional settlement, and bound breaches. Frozen retail/provider rate cards are included when available. `provider_cost_micro_usd` is a separately labeled estimate from known provider rates, not an invoice. If no provider cost is known, its status is `unavailable`.
+Billing metadata distinguishes `charged_micro_usd`, `budget_cost_micro_usd`, the reserved ceiling, reported cost, provisional settlement, and bound breaches. Frozen retail/provider rate cards are included when available. `provider_cost_micro_usd` is a separately labeled estimate from known provider rates, not an invoice. Its `provider_cost_status` describes that rate-card estimate only; it is `unavailable` without an estimate.
 
-BYOK model generations have a zero Macrofold model charge; their provider estimate and budget consumption remain visible. Connector fees and sandbox compute are separate observations. Parent run totals are metadata only, so summing observation costs does not count the same charge twice. Langfuse is diagnostic: Macrofold's [billing ledger](../billing/README.md) and durable run receipts remain authoritative.
+Provider-reported amounts are separate metadata, available on each generation and in content-free application logs:
+
+| Metadata | Meaning |
+| --- | --- |
+| `provider_reported_cost_usd` | Provider-reported account charge, preserving sub-micro-dollar precision; unknown is null internally and omitted by Langfuse |
+| `provider_reported_cost_status` | `reported` or `unavailable`; a reported zero is distinct from unknown |
+| `upstream_inference_cost_usd` | OpenRouter's separately reported upstream inference cost, omitted when unknown; do not add it to the account charge |
+
+OpenRouter's completed JSON/streaming usage supplies these values for native agents and direct inference/decision calls. Missing or invalid amounts remain unknown, including interrupted requests without reported cost. Direct OpenAI/Anthropic usage does not report a dollar amount, so rate-card estimates and reported amounts remain distinct. No additional provider request or trace-network wait is added. Historical traces are not backfilled.
+
+BYOK model generations have a zero Macrofold model charge in Langfuse's native cost field; their provider-reported cost, estimate and budget consumption remain separate. To report BYOK provider expense, filter **generation** observations by `billing_mode=byok`, sum known `provider_reported_cost_usd` values, and report the count with `provider_reported_cost_status=unavailable` separately. Use Langfuse's native total cost for Macrofold charges. Do not sum parent/billing-event copies of metadata with generations. Connector fees and sandbox compute are separate observations. Parent run totals are metadata only, so summing observation costs does not count the same charge twice. Langfuse is diagnostic: Macrofold's [billing ledger](../billing/README.md) and durable run receipts remain authoritative.
 
 ## Content and operating limits
 

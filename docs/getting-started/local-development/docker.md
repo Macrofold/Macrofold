@@ -56,6 +56,8 @@ The Worker cutover (migration 045) requires all previous Sandbox allocations to 
 
 Repeated `maintenance_failed` messages for `workers` and `runs`, together with unavailable dispatch immediately after an update, can indicate unapplied migrations. Check the migration command's result before investigating provider availability. An old runtime image can separately prevent Host startup even after the schema is current.
 
+If Runs stay queued, inspect the Worker's `failure_code` and run `pnpm doctor:docker`. `docker_image_missing` means the exact `DOCKER_RUNTIME_IMAGE` tag is unavailable. Rebuild that tag with the command above, or explicitly select an already-built compatible image; Docker never pulls or substitutes an image automatically. `docker_daemon_unavailable`, `docker_network_missing`, `docker_disk_full` and `docker_command_timeout` identify other local setup/health failures. Diagnostics omit raw Docker output. Repair the reported cause; provisioning will retry through the existing reconciliation loop. Do not restart a stopped execution container to replay an agent.
+
 ## Run and continue a task
 
 Follow the [API quickstart](../../features/api/quickstart.md) against localhost with a real enabled model instead of `fixture-model`. For a first task, ask the agent to create `hello.txt` containing a short note and read it back. Start with a 120-second timeout and an explicitly approved Run budget.

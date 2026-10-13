@@ -3,15 +3,18 @@ import { pool, authPool, transaction } from '../packages/db';
 import { stat } from 'node:fs/promises';
 import { resourceVerifierClientId } from '../packages/core/src/oauth-settings';
 import { seal, unseal } from '../packages/core/src/crypto';
+import { AppError } from '../packages/core/src/errors';
+import { dockerDiagnostic } from '../packages/providers/src/docker-diagnostic';
 const checks: { name: string; ok: boolean; detail: string }[] = [];
 async function check(name: string, action: () => Promise<string>) {
   try {
     checks.push({ name, ok: true, detail: await action() });
-  } catch {
+  } catch (error) {
     checks.push({
       name,
       ok: false,
       detail:
+        (error instanceof AppError && dockerDiagnostic(error.code)) ||
         'Check failed. Verify the corresponding configuration in the launch guide; secret values are never printed.',
     });
   }

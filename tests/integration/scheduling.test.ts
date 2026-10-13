@@ -14,6 +14,7 @@ import { credit, reserve, settle } from '../../packages/core/src/ledger';
 import { id } from '../../packages/core/src/crypto';
 import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import type { MachineProvider } from '../../packages/core/src/ports';
+import { dispatchFailed, MAX_DISPATCH_FAILURES } from '../../packages/core/src/dispatch-failures';
 
 type Account = Awaited<ReturnType<typeof fixtureAccount>>;
 const accounts: Account[] = [];
@@ -63,6 +64,65 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
+
+async function block(a: Account, runId: string) {
+  for (let attempt = 0; attempt < MAX_DISPATCH_FAILURES; attempt++)
+    await dispatchFailed(a.p.organizationId, 'run', runId, 'fixture_dispatch_failure');
+}
+
+it('a blocked queued Run cannot steal fair turns from healthy Worktrees or other tenants', async () => {
+  const a = await account(),
+    b = await account();
+  const blocked = await submit(a),
+    healthy = await submit(a),
+    other = await submit(b);
+  await block(a, blocked.run_id);
+  const observed = (
+    await pool.query('SELECT dispatch_blocked FROM reporting.scheduling_runs WHERE id=$1', [blocked.run_id])
+  ).rows[0];
+  expect(observed).toEqual({ dispatch_blocked: true });
+  expect(await claimRun(a.p.organizationId, healthy.run_id)).not.toBeNull();
+  expect(await claimRun(b.p.organizationId, other.run_id)).not.toBeNull();
+  const stopped = await transaction(a.p.organizationId, (tx) => getRun(tx, blocked.run_id));
+  expect(stopped.status).toBe('queued');
+  expect(stopped.started_at).toBeNull();
+  expect(stopped.result.failure_code).toBe('run_recovery_required');
+});
+
+it('a blocked active Run still holds global capacity until its outcome is resolved', async () => {
+  process.env.GLOBAL_CONCURRENT_RUN_LIMIT = '1';
+  const a = await account(),
+    b = await account();
+  const active = await submit(a),
+    waiting = await submit(b);
+  expect(await claimRun(a.p.organizationId, active.run_id)).not.toBeNull();
+  await block(a, active.run_id);
+  expect(await claimRun(b.p.organizationId, waiting.run_id)).toBeNull();
+  const report = await transaction(a.p.organizationId, (tx) =>
+    schedulingReport(tx, new Date(0).toISOString(), new Date().toISOString()),
+  );
+  expect(report.active_executions).toBe(1);
+  expect(report.eligible_queued_jobs).toBe(1);
+});
+
+it.each(['cancel', 'expire'] as const)(
+  'settles an unstarted blocked Run after %s without reviving dispatch',
+  async (action) => {
+    const a = await account();
+    const accepted = await submit(a);
+    await block(a, accepted.run_id);
+    if (action === 'cancel') await transaction(a.p.organizationId, (tx) => cancelRun(tx, a.p, accepted.run_id));
+    else
+      await transaction(a.p.organizationId, (tx) =>
+        tx.query("UPDATE runs SET queue_expires_at=now()-interval '1 second' WHERE id=$1", [accepted.run_id]),
+      );
+    expect(await claimRun(a.p.organizationId, accepted.run_id)).toBeNull();
+    const run = await transaction(a.p.organizationId, (tx) => getRun(tx, accepted.run_id));
+    expect(run.status).toBe(action === 'cancel' ? 'cancelled' : 'failed');
+    expect(run.result.failure_code).toBe(action === 'cancel' ? undefined : 'queue_expired');
+    expect(run.started_at).toBeNull();
+  },
+);
 
 it.each(plans())('$name enforces its runtime ceiling and exposes configurable account caps', async (plan) => {
   const a = await account(plan.id);

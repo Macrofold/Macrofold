@@ -142,3 +142,26 @@ it('captures fragmented provider text and tool frames, prefers completed Respons
   bounded.add({ type: 'response.output_text.delta', delta: 'too much' });
   expect(bounded.result()).toMatchObject({ truncated: true });
 });
+
+it('keeps BYOK native Langfuse cost zero and reported costs queryable separately', async () => {
+  const exporter = new InMemorySpanExporter();
+  const sink = new LangfuseTraceSink({ exporter });
+  sink.record({
+    ...observation,
+    context: { ...observation.context, billing_mode: 'byok' },
+    chargedMicroUsd: '0',
+    metadata: {
+      provider_reported_cost_usd: 0.00000123,
+      provider_reported_cost_status: 'reported',
+      upstream_inference_cost_usd: null,
+    },
+  });
+  await sink.flush();
+  const attributes = exporter.getFinishedSpans()[0].attributes;
+  expect(JSON.parse(String(attributes['langfuse.observation.cost_details']))).toEqual({ total: 0 });
+  expect(JSON.parse(String(attributes['langfuse.observation.metadata.provider_reported_cost_usd']))).toBe(
+    0.00000123,
+  );
+  expect(attributes['langfuse.observation.metadata.provider_reported_cost_status']).toBe('reported');
+  await sink.shutdown();
+});

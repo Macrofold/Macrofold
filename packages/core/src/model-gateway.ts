@@ -190,6 +190,13 @@ export async function settleModelRequest(
         ...(prior?.usage_details || {}),
       };
     }
+    // Provider-reported cost is observability, independent of token completeness,
+    // reservations and the retail rate estimate used for customer settlement.
+    const reportedCost = {
+      provider_reported_cost_usd: usage.providerReportedCostUsd ?? null,
+      provider_reported_cost_status: usage.providerReportedCostUsd === undefined ? 'unavailable' : 'reported',
+      upstream_inference_cost_usd: usage.upstreamInferenceCostUsd ?? null,
+    };
     if (
       ![usage.input, usage.output, usage.cached, usage.cacheWrite].every(
         (value) => Number.isSafeInteger(value) && value >= 0,
@@ -244,6 +251,7 @@ export async function settleModelRequest(
         actual.toString(),
         usage.complete || upstreamRejected ? 'complete' : 'missing',
         JSON.stringify({
+          ...reportedCost,
           cached_tokens: usage.cached,
           cache_write_tokens: usage.cacheWrite,
           provisional: !usage.complete && !upstreamRejected,
@@ -270,6 +278,7 @@ export async function settleModelRequest(
       complete: usage.complete || upstreamRejected,
     });
     const billing = {
+      ...reportedCost,
       charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
       budget_cost_micro_usd: actual.toString(),
       reserved_micro_usd: String(request.reserved_micro_usd),
@@ -453,6 +462,7 @@ export async function handleModelRequest(
       const decoder = new TextDecoder();
       let buffer = '';
       let total = 0;
+      let emptyChunks = 0;
       let closed = false;
       const stream = new ReadableStream<Uint8Array>({
         async start(downstream) {
@@ -460,6 +470,9 @@ export async function handleModelRequest(
             while (true) {
               const part = await reader.read();
               if (part.done) break;
+              assert(!controller.signal.aborted, 504, 'model_stream_timeout', 'Model stream exceeded its deadline.');
+              emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
+              assert(emptyChunks < 16, 502, 'model_stream_not_progressing', 'Model stream did not make progress.');
               total += part.value.length;
               assert(
                 total < 32 * 1024 * 1024,

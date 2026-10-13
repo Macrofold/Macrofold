@@ -1,5 +1,7 @@
 import { prepareAttachments, AttachmentError } from './attachments';
 import { permissionAdapters } from '../../contracts/permission-adapters';
+import { fileAccess } from '../../contracts/permissions';
+import { worktreeInstructions } from './permission-files';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
@@ -102,7 +104,7 @@ try {
   const permissions = permissionAdapters[configuration.harness];
   const guarded = permissions.translate(configuration.permissions || []).mode === 'guarded';
   if (guarded) process.env.OPENCODE_DISABLE_PROJECT_CONFIG = 'true';
-  if (guarded && permissions.fileTools === 'mcp')
+  if (guarded && fileAccess(configuration.permissions || []).read && permissions.fileTools === 'mcp')
     files = await startPermissionFileServer(configuration.workspace, configuration.permissions || []);
   for (;;) {
     controller = new AbortController();
@@ -120,9 +122,8 @@ try {
       const prepared = await prepareAttachments(c, controller.signal);
       c.prompt = prepared.prompt;
       c.instructions = [
-        `Your persistent worktree is ${c.workspace}. Save requested deliverables and shared files there. Native home checkpoints include only harness session history, memory and declared resources; other home files and /tmp are disposable. Verify output files in the worktree before reporting completion.`,
+        worktreeInstructions(c.workspace, c.permissions || []),
         c.instructions,
-        'Save user-facing deliverables in outputs/ inside the worktree. Only verified files from that directory are listed as downloadable run outputs.',
       ]
         .filter(Boolean)
         .join('\n\n');

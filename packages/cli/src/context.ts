@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../contracts/pagination';
 import { Client, type Schema } from '../../../sdk/typescript/src/client';
 import { selectedProfile, tokenFor } from './profiles';
 import { findLink, writeLink, type WorkspaceLink } from './local-workspace';
@@ -57,19 +58,26 @@ export class Context {
       : this.client.request('getIdentity').then((v) => (this.identityValue = v));
   }
   async workspace(selector = stringOption(this.flags, 'workspace') || this.linked?.link.workspaceId) {
-    if (this.workspaceValue && (!selector || [this.workspaceValue.id, this.workspaceValue.name].includes(selector)))
+    if (
+      this.workspaceValue &&
+      (!selector || [this.workspaceValue.id, this.workspaceValue.name].includes(selector))
+    )
       return this.workspaceValue;
-    if (!selector) throw new CliError('Select a workspace with --workspace ID or run macrofold link WORKSPACE.');
+    if (!selector)
+      throw new CliError('Select a workspace with --workspace ID or run macrofold link WORKSPACE.');
     let workspace: Schema['Workspace'] | undefined;
     if (uuid(selector))
       workspace = await this.client.request('getWorkspace', { params: { path: { workspace_id: selector } } });
     else {
+      const pages = new PaginationCursor();
       let cursor: string | undefined;
       const matches: Schema['Workspace'][] = [];
       do {
-        const page = await this.client.request('listWorkspaces', { params: { query: { limit: 100, cursor } } });
+        const page = await this.client.request('listWorkspaces', {
+          params: { query: { limit: 100, cursor } },
+        });
         matches.push(...page.data.filter((p) => p.name === selector));
-        cursor = page.next_cursor || undefined;
+        cursor = pages.next(page.next_cursor);
       } while (cursor);
       if (matches.length !== 1)
         throw new CliError(
@@ -108,6 +116,7 @@ export class Context {
           params: { path: { worktree_id: workspace.default_worktree_id } },
         });
       } else {
+        const pages = new PaginationCursor();
         let cursor: string | undefined;
         const matches: Schema['Worktree'][] = [];
         do {
@@ -115,7 +124,7 @@ export class Context {
             params: { path: { workspace_id: workspace.id }, query: { limit: 100, cursor } },
           });
           matches.push(...page.data.filter((w) => w.name === selector || w.branch === selector));
-          cursor = page.next_cursor || undefined;
+          cursor = pages.next(page.next_cursor);
         } while (cursor);
         if (matches.length !== 1)
           throw new CliError(

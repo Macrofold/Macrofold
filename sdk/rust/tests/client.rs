@@ -491,6 +491,34 @@ fn helper_result(persistence: &str, outcome: &str) -> String {
     serde_json::json!({"run_id":ID,"final":true,"output_text":"Hello 🌍","execution_outcome":outcome,"persistence_status":persistence,"checkpoint_id":ID}).to_string()
 }
 #[tokio::test]
+async fn recovery_required_stops_text_with_unfinalized_receipt() {
+    let (origin, requests) = server(vec![
+        (200, event("1", "run.recovery_required")),
+        (
+            200,
+            helper_state("persisting").replace("fixture_failure", "run_recovery_required"),
+        ),
+        (
+            200,
+            helper_result("pending", "failure").replace("\"final\":true", "\"final\":false"),
+        ),
+    ])
+    .await;
+    let client = Client::with_credentials(&origin, "fixture").unwrap();
+    let error = client
+        .runs()
+        .stream_text(ID, "0", |_| panic!("unexpected text"))
+        .await
+        .unwrap_err();
+    let failure = error.downcast_ref::<macrofold::RunFailedError>().unwrap();
+    assert_eq!(
+        failure.failure_code.as_deref(),
+        Some("run_recovery_required")
+    );
+    assert!(!failure.result.r#final);
+    assert_eq!(requests.await.unwrap().len(), 3);
+}
+#[tokio::test]
 async fn text_filters_replay_and_keeps_organization() {
     let (origin, requests) = server(vec![
         (

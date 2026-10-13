@@ -32,6 +32,8 @@ This replaces the proposed per-worktree restic repositories. The benefit is dire
 
 Editor saves, accepted transfers and completed runs publish verified checkpoints. The runtime supervisor stops the agent UID's process tree before final capture, including daemonized descendants. Cloud steps page the snapshot, upload bounded chunks, verify complete hashes and atomically publish the database pointer. Checkpoint retry never reruns the prompt. The capture envelope is 10 GiB and 100,000 file entries across worktree and native home.
 
+Capture also bounds visited filesystem nodes, including empty directories. Object I/O and snapshot recovery have deadlines and finite failure budgets; incomplete capture cannot publish an empty or partial checkpoint as success. See [bounded automatic work](../execution/runtime.md#bounded-automatic-work) for recovery limits and retained ownership.
+
 Editing or uploading replacement content preserves an existing regular file's mode, including its executable bit in Git. Replacing a symlink with an ordinary file does not inherit the symlink's permissions.
 
 There is no promise of a periodic live application-consistent filesystem snapshot. While a run writes, the dashboard reads the last published file revision; native events show activity. The final checkpoint is quiescent. Catastrophic VM loss can lose changes since the last published checkpoint, and the run reports that recovery condition. An unreadable VM is not automatically resumed to populate a UI table.

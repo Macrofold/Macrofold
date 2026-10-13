@@ -69,6 +69,15 @@ export function fileAllowed(layers: PermissionLayers, action: 'read' | 'write', 
 export function toolAllowed(layers: PermissionLayers, name: string) {
   return layers.every((policy) => allows(policy.tools, name));
 }
+/** Tool visibility is advisory; fileAllowed remains authority for each path.
+ * Prove explicit deny-all here rather than attempting arbitrary glob intersection. */
+export function fileAccess(layers: PermissionLayers) {
+  const denied = (rule?: PermissionPatterns) =>
+    rule?.include?.length === 0 || rule?.exclude?.includes('**') === true ||
+    (rule?.include !== undefined && rule.include.every((glob) => rule.exclude?.includes(glob)));
+  const read = !layers.some((policy) => denied(policy.files?.read));
+  return { read, write: read && !layers.some((policy) => denied(policy.files?.write)) };
+}
 function restricted(rule?: PermissionPatterns) {
   return Boolean(rule && (rule.include !== undefined || rule.exclude?.length));
 }

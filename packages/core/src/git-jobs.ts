@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { isSimulated } from './config';
 import { pool, transaction, type Tx } from '../../db';
 import { type Principal, requireScopes } from './auth';
@@ -65,6 +66,22 @@ export async function executeGitJob(
       );
       return;
     }
+    if (Date.parse(String(op.expires_at)) <= Date.now()) {
+      await resources.update(tx, 'operations', operationId, {
+        status: 'failed',
+        error: {
+          code: 'operation_expired',
+          message: 'This sync request expired. Request a new sync.',
+          request_id: operationId,
+          retryable: false,
+        },
+      });
+      await tx.query(
+        "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='operation' AND resource_id=$1",
+        [operationId],
+      );
+      return;
+    }
     await tx.query(
       "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds' WHERE kind='operation' AND resource_id=$1",
       [operationId],
@@ -117,7 +134,12 @@ export async function executeGitJob(
       if (active.rowCount) return; // Keep the job queued; the next sweep follows the agent's persistence commit.
       const target = workspace.github as
         { installation_id: string; repository_id: string; target_branch: string } | undefined;
-      assert(target && !workspace.archived, 409, 'git_not_connected', 'The workspace is no longer connected.');
+      assert(
+        target && !workspace.archived,
+        409,
+        'git_not_connected',
+        'The workspace is no longer connected.',
+      );
       const installed = await tx.query(
         'SELECT 1 FROM github_installations i JOIN github_repository_grants g ON g.organization_id=i.organization_id AND g.installation_id=i.installation_id WHERE i.organization_id=$1 AND i.installation_id=$2 AND i.active AND g.repository_id=$3',
         [org, target.installation_id, target.repository_id],
@@ -228,21 +250,22 @@ export async function executeGitJob(
 }
 export async function dispatchMaintenance(host?: RepositoryHost) {
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='operation' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT 1",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='operation' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 1",
   );
   for (const job of jobs.rows) {
     try {
       await executeGitJob(job.organization_id, job.resource_id, host);
+      await dispatchSucceeded(job.organization_id, 'operation', job.resource_id);
     } catch {
       // A malformed historical job must not starve new work or unrelated maintenance.
-      await pool.query(
-        "UPDATE dispatch_jobs SET attempts=attempts+1,available_at=now()+interval '5 minutes',error='operation_dispatch_failed' WHERE kind='operation' AND resource_id=$1",
-        [job.resource_id],
-      );
+      await dispatchFailed(job.organization_id, 'operation', job.resource_id, 'operation_dispatch_failed');
     }
   }
   const tasks: [string, () => Promise<Record<string, number>>][] = [
-    ['workers', async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() })],
+    [
+      'workers',
+      async () => ({ workers_checked: await (await import('./worker-reconciler')).dispatchWorkers() }),
+    ],
     ['runs', async () => (await import('./engine')).maintainRuns()],
     ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],
     ['triggers', async () => (await import('./trigger-dispatch')).dispatchTriggers()],

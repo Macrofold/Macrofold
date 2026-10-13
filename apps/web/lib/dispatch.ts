@@ -1,3 +1,4 @@
+import { dispatchFailed } from '@platform/core/dispatch-failures';
 import { start } from 'workflow/api';
 import { pool } from '@platform/db';
 import { config, isLocal } from '@platform/core/config';
@@ -22,7 +23,7 @@ async function dispatchPendingRuns(capacityFreed: boolean) {
   const pending = await pendingRunCandidates(100);
   const jobs = await pool.query(
     `UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',workflow_generation=workflow_generation+1
-    WHERE id IN (SELECT id FROM dispatch_jobs WHERE kind='run' AND state<>'done'
+    WHERE id IN (SELECT id FROM dispatch_jobs WHERE kind='run' AND state IN ('pending','running')
       AND (available_at<=now() OR ($2 AND state='pending')) AND (lease_until IS NULL OR lease_until<now())
       AND (state='running' OR resource_id=ANY($1::uuid[]))
       ORDER BY CASE state WHEN 'running' THEN 0 ELSE 1 END,
@@ -46,9 +47,12 @@ async function dispatchPendingRuns(capacityFreed: boolean) {
       await start(agentRun, [job.organization_id, job.resource_id, job.workflow_generation]);
       dispatched++;
     } catch {
-      await pool.query(
-        "UPDATE dispatch_jobs SET lease_until=now()+interval '30 seconds',error='workflow_dispatch_failed' WHERE resource_id=$1 AND kind='run' AND workflow_generation=$2 AND state<>'done'",
-        [job.resource_id, job.workflow_generation],
+      await dispatchFailed(
+        job.organization_id,
+        'run',
+        job.resource_id,
+        'workflow_dispatch_failed',
+        job.workflow_generation,
       );
     }
   }

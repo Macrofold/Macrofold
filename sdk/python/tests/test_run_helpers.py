@@ -20,6 +20,22 @@ def frame(sequence, kind, text):
     return 'data: ' + json.dumps(event(sequence,kind,text)) + '\n\n'
 
 
+def test_recovery_required_stops_wait_and_text_with_unfinalized_result():
+    def respond(request):
+        assert request.method == 'GET'
+        if request.url.path.endswith('/stream'):
+            return httpx.Response(200, text=frame('1', 'run.recovery_required', ''))
+        if request.url.path.endswith('/result'):
+            return httpx.Response(200, json=result('pending', 'failure', final=False))
+        return httpx.Response(200, json={**state('persisting'), 'failure_code': 'run_recovery_required'})
+    with Macrofold(api_key='fixture', transport=httpx.MockTransport(respond)) as client:
+        for action in [lambda: client.runs.wait(ID), lambda: list(client.runs.stream_text(ID))]:
+            with pytest.raises(RunFailedError) as failure:
+                action()
+            assert failure.value.status == 'persisting' and failure.value.failure_code == 'run_recovery_required'
+            assert failure.value.result.final is False
+
+
 def test_text_reconnect_filters_payloads_and_structured_events_remain(monkeypatch):
     monkeypatch.setattr('macrofold.client.time.sleep', lambda _: None)
     cursors, gets = [], []

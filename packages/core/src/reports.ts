@@ -392,7 +392,7 @@ export async function adminReport(
     ).rows[0].count;
     const queue = (
       await tx.query(
-        "SELECT count(*)::text AS pending,coalesce(max(extract(epoch FROM now()-available_at)),0)::text AS oldest_seconds,count(*) FILTER(WHERE attempts>=8)::text AS exhausted FROM dispatch_jobs WHERE state<>'done' AND available_at<=now()",
+        "SELECT count(*) FILTER(WHERE state IN ('pending','running'))::text AS pending,coalesce(max(extract(epoch FROM now()-available_at)) FILTER(WHERE state IN ('pending','running')),0)::text AS oldest_seconds,count(*) FILTER(WHERE state='blocked')::text AS exhausted FROM dispatch_jobs WHERE state<>'done' AND available_at<=now()",
       )
     ).rows[0];
     const finance = (

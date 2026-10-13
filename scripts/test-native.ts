@@ -34,6 +34,7 @@ const selected = process.argv
         '--failure',
         '--cancel',
         '--permissions',
+        '--file-access',
         '--image-only',
         '--stdio',
         '--media',
@@ -92,7 +93,7 @@ for (const harness of stdio ? ['stdio'] : selected.length ? selected : harnessNa
   args.push(
     image,
     'node',
-    stdio ? '/tests/stdio-native.mjs' : '/tests/native-mock.mjs',
+    stdio ? '/tests/stdio-native.mjs' : process.argv.includes('--file-access') ? '/tests/native-file-access.mjs' : '/tests/native-mock.mjs',
   );
   if (!stdio) args.push(harness);
   if (warm) args.push('--warm');

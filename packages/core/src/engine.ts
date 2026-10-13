@@ -39,120 +39,146 @@ export function principalFor(row: RunRow): Principal {
   };
 }
 export async function claimRun(org: string, runId: string) {
-  return transaction(org, async tx => {
+  return transaction(org, async (tx) => {
     // A burst of queued Runs must not fill every connection waiting for the
     // same organization lock while active Runs need connections to finish.
-    if (!await tryLock(tx, `organization:${org}`)) return null;
+    if (!(await tryLock(tx, `organization:${org}`))) return null;
     return claimRunInTransaction(tx, org, runId);
   });
 }
 
 /** Direct inference claims capacity in its admission transaction: no queued worker hop. */
 export async function claimRunInTransaction(tx: Tx, org: string, runId: string, direct = false) {
-    let run = await getRun(tx, runId);
-    await lock(tx, `organization:${org}`);
-    const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
-    if (direct) await lock(tx, contextLock);
-    else if (!await tryLock(tx, contextLock)) return null;
-    run = await getRun(tx, runId);
-    if (run.status !== 'queued') {
-      // Old outbox entries must not starve newer work. An active execution is never replayed.
-      await tx.query(
-        "UPDATE dispatch_jobs SET state=$2,lease_until=CASE WHEN $2='running' THEN now()+interval '90 seconds' ELSE NULL END WHERE kind='run' AND resource_id=$1",
-        [runId, terminal(run.status) ? 'done' : 'running'],
-      );
-      return null;
-    }
-    // Waiting is durable SQL state, never an unbounded Workflow sleep loop.
-    await tx.query("UPDATE dispatch_jobs SET available_at=$2 WHERE kind='run' AND resource_id=$1", [
-      runId,
-      queueRetryAt(run, Date.now()),
-    ]);
-    const denied = !(await actorAuthorized(tx, run));
-    const worktree = run.kind === 'native_agent' ? await resources.get(tx, 'worktrees', run.worktree_id) : null,
-      workspace = run.workspace_id ? await resources.get(tx, 'workspaces', run.workspace_id) : null;
-    const unavailable =
-      workspace?.archived ||
-      workspace?.deleted ||
-      !!worktree?.deleted ||
-      ['deleting', 'degraded', 'restoring'].includes(String(worktree?.status));
-    const policy = await getExecutionPolicy(tx, org);
-    const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
-    const worker = run.kind === 'native_agent' && run.config.worker_id ? await getWorker(tx,run.config.worker_id) : null;
-    const workerState = worker ? workerAdmissionBlock(worker,Date.now()) : null;
-    const workerUnavailable = workerState === 'worker_destroyed' || workerState === 'worker_expired' ||
-      (worker && worker.settings.expires_at_ms !== null && worker.settings.expires_at_ms < Date.now()+((run.config.limits?.timeout_seconds || 900)+180)*1000);
-    const subscriptionUnavailable = run.kind === 'native_agent' && run.config.billing_mode === 'subscription';
-    if (
-      run.cancel_requested ||
-      run.queue_expires_at.getTime() <= Date.now() ||
-      denied ||
-      unavailable ||
-      timeoutUnavailable ||
-      subscriptionUnavailable || workerUnavailable
-    ) {
-      // Deletion and billing controls cancel queued rows without invoking the public
-      // cancel handler. Honor that flag before provisioning or any native side effect.
-      const status = run.cancel_requested ? 'cancelled' : 'failed';
-      const code = run.cancel_requested
-        ? 'cancelled'
-        : denied
-          ? 'authorization_revoked'
-          : unavailable
-            ? 'worktree_unavailable'
-            : timeoutUnavailable
-              ? 'execution_limit_changed'
-              : workerUnavailable
-                ? workerState || 'worker_lifetime'
-                : subscriptionUnavailable
+  let run = await getRun(tx, runId);
+  await lock(tx, `organization:${org}`);
+  const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
+  if (direct) await lock(tx, contextLock);
+  else if (!(await tryLock(tx, contextLock))) return null;
+  run = await getRun(tx, runId);
+  const blocked = await tx.query(
+    "SELECT 1 FROM dispatch_jobs WHERE kind='run' AND resource_id=$1 AND state='blocked'",
+    [runId],
+  );
+  // Expired/unstarted work may still be cancelled and settled. A blocked live
+  // execution must never be silently reactivated by a maintenance hint.
+  if (
+    blocked.rowCount &&
+    (run.status !== 'queued' || (!run.cancel_requested && run.queue_expires_at.getTime() > Date.now()))
+  )
+    return null;
+  if (run.status !== 'queued') {
+    // Old outbox entries must not starve newer work. An active execution is never replayed.
+    await tx.query(
+      "UPDATE dispatch_jobs SET state=$2,lease_until=CASE WHEN $2='running' THEN now()+interval '90 seconds' ELSE NULL END WHERE kind='run' AND resource_id=$1 AND state IN ('pending','running')",
+      [runId, terminal(run.status) ? 'done' : 'running'],
+    );
+    return null;
+  }
+  // Waiting is durable SQL state, never an unbounded Workflow sleep loop.
+  await tx.query("UPDATE dispatch_jobs SET available_at=$2 WHERE kind='run' AND resource_id=$1", [
+    runId,
+    queueRetryAt(run, Date.now()),
+  ]);
+  const denied = !(await actorAuthorized(tx, run));
+  const worktree = run.kind === 'native_agent' ? await resources.get(tx, 'worktrees', run.worktree_id) : null,
+    workspace = run.workspace_id ? await resources.get(tx, 'workspaces', run.workspace_id) : null;
+  const unavailable =
+    workspace?.archived ||
+    workspace?.deleted ||
+    !!worktree?.deleted ||
+    ['deleting', 'degraded', 'restoring'].includes(String(worktree?.status));
+  const policy = await getExecutionPolicy(tx, org);
+  const timeoutUnavailable = (run.config.limits?.timeout_seconds || 900) > policy.max_timeout_seconds;
+  const worker =
+    run.kind === 'native_agent' && run.config.worker_id ? await getWorker(tx, run.config.worker_id) : null;
+  const workerState = worker ? workerAdmissionBlock(worker, Date.now()) : null;
+  const workerUnavailable =
+    workerState === 'worker_destroyed' ||
+    workerState === 'worker_expired' ||
+    (worker &&
+      worker.settings.expires_at_ms !== null &&
+      worker.settings.expires_at_ms <
+        Date.now() + ((run.config.limits?.timeout_seconds || 900) + 180) * 1000);
+  const subscriptionUnavailable = run.kind === 'native_agent' && run.config.billing_mode === 'subscription';
+  if (
+    run.cancel_requested ||
+    run.queue_expires_at.getTime() <= Date.now() ||
+    denied ||
+    unavailable ||
+    timeoutUnavailable ||
+    subscriptionUnavailable ||
+    workerUnavailable
+  ) {
+    // Deletion and billing controls cancel queued rows without invoking the public
+    // cancel handler. Honor that flag before provisioning or any native side effect.
+    const status = run.cancel_requested ? 'cancelled' : 'failed';
+    const code = run.cancel_requested
+      ? 'cancelled'
+      : denied
+        ? 'authorization_revoked'
+        : unavailable
+          ? 'worktree_unavailable'
+          : timeoutUnavailable
+            ? 'execution_limit_changed'
+            : workerUnavailable
+              ? workerState || 'worker_lifetime'
+              : subscriptionUnavailable
                 ? 'claude_subscription_unavailable'
                 : 'queue_expired';
-      await tx.query('UPDATE runs SET status=$3,completed_at=now(),result=$2 WHERE id=$1', [
-        runId,
-        JSON.stringify({
-          execution_outcome: run.cancel_requested ? 'cancelled' : 'failure',
-          persistence_status: 'not_required',
-          failure_code: code,
-          ...(run.kind === 'native_agent' ? {} : { inference: { ...initialReceipt(run.config, run.id), outcome: 'failed' } }),
-        }),
-        status,
-      ]);
-      await settle(tx, org, runId, BigInt(run.reservation_micro_usd), 0n);
-      await emit(tx, org, runId, `run.${status}`, { status, code });
-      await tx.query(
-        "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
-        [runId],
-      );
-      return null;
-    }
-    // A simulator left running must never impersonate a newly admitted native execution.
-    // Cancellation and queue expiry above still settle work even under the wrong local profile.
-    if (run.kind === 'native_agent' && run.config.execution_provider && run.config.execution_provider !== config.execution) return null;
-    if (workerState === 'worker_paused') return null;
-    // Capacity and weighted turns commit together under the existing global lock.
-    // A Workflow retry for a specific run must obey the same scheduler as a poller.
-    if (direct) await lock(tx, 'capacity:global');
-    else if (!await tryLock(tx, 'capacity:global')) return null;
-    const turn = await schedulerTurn(tx);
-    if (!turn || turn.id !== runId) return null;
-    if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx,run))) return null;
-    await recordTurn(tx, org, turn);
+    await tx.query('UPDATE runs SET status=$3,completed_at=now(),result=$2 WHERE id=$1', [
+      runId,
+      JSON.stringify({
+        execution_outcome: run.cancel_requested ? 'cancelled' : 'failure',
+        persistence_status: 'not_required',
+        failure_code: code,
+        ...(run.kind === 'native_agent'
+          ? {}
+          : { inference: { ...initialReceipt(run.config, run.id), outcome: 'failed' } }),
+      }),
+      status,
+    ]);
+    await settle(tx, org, runId, BigInt(run.reservation_micro_usd), 0n);
+    await emit(tx, org, runId, `run.${status}`, { status, code });
     await tx.query(
-      "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
-      [runId, run.config.limits?.timeout_seconds || 900],
-    );
-    if (run.kind === 'native_agent') await resources.update(tx, 'worktrees', run.worktree_id, { status: 'busy' });
-    await emit(tx, org, runId, 'run.provisioning', {});
-    await tx.query(
-      "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
+      "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
       [runId],
     );
-    if (direct)
-      await tx.query(
-        "UPDATE dispatch_jobs SET available_at=(SELECT deadline + interval '5 seconds' FROM runs WHERE id=$1) WHERE kind='run' AND resource_id=$1",
-        [runId],
-      );
-    return getRun(tx, runId);
+    return null;
+  }
+  // A simulator left running must never impersonate a newly admitted native execution.
+  // Cancellation and queue expiry above still settle work even under the wrong local profile.
+  if (
+    run.kind === 'native_agent' &&
+    run.config.execution_provider &&
+    run.config.execution_provider !== config.execution
+  )
+    return null;
+  if (workerState === 'worker_paused') return null;
+  // Capacity and weighted turns commit together under the existing global lock.
+  // A Workflow retry for a specific run must obey the same scheduler as a poller.
+  if (direct) await lock(tx, 'capacity:global');
+  else if (!(await tryLock(tx, 'capacity:global'))) return null;
+  const turn = await schedulerTurn(tx);
+  if (!turn || turn.id !== runId) return null;
+  if (worker && run.kind === 'native_agent' && !(await claimHostRun(tx, run))) return null;
+  await recordTurn(tx, org, turn);
+  await tx.query(
+    "UPDATE runs SET status='provisioning',started_at=now(),heartbeat_at=now(),lease_generation=lease_generation+1,deadline=now()+($2::integer*interval '1 second') WHERE id=$1",
+    [runId, run.config.limits?.timeout_seconds || 900],
+  );
+  if (run.kind === 'native_agent')
+    await resources.update(tx, 'worktrees', run.worktree_id, { status: 'busy' });
+  await emit(tx, org, runId, 'run.provisioning', {});
+  await tx.query(
+    "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
+    [runId],
+  );
+  if (direct)
+    await tx.query(
+      "UPDATE dispatch_jobs SET available_at=(SELECT deadline + interval '5 seconds' FROM runs WHERE id=$1) WHERE kind='run' AND resource_id=$1",
+      [runId],
+    );
+  return getRun(tx, runId);
 }
 
 /** Separate the short admission claim from long-running execution. Dispatchers
@@ -289,88 +315,110 @@ async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionPr
         mode: file.mode,
       });
     }
-    const publication = await storagePreparation(org, async tx => {
-      const current = await getRun(tx, runId);
-      assert(current.lease_generation === run.lease_generation && !terminal(current.status),
-        409, 'lease_lost', 'Execution no longer owns its publication.');
-      return resources.get(tx, 'worktrees', run.worktree_id);
-    });
-    try {
-      const baseline = publication.value;
-      const output = guardedToolsRequired(run.config.permission_layers || [])
-        ? permissionOutput(run.config.permission_layers || [], baseline.files || [], saved) : saved;
-      // Hash verification and Git export may be expensive. Keep them outside the
-      // five-connection domain pool and recheck ownership at the small commit boundary.
-      const preparedCheckpoint = await prepareCheckpoint(org, baseline, output, 'Run completed', undefined, baseline.files || []);
-      await transaction(org, async (tx) => {
-      await lock(tx, `worktree:${run.worktree_id}`);
-      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
+    const publication = await storagePreparation(org, async (tx) => {
       const current = await getRun(tx, runId);
       assert(
         current.lease_generation === run.lease_generation && !terminal(current.status),
         409,
         'lease_lost',
-        'Execution lease was lost before publication.',
+        'Execution no longer owns its publication.',
       );
-      await publication.assertActive(tx);
-      const currentWorktree = await resources.get(tx, 'worktrees', run.worktree_id);
-      assert(currentWorktree.revision === baseline.revision, 409, 'publication_revision_changed',
-        'Worktree state changed while preparing execution output.');
-      const previousFiles = baseline.files || [];
-      const cp = await saveCheckpoint(tx, p, preparedCheckpoint);
-      await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
-      await resources.update(tx, 'worktrees', run.worktree_id, {
-        ...checkpointState(cp),
-        status: 'idle',
-      });
-      await resources.update(tx, 'sessions', run.session_id, { resume_state: result.resumeState });
-      const value = {
-        output_text: result.output,
-        execution_outcome: 'success',
-        persistence_status: 'verified',
-        checkpoint_id: cp.id,
-        artifact_ids: await publishArtifacts(tx, run, previousFiles, cp.files || []),
-        sync_status: 'disabled',
-      };
-      await tx.query("UPDATE runs SET status='succeeded',completed_at=now(),result=$2 WHERE id=$1", [
-        runId,
-        JSON.stringify(value),
-      ]);
-      await tx.query(
-        'INSERT INTO model_usage(id,organization_id,run_id,request_id,provider,model,billing_mode,input_tokens,output_tokens,cost_micro_usd,completeness) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(request_id) DO NOTHING',
-        [
-          id(),
-          org,
-          runId,
-          `run:${runId}:summary`,
-          provider instanceof Simulator ? 'fixture' : 'harness',
-          run.config.model,
-          run.config.billing_mode,
-          result.inputTokens,
-          result.outputTokens,
-          provider instanceof Simulator ? '0' : null,
-          result.usageComplete ? 'complete' : 'missing',
-        ],
-      );
-      await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(current.cost_micro_usd));
-      await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
-      if (await queueAutomaticSync(tx, p, run.worktree_id, runId)) value.sync_status = 'pending';
-      await emit(tx, org, runId, 'run.succeeded', { ...value, status: 'succeeded' });
-      await tx.query("UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE resource_id=$1", [runId]);
-      await tx.query(
-        "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
-        [id(), org, run.config.user_id],
-      );
+      return resources.get(tx, 'worktrees', run.worktree_id);
     });
+    try {
+      const baseline = publication.value;
+      const output = guardedToolsRequired(run.config.permission_layers || [])
+        ? permissionOutput(run.config.permission_layers || [], baseline.files || [], saved)
+        : saved;
+      // Hash verification and Git export may be expensive. Keep them outside the
+      // five-connection domain pool and recheck ownership at the small commit boundary.
+      const preparedCheckpoint = await prepareCheckpoint(
+        org,
+        baseline,
+        output,
+        'Run completed',
+        undefined,
+        baseline.files || [],
+      );
+      await transaction(org, async (tx) => {
+        await lock(tx, `worktree:${run.worktree_id}`);
+        if (run.config.worker_id) await lock(tx, `worker:${run.config.worker_id}`);
+        const current = await getRun(tx, runId);
+        assert(
+          current.lease_generation === run.lease_generation && !terminal(current.status),
+          409,
+          'lease_lost',
+          'Execution lease was lost before publication.',
+        );
+        await publication.assertActive(tx);
+        const currentWorktree = await resources.get(tx, 'worktrees', run.worktree_id);
+        assert(
+          currentWorktree.revision === baseline.revision,
+          409,
+          'publication_revision_changed',
+          'Worktree state changed while preparing execution output.',
+        );
+        const previousFiles = baseline.files || [];
+        const cp = await saveCheckpoint(tx, p, preparedCheckpoint);
+        await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
+        await resources.update(tx, 'worktrees', run.worktree_id, {
+          ...checkpointState(cp),
+          status: 'idle',
+        });
+        await resources.update(tx, 'sessions', run.session_id, { resume_state: result.resumeState });
+        const value = {
+          output_text: result.output,
+          execution_outcome: 'success',
+          persistence_status: 'verified',
+          checkpoint_id: cp.id,
+          artifact_ids: await publishArtifacts(tx, run, previousFiles, cp.files || []),
+          sync_status: 'disabled',
+        };
+        await tx.query("UPDATE runs SET status='succeeded',completed_at=now(),result=$2 WHERE id=$1", [
+          runId,
+          JSON.stringify(value),
+        ]);
+        await tx.query(
+          'INSERT INTO model_usage(id,organization_id,run_id,request_id,provider,model,billing_mode,input_tokens,output_tokens,cost_micro_usd,completeness) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(request_id) DO NOTHING',
+          [
+            id(),
+            org,
+            runId,
+            `run:${runId}:summary`,
+            provider instanceof Simulator ? 'fixture' : 'harness',
+            run.config.model,
+            run.config.billing_mode,
+            result.inputTokens,
+            result.outputTokens,
+            provider instanceof Simulator ? '0' : null,
+            result.usageComplete ? 'complete' : 'missing',
+          ],
+        );
+        await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(current.cost_micro_usd));
+        await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
+        if (await queueAutomaticSync(tx, p, run.worktree_id, runId)) value.sync_status = 'pending';
+        await emit(tx, org, runId, 'run.succeeded', { ...value, status: 'succeeded' });
+        await tx.query("UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE resource_id=$1", [
+          runId,
+        ]);
+        await tx.query(
+          "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
+          [id(), org, run.config.user_id],
+        );
+      });
     } finally {
-      await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+      await publication
+        .dispose()
+        .catch(() =>
+          console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })),
+        );
     }
     stopped = true;
     return true;
   } catch (error) {
     await transaction(org, async (tx) => {
-      await lock(tx,`worktree:${run.worktree_id}`);
-      if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
+      await lock(tx, `worktree:${run.worktree_id}`);
+      if (run.config.worker_id) await lock(tx, `worker:${run.config.worker_id}`);
       const current = await getRun(tx, runId);
       if (terminal(current.status) || current.lease_generation !== run.lease_generation) return;
       const reason = abort.signal.reason instanceof Error ? abort.signal.reason.message : '';
@@ -410,15 +458,21 @@ async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionPr
     return true;
   } finally {
     clearInterval(heartbeat);
-    if (run.config.worker_id) await transaction(org,async tx=>{
-      await lock(tx,`worktree:${run.worktree_id}`);
-      const assignment=await activeHostRun(tx,run.id);
-      if(assignment) {
-        const current=await getRun(tx,run.id);
-        const worktree=await resources.get(tx,'worktrees',run.worktree_id);
-        await releaseHostRun(tx,assignment,current.result.persistence_status==='verified',worktree.latest_checkpoint_id ?? null);
-      }
-    });
+    if (run.config.worker_id)
+      await transaction(org, async (tx) => {
+        await lock(tx, `worktree:${run.worktree_id}`);
+        const assignment = await activeHostRun(tx, run.id);
+        if (assignment) {
+          const current = await getRun(tx, run.id);
+          const worktree = await resources.get(tx, 'worktrees', run.worktree_id);
+          await releaseHostRun(
+            tx,
+            assignment,
+            current.result.persistence_status === 'verified',
+            worktree.latest_checkpoint_id ?? null,
+          );
+        }
+      });
     if (!stopped) abort.abort();
   }
 }
@@ -443,7 +497,7 @@ export async function maintainRuns() {
         let run = await getRun(tx, row.id);
         if (run.kind !== 'native_agent') return;
         await lock(tx, `worktree:${run.worktree_id}`);
-        if(run.config.worker_id) await lock(tx,`worker:${run.config.worker_id}`);
+        if (run.config.worker_id) await lock(tx, `worker:${run.config.worker_id}`);
         await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [row.id]);
         run = await getRun(tx, row.id);
         requireNativeRun(run);
@@ -475,8 +529,8 @@ export async function maintainRuns() {
           "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
           [row.id],
         );
-        const assignment=await activeHostRun(tx,run.id);
-        if(assignment)await releaseHostRun(tx,assignment,false,null);
+        const assignment = await activeHostRun(tx, run.id);
+        if (assignment) await releaseHostRun(tx, assignment, false, null);
         abandoned++;
       });
   }

@@ -16,6 +16,7 @@ import type {
 } from '../../core/src/ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
+import { dockerDiagnostic, dockerFailure } from './docker-diagnostic';
 
 const ownerLabel = 'io.platform.owner';
 const executionLabel = 'io.platform.execution';
@@ -26,34 +27,39 @@ export const dockerCommand: DockerCommand = (args, input) =>
   new Promise((resolve, reject) => {
     const child = spawn('docker', args, { stdio: ['pipe', 'pipe', 'pipe'] });
     const output: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    let stderrSize = 0;
     let size = 0;
     let failed = false;
+    let timedOut = false;
     const fail = () => {
       failed = true;
       child.kill('SIGKILL');
     };
-    const timer = setTimeout(fail, args.includes('/opt/platform/stdio-call.mjs') ? 60_000 : 30_000);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      fail();
+    }, args.includes('/opt/platform/stdio-call.mjs') ? 60_000 : 30_000);
     child.stdout.on('data', (bytes: Buffer) => {
       size += bytes.length;
       if (size > 8 * 1024 * 1024) fail();
       else output.push(bytes);
     });
-    child.stderr.resume();
+    child.stderr.on('data', (bytes: Buffer) => {
+      // Drain all stderr, retaining only a bounded prefix for classification.
+      const kept = bytes.subarray(0, Math.max(0, 16 * 1024 - stderrSize));
+      if (kept.length) stderr.push(Buffer.from(kept));
+      stderrSize += kept.length;
+    });
     child.stdin.on('error', fail);
     child.once('error', () => {
       clearTimeout(timer);
-      reject(new AppError(503, 'docker_unavailable', 'Start Docker and verify the runtime image is built.'));
+      reject(new AppError(503, 'docker_unavailable', dockerDiagnostic('docker_unavailable')!));
     });
     child.once('close', (code) => {
       clearTimeout(timer);
       if (failed || code !== 0)
-        reject(
-          new AppError(
-            503,
-            'docker_transport_failed',
-            'Docker did not confirm the operation. Execution identity is retained.',
-          ),
-        );
+        reject(dockerFailure(Buffer.concat(stderr).toString(), timedOut));
       else resolve(Buffer.concat(output));
     });
     child.stdin.end(input);

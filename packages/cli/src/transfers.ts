@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../contracts/pagination';
 import { downloadVerified } from './checkout';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile, rename, unlink, lstat } from 'node:fs/promises';
@@ -30,13 +31,16 @@ async function readLocal(root: string, file: string) {
     throw error;
   }
 }
-async function filesUnder(root: string, relative: string): Promise<string[]> {
+async function filesUnder(root: string, relative: string, budget: { visited: number }): Promise<string[]> {
+  if (++budget.visited > 100_000)
+    throw new CliError('Folder traversal exceeded 100,000 entries. Choose narrower paths.', 6);
   const full = await safeLocalPath(root, relative);
   try {
     const metadata = await lstat(full);
     if (metadata.isDirectory()) {
       const values: string[] = [];
-      for (const name of await readdir(full)) values.push(...(await filesUnder(root, `${relative}/${name}`)));
+      for (const name of await readdir(full))
+        values.push(...(await filesUnder(root, `${relative}/${name}`, budget)));
       return values;
     }
     return [relativeFile(relative)];
@@ -54,14 +58,16 @@ async function inventory(root: string, paths: string[], includeIgnored: boolean)
       .filter(Boolean);
   } catch {}
   if (!tracked && !paths.length) throw new CliError('For a folder without Git, choose explicit file paths.');
+  const budget = { visited: 0 };
   let candidates = paths.length
-    ? (await Promise.all(paths.map((p) => filesUnder(root, relativeFile(p))))).flat()
+    ? (await Promise.all(paths.map((p) => filesUnder(root, relativeFile(p), budget)))).flat()
     : tracked!;
   if (!includeIgnored)
     candidates = candidates.filter((p) => permitted(p) && (!tracked || tracked.includes(p)));
   return [...new Set(candidates)];
 }
 async function remoteFiles(client: Client, worktreeId: string) {
+  const pages = new PaginationCursor();
   let cursor: string | undefined;
   const files: Schema['FileEntry'][] = [];
   do {
@@ -69,7 +75,7 @@ async function remoteFiles(client: Client, worktreeId: string) {
       params: { path: { worktree_id: worktreeId }, query: { limit: 100, ...(cursor ? { cursor } : {}) } },
     });
     files.push(...page.entries);
-    cursor = page.next_cursor || undefined;
+    cursor = pages.next(page.next_cursor);
   } while (cursor);
   return files;
 }

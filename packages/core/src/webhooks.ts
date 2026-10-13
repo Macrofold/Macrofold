@@ -4,6 +4,7 @@ import { id, unseal } from './crypto';
 import { isLocal } from './config';
 import { safeFetch } from '../../providers/src/network';
 import * as resources from './resources';
+import { dispatchFailed } from './dispatch-failures';
 
 export const webhookEvents = [
   'run.completed',
@@ -129,7 +130,7 @@ export async function deliverWebhook(org: string, deliveryId: string, transport:
       completed_at: succeeded || exhausted ? new Date().toISOString() : null,
     });
     await tx.query(
-      "UPDATE dispatch_jobs SET state=$2,available_at=$3,lease_until=NULL,attempts=attempts+1 WHERE kind='webhook' AND resource_id=$1",
+      "UPDATE dispatch_jobs SET state=$2,available_at=$3,lease_until=NULL,attempts=attempts+1,failure_attempts=0 WHERE kind='webhook' AND resource_id=$1",
       [deliveryId, succeeded || exhausted ? 'done' : 'pending', next],
     );
     if (d.replay_operation_id && (succeeded || exhausted))
@@ -144,6 +145,14 @@ export async function dispatchWebhooks(transport?: typeof fetch) {
   const jobs = await pool.query(
     "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='webhook' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 10",
   );
-  await Promise.all(jobs.rows.map((job) => deliverWebhook(job.organization_id, job.resource_id, transport)));
+  await Promise.all(
+    jobs.rows.map(async (job) => {
+      try {
+        await deliverWebhook(job.organization_id, job.resource_id, transport);
+      } catch {
+        await dispatchFailed(job.organization_id, 'webhook', job.resource_id, 'webhook_dispatch_failed');
+      }
+    }),
+  );
   return { webhook_deliveries: jobs.rowCount || 0 };
 }

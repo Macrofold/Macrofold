@@ -136,7 +136,7 @@ public class Client extends Resources {
           var event = getObjectMapper().readValue(data, dev.macrofold.model.InferenceStreamEvent.class);
           if (!receive.test(event)) return true;
           if ("transport.error".equals(event.getType())) throw new IOException("Stream interrupted; retrieve the saved run result");
-          return java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out").contains(event.getType());
+          return java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out", "run.recovery_required").contains(event.getType());
         });
         if (!ended) throw new IOException("Stream ended before terminal result; retrieve the saved run result");
       } finally { deadline.cancel(false); }
@@ -171,7 +171,7 @@ public class Client extends Resources {
     java.util.concurrent.ScheduledExecutorService deadlines =
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
     try {
-      while (true) {
+      for (int connections = 0; connections < 2048; connections++) {
         HttpRequest.Builder request =
             HttpRequest.newBuilder(URI.create(getBaseUri() + path + "/stream?after=" + cursor))
                 .header("Authorization", "Bearer " + token)
@@ -211,7 +211,7 @@ public class Client extends Resources {
               BigInteger sequence = new BigInteger(event.getSequence());
               if (sequence.compareTo(delivered[0]) <= 0) return false;
               delivered[0] = sequence;
-              return !receive.test(event) || java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out").contains(event.getType());
+              return !receive.test(event) || java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out", "run.recovery_required").contains(event.getType());
             }); } finally {
               // Preserve delivered identity even if the next network read fails.
               cursor = delivered[0];
@@ -230,6 +230,7 @@ public class Client extends Resources {
             customerAgentId == null
                 ? runs.getRun(runId, organization)
                 : customers.getCustomerAgentRun(customerId, customerAgentId, runId, organization);
+        if ("run_recovery_required".equals(run.getFailureCode())) return;
         if (java.util.Set.of("succeeded", "failed", "cancelled", "timed_out")
                 .contains(run.getStatus().getValue())
             && (customerAgentId == null
@@ -246,6 +247,7 @@ public class Client extends Resources {
                 .isEmpty()) return;
         Thread.sleep(250);
       }
+      throw new IOException("Stream attachment limit reached. Reattach after " + cursor + "; the run has not been cancelled.");
     } finally {
       deadlines.shutdownNow();
     }

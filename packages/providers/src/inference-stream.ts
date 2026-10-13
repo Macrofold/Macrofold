@@ -145,6 +145,7 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   });
   const reader = response.body?.getReader();
   const decoder = new TextDecoder('utf-8', { fatal: true });
+  let emptyChunks = 0;
   try {
     assert(
       reader && response.headers.get('content-type')?.includes('text/event-stream'),
@@ -155,6 +156,13 @@ export async function readInferenceStream(response: Response, chat: boolean, out
     for (;;) {
       const part = await reader.read();
       if (part.done) break;
+      emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
+      assert(
+        emptyChunks < 16,
+        502,
+        'provider_stream_not_progressing',
+        'Provider stream did not make progress.',
+      );
       // Total wire bytes include framing, so allow bounded framing overhead in
       // addition to the existing 512 KiB assembled-response ceiling.
       bytes += part.value.byteLength;
@@ -184,7 +192,7 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   } catch (error) {
     incomplete = error instanceof AppError ? error.code : 'interrupted_provider_stream';
   } finally {
-    await reader?.cancel().catch(() => {});
+    void reader?.cancel().catch(() => {});
     reader?.releaseLock();
   }
   if (incomplete && argumentsByBlock.size)

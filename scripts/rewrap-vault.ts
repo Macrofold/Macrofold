@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../packages/contracts/pagination';
 import { pool, authPool, transaction } from '../packages/db';
 import { storage } from '../packages/providers/src/storage';
 import { seal, unseal } from '../packages/core/src/crypto';
@@ -39,6 +40,7 @@ function document(value: Record<string, unknown>) {
 try {
   for (const { id: org } of (await pool.query('SELECT id FROM organizations ORDER BY id')).rows) {
     for (const table of [...tables, 'oauth_attempts']) {
+      const pages = new PaginationCursor(100_000);
       let cursor = '00000000-0000-0000-0000-000000000000';
       while (true) {
         const next = await transaction(org, async (tx) => {
@@ -58,7 +60,7 @@ try {
           return batch.at(-1)?.id;
         });
         if (!next) break;
-        cursor = next;
+        cursor = pages.next(next)!;
       }
     }
     for (const [table, column] of [
@@ -88,6 +90,7 @@ try {
         }
       });
     }
+    const pages = new PaginationCursor();
     let cursor: string | undefined;
     do {
       const batch = await storage.list(org + '/', cursor, 100);
@@ -96,7 +99,7 @@ try {
         const result = replace(value);
         if (write && result.changed) await storage.put(object.key, Buffer.from(String(result.value)));
       }
-      cursor = batch.next_cursor;
+      cursor = pages.next(batch.next_cursor);
     } while (cursor);
   }
   await transaction(null, async (tx) => {

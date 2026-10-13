@@ -31,3 +31,35 @@ it('owns wire-specific headers, tool gates and output bounds without billing aut
     'Content-Type': 'application/json',
   });
 });
+
+it.each([0, 0.000000123, 0.02074409])('preserves reported cost independently of token rates (%s)', (cost) => {
+  const usage = modelProtocol('openrouter')!.usage(
+    {
+      usage: {
+        prompt_tokens: 4,
+        completion_tokens: 2,
+        cost,
+        cost_details: { upstream_inference_cost: cost / 2 },
+      },
+    },
+    emptyUsage(),
+  );
+  expect(usage).toMatchObject({
+    input: 4,
+    output: 2,
+    providerReportedCostUsd: cost,
+    upstreamInferenceCostUsd: cost / 2,
+  });
+  expect(modelProtocol('openrouter')!.usage({ choices: [] }, usage)).toEqual(usage);
+});
+it.each([undefined, null, -1, '0.2', Infinity, NaN])(
+  'keeps absent/invalid provider costs unknown (%s)',
+  (cost) => {
+    expect(
+      modelProtocol('openrouter')!.usage(
+        { usage: { prompt_tokens: 4, completion_tokens: 2, cost } },
+        emptyUsage(),
+      ).providerReportedCostUsd,
+    ).toBeUndefined();
+  },
+);

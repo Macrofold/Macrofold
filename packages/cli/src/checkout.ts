@@ -36,22 +36,25 @@ export async function downloadVerified(
   const response = await fetch(target, { headers, redirect: 'error', signal: AbortSignal.timeout(300000) });
   if (!response.ok || !response.body) throw new CliError(`Download failed (${response.status}).`, 7);
   if (Number(response.headers.get('content-length')) > maxBytes) {
-    await response.body.cancel();
+    void response.body.cancel().catch(() => {});
     throw new CliError('Download exceeds the allowed size.', 6);
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
+  let emptyChunks = 0;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      emptyChunks = value.byteLength ? 0 : emptyChunks + 1;
+      if (emptyChunks >= 16) throw new CliError('Download stream did not make progress.', 7);
       size += value.byteLength;
       if (size > maxBytes) throw new CliError('Download exceeds the allowed size.', 6);
       chunks.push(value);
     }
   } finally {
-    await reader.cancel();
+    void reader.cancel().catch(() => {});
   }
   const bytes = Buffer.concat(chunks);
   if (hash(bytes) !== expectedHash) throw new CliError('Downloaded content failed its SHA-256 check.', 7);

@@ -16,9 +16,13 @@ Discovery describes available models; it does not authorize a customer, prove ac
 
 The existing worker or hosted maintenance job checks for an hourly refresh. OpenAI and Anthropic discovery use configured platform keys; without those keys, their built-in defaults remain available for BYOK. OpenRouter discovery is public and receives no key. Customer credentials never populate the shared catalog.
 
-Complete provider responses are cached in the application's PostgreSQL database. This is local persistence in development and shared persistence across hosted instances. API requests read that cache; they do not call providers. No Redis, additional queue, or continuously running process is required beyond the existing worker or cron job.
+Complete provider responses are cached in the application's PostgreSQL database. This is local persistence in development and shared persistence across hosted instances. Model listing reads that cache without calling providers. No Redis or additional queue is required.
+
+Direct and bounded OpenRouter inference also check price freshness before admission. If pricing is missing or at least 24 hours old, preparation attempts one public metadata refresh before opening the admission transaction. Fresh pricing requires no provider request. This lets direct LLM calls recover even when no worker or maintenance job is running; native agents and queued execution still need their dispatcher. Jev uses its separate reviewed rate policy and does not need this chat-catalog refresh.
 
 A failed refresh preserves the last complete result and retries after five minutes. A worker that disappears can be replaced after its two-minute claim expires. Late responses cannot overwrite a newer refresh. OpenRouter routes stop accepting new work when their dynamic price snapshot is over 24 hours old. A complete provider response that removes a reviewed model disables that route for new work. Existing accepted runs retain their original configuration.
+
+Request-driven refresh shares those claims and backoff rules. It does not bypass an active refresh, trust expired prices, enable incompatible models, change credentials, or repeat an inference. A cold request can spend up to 15 seconds fetching metadata. If another refresh is still active or discovery fails, unavailable routes remain rejected with `decision_model_unavailable`; inspect `pnpm models:status` and refresh with `pnpm models:refresh` from the deployment's configured shell before resubmitting rejected work.
 
 ## Prices and enablement
 

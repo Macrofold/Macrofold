@@ -3,7 +3,7 @@ import { lstat, mkdir, open, readdir, rename, unlink } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { fileAllowed, type PermissionLayers } from '../../contracts/permissions';
+import { fileAccess, fileAllowed, type PermissionLayers } from '../../contracts/permissions';
 
 export const fileToolName = 'worktree_files';
 export const fileToolDescription =
@@ -17,12 +17,40 @@ export const fileToolShape = {
     .optional(),
 };
 export const fileToolSchema = z.object(fileToolShape).strict();
+export function permissionFileDefinition(layers: PermissionLayers) {
+  const access = fileAccess(layers);
+  if (!access.read) return undefined;
+  const shape = access.write
+    ? fileToolShape
+    : {
+        action: z.enum(['list', 'read']),
+        path: fileToolShape.path,
+      };
+  return {
+    description:
+      (access.write
+        ? fileToolDescription
+        : 'Read and list permitted worktree files. Paths are relative; files cannot be changed.') +
+      ' To list the worktree root, use path ".".',
+    shape,
+    schema: z.object(shape).strict(),
+  };
+}
+
+export function worktreeInstructions(workspace: string, layers: PermissionLayers) {
+  const access = fileAccess(layers);
+  if (!access.read) return '';
+  if (!access.write)
+    return `Your read-only worktree is ${workspace}. Read only permitted files; do not create, change or delete files.`;
+  return `Your persistent worktree is ${workspace}. Save requested files only at permitted paths there and verify them before reporting completion. If outputs/ is writable, save user-facing deliverables there; only verified files from that directory are listed as downloadable run outputs. Native home checkpoints preserve session history separately; other home files and /tmp are disposable.`;
+}
 const MAX_FILE = 25 * 1024 * 1024;
 
 /** Shared implementation behind native tool adapters. Guarded runs expose no
  * shell, subagent, local connector or native file tool that bypasses this check.
  * Symlinks are omitted at hydration and rejected here, including every parent. */
 export function permissionFileTools(root: string, layers: PermissionLayers) {
+  const definition = permissionFileDefinition(layers);
   let pending: Promise<unknown> = Promise.resolve();
   async function safePath(relative: string, allowMissing = false) {
     if (
@@ -49,9 +77,11 @@ export function permissionFileTools(root: string, layers: PermissionLayers) {
     if (!fileAllowed(layers, action, relative)) throw new Error('File permission denied.');
   }
   async function execute(input: unknown) {
+    if (!definition) throw new Error('File permission denied.');
+    definition.schema.parse(input);
     const args = fileToolSchema.parse(input);
     if (args.action === 'list') {
-      const start = args.path ? await safePath(args.path) : root;
+      const start = args.path && args.path !== '.' ? await safePath(args.path) : root;
       const files: string[] = [];
       let visited = 0;
       async function walk(directory: string) {

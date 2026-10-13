@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { startRun, pendingRuns } from './engine';
 import { pool } from '../../db';
 import type { ExecutionProvider } from '../../providers/src/execution';
@@ -17,17 +18,33 @@ export class LocalDispatcher {
     // Native simulator runs retain their existing single-process lifecycle.
     const active = (
       await pool.query<{ organization_id: string; resource_id: string }>(
-        "SELECT r.organization_id,r.id AS resource_id FROM reporting.scheduling_runs r JOIN dispatch_jobs j ON j.resource_id=r.id AND j.kind='run' WHERE r.kind IN ('inference','bounded_agent') AND r.status IN ('provisioning','running') AND j.available_at<=now() ORDER BY r.started_at LIMIT 20",
+        "SELECT r.organization_id,r.id AS resource_id FROM reporting.scheduling_runs r JOIN dispatch_jobs j ON j.resource_id=r.id AND j.kind='run' WHERE r.kind IN ('inference','bounded_agent') AND r.status IN ('provisioning','running') AND j.state IN ('pending','running') AND j.available_at<=now() ORDER BY r.started_at LIMIT 20",
       )
     ).rows;
     for (const job of [...active, ...(await pendingRuns())]) {
       if (this.active.has(job.resource_id) || this.active.size >= 20) continue;
       // Only admission is sequential. Racing all hints against the same
       // organization lock wastes connections and can repeatedly lose its fair turn.
-      const started = await startRun(job.organization_id, job.resource_id, this.provider);
+      let started: Awaited<ReturnType<typeof startRun>>;
+      try {
+        started = await startRun(job.organization_id, job.resource_id, this.provider);
+      } catch {
+        await dispatchFailed(job.organization_id, 'run', job.resource_id, 'local_dispatch_failed');
+        this.onError();
+        continue;
+      }
       if (!started) continue;
       const task = started.completion
-        .then(() => {}, this.onError)
+        .then(
+          async () => {
+            await dispatchSucceeded(job.organization_id, 'run', job.resource_id);
+          },
+          async () => {
+            await dispatchFailed(job.organization_id, 'run', job.resource_id, 'local_dispatch_failed');
+            this.onError();
+          },
+        )
+        .catch(() => this.onError())
         .finally(() => {
           this.active.delete(job.resource_id);
         });

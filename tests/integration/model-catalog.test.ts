@@ -5,11 +5,12 @@ import {
   cachedModels,
   models,
   refreshModelCatalog,
+  refreshExpiredOpenRouterCatalog,
   type CatalogCacheRow,
   type ModelCatalogSource,
 } from '../../packages/core/src/model-catalog';
 import { type DiscoveredModel, modelProviders } from '../../packages/core/src/model-policy';
-import { fixtureAccount } from '../fixtures/account';
+import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { Macrofold } from '../../sdk/typescript/src/index';
 import { handleApi } from '../../packages/core/src/http';
 import { credit } from '../../packages/core/src/ledger';
@@ -47,6 +48,7 @@ beforeEach(async () => {
 afterEach(async () => {
   Object.assign(config, original);
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   // Catalog metadata is shared across tenants; do not leak snapshots or due refreshes into other suites.
   await pool.query(
@@ -163,6 +165,107 @@ it('rejects duplicate or malformed snapshots instead of replacing the last compl
   config.execution = 'docker';
   expect((await models()).find((model) => model.id === 'openai/gpt-5.4-mini')?.enabled).toBe(true);
 });
+
+it('leaves fresh pricing and the free simulator independent of metadata requests', async () => {
+  const source = vi.fn<ModelCatalogSource>(async () => routed());
+  await refreshExpiredOpenRouterCatalog(source);
+  expect(source).not.toHaveBeenCalled();
+  config.execution = 'docker';
+  await refreshModelCatalog(async () => routed(), ['openrouter']);
+  await refreshExpiredOpenRouterCatalog(source);
+  expect(source).not.toHaveBeenCalled();
+});
+
+it.each(['missing', 'expired', 'failed'] as const)(
+  'repairs %s inference pricing without a worker, preserving failure backoff and admission checks',
+  async (state) => {
+    const account = await fixtureAccount('Direct inference catalog');
+    const client = new Macrofold({
+      apiKey: account.key,
+      baseURL: config.origin,
+      retries: 0,
+      fetch: async (url, init) => handleApi(new Request(url, init)),
+    });
+    await transaction(account.p.organizationId, (tx) =>
+      credit(tx, account.p.organizationId, 1000000n, `catalog:${id()}`),
+    );
+    Object.assign(config, { execution: 'docker', allowPaid: true });
+    vi.stubEnv('OPENROUTER_API_KEY', 'fixture-only');
+    if (state !== 'missing') {
+      await refreshModelCatalog(async () => routed(), ['openrouter']);
+      await pool.query(
+        "UPDATE model_catalog_cache SET fetched_at=now()-interval '25 hours',refresh_after=now() WHERE provider='openrouter'",
+      );
+    }
+    expect((await models()).find((m) => m.provider === 'openrouter')?.enabled).toBe(false);
+    const metadata = vi.fn<typeof fetch>(async (url, init) => {
+      expect(String(url)).toBe('https://openrouter.ai/api/v1/models');
+      expect(init?.headers).toEqual({});
+      if (state === 'failed') return new Response('upstream unavailable', { status: 503 });
+      return Response.json({
+        data: routed('0.000002').map((m) => ({
+          id: m.id,
+          name: m.name,
+          pricing: m.pricing,
+          context_length: m.context_tokens,
+          top_provider: { max_completion_tokens: m.output_tokens },
+          supported_parameters: ['tools'],
+          architecture: { input_modalities: ['text'], output_modalities: ['text'] },
+        })),
+      });
+    });
+    vi.stubGlobal('fetch', metadata);
+    const submit = () =>
+      handleApi(
+        new Request(`${config.origin}/v1/inferences`, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${account.key}`,
+            'content-type': 'application/json',
+            'idempotency-key': id(),
+            prefer: 'respond-async',
+          },
+          body: JSON.stringify({
+            model_binding: {
+              provider: 'openrouter',
+              model: routed()[0].id,
+              billing_mode: 'managed',
+            },
+            input: {
+              messages: [{ role: 'user', content: 'Synthetic catalog check.' }],
+              max_tokens: 32,
+            },
+            limits: { max_cost_micro_usd: '20000', max_output_tokens: 32, timeout_seconds: 20 },
+          }),
+        }),
+      );
+    try {
+      // A second submission reuses fresh metadata or honors the failed refresh's backoff.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await submit();
+        const body = await response.json();
+        expect(response.status, JSON.stringify(body)).toBe(state === 'failed' ? 400 : 202);
+        if (state === 'failed') {
+          expect(body).toMatchObject({ error: { code: 'decision_model_unavailable' } });
+        } else {
+          const run = await transaction(account.p.organizationId, (tx) => getRun(tx, body.run_id));
+          expect(run.config.rate_card).toMatchObject({ input_micro_usd_per_million: '2000000' });
+          await client.runs.cancel(body.run_id);
+        }
+      }
+      expect(metadata).toHaveBeenCalledTimes(1);
+      expect((await client.billing.get()).reserved_micro_usd).toBe('0');
+      if (state === 'failed') {
+        const count = await transaction(account.p.organizationId, (tx) =>
+          tx.query('SELECT id FROM runs'),
+        );
+        expect(count.rows).toHaveLength(0);
+      }
+    } finally {
+      await retireFixtureRuns(account.p.organizationId);
+    }
+  },
+);
 
 it('freezes admitted prices through refresh, gateway settlement, cancellation, and persistence', async () => {
   const account = await fixtureAccount('Catalog prices');

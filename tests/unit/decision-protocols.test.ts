@@ -270,3 +270,37 @@ it('offers raw responses to transient diagnostics before validation without pers
   ).rejects.toThrow();
   expect(observe).toHaveBeenCalledWith({ answers: 'invalid' });
 });
+
+it.each([false, true])(
+  'preserves OpenRouter reported costs for native response and decoded output (%s)',
+  async (native) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          id: 'fixture',
+          model: 'fixture/model',
+          choices: [{ finish_reason: 'stop', message: { content: '{"ok":true}' } }],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 5,
+            cost: 0.00000123,
+            cost_details: { upstream_inference_cost: 0.000001 },
+          },
+        }),
+      ),
+    );
+    const result = await decisionProtocol('openrouter', 'fixture/model').invoke(
+      { model: 'fixture/model' },
+      'fixture',
+      new AbortController().signal,
+      undefined,
+      native,
+    );
+    expect(result.usage).toMatchObject({
+      providerReportedCostUsd: 0.00000123,
+      upstreamInferenceCostUsd: 0.000001,
+      complete: true,
+    });
+  },
+);

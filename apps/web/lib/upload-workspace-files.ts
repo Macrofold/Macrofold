@@ -1,6 +1,7 @@
 'use client';
 import type { Schema } from './client';
 import { request } from './dashboard-data';
+import { PaginationCursor } from '../../../packages/contracts/pagination';
 
 /** Staged, hash-verified uploads shared by Files and run attachments.
  * Callers own cache refresh and UI state; retries retain the same destination paths. */
@@ -13,12 +14,13 @@ export async function uploadWorktreeFiles(
   const current = await request('getWorktree', { params: { path: { worktree_id: worktreeId } } });
   const entries: Schema['FileEntry'][] = [];
   let cursor: string | null = null;
+  const pages = new PaginationCursor();
   do {
     const page: Schema['FileListing'] = await request('listFiles', {
       params: { path: { worktree_id: worktreeId }, query: { limit: 100, ...(cursor ? { cursor } : {}) } },
     });
     entries.push(...page.entries);
-    cursor = page.next_cursor;
+    cursor = pages.next(page.next_cursor) || null;
   } while (cursor);
   const manifest = [];
   for (const { file, path } of uploads) {
@@ -61,6 +63,7 @@ export async function uploadWorktreeFiles(
       body: uploads.find((item) => item.path === action.path)!.file,
       credentials: 'omit',
       redirect: 'error',
+      signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok)
       throw new Error(`Upload failed for ${action.path} (${response.status}). Your workspace is unchanged.`);

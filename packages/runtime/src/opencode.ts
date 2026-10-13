@@ -1,3 +1,4 @@
+import { fileAccess } from '../../contracts/permissions';
 import { createOpencodeClient as createSessionClient } from '@opencode-ai/sdk/client';
 import { createOpencodeServer } from '@opencode-ai/sdk/v2/server';
 import { createOpencodeClient } from '@opencode-ai/sdk/v2/client';
@@ -21,7 +22,8 @@ export class OpenCodeAdapter implements HarnessAdapter {
     setStage,
   }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.opencode.translate(c.permissions || []).mode === 'guarded';
-    if (guarded && !fileTools) throw new Error('Checked file service unavailable.');
+    if (guarded && fileAccess(c.permissions || []).read && !fileTools)
+      throw new Error('Checked file service unavailable.');
     const npm = c.provider === 'anthropic' ? '@ai-sdk/anthropic' : '@ai-sdk/openai-compatible';
     // The configuration is supplied by the supervisor; platform tools remain behind its broker.
     const reused = Boolean(this.server);
@@ -60,7 +62,14 @@ export class OpenCodeAdapter implements HarnessAdapter {
           },
           ...(guarded
             ? { permission: openCodePermissionSettings(c.toolGrants), lsp: false, formatter: false }
-            : { permission: { question: 'allow' as const, edit: 'allow' as const, bash: 'allow' as const, webfetch: 'deny' as const } }),
+            : {
+                permission: {
+                  question: 'allow' as const,
+                  edit: 'allow' as const,
+                  bash: 'allow' as const,
+                  webfetch: 'deny' as const,
+                },
+              }),
           mcp: {
             ...(c.toolGrants
               ? {
@@ -90,6 +99,9 @@ export class OpenCodeAdapter implements HarnessAdapter {
     const client = createSessionClient({ baseUrl: server.url });
     let sessionId = this.sessionId || c.resumeId,
       output = '';
+    let submitted = false;
+    let promptId: string | undefined;
+    let assistantId: string | undefined;
     const parts = new Map<string, { type: string; length: number }>();
     let done = false;
     const controller = new AbortController();
@@ -99,7 +111,10 @@ export class OpenCodeAdapter implements HarnessAdapter {
     try {
       if (!sessionId) {
         setStage?.('session_create');
-        const session = await client.session.create({ body: { title: c.prompt.slice(0, 80) } });
+        const session = await client.session.create({
+          signal: transportSignal,
+          body: { title: c.prompt.slice(0, 80) },
+        });
         if (!session.data) throw new Error('OpenCode could not create a session');
         sessionId = session.data.id;
       }
@@ -122,9 +137,28 @@ export class OpenCodeAdapter implements HarnessAdapter {
           if (done) break;
           const raw = event as unknown as { type: string; properties: Record<string, unknown> };
           if (raw.type === 'server.connected') connected();
-          // The prompt HTTP response can arrive before its queued SSE tail.
-          // Drain to the session boundary, including all model/tool turns.
-          if (raw.type === 'session.idle' && raw.properties.sessionID === sessionId) return;
+          if (!submitted) continue;
+          if (raw.type === 'session.error' && raw.properties.sessionID === sessionId)
+            throw new Error('OpenCode turn failed');
+          if (raw.type === 'message.updated') {
+            const info = raw.properties.info as {
+              id: string;
+              sessionID: string;
+              role: string;
+              parentID?: string;
+              error?: unknown;
+            };
+            if (info.sessionID === sessionId) {
+              if (info.role === 'user') promptId = info.id;
+              if (info.role === 'assistant' && promptId && info.parentID === promptId) {
+                assistantId = info.id;
+                if (info.error) throw new Error('OpenCode turn failed');
+              }
+            }
+          }
+          // Ignore unrelated/stale idle notifications until our prompt is observed.
+          // The boundary drains reasoning/tool events; the final message is read below.
+          if (raw.type === 'session.idle' && raw.properties.sessionID === sessionId && promptId) return;
           if (raw.type === 'question.asked' && raw.properties.sessionID === sessionId) {
             const request = raw.properties as {
               id: string;
@@ -220,7 +254,9 @@ export class OpenCodeAdapter implements HarnessAdapter {
       const abort = () => {
         // The server may already have exited; cancellation must not create an
         // unhandled rejection that hides the original failure.
-        void client.session.abort({ path: { id: sessionId! } }).catch(() => {});
+        void client.session
+          .abort({ path: { id: sessionId! }, signal: AbortSignal.timeout(5000) })
+          .catch(() => {});
       };
       signal.addEventListener('abort', abort, { once: true });
       try {
@@ -232,9 +268,10 @@ export class OpenCodeAdapter implements HarnessAdapter {
           }),
         ]);
         setStage?.('turn_execute');
-        const [response] = await Promise.all([
+        submitted = true;
+        await Promise.all([
           client.session
-            .prompt({
+            .promptAsync({
               signal: transportSignal,
               path: { id: sessionId },
               body: {
@@ -250,6 +287,15 @@ export class OpenCodeAdapter implements HarnessAdapter {
             }),
           consume,
         ]);
+        transportSignal.throwIfAborted();
+        if (!assistantId) throw new Error('OpenCode final message unavailable');
+        const response = await client.session.message({
+          signal: transportSignal,
+          path: { id: sessionId, messageID: assistantId },
+        });
+        if (response.error || !response.data || response.data.info.role !== 'assistant')
+          throw new Error('OpenCode final message unavailable');
+        if (response.data.info.error) throw new Error('OpenCode turn failed');
         const full = response.data?.parts
           .filter((p) => p.type === 'text')
           .map((p) => (p.type === 'text' ? p.text : ''))

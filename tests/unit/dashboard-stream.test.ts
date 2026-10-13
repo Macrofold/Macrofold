@@ -72,8 +72,10 @@ describe('dashboard client boundaries', () => {
   it('aborts a connected stream without reconnecting or cancelling the run', async () => {
     const cancel = vi.fn();
     const controller = new AbortController();
+    let requestSignal: AbortSignal | null | undefined;
     const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-      expect(init?.signal).toBe(controller.signal);
+      requestSignal = init?.signal;
+      expect(requestSignal?.aborted).toBe(false);
       return new Response(new ReadableStream({ cancel }));
     });
     const events = dashboardRunEvents('https://agents.example.test', 'run', {
@@ -84,6 +86,7 @@ describe('dashboard client boundaries', () => {
       fetch: fetcher,
     });
     await expect(events.next()).rejects.toThrow('Page closed');
+    expect(requestSignal?.aborted).toBe(true);
     expect(cancel).toHaveBeenCalledOnce();
     expect(fetcher).toHaveBeenCalledOnce();
   });

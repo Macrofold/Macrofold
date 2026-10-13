@@ -98,7 +98,7 @@ impl Client {
         }
         let mut cursor: u64 = after.parse()?;
         let mut failures = 0u32;
-        loop {
+        for _connection in 0..2048 {
             let previous = cursor;
             let attempt = self
                 .connection(&path, &mut cursor, organization, &mut receive)
@@ -125,6 +125,9 @@ impl Client {
                             runs_api::get_run(&self.configuration, run_id, organization).await?
                         }
                     };
+                    if run.failure_code.as_deref() == Some("run_recovery_required") {
+                        return Ok(());
+                    }
                     if matches!(
                         run.status,
                         Status::Succeeded | Status::Failed | Status::Cancelled | Status::TimedOut
@@ -180,6 +183,7 @@ impl Client {
             }
             tokio::time::sleep(Duration::from_millis((250u64 << failures).min(10000))).await;
         }
+        Err(format!("stream attachment limit reached; reattach after {cursor}; the run has not been cancelled").into())
     }
     async fn connection(
         &self,
@@ -215,7 +219,11 @@ impl Client {
                     if sequence > *cursor {
                         let terminal = matches!(
                             event.r#type.as_str(),
-                            "run.succeeded" | "run.failed" | "run.cancelled" | "run.timed_out"
+                            "run.succeeded"
+                                | "run.failed"
+                                | "run.cancelled"
+                                | "run.timed_out"
+                                | "run.recovery_required"
                         );
                         let keep = receive(event);
                         *cursor = sequence;

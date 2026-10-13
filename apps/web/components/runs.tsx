@@ -28,6 +28,7 @@ import { RunTable } from './dashboard-shared';
 import { QueueStatus } from './queue-status';
 import { RunComposer } from './run-composer';
 import { dashboardRunEvents } from '../lib/run-events';
+import { runRecoveryMessage } from '../lib/run-recovery';
 const isFinal = (status: string) => ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(status);
 export function RunsView({ onRun }: { onRun: () => void }) {
   const [filter, setFilter] = useState('all');
@@ -97,7 +98,15 @@ export function RunDetail({ runId }: { runId: string }) {
             )
           )
             void client.invalidateQueries({ queryKey: [`/v1/runs/${runId}`] });
-          if (['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(event.type))
+          if (
+            [
+              'run.succeeded',
+              'run.failed',
+              'run.cancelled',
+              'run.timed_out',
+              'run.recovery_required',
+            ].includes(event.type)
+          )
             void client.invalidateQueries();
         }
       } catch (error) {
@@ -114,7 +123,9 @@ export function RunDetail({ runId }: { runId: string }) {
   if (query.error) return <ErrorState error={query.error} />;
   const run = query.data!;
   const timeoutSeconds = run.limits?.timeout_seconds ?? 900;
-  const live = !isFinal(run.status);
+  const recovering = run.failure_code === 'run_recovery_required';
+  const recovery = recovering ? runRecoveryMessage(events, run.persistence_status) : null;
+  const live = !isFinal(run.status) && !recovering;
   const output = result.data?.content_expired
     ? ''
     : result.data?.output_text ||
@@ -136,20 +147,22 @@ export function RunDetail({ runId }: { runId: string }) {
       <PageHeading
         eyebrow={`RUN ${run.id.slice(-8).toUpperCase()}`}
         title={
-          run.status === 'queued'
-            ? 'Your task is queued.'
-            : live
-              ? run.kind === 'inference'
-                ? 'Decision in progress.'
-                : 'Your agent is on it.'
-              : run.status === 'succeeded'
-                ? 'Work, completed.'
-                : 'Run stopped.'
+          recovery
+            ? recovery.title
+            : run.status === 'queued'
+              ? 'Your task is queued.'
+              : live
+                ? run.kind === 'inference'
+                  ? 'Decision in progress.'
+                  : 'Your agent is on it.'
+                : run.status === 'succeeded'
+                  ? 'Work, completed.'
+                  : 'Run stopped.'
         }
         description={`${run.harness ? harnessLabel(run.harness) : run.kind === 'inference' ? 'Inference' : 'Bounded agent'} · ${run.model === 'fixture-model' ? 'Local simulation' : run.model} · ${relative(run.created_at)}`}
         action={
           <div className="button-row">
-            {live ? (
+            {recovering ? null : live ? (
               <Button
                 variant="secondary"
                 onClick={async () => {
@@ -175,35 +188,72 @@ export function RunDetail({ runId }: { runId: string }) {
         }
       />
       <div className="run-summary-bar">
-        <Badge status={run.status} />
+        <Badge status={recovering ? 'blocked' : run.status} />
         <span>
           <ClockIcon />{' '}
-          {run.status === 'queued'
-            ? `${Math.floor(run.wait_seconds || 0)}s waiting`
-            : run.started_at && run.completed_at
-              ? `${Math.round((Date.parse(run.completed_at) - Date.parse(run.started_at)) / 1000)}s`
-              : 'In progress'}
+          {recovering
+            ? 'Processing stopped'
+            : run.status === 'queued'
+              ? `${Math.floor(run.wait_seconds || 0)}s waiting`
+              : run.started_at && run.completed_at
+                ? `${Math.round((Date.parse(run.completed_at) - Date.parse(run.started_at)) / 1000)}s`
+                : 'In progress'}
         </span>
         <span>{money(run.cost_micro_usd)} spent</span>
         <span className="run-stream-state">
           <span className={connected ? 'tiny-dot' : 'tiny-dot neutral'} />
-          {connected
-            ? 'Live stream connected'
-            : live
-              ? streamError
-                ? 'Stream paused'
-                : 'Reconnecting…'
-              : 'History saved'}
+          {recovering
+            ? 'Automatic retries stopped'
+            : connected
+              ? 'Live stream connected'
+              : live
+                ? streamError
+                  ? 'Stream paused'
+                  : 'Reconnecting…'
+                : 'History saved'}
         </span>
       </div>
-      <QueueStatus run={run} />
+      {!recovering && <QueueStatus run={run} />}
       {run.failure_code && (
         <div className="form-error" role="status">
-          {run.failure_code === 'queue_expired'
-            ? 'The queue deadline expired before execution could start. Reserved funds were released; this history is saved.'
-            : run.failure_code === 'execution_limit_changed'
-              ? 'The account execution cap changed before this job started. Reserved funds were released. Submit a new run within the current limit.'
-              : `Run ended: ${run.failure_code.replaceAll('_', ' ')}.`}
+          {recovery ? (
+            <>
+              <p>
+                {recovery.reason} Automatic retries stopped
+                {recovery.attempts ? ` after ${recovery.attempts} consecutive failures` : ''}.
+              </p>
+              <p>{recovery.consequence} This run will not be replayed automatically.</p>
+              <p>{recovery.action} Include the Run ID below.</p>
+              <Button variant="secondary" onClick={() => setTab('events')}>
+                View events
+              </Button>
+              <details>
+                <summary>Technical details</summary>
+                <dl>
+                  <dt>Failed step</dt>
+                  <dd>{recovery.label}</dd>
+                  <dt>Last error code</dt>
+                  <dd>
+                    <code>{recovery.cause || 'Not recorded'}</code>
+                  </dd>
+                  {recovery.originalFailure && (
+                    <>
+                      <dt>Earlier run error</dt>
+                      <dd>
+                        <code>{recovery.originalFailure}</code>
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              </details>
+            </>
+          ) : run.failure_code === 'queue_expired' ? (
+            'The queue deadline expired before execution could start. Reserved funds were released; this history is saved.'
+          ) : run.failure_code === 'execution_limit_changed' ? (
+            'The account execution cap changed before this job started. Reserved funds were released. Submit a new run within the current limit.'
+          ) : (
+            `Run ended: ${run.failure_code.replaceAll('_', ' ')}.`
+          )}
         </div>
       )}
       {run.model === 'fixture-model' && (
@@ -254,7 +304,7 @@ export function RunDetail({ runId }: { runId: string }) {
           </div>
           {tab === 'output' ? (
             <div className="output-area">
-              {!live && run.kind === 'native_agent' && !result.data?.content_expired && (
+              {isFinal(run.status) && run.kind === 'native_agent' && !result.data?.content_expired && (
                 <RunArtifacts runId={runId} />
               )}
               <ReasoningOutput events={visibleEvents} live={live} />
@@ -269,15 +319,19 @@ export function RunDetail({ runId }: { runId: string }) {
                     <WaitingText active={live && !result.data?.content_expired}>
                       {result.data?.content_expired
                         ? 'Detailed history has expired'
-                        : run.status === 'queued'
-                          ? 'Queued · waiting to start'
-                          : 'Waiting for the first update'}
+                        : recovery
+                          ? 'Automatic processing stopped'
+                          : run.status === 'queued'
+                            ? 'Queued · waiting to start'
+                            : 'Waiting for the first update'}
                     </WaitingText>
                   </h3>
                   <p>
                     {result.data?.content_expired
                       ? 'Prompts, outputs and tool details were removed under the retention policy. Usage and completion records remain.'
-                      : 'Your run is saved. You can leave this page and come back later.'}
+                      : recovering
+                        ? 'Inspect the failure details above. Recorded output and events remain available.'
+                        : 'Your run is saved. You can leave this page and come back later.'}
                   </p>
                 </div>
               )}

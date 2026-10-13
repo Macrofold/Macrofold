@@ -2,6 +2,38 @@
 
 Evidence is commit-specific. A green build is not native recovery or paid-provider evidence, and simulated external boundaries are not actual cloud resource measurements.
 
+## Bounded work and recovery
+
+The [bounded-work audit](../../../projects/bounded-work.md), based on `9948ba64` plus the working tree, has these local results:
+
+- Fault-injection checks cover eight-failure dispatch/Host budgets, native recovery exhaustion, monotonic cursor/page progress, cancellation deadlines, preserved checkpoints/holds and no prompt replay. The final recovery slice passed 33 tests, including restricted reporting access and detailed SSE closure. A separate transport/UI/helper slice passed 71 tests, including a cancellation promise that never resolves. Counts describe separate executed slices, not unique total coverage.
+- Existing connection cleanup, named connection access, deletion, decision scheduling, inference, maintenance, reporting, storage, Workflow load and Git-sync domain suites passed. A new reporting-grant assertion initially referenced an absent fixture column; after correction, the grant regression passed with only `kind`, `resource_id` and `state` readable by the reporting role.
+- `pnpm test:sdks` passed for all five maintained SDKs: actual API/helper checks, TypeScript build, Python 211 tests plus static checking, Go tests, Rust checks/tests and Java verification. CLI acceptance passed seven real loopback API/disposable database cases. The actual Pi executable passed two warm tool-enabled turns with the scripted model and isolated network.
+- Migrations 048–049 applied to the loopback development database. The restricted reporting views now query successfully; the existing preview remains running. No paid model call, cloud migration or deployment was made.
+- The runtime image rebuilt as `platform-runtime:bounded-work` (`sha256:b42e51332fff9723717902d7c3fa8fe3970aaf165d64aa704f6cb3eb0d8bbb20`). Image-only OpenCode tool execution, two warm turns and fresh-container continuation passed with the actual executable and scripted network-isolated model. The verified image also supplies the local default tag. Only the idle owned Docker poller restarted; `pnpm doctor:docker` and the retained preview health check pass.
+- `pnpm test:journey:docker opencode` also passed with that rebuilt image and the current bounded engine: actual loopback API/TypeScript SDK, isolated database/storage, native OpenCode tool execution, poller termination/restart, verified publication and fresh-container continuation. The two disposable Run IDs were `01a10ff3-60b4-718e-9778-d27a4ac33e36` and `01a10ff3-afc4-75d8-8495-0679de355fee`. Responses are scripted; no external model call or game reflection journey is inferred.
+- Two Chromium journeys passed against isolated Next.js/HTTP/PostgreSQL fixtures: recovery attention without waiting/replay/reconnect and revoked-stream reconnection stopping. The recovery screenshot was visually inspected. Initial setup needed the pinned browser binary and route warming to exclude cold development compilation from interaction deadlines; the stopped fixture mail sink was not email-delivery acceptance. Application checking (including the TypeScript SDK build), documentation integrity and diff whitespace checks passed.
+
+The subsequent actionable-notice change adds specific dispatch/checkpoint/billing/finalization/cleanup diagnostics and migration 050:
+
+- 55 targeted cases passed across executed slices: actual publication/dispatch/billing/cleanup exhaustion, safe dashboard messages, stream stopping and scheduling. The dispatch fixture first reproduced a blocked queued Run preventing healthy claims; the fix excludes only blocked queued work. Active uncertain Runs retain capacity, Worktree ownership and financial holds. Cancellation and expiry settle unstarted blocked Runs without reviving dispatch.
+- Two isolated Chromium journeys passed, including failed-step/cause/count disclosure, stopped waiting, View events and no replay action. The screenshot was visually inspected. A synthetic three-poller workload completed 60 jobs, reached 50 active executions and recorded zero capacity violations in 12.8 seconds. This is bounded local functional evidence, not a production latency claim.
+- Migration 050 applied to the loopback database and its reporting flag queries successfully. The owned poller restarted only after confirming no active Runs; the existing preview was preserved. `pnpm check` passed. Current SDK verification passed the TypeScript API journey/build and 211 Python tests, then stopped because this shell's Python lacks Pyright; Go/Maven are also absent from PATH. The earlier complete SDK result above remains separate evidence, not a current full-suite pass. No OpenAPI shape or generated method signature changed.
+
+Hosted pooled PostgreSQL timeout options, real provider-outage cleanup and the caller's complete draft/approval journey remain explicit acceptance work in [maintainer TODO](../../../maintainers/TODO.md#bounded-operations-and-recovery).
+
+## Native publication and local Docker recovery
+
+The [recovery change](../../../projects/native-run-recovery.md), based on `9948ba64` plus the working tree, has these local results:
+
+- All four new guarded checkpoint failure cases reproduced nontermination before the fix. Afterward, **42 targeted tests passed** across cloud lifecycle, Docker ownership/reconciliation and Docker command diagnostics. Restore failure, lost execution, rejected verified output and cancellation preserve the verified checkpoint; session state, single settlement and no prompt replay are checked. Transport cases cover bounded stderr/output, stdin failure, missing binary, fixed diagnostic privacy and both command deadlines.
+- `pnpm check` passed, including the application TypeScript SDK build. No public schema or SDK transport changed.
+- `pnpm test:journey:docker opencode` passed against the real runtime image, generated SDK, loopback HTTP API, disposable PostgreSQL/storage and actual OpenCode executable. It verifies dispatcher restart, durable file publication, native Session continuation in a fresh container and released reservations. Model responses are scripted, and the network is isolated; this is not a live-model quality check.
+- Local setup inspection found the configured default image tag absent. Its verified compatible runtime image was tagged explicitly, and `pnpm doctor:docker` passed. A missing-image override separately verifies actionable diagnostics without raw stderr disclosure.
+- Two previously stuck local cancelled Runs finalized through the existing engine without relaunch. Last verified files and checkpoint identities stayed unchanged; each Run settled once and organization reservations returned to zero. REST checkpoint restoration then returned both Worktrees to idle with the same file bytes. Only the idle poller was restarted; the existing application preview was preserved.
+
+No paid provider calls or cloud deployment were performed. The caller's complete draft/approval journey and hosted runtime rollout remain separate acceptance checks; see [maintainer work](../../../maintainers/TODO.md#native-home-persistence).
+
 ## Post-merge lifecycle and dashboard review — September 26, 2026
 
 Working-tree fixes on `9d1ff962922bdcd6568620b93a2ebb0f71ea65a6` preserve the public schema and existing billing/ownership boundaries:

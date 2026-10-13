@@ -12,6 +12,17 @@ import org.junit.jupiter.api.Test;
 
 class RunHelpersTest {
   static final UUID ID = UUID.fromString(ClientTest.ID);
+  @Test void recoveryRequiredDetachesWithUnfinalizedResult() throws Exception {
+    try(var fixture = new Fixture(
+      "data: {\"sequence\":\"1\",\"type\":\"run.recovery_required\",\"data\":{}}\n\n",
+      state("persisting").replace("fixture_failure", "run_recovery_required"),
+      result("pending", "failure").replace("\"final\":true", "\"final\":false"))) {
+      var failure = assertThrows(RunFailedException.class, () -> fixture.client.runs().streamText(ID, text -> fail("unexpected output")));
+      assertEquals("run_recovery_required", failure.getFailureCode());
+      assertFalse(failure.getResult().getFinal());
+      assertEquals(3, fixture.paths.size());
+    }
+  }
   static String state(String status) {
     return "{\"id\":\"" + ID + "\",\"status\":\"" + status + "\",\"failure_code\":\"fixture_failure\"}";
   }

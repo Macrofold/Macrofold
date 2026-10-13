@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool } from '../../db';
 import { advanceCloudRun } from './cloud-engine';
 import type { MachineProvider } from './ports';
@@ -16,7 +17,7 @@ export async function dispatchCloudPoller(
   // Provider/phase retries retain their own available_at deadline while running.
   const claims = await observeWorkerStep('claim', {}, () =>
     pool.query(
-      `WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='run' AND state<>'done' AND ($2::uuid IS NULL OR organization_id=$2)
+      `WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='run' AND state IN ('pending','running') AND ($2::uuid IS NULL OR organization_id=$2)
     AND ((state='running' AND available_at<=now()) OR (state='pending' AND resource_id=ANY($3::uuid[])
       AND (lease_until IS NULL OR lease_until<=now()) AND (error IS NULL OR available_at<=now())))
     ORDER BY CASE WHEN state='running' THEN 0 ELSE 1 END,array_position($3::uuid[],resource_id),available_at LIMIT $1 FOR UPDATE SKIP LOCKED)
@@ -33,6 +34,7 @@ export async function dispatchCloudPoller(
         const result = await observeWorkerStep('advance', fields, () =>
           advanceCloudRun(job.organization_id, job.resource_id, provider),
         );
+        await dispatchSucceeded(job.organization_id, 'run', job.resource_id);
         // Keep a short dispatcher lease separate from capacity-wait backoff.
         // Comparing its exact DB timestamp prevents a stale caller clearing a new claim.
         if (result.queued)
@@ -51,16 +53,13 @@ export async function dispatchCloudPoller(
             },
             () =>
               pool.query(
-                "UPDATE dispatch_jobs SET available_at=now()+($2::integer*interval '1 second') WHERE id=$1 AND state<>'done'",
+                "UPDATE dispatch_jobs SET available_at=now()+($2::integer*interval '1 second') WHERE id=$1 AND state IN ('pending','running')",
                 [job.id, result.delaySeconds],
               ),
           );
         return !result.done && !result.queued && result.delaySeconds === 0;
       } catch {
-        await pool.query(
-          "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds',error='poller_advance_failed' WHERE id=$1 AND state<>'done'",
-          [job.id],
-        );
+        await dispatchFailed(job.organization_id, 'run', job.resource_id, 'poller_advance_failed');
         throw new Error('A durable run step failed; its execution identity is retained.');
       }
     }),

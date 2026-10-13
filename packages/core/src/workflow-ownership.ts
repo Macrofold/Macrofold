@@ -7,7 +7,7 @@ export async function renewWorkflow(org: string, runId: string, generation: numb
     (
       await pool.query(
         `UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes'
-     WHERE organization_id=$1 AND resource_id=$2 AND kind='run' AND state<>'done'
+     WHERE organization_id=$1 AND resource_id=$2 AND kind='run' AND state IN ('pending','running')
        AND workflow_generation=$3 RETURNING id`,
         [org, runId, generation],
       )
@@ -21,7 +21,7 @@ export async function releaseWorkflow(org: string, runId: string, generation: nu
   await pool.query(
     `UPDATE dispatch_jobs SET lease_until=NULL,workflow_generation=workflow_generation+1,
        available_at=CASE WHEN state='running' THEN now() ELSE available_at END
-     WHERE organization_id=$1 AND resource_id=$2 AND kind='run' AND state<>'done'
+     WHERE organization_id=$1 AND resource_id=$2 AND kind='run' AND state IN ('pending','running')
        AND workflow_generation=$3`,
     [org, runId, generation],
   );

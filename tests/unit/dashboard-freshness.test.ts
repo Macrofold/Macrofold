@@ -191,6 +191,21 @@ describe('dashboard query refresh', () => {
 });
 
 describe('best-effort browser transport', () => {
+  it('stops repeated connection failures after eight retries instead of running forever', async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('offline'));
+    const following = followDashboardChanges('org', {
+      signal: new AbortController().signal,
+      refresh: vi.fn(),
+      accessChanged: vi.fn(),
+      fetch: fetcher,
+      random: () => 0.5,
+    });
+    await vi.advanceTimersByTimeAsync(180_000);
+    await following;
+    expect(fetcher).toHaveBeenCalledTimes(9);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('cancels a stalled reader and reconnects, and never starts an already-aborted subscription', async () => {
     vi.useFakeTimers();
     const cancel = vi.fn();

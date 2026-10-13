@@ -68,14 +68,23 @@ export async function emit(
         status: run.status,
         ...(typeof data.code === 'string' ? { failure_code: data.code } : {}),
       },
-      { eventId: result.rows[0].id, endpointIds: run.config.webhook_endpoint_ids, workspaceId: run.workspace_id ?? undefined },
+      {
+        eventId: result.rows[0].id,
+        endpointIds: run.config.webhook_endpoint_ids,
+        workspaceId: run.workspace_id ?? undefined,
+      },
     );
   }
   return publicEvent(result.rows[0]);
 }
 export type RunEventRow = {
-  id: string; run_id: string; sequence: string; type: string;
-  occurred_at: Date; ingested_at: Date; data: Record<string, unknown>;
+  id: string;
+  run_id: string;
+  sequence: string;
+  type: string;
+  occurred_at: Date;
+  ingested_at: Date;
+  data: Record<string, unknown>;
 };
 export function publicEvent(row: RunEventRow) {
   return {
@@ -92,11 +101,10 @@ export function publicEvent(row: RunEventRow) {
 export async function eventsAfter(org: string, run: string, after: string, limit = 100) {
   return transaction(org, async (tx) =>
     (
-      await tx.query<RunEventRow>('SELECT * FROM run_events WHERE run_id=$1 AND sequence>$2 ORDER BY sequence LIMIT $3', [
-        run,
-        after,
-        limit,
-      ])
+      await tx.query<RunEventRow>(
+        'SELECT * FROM run_events WHERE run_id=$1 AND sequence>$2 ORDER BY sequence LIMIT $3',
+        [run, after, limit],
+      )
     ).rows.map(publicEvent),
   );
 }
@@ -141,11 +149,18 @@ export async function streamEvents(org: string, run: string, after: string, sign
         if (!events.length) controller.enqueue(encoder.encode(': heartbeat\n\n'));
         const state = await transaction(
           org,
-          async (tx) => (await tx.query('SELECT status,event_sequence FROM runs WHERE id=$1', [run])).rows[0],
+          async (tx) =>
+            (
+              await tx.query(
+                "SELECT status,event_sequence,result->>'failure_code' AS failure_code FROM runs WHERE id=$1",
+                [run],
+              )
+            ).rows[0],
         );
         if (
           state &&
-          ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(state.status) &&
+          (['succeeded', 'failed', 'cancelled', 'timed_out'].includes(state.status) ||
+            state.failure_code === 'run_recovery_required') &&
           BigInt(cursor) >= BigInt(state.event_sequence)
         )
           close();

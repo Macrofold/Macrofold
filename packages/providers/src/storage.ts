@@ -39,11 +39,14 @@ export class LocalStore implements ObjectStore {
     if (prefix) safeKey(prefix);
     const base = path.join(this.directory, 'objects'),
       names: string[] = [];
+    let visited = 0;
     async function walk(dir: string) {
       for (const file of await readdir(dir, { withFileTypes: true }).catch((error) => {
         if (error.code === 'ENOENT') return [];
         throw error;
       })) {
+        if (++visited > 1_000_000)
+          throw new Error('Local object listing exceeded its traversal limit. Narrow the prefix.');
         const item = path.join(dir, file.name);
         if (file.isDirectory()) await walk(item);
         else if (file.isFile() && !file.name.endsWith('.tmp'))
@@ -88,6 +91,7 @@ export class R2Store implements ObjectStore {
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
       },
       requestChecksumCalculation: 'WHEN_REQUIRED',
+      maxAttempts: 3,
     }),
     private bucket = process.env.R2_BUCKET,
   ) {}
@@ -100,6 +104,7 @@ export class R2Store implements ObjectStore {
         ContinuationToken: cursor,
         MaxKeys: Math.min(1000, limit),
       }),
+      { abortSignal: AbortSignal.timeout(60_000) },
     );
     return {
       objects: (result.Contents || []).map((o) => ({
@@ -118,14 +123,16 @@ export class R2Store implements ObjectStore {
         Body: bytes,
         ContentType: 'application/octet-stream',
       }),
+      { abortSignal: AbortSignal.timeout(60_000) },
     );
   }
   async get(key: string) {
-    const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }));
-    return Buffer.from(await response.Body!.transformToByteArray());
+    return this.readObject(key);
   }
   async delete(key: string) {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }));
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }), {
+      abortSignal: AbortSignal.timeout(60_000),
+    });
   }
   async uploadURL(key: string, size: number, expires: number) {
     if (!key.startsWith('staging/') || !Number.isSafeInteger(size) || size < 0 || size > 25 * 1024 * 1024)
@@ -150,23 +157,42 @@ export class R2Store implements ObjectStore {
   async readUpload(key: string, expectedSize: number) {
     if (!key.startsWith('staging/') || expectedSize > 25 * 1024 * 1024 || expectedSize < 0)
       throw new Error('Invalid upload plan');
-    const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }));
-    if (response.ContentLength !== expectedSize) {
-      (response.Body as { destroy?: () => void })?.destroy?.();
-      throw new Error('Upload size mismatch');
-    }
+    return this.readObject(key, expectedSize);
+  }
+  private async readObject(key: string, expectedSize?: number) {
+    // The SDK request deadline must cover body consumption as well as headers.
+    // Keep explicit cleanup for adapters whose HTTP request closes before its body.
+    const signal = AbortSignal.timeout(60_000),
+      deadline = Date.now() + 60_000;
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
+      { abortSignal: signal },
+    );
+    const body = response.Body as AsyncIterable<Uint8Array> & { destroy(error?: Error): void };
+    const abort = () => body.destroy(new Error('Object read timed out'));
+    signal.addEventListener('abort', abort, { once: true });
     const parts: Buffer[] = [];
-    let total = 0;
-    for await (const part of response.Body as AsyncIterable<Uint8Array>) {
-      total += part.byteLength;
-      if (total > expectedSize) {
-        (response.Body as { destroy?: () => void }).destroy?.();
-        throw new Error('Upload exceeds planned size');
+    let total = 0,
+      emptyChunks = 0;
+    try {
+      if (signal.aborted) throw new Error('Object read timed out');
+      if (expectedSize !== undefined && response.ContentLength !== expectedSize)
+        throw new Error('Upload size mismatch');
+      for await (const part of body) {
+        if (signal.aborted || Date.now() >= deadline) throw new Error('Object read timed out');
+        emptyChunks = part.byteLength ? 0 : emptyChunks + 1;
+        if (emptyChunks >= 16) throw new Error('Object stream did not make progress');
+        total += part.byteLength;
+        if (expectedSize !== undefined && total > expectedSize)
+          throw new Error('Upload exceeds planned size');
+        parts.push(Buffer.from(part));
       }
-      parts.push(Buffer.from(part));
+      if (expectedSize !== undefined && total !== expectedSize) throw new Error('Upload incomplete');
+      return Buffer.concat(parts);
+    } finally {
+      signal.removeEventListener('abort', abort);
+      body.destroy();
     }
-    if (total !== expectedSize) throw new Error('Upload incomplete');
-    return Buffer.concat(parts);
   }
 }
 export const storage: ObjectStore = isLocal() ? new LocalStore() : new R2Store();

@@ -34,6 +34,10 @@ Financial settlement remains in the gateway, tool broker and compute engine. Tra
 
 A rejected request records a zero charge. An ambiguous/interrupted request records the existing provisional settlement and unknown usage. A decision response already committed to encrypted recovery evidence is traced during settlement; an uncertain response is traced through the existing recovery branch. Tracing does not move settlement earlier, replay a model call, or retry ambiguous side effects.
 
+Provider adapters normalize OpenRouter `usage.cost` and `usage.cost_details.upstream_inference_cost` into optional USD fields on `ModelUsage`. The gateway stores these small accounting facts with the existing `model_usage.usage_details` and returns the same metadata on repeated settlement. Native and direct inference share this path. They never enter `costForUsage`, reservations or ledger amounts. Langfuse `costDetails.total` continues to use only `chargedMicroUsd`; reported costs are metadata with explicit null/unknown status. The existing billing REST fields remain rate-card estimates; reported-cost reporting is available through Langfuse metadata. No API schema, SDK or database migration is required.
+
+Source: [OpenRouter usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting). Account charge and upstream inference cost are distinct, potentially overlapping facts; do not add them together or infer missing cost from tokens.
+
 ## SDK and process lifecycle
 
 Pinned Langfuse 5.11.1 uses its official attribute mapping and span processor with OTel's HTTP exporter. The endpoint is `/api/public/otel/v1/traces`, with the v4 ingestion header. A private tracer provider and fixed `platform.execution` service name avoid changing Next's global telemetry or exporting unrelated database/framework spans. SDK raw error logging and media uploading are disabled.

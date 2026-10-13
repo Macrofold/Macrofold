@@ -116,6 +116,11 @@ export class Client extends Resources {
   private readonly token: string | (() => Promise<string>);
   constructor(private options: ClientOptions = {}) {
     super();
+    if (
+      options.retries !== undefined &&
+      (!Number.isSafeInteger(options.retries) || options.retries < 0 || options.retries > 8)
+    )
+      throw new RangeError('retries must be an integer between 0 and 8');
     this.baseURL = serviceOrigin(options.baseURL ?? DEFAULT_ORIGIN);
     if (options.apiKey !== undefined && options.token !== undefined)
       throw new Error('Pass apiKey or token, not both.');
@@ -133,6 +138,8 @@ export class Client extends Resources {
     this.fetcher = options.fetch || ((...args) => globalThis.fetch(...args));
   }
   async raw<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Response> {
+    const timeout = AbortSignal.timeout(operation === 'createInference' ? 300_000 : 70_000);
+    options = { ...options, signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout };
     const route = routes[operation];
     const url = new URL(requestPath(operation, options.params), this.baseURL);
     const mutation = !['GET', 'HEAD'].includes(route.method);
@@ -186,7 +193,7 @@ export class Client extends Resources {
       if (response.ok) return response;
       if ([429, 502, 503, 504].includes(response.status) && attempt < (this.options.retries ?? 2)) {
         const retryAfter = Math.min(60, Math.max(0, Number(response.headers.get('retry-after')) || 0)) * 1000;
-        await response.body?.cancel();
+        void response.body?.cancel().catch(() => {});
         await delay(Math.max(retryAfter, 200 * 2 ** attempt), options.signal);
         continue;
       }
@@ -243,16 +250,21 @@ export class Client extends Resources {
       headers: { ...options.headers, Accept: 'text/event-stream' },
     });
     if (!response.headers.get('content-type')?.includes('text/event-stream')) {
-      await response.body?.cancel();
+      void response.body?.cancel().catch(() => {});
       throw new TransportError('Expected a direct event stream.', idempotencyKey);
     }
     try {
-      for await (const frame of sseFrames(response, options.signal)) {
+      for await (const frame of sseFrames(response, options.signal, 300_000)) {
         const event: Schema['InferenceStreamEvent'] = JSON.parse(frame.data);
         yield event;
         if (event.type === 'transport.error')
           throw new TransportError('Stream interrupted. Retrieve the saved run result.', idempotencyKey);
-        if (['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(event.type)) return;
+        if (
+          ['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out', 'run.recovery_required'].includes(
+            event.type,
+          )
+        )
+          return;
       }
     } catch (error) {
       if (error instanceof TransportError) throw error;
@@ -321,7 +333,7 @@ export class Client extends Resources {
       throw new Error('Use a numeric event cursor');
     let cursor = options.after || '0',
       failures = 0;
-    for (;;) {
+    for (let connections = 0; connections < 2048; connections++) {
       options.signal?.throwIfAborted();
       try {
         const response = await source.open(cursor);
@@ -338,9 +350,19 @@ export class Client extends Resources {
           cursor = event.sequence;
           failures = 0;
           yield event;
-          if (['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out'].includes(event.type)) return;
+          if (
+            [
+              'run.succeeded',
+              'run.failed',
+              'run.cancelled',
+              'run.timed_out',
+              'run.recovery_required',
+            ].includes(event.type)
+          )
+            return;
         }
         const run = await source.get();
+        if (run.failure_code === 'run_recovery_required') return;
         if (['succeeded', 'failed', 'cancelled', 'timed_out'].includes(run.status)) {
           // A caller reconnecting after the terminal event already rendered does not wait forever.
           const remaining = await source.events(cursor);
@@ -353,9 +375,14 @@ export class Client extends Resources {
       }
       await delay(Math.min(10_000, 250 * 2 ** failures), options.signal);
     }
+    throw new TransportError(
+      `Stream attachment limit reached. Reattach after ${cursor}; the run has not been cancelled.`,
+    );
   }
   async waitOperation(operationId: string, options: { signal?: AbortSignal; timeoutMs?: number } = {}) {
-    const deadline = Date.now() + (options.timeoutMs || 300_000);
+    if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 0))
+      throw new RangeError('timeoutMs must be finite and non-negative');
+    const deadline = Date.now() + (options.timeoutMs ?? 300_000);
     while (Date.now() < deadline) {
       const value = await this.request('getOperation', {
         params: { path: { operation_id: operationId } },
@@ -370,15 +397,26 @@ export class Client extends Resources {
 export async function* sseFrames(
   response: Response,
   signal?: AbortSignal,
+  lifetimeMs = 70_000,
 ): AsyncGenerator<{ id?: string; event?: string; data: string }> {
+  if (!Number.isFinite(lifetimeMs) || lifetimeMs <= 0 || lifetimeMs > 2_147_483_647)
+    throw new RangeError('Stream lifetime must be a positive, finite timer duration.');
   const reader = response.body?.getReader();
   if (!reader) return;
+  const controller = new AbortController();
+  const deadline = Date.now() + lifetimeMs;
+  const timer = setTimeout(
+    () => controller.abort(new Error('Stream connection deadline exceeded')),
+    lifetimeMs,
+  );
+  signal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   const abort = () => {
     void reader.cancel(signal?.reason).catch(() => {});
   };
   signal?.addEventListener('abort', abort, { once: true });
   const decoder = new TextDecoder();
   let buffer = '';
+  let emptyChunks = 0;
   let frame: { id?: string; event?: string; data: string } = { data: '' };
   try {
     while (true) {
@@ -386,6 +424,9 @@ export async function* sseFrames(
       const part = await reader.read();
       signal?.throwIfAborted();
       if (part.done) break;
+      if (Date.now() >= deadline) throw new Error('Stream connection deadline exceeded');
+      emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
+      if (emptyChunks >= 16) throw new Error('Stream stopped making progress');
       buffer += decoder.decode(part.value, { stream: true });
       if (buffer.length > 4 * 1024 * 1024) throw new Error('SSE frame exceeds the client limit');
       let newline: number;
@@ -408,8 +449,10 @@ export async function* sseFrames(
       }
     }
   } finally {
+    clearTimeout(timer);
     signal?.removeEventListener('abort', abort);
-    await reader.cancel().catch(() => {});
+    // Detach immediately even if the source never acknowledges cleanup.
+    void reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 }

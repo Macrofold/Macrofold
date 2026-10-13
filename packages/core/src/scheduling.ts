@@ -41,7 +41,7 @@ export const schedulingSQL = `WITH plan_limits AS (
 ), eligible AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id ORDER BY
  CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,created_at,id) AS account_order
- FROM queue WHERE NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
+ FROM queue WHERE NOT dispatch_blocked AND NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
  AND (kind<>'native_agent' OR native_active<greatest(0,account_limit-lightweight_reserved))
  AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
 )`;

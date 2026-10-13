@@ -15,6 +15,7 @@ import { openRouterPriceCeiling } from './openrouter-pricing';
 import { validateModelParameters } from '../../core/src/model-parameters';
 
 import { nativeInferenceBody } from './native-inference';
+import { reportedCost } from './reported-cost';
 
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({
@@ -76,6 +77,9 @@ async function invoke(
   }
   const streamed = body.stream === true ? await readInferenceStream(upstream, chat, output) : undefined;
   const raw = streamed ? streamed.raw : await boundedJSON(upstream, 512 * 1024);
+  const cost = provider === 'openrouter'
+    ? reportedCost(z.object({ usage: z.unknown().optional() }).safeParse(raw).data?.usage)
+    : {};
   // Preserve malformed model text for diagnostics too. Observers are never authority.
   try {
     observeResponse?.(raw);
@@ -89,7 +93,7 @@ async function invoke(
       refused: false,
       requestId: typeof streamed.raw.id === 'string' ? streamed.raw.id : null,
       modelRevision: typeof streamed.raw.model === 'string' ? streamed.raw.model : null,
-      usage: { ...u, complete: false },
+      usage: { ...u, ...cost, complete: false },
       incomplete: streamed.incomplete,
     };
   }
@@ -123,6 +127,7 @@ async function invoke(
       modelRevision: parsed.model || null,
       usage: chatUsage
         ? {
+            ...cost,
             input: chatUsage.prompt_tokens,
             output: chatUsage.completion_tokens,
             cached: chatUsage.prompt_tokens_details?.cached_tokens ?? 0,
@@ -131,6 +136,7 @@ async function invoke(
           }
         : tokens
           ? {
+              ...cost,
               input:
                 tokens.input_tokens +
                 (tokens.cache_read_input_tokens ?? 0) +
@@ -140,7 +146,7 @@ async function invoke(
               cacheWrite: tokens.cache_creation_input_tokens ?? 0,
               complete: true,
             }
-          : emptyUsage(),
+          : { ...emptyUsage(), ...cost },
     };
   }
   if (chat) {
@@ -186,13 +192,14 @@ async function invoke(
       // OpenRouter completion_tokens already includes reasoning tokens.
       usage: parsed.usage
         ? {
+            ...cost,
             input: parsed.usage.prompt_tokens,
             output: parsed.usage.completion_tokens,
             cached: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
             cacheWrite: 0,
             complete: true,
           }
-        : emptyUsage(),
+        : { ...emptyUsage(), ...cost },
     };
   }
   const parsed = response.parse(raw);
@@ -250,6 +257,7 @@ async function invoke(
     modelRevision: parsed.model || null,
     usage: tokens
       ? {
+          ...cost,
           input:
             tokens.input_tokens +
             (tokens.cache_read_input_tokens || 0) +
@@ -259,7 +267,7 @@ async function invoke(
           cacheWrite: tokens.cache_creation_input_tokens || 0,
           complete: true,
         }
-      : emptyUsage(),
+      : { ...emptyUsage(), ...cost },
   };
 }
 

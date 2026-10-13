@@ -109,7 +109,7 @@ export async function followDashboardChanges(
         signal: connection.signal,
       });
       if ([401, 403, 409].includes(response.status)) {
-        await response.body?.cancel();
+        void response.body?.cancel().catch(() => {});
         if (!options.signal.aborted) options.accessChanged();
         return;
       }
@@ -118,7 +118,7 @@ export async function followDashboardChanges(
         !response.body ||
         !response.headers.get('content-type')?.includes('text/event-stream')
       ) {
-        await response.body?.cancel();
+        void response.body?.cancel().catch(() => {});
         throw new Error('Dashboard stream unavailable');
       }
       for await (const frame of sseFrames(response, connection.signal)) {
@@ -144,6 +144,7 @@ export async function followDashboardChanges(
       options.signal.removeEventListener('abort', abort);
       connection.abort();
     }
+    if (failures >= 8) return; // Periodic query reconciliation remains active.
     if (!options.signal.aborted)
       await pause(
         Math.min(30000, 1000 * 2 ** Math.min(failures++, 5)) * (0.75 + random() * 0.5),

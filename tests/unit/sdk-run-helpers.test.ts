@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Macrofold, RunFailedError, WaitTimeoutError, type Schema } from '../../sdk/typescript/src/index';
+import { DEFAULT_WAIT_MS } from '../../sdk/typescript/src/run-helpers';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const result = (persistence = 'verified', outcome = 'success'): Schema['RunResult'] => ({
@@ -20,6 +21,42 @@ const collect = async <T>(source: AsyncIterable<T>) => {
 
 describe('run convenience helpers', () => {
   afterEach(() => vi.useRealTimers());
+  it('stops waiting and text delivery on recovery-required state without pretending settlement finished', async () => {
+    const client = new Macrofold({
+      apiKey: 'fixture',
+      fetch: async (input) => {
+        const path = String(input);
+        if (path.includes('/stream')) return new Response(frame('1', 'run.recovery_required', ''));
+        if (path.endsWith('/result')) return Response.json({ ...result('pending', 'failure'), final: false });
+        return Response.json({ id, status: 'persisting', failure_code: 'run_recovery_required' });
+      },
+    });
+    for (const execute of [() => client.runs.wait(id), () => collect(client.runs.streamText(id))]) {
+      const failure = await execute().catch((error) => error);
+      expect(failure).toBeInstanceOf(RunFailedError);
+      expect(failure).toMatchObject({
+        status: 'persisting',
+        failureCode: 'run_recovery_required',
+        result: { final: false, persistence_status: 'pending' },
+      });
+    }
+  });
+  it('gives an omitted wait timeout a finite deadline without cancelling the agent', async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    const client = new Macrofold({
+      apiKey: 'fixture',
+      fetch: async (input) => {
+        calls.push(String(input));
+        return Response.json({ id, status: 'running' });
+      },
+    });
+    const outcome = client.runs.wait(id, { pollIntervalMs: DEFAULT_WAIT_MS }).catch((error) => error);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_MS);
+    expect(await outcome).toBeInstanceOf(WaitTimeoutError);
+    expect(calls).toHaveLength(1);
+    expect(calls.some((path) => path.includes('cancel'))).toBe(false);
+  });
   it('streams only new text through reconnects and keeps structured events available', async () => {
     let streams = 0,
       gets = 0;

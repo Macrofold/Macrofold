@@ -55,3 +55,5 @@ After the observed optional-install delay was corrected, Hermes passed the compl
 `pnpm check` (including the app's TypeScript SDK build), `pnpm docs:check` and `git diff --check` pass. Unrelated SDK regeneration/builds were skipped because no public contract changed. Guidance checking retains its existing unrelated loader-precedence warning.
 
 The verified image was promoted to the local runtime default; the previous image remains available for rollback. All local Runs and Run dispatch jobs were confirmed idle, the existing Docker poller exited gracefully, and its replacement was started with the existing configuration. The web preview and Docker daemon stayed running. Runtime image identities and activation commands are kept in the private operator record; no credentials were changed. Hosted rollout and the caller's complete draft/approval journey remain unverified and explicitly tracked above.
+
+The subsequent [native turn reliability fix](native-turn-reliability.md) safely normalizes copied SQLite state before capture; live native databases remain untouched, and failed normalization preserves original companions.

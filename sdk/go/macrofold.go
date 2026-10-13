@@ -69,7 +69,8 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 	if !ok || !eventCursor.MatchString(after) {
 		return errors.New("use a numeric event cursor")
 	}
-	for failures := 0; ; {
+	failures := 0
+	for connections := 0; connections < 2048; connections++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.cfg.Servers[0].URL+path+"/stream?after="+url.QueryEscape(cursor.String()), nil)
 		if err != nil {
 			return err
@@ -104,7 +105,7 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 					}
 					cursor.Set(sequence)
 					failures = 0
-					terminal = event.Type == "run.succeeded" || event.Type == "run.failed" || event.Type == "run.cancelled" || event.Type == "run.timed_out"
+					terminal = event.Type == "run.succeeded" || event.Type == "run.failed" || event.Type == "run.cancelled" || event.Type == "run.timed_out" || event.Type == "run.recovery_required"
 					if terminal {
 						return io.EOF
 					}
@@ -144,6 +145,8 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 			}
 			if e != nil {
 				err = e
+			} else if run.GetFailureCode() == "run_recovery_required" {
+				return nil
 			} else if run.Status == "succeeded" || run.Status == "failed" || run.Status == "cancelled" || run.Status == "timed_out" {
 				// Infer each generated response locally: equivalent inline schemas may
 				// acquire different names when another endpoint is added to OpenAPI.
@@ -188,6 +191,7 @@ func (c *APIClient) streamTarget(ctx context.Context, runID, after, customerID, 
 		case <-wait.C:
 		}
 	}
+	return fmt.Errorf("stream attachment limit reached; reattach after %s; the run has not been cancelled", cursor)
 }
 
 func readEvents(reader io.Reader, receive func(Event) error) error {

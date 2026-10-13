@@ -36,23 +36,26 @@ export function MediaPreview({
       try {
         const response = await fetch(
           `/v1/worktrees/${worktreeId}/file?path=${encodeURIComponent(path)}&download=true`,
-          { signal: controller.signal },
+          { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]) },
         );
         if (!response.ok) throw new Error('This file could not be loaded. Download it or try again.');
         const chunks: Uint8Array<ArrayBuffer>[] = [];
         const reader = response.body?.getReader();
         if (!reader) throw new Error('This file has no content.');
         let total = 0;
+        let emptyChunks = 0;
         try {
           while (true) {
             const part = await reader.read();
             if (part.done) break;
+            emptyChunks = part.value.byteLength ? 0 : emptyChunks + 1;
+            if (emptyChunks >= 16) throw new Error('The download stopped making progress. Try again.');
             total += part.value.byteLength;
             if (total > 25 * 1024 * 1024) throw new Error('Download this file to view it.');
             chunks.push(new Uint8Array(part.value));
           }
         } finally {
-          await reader.cancel();
+          void reader.cancel().catch(() => {});
         }
         if (controller.signal.aborted) return;
         objectURL = URL.createObjectURL(new Blob(chunks, { type: format.mime }));

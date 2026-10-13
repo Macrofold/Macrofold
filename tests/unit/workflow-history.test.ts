@@ -6,9 +6,14 @@ import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import { renewWorkflow, releaseWorkflow } from '../../packages/core/src/workflow-ownership';
 import { dispatchRuns } from '../../apps/web/lib/dispatch';
 import { queueRetryAt } from '../../packages/core/src/queue-wait';
+import { dispatchFailed, dispatchSucceeded } from '../../packages/core/src/dispatch-failures';
 
 vi.mock('workflow', () => ({ sleep: vi.fn() }));
 vi.mock('../../packages/core/src/cloud-engine', () => ({ advanceCloudRun: vi.fn() }));
+vi.mock('../../packages/core/src/dispatch-failures', () => ({
+  dispatchFailed: vi.fn(async () => false),
+  dispatchSucceeded: vi.fn(async () => {}),
+}));
 vi.mock('../../packages/core/src/workflow-ownership', () => ({
   renewWorkflow: vi.fn(async () => true),
   releaseWorkflow: vi.fn(),
@@ -16,6 +21,13 @@ vi.mock('../../packages/core/src/workflow-ownership', () => ({
 vi.mock('../../apps/web/lib/dispatch', () => ({ dispatchRuns: vi.fn() }));
 vi.mock('@platform/providers/machines', () => ({ machines: () => ({}) }));
 afterEach(() => vi.clearAllMocks());
+
+it('records failed advances with their generation without clearing their durable retry count', async () => {
+  vi.mocked(advanceCloudRun).mockRejectedValueOnce(new Error('fixture step failure'));
+  await expect(agentRun('org', 'run', 7)).rejects.toThrow('fixture step failure');
+  expect(dispatchFailed).toHaveBeenCalledExactlyOnceWith('org', 'run', 'run', 'workflow_advance_failed', 7);
+  expect(dispatchSucceeded).not.toHaveBeenCalled();
+});
 
 const submitted = Date.UTC(2026, 0, 1);
 const waiting = {
@@ -106,7 +118,7 @@ it('a superseded invocation exits without touching the native execution or relea
   expect(sleep).not.toHaveBeenCalled();
 });
 
-it('budgets maximum execution, trace draining and persistence plus retries across bounded invocations', () => {
+it('budgets maximum execution, trace draining and persistence plus retries across bounded invocations', async () => {
   // Conservative workload envelope, not a claim of a live 10-GiB transfer:
   // 100k entries with distinct partial chunks plus 10 GiB / 4 MiB full chunks.
   const entries = 100_000,
@@ -126,6 +138,10 @@ it('budgets maximum execution, trace draining and persistence plus retries acros
     Math.ceil(entries / 8) +
     3;
   expect(workload).toBeGreaterThan(70_000); // proves one monolithic Workflow cannot fit
+  const { MAX_RUN_ADVANCES } = await vi.importActual<typeof import('../../packages/core/src/cloud-engine')>(
+    '../../packages/core/src/cloud-engine',
+  );
+  expect(workload).toBeLessThan(MAX_RUN_ADVANCES);
   // Include two domain transport failures before EVERY successful phase. These
   // are advance iterations, distinct from the SDK's three retries of each step.
   let remaining = workload * 3,

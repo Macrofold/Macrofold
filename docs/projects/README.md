@@ -10,7 +10,10 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
+- [Bounded operations and recovery](bounded-work.md): finite retry, polling, transfer and pagination budgets; protected uncertain state.
+
 - [Verification speed](verification-speed.md): required checks, targeted verification, parallel domain and browser suites, path-scoped application acceptance.
+- [Native run recovery](native-run-recovery.md): terminal checkpoint failure handling, safe Docker provisioning diagnostics and local recovery.
 
 ## Existing accepted targets
 
@@ -18,3 +21,5 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 - [Local MCP development](local-mcp.md): explicit local-origin policy and verification.
 - [Native home persistence](native-home-persistence.md): explicit durable state per harness, disposable runtime home, and verified cold continuation.
+
+- [Native turn reliability](native-turn-reliability.md): asynchronous OpenCode turns, reported costs, copied SQLite normalization and permission-driven file tools.

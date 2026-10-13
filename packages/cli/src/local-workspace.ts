@@ -38,19 +38,30 @@ export async function git(args: string[], cwd = process.cwd()): Promise<string> 
     );
     let output = '',
       error = '';
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, 120_000);
     child.stdout.on('data', (b) => {
       output += b;
-      if (output.length > 8 * 1024 * 1024) child.kill();
+      if (output.length > 8 * 1024 * 1024) child.kill('SIGKILL');
     });
     child.stderr.on('data', (b) => {
       error += b;
-      if (error.length > 65536) child.kill();
+      if (error.length > 65536) child.kill('SIGKILL');
     });
-    child.on('error', reject);
+    child.on('error', (cause) => {
+      clearTimeout(timeout);
+      reject(cause);
+    });
     // `close` guarantees stdout/stderr have drained, unlike process `exit`.
-    child.on('close', (code) =>
-      code === 0 ? resolve(output) : reject(new Error(error.trim() || 'Git command failed')),
-    );
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (timedOut) reject(new Error('Git command exceeded its two-minute deadline'));
+      else if (code === 0) resolve(output);
+      else reject(new Error(error.trim() || 'Git command failed'));
+    });
   });
 }
 export function relativeFile(value: string) {

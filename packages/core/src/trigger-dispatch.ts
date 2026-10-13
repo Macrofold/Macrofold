@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool, transaction, type Tx } from '../../db';
 import { AppError } from './errors';
 import { actorAuthorized } from './actor-authorization';
@@ -83,7 +84,7 @@ export async function dispatchTriggerDelivery(
   const reply = await transaction(org, async (tx) => {
     const job = (
       await tx.query(
-        "SELECT * FROM dispatch_jobs WHERE kind='trigger' AND resource_id=$1 AND state<>'done' AND available_at<=$2 AND (lease_until IS NULL OR lease_until<=$2) FOR UPDATE SKIP LOCKED",
+        "SELECT * FROM dispatch_jobs WHERE kind='trigger' AND resource_id=$1 AND state IN ('pending','running') AND available_at<=$2 AND (lease_until IS NULL OR lease_until<=$2) FOR UPDATE SKIP LOCKED",
         [deliveryId, now],
       )
     ).rows[0];
@@ -98,6 +99,7 @@ export async function dispatchTriggerDelivery(
     const t = (await tx.query<TriggerRow>('SELECT * FROM triggers WHERE id=$1 FOR SHARE', [d.trigger_id]))
       .rows[0];
     if (!t || t.deleted_at) return finish(tx, d, 'trigger_deleted');
+    if (d.expires_at <= now) return finish(tx, d, 'trigger_delivery_expired');
     // A crashed sender may have posted. Preserve the run and ask for explicit reply retry.
     if (d.reply_state === 'sending') {
       await tx.query(
@@ -252,7 +254,7 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
   const jobs = (
     await pool.query(
       `SELECT organization_id,resource_id,kind FROM dispatch_jobs
-    WHERE kind IN ('trigger','trigger_schedule') AND state<>'done' AND available_at<=$1 AND (lease_until IS NULL OR lease_until<=$1)
+    WHERE kind IN ('trigger','trigger_schedule') AND state IN ('pending','running') AND available_at<=$1 AND (lease_until IS NULL OR lease_until<=$1)
     ORDER BY available_at,id LIMIT 25`,
       [now],
     )
@@ -266,12 +268,10 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
     try {
       if (job.kind === 'trigger_schedule') await fireSchedule(job.organization_id, job.resource_id, now);
       else await dispatchTriggerDelivery(job.organization_id, job.resource_id, provider, now);
+      await dispatchSucceeded(job.organization_id, job.kind, job.resource_id);
     } catch {
       failed++;
-      await pool.query(
-        "UPDATE dispatch_jobs SET available_at=$2,error='trigger_dispatch_failed' WHERE kind=$3 AND resource_id=$1 AND state<>'done'",
-        [job.resource_id, new Date(now.getTime() + 30000), job.kind],
-      );
+      await dispatchFailed(job.organization_id, job.kind, job.resource_id, 'trigger_dispatch_failed');
     }
     processed++;
   }

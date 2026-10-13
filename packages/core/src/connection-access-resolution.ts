@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../contracts/pagination';
 import type { components } from '../../contracts/api';
 import type { Tx } from '../../db';
 import { requireScopes, type Principal } from './auth';
@@ -359,6 +360,7 @@ export async function admitConnections(
     snapshots: ConnectionAccessSnapshot[] = [];
   const rejected: { connection_id: string; codes: string[] }[] = [];
   let after: string | undefined;
+  const pages = new PaginationCursor();
   do {
     const page = await candidatePage(
       tx,
@@ -399,7 +401,7 @@ export async function admitConnections(
       'too_many_run_tools',
       `Select at most ${MAX_RUN_CONNECTIONS} connections and ${MAX_RUN_TOOLS} tools for one run.`,
     );
-    after = page.length === 100 ? page.at(-1)!.id : undefined;
+    after = pages.next(page.length === 100 ? page.at(-1)!.id : undefined);
   } while (after);
   assert(
     !rejected.length && !missing.size,

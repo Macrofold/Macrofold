@@ -1,3 +1,5 @@
+import { blockRunRecovery } from './dispatch-failures';
+import type { RunRecoveryStep } from '../../contracts/run-recovery';
 import { publishArtifacts } from './artifacts';
 import { fileAllowed, guardedToolsRequired } from '../../contracts/permissions';
 import { permissionOutput } from './agent-permissions';
@@ -57,11 +59,21 @@ export type ExecutionState = {
   lock?: string;
   lockExpires?: number;
   failures?: number;
+  advances?: number;
+  recoveryBlocked?: boolean;
+  /** Last publication operation, for safe diagnostics without exposing raw exceptions. */
+  publicationStep?: RunRecoveryStep;
+  cancelStartedAt?: number;
   /** Internal timings only; wall time includes orchestration waits and retries. */
   phaseTimings?: Partial<
     Record<Phase, { startedAt: number; completedAt?: number; activeMs: number; attempts: number }>
   >;
 };
+// Covers the legal 100k-entry/10-GiB restore and publish envelope, including
+// one-object hydration batches. Wall-clock deadlines independently cap stalls.
+export const MAX_RUN_ADVANCES = 250_000;
+export const RUN_RECOVERY_MS = 30 * 60_000;
+export const MAX_RECOVERY_FAILURES = 8;
 type ExecutionObject = { id: string; kind: string; name: string; data: Record<string, unknown> };
 const object = async (tx: Tx, org: string, run: string, kind: string, name: string, data: unknown) =>
   tx.query(
@@ -127,7 +139,7 @@ export async function advanceCloudRun(
     provider: config.execution === 'docker' ? 'docker' : 'vercel',
     phase: 'provision',
   }) as ExecutionState;
-  if (state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
+  if (state.recoveryBlocked || state.phase === 'done' || (terminal(run.status) && !run.execution_binding))
     return { done: true, delaySeconds: 0 };
   const claim = id();
   const owns = await transaction(org, async (tx) => {
@@ -150,6 +162,25 @@ export async function advanceCloudRun(
   // Ready work needs another durable step, not a timer. Only actual waits opt in below.
   let delaySeconds = 0;
   try {
+    state.advances = (state.advances || 0) + 1;
+    // Deadline/counter ceilings survive restarts and successful-but-stalled polls.
+    // Cleanup/publication retain their own finite failure budget below.
+    if (!['publish', 'close'].includes(state.phase)) {
+      assert(
+        state.advances <= MAX_RUN_ADVANCES &&
+          (!run.deadline || Date.now() < run.deadline.getTime() + RUN_RECOVERY_MS),
+        504,
+        'execution_progress_exhausted',
+        'Execution recovery exceeded its bounded progress budget.',
+      );
+      if (state.phase === 'poll')
+        assert(
+          !run.deadline || Date.now() < run.deadline.getTime() + 60_000,
+          504,
+          'cancellation_unconfirmed',
+          'The runtime did not finish within its cancellation grace period.',
+        );
+    }
     if (['input', 'provision', 'hydrate', 'restore', 'restore_wait', 'launch'].includes(state.phase))
       assert(
         !run.cancel_requested && run.deadline!.getTime() > Date.now(),
@@ -175,8 +206,11 @@ export async function advanceCloudRun(
               : ws.git_files || []) as FileRecord[]
           ).map((f) => ({ ...f, namespace: 'workspace' as const })),
           ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ].filter((file) => isPersistentPath(run.config.harness, file.namespace, file.path) &&
-          (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)));
+        ].filter(
+          (file) =>
+            isPersistentPath(run.config.harness, file.namespace, file.path) &&
+            (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)),
+        );
       });
       const offset = state.inputOffset || 0;
       const entries: SnapshotEntry[] = [];
@@ -285,8 +319,16 @@ export async function advanceCloudRun(
       await provider.launch(state.machine!);
       state.phase = 'poll';
     } else if (state.phase === 'poll') {
-      if (run.cancel_requested || run.deadline!.getTime() <= Date.now())
+      if (run.cancel_requested || run.deadline!.getTime() <= Date.now()) {
+        state.cancelStartedAt ??= Date.now();
+        assert(
+          Date.now() - state.cancelStartedAt < 60_000,
+          504,
+          'cancellation_unconfirmed',
+          'The runtime did not acknowledge cancellation within one minute.',
+        );
         await provider.cancel(state.machine!);
+      }
       if (run.input_request?.answer) {
         await provider.answer(state.machine!, run.input_request.id, run.input_request.answer);
         await transaction(org, (tx) =>
@@ -294,6 +336,14 @@ export async function advanceCloudRun(
         );
       }
       const result = await provider.probe(state.machine!, state.eventOffset || 0);
+      assert(
+        Number.isSafeInteger(result.nextOffset) &&
+          result.nextOffset >= (state.eventOffset || 0) &&
+          (!result.events.length || result.nextOffset > (state.eventOffset || 0)),
+        502,
+        'runtime_cursor_stalled',
+        'The runtime event cursor did not advance.',
+      );
       await transaction(org, async (tx) => {
         for (const e of result.events)
           if (
@@ -343,10 +393,22 @@ export async function advanceCloudRun(
     } else if (state.phase === 'index') {
       const page = await provider.snapshotPage(state.machine!, state.indexOffset || 0);
       assert(
-        page.totalBytes <= 10 * 1024 ** 3 && page.total <= 100_000,
+        Number.isSafeInteger(page.totalBytes) &&
+          page.totalBytes >= 0 &&
+          page.totalBytes <= 10 * 1024 ** 3 &&
+          Number.isSafeInteger(page.total) &&
+          page.total >= 0 &&
+          page.total <= 100_000,
         413,
         'checkpoint_storage_limit',
         'The worktree exceeds its configured persistence limit.',
+      );
+      assert(
+        (state.indexOffset || 0) + page.entries.length <= page.total &&
+          (page.entries.length > 0 || (state.indexOffset || 0) >= page.total),
+        502,
+        'checkpoint_cursor_stalled',
+        'The runtime checkpoint page did not advance.',
       );
       await transaction(org, async (tx) => {
         for (const entry of page.entries) {
@@ -360,46 +422,54 @@ export async function advanceCloudRun(
     } else if (state.phase === 'upload') {
       const chunks = await pending(org, runId, ['output_chunk']);
       // Drain bounded concurrent transfers before releasing the phase lease, even on failure.
-      const transfers = await Promise.allSettled(chunks.map(async (item) => {
-        const bytes = await observeWorkerStep('checkpoint_read', { organization_id: org, run_id: runId },
-          () => provider.chunk(state.machine!, item.name));
-        assert(
-          sha256(bytes) === item.name && bytes.length === Number(item.data.size),
-          502,
-          'checkpoint_corrupt',
-          'A runtime checkpoint chunk failed integrity verification.',
-        );
-        await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId },
-          () => saveContent(org, bytes));
-        await processed(org, [item]);
-      }));
+      const transfers = await Promise.allSettled(
+        chunks.map(async (item) => {
+          const bytes = await observeWorkerStep(
+            'checkpoint_read',
+            { organization_id: org, run_id: runId },
+            () => provider.chunk(state.machine!, item.name),
+          );
+          assert(
+            sha256(bytes) === item.name && bytes.length === Number(item.data.size),
+            502,
+            'checkpoint_corrupt',
+            'A runtime checkpoint chunk failed integrity verification.',
+          );
+          await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId }, () =>
+            saveContent(org, bytes),
+          );
+          await processed(org, [item]);
+        }),
+      );
       for (const result of transfers) if (result.status === 'rejected') throw result.reason;
       if (!chunks.length) {
         const entries = await pending(org, runId, ['output_entry'], 8);
-        const manifests = await Promise.allSettled(entries.map(async (item) => {
-          const entry = item.data as unknown as SnapshotEntry;
-          const saved = await saveChunkManifest(
-            org,
-            entry.sha256,
-            entry.size,
-            entry.chunks.map((c) => ({ key: `${org}/content/${c.hash}`, sha256: c.hash, size: c.size })),
-          );
-          await transaction(org, (tx) =>
-            tx.query('UPDATE execution_objects SET data=data||$2::jsonb,processed=true WHERE id=$1', [
-              item.id,
-              JSON.stringify({
-                record: {
-                  ...saved,
-                  path: entry.path,
-                  type: entry.type,
-                  mode: entry.mode,
-                  modified_at: entry.modifiedAt,
-                  git_ignored: entry.path.startsWith('.'),
-                },
-              }),
-            ]),
-          );
-        }));
+        const manifests = await Promise.allSettled(
+          entries.map(async (item) => {
+            const entry = item.data as unknown as SnapshotEntry;
+            const saved = await saveChunkManifest(
+              org,
+              entry.sha256,
+              entry.size,
+              entry.chunks.map((c) => ({ key: `${org}/content/${c.hash}`, sha256: c.hash, size: c.size })),
+            );
+            await transaction(org, (tx) =>
+              tx.query('UPDATE execution_objects SET data=data||$2::jsonb,processed=true WHERE id=$1', [
+                item.id,
+                JSON.stringify({
+                  record: {
+                    ...saved,
+                    path: entry.path,
+                    type: entry.type,
+                    mode: entry.mode,
+                    modified_at: entry.modifiedAt,
+                    git_ignored: entry.path.startsWith('.'),
+                  },
+                }),
+              ]),
+            );
+          }),
+        );
         for (const result of manifests) if (result.status === 'rejected') throw result.reason;
         if (!entries.length) state.phase = 'publish';
       }
@@ -427,8 +497,25 @@ export async function advanceCloudRun(
     }
     state.failures = (state.failures || 0) + 1;
     const code = error instanceof AppError ? error.code : 'execution_transport_failed';
-    if (state.failures >= 3 && state.phase !== 'close') {
-      state.error = code;
+    if (['publish', 'close'].includes(state.phase) && state.failures >= MAX_RECOVERY_FAILURES) {
+      // A failed settlement/stop is not permission to release money or writers.
+      // Stop automatic retries while retaining the original binding and files.
+      state.recoveryBlocked = true;
+      await transaction(org, (tx) =>
+        blockRunRecovery(tx, org, runId, {
+          code: 'run_recovery_required',
+          step: state.phase === 'close' ? 'cleanup' : state.publicationStep || 'finalization',
+          cause: code,
+          attempts: state.failures!,
+          ...(state.error ? { original_failure_code: state.error } : {}),
+        }),
+      );
+    } else if (
+      state.failures >= 3 &&
+      state.phase !== 'close' &&
+      (state.phase !== 'publish' || !state.error)
+    ) {
+      state.error ||= code;
       state.preserve = Boolean(state.machine);
       // Freeze an uncertain execution before final accounting. Never restart the prompt to recover it.
       if (state.machine)
@@ -439,6 +526,7 @@ export async function advanceCloudRun(
           })
           .catch(() => {});
       state.phase = 'publish';
+      state.failures = 0;
     }
     delaySeconds = Math.min(60, 2 ** state.failures);
   } finally {
@@ -453,7 +541,7 @@ export async function advanceCloudRun(
         [runId, JSON.stringify(state), claim],
       ),
     );
-    if (state.phase !== 'done')
+    if (state.phase !== 'done' && !state.recoveryBlocked)
       await transaction(org, (tx) =>
         tx.query(
           "UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes' WHERE kind='run' AND resource_id=$1",
@@ -461,140 +549,183 @@ export async function advanceCloudRun(
         ),
       );
   }
-  return { done: state.phase === 'done', delaySeconds };
+  return { done: state.phase === 'done' || Boolean(state.recoveryBlocked), delaySeconds };
 }
 
 async function publishCloudRun(org: string, runId: string, state: ExecutionState) {
+  // Track the actual failing operation: publication also settles billing, so
+  // phase='publish' alone must not label every failure as lost files.
+  state.publicationStep = 'finalization';
   const verified = !state.error && state.result?.persistence === 'captured';
-  const publication = await storagePreparation(org, async tx => {
+  const publication = await storagePreparation(org, async (tx) => {
     const run = await getNativeRun(tx, runId);
     if (terminal(run.status)) return null;
-    assert((run.execution_binding as ExecutionState | null)?.lock === state.lock,
-      409, 'lease_lost', 'Execution publication is owned by another controller step.');
+    assert(
+      (run.execution_binding as ExecutionState | null)?.lock === state.lock,
+      409,
+      'lease_lost',
+      'Execution publication is owned by another controller step.',
+    );
     const worktree = await resources.get(tx, 'worktrees', run.worktree_id);
-    const objects = verified ? (await tx.query<{ data: SnapshotEntry & { record: FileRecord } }>(
-      "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' AND processed", [runId])).rows : [];
+    const objects = verified
+      ? (
+          await tx.query<{ data: SnapshotEntry & { record: FileRecord } }>(
+            "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' AND processed",
+            [runId],
+          )
+        ).rows
+      : [];
     await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
     return { run, worktree, objects };
   });
   try {
     if (!publication.value) return;
     const { run: expectedRun, worktree: baseline, objects } = publication.value;
-    let files = objects.filter(o => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git')).map(o => o.data.record);
-    const gitFiles = objects.filter(o => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git')).map(o => o.data.record);
-    const home = objects.filter(o => o.data.namespace === 'home').map(o => o.data.record);
+    let files = objects
+      .filter((o) => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git'))
+      .map((o) => o.data.record);
+    const gitFiles = objects
+      .filter((o) => o.data.namespace === 'workspace' && o.data.path.split('/').includes('.git'))
+      .map((o) => o.data.record);
+    const home = objects.filter((o) => o.data.namespace === 'home').map((o) => o.data.record);
     const guarded = guardedToolsRequired(expectedRun.config.permission_layers || []);
-    if (guarded) files = permissionOutput(expectedRun.config.permission_layers || [], baseline.files || [], files);
+    state.publicationStep = 'checkpoint';
+    // A failed capture has no output snapshot, not an empty one. Validate only
+    // verified changes; failure settlement must preserve the baseline instead
+    // of repeatedly treating protected files as deleted.
+    if (verified && guarded)
+      files = permissionOutput(expectedRun.config.permission_layers || [], baseline.files || [], files);
     // Verified object bytes and Git preparation are independent from the short SQL
     // publication. The storage guard protects them while no connection is held.
-    const preparedCheckpoint = verified ? await prepareCheckpoint(org, baseline, files, 'Agent run',
-      guarded ? baseline.git_files : gitFiles) : null;
+    const preparedCheckpoint = verified
+      ? await prepareCheckpoint(org, baseline, files, 'Agent run', guarded ? baseline.git_files : gitFiles)
+      : null;
+    state.publicationStep = 'billing';
     await settleOrphanModelRequests(org, runId);
+    state.publicationStep = 'finalization';
     await transaction(org, async (tx) => {
       await lock(tx, `worktree:${expectedRun.worktree_id}`);
       if (expectedRun.config.worker_id) await lock(tx, `worker:${expectedRun.config.worker_id}`);
-    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-    const run = await getNativeRun(tx, runId);
-    if (terminal(run.status)) return;
-    assert(run.lease_generation === expectedRun.lease_generation &&
-      (run.execution_binding as ExecutionState | null)?.lock === state.lock,
-      409, 'lease_lost', 'Execution ownership changed before publication.');
-    await publication.assertActive(tx);
-    const ws = await resources.get(tx, 'worktrees', run.worktree_id);
-    assert(ws.revision === baseline.revision, 409, 'publication_revision_changed',
-      'Worktree state changed while preparing execution output.');
-    let checkpointId: string | undefined;
-    let artifactIds: string[] = [];
-    if (verified) {
-      assert(preparedCheckpoint, 500, 'checkpoint_missing', 'Verified execution requires prepared durable state.');
-      const cp = await saveCheckpoint(tx, principalFor(run), preparedCheckpoint);
-      await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
-      checkpointId = cp.id;
-      artifactIds = await publishArtifacts(tx, run, ws.files || [], files);
-      await resources.update(tx, 'worktrees', run.worktree_id, { ...checkpointState(cp), status: 'idle' });
-      await resources.update(tx, 'sessions', run.session_id, {
-        state_files: home,
-        native_session_id: state.result?.resumeId,
-      });
-      await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
-    } else
-      await resources.update(tx, 'worktrees', run.worktree_id, {
-        status: state.machine ? 'degraded' : 'idle',
-        recovery_run_id: state.machine ? runId : undefined,
-      });
-    const elapsed = run.started_at
-      ? Math.max(
-          0,
-          Math.min(
-            run.config.limits?.timeout_seconds || 900,
-            Math.ceil((Date.now() - run.started_at.getTime()) / 1000),
-          ),
-        )
-      : 0;
-    const compute = state.machine
-      ? computeMaximum(elapsed, run.config.compute_rate_micro_usd_per_minute)
-      : 0n;
-    const cost = BigInt(run.cost_micro_usd) + compute;
-    assert(
-      cost <= BigInt(run.reservation_micro_usd),
-      500,
-      'accounting_bound_failed',
-      'Run usage exceeded its held reservation.',
-    );
-    let status: 'succeeded' | 'failed' | 'cancelled' | 'timed_out' =
-      state.result?.outcome === 'success' && verified
-        ? 'succeeded'
-        : state.result?.outcome === 'cancelled'
-          ? 'cancelled'
-          : state.result?.outcome === 'timed_out'
-            ? 'timed_out'
-            : 'failed';
-    if (run.cancel_requested && status === 'failed') status = 'cancelled';
-    const value = {
-      output_text: state.result?.output || '',
-      execution_outcome: state.result?.outcome || 'failure',
-      persistence_status: verified ? 'verified' : state.machine ? 'failed' : 'not_required',
-      ...(checkpointId ? { checkpoint_id: checkpointId } : {}),
-      last_verified_checkpoint_id: ws.latest_checkpoint_id,
-      failure_code: state.error || state.result?.failureCode,
-      artifact_ids: artifactIds,
-      sync_status: 'disabled',
-    };
-    await settle(tx, org, runId, BigInt(run.reservation_micro_usd), cost);
-    await tx.query('UPDATE runs SET status=$2,result=$3,completed_at=now(),cost_micro_usd=$4 WHERE id=$1', [
-      runId,
-      status,
-      JSON.stringify(value),
-      cost.toString(),
-    ]);
-    const traceContext = await runTraceContext(tx, run);
-    if (traceContext)
-      afterCommit(tx, () =>
-        recordTrace({
-          context: traceContext,
-          id: 'billing:compute',
-          name: 'billing.compute',
-          type: 'event',
-          startedAt: run.started_at || run.created_at,
-          endedAt: new Date(),
-          chargedMicroUsd: compute.toString(),
-          metadata: {
-            elapsed_seconds: elapsed,
-            charged_micro_usd: compute.toString(),
-            rate_micro_usd_per_minute: run.config.compute_rate_micro_usd_per_minute,
-            provider_cost_status: 'unavailable',
-          },
-        }),
+      await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
+      const run = await getNativeRun(tx, runId);
+      if (terminal(run.status)) return;
+      assert(
+        run.lease_generation === expectedRun.lease_generation &&
+          (run.execution_binding as ExecutionState | null)?.lock === state.lock,
+        409,
+        'lease_lost',
+        'Execution ownership changed before publication.',
       );
-    if (verified && (await queueAutomaticSync(tx, principalFor(run), run.worktree_id, runId)))
-      value.sync_status = 'pending';
-    await emit(tx, org, runId, `run.${status}`, { ...value, status });
-    await tx.query(
-      "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
-      [id(), org, run.config.user_id],
-    );
+      await publication.assertActive(tx);
+      const ws = await resources.get(tx, 'worktrees', run.worktree_id);
+      assert(
+        ws.revision === baseline.revision,
+        409,
+        'publication_revision_changed',
+        'Worktree state changed while preparing execution output.',
+      );
+      let checkpointId: string | undefined;
+      let artifactIds: string[] = [];
+      if (verified) {
+        state.publicationStep = 'checkpoint';
+        assert(
+          preparedCheckpoint,
+          500,
+          'checkpoint_missing',
+          'Verified execution requires prepared durable state.',
+        );
+        const cp = await saveCheckpoint(tx, principalFor(run), preparedCheckpoint);
+        await resources.update(tx, 'checkpoints', cp.id, { run_id: runId });
+        checkpointId = cp.id;
+        artifactIds = await publishArtifacts(tx, run, ws.files || [], files);
+        await resources.update(tx, 'worktrees', run.worktree_id, { ...checkpointState(cp), status: 'idle' });
+        await resources.update(tx, 'sessions', run.session_id, {
+          state_files: home,
+          native_session_id: state.result?.resumeId,
+        });
+        await emit(tx, org, runId, 'checkpoint.created', { checkpoint_id: cp.id, verification: 'verified' });
+      } else
+        await resources.update(tx, 'worktrees', run.worktree_id, {
+          status: state.machine ? 'degraded' : 'idle',
+          recovery_run_id: state.machine ? runId : undefined,
+        });
+      state.publicationStep = 'billing';
+      const elapsed = run.started_at
+        ? Math.max(
+            0,
+            Math.min(
+              run.config.limits?.timeout_seconds || 900,
+              Math.ceil((Date.now() - run.started_at.getTime()) / 1000),
+            ),
+          )
+        : 0;
+      const compute = state.machine
+        ? computeMaximum(elapsed, run.config.compute_rate_micro_usd_per_minute)
+        : 0n;
+      const cost = BigInt(run.cost_micro_usd) + compute;
+      assert(
+        cost <= BigInt(run.reservation_micro_usd),
+        500,
+        'accounting_bound_failed',
+        'Run usage exceeded its held reservation.',
+      );
+      let status: 'succeeded' | 'failed' | 'cancelled' | 'timed_out' =
+        state.result?.outcome === 'success' && verified
+          ? 'succeeded'
+          : state.result?.outcome === 'cancelled'
+            ? 'cancelled'
+            : state.result?.outcome === 'timed_out'
+              ? 'timed_out'
+              : 'failed';
+      if (run.cancel_requested && status === 'failed') status = 'cancelled';
+      const value = {
+        output_text: state.result?.output || '',
+        execution_outcome: state.result?.outcome || 'failure',
+        persistence_status: verified ? 'verified' : state.machine ? 'failed' : 'not_required',
+        ...(checkpointId ? { checkpoint_id: checkpointId } : {}),
+        last_verified_checkpoint_id: ws.latest_checkpoint_id,
+        failure_code: state.error || state.result?.failureCode,
+        artifact_ids: artifactIds,
+        sync_status: 'disabled',
+      };
+      await settle(tx, org, runId, BigInt(run.reservation_micro_usd), cost);
+      state.publicationStep = 'finalization';
+      await tx.query('UPDATE runs SET status=$2,result=$3,completed_at=now(),cost_micro_usd=$4 WHERE id=$1', [
+        runId,
+        status,
+        JSON.stringify(value),
+        cost.toString(),
+      ]);
+      const traceContext = await runTraceContext(tx, run);
+      if (traceContext)
+        afterCommit(tx, () =>
+          recordTrace({
+            context: traceContext,
+            id: 'billing:compute',
+            name: 'billing.compute',
+            type: 'event',
+            startedAt: run.started_at || run.created_at,
+            endedAt: new Date(),
+            chargedMicroUsd: compute.toString(),
+            metadata: {
+              elapsed_seconds: elapsed,
+              charged_micro_usd: compute.toString(),
+              rate_micro_usd_per_minute: run.config.compute_rate_micro_usd_per_minute,
+              provider_cost_status: 'unavailable',
+            },
+          }),
+        );
+      if (verified && (await queueAutomaticSync(tx, principalFor(run), run.worktree_id, runId)))
+        value.sync_status = 'pending';
+      await emit(tx, org, runId, `run.${status}`, { ...value, status });
+      await tx.query(
+        "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
+        [id(), org, run.config.user_id],
+      );
     });
   } finally {
-    await publication.dispose().catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
+    await publication
+      .dispose()
+      .catch(() => console.warn(JSON.stringify({ code: 'publication_guard_cleanup_failed', run_id: runId })));
   }
 }

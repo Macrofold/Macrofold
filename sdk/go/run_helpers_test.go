@@ -18,6 +18,33 @@ func helperState(status string) string {
 	return fmt.Sprintf(`{"id":%q,"kind":"native_agent","workspace_id":%q,"organization_id":%q,"session_id":%q,"worktree_id":%q,"harness":"codex","model":"fixture","status":%q,"failure_code":"fixture_failure","created_at":"2026-09-07T00:00:00Z"}`, testID, testID, testID, testID, testID, status)
 }
 
+func TestRecoveryRequiredStopsTextWithUnfinalizedReceipt(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != "GET" {
+			t.Error("unexpected mutation")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/stream"):
+			w.Header().Set("Content-Type", "text/event-stream")
+			fmt.Fprintf(w, "data: %s\n\n", event("1", "run.recovery_required"))
+		case strings.HasSuffix(r.URL.Path, "/result"):
+			fmt.Fprint(w, strings.Replace(finalResult("pending", "failure"), `"final":true`, `"final":false`, 1))
+		default:
+			fmt.Fprint(w, strings.Replace(helperState("persisting"), "fixture_failure", "run_recovery_required", 1))
+		}
+	}))
+	defer server.Close()
+	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
+	err := client.Runs.StreamText(context.Background(), testID, "0", func(string) error { t.Fatal("unexpected text"); return nil })
+	var failure *RunFailedError
+	if !errors.As(err, &failure) || failure.FailureCode != "run_recovery_required" || failure.Result.GetFinal() || calls != 3 {
+		t.Fatalf("recovery receipt: %v; requests: %d", err, calls)
+	}
+}
+
 func TestTextFiltersReplayAndPreservesOrganization(t *testing.T) {
 	streams, gets := 0, 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -20,6 +20,11 @@ export type CatalogCacheRow = {
   last_error: string | null;
 };
 
+const dynamicPriceMaxAgeMs = 24 * 60 * 60 * 1000;
+function pricesExpired(row: Pick<CatalogCacheRow, 'fetched_at'> | undefined, now = Date.now()) {
+  return !row?.fetched_at || now - row.fetched_at.getTime() >= dynamicPriceMaxAgeMs;
+}
+
 export async function models(tx: Pick<Tx, 'query'> = pool): Promise<Model[]> {
   if (isSimulated())
     return [
@@ -45,7 +50,7 @@ export function cachedModels(rows: CatalogCacheRow[], now = Date.now()): Model[]
     const values = applyModelPolicy(provider, entries);
     // Dynamic upstream pricing is not trusted indefinitely after an outage. Direct-provider
     // prices are our fixed retail policy; availability failures do not erase its last good data.
-    if (provider === 'openrouter' && (!row?.fetched_at || now - row.fetched_at.getTime() >= 86400000))
+    if (provider === 'openrouter' && pricesExpired(row, now))
       values.forEach((model) => {
         model.enabled = false;
       });
@@ -53,11 +58,27 @@ export function cachedModels(rows: CatalogCacheRow[], now = Date.now()): Model[]
   });
 }
 
+/** Direct inference needs no poller. Repair expired prices before its admission
+ * transaction, using the maintenance claim/backoff rather than trusting stale rates.
+ * See docs/features/execution/models.md#refresh-and-caching. */
+export async function refreshExpiredOpenRouterCatalog(source: ModelCatalogSource) {
+  if (isSimulated()) return;
+  const row = (
+    await pool.query<Pick<CatalogCacheRow, 'fetched_at'>>(
+      "SELECT fetched_at FROM model_catalog_cache WHERE provider='openrouter'",
+    )
+  ).rows[0];
+  if (pricesExpired(row)) await refreshModelCatalog(source, ['openrouter']);
+}
+
 /** Short claims coordinate workers/Functions. Never hold a DB connection during provider I/O. */
-export async function refreshModelCatalog(source: ModelCatalogSource) {
+export async function refreshModelCatalog(
+  source: ModelCatalogSource,
+  providers: readonly ModelProvider[] = modelProviders,
+) {
   let refreshed = 0,
     failed = 0;
-  for (const provider of modelProviders) {
+  for (const provider of providers) {
     const token = id();
     const claim = await pool.query(
       "UPDATE model_catalog_cache SET refresh_after=now()+interval '2 minutes',refresh_token=$2 WHERE provider=$1 AND refresh_after<=now() RETURNING provider",

@@ -8,8 +8,14 @@ async function advance(organization: string, runId: string, generation: number) 
   const { advanceCloudRun } = await import('@platform/core/cloud-engine');
   const { machines } = await import('@platform/providers/machines');
   const { flushTracesInBackground } = await import('../lib/trace-background');
+  const { dispatchFailed, dispatchSucceeded } = await import('@platform/core/dispatch-failures');
   try {
-    return await advanceCloudRun(organization, runId, machines);
+    const result = await advanceCloudRun(organization, runId, machines);
+    await dispatchSucceeded(organization, 'run', runId, generation);
+    return result;
+  } catch (error) {
+    await dispatchFailed(organization, 'run', runId, 'workflow_advance_failed', generation);
+    throw error;
   } finally {
     flushTracesInBackground();
   }

@@ -7,7 +7,9 @@ export class RunFailedError extends Error {
     readonly result: Schema['RunResult'],
     readonly failureCode?: string,
   ) {
-    super(`Run ${runId} ended with status ${status} (persistence: ${result.persistence_status}).`);
+    super(
+      `Run ${runId} cannot complete successfully (status: ${status}, persistence: ${result.persistence_status}).`,
+    );
     this.name = 'RunFailedError';
   }
 }
@@ -22,6 +24,7 @@ type Runs = {
   get(id: string, options?: { signal?: AbortSignal }): Promise<Schema['Run']>;
   getResult(id: string, options?: { signal?: AbortSignal }): Promise<Schema['RunResult']>;
 };
+export const DEFAULT_WAIT_MS = 30 * 60 * 60_000;
 const terminal = new Set(['succeeded', 'failed', 'cancelled', 'timed_out']);
 
 export async function waitForRun(runs: Runs, runId: string, options: WaitOptions = {}) {
@@ -34,19 +37,20 @@ export async function waitForRun(runs: Runs, runId: string, options: WaitOptions
     throw new RangeError('timeoutMs must be between 0 and 2147483647');
   const timeout = new AbortController();
   const failure = new WaitTimeoutError(runId);
-  const timer =
-    options.timeoutMs === undefined ? undefined : setTimeout(() => timeout.abort(failure), options.timeoutMs);
+  const timer = setTimeout(() => timeout.abort(failure), options.timeoutMs ?? DEFAULT_WAIT_MS);
   if (options.timeoutMs === 0) timeout.abort(failure);
   const signal = options.signal ? AbortSignal.any([options.signal, timeout.signal]) : timeout.signal;
   try {
     for (;;) {
       signal.throwIfAborted();
       const run = await runs.get(runId, { signal });
-      if (terminal.has(run.status)) {
+      const recovery = run.failure_code === 'run_recovery_required';
+      if (terminal.has(run.status) || recovery) {
         const result = await runs.getResult(runId, { signal });
         signal.throwIfAborted();
-        if (result.final && result.persistence_status !== 'pending') {
+        if (recovery || (result.final && result.persistence_status !== 'pending')) {
           if (
+            recovery ||
             run.status !== 'succeeded' ||
             result.execution_outcome !== 'success' ||
             !['verified', 'not_required'].includes(result.persistence_status)

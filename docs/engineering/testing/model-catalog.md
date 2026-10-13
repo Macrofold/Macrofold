@@ -19,6 +19,12 @@ The catalog tests use a freshly migrated disposable PostgreSQL database, synthet
 
 The complete-journey fixture reserves available test capacity and uses interactive scheduling because the broader suite retains synthetic background work. It still goes through the real SQL scheduler. Existing authorization, BYOK, financial, cancellation and replay tests remain enabled.
 
+## Direct inference recovery
+
+The missing/expired OpenRouter price path now refreshes metadata during inference preparation, independently of worker maintenance. The focused catalog suites pass **46 tests**, including real HTTP-handler admission against disposable PostgreSQL for missing and expired snapshots, frozen refreshed rates, refresh failure without admission or reservations, and failure backoff. Fresh requests and simulation make no discovery calls. Existing refresh concurrency, late-response fencing, capability/pricing rejection and native rate-freezing cases remain covered. No API schema or SDK transport changed.
+
+A separate October 11, 2026 local check used the integrating application's existing API key and exact BYOK OpenRouter connection with a synthetic JSON prompt. `meta/muse-spark-1.3-contributor` returned HTTP 200, a successful inference receipt and `{"ok": true}` in 3.45 seconds (2.16 seconds provider time). Reported usage was 22 input and 81 output tokens; upstream cost was $0.0000184, within the single-request $0.005 ceiling. This verifies the configured model/credential path, not the application's complete character-decision journey or hosted deployment. The live cache was already fresh; expired-cache recovery is established by the isolated regression cases above.
+
 ## SDK and command verification
 
 All five SDKs were regenerated from OpenAPI. The model response now exposes its name and exact integer-string input/output prices; these fields previously disappeared during API response validation.

@@ -146,10 +146,13 @@ Receipts preserve definition/schema/context digests, the actual credential-free 
 | Provider binding | Model | Supported decisions |
 | --- | --- | --- |
 | `anthropic` | Exact reviewed Anthropic routes in [model policy](../../../packages/core/src/model-policy.ts) | JSON, choice, score; bounded agents |
+| `openrouter` | Enabled generative routes in the [model catalog](../execution/models.md) | Native chat requests, JSON, choice, score; bounded agents |
 | `openrouter` | `typesafe/jev-1.13` | Choice and score through OpenRouter Decisions |
 | `typesafe` | `jev-1.13.0` | Choice and score directly through TypeSafe |
 
-Jev score is a finite number from zero through the last criterion index. Jev does not run bounded agents or generate arbitrary JSON. Unknown models and incompatible capabilities are rejected before dispatch. Native `listModels` remains a harness catalog, not a decision-model discovery promise.
+Jev score is a finite number from zero through the last criterion index. Jev does not run bounded agents or generate arbitrary JSON. Unknown models and incompatible capabilities are rejected before dispatch. `listModels` exposes the cached generative routes; it does not list the separate Jev decision routes. A successful Jev request therefore does not establish availability of a separate generative model used afterward.
+
+OpenRouter generative inference requires fresh discovered prices. Admission preparation attempts a bounded metadata refresh if prices are missing or expired, without requiring a worker for a direct call. If discovery fails or is already in progress, stale models remain rejected; see [refresh and recovery](../execution/models.md#refresh-and-caching). No model or credential fallback is performed.
 
 ### Use Jev with an OpenRouter key
 

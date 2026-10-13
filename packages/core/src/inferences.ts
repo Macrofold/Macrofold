@@ -11,6 +11,8 @@ import { validateContext, digest } from './explicit-context';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { decisionModel } from './decision-models';
 import { models } from './catalog';
+import { refreshExpiredOpenRouterCatalog } from './model-catalog';
+import { providerModelCatalog } from '../../providers/src/model-catalog';
 import { validateModelParameters } from './model-parameters';
 import { modelCredential } from './model-credentials';
 import { reserve } from './ledger';
@@ -225,6 +227,8 @@ export async function prepareInference(
     'workspace_required',
     'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
   );
+  if (input.model_binding.provider === 'openrouter' && input.model_binding.model !== 'typesafe/jev-1.13')
+    await refreshExpiredOpenRouterCatalog(providerModelCatalog());
   const definition =
     'definition_id' in input.definition
       ? (await transaction(p.organizationId, (tx) => resolveDefinition(tx, p, input))).definition

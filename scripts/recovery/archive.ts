@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../packages/contracts/pagination';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -111,6 +112,7 @@ export async function backupRecoverySet(
       ),
     ]);
     for (const org of organizations) {
+      const pages = new PaginationCursor();
       let cursor: string | undefined;
       do {
         const page = await store.list(`${org.id}/`, cursor, 1000);
@@ -124,7 +126,7 @@ export async function backupRecoverySet(
           await writeFile(archiveObject(directory, entry.key), bytes, { flag: 'wx', mode: 0o600 });
           objects.push(entry);
         }
-        cursor = page.next_cursor;
+        cursor = pages.next(page.next_cursor);
       } while (cursor);
     }
     await client.query('COMMIT');

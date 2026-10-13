@@ -93,7 +93,7 @@ Direct and bounded decisions use the existing gateway requests, wallet reservati
 
 ## Diagnostic tracing
 
-The [tracing integration](../observability/README.md) exports committed token counts, reservation/budget/charge details and known provider-cost estimates. Langfuse cost totals represent customer charges, with BYOK model charges zero and provider estimates kept separately. It does not replace the ledger or alter settlement.
+The [tracing integration](../observability/README.md) exports committed token counts, reservation/budget/charge details and known provider-cost estimates/reported amounts. Langfuse cost totals represent Macrofold customer charges, with BYOK model charges zero. Provider-reported account costs and upstream inference costs remain separate metadata, independent of retail estimates and settlement. It does not replace the ledger or alter settlement.
 
 ## Itemized usage API
 

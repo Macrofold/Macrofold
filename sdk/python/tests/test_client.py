@@ -160,3 +160,45 @@ def test_wait_operation_returns_terminal_failure_for_inspection(monkeypatch):
     with Client('https://agents.example.test', 'fixture', transport=httpx.MockTransport(handler)) as client:
         assert client.wait_operation('op') == {'id': 'op', 'status': 'failed', 'error': 'restore_failed'}
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize('retries', [float('inf'), float('nan'), -1, 9, 1.5, True])
+def test_retry_budget_is_finite(retries):
+    with pytest.raises(ValueError, match='retries'):
+        Client('https://agents.example.test', 'fixture', retries=retries)
+
+
+def test_empty_rotating_stream_eventually_detaches_without_cancel(monkeypatch):
+    monkeypatch.setattr('time.sleep', lambda _: None)
+    paths = []
+    def handler(request):
+        paths.append(request.url.path)
+        return httpx.Response(200, text='') if request.url.path.endswith('/stream') else httpx.Response(200, json={'status': 'running'})
+    with Client('https://agents.example.test', 'fixture', transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(TransportError, match='attachment limit'):
+            list(client.stream('run'))
+    assert sum(path.endswith('/stream') for path in paths) == 2048
+    assert not any('cancel' in path for path in paths)
+
+
+def test_unterminated_sse_line_is_bounded():
+    from macrofold.client import _sse_events
+    class Bytes(httpx.SyncByteStream):
+        def __iter__(self):
+            for _ in range(513):
+                yield b'x' * 8192
+    response = httpx.Response(200, stream=Bytes())
+    with pytest.raises(ValueError, match='4 MiB'):
+        list(_sse_events(response))
+
+
+def test_direct_inference_stream_has_its_own_longer_deadline(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr('time.monotonic', lambda: clock[0])
+    class Bytes(httpx.SyncByteStream):
+        def __iter__(self):
+            clock[0] = 90.0
+            yield b'data: {"type":"output.delta","data":{"text":"hello"}}\n\n'
+            yield b'data: {"type":"run.succeeded","data":{}}\n\n'
+    with Client('https://agents.example.test', 'fixture', transport=httpx.MockTransport(lambda _: httpx.Response(200, headers={'content-type':'text/event-stream'}, stream=Bytes()))) as client:
+        assert [event['type'] for event in client.stream_inference({})] == ['output.delta', 'run.succeeded']

@@ -22,7 +22,9 @@ Start with a workspace ID, [harness](../../execution/harnesses.md), model, billi
 
 Use `runs.stream_text` (with language-appropriate casing/accessors) for assistant text strings, or `runs.wait` for a complete typed result without streaming. Both report failed execution or persistence through a typed exception/error carrying the run ID. Waiting includes checkpoint persistence, but not optional Git synchronization. A wait timeout stops local waiting without cancelling the agent.
 
-Advanced integrations use `runs.events` for structured events and durable sequence cursors; `runs.stream` remains available. Streaming resumes after interruptions and suppresses duplicate sequences. Save a sequence to resume after a process restart. Detaching leaves the remote run running; use `runs.cancel` explicitly.
+Waits default to a finite 30-hour deadline; set a shorter application deadline for interactive work. `run_recovery_required` raises the typed run error promptly with the current receipt, which may still be unfinalized. Keep that Run ID and investigate recovery; do not automatically resubmit an agent that may already have acted. See [recovery events](../events.md#when-automatic-recovery-stops).
+
+Advanced integrations use `runs.events` for structured events and durable sequence cursors; `runs.stream` remains available. Streaming resumes after interruptions and suppresses duplicate sequences. Save a sequence to resume after a process restart. One attachment permits eight consecutive connection failures and 2,048 total connections; reattach explicitly from the saved sequence after exhaustion. Detaching leaves the remote run running; use `runs.cancel` explicitly.
 
 Direct model calls use `inferences.stream(request)` (language-appropriate casing) for typed incremental events and the saved terminal result. This is a single POST, with no token replay or reconnect after output begins. Use `inferences.create` for ordinary JSON responses. See the [streaming guide](../streaming.md) for copyable examples, capability errors, idempotency recovery and detachment.
 

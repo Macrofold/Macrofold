@@ -1,6 +1,8 @@
 // Shared deterministic native protocol fixture. Never forwards a request to a provider.
 export function nativeModelFixture({
   journey = false,
+  textOnly = false,
+  describeTool,
   workspace = '/workspace',
   questionMode = false,
   toolMode = false,
@@ -12,6 +14,7 @@ export function nativeModelFixture({
   let calls = 0;
   let chatTurns = 0;
   let responseDiscoveries = 0;
+  let describedTool = false;
   const observed = [];
   const filename = journey ? 'hello.txt' : 'native.txt';
   const content = journey ? 'Hello from the agent\n' : 'native tool persisted\n';
@@ -46,7 +49,7 @@ export function nativeModelFixture({
     try {
       body = JSON.parse(text);
     } catch {}
-    if (pathname.endsWith('/responses') || pathname.endsWith('/messages')) validateRequest?.(body);
+    if (!pathname.endsWith('/count_tokens')) validateRequest?.(body);
     const last = (body.messages || body.input || []).at(-1);
     const system = JSON.stringify(body.system || '');
     const toolResult =
@@ -102,7 +105,7 @@ export function nativeModelFixture({
           usage: { input_tokens: 100, output_tokens: 0 },
         },
       });
-      if (calls === 1 || brokerTurn(calls) || permissionTurn(calls) || (journey && [2, 4].includes(calls))) {
+      if (!textOnly && (calls === 1 || brokerTurn(calls) || permissionTurn(calls) || (journey && [2, 4].includes(calls)))) {
         const bypass = permissionMode && calls === permissionActions.length + 1;
         const name = brokerTurn(calls)
           ? 'mcp__platform__fixture_echo'
@@ -197,8 +200,13 @@ export function nativeModelFixture({
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       const send = (delta, finish_reason = null) =>
         res.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason }] })}\n\n`);
-      if (
-        body.tools?.length &&
+      if (describeTool && !describedTool && body.tools?.some(t => t.function?.name === 'tool_describe')) {
+        describedTool = true;
+        send({role: 'assistant', tool_calls: [{index: 0, id: 'fixture_describe', type: 'function',
+          function: {name: 'tool_describe', arguments: JSON.stringify({names: [describeTool]})}}]});
+        send({}, 'tool_calls');
+      } else if (
+        !textOnly && body.tools?.length &&
         (chatTurns === 1 || permissionTurn(chatTurns) || (journey && [2, 4].includes(chatTurns)))
       ) {
         const bypass = permissionMode && chatTurns === permissionActions.length + 1;
@@ -373,10 +381,10 @@ export function nativeModelFixture({
         },
       });
     } else if (
-      calls === 1 ||
+      !textOnly && (calls === 1 ||
       brokerTurn(turn) ||
       permissionTurn(turn) ||
-      (journey && [2, 4].includes(calls))
+      (journey && [2, 4].includes(calls)))
     ) {
       const tools = body.tools || [];
       const name =

@@ -77,7 +77,7 @@ export async function withCoverageBuild(webRoot: string, use: (directory: string
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return '';
         throw error;
       });
-      if (current.includes(path.relative(webRoot, directory) + '/dist/types/')) {
+      if (current.includes(path.relative(webRoot, directory) + '/dist/')) {
         if (previousEnv === undefined) await rm(nextEnv, { force: true });
         else await writeFile(nextEnv, previousEnv);
       }

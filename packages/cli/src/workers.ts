@@ -1,3 +1,4 @@
+import { PaginationCursor } from '../../contracts/pagination';
 import type { Schema } from '../../../sdk/typescript/src/client';
 import type { Handler } from './commands';
 import { Context, stringOption, type Options, uuid } from './context';
@@ -12,6 +13,7 @@ function decimalMicroUsd(value: string) {
 export async function workerId(context: Context, selector: string): Promise<string> {
   // UUID targeting needs only workers:use; resolving a display name additionally requires workers:read.
   if (uuid(selector)) return selector;
+  const pages = new PaginationCursor();
   let cursor: string | undefined;
   let found: string | undefined;
   do {
@@ -21,9 +23,13 @@ export async function workerId(context: Context, selector: string): Promise<stri
         if (found) throw new CliError('Worker name is ambiguous; use its ID.');
         found = worker.id;
       }
-    cursor = page.next_cursor || undefined;
+    cursor = pages.next(page.next_cursor);
   } while (cursor);
-  if (!found) throw new CliError('Worker not found. Inspect macrofold worker list; use a UUID for a destroyed Worker.', 5);
+  if (!found)
+    throw new CliError(
+      'Worker not found. Inspect macrofold worker list; use a UUID for a destroyed Worker.',
+      5,
+    );
   return found;
 }
 export async function workerRunOptions(
@@ -104,8 +110,10 @@ export const workerCommands: Record<string, Handler> = {
   'worker update': async ({ context, args, flags }) => {
     const ctx = await context();
     const worker = await selected(ctx, args);
-    const revision = typeof flags.revision === 'number' ? flags.revision
-      : (await ctx.client.request('getWorker', { params: { path: { worker_id: worker } } })).revision;
+    const revision =
+      typeof flags.revision === 'number'
+        ? flags.revision
+        : (await ctx.client.request('getWorker', { params: { path: { worker_id: worker } } })).revision;
     return {
       data: await ctx.client.request('patchWorker', {
         params: { path: { worker_id: worker } },

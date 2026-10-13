@@ -155,7 +155,7 @@ export async function retryTriggerReply(tx: Tx, p: Principal, triggerId: string,
     'Only failed or uncertain replies can be retried. Check Slack for an existing reply first.',
   );
   await tx.query(
-    "UPDATE dispatch_jobs SET state='pending',available_at=now(),lease_until=NULL WHERE kind='trigger' AND resource_id=$1",
+    "UPDATE dispatch_jobs SET state='pending',available_at=now(),lease_until=NULL,failure_attempts=0,error=NULL WHERE kind='trigger' AND resource_id=$1",
     [deliveryId],
   );
   return presentDelivery(d);

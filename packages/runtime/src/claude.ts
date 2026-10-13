@@ -1,5 +1,5 @@
 import { permissionAdapters } from '../../contracts/permission-adapters';
-import { permissionFileTools, fileToolName, fileToolDescription, fileToolShape } from './permission-files';
+import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
 import { query, createSdkMcpServer, tool, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { TurnInput } from './turn-input';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +21,7 @@ export class ClaudeAdapter implements HarnessAdapter {
     const { configuration: c, images = [], signal, emit } = context;
     const guarded = permissionAdapters['claude-code'].translate(c.permissions || []).mode === 'guarded';
     const files = permissionFileTools(c.workspace, c.permissions || []);
+    const definition = permissionFileDefinition(c.permissions || []);
     const controller = new AbortController();
     const abort = () => {
       controller.abort();
@@ -81,12 +82,12 @@ export class ClaudeAdapter implements HarnessAdapter {
                   },
                 }
               : {}),
-            ...(guarded
+            ...(guarded && definition
               ? {
                   worktree: createSdkMcpServer({
                     name: 'worktree',
                     tools: [
-                      tool(fileToolName, fileToolDescription, fileToolShape, async (args) => {
+                      tool(fileToolName, definition.description, definition.shape, async (args) => {
                         try {
                           return { content: [{ type: 'text' as const, text: await files(args) }] };
                         } catch (error) {

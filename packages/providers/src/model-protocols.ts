@@ -2,6 +2,7 @@ import { assert } from '../../core/src/errors';
 import type { ModelProtocol, ModelUsage } from '../../core/src/model-protocol';
 import { openRouterPriceCeiling } from './openrouter-pricing';
 import { validateModelParameters } from '../../core/src/model-parameters';
+import { reportedCost } from './reported-cost';
 
 function usageFromEvent(provider: string, event: Record<string, unknown>, previous: ModelUsage): ModelUsage {
   const next = { ...previous };
@@ -21,6 +22,7 @@ function usageFromEvent(provider: string, event: Record<string, unknown>, previo
     const response = event.response as { usage?: Record<string, unknown> } | undefined;
     const usage = (event.usage || response?.usage) as Record<string, unknown> | undefined;
     if (usage) {
+      if (provider === 'openrouter') Object.assign(next, reportedCost(usage));
       next.input = Number(usage.input_tokens ?? usage.prompt_tokens ?? 0);
       next.output = Number(usage.output_tokens ?? usage.completion_tokens ?? 0);
       next.cached = Number(

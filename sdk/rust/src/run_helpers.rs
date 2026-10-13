@@ -16,7 +16,7 @@ impl std::fmt::Display for RunFailedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Run {} ended with status {:?} (persistence: {}).",
+            "Run {} cannot complete successfully (status: {:?}, persistence: {}).",
             self.run_id, self.status, self.result.persistence_status
         )
     }
@@ -74,16 +74,23 @@ impl RunsResource<'_> {
     }
     /// Dropping this future stops waiting; it never cancels the remote run.
     pub async fn wait(&self, run_id: &str) -> Result<RunResult, ClientError> {
+        self.wait_with_timeout(run_id, Duration::from_secs(30 * 60 * 60))
+            .await
+    }
+    async fn poll_result(&self, run_id: &str) -> Result<RunResult, ClientError> {
         use crate::models::run::Status;
         loop {
             let run = self.get(run_id).await?;
+            let recovery = run.failure_code.as_deref() == Some("run_recovery_required");
             if matches!(
                 run.status,
                 Status::Succeeded | Status::Failed | Status::Cancelled | Status::TimedOut
-            ) {
+            ) || recovery
+            {
                 let result = self.get_result(run_id).await?;
-                if result.r#final && result.persistence_status != "pending" {
-                    if run.status != Status::Succeeded
+                if recovery || (result.r#final && result.persistence_status != "pending") {
+                    if recovery
+                        || run.status != Status::Succeeded
                         || result.execution_outcome != "success"
                         || !matches!(
                             result.persistence_status.as_str(),
@@ -113,7 +120,7 @@ impl RunsResource<'_> {
                 run_id: run_id.into(),
             }));
         }
-        tokio::time::timeout(timeout, self.wait(run_id))
+        tokio::time::timeout(timeout, self.poll_result(run_id))
             .await
             .map_err(|_| -> ClientError {
                 Box::new(WaitTimeoutError {

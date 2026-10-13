@@ -21,11 +21,17 @@ const codes = new Set([
   'ENOTFOUND',
   'ENOSPC',
   'ERR_MODULE_NOT_FOUND',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET',
 ]);
 const names = new Set(['Error', 'TypeError', 'SyntaxError', 'AbortError', 'TimeoutError']);
 const messages: Record<string, string> = {
   'OpenCode could not create a session': 'session_create_failed',
   'OpenCode turn failed': 'turn_failed',
+  'OpenCode final message unavailable': 'final_message_unavailable',
+  'OpenCode event stream ended before subscription': 'event_stream_closed',
   'OpenCode event stream closed during the turn': 'event_stream_closed',
   'OpenCode event stream ended before the turn completed': 'event_stream_closed',
   'Checked file service unavailable.': 'file_service_unavailable',

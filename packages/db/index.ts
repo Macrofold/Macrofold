@@ -14,17 +14,26 @@ const globals = globalThis as unknown as {
   authPool?: pg.Pool;
   credentialPool?: pg.Pool;
 };
+// A lock or lost connection must return control to the bounded recovery path.
+// The server stops the statement before the client's wire deadline expires.
+const databaseTimeouts = {
+  connectionTimeoutMillis: 5000,
+  query_timeout: 65000,
+};
+const databaseOptions = '-c statement_timeout=60000 -c idle_in_transaction_session_timeout=120000';
 export const pool = (globals.platformPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
   max: 5,
   idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 5000,
+  ...databaseTimeouts,
+  options: databaseOptions,
 }));
 // Better Auth owns its own non-tenant schema; domain transactions use a separate role/context.
 export const authPool = (globals.authPool ||= new pg.Pool({
   connectionString: process.env.AUTH_DATABASE_URL || config.databaseUrl,
   max: 3,
-  options: '-c search_path=auth,public',
+  ...databaseTimeouts,
+  options: `${databaseOptions} -c search_path=auth,public`,
 }));
 // OAuth refresh must commit independently of the caller's resource transaction. Sharing
 // its pool can exhaust every connection with callers waiting for a nested refresh.
@@ -32,7 +41,8 @@ export const credentialPool = (globals.credentialPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
   max: 2,
   idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 5000,
+  ...databaseTimeouts,
+  options: databaseOptions,
 }));
 export async function transaction<T>(
   organization: string | null,
@@ -59,6 +69,11 @@ async function transact<T>(
   storageLock?: 'shared' | 'exclusive',
   statementTimeoutMs?: number,
 ) {
+  if (
+    statementTimeoutMs !== undefined &&
+    (!Number.isSafeInteger(statementTimeoutMs) || statementTimeoutMs < 1 || statementTimeoutMs > 60000)
+  )
+    throw new RangeError('The statement deadline must be between 1 and 60000 milliseconds.');
   const tx = await connections.connect();
   const observers: (() => void)[] = [];
   commitObservers.set(tx, observers);
@@ -105,6 +120,8 @@ export async function lock(tx: Tx, value: string) {
  * another claimant holds the same admission boundary. Ownership remains in SQL. */
 export async function tryLock(tx: Tx, value: string): Promise<boolean> {
   const result = await tx.query<{ acquired: boolean }>(
-    'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS acquired', [value]);
+    'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS acquired',
+    [value],
+  );
   return result.rows[0].acquired;
 }

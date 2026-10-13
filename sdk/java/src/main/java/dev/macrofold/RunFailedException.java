@@ -3,7 +3,7 @@ package dev.macrofold;
 import dev.macrofold.model.RunResult;
 import java.util.UUID;
 
-/** A completed run whose execution or persistence did not succeed. */
+/** Failed execution/persistence, or automatic recovery stopped with an unsettled receipt. */
 public final class RunFailedException extends Exception {
   private final UUID runId;
   private final String status;
@@ -11,7 +11,7 @@ public final class RunFailedException extends Exception {
   private final RunResult result;
 
   public RunFailedException(UUID runId, String status, String failureCode, RunResult result) {
-    super("Run " + runId + " ended with status " + status + " (persistence: " + result.getPersistenceStatus() + ").");
+    super("Run " + runId + " cannot complete successfully with status " + status + " (persistence: " + result.getPersistenceStatus() + ").");
     this.runId = runId;
     this.status = status;
     this.failureCode = failureCode;

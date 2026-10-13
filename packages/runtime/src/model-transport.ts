@@ -42,7 +42,10 @@ export async function startModelTransport(
       }
       const controller = new AbortController();
       res.once('close', () => controller.abort());
-      const aborted = AbortSignal.any([turn.signal, controller.signal]);
+      const aborted = AbortSignal.any([turn.signal, controller.signal, AbortSignal.timeout(300_000)]);
+      const abortRead = () => req.destroy(new Error('Model transport interrupted'));
+      aborted.addEventListener('abort', abortRead, { once: true });
+      res.once('close', () => aborted.removeEventListener('abort', abortRead));
       const chunks: Buffer[] = [];
       let size = 0;
       for await (const chunk of req.iterator({ destroyOnReturn: false })) {
@@ -123,16 +126,22 @@ export async function startModelTransport(
           : {}),
       });
       const reader = response.body?.getReader();
+      let outputBytes = 0,
+        emptyChunks = 0;
       try {
         if (reader)
           for (;;) {
             const item = await reader.read();
             if (item.done) break;
+            emptyChunks = item.value.byteLength ? 0 : emptyChunks + 1;
+            outputBytes += item.value.byteLength;
+            if (aborted.aborted || emptyChunks >= 16 || outputBytes > 32 * 1024 * 1024)
+              throw new Error('Model transport exceeded its stream limits');
             if (!res.write(item.value)) await once(res, 'drain', { signal: aborted });
           }
         res.end();
       } finally {
-        await reader?.cancel().catch(() => {});
+        void reader?.cancel().catch(() => {});
       }
     })().catch(() => {
       if (!res.headersSent) res.writeHead(502);

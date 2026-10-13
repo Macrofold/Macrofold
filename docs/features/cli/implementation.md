@@ -137,3 +137,7 @@ The [machine-readable command contract](../../api/cli.json) maps every command t
 ## Connector access boundary
 
 CLI run/chat admission remains a client of the shared resolver. It must not convert an omitted selection into an empty list, infer authorization from owner identity, or reconstruct an old per-run exception on continuation. The explicit --connection selector narrows persistent policy for custom, preset and continued runs; --no-connections selects none. Omitting both inherits. The two flags are mutually exclusive. Chat uses a supplied selection for its messages; it never creates a temporary authorization exception. Rule mutation and advisory resolve are available through generated SDK operations; [connector access](../identity-integrations/connection-access.md) owns their semantics.
+
+## Finite local work
+
+The CLI inherits SDK Run waiting (30 hours by default), stream reconnect and HTTP deadlines. Wait expiry detaches without cancelling the remote Run. `run_recovery_required` stops text/completion waiting with a typed error and retained receipt. Remote lists reject repeated cursors or more than 1,000 pages; explicit local folder inventory stops after 100,000 entries, before transfer admission. Local Git subprocesses have a two-minute deadline and fixed stdout/stderr ceilings; object downloads retain the five-minute deadline, byte/hash checks and non-progress rejection. Human prompt/EOF waiting is intentionally interactive and is not an automatic retry loop.

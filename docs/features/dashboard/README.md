@@ -74,6 +74,10 @@ Model and harness choices show their company marks in both the dropdown and sele
 
 Waiting runs show why they are waiting, how long they have waited, their expiry deadline, and held credits. Execution, checkpoint persistence, and Git sync are displayed separately.
 
+If repeated failures stop automatic processing, the page names the failed step, such as **Couldn’t save run files**, **Couldn’t finalize run billing**, or **Couldn’t clean up the worker**. It explains the known cause, retry count, and whether this run’s files are confirmed saved. **Technical details** shows the exact step, safe error code and any earlier run failure; **View events** opens the recorded activity. Copy the Run ID from Run details when asking the operator to investigate the indicated step.
+
+Waiting animations and stream reconnection stop. The last verified checkpoint and execution identity remain available. A cleanup failure does not undo confirmed file saving or settled charges. Unknown details stay explicitly unknown; this state does not offer to replay the agent or imply that uncertain work settled successfully.
+
 ## Work with files
 
 Choose a workspace and worktree, then browse folders or filter files in the explorer. Use breadcrumbs to return to a parent folder. Create files and folders, upload files, or rename a selected file from its toolbar. On desktop, drag the divider to resize the explorer beside the viewer; the file view uses the available page height. On mobile, the explorer sits above the viewer.

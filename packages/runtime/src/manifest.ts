@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open, readdir, readFile, readlink, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { isPersistentPath, mayContainPersistentPath, type SnapshotRoots } from './persistence-paths';
+import {
+  isPersistentPath,
+  mayContainPersistentPath,
+  nativeDatabases,
+  type SnapshotRoots,
+} from './persistence-paths';
+import { normalizedSqliteCopy, sqliteCompanions } from './sqlite-snapshot';
 
 export const CHUNK_BYTES = 4 * 1024 * 1024;
 export type SnapshotEntry = {
@@ -52,10 +58,13 @@ async function captureSnapshotOwned(
     await writeFile(path.join(output, 'chunks', hash), bytes, { mode: 0o640 });
     return { hash, size: bytes.length };
   };
+  let visited = 0;
   for (const namespace of ['workspace', 'home'] as const) {
     const root = roots[namespace];
+    const normalized = new Set<string>();
     const walk = async (directory: string): Promise<void> => {
       for (const name of (await readdir(directory)).sort()) {
+        if (++visited > Math.max(1000, limits.entries * 2)) throw new Error('checkpoint_traversal_limit');
         const absolute = path.join(directory, name),
           relative = relativePath(path.relative(root, absolute));
         if (!mayContainPersistentPath(roots.harness, namespace, relative)) continue;
@@ -65,6 +74,7 @@ async function captureSnapshotOwned(
           continue;
         }
         if (!isPersistentPath(roots.harness, namespace, relative)) continue;
+        if (normalized.has(relative)) continue;
         // Runtime sockets and FIFOs have no persistent file content and cannot be restored meaningfully.
         if (!stat.isFile() && !stat.isSymbolicLink()) continue;
         if (index.entries.length >= limits.entries) throw new Error('checkpoint_entry_limit');
@@ -80,16 +90,25 @@ async function captureSnapshotOwned(
         };
         if (stat.isSymbolicLink()) await add(Buffer.from(await readlink(absolute)));
         else {
-          const handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+          const copy =
+            namespace === 'home' && nativeDatabases(roots.harness).includes(relative)
+              ? await normalizedSqliteCopy(absolute, output)
+              : undefined;
           try {
-            const bytes = Buffer.alloc(CHUNK_BYTES);
-            while (true) {
-              const next = await handle.read(bytes, 0, bytes.length, null);
-              if (!next.bytesRead) break;
-              await add(bytes.subarray(0, next.bytesRead));
+            const handle = await open(copy?.database || absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+            try {
+              const bytes = Buffer.alloc(CHUNK_BYTES);
+              while (true) {
+                const next = await handle.read(bytes, 0, bytes.length, null);
+                if (!next.bytesRead) break;
+                await add(bytes.subarray(0, next.bytesRead));
+              }
+            } finally {
+              await handle.close();
             }
+            if (copy) for (const suffix of sqliteCompanions) normalized.add(relative + suffix);
           } finally {
-            await handle.close();
+            await copy?.cleanup();
           }
         }
         index.entries.push({
@@ -113,13 +132,22 @@ async function captureSnapshotOwned(
 let captures = 0;
 const captureWaiters: (() => void)[] = [];
 export async function captureSnapshot(
-  roots: SnapshotRoots, output: string,
+  roots: SnapshotRoots,
+  output: string,
   limits = { bytes: 10 * 1024 ** 3, entries: 100_000 },
 ): Promise<SnapshotIndex> {
-  if (captures >= 2) await new Promise<void>(resolve => captureWaiters.push(resolve));
+  if (
+    !Number.isSafeInteger(limits.bytes) ||
+    limits.bytes < 0 ||
+    !Number.isSafeInteger(limits.entries) ||
+    limits.entries < 0
+  )
+    throw new Error('checkpoint_invalid_limits');
+  if (captures >= 2) await new Promise<void>((resolve) => captureWaiters.push(resolve));
   else captures++;
-  try { return await captureSnapshotOwned(roots, output, limits); }
-  finally {
+  try {
+    return await captureSnapshotOwned(roots, output, limits);
+  } finally {
     const next = captureWaiters.shift();
     if (next) next();
     else captures--;

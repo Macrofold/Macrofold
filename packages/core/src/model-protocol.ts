@@ -6,6 +6,10 @@ export type ModelUsage = {
   cached: number;
   cacheWrite: number;
   complete: boolean;
+  /** Diagnostic USD amounts reported by the provider, never customer settlement.
+   * Omitted means unknown; retain sub-micro-dollar precision and genuine zero. */
+  providerReportedCostUsd?: number;
+  upstreamInferenceCostUsd?: number;
 };
 export const emptyUsage = (): ModelUsage => ({
   input: 0,

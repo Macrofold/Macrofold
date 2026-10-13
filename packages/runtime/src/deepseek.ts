@@ -1,3 +1,4 @@
+import { fileAccess } from '../../contracts/permissions';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +16,8 @@ export class DeepSeekAdapter implements HarnessAdapter {
   async run(context: HarnessContext): Promise<NativeResult> {
     const { configuration: c, signal } = context;
     const guarded = permissionAdapters.deepseek.translate(c.permissions || []).mode === 'guarded';
-    if (guarded && !context.fileTools) throw new Error('Checked file service unavailable.');
+    if (guarded && fileAccess(c.permissions || []).read && !context.fileTools)
+      throw new Error('Checked file service unavailable.');
     signal.throwIfAborted();
     const home = path.join(c.stateHome, '.runtime-transient/dsh');
     const sessions = path.join(c.stateHome, '.dsh/sessions');

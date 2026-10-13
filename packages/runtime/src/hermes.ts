@@ -1,3 +1,4 @@
+import { fileAccess } from '../../contracts/permissions';
 import type { HarnessAdapter, HarnessContext } from './types';
 import { NativeBridge } from './native-bridge';
 import { permissionAdapters } from '../../contracts/permission-adapters';
@@ -10,7 +11,8 @@ export class HermesAdapter implements HarnessAdapter {
   run(context: HarnessContext) {
     const c = context.configuration;
     const guarded = permissionAdapters.hermes.translate(c.permissions || []).mode === 'guarded';
-    if (guarded && !context.fileTools) throw new Error('Checked file service unavailable.');
+    if (guarded && fileAccess(c.permissions || []).read && !context.fileTools)
+      throw new Error('Checked file service unavailable.');
     return this.bridge.run(
       'Hermes',
       '/opt/hermes/.venv/bin/python',
@@ -31,6 +33,8 @@ export class HermesAdapter implements HarnessAdapter {
           TERMINAL_ENV: 'local',
           TERMINAL_CWD: c.workspace,
           PYTHONPATH: '/opt/hermes',
+          // Deny-all has no file service, but must still disable native tools.
+          PLATFORM_GUARDED: guarded ? '1' : '0',
           ...(context.fileTools
             ? {
                 PLATFORM_FILE_TOOL_URL: context.fileTools.url,

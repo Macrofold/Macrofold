@@ -145,7 +145,7 @@ export async function holdEvidence(tx: Tx, org: string, taskId: string, artifact
 }
 export async function queueTaskProgress(tx: Tx, org: string, taskId: string) {
   await tx.query(
-    "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'decision_task',$3) ON CONFLICT(kind,resource_id) DO UPDATE SET state='pending',available_at=now(),lease_until=NULL",
+    "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'decision_task',$3) ON CONFLICT(kind,resource_id) DO UPDATE SET state='pending',available_at=now(),lease_until=NULL,failure_attempts=0,error=NULL",
     [id(), org, taskId],
   );
 }

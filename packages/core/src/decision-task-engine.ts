@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool, transaction, type Tx } from '../../db';
 import { saveContent } from '../../providers/src/storage';
 import { storagePreparation } from './storage-preparation';
@@ -217,16 +218,14 @@ export async function advanceTask(org: string, taskId: string) {
 }
 export async function dispatchDecisionTasks() {
   const jobs =
-    await pool.query(`WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='decision_task' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT 10 FOR UPDATE SKIP LOCKED)
+    await pool.query(`WITH due AS (SELECT id FROM dispatch_jobs WHERE kind='decision_task' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 10 FOR UPDATE SKIP LOCKED)
     UPDATE dispatch_jobs j SET available_at=now()+interval '2 minutes' FROM due WHERE j.id=due.id RETURNING j.organization_id,j.resource_id`);
   for (const job of jobs.rows) {
     try {
       await advanceTask(job.organization_id, job.resource_id);
+      await dispatchSucceeded(job.organization_id, 'decision_task', job.resource_id);
     } catch {
-      await pool.query(
-        "UPDATE dispatch_jobs SET available_at=now()+interval '30 seconds',error='task_advance_failed' WHERE kind='decision_task' AND resource_id=$1",
-        [job.resource_id],
-      );
+      await dispatchFailed(job.organization_id, 'decision_task', job.resource_id, 'task_advance_failed');
     }
   }
   return { tasks_advanced: jobs.rowCount || 0 };

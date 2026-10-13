@@ -175,6 +175,8 @@ describe('model gateway metering without provider calls', () => {
   it.each(['openai', 'anthropic', 'openrouter'])(
     'uses encrypted %s BYOK credentials and refuses local revocation without managed fallback',
     async (provider) => {
+      const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+      vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
       const s = await prepared();
       const connectionId = await transaction(p.organizationId, async (tx) => {
         const connection = await saveConnection(tx, p, {
@@ -203,7 +205,13 @@ describe('model gateway metering without provider calls', () => {
         return Response.json(
           provider === 'anthropic'
             ? { type: 'message', usage: { input_tokens: 11, output_tokens: 3 } }
-            : { usage: { prompt_tokens: 11, completion_tokens: 3 } },
+            : {
+                usage: {
+                  prompt_tokens: 11,
+                  completion_tokens: 3,
+                  ...(provider === 'openrouter' ? { cost: 0.00000123 } : {}),
+                },
+              },
         );
       });
       const path =
@@ -232,6 +240,21 @@ describe('model gateway metering without provider calls', () => {
         budget: { cost_micro_usd: '0', budget_used_micro_usd: '17', model_reserved_micro_usd: '0' },
         usage: [{ billing_mode: 'byok', cost_micro_usd: '17', completeness: 'complete' }],
       });
+      const expected = {
+        provider_reported_cost_usd: provider === 'openrouter' ? 0.00000123 : null,
+        provider_reported_cost_status: provider === 'openrouter' ? 'reported' : 'unavailable',
+      };
+      expect(trace.mock.calls.map(([o]) => o).find((o) => o.type === 'generation')).toMatchObject({
+        chargedMicroUsd: '0',
+        metadata: expected,
+      });
+      const details = await transaction(
+        p.organizationId,
+        async (tx) =>
+          (await tx.query('SELECT usage_details FROM model_usage WHERE run_id=$1', [s.runId])).rows[0]
+            .usage_details,
+      );
+      expect(details).toMatchObject(expected);
       await transaction(p.organizationId, (tx) =>
         resources.update(tx, 'connections', connectionId, { status: 'error' }),
       );

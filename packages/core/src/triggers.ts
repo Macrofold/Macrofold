@@ -347,7 +347,7 @@ export async function saveTrigger(tx: Tx, p: Principal, input: TriggerInput, tri
   if (t.kind === 'schedule')
     await tx.query(
       `INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id,available_at,state)
-    VALUES($1,$2,'trigger_schedule',$3,$4,$5) ON CONFLICT(kind,resource_id) DO UPDATE SET available_at=excluded.available_at,state=excluded.state`,
+    VALUES($1,$2,'trigger_schedule',$3,$4,$5) ON CONFLICT(kind,resource_id) DO UPDATE SET available_at=excluded.available_at,state=excluded.state,failure_attempts=0,error=NULL`,
       [id(), p.organizationId, t.id, next, t.enabled ? 'pending' : 'done'],
     );
   return { ...presentTrigger(t), ...(secret ? { webhook_secret: secret } : {}) };

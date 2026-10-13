@@ -2,10 +2,14 @@ import type { HarnessName } from '../../contracts/harnesses';
 import { isNativeAuthPath } from './auth-paths';
 
 export type SnapshotRoots = { workspace: string; home: string; harness: HarnessName };
-type HomePersistence = { directories: readonly string[]; files: readonly string[] };
+type HomePersistence = {
+  directories: readonly string[];
+  files: readonly string[];
+  databases?: readonly string[];
+};
 
 // A suspended SQLite writer can leave committed history in its WAL. Capture all
-// companions together; never open/checkpoint a live harness DB from the supervisor.
+// companions together unless a private copy has been successfully normalized.
 const sqlite = (...names: string[]) =>
   names.flatMap((name) => ['', '-wal', '-shm', '-journal'].map((suffix) => name + suffix));
 
@@ -21,17 +25,13 @@ const nativeHome: Record<HarnessName, HomePersistence> = {
       '.codex/skills',
       '.agents/skills',
     ],
-    files: [
-      '.codex/AGENTS.md',
-      '.codex/AGENTS.override.md',
-      '.codex/session_index.jsonl',
-      ...sqlite(
-        '.codex/state_5.sqlite',
-        '.codex/memories_1.sqlite',
-        '.codex/goals_1.sqlite',
-        '.codex/queue_1.sqlite',
-        '.codex/thread_history_1.sqlite',
-      ),
+    files: ['.codex/AGENTS.md', '.codex/AGENTS.override.md', '.codex/session_index.jsonl'],
+    databases: [
+      '.codex/state_5.sqlite',
+      '.codex/memories_1.sqlite',
+      '.codex/goals_1.sqlite',
+      '.codex/queue_1.sqlite',
+      '.codex/thread_history_1.sqlite',
     ],
   },
   'claude-code': {
@@ -64,15 +64,16 @@ const nativeHome: Record<HarnessName, HomePersistence> = {
       '.config/opencode/plugins',
     ],
     files: [
-      ...sqlite('.local/share/opencode/opencode.db'),
       '.config/opencode/opencode.json',
       '.config/opencode/opencode.jsonc',
       '.config/opencode/AGENTS.md',
     ],
+    databases: ['.local/share/opencode/opencode.db'],
   },
   hermes: {
     directories: ['.hermes/sessions', '.hermes/memories', '.hermes/skills'],
-    files: [...sqlite('.hermes/state.db'), '.hermes/SOUL.md'],
+    files: ['.hermes/SOUL.md'],
+    databases: ['.hermes/state.db'],
   },
   deepseek: { directories: ['.dsh/sessions'], files: [] },
   pi: {
@@ -89,6 +90,10 @@ const nativeHome: Record<HarnessName, HomePersistence> = {
   },
 };
 
+export function nativeDatabases(harness: HarnessName) {
+  return nativeHome[harness].databases || [];
+}
+
 export function isPersistentPath(
   harness: HarnessName,
   namespace: 'workspace' | 'home',
@@ -99,6 +104,7 @@ export function isPersistentPath(
   const profile = nativeHome[harness];
   return (
     profile.files.includes(name) ||
+    sqlite(...nativeDatabases(harness)).includes(name) ||
     profile.directories.some((directory) => name === directory || name.startsWith(`${directory}/`))
   );
 }
@@ -115,6 +121,6 @@ export function mayContainPersistentPath(
   const profile = nativeHome[harness];
   return (
     profile.directories.some((entry) => entry.startsWith(`${name}/`)) ||
-    profile.files.some((entry) => entry.startsWith(`${name}/`))
+    [...profile.files, ...nativeDatabases(harness)].some((entry) => entry.startsWith(`${name}/`))
   );
 }

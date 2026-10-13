@@ -16,7 +16,7 @@ type RunFailedError struct {
 }
 
 func (e *RunFailedError) Error() string {
-	return fmt.Sprintf("run %s ended with status %s (persistence: %s)", e.RunID, e.Status, e.Result.PersistenceStatus)
+	return fmt.Sprintf("run %s cannot complete successfully (status: %s, persistence: %s)", e.RunID, e.Status, e.Result.PersistenceStatus)
 }
 
 type WaitTimeoutError struct{ RunID string }
@@ -48,6 +48,11 @@ func (r *RunsResource) StreamText(ctx context.Context, runID, after string, rece
 
 // Wait returns the durable result. Use a context deadline to stop waiting, not the remote agent.
 func (r *RunsResource) Wait(ctx context.Context, runID string, options ...RequestOption) (result *RunResult, err error) {
+	if _, bounded := ctx.Deadline(); !bounded {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Hour)
+		defer cancel()
+	}
 	defer func() {
 		if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == context.DeadlineExceeded {
 			err = &WaitTimeoutError{RunID: runID}
@@ -61,8 +66,8 @@ func (r *RunsResource) Wait(ctx context.Context, runID string, options ...Reques
 		if err != nil {
 			return nil, err
 		}
-		switch run.Status {
-		case "succeeded", "failed", "cancelled", "timed_out":
+		recovery := run.GetFailureCode() == "run_recovery_required"
+		if recovery || run.Status == "succeeded" || run.Status == "failed" || run.Status == "cancelled" || run.Status == "timed_out" {
 			result, err := r.GetResult(ctx, runID, options...)
 			if err != nil {
 				return nil, err
@@ -70,8 +75,8 @@ func (r *RunsResource) Wait(ctx context.Context, runID string, options ...Reques
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			if result.Final && result.PersistenceStatus != "pending" {
-				if run.Status != "succeeded" || result.ExecutionOutcome != "success" || (result.PersistenceStatus != "verified" && result.PersistenceStatus != "not_required") {
+			if recovery || (result.Final && result.PersistenceStatus != "pending") {
+				if recovery || run.Status != "succeeded" || result.ExecutionOutcome != "success" || (result.PersistenceStatus != "verified" && result.PersistenceStatus != "not_required") {
 					return nil, &RunFailedError{RunID: runID, Status: run.Status, FailureCode: run.GetFailureCode(), Result: result}
 				}
 				return result, nil

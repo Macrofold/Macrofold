@@ -7,6 +7,7 @@ import { id, sha256, sameSecret } from './crypto';
 import * as resources from './resources';
 import { queueGitSync } from './git-jobs';
 import { customerScopes, type Principal } from './auth';
+import { dispatchFailed } from './dispatch-failures';
 
 const numericId = z.number().int().positive().safe().transform(String);
 const payloadSchema = z.object({
@@ -127,7 +128,7 @@ export async function githubWebhook(request: Request) {
           },
         });
         await tx.query(
-          "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'github_pull',$3) ON CONFLICT(kind,resource_id) DO UPDATE SET state='pending',available_at=now()",
+          "INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id,expires_at) VALUES($1,$2,'github_pull',$3,now()+interval '1 day') ON CONFLICT(kind,resource_id) DO UPDATE SET state='pending',available_at=now(),expires_at=excluded.expires_at,failure_attempts=0,error=NULL",
           [id(), org, ws.id],
         );
       }
@@ -140,8 +141,13 @@ export async function githubWebhook(request: Request) {
 /** Coalesce notifications into a current remote fetch, never replay the event's commit. A busy
  * worktree is deferred; the existing Git merge implementation preserves divergent local files. */
 export async function dispatchGithubPulls() {
+  // A permanently busy worktree must not keep a notification alive indefinitely.
+  // A later push creates a new bounded occurrence; explicit pull is still available.
+  await pool.query(
+    "UPDATE dispatch_jobs SET state='blocked',error='github_pull_expired' WHERE kind='github_pull' AND state IN ('pending','running') AND expires_at<=now()",
+  );
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='github_pull' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT 5",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='github_pull' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT 5",
   );
   for (const job of jobs.rows) {
     try {
@@ -155,7 +161,7 @@ export async function dispatchGithubPulls() {
         await tx.query('SELECT id FROM worktrees WHERE id=$1 FOR UPDATE', [job.resource_id]);
         // Lock the row so a newly arriving notification cannot be marked done by this sweep.
         const pending = await tx.query(
-          "SELECT 1 FROM dispatch_jobs WHERE kind='github_pull' AND resource_id=$1 AND state<>'done' FOR UPDATE",
+          "SELECT 1 FROM dispatch_jobs WHERE kind='github_pull' AND resource_id=$1 AND state IN ('pending','running') FOR UPDATE",
           [job.resource_id],
         );
         if (!pending.rowCount) return;
@@ -204,9 +210,11 @@ export async function dispatchGithubPulls() {
         ]);
       });
     } catch {
-      await pool.query(
-        "UPDATE dispatch_jobs SET attempts=attempts+1,available_at=now()+interval '5 minutes',error='github_pull_dispatch_failed' WHERE kind='github_pull' AND resource_id=$1",
-        [job.resource_id],
+      await dispatchFailed(
+        job.organization_id,
+        'github_pull',
+        job.resource_id,
+        'github_pull_dispatch_failed',
       );
     }
   }

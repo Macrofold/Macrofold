@@ -30,7 +30,7 @@ Connector include/exclude rules apply to all six harnesses at broker discovery a
 | DeepSeek | Minimal profile disables both shell dialects and the bare filesystem editor; native agent/session loop retained | Loopback MCP |
 | Pi | Builtin tools disabled; explicit custom-tool allowlist | SDK custom tool |
 
-Guarded runs expose the shared `worktree_files` implementation for listing, reading, writing, deleting files and creating folders. It validates paths and patterns, rejects symlinks and traversal, bounds content, and serializes file calls. Remote connector tools continue through the authorized broker. MCP file endpoints bind to loopback with a fresh per-worker credential and close with that worker; their addresses and credentials are never portable state.
+Guarded runs expose the shared `worktree_files` implementation only when file reads are possible. Explicit deny-all (including an empty read include list) omits the file tool and Macrofold filesystem instructions entirely. Read-only runs advertise only `list` and `read`, with reading-only guidance. Writable runs advertise file mutation actions and conditional guidance for permitted `outputs/` files. Session history still persists in every mode. Tool visibility conservatively detects explicit deny-all; complex glob intersections remain enforced per operation. It validates paths and patterns, rejects symlinks and traversal, bounds content, and serializes file calls. Remote connector tools continue through the authorized broker. MCP file endpoints bind to loopback with a fresh per-worker credential and close with that worker; their addresses and credentials are never portable state.
 
 **File restrictions disable shell access**, including when a child policy requests shell access. A general shell could bypass individual file checks. Unrestricted runs retain their normal native file and shell tools. Native glob languages and rule precedence differ, so the adapters do not flatten intersecting policies into approximations: native controls close alternate execution paths while the canonical evaluator decides each file operation. Codex's profile provides an additional native filesystem boundary rather than a second translation of our glob grammar. See [Codex filesystem profiles](https://learn.chatgpt.com/docs/permissions#filesystem-permissions) and [OpenCode permissions](https://opencode.ai/docs/permissions/).
 
@@ -45,3 +45,15 @@ The canonical policy schema and evaluator live in `packages/contracts/permission
 Extend a native adapter only when its pinned version can enforce the policy without granting another path to the same capability. Unsupported native concepts must return a diagnostic; do not round-trip arbitrary native settings through a lossy generic dictionary. Claude's permission callbacks can be skipped by allow modes, and Codex documents hook coverage limitations, so approval callbacks alone are insufficient for universal file restrictions. [Claude SDK permissions](https://code.claude.com/docs/en/agent-sdk/permissions), [Codex hooks](https://learn.chatgpt.com/docs/hooks).
 
 Tests use disposable filesystems, databases and scripted models. `pnpm test:native --permissions --image-only` exercises all six actual pinned harnesses with permitted edits, denied reads/writes, traversal and symlink attempts, disabled native tool calls, and replacement-runtime continuation. CI runs this matrix without external network access. Native paid execution and live cloud acceptance remain separate, opt-in checks; see [testing](../../engineering/testing.md).
+
+## Connector-only agents
+
+Use the existing permissions field; no separate filesystem-mode option is required:
+
+```json
+{"permissions":{"version":1,"files":{"read":{"include":[]},"write":{"include":[]}},"shell":"deny"}}
+```
+
+This omits native and checked file tools. Authorized remote connectors can still save application data through their own tools. To allow reading while forbidding changes, omit `files.read` and keep the empty `files.write.include`. The checked listing tool accepts `path: "."` for the worktree root; other paths remain relative and confined.
+
+`pnpm test:native --file-access --image-only` checks actual model-facing tool visibility and independent session capture for both modes across all six harnesses.

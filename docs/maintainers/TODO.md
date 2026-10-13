@@ -1,5 +1,12 @@
 # Engineering TODO
 
+## Bounded operations and recovery
+
+- [x] Audit authored retry/poll/pagination/traversal paths, bound failed dispatch and native/Host recovery, and preserve checkpoints, execution identity and unresolved holds on exhaustion. Database/object/model I/O and SDK waits have finite deadlines; clients stop on the recovery notice. See [implementation plan](../projects/bounded-work.md) and [local evidence](../features/execution/workers/verification.md#bounded-work-and-recovery).
+- [x] Replace vague recovery labels with the failed processing step, safe cause, consecutive retry count, checkpoint confirmation and operator guidance. Add shared event diagnostics and prevent blocked queued Runs from taking scheduler turns without releasing uncertain active ownership. Migration 050 is applied locally; targeted fixtures and browser acceptance are recorded in Worker verification.
+- [ ] Complete full SDK verification for the actionable event diagnostics with the configured Python/Pyright, Go and JDK/Maven toolchains. The latest run passed the TypeScript API journey and 211 Python tests before missing Pyright stopped it; do not substitute earlier full-suite evidence for this tree.
+- [ ] Accept migrations 048–050 and the rebuilt runtime in the hosted environment. Verify restricted reporting access, pooled PostgreSQL timeout options, provider provisioning/stop outages, retained obligations, blocked-queue fairness and raw SSE closure with actionable diagnostics after recovery exhaustion. Local fixtures do not establish hosted provider recovery or the caller's complete draft/approval journey.
+
 ## Native reasoning streams
 
 - [x] Expose readable native reasoning through shared lifecycle/delta events, generated API/SDK models and grouped dashboard disclosures. Manual local live execution verified all five supported adapters; public/internal docs describe model-dependent visibility and remaining hosted acceptance.
@@ -93,6 +100,8 @@ Implementation and verification: [plan](../projects/native-home-persistence.md);
 - [ ] Publish the rebuilt runtime image to intended hosted providers and verify the same continuation/persistence path there. Local Docker activation does not update hosted images or already-running Hosts.
 
 ## Worker stall diagnostics follow-up
+
+- [x] Fix guarded failed-publication nontermination and classify local Docker setup failures without exposing raw stderr. Verify terminal cancellation, unchanged durable files/Session state, single settlement, transport bounds and actual OpenCode Docker/API continuation. Local affected Runs were finalized and their verified checkpoints restored without prompt replay; [verification](../features/execution/workers/verification.md#native-publication-and-local-docker-recovery) records the scope. Hosted acceptance and the caller's full draft/approval flow remain in [native home persistence](#native-home-persistence).
 
 - [x] Reconcile dot-path checkpoint exclusion with native history restoration; see [native home persistence](#native-home-persistence). Capture, control-plane indexing and restore use the same native-state policy; authentication exclusions remain separate. Existing checkpoint bytes are unchanged.
 
@@ -229,6 +238,7 @@ The staging workflow and release coordinator are implemented with exact-SHA veri
 - [ ] Obtain Anthropic approval for the exact hosted native subscription arrangement, then implement the isolated authentication/controller boundary, generation-fenced credential persistence, quota preflight, budgeted API fallback, continuation and separate usage accounting. Named configurations are implemented; these execution capabilities are not. The previous four-task live authorization is exhausted. See [design and acceptance requirements](../engineering/testing/named-connections.md).
 - [ ] Accept two real Composio accounts of the same toolkit through HTTPS consent, pinned execution, rename/reconnect, and upstream revocation. Fixtures verify SDK account-selection shapes but do not establish actual provider account identity or revocation.
 
+- [x] Repair expired OpenRouter pricing before direct/bounded inference admission without depending on worker maintenance. Reuse refresh claims/backoff and preserve stale-price rejection and frozen rates. Focused catalog regressions and one local synthetic Muse BYOK call pass; see [catalog recovery verification](../engineering/testing/model-catalog.md#direct-inference-recovery).
 - [ ] Accept [model catalog refresh](../features/execution/models.md) in deployed maintenance after migration 029. Verify account entitlements, fresh/stale cache behavior across instances, OpenRouter routing price ceilings and vendor invoice reconciliation with separately approved inference budgets. Free metadata checks do not establish native execution acceptance.
 - [ ] Run a bounded native cloud task and continuation for each supported harness/model route. Managed Claude Code / Haiku passes the short staging file and native-session continuation journey. Other native routes remain pending; managed/BYOK gateway protocol tests alone do not establish their Sandbox execution.
 - [ ] Complete deployed Composio callback acceptance, a narrowly granted action through the run broker, and live revocation rejection. Local GitHub consent, verified callback activation and one authenticated profile read with a provider log ID pass; see [live acceptance](../engineering/testing/live-integrations.md#github-callback-acceptance).
@@ -395,3 +405,8 @@ Worker reconciliation spent most of its time rediscovering failures that were al
 - [x] Run application acceptance on pull requests only when an application surface changes; pushes, the merge queue, schedules and manual runs always run it. `Combined coverage gates` fails when any verification job failed.
 - [x] Run domain test files in parallel with one cloned database per worker.
 - [ ] Split the remaining shared-state browser files so they can run in the parallel project with their own accounts or deployment fixtures.
+
+## Native turn reliability
+
+- [x] Implement and locally verify the approved [native turn reliability plan](../projects/native-turn-reliability.md): async OpenCode turns, all-harness permission mappings, separate reported cost metadata and copied SQLite checkpoints. Native fixtures, isolated accounting tests and real synthetic Langfuse readback pass; verified image activated locally.
+- [ ] Roll out the rebuilt runtime and application to hosted environments, then repeat a budgeted native run/continuation and verify cost metadata. Original caller draft/approval acceptance remains tracked under [native home persistence](#native-home-persistence).

@@ -1,3 +1,4 @@
+import { dispatchFailed, dispatchSucceeded } from './dispatch-failures';
 import { pool, transaction, lock, type Tx } from '../../db';
 import { id, unseal } from './crypto';
 import { isLocal } from './config';
@@ -55,7 +56,7 @@ export async function cleanConnection(
         [connectionId],
       )
     ).rows[0];
-    if (!job || job.state === 'done') return;
+    if (!job || !['pending', 'running'].includes(job.state)) return;
     let status: NonNullable<resources.Document<'connections'>['cleanup_status']> = 'revoked';
     try {
       if (c.kind === 'composio' && c.external_account_id) await deleteApp(String(c.external_account_id));
@@ -148,6 +149,20 @@ export async function dispatchConnectionCleanup() {
   const jobs = await pool.query(
     "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='connection_cleanup' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 5",
   );
-  await Promise.all(jobs.rows.map((job) => cleanConnection(job.organization_id, job.resource_id)));
+  await Promise.all(
+    jobs.rows.map(async (job) => {
+      try {
+        await cleanConnection(job.organization_id, job.resource_id);
+        await dispatchSucceeded(job.organization_id, 'connection_cleanup', job.resource_id);
+      } catch {
+        await dispatchFailed(
+          job.organization_id,
+          'connection_cleanup',
+          job.resource_id,
+          'connection_cleanup_failed',
+        );
+      }
+    }),
+  );
   return { connection_cleanups: jobs.rowCount || 0 };
 }

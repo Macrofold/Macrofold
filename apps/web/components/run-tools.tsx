@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { PaginationCursor } from '../../../packages/contracts/pagination';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { Schema } from '../lib/client';
 import { request, useData, useDataPages } from '../lib/dashboard-data';
@@ -154,6 +155,7 @@ export function RunAccess({
       let selection = value.selection;
       if (selection === undefined) {
         selection = [];
+        const pages = new PaginationCursor();
         let cursor: string | undefined;
         do {
           const page = await request('resolveConnectionAccess', {
@@ -168,7 +170,7 @@ export function RunAccess({
           );
           if (selection.length > 100)
             throw new Error('Select specific connections before adding a one-run exception.');
-          cursor = page.next_cursor || undefined;
+          cursor = pages.next(page.next_cursor);
         } while (cursor);
       }
       if (signal?.aborted) return;

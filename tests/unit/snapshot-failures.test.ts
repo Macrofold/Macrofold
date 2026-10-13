@@ -15,13 +15,21 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-fault-'));
   directories.push(root);
-  const source = { harness: 'codex' as const, workspace: path.join(root, 'source'), home: path.join(root, 'home') };
+  const source = {
+    harness: 'codex' as const,
+    workspace: path.join(root, 'source'),
+    home: path.join(root, 'home'),
+  };
   await mkdir(source.workspace);
   await mkdir(source.home);
   await writeFile(path.join(source.workspace, 'file.txt'), 'verified new content');
   const snapshot = path.join(root, 'snapshot');
   const index = await captureSnapshot(source, snapshot);
-  const target = { harness: 'codex' as const, workspace: path.join(root, 'target'), home: path.join(root, 'target-home') };
+  const target = {
+    harness: 'codex' as const,
+    workspace: path.join(root, 'target'),
+    home: path.join(root, 'target-home'),
+  };
   await mkdir(target.workspace);
   await writeFile(path.join(target.workspace, 'file.txt'), 'retained content');
   const publish = () => writeFile(path.join(snapshot, 'page-0.json'), JSON.stringify(index.entries));
@@ -30,6 +38,13 @@ async function fixture() {
 }
 
 describe('checkpoint validation and atomic file publication', () => {
+  it('bounds traversal of empty directories as well as captured file entries', async () => {
+    const f = await fixture();
+    for (let i = 0; i < 1001; i++) await mkdir(path.join(f.source.workspace, `empty-${i}`));
+    await expect(
+      captureSnapshot(f.source, path.join(f.root, 'too-many-directories'), { bytes: 1000, entries: 2 }),
+    ).rejects.toThrow('checkpoint_traversal_limit');
+  });
   it.each(['', '/absolute', '../escape', 'a/../escape', './a', 'a//b', 'a/', 'a\\b', 'a\0b'])(
     'rejects unsafe snapshot path %j',
     (value) => {
@@ -265,7 +280,8 @@ describe('assigned restore command', () => {
     await mkdir(directory);
     await rename(snapshot, path.join(directory, 'restore'));
     await writeFile(path.join(directory, 'config.json'), JSON.stringify(configuration));
-    const result = async () => JSON.parse(await readFile(path.join(directory, 'restore-result.json'), 'utf8'));
+    const result = async () =>
+      JSON.parse(await readFile(path.join(directory, 'restore-result.json'), 'utf8'));
     return { directory, target, result };
   }
   const configuration = (workspace: string, stateHome: string) => ({
@@ -285,11 +301,17 @@ describe('assigned restore command', () => {
   it('records an integrity failure without writing when the configuration names unassigned roots', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'platform-restore-roots-'));
     directories.push(root);
-    const redirected = { harness: 'codex' as const, workspace: path.join(root, 'workspace'), home: path.join(root, 'home') };
+    const redirected = {
+      harness: 'codex' as const,
+      workspace: path.join(root, 'workspace'),
+      home: path.join(root, 'home'),
+    };
     const { directory, result } = await control(configuration(redirected.workspace, redirected.home));
     expect(await restoreAssigned(directory)).toBe(false);
     expect(await result()).toEqual({ ok: false, code: 'restore_integrity_failure' });
-    await expect(readFile(path.join(redirected.workspace, 'file.txt'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(readFile(path.join(redirected.workspace, 'file.txt'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
   it('records an integrity failure for an incomplete configuration', async () => {
     const { directory, result } = await control({ runId: '019e1700-0000-7000-8000-000000000010' });
@@ -300,10 +322,12 @@ describe('assigned restore command', () => {
     const { directory, result } = await control({});
     expect(await restoreAssigned(directory)).toBe(false);
     const first = await readFile(path.join(directory, 'restore-result.json'), 'utf8');
-    await writeFile(path.join(directory, 'config.json'), JSON.stringify(configuration('/workspace', '/agent-home')));
+    await writeFile(
+      path.join(directory, 'config.json'),
+      JSON.stringify(configuration('/workspace', '/agent-home')),
+    );
     expect(await restoreAssigned(directory)).toBeNull();
     expect(await readFile(path.join(directory, 'restore-result.json'), 'utf8')).toBe(first);
     expect(await result()).toMatchObject({ ok: false });
   });
 });
-

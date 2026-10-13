@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { permissionAdapters } from '../../contracts/permission-adapters';
-import { permissionFileTools, fileToolName, fileToolDescription, fileToolSchema } from './permission-files';
+import { permissionFileTools, fileToolName, permissionFileDefinition } from './permission-files';
 import path from 'node:path';
 import { access } from 'node:fs/promises';
 import { InMemoryCredentialStore } from '@earendil-works/pi-ai';
@@ -38,6 +38,7 @@ export class PiAdapter implements HarnessAdapter {
       const lifetime = new AbortController();
       const guarded = permissionAdapters.pi.translate(c.permissions || []).mode === 'guarded';
       const files = permissionFileTools(c.workspace, c.permissions || []);
+      const definition = permissionFileDefinition(c.permissions || []);
 
       const agentDir = path.join(c.stateHome, '.pi/agent');
       const sessions = path.join(agentDir, 'sessions');
@@ -94,18 +95,21 @@ export class PiAdapter implements HarnessAdapter {
         settingsManager,
         resourceLoader,
         ...(guarded
-          ? { noTools: 'builtin' as const, tools: [...broker.tools.map((tool) => tool.name), fileToolName] }
+          ? {
+              noTools: 'builtin' as const,
+              tools: [...broker.tools.map((tool) => tool.name), ...(definition ? [fileToolName] : [])],
+            }
           : {}),
         customTools: [
           ...broker.tools,
-          ...(guarded
+          ...(guarded && definition
             ? [
                 {
                   name: fileToolName,
                   label: 'Worktree files',
-                  description: fileToolDescription,
+                  description: definition.description,
                   parameters: z.toJSONSchema(
-                    fileToolSchema,
+                    definition.schema,
                   ) as import('@earendil-works/pi-coding-agent').ToolDefinition['parameters'],
                   execute: async (_id: string, args: unknown) => ({
                     content: [{ type: 'text' as const, text: await files(args) }],

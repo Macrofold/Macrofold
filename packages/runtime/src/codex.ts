@@ -5,7 +5,7 @@ import type { HarnessAdapter, HarnessContext, NativeResult, NativeEvent } from '
 import { z } from 'zod';
 import { permissionAdapters } from '../../contracts/permission-adapters';
 import { codexPermissionSettings, codexPermissionProfile } from './permission-settings';
-import { fileToolName, fileToolDescription, fileToolSchema, permissionFileTools } from './permission-files';
+import { fileToolName, permissionFileDefinition, permissionFileTools } from './permission-files';
 
 export function codexEvent(message: RpcMessage): NativeEvent | undefined {
   const params = message.params || {};
@@ -74,6 +74,7 @@ export class CodexAdapter implements HarnessAdapter {
   async run({ configuration: c, images = [], signal, emit, ask }: HarnessContext): Promise<NativeResult> {
     const guarded = permissionAdapters.codex.translate(c.permissions || []).mode === 'guarded';
     const files = permissionFileTools(c.workspace, c.permissions || []);
+    const definition = permissionFileDefinition(c.permissions || []);
     await mkdir(`${c.stateHome}/.codex`, { recursive: true, mode: 0o700 });
     await writeFile(`${c.stateHome}/.codex/config.toml`, guarded ? codexPermissionProfile(c.workspace) : '', {
       mode: 0o600,
@@ -141,7 +142,7 @@ export class CodexAdapter implements HarnessAdapter {
           let success = true,
             text: string;
           try {
-            if (message.params?.tool !== fileToolName) throw new Error('Unknown file tool.');
+            if (!definition || message.params?.tool !== fileToolName) throw new Error('Unknown file tool.');
             text = await files(message.params.arguments);
           } catch (error) {
             success = false;
@@ -213,14 +214,14 @@ export class CodexAdapter implements HarnessAdapter {
               ? { threadId }
               : {
                   ephemeral: false,
-                  ...(guarded
+                  ...(guarded && definition
                     ? {
                         dynamicTools: [
                           {
                             type: 'function',
                             name: fileToolName,
-                            description: fileToolDescription,
-                            inputSchema: z.toJSONSchema(fileToolSchema),
+                            description: definition.description,
+                            inputSchema: z.toJSONSchema(definition.schema),
                             deferLoading: false,
                           },
                         ],

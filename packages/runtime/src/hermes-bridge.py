@@ -98,7 +98,7 @@ def main():
             "sampling": {"enabled": False},
         }
     config_path = home / "config.yaml"
-    guarded = bool(os.environ.get("PLATFORM_FILE_TOOL_URL"))
+    guarded = os.environ.get("PLATFORM_GUARDED") == "1"
     config_path.write_text(json.dumps(config))
     config_path.chmod(0o600)
     # Imports and tool libraries may print diagnostics; stdout belongs to JSONL.
@@ -114,7 +114,7 @@ def main():
     if c.get("resumeId") and not history:
         raise ValueError("Hermes session conversation missing")
     toolsets = ["clarify"] if guarded else ["terminal", "file", "skills", "memory", "clarify"]
-    if guarded:
+    if guarded and os.environ.get("PLATFORM_FILE_TOOL_URL"):
         register_file_tools(os.environ["PLATFORM_FILE_TOOL_URL"], os.environ["PLATFORM_FILE_TOOL_TOKEN"])
         toolsets.append("worktree")
     if config["mcp_servers"]:

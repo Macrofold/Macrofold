@@ -1,4 +1,7 @@
 import type { Tx } from '../../db';
+import { boundedBody } from './body';
+import { AppError } from './errors';
+import { dispatchFailed } from './dispatch-failures';
 import { transaction, lock, pool } from '../../db';
 import type { components } from '../../contracts/api';
 import type { Principal } from './auth';
@@ -85,23 +88,14 @@ export async function serveObject(request: Request, token: string) {
     'invalid_capability',
     'The upload link is incomplete.',
   );
-  const reader = request.body?.getReader();
-  assert(reader, 400, 'invalid_request', 'Upload body is required.');
-  let size = 0;
-  const parts: Uint8Array[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > cap.size || size > 25 * 1024 * 1024) {
-      await reader.cancel();
+  assert(request.body, 400, 'invalid_request', 'Upload body is required.');
+  const bytes = await boundedBody(request.body, Math.min(cap.size, 25 * 1024 * 1024)).catch((error) => {
+    if (error instanceof AppError && error.status === 413)
       assert(false, 413, 'file_too_large', 'Uploaded content exceeds the plan.');
-    }
-    parts.push(value);
-  }
-  const bytes = Buffer.concat(parts);
+    throw error;
+  });
   assert(
-    size === cap.size && sha256(bytes) === cap.sha,
+    bytes.byteLength === cap.size && sha256(bytes) === cap.sha,
     422,
     'content_mismatch',
     'Uploaded bytes do not match the planned size and hash.',
@@ -393,13 +387,7 @@ export async function applyTransfer(
     }
   }
   const cp = await checkpoint(tx, p, worktreeId, 'Files uploaded', next);
-  const updated = await resources.update(
-    tx,
-    'worktrees',
-    worktreeId,
-    checkpointState(cp),
-    worktree.revision,
-  );
+  const updated = await resources.update(tx, 'worktrees', worktreeId, checkpointState(cp), worktree.revision);
   const op = await resources.operation(tx, p, 'transfer_push', {
     worktree_id: worktreeId,
     transfer_id: transferId,
@@ -422,7 +410,7 @@ export async function applyTransfer(
 export async function cleanupTransfers(limit = 10) {
   const jobs = (
     await pool.query(
-      "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='transfer_cleanup' AND state<>'done' AND available_at<=now() ORDER BY available_at LIMIT $1",
+      "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='transfer_cleanup' AND state IN ('pending','running') AND available_at<=now() ORDER BY available_at LIMIT $1",
       [limit],
     )
   ).rows;
@@ -450,9 +438,11 @@ export async function cleanupTransfers(limit = 10) {
         );
       });
     } catch {
-      await pool.query(
-        "UPDATE dispatch_jobs SET attempts=attempts+1,available_at=now()+interval '1 minute',error='staging_cleanup_failed' WHERE kind='transfer_cleanup' AND resource_id=$1",
-        [job.resource_id],
+      await dispatchFailed(
+        job.organization_id,
+        'transfer_cleanup',
+        job.resource_id,
+        'staging_cleanup_failed',
       );
     }
   }

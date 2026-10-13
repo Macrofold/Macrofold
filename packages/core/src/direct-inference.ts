@@ -43,7 +43,7 @@ export async function completeDirectInference(
       console.error(JSON.stringify({ code: 'direct_inference_interrupted', run_id: runId }));
       await transaction(p.organizationId, (tx) =>
         tx.query(
-          "UPDATE dispatch_jobs SET available_at=now(),lease_until=NULL WHERE kind='run' AND resource_id=$1 AND state<>'done'",
+          "UPDATE dispatch_jobs SET available_at=now(),lease_until=NULL WHERE kind='run' AND resource_id=$1 AND state IN ('pending','running')",
           [runId],
         ),
       ).catch(() => {}); // The admission-time recovery deadline is the fallback.

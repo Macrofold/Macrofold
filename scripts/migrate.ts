@@ -2,6 +2,7 @@ import 'dotenv/config';
 import pg from 'pg';
 import { readFile, readdir } from 'node:fs/promises';
 import { config } from '../packages/core/src/config';
+import { configureDatabaseTimeouts } from '../packages/db/timeouts';
 const client = new pg.Client({ connectionString: config.ownerDatabaseUrl });
 await client.connect();
 try {
@@ -30,6 +31,12 @@ try {
     );
   const role = process.env.DATABASE_RUNTIME_ROLE || 'platform_app';
   if (!/^[a-z_][a-z0-9_]*$/.test(role)) throw new Error('Invalid database role name');
+  // These defaults protect standalone pool.query calls too. Setting them on the
+  // role in this database works through transaction poolers, unlike startup options.
+  // Reconnect serving pools after migration; already-open backends retain old defaults.
+  const database = (await client.query('SELECT current_database() AS name')).rows[0].name;
+  await configureDatabaseTimeouts(client, role, database);
+
   await client.query(
     `GRANT USAGE ON SCHEMA public,auth TO ${role}; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public,auth TO ${role}; GRANT USAGE ON ALL SEQUENCES IN SCHEMA public,auth TO ${role};`,
   );
@@ -39,7 +46,9 @@ try {
   await client.query(
     `REVOKE UPDATE,DELETE,TRUNCATE ON ledger,financial_events,billing_events,admin_audit FROM ${role}`,
   );
-  await client.query(`REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON trigger_policy,connector_enablement FROM ${role}`);
+  await client.query(
+    `REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON trigger_policy,connector_enablement FROM ${role}`,
+  );
   await client.query('REVOKE CREATE ON SCHEMA reporting FROM platform_reporting');
   await client.query(`REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON worker_offerings FROM ${role}`);
   await client.query(`REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON compute_history FROM ${role}`);

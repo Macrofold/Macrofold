@@ -8,7 +8,10 @@ export function requestCapacity(method: string, operation: string) {
     : ['GET', 'HEAD'].includes(method)
       ? 'read'
       : 'write';
-  const defaults = { read: 6000, write: 1200, control: 600 };
+  // Sustained read calibration passed 200/s; 400/s raised tail latency and
+  // 800/s accumulated backlog. These are per-credential policy, not fleet capacity.
+  // See docs/engineering/capacity/upper-bounds.md.
+  const defaults = { read: 12000, write: 1200, control: 1200 };
   const fallback = capacitySetting('API_RATE_LIMIT_PER_MINUTE', defaults[group], 1_000_000);
   return {
     group,

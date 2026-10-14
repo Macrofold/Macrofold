@@ -22,6 +22,7 @@ import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingEnabled } from './tracing';
 import { providerErrorDetails } from './provider-diagnostics';
 import { observeWorkerStep } from './worker-diagnostics';
+import { repeatWithoutOverlap } from './concurrent';
 
 type Invocation = {
   id: string;
@@ -549,16 +550,17 @@ export async function advanceInference(
       () => controller.abort(),
       Math.max(1, authorization.deadline.getTime() - Date.now()),
     );
-    const cancelled = setInterval(() => {
-      void transaction(org, async (tx) => {
-        const latest = await getRun(tx, runId);
-        return { latest, authorized: await actorAuthorized(tx, latest) };
-      })
-        .then(({ latest, authorized }) => {
-          if (!authorized || latest.cancel_requested || terminal(latest.status)) controller.abort();
-        })
-        .catch(() => controller.abort());
-    }, 500);
+    const stopCancellationChecks = repeatWithoutOverlap(
+      500,
+      async () => {
+        const { latest, authorized } = await transaction(org, async (tx) => {
+          const latest = await getRun(tx, runId);
+          return { latest, authorized: await actorAuthorized(tx, latest) };
+        });
+        if (!authorized || latest.cancel_requested || terminal(latest.status)) controller.abort();
+      },
+      () => controller.abort(),
+    );
     const durable =
       run.kind === 'bounded_agent' && run.config.stream ? durableInferenceOutput(org, runId) : undefined;
     let firstOutputMs: number | undefined;
@@ -667,7 +669,7 @@ export async function advanceInference(
       );
     } finally {
       clearTimeout(timeout);
-      clearInterval(cancelled);
+      await stopCancellationChecks();
     }
     return { done: false, delaySeconds: 0 };
   } catch (error) {

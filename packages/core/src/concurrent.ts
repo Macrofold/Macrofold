@@ -25,3 +25,26 @@ export async function mapConcurrent<T, R>(
   if (failure) throw failure.error;
   return results;
 }
+
+/** A slow check must not accumulate interval callbacks in the database pool.
+ * Stop scheduling and drain the current check before releasing its owner. */
+export function repeatWithoutOverlap(
+  milliseconds: number,
+  operation: () => Promise<void>,
+  onError: (error: unknown) => void,
+) {
+  let pending: Promise<void> | undefined;
+  const timer = setInterval(() => {
+    if (pending) return;
+    pending = Promise.resolve()
+      .then(operation)
+      .catch(onError)
+      .finally(() => {
+        pending = undefined;
+      });
+  }, milliseconds);
+  return async () => {
+    clearInterval(timer);
+    await pending;
+  };
+}

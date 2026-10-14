@@ -1,4 +1,4 @@
-import { lock, type Tx } from '../../db';
+import type { Tx } from '../../db';
 import { requireWorkspace, type Principal } from './auth';
 import { assert } from './errors';
 import * as resources from './resources';
@@ -18,7 +18,11 @@ export function requireApplication(
 
 export async function requireDecisionWorkspace(tx: Tx, p: Principal, workspaceId: string) {
   requireWorkspace(p, workspaceId);
-  await lock(tx, `workspace-deletion:${workspaceId}`);
+  // Admissions may coexist; deletion still takes this same lock exclusively and
+  // waits for their commits before cancelling Runs/archiving the workspace.
+  await tx.query('SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))', [
+    `workspace-deletion:${workspaceId}`,
+  ]);
   const workspace = await resources.get(tx, 'workspaces', workspaceId, p);
   assert(
     !workspace.archived && !workspace.deleted,

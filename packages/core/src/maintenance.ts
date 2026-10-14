@@ -22,12 +22,16 @@ export async function reconcileFinance(tx: Tx, org: string) {
   ).rows[0].value;
   const invalidJournals = (
     await tx.query(
-      'SELECT count(*)::text AS value FROM (SELECT journal_id FROM ledger GROUP BY journal_id HAVING sum(amount_micro_usd)<>0 OR count(*)<2) broken',
+      // The explicit tenant predicate uses the ledger's tenant index. RLS still
+      // authorizes rows, but its text comparison alone cannot seek the UUID index.
+      'SELECT count(*)::text AS value FROM (SELECT journal_id FROM ledger WHERE organization_id=$1 GROUP BY journal_id HAVING sum(amount_micro_usd)<>0 OR count(*)<2) broken',
+      [org],
     )
   ).rows[0].value;
   const ledgerBalance = (
     await tx.query(
-      "SELECT coalesce(sum(amount_micro_usd),0)::text AS value FROM ledger WHERE account='available_credits' OR account IN (SELECT DISTINCT kind FROM credit_lots)",
+      "SELECT coalesce(sum(amount_micro_usd),0)::text AS value FROM ledger WHERE organization_id=$1 AND (account='available_credits' OR account IN (SELECT DISTINCT kind FROM credit_lots))",
+      [org],
     )
   ).rows[0].value;
   const issues: string[] = [];

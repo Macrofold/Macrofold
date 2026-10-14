@@ -40,3 +40,21 @@ it('expires credit, checks independent projections, fails closed on drift and ke
     expect((await reconcileFinance(tx, org)).issues).toEqual(['reservation_balance_mismatch']);
   });
 });
+
+it('reconciles only the current tenant and still detects an unbalanced journal', async () => {
+  const healthy = id(),
+    broken = id();
+  for (const org of [healthy, broken])
+    await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [org, 'Ledger isolation fixture']);
+  await transaction(broken, (tx) =>
+    tx.query(
+      `INSERT INTO ledger(id,organization_id,journal_id,account,amount_micro_usd,reference)
+       VALUES ($1,$2,$3,'fixture-debit',1,'fixture'),($4,$2,$3,'fixture-credit',-2,'fixture')`,
+      [id(), broken, id(), id()],
+    ),
+  );
+  expect((await transaction(healthy, (tx) => reconcileFinance(tx, healthy))).status).toBe('balanced');
+  expect((await transaction(broken, (tx) => reconcileFinance(tx, broken))).issues).toEqual([
+    'unbalanced_journal',
+  ]);
+});

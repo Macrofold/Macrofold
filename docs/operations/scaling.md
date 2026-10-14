@@ -67,7 +67,7 @@ The single-writer boundary is the **worktree**, an independently writable checko
 
 ## Resource capacity settings
 
-Authoritative settings for the October 2026 capacity audit. Defaults are deployment starting points, not measured throughput promises. [Calibration evidence](../engineering/capacity/README.md) records the dispatcher/database comparisons, boundary tests and limits that still require hosted measurement. Configure the same fleet admission values in every API, Workflow and worker process. Use smaller explicit native-compute limits locally without reducing inference capacity. Integer configuration outside the supported range fails explicitly; it is never silently clamped.
+Authoritative settings for the October 2026 capacity audit. Defaults are deployment starting points, not measured throughput promises. [Calibration evidence](../engineering/capacity/upper-bounds.md) records the dispatcher/database comparisons, boundary tests and limits that still require hosted measurement. Configure the same fleet admission values in every API, Workflow and worker process. Use smaller explicit native-compute limits locally without reducing inference capacity. Integer configuration outside the supported range fails explicitly; it is never silently clamped.
 
 | Resource / setting | Default | Scope and reason |
 | --- | ---: | --- |
@@ -83,15 +83,15 @@ Authoritative settings for the October 2026 capacity audit. Defaults are deploym
 | `WORKER_PROVISION_BATCH` / `WORKER_DEMAND_BATCH` | 16 / 1,000 | New Hosts planned / runnable demands examined per Worker reconciliation; max 256 / 10,000 |
 | Plan entitlement | 20 / 100 / 500 | Starter/Pro/Scale aggregate organization occupancy; lower customer overrides preserved |
 | Worker `max_instances` | Up to plan concurrency | Removed the unrelated 64-instance clamp; accepted offering, CPU/memory, concurrency and hourly spending still govern placement |
-| `DATABASE_POOL_SIZE` / `AUTH_DATABASE_POOL_SIZE` / `CREDENTIAL_DATABASE_POOL_SIZE` | 40 / 5 / 4 | Separate connections per process, max 1,000 each; budget across replicas and the actual database |
+| `DATABASE_POOL_SIZE` / `AUTH_DATABASE_POOL_SIZE` / `CREDENTIAL_DATABASE_POOL_SIZE` | 80 / 20 / 32 | Separate connections per process, max 1,000 each; budget across replicas and the actual database |
 | `DATABASE_ACQUIRE_TIMEOUT_MS` | 30,000 | Pool/connect patience, max 60,000 ms; query/lock/idle-transaction safety deadlines remain |
-| `API_READ_RATE_LIMIT_PER_MINUTE` / `API_WRITE_RATE_LIMIT_PER_MINUTE` / `API_CONTROL_RATE_LIMIT_PER_MINUTE` | 6,000 / 1,200 / 600 | Separate credential/organization buckets. Run cancellation and input answers retain capacity during read/write bursts |
+| `API_READ_RATE_LIMIT_PER_MINUTE` / `API_WRITE_RATE_LIMIT_PER_MINUTE` / `API_CONTROL_RATE_LIMIT_PER_MINUTE` | 12,000 / 1,200 / 1,200 | Separate credential/organization buckets. Run cancellation and input answers retain capacity during read/write bursts |
 | `SESSION_QUEUED_RUN_LIMIT` | 100 | Queued Runs per session, excluding the active Run; max 10,000; avoids the old ten-follow-up rejection |
 | `ACTIVE_TRANSFERS_PER_ORG` | 100 | Unfinished, unexpired push plans per organization; max 10,000; download/dry-run plans excluded |
 
 Native and lightweight fleet capacities each accept 1–100,000; the optional total ceiling accepts 1–200,000. HTTP buckets accept 1–1,000,000. `API_RATE_LIMIT_PER_MINUTE` is an optional fallback for each HTTP bucket; it does not merge them. `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` remains zero by default and can reserve part of the existing account entitlement for lightweight work. Account caps are entitlements, not proxies for process I/O capacity. `WORKER_CONCURRENCY` is removed; use the four dispatch settings.
 
-The application/auth/credential pools can allocate **49 connections per process** by default. Count every API replica, standalone worker and overlapping deployment against the database or pooler's budget, leaving room for administration and maintenance. Open connections are not concurrent model calls: model HTTP runs outside SQL transactions. The measured API mix benefited from 40 application connections, while model dispatch did not consistently outperform 20; deployment roles can override the same setting independently. Valid numeric maxima are not tested safe operating targets.
+The application/auth/credential pools can allocate **132 connections per process** by default. Count every API replica, standalone worker and overlapping deployment against the database or pooler's budget, leaving room for administration and maintenance. Open connections are not concurrent model calls: model HTTP runs outside SQL transactions. The local read workload favored 40 application connections, while the real hosted pooled endpoint benefited from 80 and larger values at high latency. The default 80 leaves room below the tested larger configurations; identity 20 and credential 32 similarly reserve capacity for other processes and workloads. Colocate the application/database, and override each deployment role independently from observed pressure. Valid numeric maxima are not tested safe operating targets.
 
 ### Background work and transfers
 
@@ -100,12 +100,12 @@ Each maintenance component has its own cadence and failure containment. Standalo
 | Queue | Candidate page / active operations | Bound retained |
 | --- | --- | --- |
 | Git sync | 16 / 2 | Worktree/operation lock and conditional remote updates; stop taking work after 20 seconds, drain started I/O |
-| Webhooks | 100 / 4 | Ten-second destination timeout, bounded retries and delivery lock; stop taking work after 20 seconds |
+| Webhooks | 1,000 / 8 | `WEBHOOK_DISPATCH_BATCH_SIZE` (max 10,000) / `WEBHOOK_DELIVERY_CONCURRENCY` (max 32); ten-second destination timeout, bounded retries and delivery lock; stop taking work after 20 seconds |
 | Decision tasks / GitHub notifications | 100 / 4 | Short per-task/resource transactions and durable retry identity |
 | Triggers | 100 / 4 | Twenty-second admission window and per-trigger ordering/side-effect fences |
 | Connector cleanup | 16 / 2 | Credential revocation ownership and bounded provider I/O |
 | Finance | 100 / 2 | Twenty-second admission window; unstarted claims released; per-organization ledger reconciliation |
-| Storage | 16 organizations / 2 | Twenty-second admission window; unstarted claims released; eight parallel object reads/deletes per organization, exclusive reference-publication lock |
+| Storage | 16 organizations / 4 | `STORAGE_MAINTENANCE_CONCURRENCY` (max 16); twenty-second admission window; unstarted claims released; eight parallel object reads/deletes per organization, exclusive reference-publication lock |
 | Restore | 32 objects / 4 MiB per step; eight parallel object reads | One verified provider upload; memory, decoded bytes and provider protocol envelope |
 | Checkpoint publish | Four chunk reads / eight manifest reads per step | Keep large-file hashing and phase leases bounded; free slots refill without batch barriers |
 
@@ -122,7 +122,7 @@ When an operation fails, shared bounded mapping stops taking new work and drains
 - Detailed SSE rotates after 55 seconds with cursor replay. Dashboard freshness retains 256 subscriptions/64 organizations per process and bounded shared reads; overflow retries/falls back to ordinary reconciliation. These are process memory/query protections, not organization or fleet ceilings.
 - Storage collection still excludes reference publication for the affected organization. Parallel reads/deletes shorten this window; removing the lock would risk deleting newly referenced bytes. Full reference-graph construction outside that lock is a separate persistence design, not a limit increase.
 
-Apply migration 051 before the corresponding API/worker build; it adds only derived dispatch classification to the restricted reporting view. Drain old processes gracefully and restart API/workers for environment changes. No runtime-image rebuild is required. Keep verified provider quotas and acquisition ramps below their account-specific bounds, monitor eligible queue age and pool waits, and lower only the resource responsible for pressure. Separate settings prevent one saturated class from consuming every other class's capacity; they do not manufacture provider/database capacity.
+Run `pnpm db:migrate` before the corresponding API/worker build: migration 051 adds dispatch classification and 053 indexes tenant ledger reconciliation. The migration command also installs runtime-role/database statement and idle-transaction deadlines compatible with transaction pooling; reconnect existing database backends afterward. Drain old processes gracefully and restart API/workers for environment changes. No runtime-image rebuild is required. Keep verified provider quotas and acquisition ramps below their account-specific bounds, monitor eligible queue age and pool waits, and lower only the resource responsible for pressure. Separate settings prevent one saturated class from consuming every other class's capacity; they do not manufacture provider/database capacity.
 
 ## 3. Provider limits to record
 
@@ -294,12 +294,12 @@ Current pools are instantiated per Node process/runtime instance:
 
 | Pool | Maximum clients |
 | --- | ---: |
-| Domain | 20 |
-| Authentication | 5 |
-| Credential refresh | 4 |
-| Total potential per process | 29 |
+| Domain | 80 |
+| Authentication | 20 |
+| Credential refresh | 32 |
+| Total potential per process | 132 |
 
-For example, 100 processes can potentially open 2,900 clients; this does **not** mean 100 agents need 2,900 database connections. Fluid instance reuse, lazy opening, and pooler multiplexing affect actual usage. A direct auth endpoint still consumes backend connections. Increasing process count and pool sizes together can amplify pressure.
+For example, 100 processes can potentially open 13,200 clients; this does **not** mean 100 agents need 13,200 database connections. Fluid instance reuse, lazy opening, and pooler multiplexing affect actual usage. A direct auth endpoint still consumes backend connections. Increasing process count and pool sizes together can amplify pressure.
 
 Add measurements of `pg.Pool.totalCount`, `idleCount`, and `waitingCount` if absent. Database session counts alone do not reveal clients waiting inside application pools. Keep the credential pool separate: the code uses it to avoid nested credential refresh exhausting the caller's pool.
 
@@ -399,7 +399,7 @@ Use isolated disposable data, synthetic tenants, local storage, and provider dou
 | API pressure | Separate read, submit, token/tool gateway, auth, webhook, and reporting traffic; test rate-limit isolation and clear rejection behavior |
 | Storage/history growth | Seed realistic run/event/request history sizes and inspect query plans, table/index growth, vacuum behavior, and report latency |
 
-A dedicated reusable load harness is still work to build; existing acceptance commands are not a substitute. Run the cloud phase engine with deterministic provider doubles to cover the production state machine. A virtual 24-hour test proves time-boundary behavior quickly, but cannot establish 24 hours of real provider reliability. Where the managed Workflow backend cannot be reproduced faithfully locally, record the remaining cloud acceptance explicitly.
+A reusable [capacity harness](../engineering/capacity/upper-bounds.md#reproduce-and-interpret-failures) now measures real HTTP, SQL, model dispatch, restoration and maintenance against isolated fixtures, with separate opt-in hosted probes. It complements the cloud phase engine’s deterministic provider checks. A virtual 24-hour test proves time-boundary behavior quickly, but cannot establish 24 hours of real provider reliability. Where the managed Workflow backend cannot be reproduced faithfully locally, record the remaining cloud acceptance explicitly.
 
 Use the existing checks as applicable:
 

@@ -6,13 +6,19 @@ import path from 'node:path';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import assert from 'node:assert/strict';
 import { mapConcurrent } from '../packages/core/src/concurrent';
+import type { ComponentMode, componentWorkload } from './capacity-components';
 
 type Scenario = {
-  mode: 'http' | 'session' | 'credential' | 'inference';
+  mode: 'http' | 'session' | 'auth' | 'credential' | 'inference' | ComponentMode;
   pool: number;
   concurrency: number;
   count: number;
   delay?: number;
+  tenants?: number;
+  traffic?: 'read' | 'write' | 'control' | 'admission' | 'direct';
+  rate?: number;
+  payloadBytes?: number;
+  domainPool?: number;
 };
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 function distribution(values: number[]) {
@@ -28,8 +34,19 @@ async function workload(scenario: Scenario) {
   assert(new URL(config.databaseUrl).pathname.startsWith('/platform_test_'));
   const { pool, authPool, credentialPool, transaction, credentialTransaction } =
     await import('../packages/db');
-  const measuredPool =
-    scenario.mode === 'session' ? authPool : scenario.mode === 'credential' ? credentialPool : pool;
+  const measuredPool = ['session', 'auth'].includes(scenario.mode)
+    ? authPool
+    : scenario.mode === 'credential'
+      ? credentialPool
+      : pool;
+  // Exercise effective server settings, not only client configuration: poolers
+  // reject startup options, and template clones omit per-database role defaults.
+  for (const connections of [pool, authPool, credentialPool]) {
+    const settings = await connections.query(`SELECT current_setting('statement_timeout') AS statement,
+      current_setting('idle_in_transaction_session_timeout') AS idle`);
+    assert.deepEqual(settings.rows[0], { statement: '1min', idle: '2min' });
+  }
+  const { auth } = await import('../packages/core/src/auth');
   const { fixtureAccount } = await import('../tests/fixtures/account');
   const { fixtureHttpApi } = await import('../tests/fixtures/http-api');
   const { credit } = await import('../packages/core/src/ledger');
@@ -80,13 +97,14 @@ async function workload(scenario: Scenario) {
   let peakRss = 0,
     completed = 0;
   let dispatcher: InstanceType<typeof CloudDispatcher> | undefined;
+  let component: Awaited<ReturnType<typeof componentWorkload>> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const started = performance.now();
   let measuredAt = started;
   let outcome: Record<string, unknown> = {};
   try {
     const accounts = await mapConcurrent(
-      Array.from({ length: 8 }, (_, i) => i),
+      Array.from({ length: scenario.tenants ?? 8 }, (_, i) => i),
       2,
       async (i) => {
         const account = await fixtureAccount(`Capacity fixture ${i}`);
@@ -112,22 +130,85 @@ async function workload(scenario: Scenario) {
     const orgIds = accounts.map((a) => a.p.organizationId);
     process.env.ANTHROPIC_API_KEY = 'capacity-fixture-not-a-real-key';
     config.allowPaid = true;
-    // Keep the benchmark's measured HTTP workload below the configured real bucket ceilings.
-    const http = async (index: number) => {
+    const verifyAccounting = async (expected: number, runIds?: string[]) => {
+      const accounting = await mapConcurrent(orgIds, 2, (org) =>
+        transaction(org, async (tx) => {
+          const requests = await tx.query(
+            'SELECT count(*)::integer AS count,count(DISTINCT run_id)::integer AS runs FROM model_usage WHERE ($1::uuid[] IS NULL OR run_id=ANY($1::uuid[]))',
+            [runIds ?? null],
+          );
+          const balance = await tx.query('SELECT reserved_micro_usd::text FROM organizations WHERE id=$1', [
+            org,
+          ]);
+          return { usage: requests.rows[0], held: balance.rows[0].reserved_micro_usd };
+        }),
+      );
+      outcome.accounting = accounting;
+      assert(
+        accounting.every((a) => a.held === '0' && a.usage.count === a.usage.runs),
+        'Unsettled or duplicate accounting',
+      );
+      assert.equal(
+        accounting.reduce((n, a) => n + a.usage.count, 0),
+        expected,
+      );
+      assert.equal(providerCalls, expected, 'Missing or duplicate provider requests');
+    };
+    const controlRuns =
+      scenario.traffic === 'control'
+        ? await mapConcurrent(
+            Array.from({ length: scenario.count + 32 }, (_, i) => accounts[i % accounts.length]),
+            8,
+            (account) =>
+              transaction(account.p.organizationId, async (tx) => {
+                const run = await admitInference(
+                  tx,
+                  account.principal,
+                  decisionExample(account.workspace, 'triage'),
+                );
+                return run.run_id;
+              }),
+          )
+        : [];
+    // Saturation runs explicitly raise fixture-only rate policy. Production
+    // enforcement is checked separately; it must not mask processing capacity.
+    const http = async (index: number, scheduledAt?: number) => {
       const account = accounts[index % accounts.length];
-      const at = performance.now();
-      const write = index % 5 === 0;
-      const response = await networkFetch(api.origin + '/v1/workspaces' + (write ? '' : '?limit=100'), {
-        method: write ? 'POST' : 'GET',
-        headers: {
-          ...(scenario.mode === 'session'
-            ? { cookie: account.cookie, origin: config.origin }
-            : { authorization: `Bearer ${account.key}` }),
-          'content-type': 'application/json',
-          'idempotency-key': id(),
+      const at = scheduledAt ?? performance.now();
+      const write = scenario.traffic
+        ? ['write', 'admission', 'direct'].includes(scenario.traffic)
+        : index % 5 === 0;
+      const control = scenario.traffic === 'control';
+      const response = await networkFetch(
+        api.origin +
+          (control
+            ? `/v1/runs/${controlRuns[index]}/cancel`
+            : ['admission', 'direct'].includes(scenario.traffic ?? '')
+              ? '/v1/inferences'
+              : '/v1/workspaces' + (write ? '' : '?limit=100')),
+        {
+          method: write || control ? 'POST' : 'GET',
+          headers: {
+            ...(scenario.mode === 'session'
+              ? { cookie: account.cookie, origin: config.origin }
+              : { authorization: `Bearer ${account.key}` }),
+            'content-type': 'application/json',
+            ...(scenario.traffic === 'admission' ? { prefer: 'respond-async' } : {}),
+            ...(write || control ? { 'idempotency-key': id() } : {}),
+          },
+          ...(write || control
+            ? {
+                body: JSON.stringify(
+                  control
+                    ? {}
+                    : ['admission', 'direct'].includes(scenario.traffic ?? '')
+                      ? decisionExample(account.workspace, 'triage')
+                      : { name: `Synthetic ${index}` },
+                ),
+              }
+            : {}),
         },
-        ...(write ? { body: JSON.stringify({ name: `Synthetic ${index}` }) } : {}),
-      });
+      );
       const body = await response.json();
       timings.push(performance.now() - at);
       if (!response.ok)
@@ -135,6 +216,18 @@ async function workload(scenario: Scenario) {
           (errors[body.error?.code ?? String(response.status)] ?? 0) + 1;
       else completed++;
     };
+    if (['webhook', 'finance', 'storage', 'snapshot', 'restore'].includes(scenario.mode)) {
+      component = await (
+        await import('./capacity-components')
+      ).componentWorkload(
+        scenario.mode as ComponentMode,
+        accounts,
+        scenario.count,
+        scenario.delay ?? 20,
+        scenario.payloadBytes ?? 0,
+        networkFetch,
+      );
+    }
     let runIds: string[] = [];
     if (scenario.mode === 'inference') {
       // Queue construction is measured separately from dispatch/settlement.
@@ -145,6 +238,14 @@ async function workload(scenario: Scenario) {
         async (i) => {
           const account = accounts[i % accounts.length];
           const body = decisionExample(account.workspace, 'triage');
+          if (scenario.payloadBytes) {
+            body.context.items[0] = {
+              ...body.context.items[0],
+              status: 'known',
+              value: 'x'.repeat(scenario.payloadBytes),
+            };
+            body.definition.limits.max_cost_micro_usd = '500000';
+          }
           body.definition.limits.timeout_seconds = 180;
           body.queue_timeout_seconds = 600;
           return (
@@ -159,7 +260,7 @@ async function workload(scenario: Scenario) {
         },
         { inference: scenario.concurrency, provision: 1, transfer: 1, control: 1 },
       );
-    } else {
+    } else if (!component) {
       await mapConcurrent(
         Array.from({ length: 32 }, (_, i) => i),
         8,
@@ -181,7 +282,35 @@ async function workload(scenario: Scenario) {
       });
       peakRss = Math.max(peakRss, process.memoryUsage().rss);
     }, 25);
-    if (scenario.mode === 'credential') {
+    if (component) {
+      await mapConcurrent(
+        Array.from({ length: scenario.count }, (_, i) => i),
+        scenario.concurrency,
+        async (i) => {
+          const at = performance.now();
+          await component!.run(i);
+          timings.push(performance.now() - at);
+          completed++;
+        },
+      );
+      outcome.component = await component.close();
+      component = undefined;
+    } else if (scenario.mode === 'auth') {
+      await mapConcurrent(
+        Array.from({ length: scenario.count }, (_, i) => i),
+        scenario.concurrency,
+        async (i) => {
+          const at = performance.now();
+          const session = await auth.api.getSession({
+            headers: new Headers({ cookie: accounts[i % accounts.length].cookie }),
+            query: { disableCookieCache: true },
+          });
+          assert(session, 'Session validation failed');
+          timings.push(performance.now() - at);
+          completed++;
+        },
+      );
+    } else if (scenario.mode === 'credential') {
       // Exercise independent credential commits while callers occupy domain
       // connections. No credential value or external refresh is involved.
       await mapConcurrent(
@@ -201,9 +330,18 @@ async function workload(scenario: Scenario) {
       );
     } else if (scenario.mode !== 'inference') {
       await mapConcurrent(
-        Array.from({ length: scenario.count }, (_, i) => i + 1000),
+        Array.from({ length: scenario.count }, (_, i) => i),
         scenario.concurrency,
-        http,
+        async (i) => {
+          if (outcome.overloaded) return;
+          if (scenario.rate)
+            await sleep(Math.max(0, measuredAt + (i * 1000) / scenario.rate - performance.now()));
+          if (scenario.rate && performance.now() - (measuredAt + (i * 1000) / scenario.rate) > 10000) {
+            outcome.overloaded = true;
+            return;
+          }
+          await http(i + 32, scenario.rate ? measuredAt + (i * 1000) / scenario.rate : undefined);
+        },
       );
     } else {
       const deadline = Date.now() + 180000;
@@ -236,29 +374,9 @@ async function workload(scenario: Scenario) {
       timings.push(...measurements.rows.map((r) => Number(r.duration)));
       outcome.queue_latency = distribution(measurements.rows.map((r) => Number(r.queued)));
       outcome.total_latency = distribution(measurements.rows.map((r) => Number(r.total)));
-      const accounting = await mapConcurrent(orgIds, 2, (org) =>
-        transaction(org, async (tx) => {
-          const requests = await tx.query(
-            'SELECT count(*)::integer AS count,count(DISTINCT run_id)::integer AS runs FROM model_usage WHERE run_id=ANY($1::uuid[])',
-            [runIds],
-          );
-          const balance = await tx.query('SELECT reserved_micro_usd::text FROM organizations WHERE id=$1', [
-            org,
-          ]);
-          return { usage: requests.rows[0], held: balance.rows[0].reserved_micro_usd };
-        }),
-      );
-      outcome.accounting = accounting;
-      assert(
-        accounting.every((a) => a.held === '0' && a.usage.count === a.usage.runs),
-        'Unsettled or duplicate accounting',
-      );
-      assert.equal(
-        accounting.reduce((n, a) => n + a.usage.count, 0),
-        scenario.count,
-      );
-      assert.equal(providerCalls, scenario.count, 'Missing or duplicate provider requests');
+      await verifyAccounting(scenario.count, runIds);
     }
+    if (scenario.traffic === 'direct') await verifyAccounting(completed + 32);
     const elapsed = performance.now() - measuredAt;
     const cpu = process.cpuUsage(cpuStart);
     outcome = {
@@ -278,10 +396,20 @@ async function workload(scenario: Scenario) {
     // Keep the loopback-only transport installed until all started work stops,
     // including when an observation or accounting assertion fails.
     await dispatcher?.drain();
+    try {
+      await component?.close();
+    } catch (error) {
+      outcome.failure ??= error instanceof Error ? error.message : String(error);
+    }
     config.allowPaid = false;
     globalThis.fetch = networkFetch;
     const report = {
       scenario,
+      configured_pools: {
+        domain: pool.options.max,
+        auth: authPool.options.max,
+        credential: credentialPool.options.max,
+      },
       ...outcome,
       completed,
       errors,
@@ -347,12 +475,21 @@ else {
             ...isolated,
             CAPACITY_CASE: JSON.stringify(scenario),
             CAPACITY_REPORT: report,
-            DATABASE_POOL_SIZE: String(['http', 'inference'].includes(scenario.mode) ? scenario.pool : 20),
-            AUTH_DATABASE_POOL_SIZE: scenario.mode === 'session' ? String(scenario.pool) : '5',
-            CREDENTIAL_DATABASE_POOL_SIZE: scenario.mode === 'credential' ? String(scenario.pool) : '4',
+            DATABASE_POOL_SIZE: String(
+              scenario.domainPool ??
+                (['session', 'auth', 'credential'].includes(scenario.mode) ? 40 : scenario.pool),
+            ),
+            AUTH_DATABASE_POOL_SIZE: ['session', 'auth'].includes(scenario.mode)
+              ? String(scenario.pool)
+              : '20',
+            CREDENTIAL_DATABASE_POOL_SIZE: scenario.mode === 'credential' ? String(scenario.pool) : '32',
             GLOBAL_CONCURRENT_RUN_LIMIT: '2200',
             NATIVE_CONCURRENT_RUN_LIMIT: '200',
             LIGHTWEIGHT_CONCURRENT_RUN_LIMIT: '2000',
+            API_RATE_LIMIT_PER_MINUTE: '1000000',
+            API_READ_RATE_LIMIT_PER_MINUTE: '1000000',
+            API_WRITE_RATE_LIMIT_PER_MINUTE: '1000000',
+            API_CONTROL_RATE_LIMIT_PER_MINUTE: '1000000',
           },
           stdio: 'inherit',
           timeout: 240000,

@@ -8,7 +8,7 @@ import { handleApi } from '../../packages/core/src/http';
 import { executeRun } from '../../packages/core/src/engine';
 import * as resources from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
-import { deliverWebhook, enqueueWebhook } from '../../packages/core/src/webhooks';
+import { deliverWebhook, dispatchWebhooks, enqueueWebhook } from '../../packages/core/src/webhooks';
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 beforeAll(async () => {
   account = await fixtureAccount('Webhook fixture');
@@ -145,4 +145,40 @@ it('deduplicates producer events, exhausts failures and stops disabled destinati
       )
     ).data,
   ).toHaveLength(1);
+});
+
+it('drains a backlog over bounded sweeps without duplicating completed deliveries', async () => {
+  vi.stubEnv('WEBHOOK_DISPATCH_BATCH_SIZE', '3');
+  vi.stubEnv('WEBHOOK_DELIVERY_CONCURRENCY', '2');
+  try {
+    await transaction(account.p.organizationId, async (tx) => {
+      const endpoint = await resources.create(tx, 'webhooks', account.p.organizationId, {
+        url: 'https://receiver.example.test/batch',
+        events: ['connection.expired'],
+        enabled: true,
+        secret_ciphertext: seal('fixture-secret'),
+      });
+      for (let i = 0; i < 5; i++)
+        await enqueueWebhook(
+          tx,
+          account.p.organizationId,
+          'connection.expired',
+          {},
+          { endpointIds: [endpoint.id] },
+        );
+    });
+    const events = new Set<string>();
+    const transport: typeof fetch = async (_url, init) => {
+      const event = new Headers(init?.headers).get('Webhook-Id')!;
+      expect(events.has(event)).toBe(false);
+      events.add(event);
+      return new Response(null, { status: 204 });
+    };
+    expect((await dispatchWebhooks(transport)).webhook_deliveries).toBe(3);
+    expect((await dispatchWebhooks(transport)).webhook_deliveries).toBe(2);
+    expect((await dispatchWebhooks(transport)).webhook_deliveries).toBe(0);
+    expect(events.size).toBe(5);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

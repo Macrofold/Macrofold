@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { config, isLocal } from '../packages/core/src/config';
 import { command } from './coverage/processes';
+import { configureDatabaseTimeouts } from '../packages/db/timeouts';
 
 /** `workers` > 1 clones the migrated database once per parallel Vitest worker. */
 export async function withFixtureDatabase(
@@ -72,6 +73,8 @@ export async function withFixtureDatabase(
       const clone = 'platform_test_' + randomUUID().replaceAll('-', '');
       await owner.query('CREATE DATABASE ' + clone + ' TEMPLATE ' + database);
       clones.push(clone);
+      // PostgreSQL template cloning does not copy per-database role settings.
+      await configureDatabaseTimeouts(owner, process.env.DATABASE_RUNTIME_ROLE || 'platform_app', clone);
     }
     await run(
       clones.length ? { ...env, FIXTURE_DATABASES: clones.join(','), FIXTURE_DATA_ROOT: directory } : env,

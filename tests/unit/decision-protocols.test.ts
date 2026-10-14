@@ -199,6 +199,33 @@ it.each([
 ])('rejects unbounded schema features %j', (schema) => {
   expect(() => schemaValidator(schema)).toThrow();
 });
+it('reuses immutable schema compilation without retaining or changing evidence', () => {
+  const schema = {
+    type: 'object',
+    properties: { value: { enum: ['original'] } },
+    required: ['value'],
+    additionalProperties: false,
+  };
+  const first = schemaValidator(schema);
+  expect(schemaValidator(JSON.parse(JSON.stringify(schema)))).toBe(first);
+  schema.properties.value.enum[0] = 'changed';
+  const changed = schemaValidator(schema);
+  expect(changed({ value: 'changed' })).toBe(true);
+  expect(first({ value: 'changed' })).toBe(false);
+  const evidence = { value: 'original', extra: true };
+  expect(first(evidence)).toBe(false);
+  expect(evidence).toEqual({ value: 'original', extra: true });
+  expect(() => schemaValidator({ ...schema, $ref: 'https://example.test/schema' })).toThrow();
+});
+it('evicts old compiled schemas while preserving validation after cache churn', () => {
+  const schema = { type: 'string', const: 'eviction-fixture' };
+  const first = schemaValidator(schema);
+  for (let i = 0; i < 128; i++) schemaValidator({ type: 'number', const: i });
+  const recompiled = schemaValidator(schema);
+  expect(recompiled).not.toBe(first);
+  expect(recompiled('eviction-fixture')).toBe(true);
+  expect(recompiled('different')).toBe(false);
+});
 it('rejects inconsistent or incomplete evidence without coercion', () => {
   const example = decisionExample('workspace', 'actor');
   example.context.truncated = true;

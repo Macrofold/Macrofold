@@ -2,6 +2,14 @@
 
 Contributor reference. Start with the [public contract](README.md), [context semantics](context.md), and [task behavior](tasks.md). [Verification](verification.md) separates local evidence from release acceptance.
 
+## Validation and admission capacity
+
+`explicit-context.ts` keeps at most 128 compiled validators, keyed by canonical schema content. Every call still checks the finite-schema policy before using the cache; schemas are compiled from immutable JSON snapshots with no coercion, defaults or property removal. Eviction also removes Ajv's internal schema retention. This caches pure compilation, never customer evidence, permissions or resolved definitions. The 32 KiB schema bound limits retained schema text to 4 MiB; compiled code has additional memory cost.
+
+Workspace admission takes a shared `workspace-deletion` advisory transaction lock. Concurrent admissions may proceed together; deletion takes the same lock exclusively and waits for admissions to commit before archiving/cancelling. Wallet reservations and scheduler admission retain their own exclusive financial/capacity locks.
+
+Cancellation and native heartbeat checks allow only one outstanding check per Run. A slow database cannot accumulate another query every timer tick. Stopping a timer drains its in-flight check; authorization, cancellation, deadlines and final settlement are still checked at their existing boundaries. See the [capacity calibration](../../engineering/capacity/upper-bounds.md) for measured workloads and deployment limitations.
+
 ## Ownership and entry points
 
 | Concern                                      | Owner                                                                       |

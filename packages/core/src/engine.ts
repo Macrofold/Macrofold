@@ -24,6 +24,7 @@ import { schedulerTurn, recordTurn, pendingRunCandidates } from './scheduling';
 import { actorAuthorized } from './actor-authorization';
 import { queueRetryAt } from './queue-wait';
 import { initialReceipt } from './inference-receipt';
+import { repeatWithoutOverlap } from './concurrent';
 
 export function principalFor(row: RunRow): Principal {
   return {
@@ -221,21 +222,25 @@ async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionPr
   const p = principalFor(run);
   const abort = new AbortController();
   let stopped = false;
-  const heartbeat = setInterval(() => {
-    void transaction(org, async (tx) => {
-      const current = await getRun(tx, runId);
-      if (
-        current.lease_generation !== run.lease_generation ||
-        current.cancel_requested ||
-        Date.now() > (current.deadline?.getTime() || Infinity)
-      )
-        abort.abort(new Error(current.cancel_requested ? 'cancelled' : 'timed_out'));
-      await tx.query('UPDATE runs SET heartbeat_at=now() WHERE id=$1 AND lease_generation=$2', [
-        runId,
-        run.lease_generation,
-      ]);
-    }).catch(() => abort.abort(new Error('heartbeat_failed')));
-  }, 1000);
+  const stopHeartbeat = repeatWithoutOverlap(
+    1000,
+    async () => {
+      await transaction(org, async (tx) => {
+        const current = await getRun(tx, runId);
+        if (
+          current.lease_generation !== run.lease_generation ||
+          current.cancel_requested ||
+          Date.now() > (current.deadline?.getTime() || Infinity)
+        )
+          abort.abort(new Error(current.cancel_requested ? 'cancelled' : 'timed_out'));
+        await tx.query('UPDATE runs SET heartbeat_at=now() WHERE id=$1 AND lease_generation=$2', [
+          runId,
+          run.lease_generation,
+        ]);
+      });
+    },
+    () => abort.abort(new Error('heartbeat_failed')),
+  );
   try {
     const ws = await transaction(org, (tx) => resources.get(tx, 'worktrees', run.worktree_id));
     const session = await transaction(org, (tx) => resources.get(tx, 'sessions', run.session_id));
@@ -471,7 +476,7 @@ async function executeClaimedNativeRun(run: NativeRunRow, provider?: ExecutionPr
     stopped = true;
     return true;
   } finally {
-    clearInterval(heartbeat);
+    await stopHeartbeat();
     if (run.config.worker_id)
       await transaction(org, async (tx) => {
         await lock(tx, `worktree:${run.worktree_id}`);

@@ -1,5 +1,5 @@
 import Ajv from 'ajv/dist/2020.js';
-import type { AnySchema } from 'ajv';
+import type { AnySchema, ValidateFunction } from 'ajv';
 import { assert } from './errors';
 import { canonical, sha256 } from './crypto';
 import type { ExplicitContext, InferenceDefinition } from './decision';
@@ -48,6 +48,12 @@ const keywords = new Set([
   'description',
   'title',
 ]);
+// Cache pure schema compilation, never evidence or authorization. Fresh JSON
+// objects arrive on every call; object-identity caching would miss all of them.
+// 128 entries retain at most 4 MiB of schema text under the existing 32 KiB bound.
+// See docs/features/decisions/implementation.md#validation-and-admission-capacity.
+const schemaCompiler = new Ajv({ strict: true, allErrors: false, ownProperties: true, addUsedSchema: false });
+const schemaValidators = new Map<string, ValidateFunction>();
 export function schemaValidator(schema: Record<string, unknown>) {
   let nodes = 0;
   function visit(value: unknown, depth: number): void {
@@ -77,18 +83,27 @@ export function schemaValidator(schema: Record<string, unknown>) {
         visit(child, depth + 1);
     }
   }
-  assert(
-    Buffer.byteLength(canonical(schema)) <= 32768,
-    400,
-    'schema_too_large',
-    'A schema may contain at most 32 KiB.',
-  );
+  const key = canonical(schema);
+  assert(Buffer.byteLength(key) <= 32768, 400, 'schema_too_large', 'A schema may contain at most 32 KiB.');
   visit(schema, 0);
+  const cached = schemaValidators.get(key);
+  if (cached) {
+    schemaValidators.delete(key);
+    schemaValidators.set(key, cached);
+    return cached;
+  }
   try {
     // No coercion/defaults/removal: validation cannot change the submitted evidence.
-    return new Ajv({ strict: true, allErrors: false, ownProperties: true }).compile(schema as AnySchema);
+    // Compile an immutable snapshot so later mutation by a caller cannot alter it.
+    const validate = schemaCompiler.compile(JSON.parse(key) as AnySchema);
+    if (schemaValidators.size >= 128) schemaValidators.delete(schemaValidators.keys().next().value!);
+    schemaValidators.set(key, validate);
+    return validate;
   } catch {
     assert(false, 400, 'invalid_schema', 'The definition contains an invalid JSON Schema.');
+  } finally {
+    // Ajv also retains schemas by object identity; the bounded cache above owns retention.
+    schemaCompiler.removeSchema();
   }
 }
 

@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { config } from '../core/src/config';
 import { capacitySetting } from '../core/src/capacity';
+import { queryTimeoutMs, statementTimeoutMs as defaultStatementTimeoutMs } from './timeouts';
 export type Tx = pg.PoolClient;
 const commitObservers = new WeakMap<Tx, (() => void)[]>();
 /** Non-authoritative, synchronous notifications only. External I/O belongs in
@@ -19,33 +20,30 @@ const globals = globalThis as unknown as {
 // The server stops the statement before the client's wire deadline expires.
 const databaseTimeouts = {
   connectionTimeoutMillis: capacitySetting('DATABASE_ACQUIRE_TIMEOUT_MS', 30_000, 60_000),
-  query_timeout: 65000,
+  query_timeout: queryTimeoutMs,
 };
-const databaseOptions = '-c statement_timeout=60000 -c idle_in_transaction_session_timeout=120000';
 export const pool = (globals.platformPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
-  // HTTP calibration favored 40 over 20 or 80. Budget this per replica, not per
-  // deployment; evidence and workload limits: docs/engineering/capacity/README.md.
-  max: capacitySetting('DATABASE_POOL_SIZE', 40, 1000),
+  // Hosted pooled calibration benefits from 80; larger pools consume shared
+  // database capacity across replicas. See docs/engineering/capacity/upper-bounds.md.
+  max: capacitySetting('DATABASE_POOL_SIZE', 80, 1000),
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
-  options: databaseOptions,
 }));
 // Better Auth owns its own non-tenant schema; domain transactions use a separate role/context.
 export const authPool = (globals.authPool ||= new pg.Pool({
   connectionString: process.env.AUTH_DATABASE_URL || config.databaseUrl,
-  max: capacitySetting('AUTH_DATABASE_POOL_SIZE', 5, 1000),
+  max: capacitySetting('AUTH_DATABASE_POOL_SIZE', 20, 1000),
   ...databaseTimeouts,
-  options: `${databaseOptions} -c search_path=auth,public`,
+  options: '-c search_path=auth,public',
 }));
 // OAuth refresh must commit independently of the caller's resource transaction. Sharing
 // its pool can exhaust every connection with callers waiting for a nested refresh.
 export const credentialPool = (globals.credentialPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
-  max: capacitySetting('CREDENTIAL_DATABASE_POOL_SIZE', 4, 1000),
+  max: capacitySetting('CREDENTIAL_DATABASE_POOL_SIZE', 32, 1000),
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
-  options: databaseOptions,
 }));
 export async function transaction<T>(
   organization: string | null,
@@ -74,7 +72,9 @@ async function transact<T>(
 ) {
   if (
     statementTimeoutMs !== undefined &&
-    (!Number.isSafeInteger(statementTimeoutMs) || statementTimeoutMs < 1 || statementTimeoutMs > 60000)
+    (!Number.isSafeInteger(statementTimeoutMs) ||
+      statementTimeoutMs < 1 ||
+      statementTimeoutMs > defaultStatementTimeoutMs)
   )
     throw new RangeError('The statement deadline must be between 1 and 60000 milliseconds.');
   const tx = await connections.connect();

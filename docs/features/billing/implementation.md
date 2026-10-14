@@ -8,11 +8,11 @@ Three plans share the same metered usage rates. `payg` remains the API identifie
 
 | Plan             | Monthly subscription | Monthly credit | Concurrent jobs | Execution maximum | Included storage | Detailed history |
 | ---------------- | -------------------: | -------------: | --------------: | ----------------: | ---------------: | ---------------: |
-| Starter (`payg`) |           $0 + usage |             $0 |               2 |        30 minutes |            1 GiB |          30 days |
-| Pro (`pro`)      |          $29 + usage |            $10 |              10 |        60 minutes |           10 GiB |          90 days |
-| Scale (`scale`)  |         $199 + usage |            $50 |              50 |       120 minutes |           50 GiB |          90 days |
+| Starter (`payg`) |           $0 + usage |             $0 |              20 |        30 minutes |            1 GiB |          30 days |
+| Pro (`pro`)      |          $29 + usage |            $10 |             100 |        60 minutes |           10 GiB |          90 days |
+| Scale (`scale`)  |         $199 + usage |            $50 |             500 |       120 minutes |           50 GiB |          90 days |
 
-Starter suits a person running one foreground task and one independent task. Pro supports several repositories or a small team. Scale supports a power user doing a 50-worktree sweep or a substantial batch of independent workspaces. These prices are launch hypotheses, not validated willingness-to-pay or profitability guarantees. The existing Pro price and concurrency are preserved. Scale adds support/storage/control-plane room while billing every execution minute and model/tool call. Included credits are usage discounts, not unrestricted compute.
+Concurrency is an account entitlement shared across native and lightweight Runs, independent of the deployment's resource pools and actual available compute. Explicit lower account overrides remain authoritative. These prices are launch hypotheses, not validated willingness-to-pay or profitability guarantees. Included credits are usage discounts, not unrestricted compute.
 
 All plans default to a **24-hour queue deadline**, configurable downward per request. Execution defaults to 900 seconds, or a lower customer cap, and begins at provisioning admission. Provisioning, input waits, execution and persistence occupy slots; waiting in the queue does not. Account limits are maxima, not reservations. Interactive jobs get first consideration when slots open; no running job is interrupted. Unused capacity can be borrowed. See [scheduler and scaling design](../execution/scheduling.md).
 
@@ -54,6 +54,8 @@ Top-up amounts are validated before creating a provider customer or order. A pen
 Local tests use Stripe's actual signature verifier with intercepted provider HTTP; they have not contacted a Stripe account. Before launch the operator must configure test-mode prices/portal/webhook events, exercise payment and subscription lifecycles, then complete live business/bank verification. Failed/unrecognized receipt handling remains inspectable in SQL and the provider delivery console. Redeliver the original signed event or repair its mapping; never invent a credit from a browser screenshot.
 
 Hourly reconciliation independently compares lot remainder, debt, ledger balance and live run reservations. A mismatch sets a spending hold and records evidence. It never fabricates a correcting journal. Financial reports are read-only and include pending expiration in displayed availability. Platform usage cost is recorded customer consumption, not a reconciled provider invoice. Provider-confirmed aggregate bills, tax accounting and recognized revenue are operator accounting inputs, not implemented automatic invoice readers.
+
+Migration 053 adds `ledger_tenant_journal`, covering tenant journal/account/amount reads. Reconciliation supplies an explicit UUID tenant predicate alongside RLS so checking one organization does not scan every organization's journal history while holding its billing lock. The index changes no financial facts or authorization and can remain during an application rollback. Apply the migration before deploying this optimization; load evidence is in the [capacity report](../../engineering/capacity/upper-bounds.md).
 
 ## Storage meter
 

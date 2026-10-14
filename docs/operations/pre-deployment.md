@@ -17,6 +17,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 - [ ] Neon's production history window meets the seven-day recovery target on a supporting plan; production branch protection is enabled. Isolated root-branch PITR is rehearsed, with actual retained history and recovery time recorded.
 - [ ] Serving processes use restricted database roles. Owner credentials are available only to administrative commands.
 - [ ] All forward SQL and auth migrations and OAuth registration match the release. Existing deadlines, terminal records, and reservations are preserved.
+- [ ] `pnpm db:migrate` installs the runtime-role/database statement and idle-transaction defaults; reconnect backends and verify `SHOW statement_timeout` = `1min` and `SHOW idle_in_transaction_session_timeout` = `2min` through pooled domain/credential and direct identity connections. Migration 053 is present.
 - [ ] Auth/vault/cron keys match existing encrypted records. Retained decrypt keys and recovery copies are available.
 - [ ] HTTPS origin, domain, email sender, edge abuse controls, and public signup policy are configured.
 - [ ] Signup, verification, reset, MFA/recovery, invitations, session expiry, and OAuth/device refresh/revocation work with synthetic accounts.

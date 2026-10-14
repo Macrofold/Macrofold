@@ -20,7 +20,7 @@ Set `ORCHESTRATION_BACKEND=workflow` (the default), `PLATFORM_MODE=production`, 
 
 PostgreSQL owns the run state machine, leases, event sequence and execution identity. Workflow is a scheduling implementation, not the sole copy of customer state. Losing a dispatch acknowledgement may create an extra scheduler instance; it must not create a second native execution or repeat an ambiguous external action. Domain leases, stable VM identity and the runtime launch marker fence this behavior.
 
-Keep the application/database/object store in compatible regions when changing topology. Configure Vercel's database connection pooling and inspect the per-instance pool maximum: 20 domain connections plus five identity connections and four independent credential-refresh connections by default; configure these independently through the [capacity settings](scaling.md#resource-capacity-settings). Concurrency multiplies those limits. Do not configure a transaction pool that drops a transaction's session settings midway through that transaction. Tenant identity uses `SET LOCAL` inside each transaction.
+Keep the application/database/object store in compatible regions when changing topology. Configure Vercel's database connection pooling and inspect the separate per-instance domain, identity and credential-refresh maxima in the [capacity settings](scaling.md#resource-capacity-settings). Concurrency multiplies those limits. Do not configure a transaction pool that drops a transaction's session settings midway through that transaction. Tenant identity uses `SET LOCAL` inside each transaction.
 
 ## Alternative: standalone control plane
 

@@ -198,9 +198,9 @@ it('honors real default rate boundaries while keeping cancellation independent o
   // Seed counters rather than wait for thousands of identical requests. The
   // capacity benchmark separately measures sustained HTTP throughput.
   for (const [group, limit] of [
-    ['read', 6000],
+    ['read', 12000],
     ['write', 1200],
-    ['control', 600],
+    ['control', 1200],
   ] as const)
     await pool.query('INSERT INTO rate_limits(key,bucket,count) VALUES($1,$2,$3)', [
       `${f.p.organizationId}:${f.key.id}:${group}`,

@@ -1,4 +1,5 @@
 import { mapConcurrent } from './concurrent';
+import { capacitySetting } from './capacity';
 import { planFor } from './plans';
 import { pool, transaction, type Tx } from '../../db';
 import { storage, type ObjectStore } from '../../providers/src/storage';
@@ -275,12 +276,13 @@ export async function maintainStorage(org: string, store: ObjectStore = storage,
   );
 }
 export async function dispatchStorageMaintenance() {
+  const concurrency = capacitySetting('STORAGE_MAINTENANCE_CONCURRENCY', 4, 16);
   const jobs =
     await pool.query(`WITH candidate AS (SELECT id FROM organizations WHERE storage_due_at<=now() ORDER BY storage_due_at LIMIT 16 FOR NO KEY UPDATE SKIP LOCKED)
     UPDATE organizations o SET storage_due_at=now()+interval '1 hour' FROM candidate c WHERE o.id=c.id RETURNING o.id`);
   let checked = 0;
   const deadline = Date.now() + 20_000;
-  await mapConcurrent(jobs.rows, 2, async (row) => {
+  await mapConcurrent(jobs.rows, concurrency, async (row) => {
     if (Date.now() >= deadline) {
       await pool.query('UPDATE organizations SET storage_due_at=now() WHERE id=$1', [row.id]);
       return;

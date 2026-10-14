@@ -1,9 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { capacitySetting, dispatchLimits, fleetLimits } from '../../packages/core/src/capacity';
 import { requestCapacity } from '../../packages/core/src/request-capacity';
-import { mapConcurrent } from '../../packages/core/src/concurrent';
+import { mapConcurrent, repeatWithoutOverlap } from '../../packages/core/src/concurrent';
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 it('configures independent resources without silently clamping to twenty', () => {
   vi.stubEnv('DISPATCH_INFERENCE_CONCURRENCY', '128');
   vi.stubEnv('DISPATCH_TRANSFER_CONCURRENCY', '2');
@@ -84,4 +87,38 @@ it('stops taking new I/O and drains existing work before exposing an error', asy
   }
   await rejected;
   expect(call).toHaveBeenCalledTimes(2);
+});
+it('does not queue overlapping checks and drains the check on stop', async () => {
+  vi.useFakeTimers();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const action = vi.fn(() => gate);
+  const onError = vi.fn();
+  const stop = repeatWithoutOverlap(500, action, onError);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(action).toHaveBeenCalledTimes(1);
+  let stopped = false;
+  const draining = stop().then(() => {
+    stopped = true;
+  });
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(stopped).toBe(false);
+  release();
+  await draining;
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(action).toHaveBeenCalledTimes(1);
+  expect(onError).not.toHaveBeenCalled();
+});
+it('reports a failed check and permits the next check without leaking a rejection', async () => {
+  vi.useFakeTimers();
+  const error = new Error('fixture');
+  const action = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(undefined);
+  const onError = vi.fn();
+  const stop = repeatWithoutOverlap(500, action, onError);
+  await vi.advanceTimersByTimeAsync(1000);
+  await stop();
+  expect(action).toHaveBeenCalledTimes(2);
+  expect(onError).toHaveBeenCalledExactlyOnceWith(error);
 });

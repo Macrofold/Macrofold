@@ -14,7 +14,7 @@ All create/action POST operations support Idempotency-Key. Require it for run cr
 
 Use cursor lists with limit default 25/max 100 and next_cursor. Errors contain error.code, message, request_id, details, and retryable. Expected codes include unauthenticated, forbidden, not_found, invalid_request, unsupported_combination, insufficient_credit, quota_exceeded, worktree_busy, stale_revision, idempotency_conflict, cursor_expired, connection_expired, provider_unavailable, and persistence_failed. Do not leak existence across tenant boundaries.
 
-HTTP limits use separate per-credential/organization minute buckets: reads 6,000, writes 1,200, and Run cancellation/input answers 600. Configure `API_READ_RATE_LIMIT_PER_MINUTE`, `API_WRITE_RATE_LIMIT_PER_MINUTE` and `API_CONTROL_RATE_LIMIT_PER_MINUTE`; `API_RATE_LIMIT_PER_MINUTE`, when explicitly set, supplies a fallback for each separate bucket. It returns 429 with Retry-After. Per-plan and global execution ceilings are separate from HTTP rate and spending admission. Configure unauthenticated/IP abuse controls at the hosting edge; there is no claimed built-in 20-stream quota.
+HTTP limits use separate per-credential/organization minute buckets: reads 12,000, writes 1,200, and Run cancellation/input answers 1,200. Configure `API_READ_RATE_LIMIT_PER_MINUTE`, `API_WRITE_RATE_LIMIT_PER_MINUTE` and `API_CONTROL_RATE_LIMIT_PER_MINUTE`; `API_RATE_LIMIT_PER_MINUTE`, when explicitly set, supplies a fallback for each separate bucket. It returns 429 with Retry-After. Per-plan and global execution ceilings are separate from HTTP rate and spending admission. Configure unauthenticated/IP abuse controls at the hosting edge; there is no claimed built-in 20-stream quota.
 
 ## Run request example
 

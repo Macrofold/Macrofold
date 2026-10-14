@@ -25,7 +25,7 @@ The migrations also use a NOLOGIN `platform_reporting` role for bounded operator
 | `AUTH_DATABASE_URL`      | Same restricted role, direct endpoint, TLS       |
 | `MIGRATION_DATABASE_URL` | Database owner, direct endpoint, TLS; admin only |
 
-The domain uses transaction-local tenant context. Identity connections set the `auth,public` search path at startup; the Neon pooler rejects this startup option, so identity uses the direct endpoint. Never substitute an owner URL to work around a runtime connection error.
+The domain uses transaction-local tenant context. `pnpm db:migrate` installs one-minute statement and two-minute idle-transaction deadlines on the runtime role in the target database. Domain/credential connections send no timeout startup options: Neon transaction pooling rejects them. Keep `AUTH_DATABASE_URL` direct, run the migration command before deploying, and reconnect existing database backends after changing role defaults. The migration owner needs permission to alter that runtime role; do not grant the runtime administrative privileges. Identity connections set the `auth,public` search path at startup; the Neon pooler rejects this startup option, so identity uses the direct endpoint. Never substitute an owner URL to work around a runtime connection error.
 
 ## Apply the schema
 

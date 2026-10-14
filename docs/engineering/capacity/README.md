@@ -1,5 +1,7 @@
 # Capacity calibration evidence
 
+The [saturation follow-up](upper-bounds.md) extends this initial record with matched upper-bound ramps, larger retained histories, live R2 and isolated hosted-database measurements. Use its final disposition and the [scaling settings](../../operations/scaling.md#resource-capacity-settings) for current defaults; the measurements below retain their original workload and implementation scope.
+
 This is contributor evidence, not a production capacity guarantee. The [scaling guide](../../operations/scaling.md#resource-capacity-settings) owns current deployment settings. Measurements were collected on October 13, 2026 with Node 24.13.0 and disposable PostgreSQL 17. The benchmark uses the real HTTP handlers, authorization, scheduler, provider serialization, SQL persistence and financial settlement, with synthetic accounts and a loopback model endpoint. No paid model or machine was used.
 
 ## Decisions

@@ -1,4 +1,5 @@
 import { mapConcurrent } from './concurrent';
+import { capacitySetting } from './capacity';
 import { createHmac } from 'node:crypto';
 import { pool, transaction, type Tx } from '../../db';
 import { id, unseal } from './crypto';
@@ -143,12 +144,18 @@ export async function deliverWebhook(org: string, deliveryId: string, transport:
 }
 export async function dispatchWebhooks(transport?: typeof fetch) {
   if (isLocal() && !transport) return { webhook_deliveries: 0 };
+  const batch = capacitySetting('WEBHOOK_DISPATCH_BATCH_SIZE', 1000, 10_000);
+  const concurrency = capacitySetting('WEBHOOK_DELIVERY_CONCURRENCY', 8, 32);
   const jobs = await pool.query(
-    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='webhook' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT 100",
+    "SELECT organization_id,resource_id FROM dispatch_jobs WHERE kind='webhook' AND state='pending' AND available_at<=now() ORDER BY available_at LIMIT $1",
+    [batch],
   );
   let processed = 0;
   const deadline = Date.now() + 20_000;
-  await mapConcurrent(jobs.rows, 4, async (job) => {
+  // Eight deliveries leave most application connections for customer work.
+  // The larger candidate page avoids a 100-delivery/15-second sweep ceiling;
+  // the admission window and destination timeout still bound active work.
+  await mapConcurrent(jobs.rows, concurrency, async (job) => {
     if (Date.now() >= deadline) return;
     processed++;
     try {

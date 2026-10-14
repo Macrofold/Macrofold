@@ -3,8 +3,10 @@
 ## Resource capacity and progress
 
 - [x] Audit dispatch, admission, Worker scaling, maintenance, transfers, database pools and HTTP limits. Separate resource ownership, remove shared batch barriers and hard clamps, raise configurable defaults, and document retained safety/transport bounds. See [implementation and verification](../projects/resource-capacity.md).
-- [x] Calibrate dispatcher and database defaults with disposable HTTP/provider workloads; cover queue/rate/fleet boundaries and competing dispatchers. Fix fair-admission starvation and isolate test capacity from developer overrides. See [measurements and limit disposition](../engineering/capacity/README.md); external-provider and retained-history throughput remain part of hosted acceptance below.
-- [ ] Apply migration 051 and aligned capacity settings to hosted API/Workflow/poller deployments. Measure mixed native/inference bursts with slow transfer/provider/maintenance boundaries, queue-age fairness, database pool waits, provider throttles and memory. Establish sustainable throughput and replica/connection budgets before raising advertised commitments. Local fixtures and a production build do not certify thousands of active customers.
+- [x] Calibrate dispatcher and database defaults with disposable HTTP/provider workloads; cover queue/rate/fleet boundaries and competing dispatchers. Fix fair-admission starvation and isolate test capacity from developer overrides. See [measurements and limit disposition](../engineering/capacity/README.md); external-provider throughput remains part of hosted acceptance below.
+- [ ] Apply migrations 051/053, migrated runtime-role/database timeouts, backend reconnection and aligned capacity settings to hosted API/Workflow/poller deployments. Measure mixed native/inference bursts with slow transfer/provider/maintenance boundaries, queue-age fairness, database pool waits, provider throttles and memory. Establish sustainable throughput and replica/connection budgets before raising advertised commitments. Local fixtures and a production build do not certify thousands of active customers.
+
+- [x] Complete the [saturation calibration](../engineering/capacity/upper-bounds.md): sustained final-default checks, deadline/ledger/permission regressions, populated-ledger migration and cloud/local cleanup pass. Every limit has a recorded disposition. Live native quotas and colocated multi-replica certification remain in hosted acceptance above.
 
 ## Bounded operations and recovery
 

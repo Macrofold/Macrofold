@@ -15,6 +15,7 @@ import { claimRun } from '../../packages/core/src/engine';
 import { queueObservations } from '../../packages/core/src/scheduling';
 import * as resources from '../../packages/core/src/resources';
 import { decisionExample } from '../../examples/decisions/contracts';
+import { dispatchLimits } from '../../packages/core/src/capacity';
 const accounts: string[] = [];
 const originalPaid = config.allowPaid;
 function barrier() {
@@ -295,6 +296,45 @@ it('can fill more than twenty phase slots without exceeding the configured pool'
     expect(advance).toHaveBeenCalledTimes(24);
     await dispatcher.tick();
     expect(advance).toHaveBeenCalledTimes(24);
+  } finally {
+    gate.release();
+    await dispatcher.drain();
+  }
+});
+
+it.each([
+  ['provision', null],
+  ['transfer', 'upload'],
+  ['control', 'probe'],
+] as const)('fills the default %s pool and leaves excess work queued', async (resource, phase) => {
+  const f = await fixture(),
+    limit = dispatchLimits()[resource];
+  vi.stubEnv('GLOBAL_CONCURRENT_RUN_LIMIT', '1000');
+  vi.stubEnv('NATIVE_CONCURRENT_RUN_LIMIT', '1000');
+  const ids: string[] = [];
+  for (let i = 0; i <= limit; i++) ids.push((await f.native()).run_id);
+  if (phase)
+    await transaction(f.p.organizationId, async (tx) => {
+      await tx.query("UPDATE runs SET status='running',execution_binding=$2 WHERE id=ANY($1::uuid[])", [
+        ids,
+        JSON.stringify({ phase, provider: 'vercel' }),
+      ]);
+      await tx.query(
+        "UPDATE dispatch_jobs SET state='running',available_at=now() WHERE resource_id=ANY($1::uuid[])",
+        [ids],
+      );
+    });
+  const gate = barrier();
+  const advance = vi.spyOn(cloudEngine, 'advanceCloudRun').mockImplementation(async () => {
+    await gate.promise;
+    return { done: false, delaySeconds: 1 };
+  });
+  const dispatcher = new CloudDispatcher(new FaultMachine(), dispatchLimits(), f.p.organizationId);
+  try {
+    await dispatcher.tick();
+    expect(advance).toHaveBeenCalledTimes(limit);
+    await dispatcher.tick();
+    expect(advance).toHaveBeenCalledTimes(limit);
   } finally {
     gate.release();
     await dispatcher.drain();

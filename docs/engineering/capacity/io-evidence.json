@@ -1,0 +1,41 @@
+{
+  "profile": "Sequential cases in one Vitest worker; actual decryption/hashing and planner; synthetic 20ms storage/provider latency. RSS includes retained allocations from preceding cases.",
+  "measurements": [
+    {
+      "experiment": "restore-capacity",
+      "concurrency": 4,
+      "decoded_mib": 128,
+      "elapsed_ms": 1356,
+      "peak_reads": 32,
+      "peak_rss_mib": 308
+    },
+    {
+      "experiment": "restore-capacity",
+      "concurrency": 8,
+      "decoded_mib": 128,
+      "elapsed_ms": 714,
+      "peak_reads": 64,
+      "peak_rss_mib": 590
+    },
+    {
+      "experiment": "restore-capacity",
+      "concurrency": 16,
+      "decoded_mib": 128,
+      "elapsed_ms": 674,
+      "peak_reads": 128,
+      "peak_rss_mib": 741
+    },
+    {
+      "experiment": "worker-demand",
+      "count": 1000,
+      "planned": 16,
+      "elapsed_ms": 10.540333000000004
+    },
+    {
+      "experiment": "worker-demand",
+      "count": 10000,
+      "planned": 16,
+      "elapsed_ms": 72.49225000000001
+    }
+  ]
+}

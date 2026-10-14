@@ -108,6 +108,8 @@ Profiling exposed two concrete costs: an inlined placement join repeatedly ran c
 
 The financial organization lock continues to use `FOR NO KEY UPDATE`, allowing foreign-key `KEY SHARE` readers while serializing balances. The global admission lock and restricted-role/RLS boundaries remain. The existing reusable suites can be invoked with `pnpm test:domain tests/integration/scheduling.test.ts tests/integration/billing.test.ts` and `pnpm test:load`, and the resource-capacity change reran the affected scheduling/load suites. Earlier native stress evidence remains separate. Add regression cases from [maintainer TODO](../../maintainers/TODO.md); runtime stress does not substitute for deferred suites.
 
+Dispatchers preserve the fair candidate order after SQL claims and serialize only short admission transactions. Model and machine work remain concurrent. Racing a whole batch against the same admission locks can repeatedly defeat the eligible head even when capacity is free. [Capacity verification](../../engineering/capacity/README.md) records that reproduced failure, the fix, and the measured defaults; functional fleet-boundary tests do not certify live cloud throughput.
+
 ## Deployment capacity and rollout
 
 Apply all forward migrations before the matching application, dispatcher and controller image. Drain active native execution before changing execution protocol versions; preserve published checkpoints and financial history. The [Worker operations guide](workers/operations.md) owns Host reconciliation, accepted prices, metering and shutdown. The [Workflow upgrade procedure](workflow-history.md#rollout-and-verification) owns orchestration handoff. Do not edit already-applied migration files to hide history.

@@ -5,6 +5,7 @@ For a first contribution: [run locally](../getting-started/local-development.md)
 - [Delivery scope](delivery.md): implemented capabilities and release acceptance.
 - [Contribute a harness](../features/execution/unified-harness-interface.md): the Unified Harness Interface, native adapters, registration, and acceptance requirements.
 - [Testing and CI](testing.md): suites, gates and evidence boundaries; [mandatory testing rules](../../TESTING.md).
+- [Capacity calibration](capacity/README.md): reproducible load measurements, selected defaults, and limits still requiring hosted verification.
 - [Development-mode implementation](development-modes.md): shared execution architecture, local Docker integration and complete real-agent acceptance across local and cloud environments.
 - [Working with coding agents](agent-guidance.md): instruction loading, implementation principles, and source research.
 - [Code review](code-review.md): recorded architecture and interface review; current policy lives in [review rules](../../.agents/rules/code-review.md).

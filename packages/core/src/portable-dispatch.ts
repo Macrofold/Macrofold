@@ -3,7 +3,8 @@ import { pool } from '../../db';
 import { advanceCloudRun } from './cloud-engine';
 import type { MachineProvider } from './ports';
 import type { NativeRunRow } from './runs';
-import { pendingRunCandidates } from './scheduling';
+import { orderDispatchJobs, pendingRunCandidates } from './scheduling';
+import { claimRun } from './engine';
 import { observeWorkerStep } from './worker-diagnostics';
 import { dispatchClasses, dispatchLimits, type DispatchClass, type DispatchLimits } from './capacity';
 
@@ -13,6 +14,7 @@ type DispatchJob = {
   organization_id: string;
   resource_id: string;
   claimed_lease_until: string | null;
+  state: 'pending' | 'running';
 };
 async function claimJobs(
   concurrency: number,
@@ -36,14 +38,31 @@ async function claimJobs(
     AND NOT (resource_id=ANY($4::uuid[]))
     AND ((state='running' AND available_at<=now()) OR (state='pending' AND resource_id=ANY($3::uuid[])
       AND (lease_until IS NULL OR lease_until<=now()) AND (error IS NULL OR available_at<=now())))
-    ORDER BY available_at,array_position($3::uuid[],resource_id),j.id LIMIT $1 FOR UPDATE OF j SKIP LOCKED)
+    ORDER BY CASE state WHEN 'running' THEN 0 ELSE 1 END,array_position($3::uuid[],resource_id),available_at,j.id LIMIT $1 FOR UPDATE OF j SKIP LOCKED)
     UPDATE dispatch_jobs j SET available_at=now()+CASE WHEN j.state='pending' THEN interval '5 seconds' ELSE interval '2 minutes' END,
       lease_until=CASE WHEN j.state='pending' THEN now()+interval '5 seconds' ELSE j.lease_until END,error=NULL
-    FROM due WHERE j.id=due.id RETURNING j.id,j.organization_id,j.resource_id,j.lease_until::text AS claimed_lease_until`,
+    FROM due WHERE j.id=due.id RETURNING j.id,j.organization_id,j.resource_id,j.state,j.lease_until::text AS claimed_lease_until`,
       [concurrency, organization || null, pending.map((p) => p.resource_id), active, resource ?? null],
     ),
   );
-  return claims.rows;
+  return orderDispatchJobs(claims.rows, pending);
+}
+
+async function failedJob(job: DispatchJob): Promise<never> {
+  await dispatchFailed(job.organization_id, 'run', job.resource_id, 'poller_advance_failed');
+  throw new Error('A durable run step failed; its execution identity is retained.');
+}
+
+/** Serialize only short SQL admissions in fair order. Concurrent contenders for
+ * the same organization/global lock can repeatedly beat the eligible head and
+ * then reject themselves. Provider work remains independently concurrent. */
+async function startJob(provider: Provider, job: DispatchJob) {
+  try {
+    if (job.state === 'pending') await claimRun(job.organization_id, job.resource_id);
+  } catch {
+    return { completion: failedJob(job) };
+  }
+  return { completion: advanceJob(provider, job) };
 }
 
 /** Advance once and retain the SQL state machine's execution identity and retry policy. */
@@ -72,8 +91,7 @@ async function advanceJob(provider: Provider, job: DispatchJob) {
       );
     return !result.done && !result.queued && result.delaySeconds === 0;
   } catch {
-    await dispatchFailed(job.organization_id, 'run', job.resource_id, 'poller_advance_failed');
-    throw new Error('A durable run step failed; its execution identity is retained.');
+    return failedJob(job);
   }
 }
 
@@ -82,7 +100,18 @@ export async function dispatchCloudPoller(provider: Provider, concurrency = 64, 
   if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 1024)
     throw new RangeError('Dispatch concurrency must be between 1 and 1024.');
   const claims = await claimJobs(concurrency, organization);
-  const results = await Promise.allSettled(claims.map((job) => advanceJob(provider, job)));
+  const tasks: Promise<PromiseSettledResult<boolean>>[] = [];
+  for (const job of claims) {
+    const { completion } = await startJob(provider, job);
+    // Observe rejection now while later admissions are still being awaited.
+    tasks.push(
+      completion.then(
+        (value) => ({ status: 'fulfilled' as const, value }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+      ),
+    );
+  }
+  const results = await Promise.all(tasks);
   return {
     advanced: claims.length,
     failed: results.filter((r) => r.status === 'rejected').length,
@@ -116,7 +145,8 @@ export class CloudDispatcher {
       if (slots <= 0) continue;
       const claims = await claimJobs(slots, this.organization, [...this.active.keys()], resource);
       for (const job of claims) {
-        const task = advanceJob(this.provider, job)
+        const { completion } = await startJob(this.provider, job);
+        const task = completion
           .then((ready) => {
             this.ready ||= ready;
           })

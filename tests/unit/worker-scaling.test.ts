@@ -99,6 +99,23 @@ describe('queued Worker capacity planning', () => {
     vi.stubEnv('WORKER_PROVISION_BATCH', '2');
     expect(planWorkerCapacity(settings, demands, [], [small], now).provision).toHaveLength(2);
   });
+  it.each([1000, 10000])('bounds planning work and spending for %i queued demands', (count) => {
+    const demands = Array.from({ length: count }, (_, index) => demand({ run_id: `capacity-${index}` }));
+    const settings = worker({
+      max_instances: 500,
+      max_concurrency: 500,
+      max_hourly_compute_cost_micro_usd: '500000000',
+    });
+    const before = performance.now();
+    const plan = planWorkerCapacity(settings, demands, [], [small, large], now);
+    expect(plan.provision).toHaveLength(16);
+    console.log(JSON.stringify({
+      experiment: 'worker-demand', count, planned: plan.provision.length,
+      elapsed_ms: performance.now() - before,
+    }));
+    vi.stubEnv('WORKER_PROVISION_BATCH', '64');
+    expect(planWorkerCapacity(settings, demands, [], [small, large], now).provision).toHaveLength(64);
+  });
   it('accounts for demands beyond the former 32-item projection', () => {
     const quote = { ...large, concurrency: 64 };
     const demands = Array.from({ length: 33 }, (_, index) => demand({ run_id: `run-${index}`,

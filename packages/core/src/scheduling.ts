@@ -6,6 +6,16 @@ import { plans } from './plans';
 import { capacitySetting, fleetLimits } from './capacity';
 export type ExecutionClass = 'native' | 'inference';
 
+/** SQL UPDATE RETURNING is unordered, even when its claim subquery is ordered.
+ * Recover running jobs first, then admit pending jobs in the fair hint order. */
+export function orderDispatchJobs<T extends { resource_id: string }>(
+  jobs: T[],
+  pending: { resource_id: string }[],
+) {
+  const order = new Map(pending.map((p, index) => [p.resource_id, index]));
+  return [...jobs].sort((a, b) => (order.get(a.resource_id) ?? -1) - (order.get(b.resource_id) ?? -1));
+}
+
 // Weighted virtual service counts starts, not runtime. Idle tenants join at the
 // current clock, so they neither hoard turns nor repay a lifetime of old usage.
 // Waiting earns a bounded age bonus: one quarter of a virtual turn after four minutes.

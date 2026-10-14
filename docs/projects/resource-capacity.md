@@ -1,6 +1,6 @@
 # Resource-specific capacity and independent progress
 
-Status: implemented, verified and locally activated. Hosted load acceptance remains separate. This extends [poller progress](poller-progress.md), rather than replacing the SQL scheduler or execution engine.
+Status: the initial capacity split is implemented, verified and locally activated. The follow-up calibration below changes code/defaults but has not restarted the existing preview or worker. Hosted load acceptance remains separate. This extends [poller progress](poller-progress.md), rather than replacing the SQL scheduler or execution engine.
 
 ## Outcome and scope
 
@@ -28,13 +28,21 @@ The existing preview and uncommitted poller fixes are preserved. Base inspected 
 
 ## Decisions and verification
 
-- Resource ownership replaces the shared step semaphore: model advances 64, provisioning 16, transfers 8 and control 64 per standalone process. Native/lightweight fleet defaults are 200/2,000. These are independently configurable starting points, not a measured production capacity claim; the [scaling guide](../operations/scaling.md#resource-capacity-settings) owns units, ranges and retained boundaries.
+- Resource ownership replaces the shared step semaphore: model advances 256, provisioning 16, transfers 8 and control 64 per standalone process. Native/lightweight fleet defaults are 200/2,000. These are independently configurable starting points, not a measured production capacity claim; the [scaling guide](../operations/scaling.md#resource-capacity-settings) owns units, ranges and retained boundaries.
 - Plan defaults become 20/100/500 concurrent Runs. Explicit lower account limits, Worker spending/resource policies and reservation checks remain authoritative. The former Worker 64-instance clamp is removed in favor of the accepted plan/policy.
 - Shared bounded mapping refills I/O slots and drains already-started operations on failure. Maintenance components own separate schedules; hosted requests still await their work. Storage GC retains its reference-publication lock to avoid deleting live bytes.
 - Session queues accept 100 queued Runs, excluding the active Run; unfinished push transfers default to 100 per organization. Read, write and cancellation/input HTTP buckets are independent. Database acquisition/pool settings are explicit per-process deployment controls.
 - PostgreSQL fixtures verify a completed inference while the native transfer pool is full, independent fleet ceilings, 24 simultaneous phase slots without the former twenty-slot clamp, queue bounds, single launch/publication and failure/drain behavior. Existing scheduling/load, Worker scaling/API, storage, maintenance, webhook, Git, decision and trigger regression slices pass. Initial failures were stale plan expectations and test fixture/assertion setup; the corrected affected slices pass. Counts from overlapping slices are not a unique test total.
 - `pnpm check`, isolated production Next.js build, `pnpm docs:check` and full five-language `pnpm test:sdks` pass. The latest standalone capacity slice passes 12 tests. Policy mutation verification passes at 93.33% (70/75 killed). The build retains an unrelated existing dynamic-filesystem tracing warning in `sqlite-snapshot.ts`; no compiler setting was relaxed. The SDK fixture mail sink was unavailable, so its pass does not establish email delivery.
 - Tests use disposable databases/storage, scripted provider boundaries and no paid API calls. Neither thousands of simultaneous customers nor provider-specific rate/connection quotas have been load-certified. Hosted migration/rollout and measured throughput remain in [maintainer work](../maintainers/TODO.md#resource-capacity-and-progress).
+
+## Capacity calibration
+
+The follow-up calibration compares matched disposable workloads before selecting further defaults. It covers dispatcher resource pools, fleet/account admission, Workflow/Worker batches, all three database pools and acquisition deadlines, HTTP buckets, session/upload queues, restore reads and maintenance fan-out. Product allowances and provider quotas are distinguished from process resource budgets; a locally accepted numeric setting is not a production capacity claim.
+
+Use a separate PostgreSQL instance and synthetic loopback model/storage responses, preserve the preview and existing credentials, and record throughput, queue and pool wait, tail latency, memory, errors and accounting outcomes. Compare small/default/larger settings, include slow operations and burst arrivals, and stop escalation on resource pressure. Apply default changes only where the measured owning boundary supports them; retain hosted/native/provider acceptance as open. Record reproducible commands and the complete limit disposition in a linked engineering report.
+
+[Calibration results](../engineering/capacity/README.md) include reproducible workloads and raw measurements. They support defaults of 256 inference advances and 40 application connections; auth/credential pools and external-provider budgets remain unchanged. Ordered SQL admission fixes the burst starvation uncovered by testing without serializing execution. Both scheduling paths preserve the fair order lost by `UPDATE ... RETURNING`. Fixture setup now isolates resource ceilings from developer overrides.
 
 ## Local activation
 

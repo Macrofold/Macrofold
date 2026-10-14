@@ -24,7 +24,9 @@ const databaseTimeouts = {
 const databaseOptions = '-c statement_timeout=60000 -c idle_in_transaction_session_timeout=120000';
 export const pool = (globals.platformPool ||= new pg.Pool({
   connectionString: config.databaseUrl,
-  max: capacitySetting('DATABASE_POOL_SIZE', 20, 1000),
+  // HTTP calibration favored 40 over 20 or 80. Budget this per replica, not per
+  // deployment; evidence and workload limits: docs/engineering/capacity/README.md.
+  max: capacitySetting('DATABASE_POOL_SIZE', 40, 1000),
   idleTimeoutMillis: 10000,
   ...databaseTimeouts,
   options: databaseOptions,

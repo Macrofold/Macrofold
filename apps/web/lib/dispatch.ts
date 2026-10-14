@@ -3,7 +3,7 @@ import { start } from 'workflow/api';
 import { pool } from '@platform/db';
 import { config, isLocal } from '@platform/core/config';
 import { agentRun } from '../workflows/run';
-import { pendingRunCandidates } from '@platform/core/scheduling';
+import { orderDispatchJobs, pendingRunCandidates } from '@platform/core/scheduling';
 import { claimRun } from '@platform/core/engine';
 import { renewWorkflow } from '@platform/core/workflow-ownership';
 import { flushTracesInBackground } from './trace-background';
@@ -38,7 +38,7 @@ async function dispatchPendingRuns(capacityFreed: boolean) {
   // Keep admission ordered, but do not await slow Workflow start acknowledgements
   // before claiming the next eligible Run. Starts have their own bounded pool.
   const ready: typeof jobs.rows = [];
-  for (const job of jobs.rows) {
+  for (const job of orderDispatchJobs(jobs.rows, pending)) {
     try {
       // Waiting lives in PostgreSQL, not a five-second Workflow sleep loop. A day
       // of queue tolerance must not consume a Workflow's bounded event history.

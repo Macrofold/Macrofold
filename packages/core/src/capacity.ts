@@ -19,7 +19,9 @@ export type DispatchClass = (typeof dispatchClasses)[number];
 export type DispatchLimits = Record<DispatchClass, number>;
 export function dispatchLimits(): DispatchLimits {
   return {
-    inference: capacitySetting('DISPATCH_INFERENCE_CONCURRENCY', 64, 1024),
+    // Matched bursts improved through 256; doubling again gave little gain.
+    // Calibration and deployment caveats: docs/engineering/capacity/README.md.
+    inference: capacitySetting('DISPATCH_INFERENCE_CONCURRENCY', 256, 1024),
     provision: capacitySetting('DISPATCH_PROVISION_CONCURRENCY', 16, 256),
     transfer: capacitySetting('DISPATCH_TRANSFER_CONCURRENCY', 8, 256),
     control: capacitySetting('DISPATCH_CONTROL_CONCURRENCY', 64, 1024),

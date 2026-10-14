@@ -1,0 +1,1439 @@
+[
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 256
+    },
+    "elapsed_ms": 1526,
+    "requests_per_second": 167.78,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 332.68,
+      "p95_ms": 658.43,
+      "p99_ms": 704.04,
+      "max_ms": 718.39
+    },
+    "event_loop_p99_ms": 25.35,
+    "process_cpu_ms": 1480.898,
+    "initial_rss_mib": 396.90625,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 396,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 44,
+    "pool_wait_samples_percent": 95,
+    "total_ms": 2865,
+    "node": "v24.13.0",
+    "series": "capacity-20261013",
+    "valid_for_tuning": false,
+    "implementation": "original"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 128,
+      "delay": 1000
+    },
+    "admission_ms": 2230,
+    "states": [
+      {
+        "status": "queued",
+        "n": 119
+      },
+      {
+        "status": "succeeded",
+        "n": 9
+      }
+    ],
+    "failure": "Missing or duplicate provider requests\n\n9 !== 128\n",
+    "completed": 9,
+    "errors": {
+      "queued": 119
+    },
+    "provider_calls": 9,
+    "provider_peak_in_flight": 2,
+    "peak_rss_mib": 450,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 45,
+    "pool_wait_samples_percent": 86.3655550865344,
+    "total_ms": 183288,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 9,
+      "distinct_runs": 9,
+      "reserved_micro_usd": "2380000"
+    },
+    "series": "capacity-20261013",
+    "valid_for_tuning": false,
+    "implementation": "original"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 128,
+      "delay": 1000
+    },
+    "admission_ms": 1958,
+    "states": [
+      {
+        "status": "running",
+        "n": 1
+      },
+      {
+        "status": "queued",
+        "n": 69
+      },
+      {
+        "status": "succeeded",
+        "n": 58
+      }
+    ],
+    "failure": "Missing or duplicate provider requests\n\n59 !== 128\n",
+    "completed": 58,
+    "errors": {
+      "running": 1,
+      "queued": 69
+    },
+    "provider_calls": 59,
+    "provider_peak_in_flight": 3,
+    "peak_rss_mib": 437,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 46,
+    "pool_wait_samples_percent": 86.33174291327533,
+    "total_ms": 183010,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 58,
+      "distinct_runs": 58,
+      "reserved_micro_usd": "1400000"
+    },
+    "series": "capacity-sort",
+    "valid_for_tuning": false,
+    "implementation": "ordered-only"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 128,
+      "delay": 1000
+    },
+    "admission_ms": 2371,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 128
+      }
+    ],
+    "elapsed_ms": 13875,
+    "requests_per_second": 9.23,
+    "latency": {
+      "samples": 128,
+      "p50_ms": 3769.78,
+      "p95_ms": 6211.21,
+      "p99_ms": 6508.06,
+      "max_ms": 6508.06
+    },
+    "event_loop_p99_ms": 34.37,
+    "process_cpu_ms": 3130.832,
+    "initial_rss_mib": 348,
+    "completed": 128,
+    "errors": {},
+    "provider_calls": 128,
+    "provider_peak_in_flight": 64,
+    "peak_rss_mib": 377,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 44,
+    "pool_wait_samples_percent": 19.888475836431226,
+    "total_ms": 17306,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 128,
+      "distinct_runs": 128,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-serial",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 5,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 5136,
+    "requests_per_second": 99.69,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 561.08,
+      "p95_ms": 1066.07,
+      "p99_ms": 1078.75,
+      "max_ms": 1087.26
+    },
+    "event_loop_p99_ms": 25.53,
+    "process_cpu_ms": 3059.576,
+    "initial_rss_mib": 308.703125,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 317,
+    "pool_peak_connections": 5,
+    "pool_peak_busy": 5,
+    "pool_peak_waiters": 59,
+    "pool_wait_samples_percent": 99.00990099009901,
+    "total_ms": 6926,
+    "node": "v24.13.0",
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 2553,
+    "requests_per_second": 200.51,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 296.49,
+      "p95_ms": 459.14,
+      "p99_ms": 547.61,
+      "max_ms": 561.7
+    },
+    "event_loop_p99_ms": 21.58,
+    "process_cpu_ms": 2538.413,
+    "initial_rss_mib": 431.1875,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 438,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 44,
+    "pool_wait_samples_percent": 98.01980198019803,
+    "total_ms": 3871,
+    "node": "v24.13.0",
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 40,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 2037,
+    "requests_per_second": 251.31,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 210.53,
+      "p95_ms": 410.8,
+      "p99_ms": 503.59,
+      "max_ms": 528.5
+    },
+    "event_loop_p99_ms": 22.68,
+    "process_cpu_ms": 2278.054,
+    "initial_rss_mib": 425.21875,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 448,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 24,
+    "pool_wait_samples_percent": 93.75,
+    "total_ms": 3289,
+    "node": "v24.13.0",
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 80,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 2382,
+    "requests_per_second": 214.93,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 251.65,
+      "p95_ms": 535.76,
+      "p99_ms": 625.45,
+      "max_ms": 653.04
+    },
+    "event_loop_p99_ms": 25.67,
+    "process_cpu_ms": 2453.511,
+    "initial_rss_mib": 426.109375,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 442,
+    "pool_peak_connections": 64,
+    "pool_peak_busy": 64,
+    "pool_peak_waiters": 0,
+    "pool_wait_samples_percent": 0,
+    "total_ms": 3673,
+    "node": "v24.13.0",
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 5069,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "elapsed_ms": 26611,
+    "requests_per_second": 9.62,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 3507.13,
+      "p95_ms": 6730.07,
+      "p99_ms": 7052.33,
+      "max_ms": 7314.28
+    },
+    "event_loop_p99_ms": 39.32,
+    "process_cpu_ms": 5987.389,
+    "initial_rss_mib": 349.375,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 64,
+    "peak_rss_mib": 349,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 73,
+    "pool_wait_samples_percent": 21.92982456140351,
+    "total_ms": 32624,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 128,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 5051,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "elapsed_ms": 17299,
+    "requests_per_second": 14.8,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 5052.82,
+      "p95_ms": 10041.03,
+      "p99_ms": 10428.38,
+      "max_ms": 10802.32
+    },
+    "event_loop_p99_ms": 48.33,
+    "process_cpu_ms": 5479.922,
+    "initial_rss_mib": 340.75,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 128,
+    "peak_rss_mib": 389,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 142,
+    "pool_wait_samples_percent": 23.449319213313164,
+    "total_ms": 23278,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 256,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 3844,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "elapsed_ms": 12627,
+    "requests_per_second": 20.27,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 8047.93,
+      "p95_ms": 9668.11,
+      "p99_ms": 9886.6,
+      "max_ms": 10161.14
+    },
+    "event_loop_p99_ms": 55.64,
+    "process_cpu_ms": 5319.491,
+    "initial_rss_mib": 376.9375,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 256,
+    "peak_rss_mib": 399,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 353,
+    "pool_wait_samples_percent": 42.1505376344086,
+    "total_ms": 17289,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 40,
+      "concurrency": 256,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 5449,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "elapsed_ms": 14608,
+    "requests_per_second": 17.52,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 8948.81,
+      "p95_ms": 11914.88,
+      "p99_ms": 12316.92,
+      "max_ms": 12422.29
+    },
+    "event_loop_p99_ms": 66.49,
+    "process_cpu_ms": 5640.054,
+    "initial_rss_mib": 382.046875,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 256,
+    "peak_rss_mib": 383,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 288,
+    "pool_wait_samples_percent": 37.30769230769231,
+    "total_ms": 21222,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-matrix",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 1024
+    },
+    "elapsed_ms": 3954,
+    "requests_per_second": 258.97,
+    "latency": {
+      "samples": 1024,
+      "p50_ms": 214.4,
+      "p95_ms": 435.02,
+      "p99_ms": 494.71,
+      "max_ms": 620.82
+    },
+    "event_loop_p99_ms": 27.33,
+    "process_cpu_ms": 5172.868,
+    "initial_rss_mib": 363.25,
+    "completed": 1024,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 381,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 44,
+    "pool_wait_samples_percent": 98.7012987012987,
+    "total_ms": 5504,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 40,
+      "concurrency": 64,
+      "count": 1024
+    },
+    "elapsed_ms": 2990,
+    "requests_per_second": 342.45,
+    "latency": {
+      "samples": 1024,
+      "p50_ms": 152.07,
+      "p95_ms": 344.22,
+      "p99_ms": 620,
+      "max_ms": 650.16
+    },
+    "event_loop_p99_ms": 22.15,
+    "process_cpu_ms": 4289.914,
+    "initial_rss_mib": 379.25,
+    "completed": 1024,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 387,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 24,
+    "pool_wait_samples_percent": 97.45762711864407,
+    "total_ms": 4189,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 80,
+      "concurrency": 64,
+      "count": 1024
+    },
+    "elapsed_ms": 3576,
+    "requests_per_second": 286.37,
+    "latency": {
+      "samples": 1024,
+      "p50_ms": 160.09,
+      "p95_ms": 534.36,
+      "p99_ms": 767.3,
+      "max_ms": 1053.62
+    },
+    "event_loop_p99_ms": 24.53,
+    "process_cpu_ms": 4529.06,
+    "initial_rss_mib": 379.796875,
+    "completed": 1024,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 395,
+    "pool_peak_connections": 64,
+    "pool_peak_busy": 64,
+    "pool_peak_waiters": 0,
+    "pool_wait_samples_percent": 0,
+    "total_ms": 4684,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 5,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 1692,
+    "requests_per_second": 241.78,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 139.19,
+      "p95_ms": 828.81,
+      "p99_ms": 880.2,
+      "max_ms": 885.87
+    },
+    "event_loop_p99_ms": 24.77,
+    "process_cpu_ms": 1436.475,
+    "initial_rss_mib": 404.765625,
+    "completed": 409,
+    "errors": {
+      "forbidden": 110
+    },
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 421,
+    "pool_peak_connections": 5,
+    "pool_peak_busy": 5,
+    "pool_peak_waiters": 38,
+    "pool_wait_samples_percent": 38.46153846153846,
+    "total_ms": 2700,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": false,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 10,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 1376,
+    "requests_per_second": 297.15,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 161.74,
+      "p95_ms": 341.07,
+      "p99_ms": 380.11,
+      "max_ms": 394.43
+    },
+    "event_loop_p99_ms": 23.43,
+    "process_cpu_ms": 1480.813,
+    "initial_rss_mib": 380.40625,
+    "completed": 409,
+    "errors": {
+      "forbidden": 110
+    },
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 390,
+    "pool_peak_connections": 10,
+    "pool_peak_busy": 10,
+    "pool_peak_waiters": 17,
+    "pool_wait_samples_percent": 30.18867924528302,
+    "total_ms": 2430,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": false,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 1078,
+    "requests_per_second": 379.37,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 135.79,
+      "p95_ms": 190.62,
+      "p99_ms": 239.16,
+      "max_ms": 251.81
+    },
+    "event_loop_p99_ms": 23.86,
+    "process_cpu_ms": 1459.883,
+    "initial_rss_mib": 416.3125,
+    "completed": 409,
+    "errors": {
+      "forbidden": 110
+    },
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 417,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 1,
+    "pool_wait_samples_percent": 2.4390243902439024,
+    "total_ms": 2195,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": false,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "credential",
+      "pool": 4,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 482,
+    "requests_per_second": 1062.38,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 54.76,
+      "p95_ms": 68.62,
+      "p99_ms": 77.79,
+      "max_ms": 81.55
+    },
+    "event_loop_p99_ms": 21.28,
+    "process_cpu_ms": 213.935,
+    "initial_rss_mib": 410.0625,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 411,
+    "pool_peak_connections": 4,
+    "pool_peak_busy": 4,
+    "pool_peak_waiters": 13,
+    "pool_wait_samples_percent": 100,
+    "total_ms": 1584,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "credential",
+      "pool": 8,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 382,
+    "requests_per_second": 1341.85,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 40.98,
+      "p95_ms": 92.17,
+      "p99_ms": 105.71,
+      "max_ms": 108.58
+    },
+    "event_loop_p99_ms": 21.38,
+    "process_cpu_ms": 211.634,
+    "initial_rss_mib": 406.25,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 406,
+    "pool_peak_connections": 8,
+    "pool_peak_busy": 8,
+    "pool_peak_waiters": 7,
+    "pool_wait_samples_percent": 93.33333333333333,
+    "total_ms": 1520,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "credential",
+      "pool": 16,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 479,
+    "requests_per_second": 1068.37,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 37.99,
+      "p95_ms": 188.74,
+      "p99_ms": 221.8,
+      "max_ms": 233.97
+    },
+    "event_loop_p99_ms": 21.73,
+    "process_cpu_ms": 232.485,
+    "initial_rss_mib": 418.078125,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 418,
+    "pool_peak_connections": 16,
+    "pool_peak_busy": 16,
+    "pool_peak_waiters": 4,
+    "pool_wait_samples_percent": 16.666666666666668,
+    "total_ms": 1674,
+    "node": "v24.13.0",
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 40,
+      "concurrency": 128,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 3970,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "queue_latency": {
+      "samples": 256,
+      "p50_ms": 6888.36,
+      "p95_ms": 13957.05,
+      "p99_ms": 14606.67,
+      "max_ms": 14616.77
+    },
+    "total_latency": {
+      "samples": 256,
+      "p50_ms": 14071.01,
+      "p95_ms": 17873.84,
+      "p99_ms": 18034.15,
+      "max_ms": 18287.17
+    },
+    "elapsed_ms": 17256,
+    "requests_per_second": 14.84,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 5373.17,
+      "p95_ms": 9199.95,
+      "p99_ms": 9502.85,
+      "max_ms": 9633.92
+    },
+    "event_loop_p99_ms": 46.79,
+    "process_cpu_ms": 5161.952,
+    "initial_rss_mib": 376.421875,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 128,
+    "peak_rss_mib": 383,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 93,
+    "pool_wait_samples_percent": 18.865030674846626,
+    "total_ms": 22074,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 40,
+      "concurrency": 256,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 4588,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "queue_latency": {
+      "samples": 256,
+      "p50_ms": 6991.83,
+      "p95_ms": 8178.26,
+      "p99_ms": 8234.24,
+      "max_ms": 8272.95
+    },
+    "total_latency": {
+      "samples": 256,
+      "p50_ms": 14084.13,
+      "p95_ms": 15584.2,
+      "p99_ms": 15851.79,
+      "max_ms": 16064.25
+    },
+    "elapsed_ms": 13184,
+    "requests_per_second": 19.42,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 7007.29,
+      "p95_ms": 9799.47,
+      "p99_ms": 10377.39,
+      "max_ms": 10633.01
+    },
+    "event_loop_p99_ms": 52.04,
+    "process_cpu_ms": 5130.585,
+    "initial_rss_mib": 285.15625,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 256,
+    "peak_rss_mib": 421,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 245,
+    "pool_wait_samples_percent": 25.301204819277107,
+    "total_ms": 18733,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 40,
+      "concurrency": 512,
+      "count": 512,
+      "delay": 1000
+    },
+    "admission_ms": 7971,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 512
+      }
+    ],
+    "queue_latency": {
+      "samples": 512,
+      "p50_ms": 12101.38,
+      "p95_ms": 14867.95,
+      "p99_ms": 15190.77,
+      "max_ms": 15241.78
+    },
+    "total_latency": {
+      "samples": 512,
+      "p50_ms": 26489.67,
+      "p95_ms": 29307.69,
+      "p99_ms": 29910.91,
+      "max_ms": 30326.57
+    },
+    "elapsed_ms": 23935,
+    "requests_per_second": 21.39,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 14913.17,
+      "p95_ms": 20001.48,
+      "p99_ms": 21202.63,
+      "max_ms": 22201.24
+    },
+    "event_loop_p99_ms": 54.46,
+    "process_cpu_ms": 9878.933,
+    "initial_rss_mib": 416.5625,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 512,
+    "provider_peak_in_flight": 512,
+    "peak_rss_mib": 434,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 603,
+    "pool_wait_samples_percent": 30.75196408529742,
+    "total_ms": 32794,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 512,
+      "distinct_runs": 512,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-repeat",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 5,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 1896,
+    "requests_per_second": 269.97,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 186.31,
+      "p95_ms": 416.59,
+      "p99_ms": 520.27,
+      "max_ms": 552.41
+    },
+    "event_loop_p99_ms": 24.49,
+    "process_cpu_ms": 3038.312,
+    "initial_rss_mib": 396.046875,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 452,
+    "pool_peak_connections": 5,
+    "pool_peak_busy": 5,
+    "pool_peak_waiters": 47,
+    "pool_wait_samples_percent": 24.324324324324323,
+    "total_ms": 3445,
+    "node": "v24.13.0",
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 10,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 2230,
+    "requests_per_second": 229.56,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 237.95,
+      "p95_ms": 486.79,
+      "p99_ms": 547.18,
+      "max_ms": 562.94
+    },
+    "event_loop_p99_ms": 24.41,
+    "process_cpu_ms": 3248.37,
+    "initial_rss_mib": 378.671875,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 435,
+    "pool_peak_connections": 10,
+    "pool_peak_busy": 10,
+    "pool_peak_waiters": 22,
+    "pool_wait_samples_percent": 4.597701149425287,
+    "total_ms": 3634,
+    "node": "v24.13.0",
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "session",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 512
+    },
+    "elapsed_ms": 2200,
+    "requests_per_second": 232.77,
+    "latency": {
+      "samples": 512,
+      "p50_ms": 234.65,
+      "p95_ms": 495.56,
+      "p99_ms": 565.13,
+      "max_ms": 596.92
+    },
+    "event_loop_p99_ms": 23.05,
+    "process_cpu_ms": 3361.575,
+    "initial_rss_mib": 370.796875,
+    "completed": 512,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 399,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 2,
+    "pool_wait_samples_percent": 1.1627906976744187,
+    "total_ms": 3857,
+    "node": "v24.13.0",
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 64,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 4722,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "queue_latency": {
+      "samples": 256,
+      "p50_ms": 13968.94,
+      "p95_ms": 19901.95,
+      "p99_ms": 19993.97,
+      "max_ms": 20001.02
+    },
+    "total_latency": {
+      "samples": 256,
+      "p50_ms": 17877.28,
+      "p95_ms": 21374.28,
+      "p99_ms": 21427.5,
+      "max_ms": 21507.54
+    },
+    "elapsed_ms": 21398,
+    "requests_per_second": 11.96,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 2892.97,
+      "p95_ms": 7203.36,
+      "p99_ms": 7865.55,
+      "max_ms": 8085.12
+    },
+    "event_loop_p99_ms": 44.76,
+    "process_cpu_ms": 6193.801,
+    "initial_rss_mib": 361.28125,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 64,
+    "peak_rss_mib": 361,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 151,
+    "pool_wait_samples_percent": 22.166874221668742,
+    "total_ms": 27011,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 128,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 4629,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "queue_latency": {
+      "samples": 256,
+      "p50_ms": 9373.9,
+      "p95_ms": 19550.24,
+      "p99_ms": 20086,
+      "max_ms": 20258.18
+    },
+    "total_latency": {
+      "samples": 256,
+      "p50_ms": 14972.88,
+      "p95_ms": 26022.91,
+      "p99_ms": 26222.26,
+      "max_ms": 26316.39
+    },
+    "elapsed_ms": 25692,
+    "requests_per_second": 9.96,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 6963.55,
+      "p95_ms": 9621.74,
+      "p99_ms": 10795.01,
+      "max_ms": 11554.91
+    },
+    "event_loop_p99_ms": 62.49,
+    "process_cpu_ms": 6855.847,
+    "initial_rss_mib": 325.015625,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 128,
+    "peak_rss_mib": 348,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 189,
+    "pool_wait_samples_percent": 28.158458244111348,
+    "total_ms": 31182,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 20,
+      "concurrency": 256,
+      "count": 256,
+      "delay": 1000
+    },
+    "admission_ms": 5840,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 256
+      }
+    ],
+    "queue_latency": {
+      "samples": 256,
+      "p50_ms": 9020.96,
+      "p95_ms": 10300.24,
+      "p99_ms": 10396.93,
+      "max_ms": 10436.26
+    },
+    "total_latency": {
+      "samples": 256,
+      "p50_ms": 18668.64,
+      "p95_ms": 21313.83,
+      "p99_ms": 21499.49,
+      "max_ms": 21601.91
+    },
+    "elapsed_ms": 17421,
+    "requests_per_second": 14.7,
+    "latency": {
+      "samples": 256,
+      "p50_ms": 9650.41,
+      "p95_ms": 14760.05,
+      "p99_ms": 15460.66,
+      "max_ms": 15645.03
+    },
+    "event_loop_p99_ms": 68.16,
+    "process_cpu_ms": 5941.812,
+    "initial_rss_mib": 297.65625,
+    "completed": 256,
+    "errors": {},
+    "provider_calls": 256,
+    "provider_peak_in_flight": 256,
+    "peak_rss_mib": 380,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 372,
+    "pool_wait_samples_percent": 27.508090614886733,
+    "total_ms": 24246,
+    "node": "v24.13.0",
+    "accounting": {
+      "usage_rows": 256,
+      "distinct_runs": 256,
+      "reserved_micro_usd": "0"
+    },
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 20,
+      "concurrency": 256,
+      "count": 2048
+    },
+    "elapsed_ms": 12574,
+    "requests_per_second": 162.87,
+    "latency": {
+      "samples": 2048,
+      "p50_ms": 1368.78,
+      "p95_ms": 3065.04,
+      "p99_ms": 3117.2,
+      "max_ms": 3230.71
+    },
+    "event_loop_p99_ms": 57.25,
+    "process_cpu_ms": 10416.735,
+    "initial_rss_mib": 409.53125,
+    "completed": 2048,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 435,
+    "pool_peak_connections": 20,
+    "pool_peak_busy": 20,
+    "pool_peak_waiters": 236,
+    "pool_wait_samples_percent": 98.92933618843684,
+    "total_ms": 13892,
+    "node": "v24.13.0",
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 40,
+      "concurrency": 256,
+      "count": 2048
+    },
+    "elapsed_ms": 7952,
+    "requests_per_second": 257.53,
+    "latency": {
+      "samples": 2048,
+      "p50_ms": 860.58,
+      "p95_ms": 1418.11,
+      "p99_ms": 1497.87,
+      "max_ms": 1609.06
+    },
+    "event_loop_p99_ms": 35.62,
+    "process_cpu_ms": 8943.378,
+    "initial_rss_mib": 418.96875,
+    "completed": 2048,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 423,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 216,
+    "pool_wait_samples_percent": 98.02631578947368,
+    "total_ms": 9160,
+    "node": "v24.13.0",
+    "series": "capacity-final",
+    "valid_for_tuning": true,
+    "implementation": "ordered-admission"
+  },
+  {
+    "scenario": {
+      "mode": "http",
+      "pool": 40,
+      "concurrency": 256,
+      "count": 10000
+    },
+    "elapsed_ms": 38478,
+    "requests_per_second": 259.89,
+    "latency": {
+      "samples": 10000,
+      "p50_ms": 913.12,
+      "p95_ms": 1663.34,
+      "p99_ms": 2257.76,
+      "max_ms": 2685.49
+    },
+    "event_loop_p99_ms": 29.11,
+    "process_cpu_ms": 45390.466,
+    "initial_rss_mib": 421.359375,
+    "completed": 10000,
+    "errors": {},
+    "provider_calls": 0,
+    "provider_peak_in_flight": 0,
+    "peak_rss_mib": 664,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 216,
+    "pool_wait_samples_percent": 99.66622162883846,
+    "total_ms": 39556,
+    "node": "v24.13.0",
+    "series": "capacity-sustained",
+    "valid_for_tuning": true,
+    "implementation": "ordered-sql-admission"
+  },
+  {
+    "scenario": {
+      "mode": "inference",
+      "pool": 40,
+      "concurrency": 256,
+      "count": 1024,
+      "delay": 1000
+    },
+    "admission_ms": 17211,
+    "states": [
+      {
+        "status": "succeeded",
+        "n": 1024
+      }
+    ],
+    "queue_latency": {
+      "samples": 1024,
+      "p50_ms": 39891.63,
+      "p95_ms": 57573.49,
+      "p99_ms": 61399.18,
+      "max_ms": 61655.87
+    },
+    "total_latency": {
+      "samples": 1024,
+      "p50_ms": 53350.16,
+      "p95_ms": 64111.18,
+      "p99_ms": 64542.46,
+      "max_ms": 64789.89
+    },
+    "accounting": {
+      "usage_rows": 1024,
+      "distinct_runs": 1024,
+      "reserved_micro_usd": "0"
+    },
+    "elapsed_ms": 64210,
+    "requests_per_second": 15.95,
+    "latency": {
+      "samples": 1024,
+      "p50_ms": 9490.22,
+      "p95_ms": 18149.53,
+      "p99_ms": 19795.4,
+      "max_ms": 20365.97
+    },
+    "event_loop_p99_ms": 63.41,
+    "process_cpu_ms": 20183.459,
+    "initial_rss_mib": 462.59375,
+    "completed": 1024,
+    "errors": {},
+    "provider_calls": 1024,
+    "provider_peak_in_flight": 256,
+    "peak_rss_mib": 464,
+    "pool_peak_connections": 40,
+    "pool_peak_busy": 40,
+    "pool_peak_waiters": 319,
+    "pool_wait_samples_percent": 23.352793994995828,
+    "total_ms": 82509,
+    "node": "v24.13.0",
+    "series": "capacity-sustained",
+    "valid_for_tuning": true,
+    "implementation": "ordered-sql-admission"
+  }
+]

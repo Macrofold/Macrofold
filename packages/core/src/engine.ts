@@ -189,7 +189,19 @@ export async function startRun(org: string, runId: string, provider?: ExecutionP
   const candidate = await transaction(org, (tx) => getRun(tx, runId));
   if (candidate.kind !== 'native_agent') {
     const { advanceInference } = await import('./inference-engine');
-    return { completion: advanceInference(org, runId).then(() => true) };
+    if (candidate.status === 'queued' && !(await claimRun(org, runId))) return null;
+    return {
+      completion: advanceInference(org, runId).then(async (result) => {
+        // Inference advances prepare, dispatch and settle separately. Wake the
+        // next phase instead of leaving the admission recovery deadline in place.
+        if (!result.done && !result.queued)
+          await pool.query(
+            "UPDATE dispatch_jobs SET available_at=now()+($3::integer*interval '1 second') WHERE organization_id=$1 AND resource_id=$2 AND kind='run' AND state='running'",
+            [org, runId, result.delaySeconds],
+          );
+        return result.done;
+      }),
+    };
   }
   const run = await claimRun(org, runId);
   if (!run) return null;

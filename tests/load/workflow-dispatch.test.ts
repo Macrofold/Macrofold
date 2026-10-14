@@ -101,6 +101,36 @@ it('creates Workflows only for jobs that have claimed capacity, preserving the 2
   expect(queued.queue_expires_at.getTime() - queued.created_at.getTime()).toBe(86400000);
   expect(sleep).not.toHaveBeenCalled();
 });
+
+it('admits a fair burst and fills sixteen Workflow starts without waiting for a slow acknowledgement', async () => {
+  const { a, submit } = await fixture();
+  await pool.query("UPDATE organizations SET plan='scale' WHERE id=$1", [a.p.organizationId]);
+  process.env.GLOBAL_CONCURRENT_RUN_LIMIT = '200';
+  for (let i = 0; i < 32; i++) await submit();
+  Object.assign(config, { mode: 'production', execution: 'vercel', orchestration: 'workflow' });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let active = 0,
+    peak = 0;
+  vi.mocked(start).mockImplementation(async () => {
+    peak = Math.max(peak, ++active);
+    await gate;
+    active--;
+    return {} as Awaited<ReturnType<typeof start>>;
+  });
+  const dispatch = dispatchRuns();
+  try {
+    await vi.waitFor(() => expect(active).toBe(16), { timeout: 15000 });
+  } finally {
+    release();
+  }
+  expect((await dispatch).dispatched).toBe(32);
+  expect(peak).toBe(16);
+  expect(start).toHaveBeenCalledTimes(32);
+  vi.mocked(start).mockResolvedValue({} as Awaited<ReturnType<typeof start>>);
+});
 it('a legacy waiting Workflow releases its durable outbox lease and exits without a sleep loop', async () => {
   const { a, submit } = await fixture();
   const run = await submit();

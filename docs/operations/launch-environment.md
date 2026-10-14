@@ -70,7 +70,7 @@ See [database setup](neon.md) and [hosting](hosting.md). Database backups alone 
 | `NATIVE_CONCURRENT_RUN_LIMIT`, `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` | Separate fleet native/inference ceilings; defaults 200/2,000 |
 | `GLOBAL_CONCURRENT_RUN_LIMIT` | Optional total emergency ceiling; defaults to their sum |
 | `SANDBOX_EGRESS_DOMAINS` | Reviewed additional outbound destinations |
-| `DISPATCH_INFERENCE_CONCURRENCY`, `DISPATCH_PROVISION_CONCURRENCY`, `DISPATCH_TRANSFER_CONCURRENCY`, `DISPATCH_CONTROL_CONCURRENCY` | Independent per-process pools; defaults 64/16/8/64 |
+| `DISPATCH_INFERENCE_CONCURRENCY`, `DISPATCH_PROVISION_CONCURRENCY`, `DISPATCH_TRANSFER_CONCURRENCY`, `DISPATCH_CONTROL_CONCURRENCY` | Independent per-process pools; defaults 256/16/8/64 |
 
 The Sandbox adapter currently uses Vercel OIDC. Static `VERCEL_TOKEN`, team, and project fields do not enable production execution on another host by themselves.
 

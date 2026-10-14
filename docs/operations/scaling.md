@@ -52,7 +52,7 @@ The standalone alternative runs the same domain and provider code with Node web/
 | Sandbox shape | `2` vCPUs; persistent sandbox, immutable runtime image | Resource sizing is currently adapter code, not a customer autoscaling control |
 | Sandbox timeout | Run timeout plus `1800` seconds | Allows lifecycle overhead; is not an extension of the user's execution deadline |
 | `ORCHESTRATION_BACKEND` | `workflow` by default; `poller` alternative | Selects the deployment's orchestration mechanism |
-| Standalone dispatch | Inference/provision/transfer/control: `64/16/8/64` per process | Separate refillable pools; no shared step ceiling |
+| Standalone dispatch | Inference/provision/transfer/control: `256/16/8/64` per process | Separate refillable pools; no shared step ceiling |
 | Workflow queue checks | Queued work stays in PostgreSQL | Start Workflow only after claiming capacity; no day-long queue polling history |
 | Runtime checks | Normal cloud phase delay approximately `2` seconds | Actual interval also includes step and provider latency |
 | Detailed run SSE | Up to `55` seconds per connection, followed by reconnect/replay | Each reader polls independently, with at most one prefetched page |
@@ -67,14 +67,14 @@ The single-writer boundary is the **worktree**, an independently writable checko
 
 ## Resource capacity settings
 
-Authoritative settings for the October 2026 capacity audit. Defaults are deployment starting points, not measured throughput promises. These do not derive from local Docker constraints. Configure the same fleet admission values in every API, Workflow and worker process. Use smaller explicit native-compute limits locally without reducing inference capacity. Integer configuration outside the supported range fails explicitly; it is never silently clamped.
+Authoritative settings for the October 2026 capacity audit. Defaults are deployment starting points, not measured throughput promises. [Calibration evidence](../engineering/capacity/README.md) records the dispatcher/database comparisons, boundary tests and limits that still require hosted measurement. Configure the same fleet admission values in every API, Workflow and worker process. Use smaller explicit native-compute limits locally without reducing inference capacity. Integer configuration outside the supported range fails explicitly; it is never silently clamped.
 
 | Resource / setting | Default | Scope and reason |
 | --- | ---: | --- |
 | `NATIVE_CONCURRENT_RUN_LIMIT` | 200 | Fleet native occupancy; provider machines and lifecycle work |
 | `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` | 2,000 | Fleet direct LLM/Jev/bounded-agent occupancy; independent of native compute |
 | `GLOBAL_CONCURRENT_RUN_LIMIT` | Sum of both | Optional emergency total ceiling; explicitly lowering it can intentionally couple classes |
-| `DISPATCH_INFERENCE_CONCURRENCY` | 64 | Active lightweight advances per standalone process; max 1,024 |
+| `DISPATCH_INFERENCE_CONCURRENCY` | 256 | Active lightweight advances per standalone process; max 1,024 |
 | `DISPATCH_PROVISION_CONCURRENCY` | 16 | Native provision steps/process; max 256 |
 | `DISPATCH_TRANSFER_CONCURRENCY` | 8 | Restore/checkpoint steps/process; max 256; each step has bounded object fan-out |
 | `DISPATCH_CONTROL_CONCURRENCY` | 64 | Lifecycle, probe, stop and cleanup steps/process; max 1,024; simulator native executions use this pool |
@@ -83,13 +83,15 @@ Authoritative settings for the October 2026 capacity audit. Defaults are deploym
 | `WORKER_PROVISION_BATCH` / `WORKER_DEMAND_BATCH` | 16 / 1,000 | New Hosts planned / runnable demands examined per Worker reconciliation; max 256 / 10,000 |
 | Plan entitlement | 20 / 100 / 500 | Starter/Pro/Scale aggregate organization occupancy; lower customer overrides preserved |
 | Worker `max_instances` | Up to plan concurrency | Removed the unrelated 64-instance clamp; accepted offering, CPU/memory, concurrency and hourly spending still govern placement |
-| `DATABASE_POOL_SIZE` / `AUTH_DATABASE_POOL_SIZE` / `CREDENTIAL_DATABASE_POOL_SIZE` | 20 / 5 / 4 | Separate connections per process, max 1,000 each; budget across replicas and the actual database |
+| `DATABASE_POOL_SIZE` / `AUTH_DATABASE_POOL_SIZE` / `CREDENTIAL_DATABASE_POOL_SIZE` | 40 / 5 / 4 | Separate connections per process, max 1,000 each; budget across replicas and the actual database |
 | `DATABASE_ACQUIRE_TIMEOUT_MS` | 30,000 | Pool/connect patience, max 60,000 ms; query/lock/idle-transaction safety deadlines remain |
 | `API_READ_RATE_LIMIT_PER_MINUTE` / `API_WRITE_RATE_LIMIT_PER_MINUTE` / `API_CONTROL_RATE_LIMIT_PER_MINUTE` | 6,000 / 1,200 / 600 | Separate credential/organization buckets. Run cancellation and input answers retain capacity during read/write bursts |
 | `SESSION_QUEUED_RUN_LIMIT` | 100 | Queued Runs per session, excluding the active Run; max 10,000; avoids the old ten-follow-up rejection |
 | `ACTIVE_TRANSFERS_PER_ORG` | 100 | Unfinished, unexpired push plans per organization; max 10,000; download/dry-run plans excluded |
 
 Native and lightweight fleet capacities each accept 1–100,000; the optional total ceiling accepts 1–200,000. HTTP buckets accept 1–1,000,000. `API_RATE_LIMIT_PER_MINUTE` is an optional fallback for each HTTP bucket; it does not merge them. `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` remains zero by default and can reserve part of the existing account entitlement for lightweight work. Account caps are entitlements, not proxies for process I/O capacity. `WORKER_CONCURRENCY` is removed; use the four dispatch settings.
+
+The application/auth/credential pools can allocate **49 connections per process** by default. Count every API replica, standalone worker and overlapping deployment against the database or pooler's budget, leaving room for administration and maintenance. Open connections are not concurrent model calls: model HTTP runs outside SQL transactions. The measured API mix benefited from 40 application connections, while model dispatch did not consistently outperform 20; deployment roles can override the same setting independently. Valid numeric maxima are not tested safe operating targets.
 
 ### Background work and transfers
 

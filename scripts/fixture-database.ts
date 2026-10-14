@@ -47,6 +47,10 @@ export async function withFixtureDatabase(
       LANGFUSE_BASE_URL: '',
       COMPOSIO_CALLBACK_VERIFICATION_ENABLED: 'false',
       GLOBAL_CONCURRENT_RUN_LIMIT: '50',
+      // Developer native-compute caps must not leak into isolated scheduling
+      // tests that own the aggregate fifty-slot fixture allowance.
+      NATIVE_CONCURRENT_RUN_LIMIT: '50',
+      LIGHTWEIGHT_CONCURRENT_RUN_LIMIT: '50',
       RUN_ADMISSION_ENABLED: 'true',
       PUBLIC_SIGNUP_ENABLED: 'true',
     };

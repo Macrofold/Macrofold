@@ -14,6 +14,7 @@ export async function emit(
   type: string,
   data: Record<string, unknown>,
   producer?: { id: string; sequence: number },
+  currentRun?: RunRow,
 ) {
   if (producer) {
     await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
@@ -33,7 +34,15 @@ export async function emit(
   );
   assert(result.rowCount, 404, 'not_found', 'Run not found.');
   if (tracingEnabled() && tracedRunEvent(type)) {
-    const run = (await tx.query<RunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
+    // Completion already updated and locked this row in the same transaction.
+    // Reuse its complete trace input without downloading large context again.
+    assert(
+      !currentRun || (currentRun.id === runId && currentRun.organization_id === org),
+      500,
+      'event_run_mismatch',
+      'The event must describe the current Run.',
+    );
+    const run = currentRun ?? (await tx.query<RunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
     await traceRunEvent(tx, run, result.rows[0]);
   }
   const eventType: WebhookEvent | undefined =
@@ -46,7 +55,15 @@ export async function emit(
           : undefined;
   if (eventType) {
     const run = (
-      await tx.query('SELECT workspace_id,worktree_id,status,config FROM runs WHERE id=$1', [runId])
+      await tx.query<{
+        workspace_id: string | null;
+        worktree_id: string | null;
+        status: string;
+        webhook_endpoint_ids: string[] | undefined;
+      }>(
+        "SELECT workspace_id,worktree_id,status,config->'webhook_endpoint_ids' AS webhook_endpoint_ids FROM runs WHERE id=$1",
+        [runId],
+      )
     ).rows[0];
     await enqueueWebhook(
       tx,
@@ -61,7 +78,7 @@ export async function emit(
       },
       {
         eventId: result.rows[0].id,
-        endpointIds: run.config.webhook_endpoint_ids,
+        endpointIds: run.webhook_endpoint_ids,
         workspaceId: run.workspace_id ?? undefined,
       },
     );

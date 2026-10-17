@@ -1,5 +1,5 @@
 import { transaction, type Tx } from '../../db';
-import { id, seal } from './crypto';
+import { canonical, id, sealJSON, sha256 } from './crypto';
 import { assert } from './errors';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { boundedRequest } from './bounded-decisions';
@@ -19,6 +19,33 @@ export type StoredDecisionResponse = DecisionResponse & {
   failure_code?: string;
   transport_complete?: boolean;
 };
+
+// Live owners already hold the admitted immutable configuration. Fetch current
+// lifecycle/accounting facts without repeatedly transferring its large context.
+export const inferenceRunStateColumns = `id,organization_id,workspace_id,worktree_id,session_id,
+ kind,status,result,created_at,started_at,completed_at,queue_expires_at,deadline,
+ lease_generation,heartbeat_at,cancel_requested,model_error_request_id,event_sequence,
+ reservation_micro_usd,cost_micro_usd,execution_binding,input_request`;
+
+export async function currentInferenceRun(tx: Tx, admitted: InferenceRunRow) {
+  const row = (
+    await tx.query<Omit<InferenceRunRow, 'config'> & { deadline_passed: boolean | null }>(
+      `SELECT ${inferenceRunStateColumns},deadline<=clock_timestamp() AS deadline_passed
+       FROM runs WHERE id=$1 FOR UPDATE`,
+      [admitted.id],
+    )
+  ).rows[0];
+  assert(row, 404, 'not_found', 'Run not found.');
+  assert(
+    ['inference', 'bounded_agent'].includes(row.kind),
+    409,
+    'run_kind_mismatch',
+    'This is not an inference.',
+  );
+  // Retention may erase stored config; these immutable in-memory terms are only
+  // used for accounting. Current result/generation still fence publication.
+  return { ...row, config: admitted.config };
+}
 
 export type PreparedInvocation = {
   id: string;
@@ -78,11 +105,15 @@ export function prepareInvocation(
       ...(steps.length ? { steps } : {}),
     }),
   );
+  // The same immutable JSON supplies size, encrypted evidence and digest;
+  // large contexts should not be serialized separately for each boundary.
+  const serialized = canonical(body);
   const inputBound = inferenceInputBound(
     body,
     provider,
     configuration.model,
     configuration.definition.question.kind === 'provider',
+    serialized,
   );
   const bound = costForUsage(configuration.rate_card, {
     ...emptyUsage(),
@@ -95,8 +126,8 @@ export function prepareInvocation(
     id: id(),
     step,
     body,
-    ciphertext: seal(body),
-    digest: digest(body),
+    ciphertext: sealJSON(serialized),
+    digest: sha256(serialized),
     bound: bound.toString(),
     outputBound,
     dependencyTokens,
@@ -149,10 +180,10 @@ export async function insertInvocation(
     run.id,
     prepared.bound,
   ]);
-  const call = (
-    await tx.query<Invocation>(
+  const saved = (
+    await tx.query<InvocationEvidence>(
       `INSERT INTO decision_invocations(id,organization_id,run_id,step,state,provider_request_digest,body_ciphertext,context_digest,output_token_bound,dependency_tokens,context_expires_at,dispatch_started_at)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $5='dispatch_started' THEN clock_timestamp() ELSE NULL END) RETURNING *`,
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $5='dispatch_started' THEN clock_timestamp() ELSE NULL END) RETURNING ${invocationEvidenceColumns}`,
       [
         prepared.id,
         run.organization_id,
@@ -168,6 +199,7 @@ export async function insertInvocation(
       ],
     )
   ).rows[0];
+  const call = { ...saved, body_ciphertext: prepared.ciphertext };
   await emit(tx, run.organization_id, run.id, 'inference.prepared', { invocation_id: call.id });
   return call;
 }
@@ -188,6 +220,39 @@ export type Invocation = {
   response_ciphertext: string | null;
   timings_ms: Record<string, number>;
 };
+export type InvocationEvidence = Omit<Invocation, 'body_ciphertext'> & { body_available: boolean };
+const invocationEvidenceColumns = `id,run_id,step,context_digest,context_expires_at,dependency_tokens,
+ dispatch_started_at,responded_at,provider_completed_at,state,provider_request_digest,
+ response_ciphertext,timings_ms,body_ciphertext<>'' AS body_available`;
+
+/** Response publication needs only body presence, never the encrypted request. */
+export async function invocationEvidence(tx: Tx, runId: string) {
+  return (
+    await tx.query<InvocationEvidence>(
+      `SELECT ${invocationEvidenceColumns} FROM decision_invocations
+       WHERE run_id=$1 AND handled_at IS NULL ORDER BY step DESC LIMIT 1`,
+      [runId],
+    )
+  ).rows[0];
+}
+
+export async function recordInvocationResponse(
+  tx: Tx,
+  invocationId: string,
+  ciphertext: string,
+  completedAt: Date | null,
+  timings: Record<string, number>,
+) {
+  return (
+    await tx.query<InvocationEvidence>(
+      `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,
+       responded_at=clock_timestamp(),provider_completed_at=$3,timings_ms=$4
+       WHERE id=$1 AND state='dispatch_started' AND body_ciphertext<>''
+       RETURNING ${invocationEvidenceColumns}`,
+      [invocationId, ciphertext, completedAt, JSON.stringify(timings)],
+    )
+  ).rows[0];
+}
 export async function invocation(tx: Tx, runId: string) {
   return (
     await tx.query<Invocation>(
@@ -200,7 +265,9 @@ export async function finish(org: string, runId: string, receipt: InferenceRecei
   return transaction(org, (tx) => finishInferenceInTransaction(tx, org, runId, receipt, failureCode));
 }
 
-/** The caller may compose model settlement with Run completion in this transaction. */
+/** The caller may compose model settlement with Run completion in this transaction.
+ * A live owner's admitted config avoids another context download; mutable costs
+ * are always refreshed after settlement, never taken from that admitted object. */
 export async function finishInferenceInTransaction(
   tx: Tx,
   org: string,
@@ -208,14 +275,18 @@ export async function finishInferenceInTransaction(
   receipt: InferenceReceipt,
   failureCode?: string,
   providerCompletedAt?: Date | null,
+  admitted?: InferenceRunRow,
 ) {
-  const clock = (
-    await tx.query<{ deadline_passed: boolean }>(
-      'SELECT deadline<=clock_timestamp() AS deadline_passed FROM runs WHERE id=$1 FOR UPDATE',
-      [runId],
-    )
-  ).rows[0];
-  const run = await getRun(tx, runId);
+  const current = admitted ? await currentInferenceRun(tx, admitted) : undefined;
+  const clock =
+    current ??
+    (
+      await tx.query<{ deadline_passed: boolean }>(
+        'SELECT deadline<=clock_timestamp() AS deadline_passed FROM runs WHERE id=$1 FOR UPDATE',
+        [runId],
+      )
+    ).rows[0];
+  const run = current ?? (await getRun(tx, runId));
   assert(run.kind !== 'native_agent', 409, 'run_kind_mismatch', 'This is not an inference.');
   // Late evidence is retained by the invocation owner. It cannot change a
   // terminal status or replay the ledger settlement.
@@ -243,9 +314,9 @@ export async function finishInferenceInTransaction(
       reason_code: status,
     };
   }
-  const updated = (
-    await tx.query<InferenceRunRow>(
-      'UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING *',
+  const updatedRow = (
+    await tx.query<Omit<InferenceRunRow, 'config'>>(
+      `UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING ${inferenceRunStateColumns}`,
       [
         runId,
         status,
@@ -258,12 +329,13 @@ export async function finishInferenceInTransaction(
       ],
     )
   ).rows[0];
+  const updated: InferenceRunRow = { ...updatedRow, config: run.config };
   await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(run.cost_micro_usd));
   await tx.query(
     "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
     [runId],
   );
-  await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome });
+  await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome }, undefined, updated);
   return updated;
 }
 export function capability(run: InferenceRunRow) {
@@ -277,7 +349,7 @@ export function capability(run: InferenceRunRow) {
 }
 export function checkedReceipt(
   run: InferenceRunRow,
-  call: Invocation,
+  call: Omit<Invocation, 'body_ciphertext'>,
   response: StoredDecisionResponse,
 ): InferenceReceipt {
   const validationStarted = performance.now();

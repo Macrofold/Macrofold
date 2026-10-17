@@ -54,6 +54,8 @@ Keep verification proportional and parallel: iterate on targeted tests, publish 
 
 Comment non-obvious requirements, tradeoffs and extension seams beside the code. State the essential reason locally and link the canonical heading; explain why, not syntax. Update reasoning and links with behavior.
 
+Design request and execution hot paths around necessary caller-visible work. Follow the [critical-path rules](.agents/rules/state-and-execution.md#critical-path-work): budget database round trips and transferred bytes, reuse immutable prepared data, batch dependent work safely, and move non-authoritative administration off the path. Preserve or explicitly redesign the associated correctness guarantee; do not justify repeated I/O merely as recovery or tracking.
+
 When delegating or handing off, carry scope, relevant owners, verification limits, shared budget, current diff and remaining work. Coordinate writes and re-read changed shared files before committing; delegation does not multiply permissions or spending.
 
 Always use concise, plain language with shorthand where it remains easy to understand. Never compress wording at the expense of clarity, accuracy or completeness. Aim for short, clear, accurate and complete responses; include the context needed to understand decisions, results and limitations.

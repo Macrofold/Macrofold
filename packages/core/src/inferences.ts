@@ -17,7 +17,12 @@ import { validateModelParameters } from './model-parameters';
 import { modelCredential } from './model-credentials';
 import { reserve } from './ledger';
 import { executionCapacity } from './execution-admission';
-import { prepareInvocation, insertInvocation, type PreparedInvocation } from './inference-invocations';
+import {
+  prepareInvocation,
+  insertInvocation,
+  inferenceRunStateColumns,
+  type PreparedInvocation,
+} from './inference-invocations';
 import { immediateInferencePolicy, inferenceEnvelope, type InvocationPermit } from './direct-inference';
 import { runTraceContext } from './run-tracing';
 import { tracingEnabled } from './tracing';
@@ -177,14 +182,14 @@ async function admitInferenceState(
   // Anchor before the SQL statement so wire latency can only shorten, never
   // extend, the provider window relative to PostgreSQL's accepted deadline.
   const providerDeadlineMonotonicMs = performance.now() + limits.timeout_seconds * 1000;
-  const row = (
-    await tx.query<InferenceRunRow>(
+  const saved = (
+    await tx.query<Omit<InferenceRunRow, 'config'>>(
       `INSERT INTO runs(id,organization_id,workspace_id,kind,status,config,reservation_micro_usd,queue_expires_at,started_at,heartbeat_at,lease_generation,deadline)
      VALUES($1,$2,$3,$7,$8,$4,$5,now()+($6::integer*interval '1 second'),
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
        CASE WHEN $8='running' THEN 1 ELSE 0 END,
-       CASE WHEN $8='running' THEN clock_timestamp()+($9::integer*interval '1 second') ELSE NULL END) RETURNING *`,
+       CASE WHEN $8='running' THEN clock_timestamp()+($9::integer*interval '1 second') ELSE NULL END) RETURNING ${inferenceRunStateColumns}`,
       [
         runId,
         p.organizationId,
@@ -198,6 +203,7 @@ async function admitInferenceState(
       ],
     )
   ).rows[0];
+  const row: InferenceRunRow = { ...saved, config: configuration };
   assert(
     row.status === 'running' || row.status === 'queued',
     500,

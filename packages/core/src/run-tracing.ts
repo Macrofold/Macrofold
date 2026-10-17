@@ -8,22 +8,24 @@ import { recordTrace, tracingEnabled } from './tracing';
 export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext | undefined> {
   if (!tracingEnabled()) return;
   const native = run.kind === 'native_agent';
-  const row = run.workspace_id ? (
-    await tx.query<{
-      workspace_name: string;
-      worktree_name: string | null;
-      customer_id: string | null;
-      customer_binding_id: string | null;
-      agent_key: string | null;
-    }>(
-      `SELECT p.data->>'name' AS workspace_name,w.data->>'name' AS worktree_name,
+  const row = run.workspace_id
+    ? (
+        await tx.query<{
+          workspace_name: string;
+          worktree_name: string | null;
+          customer_id: string | null;
+          customer_binding_id: string | null;
+          agent_key: string | null;
+        }>(
+          `SELECT p.data->>'name' AS workspace_name,w.data->>'name' AS worktree_name,
      b.customer_id,b.id AS customer_binding_id,b.agent_key
      FROM workspaces p LEFT JOIN worktrees w ON w.id=$2
      LEFT JOIN customer_agent_bindings b ON b.workspace_id=p.id AND b.worktree_id=$2 AND b.agent_id=$3 AND b.owner_user_id=$4
      WHERE p.id=$1`,
-      [run.workspace_id, run.worktree_id, native ? run.config.agent_id : null, run.config.user_id],
-    )
-  ).rows[0] : undefined;
+          [run.workspace_id, run.worktree_id, native ? run.config.agent_id : null, run.config.user_id],
+        )
+      ).rows[0]
+    : undefined;
   return {
     organization_id: run.organization_id,
     run_id: run.id,
@@ -129,7 +131,13 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
         input:
           run.kind === 'native_agent'
             ? { prompt: run.config.prompt, instructions: run.config.instructions }
-            : { input: run.config.input, context: run.config.context, definition: run.config.definition },
+            : {
+                // decision.generate owns request content under the capture limits.
+                // The root links its input instead of copying it again.
+                definition_revision: run.config.definition.revision,
+                definition_digest: run.config.definition_digest,
+                context_digest: run.config.context_digest,
+              },
         output: run.result,
         metadata: {
           status: run.status,

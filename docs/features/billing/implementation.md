@@ -35,6 +35,8 @@ Catalog token prices are the **retail** micro-USD per million rates. Cache reads
 
 ## Financial implementation
 
+The [execution-efficiency proposal](../../projects/execution-efficiency-tech-design.md#f-combined-finish-and-account) keeps authoritative charges, ledger entries and reservation release before final immediate responses, while batching mutations and moving derived administration afterward. It changes the proposed response-checkpoint boundary, not the current accounting rules; implementation is tracked separately.
+
 `ledger.ts`, `model-gateway.ts`, `billing.ts` and `maintenance.ts` implement integer micro-USD accounting. JSON exposes decimal strings. Append-only balanced journals, business-event uniqueness, credit lots, reservations and debt are distinct facts. The runtime role cannot update/delete/truncate journals or payment deduplication facts; corrections append new entries. Subscription MRR, cash purchases and metered usage are not interchangeable concepts.
 
 Admission locks the organization, reserves the run maximum and commits it with the run/outbox. Every model/tool call rechecks current actor, lease, deadline, cancellation, permitted route and remaining liability before upstream dispatch. The gateway conservatively bounds supported text/tool protocols and reviewed inline image inputs. [Media accounting](../media/implementation.md#native-images-and-money) owns image validation and token ceilings. Hosted billable tools, other native media and unsupported passthroughs remain rejected. Parallel requests cannot spend the same remaining allowance. An unsupported or unbounded route stays disabled.

@@ -6,6 +6,8 @@ The API invokes an actual multi-turn harness, not one model completion. Harness 
 
 [Scheduling](scheduling.md) explains waiting and limits; [Workflow history](workflow-history.md) explains adaptive SQL waiting, bounded orchestration, recovery and deployment checks.
 
+The proposed [execution-efficiency design](../../projects/execution-efficiency-tech-design.md#path-inventory-and-owning-changes) traces native admission, model/tool calls, restoration, checkpoints and output delivery. Its batching/caching changes are unimplemented targets, separate from the current semantics below.
+
 ## Compatibility and catalog
 
 Codex accepts reviewed OpenAI routes; Claude Code accepts reviewed Anthropic routes; OpenCode supports reviewed OpenAI/Anthropic/OpenRouter protocol mappings. Hermes, DeepSeek and Pi use reviewed OpenAI/OpenRouter chat routes. This is not an all-to-all promise or support for every model a provider offers. `GET /v1/harnesses` and `/v1/models` describe configured choices. The local simulator presents `fixture-model`, labels its output and uses zero model tokens. Production never substitutes that model.
@@ -22,16 +24,16 @@ Automatic execution uses one isolated allocation per Run. Explicit [Workers](wor
 
 ## Run lifecycle
 
-| State | Meaning |
-| --- | --- |
-| queued | Admission and funding reservation committed; waiting for writer/capacity |
-| provisioning | Claimed with fresh generation; preparing VM and restoring persisted state |
-| running | Native harness executing |
-| waiting_for_input | An exposed native question requires a matching answer |
-| persisting | Native execution stopped; snapshot publication/verification in progress |
-| succeeded | Successful execution with verified persistence |
-| failed | Known failure, revocation, queue expiration or persistence problem; inspect result code |
-| cancelled / timed_out | Execution stopped by cancellation/deadline; inspect persistence separately |
+| State                 | Meaning                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| queued                | Admission and funding reservation committed; waiting for writer/capacity                |
+| provisioning          | Claimed with fresh generation; preparing VM and restoring persisted state               |
+| running               | Native harness executing                                                                |
+| waiting_for_input     | An exposed native question requires a matching answer                                   |
+| persisting            | Native execution stopped; snapshot publication/verification in progress                 |
+| succeeded             | Successful execution with verified persistence                                          |
+| failed                | Known failure, revocation, queue expiration or persistence problem; inspect result code |
+| cancelled / timed_out | Execution stopped by cancellation/deadline; inspect persistence separately              |
 
 The runtime has a hard maximum of two hours per run, with shorter defaults and model-request deadlines. Generic run creation rejects a busy explicitly selected worktree. Session messages can opt into `queue_if_busy`, with at most 100 queued Runs per session by default (`SESSION_QUEUED_RUN_LIMIT`), excluding the active Run and a default 24-hour queue deadline (shortenable per request). A queued message reserves budget immediately, preserves worktree ordering within the fair organization scheduler and revalidates authority before launch. Queue expiry currently terminalizes as `failed` with `queue_expired` and `persistence_status=not_required`; it does not pretend the agent executed. Cancelling one run does not cancel every queued follow-up.
 

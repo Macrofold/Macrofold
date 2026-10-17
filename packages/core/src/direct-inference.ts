@@ -9,6 +9,9 @@ import { DecisionProviderError, type InferenceOutputSink, type InferenceReceipt 
 import { emptyUsage } from './model-protocol';
 import {
   invocation,
+  invocationEvidence,
+  recordInvocationResponse,
+  currentInferenceRun,
   checkedReceipt,
   capability,
   finishInferenceInTransaction,
@@ -25,6 +28,7 @@ import { principalFor } from './engine';
 import type { components } from '../../contracts/api';
 import { digest } from './explicit-context';
 import { initialReceipt } from './inference-receipt';
+import { startInferenceTiming } from './inference-timing';
 
 /** Infrastructure budgets are separate from the caller's accepted model deadline.
  * See docs/projects/immediate-inference-tech-design.md#clock-and-ownership-rules. */
@@ -52,7 +56,7 @@ type StoredResponse = StoredDecisionResponse;
 function traceCompletedInference(
   context: TraceContext,
   run: InferenceRunRow,
-  call: Invocation,
+  call: Omit<Invocation, 'body_ciphertext'>,
   response: StoredResponse,
   receipt: InferenceReceipt | undefined,
   input?: Record<string, unknown>,
@@ -187,16 +191,15 @@ export async function persistImmediateResponse(
     transaction(
       permit.run.organization_id,
       async (tx) => {
-        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [permit.run.id]);
-        const run = await getRun(tx, permit.run.id);
-        const current = await invocation(tx, run.id);
+        const run = await currentInferenceRun(tx, permit.run);
+        const current = await invocationEvidence(tx, run.id);
         assert(
           current && run.lease_generation === permit.run.lease_generation,
           409,
           'inference_owner_changed',
           'Recovery owns this invocation.',
         );
-        if (!current.body_ciphertext || run.result.content_expired) return current;
+        if (!current.body_available || run.result.content_expired) return current;
         if (current.state === 'responded') {
           assert(
             current.response_ciphertext && digest(unseal(current.response_ciphertext)) === digest(response),
@@ -212,13 +215,7 @@ export async function persistImmediateResponse(
           'inference_owner_changed',
           'The invocation is no longer dispatching.',
         );
-        return (
-          await tx.query<Invocation>(
-            `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,responded_at=clock_timestamp(),provider_completed_at=$3,timings_ms=$4
-       WHERE id=$1 AND state='dispatch_started' AND body_ciphertext<>'' RETURNING *`,
-            [current.id, ciphertext, completedAt, JSON.stringify(permit.call.timings_ms)],
-          )
-        ).rows[0];
+        return recordInvocationResponse(tx, current.id, ciphertext, completedAt, permit.call.timings_ms);
       },
       { deadlineAtMs: Math.min(deadline, Date.now() + immediateInferencePolicy.persistenceAttemptMs) },
     );
@@ -226,7 +223,7 @@ export async function persistImmediateResponse(
     transaction(
       permit.run.organization_id,
       async (tx) => {
-        const current = await invocation(tx, permit.run.id);
+        const current = await invocationEvidence(tx, permit.run.id);
         return current?.state === 'responded' ? current : undefined;
       },
       { deadlineAtMs: deadline },
@@ -340,7 +337,7 @@ export async function recoverImmediateInference(run: InferenceRunRow) {
 /** This same finalizer is used by the live owner and evidence-only recovery. */
 export async function finalizeImmediateInference(
   run: InferenceRunRow,
-  call: Invocation,
+  call: Omit<Invocation, 'body_ciphertext'>,
   response: StoredResponse,
   deadline: number,
 ) {
@@ -358,10 +355,9 @@ export async function finalizeImmediateInference(
     transaction(
       run.organization_id,
       async (tx) => {
-        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [run.id]);
-        const current = await getRun(tx, run.id);
+        const current = await currentInferenceRun(tx, run);
         assert(current.kind === 'inference', 409, 'run_kind_mismatch', 'This is not a direct inference.');
-        const saved = await invocation(tx, run.id);
+        const saved = await invocationEvidence(tx, run.id);
         assert(
           saved && saved.id === call.id && saved.response_ciphertext === call.response_ciphertext,
           409,
@@ -429,6 +425,7 @@ export async function finalizeImmediateInference(
               finalReceipt,
               response.failure_code,
               saved.provider_completed_at,
+              current,
             );
         return { run: finished, receipt: finalReceipt };
       },
@@ -568,10 +565,14 @@ export async function completeDirectInference(
   );
   try {
     const persistenceStarted = performance.now();
-    const saved = await persistImmediateResponse(permit, response, deadline);
+    const stopEvidenceTiming = startInferenceTiming('inference.evidence');
+    const saved = await persistImmediateResponse(permit, response, deadline).finally(stopEvidenceTiming);
     assert(saved, 409, 'inference_evidence_unavailable', 'Response evidence is unavailable.');
     saved.timings_ms.response_persistence = performance.now() - persistenceStarted;
-    const completed = await finalizeImmediateInference(run, saved, response, deadline);
+    const stopFinalizationTiming = startInferenceTiming('inference.finalization');
+    const completed = await finalizeImmediateInference(run, saved, response, deadline).finally(
+      stopFinalizationTiming,
+    );
     const traceContext = permit.traceContext;
     if (traceContext) {
       const trace = () =>

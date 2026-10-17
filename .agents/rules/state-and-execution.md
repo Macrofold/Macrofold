@@ -20,6 +20,18 @@ Keep financial journals immutable, reservations atomic, and settlement idempoten
 
 Freeze accepted billable rates with the work that reserves them; an operator configuration change must not increase an existing run's liability. Validate an externally billable request before creating provider resources.
 
+## Critical-path work
+
+For request, model/tool, scheduling, streaming and persistence hot paths:
+
+- Identify what must finish before dispatch, acceptance, first output and durable completion. Each synchronous write/wait needs a concrete authorization, spending, duplicate-effect, delivery or persistence reason. Recovery is not a blanket reason to copy all input synchronously; diagnostics are not accounting.
+- Review the whole path's SQL statements, sequential round trips, commits, transferred bytes and lock hold time. Use explicit projections for large/hot records, reuse immutable prepared bytes and versioned rates, and batch compatible reads/writes through transaction-aware owners. Do not replace current authority or balances with a stale cache.
+- Keep large payload preparation/transfers and external I/O outside shared admission locks when the contract permits. Separate hot control metadata from cold payloads. Fewer queries are useful only if row scans, payload decoding, contention and total work also remain bounded.
+- Move non-authoritative analytics, optional history, export and cleanup off the caller's critical path with bounded lifecycle ownership. Promised asynchronous work needs durable source identity and recovery; an untracked promise is insufficient. Do not move final financial facts or required input/checkpoints after an acknowledgment that claims they are durable.
+- Record meaningful before/after evidence and any changed durability or visibility contract in the owning feature/design. Preserve final-result replay and accounting, or obtain explicit scope for changing them. Do not report a latency improvement by hiding failures, dropping required data or leaving unbounded background debt.
+
+The [execution-efficiency design](../../docs/projects/execution-efficiency-tech-design.md) records the concrete repeated-payload/round-trip failure and its proposed replacement. Its transaction counts and latency budgets are project targets, not universal rules or implemented behavior.
+
 ## Files and scaling
 
 Verify checkpoint manifests/content before publication or restore. Preserve recoverable state on upload, restore, cancellation, or Git failure. Reject path traversal/symlink escapes; keep protected runtime state isolated. Never force-push or silently overwrite conflicting user work. Git sync failure is distinct from execution failure.

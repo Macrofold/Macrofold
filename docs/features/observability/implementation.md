@@ -26,6 +26,14 @@ One run is one trace. SHA-256-derived OTel trace/span IDs incorporate the organi
 
 Generations, tools, context retrievers and lifecycle events are siblings beneath a single `agent` observation. Cross-process child spans carry an explicit parent and Langfuse trace baggage, preventing each serverless process from becoming another logical root. Only the terminal root covers the entire run. No active in-memory span must survive a durable wait. A killed process or unfinished run can leave an incomplete tree.
 
+Decision generations own provider request content under the existing capture
+limits. Their terminal root links definition/context digests instead of
+duplicating that potentially large input. Completion reuses its already locked,
+current Run for root tracing; enabling tracing does not download the accepted
+context again. Native roots retain their prompt/instructions. Export network I/O
+remains asynchronous; capture, redaction and SDK serialization still consume
+local CPU and must be included in latency measurements.
+
 Each observation receives the dimensions and low-cardinality tags in the [guide](README.md). Queries use the owning transaction's tenant authorization; tool output cannot override identity. Names remain stable (`model.generate`, `decision.generate`, `tool.<name>`, `context.read`, `billing.model`, `billing.compute`, `run.<kind>`). Decision normalization failures preserve bounded raw evidence and independently valid usage in the existing encrypted invocation checkpoint; the generation carries normalized outcome and settled charge. Successful native payloads are not duplicated. Direct deltas bypass replay storage; bounded/native deltas retain their existing replay stream. Neither becomes per-token spans.
 
 ## Cost ownership

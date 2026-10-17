@@ -10,6 +10,8 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
+- Execution efficiency: [feature specification](execution-efficiency-feature-spec.md) and [technical design](execution-efficiency-tech-design.md). Proposed compact two-commit immediate execution, bounded background administration, versioned caches and batched SQL; includes native/tool/queue/storage/event paths. Records the measured excessive round trips/payload transfers and the deliberate response-checkpoint tradeoff. Implementation has not started.
+
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
 
 - [OpenRouter decision-model routing](decision-model-routing.md): reviewed Decision 1/Jev routing, native and typed requests, and shared billing controls.

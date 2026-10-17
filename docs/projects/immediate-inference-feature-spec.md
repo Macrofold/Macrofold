@@ -2,6 +2,8 @@
 
 Status: approved implementation in progress. [Technical design and ordered checklist](immediate-inference-tech-design.md) owns mechanism; [central TODO](../maintainers/TODO.md#direct-inference-latency-follow-up) tracks delivery and remaining acceptance. Current source behavior belongs in the [decision implementation](../features/decisions/implementation.md) and [streaming implementation](../features/api/streaming-implementation.md); local verification does not establish hosted throughput.
 
+The subsequent [execution-efficiency proposal](execution-efficiency-feature-spec.md) explicitly revisits full immediate-input persistence and the separate response checkpoint, and extends optimization to native/queued execution. Until implemented, this document's current three-boundary guarantees remain the shipped behavior; the new proposal owns the replacement design and its tradeoffs.
+
 ## Outcome
 
 An application making one supported model or decision request receives the result on that same HTTP request, with as little Macrofold overhead as possible. A normal call needs no Worker, sandbox, scheduler wakeup, status polling, or separate billing lookup. The same behavior applies to Jev, other supported scoring models, provider-native LLM requests, and optional typed single-call decisions.
@@ -89,21 +91,21 @@ Excluded:
 
 ## Acceptance
 
-| Requirement | Passing evidence |
-| --- | --- |
-| Immediate happy path | Provider execution and terminal response succeed with all pollers stopped in an isolated fixture; zero dispatcher claims and caller status/billing fetches |
-| Native passthrough | Supported input/output preserved except documented routing, identity, transport and spending controls; no invented prompt/schema convention |
-| Durable response | A settlement failure or process death during settlement cannot erase committed provider evidence; a local decoding failure preserves bounded available evidence and uncertain usage |
-| Exactly one dispatch owner | Concurrent duplicate requests and recovery never cause a second provider invocation for the same admitted identity |
-| Accounting | One usage record and idempotent balanced settlement; BYOK Macrofold model charge remains zero, provider cost remains separate, unknown remains unknown |
-| Streaming | Early deltas, bounded memory, complete final receipt, explicit interrupted result, unchanged detach/cancel semantics |
-| Current authority | Revoked/wrong-tenant/wrong-scope credentials fail; context grants and explicit stop controls remain enforced |
-| Explicit client recovery | Schema-validated success/failure/202/410 examples, active-stream 409, and all-five-SDK identity preservation on abort, HTTP, decode and stream failures; one transport attempt by default |
-| Independent clocks | Prompt bounded admission; execution timeout is unchanged by retries; timely provider completion can finalize after its deadline; lost commit acknowledgment never claims a confirmed rollback |
-| Mixed execution | Native/bounded execution, shared limits, queued fairness, cancellation and recovery regressions pass; an unstarted queue head does not block free immediate capacity |
-| Low overhead | Warm small inline requests target added server overhead p50 ≤10 ms, p95 ≤25 ms, p99 ≤50 ms under a declared sustainable load; no deliberate scheduling/polling wait |
-| Scale | Multi-replica sustained/burst results include latency, accepted/completed/rejected counts, active calls, pool/lock waits, memory and recovery lag; the 10,000-in-flight target is tested separately from requests/second |
-| Honest limits | Cold/context-I/O/large-payload/provider-limited cases are reported separately, not removed from overall results; no unmeasured hosted SLA |
+| Requirement                | Passing evidence                                                                                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Immediate happy path       | Provider execution and terminal response succeed with all pollers stopped in an isolated fixture; zero dispatcher claims and caller status/billing fetches                                                               |
+| Native passthrough         | Supported input/output preserved except documented routing, identity, transport and spending controls; no invented prompt/schema convention                                                                              |
+| Durable response           | A settlement failure or process death during settlement cannot erase committed provider evidence; a local decoding failure preserves bounded available evidence and uncertain usage                                      |
+| Exactly one dispatch owner | Concurrent duplicate requests and recovery never cause a second provider invocation for the same admitted identity                                                                                                       |
+| Accounting                 | One usage record and idempotent balanced settlement; BYOK Macrofold model charge remains zero, provider cost remains separate, unknown remains unknown                                                                   |
+| Streaming                  | Early deltas, bounded memory, complete final receipt, explicit interrupted result, unchanged detach/cancel semantics                                                                                                     |
+| Current authority          | Revoked/wrong-tenant/wrong-scope credentials fail; context grants and explicit stop controls remain enforced                                                                                                             |
+| Explicit client recovery   | Schema-validated success/failure/202/410 examples, active-stream 409, and all-five-SDK identity preservation on abort, HTTP, decode and stream failures; one transport attempt by default                                |
+| Independent clocks         | Prompt bounded admission; execution timeout is unchanged by retries; timely provider completion can finalize after its deadline; lost commit acknowledgment never claims a confirmed rollback                            |
+| Mixed execution            | Native/bounded execution, shared limits, queued fairness, cancellation and recovery regressions pass; an unstarted queue head does not block free immediate capacity                                                     |
+| Low overhead               | Warm small inline requests target added server overhead p50 ≤10 ms, p95 ≤25 ms, p99 ≤50 ms under a declared sustainable load; no deliberate scheduling/polling wait                                                      |
+| Scale                      | Multi-replica sustained/burst results include latency, accepted/completed/rejected counts, active calls, pool/lock waits, memory and recovery lag; the 10,000-in-flight target is tested separately from requests/second |
+| Honest limits              | Cold/context-I/O/large-payload/provider-limited cases are reported separately, not removed from overall results; no unmeasured hosted SLA                                                                                |
 
 The percentile numbers are engineering targets, not measured achievements or a promise that every topology can meet them. Do not lower them or report low latency by rejecting normal offered traffic. Report the measured sustainable envelope, identify the bottleneck, and optimize that owner.
 

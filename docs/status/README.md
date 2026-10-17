@@ -1,5 +1,13 @@
 # Implementation status
 
+Near-full-context inference profiling removed repeated context/request downloads
+from SQL and reused prepared JSON encoding. SQL return traffic fell from about
+17 MB to 10 KB per call; a 20-call synthetic-provider cohort averaged 178 ms
+overhead after optimization. The below-100-ms target remains open, and varying
+host load prevents a hosted performance claim. Current authority, accounting,
+retention, generation tracing and all three durable commits remain intact.
+See [measurements and remaining costs](../features/decisions/verification.md#near-full-context-profiling).
+
 [Immediate inference](../projects/immediate-inference-tech-design.md) now executes one request-owned admission/provider/evidence/settlement sequence, with complete usage/billing receipts, explicit recovery, shared capacity and batched authority observation. REST/SSE/MCP fixtures and the five-language SDK suites pass locally; SDK submission defaults to one attempt and queued inference is rejected. The full five-language immediate JSON/replay/SSE matrix passes without a worker. Actual API process-loss recovery passes at dispatch and after durable response preservation without redispatch; cross-replica revocation, bounded readers and populated migration rehearsal also pass. Production build, code and documentation checks pass. Migrations 053–054 are active on the existing local Docker profile, with no active Runs at migration time; preview health and new async rejection pass without restarting its process. Hosted rollout, the remaining acceptance matrix and matched latency/calibration stay open. Host saturation prevented capacity certification; preliminary SQL counts do not establish a speedup or sustainable rate. No 10,000-concurrent, 15-minute or hosted acceptance is claimed. See [verification](../features/decisions/verification.md#immediate-inference) and [remaining gates](../maintainers/TODO.md#direct-inference-latency-follow-up).
 
 [Microsoft Decision 1](../features/decisions/README.md#use-microsoft-decision-1-through-openrouter) now routes through the existing OpenRouter Decisions adapter and shared reviewed model registry. Native noul/choice/score payloads, optional typed choice/score, price ceilings, exact BYOK, usage and accounting retain the existing contract. Protocol/API regressions pass 84 tests; two local live requests confirm native answers and typed BYOK with complete usage and zero Macrofold BYOK model charge. [Verification](../features/decisions/verification.md#openrouter-decision-1-acceptance) distinguishes this from unverified hosted rollout and the base revision's existing CI failures.

@@ -26,6 +26,7 @@ import { adminReport } from './reports';
 import { organizationManager } from './organizations';
 import { boundedBody } from './body';
 import { requestCapacity } from './request-capacity';
+import { startInferenceTiming } from './inference-timing';
 import {
   acquireImmediateInferencePermit,
   acquireInferenceAdmission,
@@ -55,6 +56,7 @@ export async function handleApi(
   let principal: Principal | undefined;
   let route = 'unmatched';
   let status = 500;
+  let stopRequestTiming = () => {};
   const headers = new Headers({
     'X-Request-Id': requestId,
     'Cache-Control': 'private, no-store',
@@ -75,6 +77,7 @@ export async function handleApi(
     route = matched.path;
     operationId = matched.operation.operationId;
     if (operationId === 'createInference') {
+      stopRequestTiming = startInferenceTiming('http.total');
       inferenceIdentity = request.headers.get('idempotency-key') || '';
       assert(
         !respondAsync(request),
@@ -99,7 +102,9 @@ export async function handleApi(
     }
     const admin = route.startsWith('/admin/');
     const audience = `${config.origin}${admin ? '/admin/v1' : surface === 'mcp' ? '/mcp' : '/v1'}`;
+    const stopAuthentication = startInferenceTiming('http.authentication', operationId === 'createInference');
     principal = await identify(request, audience, { databaseDeadlineAtMs: preflightDeadlineAtMs });
+    stopAuthentication();
     const p = principal;
     if (!background && operationId !== 'createInference')
       await pool.query(
@@ -157,10 +162,12 @@ export async function handleApi(
         'INSERT INTO rate_limits(key,bucket,count) VALUES($1,$2,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.bucket=excluded.bucket THEN rate_limits.count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count',
         [`${p.organizationId}:${p.id}:${rate.group}`, Math.floor(Date.now() / 60000)],
       );
+    const stopRateLimit = startInferenceTiming('http.rate_limit', operationId === 'createInference');
     const count =
       preflightDeadlineAtMs === undefined
         ? await rateQuery(pool)
         : await transaction(null, rateQuery, { deadlineAtMs: preflightDeadlineAtMs });
+    stopRateLimit();
     if (count.rows[0].count > rate.limit) {
       headers.set('Retry-After', String(Math.max(1, 60 - (Math.floor(Date.now() / 1000) % 60))));
       throw new AppError(429, 'rate_limited', 'Too many requests. Retry in one minute.');
@@ -204,11 +211,17 @@ export async function handleApi(
       return Response.json(responseFor(matched.operation, result).body, { headers });
     }
     if (operationId === 'createInference') releaseRequest = acquireInferenceRequestPermit();
+    const stopBodyRead = startInferenceTiming('http.body_read', operationId === 'createInference');
     const bytes = await boundedBody(
       request.body,
       4 * 1024 * 1024,
       60_000,
       operationId === 'createInference' ? request.signal : undefined,
+    );
+    stopBodyRead();
+    const stopBodyValidation = startInferenceTiming(
+      'http.body_validation',
+      operationId === 'createInference',
     );
     const binary = matched.operation.operationId === 'writeFile';
     let body: unknown = {};
@@ -220,6 +233,7 @@ export async function handleApi(
       }
     }
     validateBody(matched.operation, body, binary);
+    stopBodyValidation();
     const directStream =
       matched.operation.operationId === 'createInference' &&
       !!body &&
@@ -246,9 +260,11 @@ export async function handleApi(
     assert(handler || prepare, 503, 'operation_unavailable', 'This operation is not configured.');
     const advisory = matched.operation.operationId === 'resolveConnectionAccess';
     const idempotencyKey = advisory ? '' : request.headers.get('idempotency-key') || '';
+    const stopFingerprint = startInferenceTiming('http.fingerprint', operationId === 'createInference');
     const fingerprint = sha256(
       `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
     );
+    stopFingerprint();
     const cachedResponse = async (tx: import('../../db').Tx) => {
       if (idempotencyKey) {
         await lock(tx, `idempotency:${p.organizationId}:${p.id}:${route}:${idempotencyKey}`);
@@ -300,6 +316,7 @@ export async function handleApi(
       );
       releasePreflight = acquireInferenceAdmission(preflightDeadlineAtMs);
     }
+    const stopReplay = startInferenceTiming('http.replay_lookup', operationId === 'createInference');
     const replay =
       prepare && idempotencyKey
         ? await transaction(
@@ -308,6 +325,7 @@ export async function handleApi(
             preflightDeadlineAtMs === undefined ? {} : { deadlineAtMs: preflightDeadlineAtMs },
           )
         : undefined;
+    stopReplay();
     releasePreflight?.();
     releasePreflight = undefined;
     if (operationId === 'createInference' && !replay) {
@@ -315,7 +333,9 @@ export async function handleApi(
       releaseRequest?.();
       releaseRequest = undefined;
     }
+    const stopPreparation = startInferenceTiming('http.preparation', operationId === 'createInference');
     const prepared = prepare && !replay ? await prepare(context) : undefined;
+    stopPreparation();
     let permit: InvocationPermit | undefined;
     let outcome: Response | { status: number; body: unknown };
     let committed = false;
@@ -332,6 +352,7 @@ export async function handleApi(
       );
       requireScopes(current, scopes);
       const admissionStarted = performance.now();
+      const stopAdmission = startInferenceTiming('http.admission', operationId === 'createInference');
       const admissionDeadline = Date.now() + immediateInferencePolicy.admissionMs;
       const releaseAdmission =
         operationId === 'createInference' && !replay
@@ -425,6 +446,7 @@ export async function handleApi(
         );
         outcome = saved;
       } finally {
+        stopAdmission();
         releaseAdmission?.();
       }
     } finally {
@@ -642,5 +664,6 @@ export async function handleApi(
     };
     if (background) background(recordRequest);
     else await recordRequest();
+    stopRequestTiming();
   }
 }

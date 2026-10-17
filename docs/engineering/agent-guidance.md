@@ -53,4 +53,6 @@ For a harness upgrade or a newly configured agent, use a fresh session to confir
 
 ## Changelog
 
+The execution-efficiency investigation adds one root route to the canonical critical-path rule and a performance-procedure measurement step. It records why repeated immutable payload transfers and sequential helper transactions escaped earlier review, requires explicit round-trip/byte budgets and bounded background work, and preserves existing financial, authority, file and replay boundaries. The [design and evidence](../projects/execution-efficiency-tech-design.md#changelog) distinguish implemented narrow projections from the proposed lifecycle replacement. No instruction loading route or mandatory baseline was removed.
+
 The OpenLegend instruction adoption adds conditional lifecycle skills and a feature task map around Macrofold's existing mandatory baseline. Macrofold retains its testing/spending policies, review-only behavior, documentation hierarchy and pre-launch preservation rules. A dedicated contracts scope and regression-tested guidance checks make API/generator ownership and instruction reachability explicit. Source provenance, intentional differences and verification limits are in the adoption and verification records above.

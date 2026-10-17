@@ -26,6 +26,11 @@ export class Vault {
     if (active && !keys[active]) throw new Error('The active vault key is missing');
   }
   seal(value: unknown) {
+    return this.sealJSON(JSON.stringify(value));
+  }
+  /** Encrypt already serialized JSON without another serialization pass. The
+   * caller owns JSON encoding; unseal still returns the original JSON value. */
+  sealJSON(serialized: string) {
     const header = this.active ? `v2.${this.active}` : 'v1',
       nonce = randomBytes(12);
     const key = createHash('sha256')
@@ -33,7 +38,7 @@ export class Vault {
       .digest();
     const cipher = createCipheriv('aes-256-gcm', key, nonce);
     if (this.active) cipher.setAAD(Buffer.from(header));
-    const encrypted = Buffer.concat([cipher.update(JSON.stringify(value)), cipher.final()]);
+    const encrypted = Buffer.concat([cipher.update(serialized), cipher.final()]);
     return `${header}.${nonce.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${encrypted.toString('base64url')}`;
   }
   unseal<T>(value: string): T {
@@ -66,6 +71,9 @@ function vault() {
 }
 export function seal(value: unknown) {
   return vault().seal(value);
+}
+export function sealJSON(serialized: string) {
+  return vault().sealJSON(serialized);
 }
 export function unseal<T>(value: string): T {
   return vault().unseal<T>(value);

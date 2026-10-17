@@ -4,6 +4,8 @@ Status: implementation is present; final aggregate verification, workload calibr
 
 ## Review decisions
 
+The table below records the design implemented by this project. The later [execution-efficiency design](execution-efficiency-tech-design.md) proposes two normal execution commits and exceptional evidence capture, with an explicit larger crash window and reduced immediate-input history guarantee. It owns further redesign; do not treat the older three-commit choice here as an immutable platform requirement or claim the proposed replacement already runs.
+
 The implementation follows these accepted ownership and recovery decisions:
 
 | Earlier idea                                                     | Revised decision and reason                                                                                                                                                                                                                                                                                                                                                     |
@@ -16,6 +18,34 @@ The implementation follows these accepted ownership and recovery decisions:
 | Preserve the exact queued head check for immediate calls         | Separate immediate capacity admission from queued turn ordering. Otherwise an unstarted queue head can reject a call despite idle capacity and reintroduce poller dependence. Preserve weighted ordering for queued work; select shared capacity without per-mode reservations for this version, with the overload tradeoff documented below.                                   |
 
 Three commits are the default design, not three expensive worker handoffs. They happen consecutively in one request owner around the actual provider I/O. Do not claim the absolute physical optimum; preserve the product's durability while removing demonstrated unnecessary work.
+
+## Profiling and reducing request overhead
+
+The current optimization target is less than 100 ms of Macrofold overhead for a
+single near-full-context Jev request, measured separately from the provider
+round trip. This is a target, not a hosted SLA. The previous live local sample
+averaged 1,232 ms overhead and included admission/control failures on a heavily
+loaded host; it cannot establish healthy deployment performance.
+
+1. Profile the actual SDK → HTTP → executor path with disposable PostgreSQL,
+   a fixed synthetic provider, and the same approximately 1.5 MB context.
+   Record CPU/event-loop delay, request stages, SQL count/duration/returned
+   bytes, pool waits, and latency distributions. Keep provider simulation and
+   live timing evidence explicitly separate.
+2. Remove measured duplicate work, especially repeated returns of immutable
+   context and sealed request bodies. Reuse only the confirmed owner's immutable
+   input; read current generation, cancellation, retention, authority and money
+   from SQL. Keep recovery able to load the complete persisted evidence.
+3. Reduce unnecessary round trips within existing owners. Preserve the three
+   A/B/C commits, financial journals, revocation ordering, storage/capacity locks,
+   and no-redispatch recovery. Do not meet the target by deferring settlement or
+   caching mutable authority.
+4. Repeat matched profiles, run affected existing failure/accounting/replay
+   checks and bounded concurrent fixtures, then update the implementation and
+   verification owners with measured results and any remaining bottleneck.
+
+Profiling must not record input, SQL arguments, credentials or customer output.
+Leave the shared preview, workers and developer environment unchanged.
 
 ## Current flow and concrete sources
 
@@ -364,6 +394,8 @@ Update all five SDKs via the generators. Maintained transports must preserve mut
 Immediate inference has no machine, Host assignment or Worktree writer. Move shared account/fleet checks out of native placement. Keep one definition of active occupancy and entitlement across native, bounded and direct execution. Native/bounded claims still perform their extra placement/order work. Direct calls must not depend on a per-process worker dispatch slot such as `DISPATCH_INFERENCE_CONCURRENCY`.
 
 Retain the existing global capacity lock initially. Under it, use indexed current active occupancy and account/fleet entitlements. Do not run native placement/Host joins, select queue heads or scan terminal history to decide a direct request. Reuse one capacity predicate and claim mutation; only queued owners additionally call `schedulerTurn`/`recordTurn`. Immediate admissions do not advance the queued service clock. Existing partial indexes are the first optimization; this change does not require a new ready-head projection.
+
+The [near-full-context profile](../features/decisions/verification.md#near-full-context-profiling) found large payload writes inside that lock. The subsequent [execution-efficiency proposal](execution-efficiency-tech-design.md#data-and-cache-boundaries) removes mandatory immediate input copies while retaining atomic capacity admission, rather than requiring another staged full-input write. Queued input still must be durable. This replacement has not been implemented or qualified for concurrent traffic.
 
 **Selected target policy:** weighted service orders queued work; immediate work is work-conserving admission governed by current caps/rates/funding. No per-mode capacity is reserved in this version. This keeps capacity usable while removing the queue dependency. An older eligible bounded Run with no poller progressing it cannot reject immediate requests when capacity is available. Testing with an empty queue would miss that regression.
 

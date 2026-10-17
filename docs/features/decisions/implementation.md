@@ -4,6 +4,8 @@ Contributor reference. Start with the [public contract](README.md), [context sem
 
 The [immediate-inference plan](../../projects/immediate-inference-tech-design.md) owns the implementation checklist and performance acceptance. Direct requests now execute within their HTTP owner; native agents, bounded agents and Task children retain queued execution. Hosted capacity and lifetime acceptance are separate from source implementation.
 
+The [execution-efficiency proposal](../../projects/execution-efficiency-tech-design.md) designs a compact two-commit replacement, asynchronous optional input capture and batched SQL across these paths. It is not implemented; the durable boundaries below describe current behavior.
+
 ## Validation and admission capacity
 
 `explicit-context.ts` keeps at most 128 compiled validators, keyed by canonical schema content. Every call still checks the finite-schema policy before using the cache; schemas are compiled from immutable JSON snapshots with no coercion, defaults or property removal. Eviction also removes Ajv's internal schema retention. This caches pure compilation, never customer evidence, permissions or resolved definitions. The 32 KiB schema bound limits retained schema text to 4 MiB; compiled code has additional memory cost.
@@ -14,26 +16,33 @@ Native and bounded cancellation/heartbeat checks allow only one outstanding chec
 
 Immediate request-body/replay readers and active producers have independent process counters, each bounded by `IMMEDIATE_INFERENCE_CONCURRENCY`. A new request transfers to its producer permit before context preparation; a completed replay never needs that permit. This bounds concurrent buffered bodies without letting busy provider calls prevent retrieval of existing results. SQL preflight/admission has a separate smaller gate, released during upload and external preparation; no database client is held for either. Per-request byte limits still apply, and the combined memory envelope needs calibration on the intended deployment.
 
+Live admission and completion return narrow SQL projections rather than repeatedly
+transferring accepted context and encrypted request bodies. The confirmed owner
+already holds those immutable values; every publication still reads current
+generation, cancellation, retention, authority and financial state. Recovery loads
+the full persisted evidence. Provider request preparation reuses one canonical
+JSON encoding for its byte bound, digest and existing-format encryption.
+
 ## Ownership and entry points
 
-| Concern                                      | Owner                                                                       |
-| -------------------------------------------- | --------------------------------------------------------------------------- |
-| Public inputs, receipts, limits and scopes   | `docs/api/openapi.json`; generated contracts and five SDKs                  |
-| Domain types and provider/context ports      | `packages/core/src/decision.ts`, `context-artifacts.ts`                     |
-| Context/schema validation                    | `explicit-context.ts`                                                       |
-| Exact model eligibility and frozen terms     | `decision-models.ts`; native capability policy remains separate             |
-| Workspace-bound application authority          | `decision-authority.ts`                                                     |
-| Shared credential resolution                 | `model-credentials.ts`; native gateway and direct executor reuse it         |
-| Admission and immutable configuration        | `inferences.ts`, `decision-definitions.ts`                                  |
-| Immediate execution and evidence recovery     | `direct-inference.ts`, `inference-invocations.ts`                           |
-| Queued/bounded invocation and shared settlement | `inference-engine.ts`, `model-gateway.ts` and `ledger.ts`                |
-| Shared execution capacity and current controls | `execution-admission.ts`, `inference-control.ts`, `actor-authorization.ts` |
-| Trusted evidence tool loop                   | `bounded-decisions.ts`                                                      |
-| Sequential task allocations and coordination | `decision-tasks.ts`, `decision-task-engine.ts`                              |
-| Vendor HTTP and response parsing             | `packages/providers/src/decision-protocols.ts`                              |
-| Shared claiming and mode dispatch            | `engine.ts`, `cloud-engine.ts`, `portable-dispatch.ts`, `local-dispatch.ts` |
-| Retention and reachability                   | `artifacts.ts`, `deletion.ts`, existing storage preparation/collection      |
-| Presentation                                 | `inference-result.tsx`, `task-lineage.tsx`, existing run page               |
+| Concern                                         | Owner                                                                       |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| Public inputs, receipts, limits and scopes      | `docs/api/openapi.json`; generated contracts and five SDKs                  |
+| Domain types and provider/context ports         | `packages/core/src/decision.ts`, `context-artifacts.ts`                     |
+| Context/schema validation                       | `explicit-context.ts`                                                       |
+| Exact model eligibility and frozen terms        | `decision-models.ts`; native capability policy remains separate             |
+| Workspace-bound application authority           | `decision-authority.ts`                                                     |
+| Shared credential resolution                    | `model-credentials.ts`; native gateway and direct executor reuse it         |
+| Admission and immutable configuration           | `inferences.ts`, `decision-definitions.ts`                                  |
+| Immediate execution and evidence recovery       | `direct-inference.ts`, `inference-invocations.ts`                           |
+| Queued/bounded invocation and shared settlement | `inference-engine.ts`, `model-gateway.ts` and `ledger.ts`                   |
+| Shared execution capacity and current controls  | `execution-admission.ts`, `inference-control.ts`, `actor-authorization.ts`  |
+| Trusted evidence tool loop                      | `bounded-decisions.ts`                                                      |
+| Sequential task allocations and coordination    | `decision-tasks.ts`, `decision-task-engine.ts`                              |
+| Vendor HTTP and response parsing                | `packages/providers/src/decision-protocols.ts`                              |
+| Shared claiming and mode dispatch               | `engine.ts`, `cloud-engine.ts`, `portable-dispatch.ts`, `local-dispatch.ts` |
+| Retention and reachability                      | `artifacts.ts`, `deletion.ts`, existing storage preparation/collection      |
+| Presentation                                    | `inference-result.tsx`, `task-lineage.tsx`, existing run page               |
 
 There is one Run identity, wallet and accounting owner. Internal native/lightweight variants prevent nullable native resources from entering harness code. Immediate capacity checks share aggregate caps with queued execution but do not consult queue ordering, record scheduler turns or construct native compute. Weighted ordering remains for queued work; shared capacity does not guarantee per-mode progress during sustained saturation. Providers own wire formats; core owns authority, context, budgets and receipts.
 
@@ -89,7 +98,22 @@ Optional lower bounds: `DECISION_INPUT_MAX_BYTES` (262144), `DECISION_CONTEXT_MA
 
 [Direct generative streaming](../api/streaming-implementation.md) adds a transport-neutral output sink to the existing executor. Provider adapters assemble a full response; the invocation owner persists and settles it once. Bounded-agent output is coalesced into existing run events; direct output bypasses the event store. Interrupted provider streams retain partial evidence and incomplete usage without repeating dispatch.
 
-Receipts expose admission preparation, context resolution, queue wait, provider duration, response persistence and validation milliseconds. Admission preparation excludes the final ledger/admission commit; bounded receipts report the final invocation's provider/persistence timing, while every invocation stores its own timings. Missing measurements after process death remain missing. These are stage observations, not an end-to-end hosted SLA or provider first-token measurements; the adapters return complete bounded responses.
+Receipts expose admission, context resolution, queue wait, provider duration,
+response persistence and validation milliseconds. Immediate admission includes
+SQL checkout, locks and the A commit; queued receipts retain their preparation
+timing. Bounded receipts report the final invocation's provider/persistence
+timing, while every invocation stores its own timings. Missing measurements after
+process death remain missing. Provider duration includes adapter serialization,
+network transport and response normalization, not isolated model compute.
+
+For detailed local profiling, `inference-timing.ts` publishes numeric stage
+durations through Node's opt-in `macrofold.inference.timing` diagnostics channel.
+HTTP stages cover authentication, rate limiting, body reading/validation,
+fingerprinting, replay, preparation and admission; the executor separately
+measures evidence preservation and finalization. Ordinary requests without a
+subscriber retain no profiling entries. The channel never publishes payloads,
+credentials, SQL arguments or customer content. These observations and the
+receipt stages are not a hosted latency SLA; see [measured evidence](verification.md#near-full-context-profiling).
 
 The fixture benchmark measures the whole local submission/execution path, SQL statement/write counts, row bytes and artifact count against a 5-second application fixture budget. See actual results in [verification](verification.md). No VM startup, worktree hydration or object output is needed for the small inline decision.
 

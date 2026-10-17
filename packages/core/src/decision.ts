@@ -100,6 +100,7 @@ export function inferenceInputBound(
   provider: string,
   model: string,
   native: boolean,
+  serialized?: string,
 ) {
   return native && !decisionOnlyModel(provider, model)
     ? modelInputBound(body, {
@@ -107,7 +108,7 @@ export function inferenceInputBound(
         model,
         harness: provider === 'anthropic' ? 'claude-code' : 'opencode',
       })
-    : Buffer.byteLength(JSON.stringify(body)) + 1024;
+    : Buffer.byteLength(serialized ?? JSON.stringify(body)) + 1024;
 }
 
 /** Transport-neutral fragments. Partial tool arguments are never executable authority. */

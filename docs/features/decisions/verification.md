@@ -119,6 +119,97 @@ A separate HEAD `f7cf9f5` export measured the old async submission plus polling 
 
 The final local calibration was stopped with host load above 366 on ten CPUs and only 59 MiB reported free memory. Earlier overload fixtures reconciled all accepted reservations and occupancy, but had refusals and missed the latency target. No 10,000-concurrent, 15-minute, hosted-lifetime or production-capacity pass is claimed. Repeat the declared workload on a quiet provisioned topology, freeze measured release headroom and retain the target as an open release gate.
 
+### Near-full-context profiling
+
+An isolated October 17 profile used Node 24, the real SDK/loopback HTTP API,
+restricted-role PostgreSQL, a 1.49 MB synthetic context and a fixed 20 ms
+OpenRouter/Jev transport double. Every measured request used a new identity;
+there was no worker or real provider spending. Two warmups preceded each cohort.
+This measures Macrofold overhead, not Jev model latency or hosted capacity.
+
+Reproduce against local development PostgreSQL with the maintained profiler:
+
+```sh
+PLATFORM_MODE=local EXECUTION_PROVIDER=simulator ALLOW_PAID_EXECUTION=false \
+  APP_ORIGIN=http://localhost:3210 PROFILE_INFERENCE_CPU=1 \
+  pnpm exec tsx scripts/profile-inference.ts
+```
+
+It creates a fresh private output directory, disposable database and object
+directory, then removes its serving fixtures. `PROFILE_INFERENCE_CALLS` defaults
+to 20 (maximum 200); `PROFILE_INFERENCE_CONTEXT_BYTES` defaults to 1,494,000
+(maximum 1,900,000). Optional `PROFILE_INFERENCE_OUTPUT` must name a new directory.
+CPU sampling is opt-in; phase and SQL profiling are always included. No real
+provider credentials, customer data or paid calls are used.
+
+| Cohort | Samples | Mean overhead | Median | p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Before, SQL/CPU instrumentation enabled | 20 | 1,109.5 ms | 937.5 ms | 1,941.8 ms |
+| Narrow projections and serialization reuse, instrumented | 20 | 182.0 ms | 172.3 ms | 244.6 ms |
+| Same optimized source, profiling disabled | 20 | 177.6 ms | 173.5 ms | 238.7 ms |
+
+All optimized measured calls completed. Host load decreased during the
+experiment and remained excessive, so the elapsed improvement cannot be
+attributed entirely to code. The below-100-ms large-input target **is not met**.
+Stable small-context control samples reached 49–85 ms, but their overall cohort
+had scheduling stalls; smaller inputs do not satisfy the large-input target.
+
+The original path returned about 16.96 MB from SQL per request, repeatedly
+transferring the accepted context and sealed request. Narrow projections reduced
+this to 10.19 KB without changing stored content. Sampled garbage-collection time
+fell from 1,524 ms to 79 ms across comparable 22-call profiling windows. Pool
+checkout averaged 0.125 ms in the baseline; pool exhaustion was not the cause.
+
+Detailed optimized phase means were approximately 4 ms authentication, 3 ms
+rate limiting, 3 ms body read/validation, 5 ms fingerprinting, 5 ms replay lookup,
+16 ms preparation, 95 ms admission, 7 ms response evidence, 36 ms finalization,
+and 6 ms other/caller HTTP work. SQL command durations include transfer, driver
+decoding and scheduling, not just server execution. Background queries can
+overlap and are not added to critical-path wall time.
+
+The remaining two large inserts took roughly 29 and 35 ms each. Disposable
+`EXPLAIN ANALYZE` probes separated approximately 5 and 7 ms of server execution
+from transport/client/reception costs. The Run shape CHECK also repeatedly
+decompresses context on unrelated updates, costing about 2.2 ms per update in the
+probe. These costs remain; no constraint, financial write or durable commit was
+removed to meet a timing target.
+
+Controlled alternatives did not justify schema changes: EXTERNAL ciphertext
+storage had no meaningful benefit, LZ4 made repeated config operations slower,
+and a SQL CHECK helper added complexity for little gain. They were not applied.
+
+A separate ten-call experiment used the actual Langfuse sink and OTLP exporter,
+synthetic keys and a disposable HTTPS collector that delayed responses by one
+second and returned an initial 503. Export network delay was not awaited.
+Removing duplicate context capture from the terminal root roughly halved export
+bytes: 33.75 MB became 16.97 MB including the retry across each 12-call window.
+Provider request content remains on `decision.generate` under the existing
+capture limits. After that change, ten measured tracing-enabled calls averaged
+208.6 ms overhead, with median 188.6 ms and p95 335.6 ms; all succeeded. The earlier
+cohort averaged 245.5 ms, but different host load prevents attributing the timing
+difference entirely to deduplication. Capture/SDK CPU still costs time even though
+export network I/O is asynchronous.
+
+Admission currently holds the shared capacity lock across the two large inserts,
+which also creates a throughput concern. Moving payload writes ahead of final
+capacity admission could shorten that lock, but requires an explicit staged
+state and preserved atomic capacity/deadline checks. It was not applied as an
+unverified query reorder. Small-query batching alone would save approximately
+8–16 ms here, rather than the remaining 50–80 ms; a higher connection limit would
+not remove the measured single-request costs.
+
+Verification passed 78 existing affected HTTP, evidence/recovery, authority,
+accounting, tracing and webhook checks, plus 39 existing vault/protocol checks.
+`pnpm check`, documentation checks and a two-call CPU-profiler smoke run passed.
+No new tests were written. These local fixtures do not establish real provider
+latency, hosted throughput or the below-100-ms target.
+
+Private reports include numeric phases, sanitized SQL templates, returned-byte
+estimates, CPU samples and source fingerprints under ignored
+`.data/inference-profile/`. No input, SQL arguments, credentials or customer
+content entered those reports. Disposable databases, object directories and
+collector processes were removed; the shared preview and workers were preserved.
+
 ## Remaining release gates
 
 - Apply/rehearse 035–038 through the normal migration/backup-restore procedure on staging; fence old pollers/Workflow histories before enabling the executor.

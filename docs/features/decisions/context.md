@@ -77,7 +77,7 @@ Your application must retain the minimal accepted decision/effect and required e
 
 ## Bring a decision-provider key
 
-An authorized setup credential with `connections:write` can save an exact model account. An existing healthy OpenRouter model connection can be reused for Jev; otherwise create one:
+An authorized setup credential with `connections:write` can save an exact model account. An existing healthy OpenRouter model connection can be reused for Jev or Microsoft Decision 1; otherwise create one:
 
 ```ts
 const connection = await client.connections.create({
@@ -90,6 +90,6 @@ const model_binding = {
 };
 ```
 
-Include the same provider/model in the definition's `allowed_models`, then pass `model_binding` to `inferences.create`. Direct TypeSafe uses `provider: 'typesafe'`, `model: 'jev-1.13.0'` and a TypeSafe key; the conventional adapter uses `anthropic`. These credentials are never interchangeable.
+For Microsoft Decision 1, use `model: 'microsoft/microsoft-decision-1'` with the same OpenRouter connection. Pass `model_binding` to `inferences.create`; when using a typed definition, include the same provider/model in its `allowed_models`. Direct TypeSafe uses `provider: 'typesafe'`, `model: 'jev-1.13.0'` and a TypeSafe key; the conventional adapter uses `anthropic`. These credentials are never interchangeable.
 
 Save secrets only from a trusted backend or secure setup environment. A saved key is not proof of provider entitlement; the first explicitly authorized execution validates it. The invoking application's credential must belong to the connection owner. Jev remains decision-only and does not become a native harness model.

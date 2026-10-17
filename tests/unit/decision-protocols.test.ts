@@ -2,8 +2,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { decisionExample } from '../../examples/decisions/contracts';
 import { decisionProtocol } from '../../packages/providers/src/decision-protocols';
 import { validateContext, schemaValidator, digest } from '../../packages/core/src/explicit-context';
-import type { DecisionRequest } from '../../packages/core/src/decision';
+import { inferenceInputBound, type DecisionRequest } from '../../packages/core/src/decision';
 import { decisionModel } from '../../packages/core/src/decision-models';
+import { validateModelParameters } from '../../packages/core/src/model-parameters';
 
 function request(): DecisionRequest {
   const input = decisionExample('workspace', 'triage');
@@ -43,7 +44,7 @@ it('maps Jev choice and score to distinct documented primitives without generati
   input.definition.question = { kind: 'score', criteria: ['Low', 'Medium', 'High'] };
   expect(protocol.prepare(input)).toHaveProperty('questions.decision.criteria', ['Low', 'Medium', 'High']);
   input.definition.question = { kind: 'json' };
-  expect(() => protocol.prepare(input)).toThrow('Jev supports choice and score');
+  expect(() => protocol.prepare(input)).toThrow('Decision models support choice and score');
   expect(protocol.capabilities.brokeredTools).toBe(false);
 });
 it('preserves Jev evidence and exact usage behind fixed no-redirect transport', async () => {
@@ -103,31 +104,94 @@ it('keeps refusal, malformed output, and missing usage distinct', async () => {
   expect(malformed.refused).toBe(false);
   expect(malformed.value).toBeUndefined();
 });
-it('uses OpenRouter decision routing and accepted price ceilings without enabling chat or tools', () => {
-  const protocol = decisionProtocol('openrouter');
-  const input = { ...request(), model: 'typesafe/jev-1.13' };
-  expect(protocol.prepare(input)).toEqual({
-    ...decisionProtocol('typesafe').prepare(input),
-    provider: { allow_fallbacks: false, max_price: { prompt: 0.042, completion: 0, request: 0 } },
-  });
-  expect(protocol.capabilities.brokeredTools).toBe(false);
-  expect(() =>
-    protocol.prepare({ ...input, definition: { ...input.definition, question: { kind: 'json' } } }),
-  ).toThrow('Jev supports choice and score');
-  expect(
-    decisionModel({ provider: 'openrouter', model: input.model, billing_mode: 'managed' }),
-  ).toMatchObject({
-    provider: 'openrouter',
-    id: input.model,
-    harnesses: [],
-    input_micro_usd_per_million: '42000',
-  });
-  for (const model of ['~typesafe/jev-latest', 'openrouter/auto', 'jev-1.13.0']) {
-    expect(() => decisionModel({ provider: 'openrouter', model, billing_mode: 'managed' })).toThrow(
-      expect.objectContaining({ status: 400, code: 'decision_model_unavailable' }),
+it.each(['typesafe/jev-1.13', 'microsoft/microsoft-decision-1'])(
+  'routes %s through Decisions with reviewed prices and no chat, tools or streaming',
+  (model) => {
+    const protocol = decisionProtocol('openrouter', model);
+    const input = { ...request(), model };
+    expect(protocol.prepare(input)).toEqual({
+      ...decisionProtocol('typesafe').prepare(input),
+      provider: { allow_fallbacks: false, max_price: { prompt: 0.042, completion: 0, request: 0 } },
+    });
+    expect(protocol.capabilities.brokeredTools).toBe(false);
+    expect(protocol.capabilities.streaming).toBe(false);
+    expect(() =>
+      protocol.prepare({ ...input, definition: { ...input.definition, question: { kind: 'json' } } }),
+    ).toThrow('Decision models support choice and score');
+    expect(() => validateModelParameters({ reasoning: { effort: 'high' } }, 'openrouter', model)).toThrow(
+      'OpenRouter chat model',
     );
-  }
-  expect(() => decisionProtocol('unknown')).toThrow('Unsupported decision provider');
+    expect(
+      decisionModel({ provider: 'openrouter', model: input.model, billing_mode: 'managed' }),
+    ).toMatchObject({
+      provider: 'openrouter',
+      id: input.model,
+      harnesses: [],
+      input_micro_usd_per_million: '42000',
+    });
+    for (const model of ['~typesafe/jev-latest', 'openrouter/auto', 'jev-1.13.0']) {
+      expect(() => decisionModel({ provider: 'openrouter', model, billing_mode: 'managed' })).toThrow(
+        expect.objectContaining({ status: 400, code: 'decision_model_unavailable' }),
+      );
+    }
+    expect(() => decisionProtocol('unknown')).toThrow('Unsupported decision provider');
+  },
+);
+
+it('preserves native Decision 1 questions and complete responses without applying chat input rules', async () => {
+  const protocol = decisionProtocol('openrouter', 'microsoft/microsoft-decision-1');
+  const input = {
+    state: { type: 'image', description: 'An ordinary business record, not chat image input.' },
+    questions: {
+      permitted: { type: 'noul', instructions: 'Does the record describe an image?' },
+      team: { type: 'choice', instructions: 'Which team?', criteria: { support: 'General questions' } },
+      priority: { type: 'score', instructions: 'How urgent?', criteria: ['Low', 'High'] },
+    },
+    provider: { order: ['azure'] },
+  };
+  const body = protocol.prepare({
+    ...request(),
+    model: 'microsoft/microsoft-decision-1',
+    input,
+    definition: { ...request().definition, question: { kind: 'provider' } },
+  });
+  expect(body).toEqual({
+    ...input,
+    model: 'microsoft/microsoft-decision-1',
+    provider: {
+      order: ['azure'],
+      allow_fallbacks: false,
+      max_price: { prompt: 0.042, completion: 0, request: 0 },
+    },
+  });
+  expect(inferenceInputBound(body, 'openrouter', 'microsoft/microsoft-decision-1', true)).toBe(
+    Buffer.byteLength(JSON.stringify(body)) + 1024,
+  );
+  const raw = {
+    id: 'decision-1-fixture',
+    model: 'microsoft/microsoft-decision-1-20261009',
+    provider: 'Azure',
+    answers: {
+      permitted: { type: 'noul', noul: 0.9 },
+      team: { type: 'choice', choice: 'support', probabilities: { support: 1 } },
+      priority: { type: 'score', score: 0.4, probabilities: { '0': 0.6, '1': 0.4 } },
+    },
+    usage: { input_tokens: 1000, output_tokens: 70, cost: 0.000042 },
+  };
+  const call = vi.fn(async () => Response.json(raw));
+  vi.stubGlobal('fetch', call);
+  const result = await protocol.invoke(body, 'fixture', AbortSignal.timeout(1000), undefined, true);
+  expect(result.value).toEqual(raw);
+  expect(result.usage).toMatchObject({
+    input: 1000,
+    output: 70,
+    complete: true,
+    providerReportedCostUsd: 0.000042,
+  });
+  expect(call).toHaveBeenCalledExactlyOnceWith(
+    'https://openrouter.ai/api/alpha/decisions',
+    expect.objectContaining({ redirect: 'error' }),
+  );
 });
 it.each(['choice', 'score'] as const)(
   'decodes OpenRouter %s evidence and generation identity',

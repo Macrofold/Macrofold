@@ -40,6 +40,23 @@ Both usage records were complete. The combined rounded estimate was **$0.000061*
 
 This proves the configured account's two current Jev routes through the local application, not hosted enablement, arbitrary routing/model support, direct TypeSafe entitlement, model quality, or provider-side revocation. OpenRouter's documented endpoint is alpha. Real ambiguous transport completion remains a release acceptance item; deterministic no-retry/provisional-accounting fixtures cover its local behavior.
 
+### OpenRouter Decision 1 acceptance
+
+The October 15, 2026 extension adds `microsoft/microsoft-decision-1` to the shared decision-only registry without changing the public schema, SDK request shape, database schema or native runtime image. The focused protocol and disposable-database inference suites pass **84 tests** (26 protocol, 58 API/domain). The new cases verify native multi-question preservation and probabilities, typed choice/score validation, frozen managed rates, exact BYOK and dispatch-time revocation, provisional missing usage, no chat metadata refresh, and rejection of streaming/JSON/bounded-agent capabilities before admission. Existing Jev, Anthropic and OpenRouter chat checks remain included.
+
+`LIVE_API_TESTS=1 LIVE_DECISION_MODEL=microsoft/microsoft-decision-1 pnpm test:live decisions` passed both real requests through the TypeScript SDK, loopback API, executor and OpenRouter. Both reported `microsoft/microsoft-decision-1-20261009` and nonempty generation IDs:
+
+| Request / funding | Result | Usage / accounting |
+| --- | --- | --- |
+| Native noul + choice + score / managed | Complete native answers retained; receipt `value` | 89 input / 3 output tokens; 4 micro-USD Macrofold model charge |
+| Typed score / BYOK | Schema-valid numeric `value`; managed key unavailable | 323 input / 1 output tokens; zero Macrofold model charge, 14 micro-USD request-budget consumption |
+
+Both usage records were complete, with exactly one provider invocation per request. Rounded usage under the reviewed input rate totals **18 micro-USD**, under the combined $0.004 authorized fixture ceiling; provider invoices remain authoritative. No Azure credential or native compute was used. Reports remain in ignored `.data/live-checks/openrouter-decision-1-{choice,score}.json`; the disposable database/object directory was removed. These checks started no serving application or worker process. The fixture SMTP sink was unavailable, so this establishes no email-delivery behavior.
+
+`pnpm check` (including TypeScript SDK build), compilation of the published Decision 1 example and `pnpm docs:check` passed. No public API schema or SDK transport changed, so other language SDKs did not require regeneration or local verification. Full verification remains in CI.
+
+The base revision `49617906` already has failed CI acceptance/coverage, install/restore, audit, native dependency-scan and browser jobs. Targeted verification here is distinct from those existing full-release failures. Hosted rollout, provider quotas, other accounts and application-specific probability calibration remain separate acceptance work.
+
 ### Context-window correction
 
 The local correction removes byte-as-token context rejection at both admission and invocation preparation, including bounded-agent follow-ups. Billing reservations and request byte limits remain unchanged. Regression cases exercise typed and native-payload Jev through both providers above the old 32KB boundary, conventional inference above the old 128KB boundary, insufficient budgets before dispatch, actual-usage settlement and provider rejection without retries.

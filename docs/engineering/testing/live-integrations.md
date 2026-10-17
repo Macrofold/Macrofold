@@ -46,13 +46,14 @@ LIVE_API_TESTS=1 pnpm test:live metadata
 LIVE_API_TESTS=1 pnpm test:live models
 LIVE_API_TESTS=1 LIVE_BILLING_MODE=byok pnpm test:live models
 LIVE_API_TESTS=1 pnpm test:live decisions
+LIVE_API_TESTS=1 LIVE_DECISION_MODEL=microsoft/microsoft-decision-1 pnpm test:live decisions
 LIVE_API_TESTS=1 pnpm test:live composio
 LIVE_API_TESTS=1 pnpm test:live resend
 # Only after confirming the stated free R2 allowance:
 LIVE_API_TESTS=1 LIVE_R2_FREE_CLASS_A=1 pnpm test:live r2
 ```
 
-The `decisions` group explicitly forwards only `OPENROUTER_API_KEY` into a disposable database fixture and makes two tiny synthetic requests to `typesafe/jev-1.13`: managed choice and encrypted BYOK score. It exercises TypeScript SDK → loopback API → durable executor → real OpenRouter → receipt and settlement. Its transport guard allows only the fixed Decisions endpoint, one question per request, frozen price ceilings, no retries and at most two requests, reserving $0.002 per attempt. The BYOK call runs with the managed key unavailable. [Decision verification](../../features/decisions/verification.md#openrouter-jev-acceptance) records the result. Ordinary domain/CI fixtures continue to receive blank provider credentials.
+The `decisions` group explicitly forwards only `OPENROUTER_API_KEY` into a disposable database fixture and makes two tiny synthetic requests. Default `typesafe/jev-1.13` tests managed choice and encrypted BYOK score. Set `LIVE_DECISION_MODEL=microsoft/microsoft-decision-1` to test a managed native request with noul/choice/score questions and a typed BYOK score instead; other model substitutions fail closed. It exercises TypeScript SDK → loopback API → durable executor → real OpenRouter → receipt and settlement. Its transport guard allows only the fixed Decisions endpoint, at most three questions, frozen price ceilings, no retries and at most two requests, reserving $0.002 per attempt. The BYOK call runs with the managed key unavailable. [Decision verification](../../features/decisions/verification.md#openrouter-decision-1-acceptance) records the current result. Ordinary domain/CI fixtures continue to receive blank provider credentials.
 
 Set `LIVE_PLATFORMS=anthropic` (or a comma-separated subset) to repeat only selected model checks. `EMAIL_FROM` chooses Resend's verified sender; its absence uses the explicit provider test sender and cannot qualify production email readiness. A send-only key need not be replaced with an administrative key merely to make domain listing pass.
 

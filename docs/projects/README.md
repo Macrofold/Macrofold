@@ -10,6 +10,10 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
+- Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Proposed immediate-only passthrough, shared accounting/recovery, complete receipts and measured multi-replica scale; implementation is not started by this documentation change.
+
+- [OpenRouter decision-model routing](decision-model-routing.md): reviewed Decision 1/Jev routing, native and typed requests, and shared billing controls.
+
 - [Native Run controls](native-run-controls.md): layered question permission and durable stop-on-model-error admission/accounting.
 
 - [Resource-specific capacity](resource-capacity.md): independent execution/admission/I/O pools, production defaults, and maintenance progress.

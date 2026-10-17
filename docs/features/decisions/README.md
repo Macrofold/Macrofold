@@ -1,6 +1,6 @@
 # Explicit-context decisions
 
-Ask for a typed decision without creating a worktree, conversation, or sandbox. Supply the evidence the model may see, the shape of the answer, an exact model binding, and a spending ceiling. Macrofold returns an ordinary asynchronous run with a validated decision receipt.
+Make a decision without creating a worktree, conversation, or sandbox. Supply an exact model binding, its native request in `input`, and finite `limits`. For application-validated answers, optionally add a typed definition and explicit context. The [Decision 1 example](#use-microsoft-decision-1-through-openrouter) below uses the simpler native request.
 
 Your application remains responsible for its users, evidence relevance, current business rules, and permission to apply a proposed action. Schema validation proves shape, not truth or authority.
 
@@ -17,7 +17,7 @@ Use [bounded agents and tasks](tasks.md) only when one decision is insufficient.
 ## Before submitting
 
 1. Decision execution is supported by default. Your deployment needs provider credentials and paid-execution authorization. An explicit admission pause (`RUN_ADMISSION_ENABLED=false`) returns `inference_disabled`.
-2. Create a backend API key bound to **exactly one workspace**, with `runs:write` and `runs:read`. Add `files:write`/`files:read` to publish/read context artifacts. Keep the key in your application's backend.
+2. Create a backend API key with `runs:write` and `runs:read`. If the key is workspace-restricted, include an authorized `workspace_id`; stateless native calls may omit it with an unrestricted key. Saved context/definitions and bounded agents require a workspace. Add `files:write`/`files:read` to publish/read context artifacts. Keep the key in your application's backend.
 3. Choose a supported, configured model and managed or exact BYOK credentials. Request limits may lower a definition's ceilings, never raise them.
 4. Authenticate your own end user or actor. The workspace-bound key establishes the application namespace; the backend asserts the audience. An actor ID is not independent authorization.
 
@@ -148,9 +148,10 @@ Receipts preserve definition/schema/context digests, the actual credential-free 
 | `anthropic` | Exact reviewed Anthropic routes in [model policy](../../../packages/core/src/model-policy.ts) | JSON, choice, score; bounded agents |
 | `openrouter` | Enabled generative routes in the [model catalog](../execution/models.md) | Native chat requests, JSON, choice, score; bounded agents |
 | `openrouter` | `typesafe/jev-1.13` | Choice and score through OpenRouter Decisions |
+| `openrouter` | `microsoft/microsoft-decision-1` | Native noul/choice/score requests; optional typed choice and score |
 | `typesafe` | `jev-1.13.0` | Choice and score directly through TypeSafe |
 
-Jev score is a finite number from zero through the last criterion index. Jev does not run bounded agents or generate arbitrary JSON. Unknown models and incompatible capabilities are rejected before dispatch. `listModels` exposes the cached generative routes; it does not list the separate Jev decision routes. A successful Jev request therefore does not establish availability of a separate generative model used afterward.
+Decision-model scores are finite numbers from zero through the last criterion index. Neither Jev nor Decision 1 runs bounded agents or generates arbitrary JSON. Native mode preserves all named questions and complete provider answers, including probabilities; optional typed definitions extract and validate one choice/score. Unknown models and incompatible capabilities are rejected before dispatch. `listModels` exposes cached generative routes; decision-only routes are selected by the exact bindings above. A successful decision request does not establish availability of a separate generative model used afterward.
 
 OpenRouter generative inference requires fresh discovered prices. Admission preparation attempts a bounded metadata refresh if prices are missing or expired, without requiring a worker for a direct call. If discovery fails or is already in progress, stale models remain rejected; see [refresh and recovery](../execution/models.md#refresh-and-caching). No model or credential fallback is performed.
 
@@ -172,6 +173,56 @@ const result = await client.runs.wait(accepted.run_id);
 
 Macrofold uses OpenRouter's [Decisions endpoint](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request), rather than its chat endpoint. The response follows the same decision receipt contract, including OpenRouter's request ID and reported model revision. Requests carry frozen price ceilings and disable provider fallback. An unavailable route or rejected key is surfaced without silently switching to direct TypeSafe or another model. OpenRouter currently labels this endpoint alpha; its account availability and protocol can change.
 
+### Use Microsoft Decision 1 through OpenRouter
+
+Configure an OpenRouter managed key on the deployment or reuse an existing [OpenRouter BYOK connection](context.md#bring-a-decision-provider-key). No Microsoft/Azure credential is needed. This example uses the existing SDK's native-request interface; `definition`, `context` and a provider-mode flag are unnecessary:
+
+```ts
+import { Client } from 'macrofold';
+
+const client = new Client({
+  baseURL: process.env.MACROFOLD_BASE_URL,
+  apiKey: process.env.MACROFOLD_API_KEY,
+});
+const accepted = await client.inferences.create(
+  {
+    workspace_id: process.env.MACROFOLD_WORKSPACE_ID,
+    model_binding: {
+      provider: 'openrouter',
+      model: 'microsoft/microsoft-decision-1',
+      billing_mode: 'managed',
+    },
+    input: {
+      state: 'Checkout returns a server error. Customers cannot complete a purchase.',
+      questions: {
+        is_bug: { type: 'noul', instructions: 'Does this describe broken software?' },
+        team: {
+          type: 'choice',
+          instructions: 'Which team should investigate?',
+          criteria: { engineering: 'Errors and outages', billing: 'Invoice questions' },
+        },
+        urgency: {
+          type: 'score',
+          instructions: 'How urgent is this?',
+          criteria: ['Low', 'Medium', 'High'],
+        },
+      },
+    },
+    limits: { max_cost_micro_usd: '2000', max_output_tokens: 256, timeout_seconds: 30 },
+  },
+  { idempotencyKey: crypto.randomUUID() },
+);
+const result = accepted.result ?? (await client.runs.wait(accepted.run_id));
+if (result.inference?.outcome === 'value') console.log(result.inference.value);
+else console.log(result.inference?.outcome, result.inference?.reason_code);
+```
+
+Native single-call inference normally completes in the HTTP request. REST uses the same JSON at `POST /v1/inferences`; send `Prefer: respond-async` to request an accepted Run without waiting. In either case the Run remains available through its result/events/cancel URLs. `result.inference.value` retains the complete provider response: `answers.is_bug.noul`, the selected `answers.team.choice` and probabilities, the weighted `answers.urgency.score`, model identity and token usage. A `noul` value is a probability, not a boolean; your application chooses and validates its threshold. A score ranges from zero through the last criterion index.
+
+For BYOK, change `billing_mode` to `byok` and set `provider_connection_id` to your OpenRouter model connection. Macrofold's model charge is zero; reported usage still consumes the request budget and provider cost remains separately visible. For a typed definition, put the Decision 1 binding in both `allowed_models` and `model_binding` and choose `question.kind: "choice"` or `"score"`.
+
+Decision 1 uses the same alpha Decisions endpoint and price/fallback controls as Jev. Its reviewed rate is $0.042 per million input tokens, with no output-token charge; the provider enforces its 32,768-token context window. It does not support incremental output: `stream: true` is rejected before admission. Use the native `input.provider` preferences for supported decision routing; chat reasoning parameters and native harness selection do not apply. See [Microsoft's guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision) and [OpenRouter's model page](https://openrouter.ai/microsoft/microsoft-decision-1) for provider behavior. Probabilities are model evidence; validate calibration on your workload before automating effects.
+
 ### Request bounds and billing
 
 Maximum defaults: 256 KiB inline input, 2 MiB context, 64 evidence items. Operators can lower these bounds. Schemas are limited to 32 KiB, 128 nodes and eight levels, using a finite JSON Schema subset: ordinary types/properties/items, required/additionalProperties, enums/constants, scalar and collection bounds, title/description. Remote references, regexes, and combinatorial alternatives are rejected. Inputs and outputs are never coerced, defaulted, or silently truncated.
@@ -184,7 +235,7 @@ Managed requests reserve the run ceiling in the existing wallet. BYOK uses the e
 
 ## Next steps
 
-Anthropic Messages and OpenRouter chat support [direct output deltas](../api/streaming.md) with top-level `stream: true`. Bounded generative calls use the same adapters and retain durable run events. Jev remains a completed-response path and rejects explicit streaming before admission.
+Anthropic Messages and OpenRouter chat support [direct output deltas](../api/streaming.md) with top-level `stream: true`. Bounded generative calls use the same adapters and retain durable run events. Jev and Decision 1 return completed responses and reject explicit streaming before admission.
 
 - [Context and reusable definitions](context.md): evidence semantics, immutable references, audience checks and retention.
 - [Bounded agents and tasks](tasks.md): read-only investigations, task ceilings, wakes and application receipts.

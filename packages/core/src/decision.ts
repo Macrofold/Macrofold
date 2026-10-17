@@ -1,4 +1,5 @@
 import { modelInputBound } from './model-content';
+import { decisionOnlyModel } from './decision-models';
 import type { components } from '../../contracts/api';
 import type { ModelRequestBounds, ModelUsage } from './model-protocol';
 
@@ -69,7 +70,7 @@ export function inferenceInputBound(
   model: string,
   native: boolean,
 ) {
-  return native && provider !== 'typesafe' && model !== 'typesafe/jev-1.13'
+  return native && !decisionOnlyModel(provider, model)
     ? modelInputBound(body, {
         provider,
         model,

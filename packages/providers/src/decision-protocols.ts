@@ -13,6 +13,7 @@ import { assert, AppError } from '../../core/src/errors';
 import { emptyUsage } from '../../core/src/model-protocol';
 import { openRouterPriceCeiling } from './openrouter-pricing';
 import { validateModelParameters } from '../../core/src/model-parameters';
+import { decisionOnlyModel } from '../../core/src/decision-models';
 
 import { nativeInferenceBody } from './native-inference';
 import { reportedCost } from './reported-cost';
@@ -325,7 +326,7 @@ const typesafe: DecisionProtocol = {
       question.kind !== 'json',
       400,
       'unsupported_decision',
-      'Jev supports choice and score; select a generative provider for JSON output.',
+      'Decision models support choice and score; select a generative provider for JSON output.',
     );
     return {
       model: request.model,
@@ -403,7 +404,8 @@ const openrouterChat: DecisionProtocol = {
 export function decisionProtocol(provider: string, model?: string): DecisionProtocol {
   if (provider === 'anthropic') return anthropic;
   if (provider === 'typesafe') return typesafe;
-  if (provider === 'openrouter') return model && model !== 'typesafe/jev-1.13' ? openrouterChat : openrouter;
+  if (provider === 'openrouter')
+    return model && !decisionOnlyModel(provider, model) ? openrouterChat : openrouter;
   throw new Error('Unsupported decision provider.');
 }
 

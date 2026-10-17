@@ -9,7 +9,7 @@ import { id } from './crypto';
 import { config } from './config';
 import { validateContext, digest } from './explicit-context';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
-import { decisionModel } from './decision-models';
+import { decisionModel, decisionOnlyModel } from './decision-models';
 import { models } from './catalog';
 import { refreshExpiredOpenRouterCatalog } from './model-catalog';
 import { providerModelCatalog } from '../../providers/src/model-catalog';
@@ -68,7 +68,8 @@ export async function admitInference(
   }
   const model = decisionModel(
       input.model_binding,
-      input.model_binding.provider === 'openrouter' && input.model_binding.model !== 'typesafe/jev-1.13'
+      input.model_binding.provider === 'openrouter' &&
+      !decisionOnlyModel('openrouter', input.model_binding.model)
         ? await models(tx)
         : [],
     ),
@@ -227,7 +228,10 @@ export async function prepareInference(
     'workspace_required',
     'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
   );
-  if (input.model_binding.provider === 'openrouter' && input.model_binding.model !== 'typesafe/jev-1.13')
+  if (
+    input.model_binding.provider === 'openrouter' &&
+    !decisionOnlyModel('openrouter', input.model_binding.model)
+  )
     await refreshExpiredOpenRouterCatalog(providerModelCatalog());
   const definition =
     'definition_id' in input.definition

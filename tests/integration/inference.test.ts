@@ -272,62 +272,70 @@ it('never labels an out-of-schema response a value', async () => {
   expect(result.inference).not.toHaveProperty('value');
 });
 it.each(
-  (['typesafe', 'openrouter'] as const).flatMap((provider) =>
+  (
+    [
+      { provider: 'typesafe', model: 'jev-1.13.0' },
+      { provider: 'openrouter', model: 'typesafe/jev-1.13' },
+      { provider: 'openrouter', model: 'microsoft/microsoft-decision-1' },
+    ] as const
+  ).flatMap(({ provider, model }) =>
     [
       ['choice', 'review', 'value'],
       ['choice', 'unlisted', 'invalid_output'],
       ['score', 1.5, 'value'],
       ['score', 3, 'invalid_output'],
-    ].map(([kind, value, outcome]) => ({ provider, kind, value, outcome })),
+    ].map(([kind, value, outcome]) => ({ provider, model, kind, value, outcome })),
   ),
-)('settles $provider Jev $kind response $value as $outcome', async ({ provider, kind, value, outcome }) => {
-  enable();
-  vi.stubEnv(`${provider.toUpperCase()}_API_KEY`, 'synthetic-jev-key');
-  const model = provider === 'openrouter' ? 'typesafe/jev-1.13' : 'jev-1.13.0';
-  const endpoint =
-    provider === 'openrouter'
-      ? 'https://openrouter.ai/api/alpha/decisions'
-      : 'https://api.typesafe.ai/v1/systemone';
-  const body = input();
-  body.model_binding = { provider, model, billing_mode: 'managed' };
-  body.definition.allowed_models = [{ provider, model }];
-  body.definition.output_schema = { type: kind === 'choice' ? 'string' : 'number' };
-  if (kind === 'score') body.definition.question = { kind: 'score', criteria: ['Low', 'Medium', 'High'] };
-  const call = vi.fn(async () =>
-    Response.json(
-      {
-        model,
-        ...(provider === 'openrouter' ? { id: 'jev-fixture' } : {}),
-        answers: { decision: { type: kind, [kind]: value, confidence: 0.8 } },
-        usage: { input_tokens: 1000, output_tokens: 0 },
-      },
-      { headers: { 'x-request-id': 'jev-fixture' } },
-    ),
-  );
-  vi.stubGlobal('fetch', call);
-  const runId = await submit(body);
-  await complete(runId);
-  const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
-  expect(run.cost_micro_usd).toBe('42');
-  expect(run.result.inference).toMatchObject({
-    outcome,
-    model_revision: model,
-    transformation_version: provider === 'openrouter' ? 'openrouter-decisions/1' : 'typesafe-systemone/1',
-    provider_request_id: 'jev-fixture',
-  });
-  const recorded = await transaction(owner.organizationId, (tx) =>
-    tx.query('SELECT provider FROM gateway_requests WHERE run_id=$1', [runId]),
-  );
-  expect(recorded.rows[0].provider).toBe(provider);
-  if (outcome === 'value') expect(run.result.inference?.value).toBe(value);
-  else expect(run.result.inference).not.toHaveProperty('value');
-  expect(call).toHaveBeenCalledExactlyOnceWith(
-    endpoint,
-    expect.objectContaining({
-      headers: expect.objectContaining({ authorization: 'Bearer synthetic-jev-key' }),
-    }),
-  );
-});
+)(
+  'settles $provider $model $kind response $value as $outcome',
+  async ({ provider, model, kind, value, outcome }) => {
+    enable();
+    vi.stubEnv(`${provider.toUpperCase()}_API_KEY`, 'synthetic-jev-key');
+    const endpoint =
+      provider === 'openrouter'
+        ? 'https://openrouter.ai/api/alpha/decisions'
+        : 'https://api.typesafe.ai/v1/systemone';
+    const body = input();
+    body.model_binding = { provider, model, billing_mode: 'managed' };
+    body.definition.allowed_models = [{ provider, model }];
+    body.definition.output_schema = { type: kind === 'choice' ? 'string' : 'number' };
+    if (kind === 'score') body.definition.question = { kind: 'score', criteria: ['Low', 'Medium', 'High'] };
+    const call = vi.fn(async () =>
+      Response.json(
+        {
+          model,
+          ...(provider === 'openrouter' ? { id: 'jev-fixture' } : {}),
+          answers: { decision: { type: kind, [kind]: value, confidence: 0.8 } },
+          usage: { input_tokens: 1000, output_tokens: 0 },
+        },
+        { headers: { 'x-request-id': 'jev-fixture' } },
+      ),
+    );
+    vi.stubGlobal('fetch', call);
+    const runId = await submit(body);
+    await complete(runId);
+    const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+    expect(run.cost_micro_usd).toBe('42');
+    expect(run.result.inference).toMatchObject({
+      outcome,
+      model_revision: model,
+      transformation_version: provider === 'openrouter' ? 'openrouter-decisions/1' : 'typesafe-systemone/1',
+      provider_request_id: 'jev-fixture',
+    });
+    const recorded = await transaction(owner.organizationId, (tx) =>
+      tx.query('SELECT provider FROM gateway_requests WHERE run_id=$1', [runId]),
+    );
+    expect(recorded.rows[0].provider).toBe(provider);
+    if (outcome === 'value') expect(run.result.inference?.value).toBe(value);
+    else expect(run.result.inference).not.toHaveProperty('value');
+    expect(call).toHaveBeenCalledExactlyOnceWith(
+      endpoint,
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: 'Bearer synthetic-jev-key' }),
+      }),
+    );
+  },
+);
 it.each([
   ['typesafe', 'typed'], ['typesafe', 'native'],
   ['openrouter', 'typed'], ['openrouter', 'native'],
@@ -392,62 +400,154 @@ it.each(['success', 'budget', 'provider-rejection'] as const)(
   },
 );
 
-it('uses the exact OpenRouter BYOK connection and rechecks revocation without managed fallback', async () => {
-  enable();
-  vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-managed-key');
-  const connection = await transaction(owner.organizationId, (tx) =>
-    saveConnection(tx, owner, {
-      name: 'OpenRouter fixture',
-      kind: 'model',
+it.each(['typesafe/jev-1.13', 'microsoft/microsoft-decision-1'])(
+  'uses exact OpenRouter BYOK for %s and rechecks revocation without managed fallback',
+  async (model) => {
+    enable();
+    vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-managed-key');
+    const connection = await transaction(owner.organizationId, (tx) =>
+      saveConnection(tx, owner, {
+        name: 'OpenRouter fixture',
+        kind: 'model',
+        provider: 'openrouter',
+        auth_method: 'api_key',
+        secret: 'synthetic-byok-key',
+      }),
+    );
+    const body = input();
+    body.model_binding = {
       provider: 'openrouter',
-      auth_method: 'api_key',
-      secret: 'synthetic-byok-key',
-    }),
-  );
-  const body = input();
-  body.model_binding = {
-    provider: 'openrouter',
-    model: 'typesafe/jev-1.13',
-    billing_mode: 'byok',
-    provider_connection_id: connection.id,
+      model,
+      billing_mode: 'byok',
+      provider_connection_id: connection.id,
+    };
+    body.definition.allowed_models = [{ provider: 'openrouter', model: body.model_binding.model }];
+    const call = vi.fn(async () =>
+      Response.json({
+        id: 'byok-generation',
+        answers: { decision: { type: 'choice', choice: 'review' } },
+        usage: { input_tokens: 1000, output_tokens: 0 },
+      }),
+    );
+    vi.stubGlobal('fetch', call);
+    const runId = await submit(body);
+    await complete(runId);
+    expect(call).toHaveBeenCalledExactlyOnceWith(
+      'https://openrouter.ai/api/alpha/decisions',
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: 'Bearer synthetic-byok-key' }),
+      }),
+    );
+    const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+    expect(run.cost_micro_usd).toBe('0');
+    const budget = await transaction(owner.organizationId, (tx) =>
+      tx.query<{ budget_used_micro_usd: string }>('SELECT budget_used_micro_usd FROM runs WHERE id=$1', [
+        runId,
+      ]),
+    );
+    expect(budget.rows[0].budget_used_micro_usd).toBe('42');
+    expect(run.result.inference).toMatchObject({ outcome: 'value', value: 'review' });
+    const revoked = await submit(body);
+    await advanceInference(owner.organizationId, revoked);
+    await transaction(owner.organizationId, (tx) =>
+      resources.update(tx, 'connections', connection.id, { status: 'error' }),
+    );
+    await complete(revoked);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(await transaction(owner.organizationId, (tx) => getRun(tx, revoked))).toMatchObject({
+      status: 'failed',
+      cost_micro_usd: '0',
+    });
+    expect((await api('inferences', 'POST', body)).status).toBe(403);
+  },
+);
+
+it('preserves a native Decision 1 response and provisional liability when usage is missing', async () => {
+  enable();
+  vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-decision-1-key');
+  const raw = {
+    id: 'native-decision-1',
+    model: 'microsoft/microsoft-decision-1',
+    answers: { ready: { type: 'noul', noul: 0.75 } },
+    provider: 'Azure',
   };
-  body.definition.allowed_models = [{ provider: 'openrouter', model: body.model_binding.model }];
-  const call = vi.fn(async () =>
-    Response.json({
-      id: 'byok-generation',
-      answers: { decision: { type: 'choice', choice: 'review' } },
-      usage: { input_tokens: 1000, output_tokens: 0 },
-    }),
-  );
+  const call = vi.fn(async () => Response.json(raw));
   vi.stubGlobal('fetch', call);
-  const runId = await submit(body);
+  const runId = await submit({
+    workspace_id: workspaceId,
+    model_binding: {
+      provider: 'openrouter',
+      model: 'microsoft/microsoft-decision-1',
+      billing_mode: 'managed',
+    },
+    input: {
+      state: { type: 'image', label: 'record' },
+      questions: { ready: { type: 'noul', instructions: 'Is this a record?' } },
+    },
+    limits: { max_cost_micro_usd: '2000', max_output_tokens: 256, timeout_seconds: 20 },
+  });
   await complete(runId);
+  const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+  expect(run.status).toBe('succeeded');
+  expect(run.result.inference).toMatchObject({
+    outcome: 'value',
+    value: raw,
+    transformation_version: 'openrouter-decisions/1',
+  });
+  const recorded = await transaction(owner.organizationId, (tx) =>
+    tx.query('SELECT completeness,cost_micro_usd,usage_details FROM model_usage WHERE run_id=$1', [runId]),
+  );
+  expect(recorded.rows).toHaveLength(1);
+  expect(recorded.rows[0].completeness).toBe('missing');
+  expect(recorded.rows[0].usage_details.provisional).toBe(true);
+  expect(BigInt(recorded.rows[0].cost_micro_usd)).toBeGreaterThan(0n);
   expect(call).toHaveBeenCalledExactlyOnceWith(
     'https://openrouter.ai/api/alpha/decisions',
-    expect.objectContaining({
-      headers: expect.objectContaining({ authorization: 'Bearer synthetic-byok-key' }),
-    }),
+    expect.anything(),
   );
-  const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
-  expect(run.cost_micro_usd).toBe('0');
-  const budget = await transaction(owner.organizationId, (tx) =>
-    tx.query<{ budget_used_micro_usd: string }>('SELECT budget_used_micro_usd FROM runs WHERE id=$1', [runId]),
-  );
-  expect(budget.rows[0].budget_used_micro_usd).toBe('42');
-  expect(run.result.inference).toMatchObject({ outcome: 'value', value: 'review' });
-  const revoked = await submit(body);
-  await advanceInference(owner.organizationId, revoked);
-  await transaction(owner.organizationId, (tx) =>
-    resources.update(tx, 'connections', connection.id, { status: 'error' }),
-  );
-  await complete(revoked);
-  expect(call).toHaveBeenCalledTimes(1);
-  expect(await transaction(owner.organizationId, (tx) => getRun(tx, revoked))).toMatchObject({
-    status: 'failed',
-    cost_micro_usd: '0',
-  });
-  expect((await api('inferences', 'POST', body)).status).toBe(403);
 });
+
+it.each(['streaming', 'json', 'bounded'] as const)(
+  'rejects unsupported Decision 1 %s before admission',
+  async (kind) => {
+    enable();
+    vi.stubEnv('OPENROUTER_API_KEY', 'synthetic-decision-1-key');
+    const body = input();
+    body.model_binding = {
+      provider: 'openrouter',
+      model: 'microsoft/microsoft-decision-1',
+      billing_mode: 'managed',
+    };
+    body.definition.allowed_models = [{ provider: 'openrouter', model: body.model_binding.model }];
+    if (kind === 'streaming') body.stream = true;
+    if (kind === 'json') body.definition.question = { kind: 'json' };
+    if (kind === 'bounded') {
+      body.definition.question = { kind: 'json' };
+      body.definition.bounded_agent = { max_model_calls: 1, max_tool_calls: 0, context_artifacts: [] };
+    }
+    const before = (
+      await transaction(owner.organizationId, (tx) => tx.query('SELECT count(*)::int AS n FROM runs'))
+    ).rows[0].n;
+    const call = vi.fn();
+    vi.stubGlobal('fetch', call);
+    const response = await api(kind === 'bounded' ? 'bounded-agent-runs' : 'inferences', 'POST', body);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: {
+        code: {
+          streaming: 'streaming_not_supported',
+          json: 'unsupported_decision',
+          bounded: 'unsupported_bounded_model',
+        }[kind],
+      },
+    });
+    expect(call).not.toHaveBeenCalled();
+    expect(
+      (await transaction(owner.organizationId, (tx) => tx.query('SELECT count(*)::int AS n FROM runs')))
+        .rows[0].n,
+    ).toBe(before);
+  },
+);
 it('rejects missing or wrong-provider OpenRouter credentials before dispatch', async () => {
   enable();
   vi.stubEnv('OPENROUTER_API_KEY', '');

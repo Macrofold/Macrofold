@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { config, isLocal } from '../../packages/core/src/config';
-import { pool, authPool, transaction } from '../../packages/db';
+import { pool, authPool, credentialPool, transaction } from '../../packages/db';
 import { fixtureAccount } from '../../tests/fixtures/account';
 import { fixtureHttpApi } from '../../tests/fixtures/http-api';
 import { decisionExample } from '../../examples/decisions/contracts';
@@ -22,13 +22,20 @@ assert(process.env.LIVE_FIXTURE_CHILD === '1' && isLocal());
 assert(/^\/platform_test_[a-f0-9]+$/.test(new URL(config.databaseUrl).pathname));
 const secret = process.env.OPENROUTER_API_KEY;
 assert(secret, 'OPENROUTER_API_KEY is required.');
+const model = process.env.LIVE_DECISION_MODEL || 'typesafe/jev-1.13';
+assert(
+  ['typesafe/jev-1.13', 'microsoft/microsoft-decision-1'].includes(model),
+  'Choose a reviewed live fixture model.',
+);
+const microsoft = model === 'microsoft/microsoft-decision-1';
+const label = microsoft ? 'decision-1' : 'jev';
 if (process.env.TRACING_ENABLED === 'true')
   assert(tracingEnabled(), 'All Langfuse credentials are required for trace acceptance.');
 const originalPaid = config.allowPaid;
 const nativeFetch = globalThis.fetch;
 const api = await fixtureHttpApi();
 let calls = 0;
-// Every paid call is fixed to one bounded question and the reviewed Jev price.
+// Every paid call uses the reviewed $0.042/M input-only price and bounded questions.
 // No retries; even a failed/uncertain request consumes its reserved test ceiling.
 globalThis.fetch = async (input, init) => {
   const url = new URL(String(input));
@@ -39,17 +46,24 @@ globalThis.fetch = async (input, init) => {
   if (new Headers(init.headers).get('authorization') !== `Bearer ${secret}`)
     throw new Error('The decision adapter did not use the selected OpenRouter credential.');
   const body = JSON.parse(String(init.body));
-  assert.equal(body.model, 'typesafe/jev-1.13');
+  assert.equal(body.model, model);
   assert.deepEqual(Object.keys(body).sort(), ['model', 'provider', 'questions', 'state']);
-  assert.deepEqual(Object.keys(body.questions), ['decision']);
-  assert(['choice', 'score'].includes(body.questions.decision.type));
+  if (microsoft && calls === 0)
+    assert.deepEqual(Object.keys(body.questions).sort(), ['is_bug', 'team', 'urgency']);
+  else assert.deepEqual(Object.keys(body.questions), ['decision']);
+  assert(
+    Object.values(body.questions).every(
+      (q) =>
+        q && typeof q === 'object' && 'type' in q && ['noul', 'choice', 'score'].includes(String(q.type)),
+    ),
+  );
   assert.deepEqual(body.provider, {
     allow_fallbacks: false,
     max_price: { prompt: 0.042, completion: 0, request: 0 },
   });
   assert(Buffer.byteLength(String(init.body)) < 6000);
   assert(calls < 2, 'Only two live requests are authorized by this fixture.');
-  charge('openrouter', 'jev-decision', 2000); // Full 32K context at $0.042/M costs under $0.002.
+  charge('openrouter', `${label}-decision`, 2000); // Full 32K context at $0.042/M costs under $0.002.
   calls++;
   return nativeFetch(input, {
     ...init,
@@ -57,10 +71,12 @@ globalThis.fetch = async (input, init) => {
   });
 };
 try {
-  const { p } = await fixtureAccount('Live Jev decisions');
+  const { p } = await fixtureAccount('Live decision model');
   const setup = await transaction(p.organizationId, async (tx) => {
     await credit(tx, p.organizationId, 100_000n, 'live-decision-fixture');
-    const workspace = await resources.create(tx, 'workspaces', p.organizationId, { name: 'Live Jev fixture' });
+    const workspace = await resources.create(tx, 'workspaces', p.organizationId, {
+      name: 'Live decision fixture',
+    });
     const key = await createKey(tx, p, {
       name: 'Decision app',
       workspace_id: workspace.id,
@@ -78,15 +94,16 @@ try {
   const client = new Client({ baseURL: api.origin, apiKey: setup.key.secret });
   config.allowPaid = true;
   for (const kind of ['choice', 'score'] as const) {
-    await check('openrouter', `jev-${kind}`, async () => {
+    await check('openrouter', `${label}-${kind}`, async () => {
       const byok = kind === 'score';
       const body = decisionExample(setup.workspace.id, 'triage');
       body.model_binding = {
         provider: 'openrouter',
-        model: 'typesafe/jev-1.13',
+        model,
         billing_mode: byok ? 'byok' : 'managed',
         ...(byok ? { provider_connection_id: setup.connection.id } : {}),
       };
+      body.definition.allowed_models = [{ provider: 'openrouter', model }];
       body.definition.limits = { max_cost_micro_usd: '2000', max_output_tokens: 256, timeout_seconds: 30 };
       if (byok) {
         process.env.OPENROUTER_API_KEY = ''; // Prove no managed fallback is needed.
@@ -98,7 +115,31 @@ try {
         body.definition.unknown_values = [];
       }
       const before = calls;
-      const accepted = await client.inferences.create(body);
+      const accepted = await client.inferences.create(
+        microsoft && !byok
+          ? {
+              workspace_id: setup.workspace.id,
+              model_binding: body.model_binding,
+              limits: body.definition.limits,
+              input: {
+                state: 'Checkout returns a server error every time. Customers cannot complete a purchase.',
+                questions: {
+                  is_bug: { type: 'noul', instructions: 'Does this describe broken software?' },
+                  team: {
+                    type: 'choice',
+                    instructions: 'Which team should investigate?',
+                    criteria: { engineering: 'Errors and outages', billing: 'Invoice questions' },
+                  },
+                  urgency: {
+                    type: 'score',
+                    instructions: 'How urgent is this?',
+                    criteria: ['Low', 'Medium', 'High'],
+                  },
+                },
+              },
+            }
+          : body,
+      );
       for (let step = 0; step < 8; step++)
         if ((await advanceInference(p.organizationId, accepted.run_id)).done) break;
       const result = await client.runs.getResult(accepted.run_id);
@@ -107,6 +148,12 @@ try {
       assert(['value', 'unknown'].includes(result.inference?.outcome || ''));
       assert(result.inference?.provider_request_id);
       assert.equal(result.inference.transformation_version, 'openrouter-decisions/1');
+      if (microsoft && !byok) {
+        const value = result.inference.value as { answers: Record<string, { type: string }> };
+        assert.equal(value.answers.is_bug.type, 'noul');
+        assert.equal(value.answers.team.type, 'choice');
+        assert.equal(value.answers.urgency.type, 'score');
+      }
       const usage = await transaction(p.organizationId, async (tx) => ({
         run: (
           await tx.query('SELECT cost_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [
@@ -132,6 +179,7 @@ try {
             }
           : {}),
         billingMode: body.model_binding.billing_mode,
+        model,
         outcome: result.inference.outcome,
         modelRevision: result.inference.model_revision,
         providerRequestId: result.inference.provider_request_id,
@@ -180,4 +228,5 @@ try {
   await api.close();
   await pool.end();
   await authPool.end();
+  await credentialPool.end();
 }

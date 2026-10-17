@@ -9,7 +9,6 @@ import * as resources from '../../packages/core/src/resources';
 import { createKey } from '../../packages/core/src/keys';
 import { credit } from '../../packages/core/src/ledger';
 import { saveConnection } from '../../packages/core/src/connections';
-import { advanceInference } from '../../packages/core/src/inference-engine';
 import { charge, check } from './guard';
 import { tracingEnabled, shutdownTracing } from '../../packages/core/src/tracing';
 import { traceIdentity } from '../../packages/providers/src/langfuse';
@@ -140,9 +139,10 @@ try {
             }
           : body,
       );
-      for (let step = 0; step < 8; step++)
-        if ((await advanceInference(p.organizationId, accepted.run_id)).done) break;
-      const result = await client.runs.getResult(accepted.run_id);
+      assert.equal(accepted.status, 'succeeded');
+      assert(accepted.result, 'The original HTTP call must include its settled result.');
+      const result = accepted.result;
+      assert.deepEqual((await client.runs.getResult(accepted.run_id)).inference, result.inference);
       assert.equal(calls - before, 1);
       assert.equal(result.execution_outcome, 'success');
       assert(['value', 'unknown'].includes(result.inference?.outcome || ''));

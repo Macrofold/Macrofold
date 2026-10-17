@@ -25,7 +25,7 @@ Dashboard sessions and OAuth credentials can inspect runs within their grants, b
 
 ## First decision
 
-Use the [API quickstart](../api/quickstart.md) to obtain a workspace ID and scoped key, and install a [language SDK](../api/sdks/README.md). This TypeScript example uses the shared asynchronous run methods:
+Use the [API quickstart](../api/quickstart.md) to obtain a workspace ID and scoped key, and install a [language SDK](../api/sdks/README.md). This TypeScript example reads the completed decision directly from the submission response:
 
 ```ts
 import { Client } from 'macrofold';
@@ -35,7 +35,7 @@ const client = new Client({
   apiKey: process.env.MACROFOLD_API_KEY,
 });
 const now = new Date().toISOString();
-const accepted = await client.inferences.create(
+const response = await client.inferences.create(
   {
     workspace_id: process.env.MACROFOLD_WORKSPACE_ID!,
     definition: {
@@ -88,41 +88,99 @@ const accepted = await client.inferences.create(
       ],
     },
     model_binding: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', billing_mode: 'managed' },
-    queue_timeout_seconds: 5,
   },
   { idempotencyKey: crypto.randomUUID() },
 );
 
-const result = await client.runs.wait(accepted.run_id);
-const receipt = result.inference;
-if (receipt?.outcome === 'value') {
+if (response.status === 'running') {
+  // An admitted invocation needs recovery; do not create another model call.
+  console.log(response.recovery_reason, response.urls.result);
+} else if (response.result.inference?.outcome === 'value') {
+  const receipt = response.result.inference;
   // Compare dependency_tokens with current application state before authorizing an action.
   console.log(receipt.value, receipt.dependency_tokens);
 } else {
   // Unknown, stale or refused answers are explicit outcomes, not default values.
-  console.log(receipt?.outcome, receipt?.reason_code);
+  console.log(response.result.inference?.outcome, response.result.inference?.reason_code);
 }
 ```
 
-An accepted response contains `run_id`, `kind`, status/result/events/stream/cancel URLs, and null worktree/session IDs. Keep the same idempotency key and body after an uncertain submission response; a changed body conflicts. A deliberate new inference uses a new identity. `runs.wait` throws a typed run error for failed/cancelled/timed-out execution; its result and `runs.getResult` retain the receipt. Waiting or disconnecting does not cancel work.
+The ordinary response is HTTP 200 with a finalized `result`, including failed/cancelled/timed-out execution; inspect its status and inference outcome. Every receipt includes `run_id`, status/result/events/stream/cancel URLs, and null worktree/session IDs. HTTP 202 is reserved for an already admitted invocation still executing or recovering. SDK creation returns these receipts without automatically waiting or polling. Disconnecting does not cancel accepted work.
+
+Keep the same idempotency key and exact body after an uncertain submission response; a changed body, including a changed `stream` flag, conflicts. A deliberate new inference uses a new identity.
 
 Python, Go, Rust, and Java expose the same operations through their generated resources; use the [method reference](../api/sdks/reference.md). REST uses `POST /v1/inferences` with `Idempotency-Key`. The customer MCP exposes `createInference` with the same server-side requirements. The CLI can inspect, attach to, and cancel the returned run; plain attachment prints the decision receipt.
 
+## Immediate delivery and recovery
+
+A direct inference calls the provider from the API service; it needs no Worker, sandbox, dispatcher, or conversation. Execution timeouts are at most 240 seconds. Context preparation and short admission work precede execution; response preservation/accounting have a separate bounded completion allowance. A response produced on time can be finalized afterwards, while cancellation, revoked authority and retention still control publication. Exceeding the supported window is rejected before dispatch; use the separate agent/task APIs only when their execution semantics fit your application.
+
+| Response                                      | Meaning and next action                                                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP 200                                      | Terminal result, including execution failure. Inspect `status` and `result.inference.outcome`; only `value` contains usable output.      |
+| HTTP 202, `in_progress`                       | Existing ownership window remains active; retrieve the same Run or explicitly cancel it.                                                 |
+| HTTP 202, `finalization_pending`              | Provider evidence is saved; accounting/publication can finish without another model call. Retrieve the same Run.                         |
+| HTTP 202, `outcome_unknown`                   | Dispatch may have happened and complete durable evidence is not known. Retrieve the same Run; never automatically create a replacement.  |
+| HTTP 429/503, confirmed pre-admission refusal | No Run was created. When `error.retryable` is true, honor `Retry-After` and retry the identical request/key within your caller deadline. |
+| HTTP 503 `inference_admission_unknown`        | A Run may exist. Automatic retry is disabled; resolve the identity deliberately with the same key/body after service recovery.           |
+| HTTP 409 `idempotency_conflict`               | The key already identifies a different body. Restore the original request.                                                               |
+| HTTP 410 `content_expired`                    | Detailed history was purged; the key remains consumed and cannot recreate the output.                                                    |
+
+All three HTTP 202 variants include `Retry-After: 1` as a retrieval hint, not a completion estimate. `GET /v1/runs/{id}/result` itself returns HTTP 200 with `final:false` while pending and `final:true` afterwards. Reusing an active JSON submission returns promptly with HTTP 202. Completed identical submissions return their saved result without a provider request or a new execution slot. Current authorization applies to every replay and retrieval.
+
+A refusal identifies `error.details.reason` where applicable: `account_concurrency`, `lightweight_capacity`, `global_capacity`, `local_capacity`, `observer_capacity`, or `dependency_unavailable`. Administrative `inference_disabled`/`execution_disabled` responses require operator correction and are not automatic retry signals. A network failure is never proof that admission rolled back. See the exact [OpenAPI response examples](../../api/openapi.json) and [SDK retry controls](../api/sdks/README.md).
+
+All five SDKs make one inference submission attempt by default, even when general client retries are enabled. Explicit inference retries are limited to confirmed pre-admission refusals, retain the same key/body, and share one total request deadline. No hidden polling, billing fetch, reconnect, or model replay occurs. Preserve the key from submission errors; Run ID, receipt URLs and request ID are included when known. Cancel with the receipt's cancel URL only when you intend to stop the Run.
+
+### Usage, billing and timing in the result
+
+New terminal `result.inference` receipts include `usage` and `billing`, even for failures or uncertain completion. Reading this invocation's receipt requires ordinary Run access, not organization-wide `usage:read`.
+
+- `usage` contains input/output and cached/cache-write input counts as decimal strings or null, plus `completeness: complete|missing`. Cache counts are subsets of total input; do not add them again. Missing is not zero.
+- `billing.charged_micro_usd` is Macrofold's customer model charge; BYOK is `"0"`. `budget_cost_micro_usd` still consumes the request budget. `reserved_micro_usd` is the original invocation ceiling, while the envelope's same-named field means Run funds still held.
+- `reported_micro_usd` is usage at the accepted retail rates. `provider_cost_micro_usd` is a frozen-rate estimate; `provider_reported_cost_usd` and `upstream_inference_cost_usd` are separate overlapping provider diagnostics in USD. Never sum these as extra charges.
+- `provisional` and `bound_breached` are explicit accounting facts; unknown numeric values remain null. Langfuse's native cost remains the Macrofold customer charge, with provider-cost diagnostics separate.
+- `timings_ms` contains measured stages when available, including provider execution, first output, validation and response persistence. Missing timings are omitted. HTTP delivery and background export measurements cannot appear in a receipt saved before they occurred.
+
 ### Build this with your coding agent
 
-Copy this brief alongside the example above. Supply the deployment origin and workspace ID; enter credentials through your secret manager or local environment, never in the conversation.
+Copy this brief alongside the example above. Supply the deployment origin and any workspace ID needed for saved references; enter credentials through your secret manager or local environment, never in the conversation.
 
 ```text
-Add one backend-only typed decision using Macrofold. Read this deployment's
-/docs/decisions, /docs/decisions/context, and /docs/sdk first.
-Use its OpenAPI contract for the selected SDK's current types.
-Authenticate our user, construct only the evidence they may see, and submit
-with a stable idempotency key, exact model, output schema, and finite budget.
-Wait for the run, handle unknown/refused/stale/uncertain outcomes explicitly,
-and recheck application dependencies before applying any proposed action.
-Keep credentials server-side. Verify one synthetic end-to-end case and show
-the validated receipt; do not enable paid execution or apply external effects
-without the application's authorization.
+Integrate or migrate our backend's one-model-request path to Macrofold.
+Read this deployment's /docs/decisions, /docs/decisions/context,
+/docs/api/streaming and /docs/sdk, then use its current OpenAPI/SDK types.
+Keep the deployment origin and API key in backend configuration; never put
+credentials into frontend code or a conversation. Preserve our application's
+user authorization and construct only evidence that user may access.
+
+POST /v1/inferences with an exact model_binding, provider-native input or a
+typed definition/context, and finite budget/output/time limits (at most 240s).
+Save the original body and one stable idempotency key before submission.
+Remove Prefer: respond-async and queue_timeout_seconds. Read the returned
+terminal result.inference directly; do not routinely poll or fetch usage.
+Only outcome:value provides usable output. Handle refusal, unknown, stale,
+invalid and uncertain outcomes explicitly before authorizing any effect.
+
+For HTTP 202, retain run_id/key/urls and recover that existing Run according
+to recovery_reason. GET its result URL until final:true; honor Retry-After.
+An ambiguous network/decode/admission error is not proof the call was free:
+retain the original identity and never automatically create a replacement.
+SDK inference retries default to zero; opt in only for confirmed retryable
+pre-admission 429/503 refusals, under the same body/key and total deadline.
+Do not change stream/body when resolving an existing key. Cancellation is
+explicit via the receipt's cancel URL; a caller timeout only detaches.
+
+Use embedded usage/billing for this invocation. Keep null usage unknown;
+Macrofold's BYOK model charge is zero and provider cost is separate.
+Measure caller total elapsed time separately from provider/stage timings.
+For supported models, stream:true delivers transient deltas and a settled
+terminal receipt; interrupted streams recover the result, never replay tokens.
+Native/bounded agents and Tasks retain their separate queued semantics.
+
+Verify synthetic JSON, streaming, refusal, duplicate and recovery cases;
+show the resulting receipt and app-side dependency/permission recheck.
+Do not enable paid execution or apply external effects without our approval.
 ```
 
 ## Interpret the result
@@ -143,13 +201,13 @@ Receipts preserve definition/schema/context digests, the actual credential-free 
 
 ## Models and limits
 
-| Provider binding | Model | Supported decisions |
-| --- | --- | --- |
-| `anthropic` | Exact reviewed Anthropic routes in [model policy](../../../packages/core/src/model-policy.ts) | JSON, choice, score; bounded agents |
-| `openrouter` | Enabled generative routes in the [model catalog](../execution/models.md) | Native chat requests, JSON, choice, score; bounded agents |
-| `openrouter` | `typesafe/jev-1.13` | Choice and score through OpenRouter Decisions |
-| `openrouter` | `microsoft/microsoft-decision-1` | Native noul/choice/score requests; optional typed choice and score |
-| `typesafe` | `jev-1.13.0` | Choice and score directly through TypeSafe |
+| Provider binding | Model                                                                                         | Supported decisions                                                |
+| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `anthropic`      | Exact reviewed Anthropic routes in [model policy](../../../packages/core/src/model-policy.ts) | JSON, choice, score; bounded agents                                |
+| `openrouter`     | Enabled generative routes in the [model catalog](../execution/models.md)                      | Native chat requests, JSON, choice, score; bounded agents          |
+| `openrouter`     | `typesafe/jev-1.13`                                                                           | Choice and score through OpenRouter Decisions                      |
+| `openrouter`     | `microsoft/microsoft-decision-1`                                                              | Native noul/choice/score requests; optional typed choice and score |
+| `typesafe`       | `jev-1.13.0`                                                                                  | Choice and score directly through TypeSafe                         |
 
 Decision-model scores are finite numbers from zero through the last criterion index. Neither Jev nor Decision 1 runs bounded agents or generates arbitrary JSON. Native mode preserves all named questions and complete provider answers, including probabilities; optional typed definitions extract and validate one choice/score. Unknown models and incompatible capabilities are rejected before dispatch. `listModels` exposes cached generative routes; decision-only routes are selected by the exact bindings above. A successful decision request does not establish availability of a separate generative model used afterward.
 
@@ -161,14 +219,15 @@ You do not need a TypeSafe key. For managed billing, the deployment operator con
 
 ```ts
 definition.allowed_models = [{ provider: 'openrouter', model: 'typesafe/jev-1.13' }];
-const accepted = await client.inferences.create({
+const response = await client.inferences.create({
   workspace_id: workspaceId,
   definition,
   input,
   context,
   model_binding: { provider: 'openrouter', model: 'typesafe/jev-1.13', billing_mode: 'managed' },
 });
-const result = await client.runs.wait(accepted.run_id);
+if (response.status === 'running') console.log(response.recovery_reason, response.urls.result);
+else console.log(response.result.inference);
 ```
 
 Macrofold uses OpenRouter's [Decisions endpoint](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request), rather than its chat endpoint. The response follows the same decision receipt contract, including OpenRouter's request ID and reported model revision. Requests carry frozen price ceilings and disable provider fallback. An unavailable route or rejected key is surfaced without silently switching to direct TypeSafe or another model. OpenRouter currently labels this endpoint alpha; its account availability and protocol can change.
@@ -184,7 +243,7 @@ const client = new Client({
   baseURL: process.env.MACROFOLD_BASE_URL,
   apiKey: process.env.MACROFOLD_API_KEY,
 });
-const accepted = await client.inferences.create(
+const response = await client.inferences.create(
   {
     workspace_id: process.env.MACROFOLD_WORKSPACE_ID,
     model_binding: {
@@ -212,12 +271,16 @@ const accepted = await client.inferences.create(
   },
   { idempotencyKey: crypto.randomUUID() },
 );
-const result = accepted.result ?? (await client.runs.wait(accepted.run_id));
-if (result.inference?.outcome === 'value') console.log(result.inference.value);
-else console.log(result.inference?.outcome, result.inference?.reason_code);
+if (response.status === 'running') {
+  console.log(response.recovery_reason, response.urls.result);
+} else {
+  const receipt = response.result.inference;
+  if (receipt?.outcome === 'value') console.log(receipt.value);
+  else console.log(receipt?.outcome, receipt?.reason_code);
+}
 ```
 
-Native single-call inference normally completes in the HTTP request. REST uses the same JSON at `POST /v1/inferences`; send `Prefer: respond-async` to request an accepted Run without waiting. In either case the Run remains available through its result/events/cancel URLs. `result.inference.value` retains the complete provider response: `answers.is_bug.noul`, the selected `answers.team.choice` and probabilities, the weighted `answers.urgency.score`, model identity and token usage. A `noul` value is a probability, not a boolean; your application chooses and validates its threshold. A score ranges from zero through the last criterion index.
+Provider-native single-call inference completes in the HTTP request or returns an explicit recovery receipt. REST uses the same JSON at `POST /v1/inferences`. This endpoint never queues work; `Prefer: respond-async` returns HTTP 400 `async_inference_not_supported`, and `queue_timeout_seconds` is not accepted. The Run remains available through its result/events/cancel URLs. `result.inference.value` retains the complete provider response: `answers.is_bug.noul`, the selected `answers.team.choice` and probabilities, the weighted `answers.urgency.score`, model identity and token usage. A `noul` value is a probability, not a boolean; your application chooses and validates its threshold. A score ranges from zero through the last criterion index.
 
 For BYOK, change `billing_mode` to `byok` and set `provider_connection_id` to your OpenRouter model connection. Macrofold's model charge is zero; reported usage still consumes the request budget and provider cost remains separately visible. For a typed definition, put the Decision 1 binding in both `allowed_models` and `model_binding` and choose `question.kind: "choice"` or `"score"`.
 

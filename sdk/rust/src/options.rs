@@ -27,11 +27,16 @@ impl ClientBuilder {
 pub struct RequestOptions {
     pub idempotency_key: Option<String>,
     pub organization: Option<String>,
+    pub inference_retries: u8,
+    pub inference_timeout: Option<std::time::Duration>,
 }
 #[derive(Debug)]
 pub struct RequestError {
     pub idempotency_key: Option<String>,
     pub source: ClientError,
+    pub run_id: Option<String>,
+    pub urls: Option<serde_json::Value>,
+    pub request_id: Option<String>,
 }
 impl std::fmt::Display for RequestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -50,5 +55,8 @@ pub(crate) fn request_error(
     Box::new(RequestError {
         idempotency_key: key,
         source: Box::new(error),
+        run_id: None,
+        urls: None,
+        request_id: None,
     })
 }

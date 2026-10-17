@@ -11,6 +11,7 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
+/// InferenceResponse : Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InferenceResponse {
     #[serde(rename = "run_id")]
@@ -22,51 +23,41 @@ pub struct InferenceResponse {
     #[serde(rename = "status")]
     pub status: Status,
     #[serde(rename = "urls")]
-    pub urls: Box<models::RunAcceptedUrls>,
-    #[serde(rename = "queue_expires_at", skip_serializing_if = "Option::is_none")]
-    pub queue_expires_at: Option<chrono::DateTime<chrono::FixedOffset>>,
+    pub urls: Box<models::InferenceUrls>,
     /// Submission to execution start, or elapsed wait through now/completion if never started.
     #[serde(rename = "wait_seconds", skip_serializing_if = "Option::is_none")]
     pub wait_seconds: Option<f64>,
-    /// Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-    #[serde(rename = "waiting_reason", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub waiting_reason: Option<Option<WaitingReason>>,
     /// Funds still held and unavailable for other jobs; released on settlement.
     #[serde(rename = "reserved_micro_usd", skip_serializing_if = "Option::is_none")]
     pub reserved_micro_usd: Option<String>,
-    #[serde(rename = "scheduling_class", skip_serializing_if = "Option::is_none")]
-    pub scheduling_class: Option<SchedulingClass>,
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
     #[serde(rename = "result", skip_serializing_if = "Option::is_none")]
     pub result: Option<Box<models::RunResult>>,
+    #[serde(rename = "recovery_reason", skip_serializing_if = "Option::is_none")]
+    pub recovery_reason: Option<RecoveryReason>,
 }
 
 impl InferenceResponse {
-    pub fn new(run_id: uuid::Uuid, session_id: Option<uuid::Uuid>, worktree_id: Option<uuid::Uuid>, status: Status, urls: models::RunAcceptedUrls) -> InferenceResponse {
+    /// Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
+    pub fn new(run_id: uuid::Uuid, session_id: Option<uuid::Uuid>, worktree_id: Option<uuid::Uuid>, status: Status, urls: models::InferenceUrls) -> InferenceResponse {
         InferenceResponse {
             run_id,
             session_id,
             worktree_id,
             status,
             urls: Box::new(urls),
-            queue_expires_at: None,
             wait_seconds: None,
-            waiting_reason: None,
             reserved_micro_usd: None,
-            scheduling_class: None,
             kind: None,
             result: None,
+            recovery_reason: None,
         }
     }
 }
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Status {
-    #[serde(rename = "queued")]
-    Queued,
-    #[serde(rename = "provisioning")]
-    Provisioning,
     #[serde(rename = "running")]
     Running,
     #[serde(rename = "succeeded")]
@@ -81,71 +72,7 @@ pub enum Status {
 
 impl Default for Status {
     fn default() -> Status {
-        Self::Queued
-    }
-}
-/// Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum WaitingReason {
-    #[serde(rename = "global_capacity")]
-    GlobalCapacity,
-    #[serde(rename = "account_concurrency")]
-    AccountConcurrency,
-    #[serde(rename = "earlier_worktree_work")]
-    EarlierWorktreeWork,
-    #[serde(rename = "scheduler_turn")]
-    SchedulerTurn,
-    #[serde(rename = "cancellation_requested")]
-    CancellationRequested,
-    #[serde(rename = "deadline_expired")]
-    DeadlineExpired,
-    #[serde(rename = "worktree_unavailable")]
-    WorktreeUnavailable,
-    #[serde(rename = "lightweight_capacity")]
-    LightweightCapacity,
-    #[serde(rename = "reserved_lightweight_capacity")]
-    ReservedLightweightCapacity,
-    #[serde(rename = "worker_paused")]
-    WorkerPaused,
-    #[serde(rename = "worker_destroyed")]
-    WorkerDestroyed,
-    #[serde(rename = "worker_expired")]
-    WorkerExpired,
-    #[serde(rename = "worker_concurrency")]
-    WorkerConcurrency,
-    #[serde(rename = "worker_cost_limit")]
-    WorkerCostLimit,
-    #[serde(rename = "worker_instance_limit")]
-    WorkerInstanceLimit,
-    #[serde(rename = "worker_starting")]
-    WorkerStarting,
-    #[serde(rename = "worker_capacity")]
-    WorkerCapacity,
-    #[serde(rename = "worker_lifetime")]
-    WorkerLifetime,
-    #[serde(rename = "compute_unavailable")]
-    ComputeUnavailable,
-    #[serde(rename = "insufficient_credits")]
-    InsufficientCredits,
-}
-
-impl Default for WaitingReason {
-    fn default() -> WaitingReason {
-        Self::GlobalCapacity
-    }
-}
-///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum SchedulingClass {
-    #[serde(rename = "background")]
-    Background,
-    #[serde(rename = "interactive")]
-    Interactive,
-}
-
-impl Default for SchedulingClass {
-    fn default() -> SchedulingClass {
-        Self::Background
+        Self::Running
     }
 }
 ///
@@ -162,6 +89,22 @@ pub enum Kind {
 impl Default for Kind {
     fn default() -> Kind {
         Self::NativeAgent
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum RecoveryReason {
+    #[serde(rename = "in_progress")]
+    InProgress,
+    #[serde(rename = "finalization_pending")]
+    FinalizationPending,
+    #[serde(rename = "outcome_unknown")]
+    OutcomeUnknown,
+}
+
+impl Default for RecoveryReason {
+    fn default() -> RecoveryReason {
+        Self::InProgress
     }
 }
 

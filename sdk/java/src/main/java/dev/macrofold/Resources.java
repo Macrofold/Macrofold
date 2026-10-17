@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 public abstract class Resources extends ApiClient {
   public static final String DEFAULT_ORIGIN = "https://app.macrofold.ai";
   protected Resources(java.net.http.HttpClient.Builder http, com.fasterxml.jackson.databind.ObjectMapper mapper, String origin) {super(http,mapper,origin);}
+  protected abstract InferenceResponse createImmediateInference(InferenceCreate input, RequestOptions options) throws ApiException;
   protected abstract void streamInference(InferenceCreate input, RequestOptions options, Predicate<InferenceStreamEvent> receive) throws IOException,InterruptedException,ApiException;
   public abstract void stream(UUID runId,String after,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
   protected abstract void streamInOrganization(UUID runId,String after,UUID organization,Predicate<Event> receive) throws IOException,InterruptedException,ApiException;
@@ -1675,11 +1676,6 @@ public ListSessions200Response list(ListSessionsParams params) throws ApiExcepti
         catch(ApiException error) {throw new RequestException(error,null);}
       }
     }
-public static final class CreateInferenceParams {
-        private String prefer;
-        public CreateInferenceParams(){}
-        public CreateInferenceParams prefer(String value){this.prefer=value;return this;}
-      }
 public static final class InferencesResource {
       private final Resources client; private final RequestOptions options;
       private InferencesResource(Resources client,RequestOptions options){this.client=client;this.options=options;}
@@ -1706,16 +1702,7 @@ public DecisionDefinition createDecisionDefinition(DecisionDefinitionCreate inpu
         catch(ApiException error) {throw new RequestException(error,key);}
       }
 public void stream(InferenceCreate input, Predicate<InferenceStreamEvent> receive) throws IOException,InterruptedException,ApiException { client.streamInference(input, options, receive); }
-public InferenceResponse create(InferenceCreate input) throws ApiException {
-        return create(input,new CreateInferenceParams());
-      }
-public InferenceResponse create(InferenceCreate input,CreateInferenceParams params) throws ApiException {
-        if (input != null && Boolean.TRUE.equals(input.getStream())) throw new IllegalArgumentException("use inferences().stream for incremental output");
-        String key=options.identity();
-        Objects.requireNonNull(params,"params");
-        try {return new InferencesApi(client).createInference(key,input,options.organization(),params.prefer);}
-        catch(ApiException error) {throw new RequestException(error,key);}
-      }
+public InferenceResponse create(InferenceCreate input) throws ApiException {return client.createImmediateInference(input,options);}
 public ContextArtifact deleteContextArtifact(UUID artifactId) throws ApiException {
 
 

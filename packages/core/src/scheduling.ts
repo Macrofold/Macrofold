@@ -4,6 +4,7 @@ import { pool, type Tx } from '../../db';
 import { globalRunLimit } from './config';
 import { plans } from './plans';
 import { capacitySetting, fleetLimits } from './capacity';
+import { activeExecutionSQL, executionCapacityPredicateSQL } from './execution-admission';
 export type ExecutionClass = 'native' | 'inference';
 
 /** SQL UPDATE RETURNING is unordered, even when its claim subquery is ordered.
@@ -34,8 +35,7 @@ export const schedulingSQL = `WITH plan_limits AS (
 ), worker_placement AS MATERIALIZED (
  SELECT * FROM reporting.worker_placement
 ), active AS (
- SELECT organization_id,count(*)::integer AS n,count(*) FILTER(WHERE kind='native_agent')::integer AS native_n,count(*) FILTER(WHERE kind<>'native_agent')::integer AS lightweight_n FROM reporting.scheduling_runs
- WHERE status IN ('provisioning','running','waiting_for_input','persisting') GROUP BY organization_id
+ ${activeExecutionSQL}
 ), queue AS (
  SELECT r.*,coalesce(a.n,0) AS account_active,coalesce(a.native_n,0) AS native_active,coalesce(a.lightweight_n,0) AS lightweight_active,
  p.lightweight_reserved,p.lightweight_limit,p.native_limit,
@@ -53,10 +53,7 @@ export const schedulingSQL = `WITH plan_limits AS (
 ), eligible AS (
  SELECT *,row_number() OVER(PARTITION BY organization_id,(kind='native_agent') ORDER BY
  CASE scheduling_class WHEN 'interactive' THEN 0 ELSE 1 END,created_at,id) AS account_order
- FROM queue WHERE NOT dispatch_blocked AND NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND account_active<account_limit
- AND (kind<>'native_agent' OR native_active<greatest(0,account_limit-lightweight_reserved))
- AND (kind<>'native_agent' OR (SELECT coalesce(sum(native_n),0) FROM active)<native_limit)
- AND (kind='native_agent' OR (SELECT coalesce(sum(lightweight_n),0) FROM active)<lightweight_limit)
+ FROM queue WHERE NOT dispatch_blocked AND NOT worktree_blocked AND NOT cleanup_blocked AND worker_eligible AND NOT unavailable AND NOT cancel_requested AND queue_expires_at>now() AND ${executionCapacityPredicateSQL}
 )`;
 export const schedulingParameters = () => {
   const reserved = capacitySetting('LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG', 0, 100_000, 0);

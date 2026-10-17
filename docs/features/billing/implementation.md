@@ -93,6 +93,8 @@ The model gateway owns run authorization, credential selection, reservations, se
 
 Direct and bounded decisions use the existing gateway requests, wallet reservations and settlement journals. Frozen decision rate cards are separate from native harness capability policy. A task checks committed consumed budget plus outstanding child ceilings before child admission; it does not reserve money again. Missing usage remains provisional liability and terminal cancellation does not free it for another child. [Decision recovery](../decisions/implementation.md) explains late evidence and the deferred automatic correction path.
 
+Immediate inference calls `settleModelRequestInTransaction` within the same C transaction as terminal Run/result and reservation settlement. Native and bounded wrappers reuse that accounting helper without changing their orchestration. The receipt is built from committed accounting facts, with independently known nullable token counts; a malformed complete response can retain valid usage, while an HTTP error alone does not establish a zero bill. No separate balance query or tracing backend is required for a per-invocation receipt.
+
 ## Diagnostic tracing
 
 The [tracing integration](../observability/README.md) exports committed token counts, reservation/budget/charge details and known provider-cost estimates/reported amounts. Langfuse cost totals represent Macrofold customer charges, with BYOK model charges zero. Provider-reported account costs and upstream inference costs remain separate metadata, independent of retail estimates and settlement. It does not replace the ledger or alter settlement.

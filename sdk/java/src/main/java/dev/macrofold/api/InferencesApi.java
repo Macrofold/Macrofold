@@ -25,6 +25,7 @@ import dev.macrofold.model.DecisionDefinition;
 import dev.macrofold.model.DecisionDefinitionCreate;
 import dev.macrofold.model.Error;
 import dev.macrofold.model.InferenceCreate;
+import dev.macrofold.model.InferenceError;
 import dev.macrofold.model.InferenceResponse;
 import dev.macrofold.model.RunAccepted;
 import java.util.UUID;
@@ -582,61 +583,57 @@ public class InferencesApi {
 
   /**
    * Request a typed decision with explicit context
-   * Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+   * Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
    * @param idempotencyKey  (required)
    * @param inferenceCreate  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param prefer Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. (optional)
    * @return InferenceResponse
    * @throws ApiException if fails to make API call
    */
-  public InferenceResponse createInference(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String prefer) throws ApiException {
-    return createInference(idempotencyKey, inferenceCreate, xOrganizationId, prefer, null);
+  public InferenceResponse createInference(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createInference(idempotencyKey, inferenceCreate, xOrganizationId, null);
   }
 
   /**
    * Request a typed decision with explicit context
-   * Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+   * Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
    * @param idempotencyKey  (required)
    * @param inferenceCreate  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param prefer Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. (optional)
    * @param headers Optional headers to include in the request
    * @return InferenceResponse
    * @throws ApiException if fails to make API call
    */
-  public InferenceResponse createInference(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String prefer, Map<String, String> headers) throws ApiException {
-    ApiResponse<InferenceResponse> localVarResponse = createInferenceWithHttpInfo(idempotencyKey, inferenceCreate, xOrganizationId, prefer, headers);
+  public InferenceResponse createInference(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    ApiResponse<InferenceResponse> localVarResponse = createInferenceWithHttpInfo(idempotencyKey, inferenceCreate, xOrganizationId, headers);
     return localVarResponse.getData();
   }
 
   /**
    * Request a typed decision with explicit context
-   * Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+   * Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
    * @param idempotencyKey  (required)
    * @param inferenceCreate  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param prefer Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. (optional)
    * @return ApiResponse&lt;InferenceResponse&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<InferenceResponse> createInferenceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String prefer) throws ApiException {
-    return createInferenceWithHttpInfo(idempotencyKey, inferenceCreate, xOrganizationId, prefer, null);
+  public ApiResponse<InferenceResponse> createInferenceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId) throws ApiException {
+    return createInferenceWithHttpInfo(idempotencyKey, inferenceCreate, xOrganizationId, null);
   }
 
   /**
    * Request a typed decision with explicit context
-   * Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+   * Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
    * @param idempotencyKey  (required)
    * @param inferenceCreate  (required)
    * @param xOrganizationId Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. (optional)
-   * @param prefer Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. (optional)
    * @param headers Optional headers to include in the request
    * @return ApiResponse&lt;InferenceResponse&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<InferenceResponse> createInferenceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String prefer, Map<String, String> headers) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = createInferenceRequestBuilder(idempotencyKey, inferenceCreate, xOrganizationId, prefer, headers);
+  public ApiResponse<InferenceResponse> createInferenceWithHttpInfo(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createInferenceRequestBuilder(idempotencyKey, inferenceCreate, xOrganizationId, headers);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -683,7 +680,7 @@ public class InferencesApi {
     }
   }
 
-  private HttpRequest.Builder createInferenceRequestBuilder(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, @javax.annotation.Nullable String prefer, Map<String, String> headers) throws ApiException {
+  private HttpRequest.Builder createInferenceRequestBuilder(@javax.annotation.Nonnull String idempotencyKey, @javax.annotation.Nullable InferenceCreate inferenceCreate, @javax.annotation.Nullable UUID xOrganizationId, Map<String, String> headers) throws ApiException {
     // verify the required parameter 'idempotencyKey' is set
     if (idempotencyKey == null) {
       throw new ApiException(400, "Missing the required parameter 'idempotencyKey' when calling createInference");
@@ -704,9 +701,6 @@ public class InferencesApi {
     }
     if (xOrganizationId != null) {
       localVarRequestBuilder.header("X-Organization-Id", xOrganizationId.toString());
-    }
-    if (prefer != null) {
-      localVarRequestBuilder.header("Prefer", prefer.toString());
     }
     localVarRequestBuilder.header("Content-Type", "application/json");
     localVarRequestBuilder.header("Accept", "application/json, text/event-stream");

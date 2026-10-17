@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import dev.macrofold.model.InferenceBilling;
 import dev.macrofold.model.InferenceReceiptProviderEvidence;
 import dev.macrofold.model.InferenceReceiptValidation;
+import dev.macrofold.model.InferenceUsage;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,7 +63,9 @@ import dev.macrofold.ApiClient;
   InferenceReceipt.JSON_PROPERTY_USAGE_REQUEST_ID,
   InferenceReceipt.JSON_PROPERTY_TIMINGS_MS,
   InferenceReceipt.JSON_PROPERTY_REASON_CODE,
-  InferenceReceipt.JSON_PROPERTY_PROVIDER_EVIDENCE
+  InferenceReceipt.JSON_PROPERTY_PROVIDER_EVIDENCE,
+  InferenceReceipt.JSON_PROPERTY_USAGE,
+  InferenceReceipt.JSON_PROPERTY_BILLING
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class InferenceReceipt {
@@ -255,6 +259,14 @@ public class InferenceReceipt {
   public static final String JSON_PROPERTY_PROVIDER_EVIDENCE = "provider_evidence";
   @javax.annotation.Nullable
   private InferenceReceiptProviderEvidence providerEvidence;
+
+  public static final String JSON_PROPERTY_USAGE = "usage";
+  @javax.annotation.Nonnull
+  private InferenceUsage usage;
+
+  public static final String JSON_PROPERTY_BILLING = "billing";
+  @javax.annotation.Nonnull
+  private InferenceBilling billing;
 
   public InferenceReceipt() { 
   }
@@ -763,6 +775,54 @@ public class InferenceReceipt {
   }
 
 
+  public InferenceReceipt usage(@javax.annotation.Nonnull InferenceUsage usage) {
+    this.usage = usage;
+    return this;
+  }
+
+  /**
+   * Get usage
+   * @return usage
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_USAGE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public InferenceUsage getUsage() {
+    return usage;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_USAGE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setUsage(@javax.annotation.Nonnull InferenceUsage usage) {
+    this.usage = usage;
+  }
+
+
+  public InferenceReceipt billing(@javax.annotation.Nonnull InferenceBilling billing) {
+    this.billing = billing;
+    return this;
+  }
+
+  /**
+   * Get billing
+   * @return billing
+   */
+  @javax.annotation.Nonnull
+  @JsonProperty(value = JSON_PROPERTY_BILLING, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public InferenceBilling getBilling() {
+    return billing;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_BILLING, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setBilling(@javax.annotation.Nonnull InferenceBilling billing) {
+    this.billing = billing;
+  }
+
+
   /**
    * Return true if this InferenceReceipt object is equal to o.
    */
@@ -793,7 +853,9 @@ public class InferenceReceipt {
         equalsNullable(this.usageRequestId, inferenceReceipt.usageRequestId) &&
         Objects.equals(this.timingsMs, inferenceReceipt.timingsMs) &&
         Objects.equals(this.reasonCode, inferenceReceipt.reasonCode) &&
-        Objects.equals(this.providerEvidence, inferenceReceipt.providerEvidence);
+        Objects.equals(this.providerEvidence, inferenceReceipt.providerEvidence) &&
+        Objects.equals(this.usage, inferenceReceipt.usage) &&
+        Objects.equals(this.billing, inferenceReceipt.billing);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -802,7 +864,7 @@ public class InferenceReceipt {
 
   @Override
   public int hashCode() {
-    return Objects.hash(invocationId, definitionRevision, definitionDigest, contextDigest, providerRequestDigest, transformationVersion, dependencyTokens, outcome, hashCodeNullable(value), providerOutcome, hashCodeNullable(providerRequestId), model, hashCodeNullable(modelRevision), modelRevisionStatus, validation, hashCodeNullable(usageRequestId), timingsMs, reasonCode, providerEvidence);
+    return Objects.hash(invocationId, definitionRevision, definitionDigest, contextDigest, providerRequestDigest, transformationVersion, dependencyTokens, outcome, hashCodeNullable(value), providerOutcome, hashCodeNullable(providerRequestId), model, hashCodeNullable(modelRevision), modelRevisionStatus, validation, hashCodeNullable(usageRequestId), timingsMs, reasonCode, providerEvidence, usage, billing);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -835,6 +897,8 @@ public class InferenceReceipt {
     sb.append("    timingsMs: ").append(toIndentedString(timingsMs)).append("\n");
     sb.append("    reasonCode: ").append(toIndentedString(reasonCode)).append("\n");
     sb.append("    providerEvidence: ").append(toIndentedString(providerEvidence)).append("\n");
+    sb.append("    usage: ").append(toIndentedString(usage)).append("\n");
+    sb.append("    billing: ").append(toIndentedString(billing)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -980,6 +1044,16 @@ public class InferenceReceipt {
     // add `provider_evidence` to the URL query string
     if (getProviderEvidence() != null) {
       joiner.add(getProviderEvidence().toUrlQueryString(prefix + "provider_evidence" + suffix));
+    }
+
+    // add `usage` to the URL query string
+    if (getUsage() != null) {
+      joiner.add(getUsage().toUrlQueryString(prefix + "usage" + suffix));
+    }
+
+    // add `billing` to the URL query string
+    if (getBilling() != null) {
+      joiner.add(getBilling().toUrlQueryString(prefix + "billing" + suffix));
     }
 
     return joiner.toString();

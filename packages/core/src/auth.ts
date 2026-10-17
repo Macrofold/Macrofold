@@ -198,7 +198,23 @@ export type Principal = {
   oauthTokenId?: string;
   oauthAudience?: string;
 };
-export async function identify(request: Request, audience = `${config.origin}/v1`): Promise<Principal> {
+export type IdentifyOptions = { databaseDeadlineAtMs?: number };
+type ApiKeyIdentity = {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  scopes: string[];
+  workspace_ids: string[];
+  worker_ids: string[] | null;
+  email: string | null;
+  email_verified: boolean | null;
+  role: string | null;
+};
+export async function identify(
+  request: Request,
+  audience = `${config.origin}/v1`,
+  options: IdentifyOptions = {},
+): Promise<Principal> {
   assertSecurityConfiguration();
   const operatorAudience =
     audience === `${config.origin}/admin/v1` || audience === `${config.origin}/admin/mcp`;
@@ -207,33 +223,54 @@ export async function identify(request: Request, audience = `${config.origin}/v1
   let userId: string | undefined,
     principalId = '',
     scopes: string[] = customerScopes,
-    workspaces: string[] = [],
-    workers: string[] = [],
-    keyOrg: string | undefined,
     kind: Principal['kind'] = 'user',
     oauthTokenId: string | undefined;
   if (bearer?.startsWith('sk_')) {
     assert(!operatorAudience, 401, 'unauthenticated', 'Customer API keys cannot access operator APIs.');
-    const found = await pool.query(
-      'SELECT * FROM api_keys WHERE key_hash=$1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now())',
-      [sha256(bearer)],
-    );
+    // Resolve current authority in one statement. Sampling usage avoids a hot key-row
+    // write on every request; execution still rechecks authority at its own boundary.
+    const statement = `WITH credential AS MATERIALIZED (
+      SELECT k.id,k.organization_id,k.user_id,k.scopes,k.workspace_ids,k.worker_ids,
+             u.email,u."emailVerified" AS email_verified,m.role
+      FROM api_keys k
+      LEFT JOIN auth."user" u ON u.id=k.user_id
+      LEFT JOIN memberships m ON m.organization_id=k.organization_id AND m.user_id=k.user_id
+      WHERE k.key_hash=$1 AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at>now())
+    ), touched AS (
+      UPDATE api_keys k SET last_used_at=now() FROM credential c
+      WHERE k.id=c.id AND ($2::text IS NULL OR c.organization_id::text=$2)
+        AND c.email_verified=true AND c.role IS NOT NULL
+        AND (k.last_used_at IS NULL OR k.last_used_at<now()-interval '1 minute')
+    ) SELECT * FROM credential`;
+    const values = [sha256(bearer), selector];
+    const found =
+      options.databaseDeadlineAtMs === undefined
+        ? await pool.query<ApiKeyIdentity>(statement, values)
+        : await transaction(null, (tx) => tx.query<ApiKeyIdentity>(statement, values), {
+            deadlineAtMs: options.databaseDeadlineAtMs,
+          });
     const key = found.rows[0];
     assert(key, 401, 'unauthenticated', 'API key is invalid or expired.');
-    userId = key.user_id;
-    principalId = key.id;
-    scopes = key.scopes;
-    workspaces = key.workspace_ids;
-    workers = key.worker_ids || [];
-    keyOrg = key.organization_id;
-    kind = 'api_key';
     assert(
-      !selector || selector === keyOrg,
+      !selector || selector === key.organization_id,
       403,
       'forbidden',
       'The key is bound to a different organization.',
     );
-    await pool.query('UPDATE api_keys SET last_used_at=now() WHERE id=$1', [key.id]);
+    assert(key.email && key.email_verified, 403, 'forbidden', 'This account is unavailable or unverified.');
+    assert(key.role, 403, 'forbidden', 'You cannot access this organization.');
+    return {
+      id: key.id,
+      userId: key.user_id,
+      email: key.email,
+      organizationId: key.organization_id,
+      role: key.role,
+      kind: 'api_key',
+      scopes: key.scopes,
+      workspaceIds: key.workspace_ids,
+      workerIds: key.worker_ids || [],
+      operator: config.operatorEmails.includes(key.email.toLowerCase()),
+    };
   } else if (bearer) {
     try {
       const introspection = await auth.api.oauth2Introspect({
@@ -330,7 +367,6 @@ export async function identify(request: Request, audience = `${config.origin}/v1
     [userId],
   );
   const target =
-    keyOrg ||
     selector ||
     (!bearer
       ? membership.rows.find(
@@ -363,8 +399,8 @@ export async function identify(request: Request, audience = `${config.origin}/v1
     role: m.role,
     kind,
     scopes,
-    workspaceIds: workspaces,
-    workerIds: workers,
+    workspaceIds: [],
+    workerIds: [],
     operator,
     oauthTokenId,
     ...(oauthTokenId ? { oauthAudience: audience } : {}),
@@ -381,5 +417,10 @@ export function requireScopes(p: Principal, scopes: string[]) {
     assert(p.role !== 'viewer', 403, 'forbidden', 'Viewer access cannot modify resources.');
 }
 export function requireWorkspace(p: Principal, workspaceId: string | null) {
-  assert(!p.workspaceIds.length || (workspaceId !== null && p.workspaceIds.includes(workspaceId)), 404, 'not_found', 'Workspace not found.');
+  assert(
+    !p.workspaceIds.length || (workspaceId !== null && p.workspaceIds.includes(workspaceId)),
+    404,
+    'not_found',
+    'Workspace not found.',
+  );
 }

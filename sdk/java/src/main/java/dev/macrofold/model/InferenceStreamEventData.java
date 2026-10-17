@@ -13,10 +13,6 @@
 
 package dev.macrofold.model;
 
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.StringJoiner;
@@ -28,14 +24,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import dev.macrofold.model.InferenceUrls;
 import dev.macrofold.model.RunResult;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.UUID;
+import org.openapitools.jackson.nullable.JsonNullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.openapitools.jackson.nullable.JsonNullable;
+import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 import dev.macrofold.ApiClient;
 /**
- * Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.
+ * InferenceStreamEventData
  */
 @JsonPropertyOrder({
   InferenceStreamEventData.JSON_PROPERTY_TEXT,
@@ -45,8 +48,21 @@ import dev.macrofold.ApiClient;
   InferenceStreamEventData.JSON_PROPERTY_CHOICE_INDEX,
   InferenceStreamEventData.JSON_PROPERTY_TOOL_CALL_ID,
   InferenceStreamEventData.JSON_PROPERTY_STOP_REASON,
+  InferenceStreamEventData.JSON_PROPERTY_RUN_ID,
+  InferenceStreamEventData.JSON_PROPERTY_SESSION_ID,
+  InferenceStreamEventData.JSON_PROPERTY_WORKTREE_ID,
+  InferenceStreamEventData.JSON_PROPERTY_STATUS,
+  InferenceStreamEventData.JSON_PROPERTY_URLS,
+  InferenceStreamEventData.JSON_PROPERTY_WAIT_SECONDS,
+  InferenceStreamEventData.JSON_PROPERTY_RESERVED_MICRO_USD,
+  InferenceStreamEventData.JSON_PROPERTY_KIND,
   InferenceStreamEventData.JSON_PROPERTY_DELIVERY,
-  InferenceStreamEventData.JSON_PROPERTY_RESULT
+  InferenceStreamEventData.JSON_PROPERTY_RESULT,
+  InferenceStreamEventData.JSON_PROPERTY_CODE,
+  InferenceStreamEventData.JSON_PROPERTY_MESSAGE,
+  InferenceStreamEventData.JSON_PROPERTY_IDEMPOTENCY_KEY,
+  InferenceStreamEventData.JSON_PROPERTY_RECOVERY_REASON,
+  InferenceStreamEventData.JSON_PROPERTY_REASON
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class InferenceStreamEventData {
@@ -77,6 +93,114 @@ public class InferenceStreamEventData {
   public static final String JSON_PROPERTY_STOP_REASON = "stop_reason";
   @javax.annotation.Nullable
   private String stopReason;
+
+  public static final String JSON_PROPERTY_RUN_ID = "run_id";
+  @javax.annotation.Nullable
+  private UUID runId;
+
+  public static final String JSON_PROPERTY_SESSION_ID = "session_id";
+  private JsonNullable<UUID> sessionId = JsonNullable.<UUID>undefined();
+
+  public static final String JSON_PROPERTY_WORKTREE_ID = "worktree_id";
+  private JsonNullable<UUID> worktreeId = JsonNullable.<UUID>undefined();
+
+  /**
+   * Gets or Sets status
+   */
+  public enum StatusEnum {
+    RUNNING(String.valueOf("running")),
+
+    SUCCEEDED(String.valueOf("succeeded")),
+
+    FAILED(String.valueOf("failed")),
+
+    CANCELLED(String.valueOf("cancelled")),
+
+    TIMED_OUT(String.valueOf("timed_out"));
+
+    private String value;
+
+    StatusEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static StatusEnum fromValue(String value) {
+      for (StatusEnum b : StatusEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_STATUS = "status";
+  @javax.annotation.Nullable
+  private StatusEnum status;
+
+  public static final String JSON_PROPERTY_URLS = "urls";
+  @javax.annotation.Nullable
+  private InferenceUrls urls;
+
+  public static final String JSON_PROPERTY_WAIT_SECONDS = "wait_seconds";
+  @javax.annotation.Nullable
+  private BigDecimal waitSeconds;
+
+  public static final String JSON_PROPERTY_RESERVED_MICRO_USD = "reserved_micro_usd";
+  @javax.annotation.Nullable
+  private String reservedMicroUsd;
+
+  /**
+   * Gets or Sets kind
+   */
+  public enum KindEnum {
+    NATIVE_AGENT(String.valueOf("native_agent")),
+
+    INFERENCE(String.valueOf("inference")),
+
+    BOUNDED_AGENT(String.valueOf("bounded_agent"));
+
+    private String value;
+
+    KindEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static KindEnum fromValue(String value) {
+      for (KindEnum b : KindEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_KIND = "kind";
+  @javax.annotation.Nullable
+  private KindEnum kind;
 
   /**
    * Gets or Sets delivery
@@ -120,6 +244,131 @@ public class InferenceStreamEventData {
   public static final String JSON_PROPERTY_RESULT = "result";
   @javax.annotation.Nullable
   private RunResult result;
+
+  /**
+   * Gets or Sets code
+   */
+  public enum CodeEnum {
+    INFERENCE_RECOVERY_REQUIRED(String.valueOf("inference_recovery_required")),
+
+    STREAM_INTERRUPTED(String.valueOf("stream_interrupted"));
+
+    private String value;
+
+    CodeEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static CodeEnum fromValue(String value) {
+      for (CodeEnum b : CodeEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_CODE = "code";
+  @javax.annotation.Nullable
+  private CodeEnum code;
+
+  public static final String JSON_PROPERTY_MESSAGE = "message";
+  @javax.annotation.Nullable
+  private String message;
+
+  public static final String JSON_PROPERTY_IDEMPOTENCY_KEY = "idempotency_key";
+  @javax.annotation.Nullable
+  private String idempotencyKey;
+
+  /**
+   * Gets or Sets recoveryReason
+   */
+  public enum RecoveryReasonEnum {
+    IN_PROGRESS(String.valueOf("in_progress")),
+
+    FINALIZATION_PENDING(String.valueOf("finalization_pending")),
+
+    OUTCOME_UNKNOWN(String.valueOf("outcome_unknown"));
+
+    private String value;
+
+    RecoveryReasonEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static RecoveryReasonEnum fromValue(String value) {
+      for (RecoveryReasonEnum b : RecoveryReasonEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_RECOVERY_REASON = "recovery_reason";
+  @javax.annotation.Nullable
+  private RecoveryReasonEnum recoveryReason;
+
+  /**
+   * Gets or Sets reason
+   */
+  public enum ReasonEnum {
+    RESULT_AVAILABLE(String.valueOf("result_available"));
+
+    private String value;
+
+    ReasonEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static ReasonEnum fromValue(String value) {
+      for (ReasonEnum b : ReasonEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_REASON = "reason";
+  @javax.annotation.Nullable
+  private ReasonEnum reason;
 
   public InferenceStreamEventData() { 
   }
@@ -292,6 +541,215 @@ public class InferenceStreamEventData {
   }
 
 
+  public InferenceStreamEventData runId(@javax.annotation.Nullable UUID runId) {
+    this.runId = runId;
+    return this;
+  }
+
+  /**
+   * Get runId
+   * @return runId
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public UUID getRunId() {
+    return runId;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_RUN_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setRunId(@javax.annotation.Nullable UUID runId) {
+    this.runId = runId;
+  }
+
+
+  public InferenceStreamEventData sessionId(@javax.annotation.Nullable UUID sessionId) {
+    this.sessionId = JsonNullable.<UUID>of(sessionId);
+    return this;
+  }
+
+  /**
+   * Get sessionId
+   * @return sessionId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getSessionId() {
+        return sessionId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_SESSION_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getSessionId_JsonNullable() {
+    return sessionId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_SESSION_ID)
+  public void setSessionId_JsonNullable(JsonNullable<UUID> sessionId) {
+    this.sessionId = sessionId;
+  }
+
+  public void setSessionId(@javax.annotation.Nullable UUID sessionId) {
+    this.sessionId = JsonNullable.<UUID>of(sessionId);
+  }
+
+
+  public InferenceStreamEventData worktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = JsonNullable.<UUID>of(worktreeId);
+    return this;
+  }
+
+  /**
+   * Get worktreeId
+   * @return worktreeId
+   */
+  @javax.annotation.Nullable
+  @JsonIgnore
+  public UUID getWorktreeId() {
+        return worktreeId.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_WORKTREE_ID, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public JsonNullable<UUID> getWorktreeId_JsonNullable() {
+    return worktreeId;
+  }
+
+  @JsonProperty(JSON_PROPERTY_WORKTREE_ID)
+  public void setWorktreeId_JsonNullable(JsonNullable<UUID> worktreeId) {
+    this.worktreeId = worktreeId;
+  }
+
+  public void setWorktreeId(@javax.annotation.Nullable UUID worktreeId) {
+    this.worktreeId = JsonNullable.<UUID>of(worktreeId);
+  }
+
+
+  public InferenceStreamEventData status(@javax.annotation.Nullable StatusEnum status) {
+    this.status = status;
+    return this;
+  }
+
+  /**
+   * Get status
+   * @return status
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_STATUS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public StatusEnum getStatus() {
+    return status;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_STATUS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStatus(@javax.annotation.Nullable StatusEnum status) {
+    this.status = status;
+  }
+
+
+  public InferenceStreamEventData urls(@javax.annotation.Nullable InferenceUrls urls) {
+    this.urls = urls;
+    return this;
+  }
+
+  /**
+   * Get urls
+   * @return urls
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_URLS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public InferenceUrls getUrls() {
+    return urls;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_URLS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setUrls(@javax.annotation.Nullable InferenceUrls urls) {
+    this.urls = urls;
+  }
+
+
+  public InferenceStreamEventData waitSeconds(@javax.annotation.Nullable BigDecimal waitSeconds) {
+    this.waitSeconds = waitSeconds;
+    return this;
+  }
+
+  /**
+   * Submission to execution start, or elapsed wait through now/completion if never started.
+   * minimum: 0
+   * @return waitSeconds
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_WAIT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public BigDecimal getWaitSeconds() {
+    return waitSeconds;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_WAIT_SECONDS, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setWaitSeconds(@javax.annotation.Nullable BigDecimal waitSeconds) {
+    this.waitSeconds = waitSeconds;
+  }
+
+
+  public InferenceStreamEventData reservedMicroUsd(@javax.annotation.Nullable String reservedMicroUsd) {
+    this.reservedMicroUsd = reservedMicroUsd;
+    return this;
+  }
+
+  /**
+   * Funds still held and unavailable for other jobs; released on settlement.
+   * @return reservedMicroUsd
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RESERVED_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getReservedMicroUsd() {
+    return reservedMicroUsd;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_RESERVED_MICRO_USD, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setReservedMicroUsd(@javax.annotation.Nullable String reservedMicroUsd) {
+    this.reservedMicroUsd = reservedMicroUsd;
+  }
+
+
+  public InferenceStreamEventData kind(@javax.annotation.Nullable KindEnum kind) {
+    this.kind = kind;
+    return this;
+  }
+
+  /**
+   * Get kind
+   * @return kind
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public KindEnum getKind() {
+    return kind;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_KIND, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setKind(@javax.annotation.Nullable KindEnum kind) {
+    this.kind = kind;
+  }
+
+
   public InferenceStreamEventData delivery(@javax.annotation.Nullable DeliveryEnum delivery) {
     this.delivery = delivery;
     return this;
@@ -339,49 +797,126 @@ public class InferenceStreamEventData {
     this.result = result;
   }
 
-  /**
-   * A container for additional, undeclared properties.
-   * This is a holder for any undeclared properties as specified with
-   * the 'additionalProperties' keyword in the OAS document.
-   */
-  private Map<String, Object> additionalProperties;
 
-  /**
-   * Set the additional (undeclared) property with the specified name and value.
-   * If the property does not already exist, create it otherwise replace it.
-   * @param key the name of the property
-   * @param value the value of the property
-   * @return self reference
-   */
-  @JsonAnySetter
-  public InferenceStreamEventData putAdditionalProperty(String key, Object value) {
-    if (this.additionalProperties == null) {
-        this.additionalProperties = new HashMap<String, Object>();
-    }
-    this.additionalProperties.put(key, value);
+  public InferenceStreamEventData code(@javax.annotation.Nullable CodeEnum code) {
+    this.code = code;
     return this;
   }
 
   /**
-   * Return the additional (undeclared) properties.
-   * @return the additional (undeclared) properties
+   * Get code
+   * @return code
    */
-  @JsonAnyGetter
-  public Map<String, Object> getAdditionalProperties() {
-    return additionalProperties;
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_CODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public CodeEnum getCode() {
+    return code;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_CODE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setCode(@javax.annotation.Nullable CodeEnum code) {
+    this.code = code;
+  }
+
+
+  public InferenceStreamEventData message(@javax.annotation.Nullable String message) {
+    this.message = message;
+    return this;
   }
 
   /**
-   * Return the additional (undeclared) property with the specified name.
-   * @param key the name of the property
-   * @return the additional (undeclared) property with the specified name
+   * Get message
+   * @return message
    */
-  public Object getAdditionalProperty(String key) {
-    if (this.additionalProperties == null) {
-        return null;
-    }
-    return this.additionalProperties.get(key);
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_MESSAGE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getMessage() {
+    return message;
   }
+
+
+  @JsonProperty(value = JSON_PROPERTY_MESSAGE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setMessage(@javax.annotation.Nullable String message) {
+    this.message = message;
+  }
+
+
+  public InferenceStreamEventData idempotencyKey(@javax.annotation.Nullable String idempotencyKey) {
+    this.idempotencyKey = idempotencyKey;
+    return this;
+  }
+
+  /**
+   * Get idempotencyKey
+   * @return idempotencyKey
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_IDEMPOTENCY_KEY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public String getIdempotencyKey() {
+    return idempotencyKey;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_IDEMPOTENCY_KEY, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setIdempotencyKey(@javax.annotation.Nullable String idempotencyKey) {
+    this.idempotencyKey = idempotencyKey;
+  }
+
+
+  public InferenceStreamEventData recoveryReason(@javax.annotation.Nullable RecoveryReasonEnum recoveryReason) {
+    this.recoveryReason = recoveryReason;
+    return this;
+  }
+
+  /**
+   * Get recoveryReason
+   * @return recoveryReason
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RECOVERY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public RecoveryReasonEnum getRecoveryReason() {
+    return recoveryReason;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_RECOVERY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setRecoveryReason(@javax.annotation.Nullable RecoveryReasonEnum recoveryReason) {
+    this.recoveryReason = recoveryReason;
+  }
+
+
+  public InferenceStreamEventData reason(@javax.annotation.Nullable ReasonEnum reason) {
+    this.reason = reason;
+    return this;
+  }
+
+  /**
+   * Get reason
+   * @return reason
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public ReasonEnum getReason() {
+    return reason;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setReason(@javax.annotation.Nullable ReasonEnum reason) {
+    this.reason = reason;
+  }
+
 
   /**
    * Return true if this InferenceStreamEvent_data object is equal to o.
@@ -402,14 +937,37 @@ public class InferenceStreamEventData {
         Objects.equals(this.choiceIndex, inferenceStreamEventData.choiceIndex) &&
         Objects.equals(this.toolCallId, inferenceStreamEventData.toolCallId) &&
         Objects.equals(this.stopReason, inferenceStreamEventData.stopReason) &&
+        Objects.equals(this.runId, inferenceStreamEventData.runId) &&
+        equalsNullable(this.sessionId, inferenceStreamEventData.sessionId) &&
+        equalsNullable(this.worktreeId, inferenceStreamEventData.worktreeId) &&
+        Objects.equals(this.status, inferenceStreamEventData.status) &&
+        Objects.equals(this.urls, inferenceStreamEventData.urls) &&
+        Objects.equals(this.waitSeconds, inferenceStreamEventData.waitSeconds) &&
+        Objects.equals(this.reservedMicroUsd, inferenceStreamEventData.reservedMicroUsd) &&
+        Objects.equals(this.kind, inferenceStreamEventData.kind) &&
         Objects.equals(this.delivery, inferenceStreamEventData.delivery) &&
-        Objects.equals(this.result, inferenceStreamEventData.result)&&
-        Objects.equals(this.additionalProperties, inferenceStreamEventData.additionalProperties);
+        Objects.equals(this.result, inferenceStreamEventData.result) &&
+        Objects.equals(this.code, inferenceStreamEventData.code) &&
+        Objects.equals(this.message, inferenceStreamEventData.message) &&
+        Objects.equals(this.idempotencyKey, inferenceStreamEventData.idempotencyKey) &&
+        Objects.equals(this.recoveryReason, inferenceStreamEventData.recoveryReason) &&
+        Objects.equals(this.reason, inferenceStreamEventData.reason);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(text, invocationId, messageId, contentIndex, choiceIndex, toolCallId, stopReason, delivery, result, additionalProperties);
+    return Objects.hash(text, invocationId, messageId, contentIndex, choiceIndex, toolCallId, stopReason, runId, hashCodeNullable(sessionId), hashCodeNullable(worktreeId), status, urls, waitSeconds, reservedMicroUsd, kind, delivery, result, code, message, idempotencyKey, recoveryReason, reason);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -423,9 +981,21 @@ public class InferenceStreamEventData {
     sb.append("    choiceIndex: ").append(toIndentedString(choiceIndex)).append("\n");
     sb.append("    toolCallId: ").append(toIndentedString(toolCallId)).append("\n");
     sb.append("    stopReason: ").append(toIndentedString(stopReason)).append("\n");
+    sb.append("    runId: ").append(toIndentedString(runId)).append("\n");
+    sb.append("    sessionId: ").append(toIndentedString(sessionId)).append("\n");
+    sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
+    sb.append("    status: ").append(toIndentedString(status)).append("\n");
+    sb.append("    urls: ").append(toIndentedString(urls)).append("\n");
+    sb.append("    waitSeconds: ").append(toIndentedString(waitSeconds)).append("\n");
+    sb.append("    reservedMicroUsd: ").append(toIndentedString(reservedMicroUsd)).append("\n");
+    sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
     sb.append("    delivery: ").append(toIndentedString(delivery)).append("\n");
     sb.append("    result: ").append(toIndentedString(result)).append("\n");
-    sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
+    sb.append("    code: ").append(toIndentedString(code)).append("\n");
+    sb.append("    message: ").append(toIndentedString(message)).append("\n");
+    sb.append("    idempotencyKey: ").append(toIndentedString(idempotencyKey)).append("\n");
+    sb.append("    recoveryReason: ").append(toIndentedString(recoveryReason)).append("\n");
+    sb.append("    reason: ").append(toIndentedString(reason)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -505,6 +1075,46 @@ public class InferenceStreamEventData {
       joiner.add(String.format(java.util.Locale.ROOT, "%sstop_reason%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStopReason()))));
     }
 
+    // add `run_id` to the URL query string
+    if (getRunId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%srun_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRunId()))));
+    }
+
+    // add `session_id` to the URL query string
+    if (getSessionId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%ssession_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSessionId()))));
+    }
+
+    // add `worktree_id` to the URL query string
+    if (getWorktreeId() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sworktree_id%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWorktreeId()))));
+    }
+
+    // add `status` to the URL query string
+    if (getStatus() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sstatus%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getStatus()))));
+    }
+
+    // add `urls` to the URL query string
+    if (getUrls() != null) {
+      joiner.add(getUrls().toUrlQueryString(prefix + "urls" + suffix));
+    }
+
+    // add `wait_seconds` to the URL query string
+    if (getWaitSeconds() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%swait_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWaitSeconds()))));
+    }
+
+    // add `reserved_micro_usd` to the URL query string
+    if (getReservedMicroUsd() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sreserved_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getReservedMicroUsd()))));
+    }
+
+    // add `kind` to the URL query string
+    if (getKind() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%skind%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getKind()))));
+    }
+
     // add `delivery` to the URL query string
     if (getDelivery() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sdelivery%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getDelivery()))));
@@ -513,6 +1123,31 @@ public class InferenceStreamEventData {
     // add `result` to the URL query string
     if (getResult() != null) {
       joiner.add(getResult().toUrlQueryString(prefix + "result" + suffix));
+    }
+
+    // add `code` to the URL query string
+    if (getCode() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%scode%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getCode()))));
+    }
+
+    // add `message` to the URL query string
+    if (getMessage() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%smessage%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getMessage()))));
+    }
+
+    // add `idempotency_key` to the URL query string
+    if (getIdempotencyKey() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sidempotency_key%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getIdempotencyKey()))));
+    }
+
+    // add `recovery_reason` to the URL query string
+    if (getRecoveryReason() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%srecovery_reason%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRecoveryReason()))));
+    }
+
+    // add `reason` to the URL query string
+    if (getReason() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%sreason%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getReason()))));
     }
 
     return joiner.toString();

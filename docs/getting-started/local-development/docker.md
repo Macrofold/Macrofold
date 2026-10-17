@@ -60,7 +60,7 @@ If Runs stay queued, inspect the Worker's `failure_code` and run `pnpm doctor:do
 
 ### Diagnose a queued request
 
-Check `GET /v1/runs/{run_id}` for `waiting_reason`, `wait_seconds` and `started_at`. A null start means execution has not begun. Lightweight inference does not require a Docker Host, but `Prefer: respond-async` requests still need the standalone dispatcher. A healthy API alone does not prove the dispatcher or local PostgreSQL service is running.
+Check `GET /v1/runs/{run_id}` for `waiting_reason`, `wait_seconds` and `started_at`. A null start means execution has not begun. Immediate `POST /v1/inferences` calls use the API process directly and need no Docker Host or standalone dispatcher; queued inference on that endpoint is unsupported. Bounded-agent and Task children still need the dispatcher. A healthy API alone does not prove the dispatcher or local PostgreSQL service is running.
 
 Stop the existing poller gracefully, then start it with content-free progress diagnostics in its own terminal:
 

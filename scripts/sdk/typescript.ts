@@ -11,7 +11,7 @@ import type { Client, Operation, Result, RequestOptions, Schema } from './client
 import type { operations } from './schema.js';
 import { streamRunText, waitForRun, type WaitOptions } from './run-helpers.js';
 export const DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)};
-export type RequestSettings = { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string,string> };
+export type RequestSettings = { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string,string>; inferenceRetries?: number; timeoutMs?: number };
 type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent' | 'streamInference'>;`,
   ];
   for (const group of groups) {

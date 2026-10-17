@@ -39,6 +39,8 @@ type InferenceReceipt struct {
 	TimingsMs map[string]float32 `json:"timings_ms,omitempty"`
 	ReasonCode *string `json:"reason_code,omitempty"`
 	ProviderEvidence *InferenceReceiptProviderEvidence `json:"provider_evidence,omitempty"`
+	Usage InferenceUsage `json:"usage"`
+	Billing InferenceBilling `json:"billing"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -48,7 +50,7 @@ type _InferenceReceipt InferenceReceipt
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewInferenceReceipt(invocationId string, definitionRevision string, definitionDigest string, contextDigest string, providerRequestDigest NullableString, transformationVersion string, dependencyTokens map[string]string, outcome string, providerOutcome string, model string, modelRevisionStatus string, validation InferenceReceiptValidation) *InferenceReceipt {
+func NewInferenceReceipt(invocationId string, definitionRevision string, definitionDigest string, contextDigest string, providerRequestDigest NullableString, transformationVersion string, dependencyTokens map[string]string, outcome string, providerOutcome string, model string, modelRevisionStatus string, validation InferenceReceiptValidation, usage InferenceUsage, billing InferenceBilling) *InferenceReceipt {
 	this := InferenceReceipt{}
 	this.InvocationId = invocationId
 	this.DefinitionRevision = definitionRevision
@@ -62,6 +64,8 @@ func NewInferenceReceipt(invocationId string, definitionRevision string, definit
 	this.Model = model
 	this.ModelRevisionStatus = modelRevisionStatus
 	this.Validation = validation
+	this.Usage = usage
+	this.Billing = billing
 	return &this
 }
 
@@ -618,6 +622,54 @@ func (o *InferenceReceipt) SetProviderEvidence(v InferenceReceiptProviderEvidenc
 	o.ProviderEvidence = &v
 }
 
+// GetUsage returns the Usage field value
+func (o *InferenceReceipt) GetUsage() InferenceUsage {
+	if o == nil {
+		var ret InferenceUsage
+		return ret
+	}
+
+	return o.Usage
+}
+
+// GetUsageOk returns a tuple with the Usage field value
+// and a boolean to check if the value has been set.
+func (o *InferenceReceipt) GetUsageOk() (*InferenceUsage, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Usage, true
+}
+
+// SetUsage sets field value
+func (o *InferenceReceipt) SetUsage(v InferenceUsage) {
+	o.Usage = v
+}
+
+// GetBilling returns the Billing field value
+func (o *InferenceReceipt) GetBilling() InferenceBilling {
+	if o == nil {
+		var ret InferenceBilling
+		return ret
+	}
+
+	return o.Billing
+}
+
+// GetBillingOk returns a tuple with the Billing field value
+// and a boolean to check if the value has been set.
+func (o *InferenceReceipt) GetBillingOk() (*InferenceBilling, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Billing, true
+}
+
+// SetBilling sets field value
+func (o *InferenceReceipt) SetBilling(v InferenceBilling) {
+	o.Billing = v
+}
+
 func (o InferenceReceipt) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -661,6 +713,8 @@ func (o InferenceReceipt) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.ProviderEvidence) {
 		toSerialize["provider_evidence"] = o.ProviderEvidence
 	}
+	toSerialize["usage"] = o.Usage
+	toSerialize["billing"] = o.Billing
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -686,6 +740,8 @@ func (o *InferenceReceipt) UnmarshalJSON(data []byte) (err error) {
 		"model",
 		"model_revision_status",
 		"validation",
+		"usage",
+		"billing",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -734,6 +790,8 @@ func (o *InferenceReceipt) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "timings_ms")
 		delete(additionalProperties, "reason_code")
 		delete(additionalProperties, "provider_evidence")
+		delete(additionalProperties, "usage")
+		delete(additionalProperties, "billing")
 		o.AdditionalProperties = additionalProperties
 	}
 

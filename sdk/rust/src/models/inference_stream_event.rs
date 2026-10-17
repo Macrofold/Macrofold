@@ -19,23 +19,22 @@ pub struct InferenceStreamEvent {
     pub schema_version: SchemaVersion,
     #[serde(rename = "run_id")]
     pub run_id: uuid::Uuid,
-    /// run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error.
     #[serde(rename = "type")]
-    pub r#type: String,
+    pub r#type: Type,
     #[serde(rename = "occurred_at")]
     pub occurred_at: chrono::DateTime<chrono::FixedOffset>,
     #[serde(rename = "data")]
-    pub data: models::InferenceStreamEventData,
+    pub data: Box<models::InferenceStreamEventData>,
 }
 
 impl InferenceStreamEvent {
-    pub fn new(schema_version: SchemaVersion, run_id: uuid::Uuid, r#type: String, occurred_at: chrono::DateTime<chrono::FixedOffset>, data: models::InferenceStreamEventData) -> InferenceStreamEvent {
+    pub fn new(schema_version: SchemaVersion, run_id: uuid::Uuid, r#type: Type, occurred_at: chrono::DateTime<chrono::FixedOffset>, data: models::InferenceStreamEventData) -> InferenceStreamEvent {
         InferenceStreamEvent {
             schema_version,
             run_id,
             r#type,
             occurred_at,
-            data,
+            data: Box::new(data),
         }
     }
 }
@@ -57,6 +56,38 @@ impl std::fmt::Display for SchemaVersion {
 impl Default for SchemaVersion {
     fn default() -> SchemaVersion {
         Self::Variant1
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Type {
+    #[serde(rename = "run.accepted")]
+    RunAccepted,
+    #[serde(rename = "output.delta")]
+    OutputDelta,
+    #[serde(rename = "output.started")]
+    OutputStarted,
+    #[serde(rename = "output.finished")]
+    OutputFinished,
+    #[serde(rename = "tool.arguments.delta")]
+    ToolArgumentsDelta,
+    #[serde(rename = "output.refusal.delta")]
+    OutputRefusalDelta,
+    #[serde(rename = "run.succeeded")]
+    RunSucceeded,
+    #[serde(rename = "run.failed")]
+    RunFailed,
+    #[serde(rename = "run.cancelled")]
+    RunCancelled,
+    #[serde(rename = "run.timed_out")]
+    RunTimedOut,
+    #[serde(rename = "transport.error")]
+    TransportError,
+}
+
+impl Default for Type {
+    fn default() -> Type {
+        Self::RunAccepted
     }
 }
 

@@ -21,8 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
 from uuid import UUID
+from macrofold.models.inference_billing import InferenceBilling
 from macrofold.models.inference_receipt_provider_evidence import InferenceReceiptProviderEvidence
 from macrofold.models.inference_receipt_validation import InferenceReceiptValidation
+from macrofold.models.inference_usage import InferenceUsage
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -50,8 +52,10 @@ class InferenceReceipt(BaseModel):
     timings_ms: Optional[Dict[str, Union[Annotated[float, Field(strict=True, ge=0)], Annotated[int, Field(strict=True, ge=0)]]]] = None
     reason_code: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
     provider_evidence: Optional[InferenceReceiptProviderEvidence] = None
+    usage: InferenceUsage
+    billing: InferenceBilling
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["invocation_id", "definition_revision", "definition_digest", "context_digest", "provider_request_digest", "transformation_version", "dependency_tokens", "outcome", "value", "provider_outcome", "provider_request_id", "model", "model_revision", "model_revision_status", "validation", "usage_request_id", "timings_ms", "reason_code", "provider_evidence"]
+    __properties: ClassVar[List[str]] = ["invocation_id", "definition_revision", "definition_digest", "context_digest", "provider_request_digest", "transformation_version", "dependency_tokens", "outcome", "value", "provider_outcome", "provider_request_id", "model", "model_revision", "model_revision_status", "validation", "usage_request_id", "timings_ms", "reason_code", "provider_evidence", "usage", "billing"]
 
     @field_validator('outcome')
     def outcome_validate_enum(cls, value):
@@ -121,6 +125,12 @@ class InferenceReceipt(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of provider_evidence
         if self.provider_evidence:
             _dict['provider_evidence'] = self.provider_evidence.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of usage
+        if self.usage:
+            _dict['usage'] = self.usage.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of billing
+        if self.billing:
+            _dict['billing'] = self.billing.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -181,7 +191,9 @@ class InferenceReceipt(BaseModel):
             "usage_request_id": obj.get("usage_request_id"),
             "timings_ms": obj.get("timings_ms"),
             "reason_code": obj.get("reason_code"),
-            "provider_evidence": InferenceReceiptProviderEvidence.from_dict(obj["provider_evidence"]) if obj.get("provider_evidence") is not None else None
+            "provider_evidence": InferenceReceiptProviderEvidence.from_dict(obj["provider_evidence"]) if obj.get("provider_evidence") is not None else None,
+            "usage": InferenceUsage.from_dict(obj["usage"]) if obj.get("usage") is not None else None,
+            "billing": InferenceBilling.from_dict(obj["billing"]) if obj.get("billing") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

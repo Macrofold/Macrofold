@@ -1,170 +1,36 @@
 import { durableInferenceOutput } from './inference-output';
 import type { InferenceOutputSink } from './decision';
-import { inferenceInputBound } from './decision';
-import { boundedRequest, evidenceSteps, applyBoundedResponse } from './bounded-decisions';
-import { transaction, type Tx } from '../../db';
-import { id, seal, unseal } from './crypto';
+import { DecisionProviderError } from './decision';
+import { evidenceSteps, applyBoundedResponse } from './bounded-decisions';
+import { transaction } from '../../db';
+import { seal, unseal } from './crypto';
 import { assert, AppError } from './errors';
-import { emit } from './events';
-import { getRun, terminal, type InferenceRunRow } from './runs';
+import { getRun, terminal } from './runs';
 import { initialReceipt } from './inference-receipt';
 import { claimRun, principalFor } from './engine';
 import { authorizeContext } from './context-artifacts';
 import { actorAuthorized } from './actor-authorization';
 import { modelCredential } from './model-credentials';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
-import { costForUsage, settleModelRequest } from './model-gateway';
+import { settleModelRequest, inferenceUsage, inferenceBilling } from './model-gateway';
 import { emptyUsage } from './model-protocol';
-import { digest, schemaValidator } from './explicit-context';
-import { settle } from './ledger';
-import type { DecisionResponse, InferenceReceipt } from './decision';
 import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingEnabled } from './tracing';
 import { providerErrorDetails } from './provider-diagnostics';
 import { observeWorkerStep } from './worker-diagnostics';
+import { recoverImmediateInference } from './direct-inference';
 import { repeatWithoutOverlap } from './concurrent';
+import {
+  invocation,
+  finish,
+  checkedReceipt,
+  capability,
+  prepareInvocation,
+  insertInvocation,
+  type StoredDecisionResponse,
+} from './inference-invocations';
 
-type Invocation = {
-  id: string;
-  run_id: string;
-  step: number;
-  context_digest: string;
-  context_expires_at: Date | null;
-  dependency_tokens: Record<string, string>;
-  dispatch_started_at: Date | null;
-  responded_at: Date | null;
-  state: 'prepared' | 'dispatch_started' | 'responded' | 'uncertain';
-  body_ciphertext: string;
-  provider_request_digest: string;
-  response_ciphertext: string | null;
-  timings_ms: Record<string, number>;
-};
 type Advance = { done: boolean; delaySeconds: number; queued?: boolean };
-async function invocation(tx: Tx, runId: string) {
-  return (
-    await tx.query<Invocation>(
-      'SELECT * FROM decision_invocations WHERE run_id=$1 AND handled_at IS NULL ORDER BY step DESC LIMIT 1',
-      [runId],
-    )
-  ).rows[0];
-}
-async function finish(org: string, runId: string, receipt: InferenceReceipt, failureCode?: string) {
-  return transaction(org, async (tx) => {
-    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-    const run = await getRun(tx, runId);
-    // Late evidence is retained by the invocation owner. It cannot change a
-    // terminal status or replay the ledger settlement.
-    if (terminal(run.status)) return;
-    const status = run.cancel_requested
-      ? 'cancelled'
-      : run.deadline && run.deadline.getTime() <= Date.now()
-        ? 'timed_out'
-        : ['value', 'unknown', 'refused', 'stale_input'].includes(receipt.outcome)
-          ? 'succeeded'
-          : 'failed';
-    if (status === 'cancelled' || status === 'timed_out') {
-      const { value: _value, ...evidence } = receipt;
-      receipt = {
-        ...evidence,
-        outcome: receipt.provider_outcome === 'uncertain' ? 'uncertain' : 'failed',
-        reason_code: status,
-      };
-    }
-    await tx.query('UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1', [
-      runId,
-      status,
-      JSON.stringify({
-        inference: receipt,
-        execution_outcome: status === 'succeeded' ? 'success' : status === 'failed' ? 'failure' : status,
-        persistence_status: 'not_required',
-        ...(failureCode ? { failure_code: failureCode } : {}),
-      }),
-    ]);
-    await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(run.cost_micro_usd));
-    await tx.query(
-      "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
-      [runId],
-    );
-    await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome });
-  });
-}
-function capability(run: InferenceRunRow) {
-  return {
-    purpose: 'runtime' as const,
-    organization: run.organization_id,
-    run: run.id,
-    lease: run.lease_generation,
-    expires: Date.now(),
-  };
-}
-function checkedReceipt(
-  run: InferenceRunRow,
-  call: Invocation,
-  response: DecisionResponse,
-): InferenceReceipt {
-  const validationStarted = performance.now();
-  const receipt = initialReceipt(run.config, call.id);
-  const question = run.config.definition.question;
-  const valid =
-    !response.incomplete &&
-    schemaValidator(run.config.definition.output_schema)(response.value) &&
-    (question.kind !== 'choice' ||
-      (typeof response.value === 'string' && Object.hasOwn(question.criteria, response.value))) &&
-    (question.kind !== 'score' ||
-      (typeof response.value === 'number' &&
-        Number.isFinite(response.value) &&
-        response.value >= 0 &&
-        response.value <= question.criteria.length - 1));
-  const stale = call.context_expires_at && call.context_expires_at.getTime() <= Date.now();
-  const unknown =
-    valid && run.config.definition.unknown_values?.some((value) => digest(value) === digest(response.value));
-  return {
-    ...receipt,
-    timings_ms: {
-      admission: run.config.admission_ms,
-      ...(run.config.context_resolution_ms === undefined
-        ? {}
-        : { context_resolution: run.config.context_resolution_ms }),
-      queue_wait: run.started_at ? run.started_at.getTime() - run.created_at.getTime() : 0,
-      ...call.timings_ms,
-      validation: performance.now() - validationStarted,
-    },
-    context_digest: call.context_digest,
-    dependency_tokens: call.dependency_tokens,
-    provider_request_digest: call.provider_request_digest,
-    provider_outcome: response.incomplete ? 'uncertain' : 'responded',
-    provider_request_id: response.requestId,
-    model_revision: response.modelRevision,
-    model_revision_status: response.modelRevision ? 'reported' : 'unavailable',
-    usage_request_id: call.id,
-    outcome: response.incomplete
-      ? 'failed'
-      : stale
-        ? 'stale_input'
-        : response.refused
-          ? 'refused'
-          : unknown
-            ? 'unknown'
-            : valid
-              ? 'value'
-              : 'invalid_output',
-    reason_code:
-      response.incomplete ??
-      (stale
-        ? 'context_expired'
-        : response.refused
-          ? 'provider_refused'
-          : unknown
-            ? 'declared_unknown'
-            : !valid
-              ? 'output_schema_mismatch'
-              : undefined),
-    provider_evidence: response.evidence,
-    ...(valid && !stale && !response.refused && !unknown ? { value: response.value } : {}),
-    validation: { ...receipt.validation, status: response.refused ? 'not_run' : valid ? 'passed' : 'failed' },
-  };
-}
-
 /** One request, persisted intent and response, no automatic provider replay.
  * A competing worker waits until the accepted deadline before classifying a
  * lost dispatch as uncertain. No connection/transaction is held during HTTP. */
@@ -199,10 +65,16 @@ export async function advanceInference(
   const currentRun = run;
   let call = await transaction(org, (tx) => invocation(tx, runId));
   const baseReceipt = () => initialReceipt(currentRun.config, call?.id || runId);
+  if (run.kind === 'inference' && run.config.execution_owner === 'request') {
+    // Request-owned recovery consumes saved evidence or classifies uncertainty;
+    // it can never enter the queued/bounded provider dispatch path below.
+    const recovered = await recoverImmediateInference(run);
+    return { done: recovered ? terminal(recovered.status) : false, delaySeconds: recovered ? 0 : 1 };
+  }
   const stopped = run.cancel_requested || (run.deadline && run.deadline.getTime() <= Date.now());
   if (call?.state === 'responded' && call.response_ciphertext) {
-    const response = unseal<DecisionResponse>(call.response_ciphertext);
-    const billing = await settleModelRequest(
+    const response = unseal<StoredDecisionResponse>(call.response_ciphertext);
+    const settlement = await settleModelRequest(
       capability(run),
       call.id,
       run.config.rate_card,
@@ -210,6 +82,7 @@ export async function advanceInference(
       false,
       run.config.provider_cost_rate_card,
     );
+    const billing = settlement;
     const context = tracingEnabled() ? await transaction(org, (tx) => runTraceContext(tx, run)) : undefined;
     if (context)
       recordTrace({
@@ -223,16 +96,17 @@ export async function advanceInference(
           call.dispatch_started_at && call.timings_ms.first_output !== undefined
             ? new Date(call.dispatch_started_at.getTime() + call.timings_ms.first_output)
             : undefined,
-        level: response.incomplete ? 'ERROR' : 'DEFAULT',
+        level: response.incomplete || response.failure_code ? 'ERROR' : 'DEFAULT',
         input: unseal<Record<string, unknown>>(call.body_ciphertext),
         output: response,
         model: run.config.model,
         usage: response.usage,
-        chargedMicroUsd: billing?.charged_micro_usd,
+        chargedMicroUsd: billing?.charged_micro_usd ?? undefined,
         metadata: {
           invocation_id: call.id,
           step: call.step,
           provider_request_id: response.requestId,
+          provider_http_status: response.httpStatus,
           model_revision: response.modelRevision,
           transformation_version: run.config.transformation_version,
           context_digest: call.context_digest,
@@ -244,9 +118,16 @@ export async function advanceInference(
         },
       });
     try {
-      const result = response.incomplete ? response : await applyBoundedResponse(run, call, response);
+      const result =
+        response.incomplete || response.failure_code
+          ? response
+          : await applyBoundedResponse(run, call, response);
       if (!result) return { done: false, delaySeconds: 0 };
-      await finish(org, runId, checkedReceipt(run, call, result));
+      await finish(org, runId, {
+        ...checkedReceipt(run, call, result),
+        usage: inferenceUsage(response.usage),
+        billing: inferenceBilling(settlement, run.config.billing_mode),
+      });
     } catch (error) {
       const code = error instanceof AppError ? error.code : 'tool_read_failed';
       await finish(
@@ -257,6 +138,8 @@ export async function advanceInference(
           provider_request_digest: call.provider_request_digest,
           provider_outcome: 'responded',
           usage_request_id: call.id,
+          usage: inferenceUsage(response.usage),
+          billing: inferenceBilling(settlement, run.config.billing_mode),
           outcome: code === 'stale_input' ? 'stale_input' : 'failed',
         },
         code,
@@ -290,7 +173,7 @@ export async function advanceInference(
           input: call.body_ciphertext ? unseal<Record<string, unknown>>(call.body_ciphertext) : undefined,
           output: { outcome: 'uncertain' },
           level: 'ERROR',
-          chargedMicroUsd: billing?.charged_micro_usd,
+          chargedMicroUsd: billing?.charged_micro_usd ?? undefined,
           metadata: {
             invocation_id: call.id,
             step: call.step,
@@ -313,6 +196,8 @@ export async function advanceInference(
       provider_outcome: sent ? 'uncertain' : 'not_invoked',
       provider_request_digest: sent ? call.provider_request_digest : null,
       usage_request_id: call?.id || null,
+      usage: inferenceUsage(emptyUsage(), !sent),
+      billing: inferenceBilling(billing, run.config.billing_mode, !sent),
     });
     return { done: true, delaySeconds: 0 };
   }
@@ -335,8 +220,6 @@ export async function advanceInference(
           'authorization_revoked',
           'The initiating credential is no longer authorized.',
         );
-        const provider = run.config.rate_card.provider;
-        const protocol = decisionProtocol(provider, run.config.model);
         const steps = await evidenceSteps(tx, runId);
         const history = (
           await tx.query<{ count: string; output: string }>(
@@ -367,103 +250,13 @@ export async function advanceInference(
           'output_limit_exceeded',
           'The aggregate output-token limit was reached.',
         );
-        const dependencyTokens = { ...run.config.context.dependency_tokens };
-        for (const entry of steps)
-          for (const [key, value] of Object.entries(entry.context.dependency_tokens)) {
-            assert(
-              !Object.hasOwn(dependencyTokens, key) || dependencyTokens[key] === value,
-              409,
-              'context_revision_conflict',
-              'Read evidence has conflicting dependency tokens.',
-            );
-            dependencyTokens[key] = value;
-          }
-        const expirations = [run.config.context, ...steps.map((step) => step.context)].flatMap((context) =>
-          context.expires_at ? [Date.parse(context.expires_at)] : [],
+        const preparedInvocation = prepareInvocation(
+          run.config,
+          step,
+          run.kind === 'bounded_agent' ? steps : [],
+          maxOutputTokens,
         );
-        const expiresAt = expirations.length ? new Date(Math.min(...expirations)) : null;
-        assert(
-          !expiresAt || expiresAt.getTime() > Date.now(),
-          409,
-          'stale_input',
-          'Read evidence expired before the next model call.',
-        );
-        const body = protocol.prepare(
-          boundedRequest({
-            model: run.config.model,
-            stream: run.config.stream,
-            modelParameters: run.config.model_parameters,
-            definition: run.config.definition,
-            input: run.config.input,
-            context: run.config.context,
-            maxOutputTokens,
-            rates: {
-              inputMicroUsdPerMillion: run.config.rate_card.input_micro_usd_per_million,
-              outputMicroUsdPerMillion: run.config.rate_card.output_micro_usd_per_million,
-            },
-            ...(run.kind === 'bounded_agent' ? { steps } : {}),
-          }),
-        );
-        const inputTokenBound = inferenceInputBound(
-          body,
-          provider,
-          run.config.model,
-          run.config.definition.question.kind === 'provider',
-        );
-        const bound = costForUsage(run.config.rate_card, {
-          ...emptyUsage(),
-          input: inputTokenBound,
-          cacheWrite:
-            provider === 'anthropic' && run.config.definition.question.kind === 'provider'
-              ? inputTokenBound
-              : 0,
-          output: maxOutputTokens,
-        });
-        assert(
-          bound +
-            BigInt(
-              (await tx.query('SELECT budget_used_micro_usd FROM runs WHERE id=$1', [runId])).rows[0]
-                .budget_used_micro_usd,
-            ) <=
-            BigInt(run.config.limits.max_cost_micro_usd),
-          402,
-          'run_budget_exhausted',
-          'The request exceeds the authorized budget.',
-        );
-        const invocationId = id();
-        await tx.query(
-          "INSERT INTO gateway_requests(id,organization_id,run_id,lease_generation,model,provider,billing_mode,status,reserved_micro_usd) VALUES($1,$2,$3,$4,$5,$6,$7,'in_flight',$8)",
-          [
-            invocationId,
-            org,
-            runId,
-            run.lease_generation,
-            run.config.model,
-            provider,
-            run.config.billing_mode,
-            bound.toString(),
-          ],
-        );
-        await tx.query("UPDATE runs SET model_reserved_micro_usd=$2,status='running' WHERE id=$1", [
-          runId,
-          bound.toString(),
-        ]);
-        await tx.query(
-          "INSERT INTO decision_invocations(id,organization_id,run_id,step,state,provider_request_digest,body_ciphertext,context_digest,output_token_bound,dependency_tokens,context_expires_at) VALUES($1,$2,$3,$6,'prepared',$4,$5,$7,$8,$9,$10)",
-          [
-            invocationId,
-            org,
-            runId,
-            digest(body),
-            seal(body),
-            step,
-            steps.length ? digest({ context: run.config.context, steps }) : run.config.context_digest,
-            maxOutputTokens,
-            JSON.stringify(dependencyTokens),
-            expiresAt,
-          ],
-        );
-        await emit(tx, org, runId, 'inference.prepared', { invocation_id: invocationId });
+        await insertInvocation(tx, run, preparedInvocation);
       });
       return { done: false, delaySeconds: 0 };
     }
@@ -541,7 +334,11 @@ export async function advanceInference(
         [prepared.id],
       );
       return won.rowCount
-        ? { secret, deadline: latest.deadline, traceContext: await runTraceContext(tx, run) }
+        ? {
+            secret,
+            deadline: latest.deadline,
+            traceContext: tracingEnabled() ? await runTraceContext(tx, run) : undefined,
+          }
         : undefined;
     });
     if (!authorization) return { done: false, delaySeconds: 1 };
@@ -572,49 +369,89 @@ export async function advanceInference(
       const protocol = decisionProtocol(run.config.rate_card.provider, run.config.model);
       const providerStarted = performance.now();
       const requestBody = unseal<Record<string, unknown>>(call.body_ciphertext);
-      const response = await observeWorkerStep(
-        'inference_provider',
-        {
-          organization_id: org,
-          run_id: runId,
-          request_id: call.id,
-          model: run.config.model,
-          provider: run.config.rate_card.provider,
-        },
-        () =>
-          protocol.invoke(
-            requestBody,
-            authorization.secret,
-            controller.signal,
-            (output) => {
-              rawResponse = output;
-            },
-            run.config.definition.question.kind === 'provider',
-            async (event) => {
-              if (event.type === 'output.delta' && firstOutputMs === undefined)
-                firstOutputMs = performance.now() - providerStarted;
-              const fragment = { ...event, data: { ...event.data, invocation_id: prepared.id } };
-              await (output ?? durable?.write)?.(fragment);
-            },
-          ),
-      );
+      let response: StoredDecisionResponse;
+      try {
+        response = await observeWorkerStep(
+          'inference_provider',
+          {
+            organization_id: org,
+            run_id: runId,
+            request_id: call.id,
+            model: run.config.model,
+            provider: run.config.rate_card.provider,
+          },
+          () =>
+            protocol.invoke(
+              requestBody,
+              authorization.secret,
+              controller.signal,
+              (output) => {
+                rawResponse = output;
+              },
+              run.config.definition.question.kind === 'provider',
+              async (event) => {
+                if (event.type === 'output.delta' && firstOutputMs === undefined)
+                  firstOutputMs = performance.now() - providerStarted;
+                const fragment = { ...event, data: { ...event.data, invocation_id: prepared.id } };
+                await (output ?? durable?.write)?.(fragment);
+              },
+            ),
+        );
+      } catch (error) {
+        if (!(error instanceof DecisionProviderError)) throw error;
+        const evidence = error.evidence;
+        response = {
+          value: null,
+          refused: false,
+          usage: evidence.usage,
+          requestId: evidence.requestId,
+          httpStatus: evidence.httpStatus,
+          modelRevision: evidence.modelRevision,
+          providerResponse: evidence.response,
+          completedAt: evidence.completedAt ?? undefined,
+          completedAtMonotonicMs: evidence.completedAtMonotonicMs ?? undefined,
+          failure_code: error.code,
+          transport_complete: evidence.complete,
+          ...(evidence.complete ? {} : { incomplete: 'provider_error' }),
+        };
+      }
       const providerMs = performance.now() - providerStarted;
-      if (run.config.stream && !response.incomplete && run.config.definition.question.kind !== 'provider')
+      if (
+        run.config.stream &&
+        !response.incomplete &&
+        !response.failure_code &&
+        rawResponse !== undefined &&
+        run.config.definition.question.kind !== 'provider'
+      )
         response.providerResponse = rawResponse;
       failureStage = 'response_persistence';
       // Commit evidence before attempting financial settlement or publication.
       const persistenceStarted = performance.now();
+      const ciphertext = seal(response);
+      const completedAt =
+        response.completedAt && (response.transport_complete ?? !response.incomplete)
+          ? new Date(response.completedAt)
+          : null;
       await transaction(org, async (tx) => {
-        // Match run-first locking used by cancellation and content retention.
-        if (durable) await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
+        // Cancellation and purge share Run-first ordering even without SSE.
+        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
+        const latest = await getRun(tx, runId);
+        assert(
+          latest.lease_generation === run.lease_generation,
+          409,
+          'inference_owner_changed',
+          'The invocation owner changed.',
+        );
+        if (latest.result.content_expired) return;
         await tx.query(
-          // Retention/purge wins over a late provider response. Never restore
-          // customer content after the owning run's diagnostics were erased.
-          "UPDATE decision_invocations SET state='responded',response_ciphertext=$2,responded_at=now(),timings_ms=$3 WHERE id=$1 AND body_ciphertext<>''",
+          // A purged or already-preserved response cannot be overwritten by a late owner.
+          `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,responded_at=now(),timings_ms=$3,provider_completed_at=$4
+           WHERE id=$1 AND body_ciphertext<>'' AND state IN ('dispatch_started','uncertain')`,
           [
             prepared.id,
-            seal(response),
+            ciphertext,
             JSON.stringify({ provider: providerMs, first_output: firstOutputMs }),
+            completedAt,
           ],
         );
         // Publish the final replay batch atomically with its response evidence.

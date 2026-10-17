@@ -57,6 +57,8 @@ For a real-model run, [read `hello.txt`](../workspaces/read-files.md) using `run
 
 ## Next steps
 
+- [Make one immediate model call](../decisions/README.md), without creating a workspace, worktree or native agent. Its finalized result includes usage and billing; an explicit recovery receipt identifies unfinished completion.
+
 - [Stream direct model calls or agent output](streaming.md), with complete REST and SDK examples.
 
 - [Approve connector access](../identity-integrations/connection-access.md) and choose inherited, specific, or no tools.

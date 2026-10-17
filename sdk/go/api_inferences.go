@@ -441,7 +441,6 @@ type ApiCreateInferenceRequest struct {
 	idempotencyKey *string
 	inferenceCreate *InferenceCreate
 	xOrganizationId *string
-	prefer *string
 }
 
 func (r ApiCreateInferenceRequest) IdempotencyKey(idempotencyKey string) ApiCreateInferenceRequest {
@@ -460,12 +459,6 @@ func (r ApiCreateInferenceRequest) XOrganizationId(xOrganizationId string) ApiCr
 	return r
 }
 
-// Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds.
-func (r ApiCreateInferenceRequest) Prefer(prefer string) ApiCreateInferenceRequest {
-	r.prefer = &prefer
-	return r
-}
-
 func (r ApiCreateInferenceRequest) Execute() (*InferenceResponse, *http.Response, error) {
 	return r.ApiService.CreateInferenceExecute(r)
 }
@@ -473,7 +466,7 @@ func (r ApiCreateInferenceRequest) Execute() (*InferenceResponse, *http.Response
 /*
 CreateInference Request a typed decision with explicit context
 
-Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiCreateInferenceRequest
@@ -539,9 +532,6 @@ func (a *InferencesAPIService) CreateInferenceExecute(r ApiCreateInferenceReques
 	if r.xOrganizationId != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Organization-Id", r.xOrganizationId, "simple", "")
 	}
-	if r.prefer != nil {
-		parameterAddToHeaderOrQuery(localVarHeaderParams, "Prefer", r.prefer, "simple", "")
-	}
 	// body params
 	localVarPostBody = r.inferenceCreate
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
@@ -566,7 +556,7 @@ func (a *InferencesAPIService) CreateInferenceExecute(r ApiCreateInferenceReques
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
 		}
-			var v Error
+			var v InferenceError
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()

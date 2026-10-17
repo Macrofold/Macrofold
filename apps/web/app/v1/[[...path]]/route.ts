@@ -5,10 +5,12 @@ import { scheduleTraceFlush } from '@/lib/trace-flush';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 async function route(request: Request) {
+  const hostDeadlineAtMs = Date.now() + maxDuration * 1000;
   scheduleTraceFlush();
-  const response = await handleApi(request, 'rest', (task) => after(task));
-  if (request.method !== 'GET' && response.ok) after(dispatchRuns);
-  return response;
+  return handleApi(request, 'rest', (task) => after(task), {
+    hostDeadlineAtMs,
+    onMutation: () => after(dispatchRuns),
+  });
 }
 export const GET = route,
   POST = route,

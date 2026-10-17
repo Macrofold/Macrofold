@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List
 from uuid import UUID
 from macrofold.models.inference_stream_event_data import InferenceStreamEventData
@@ -32,7 +32,7 @@ class InferenceStreamEvent(BaseModel):
     """ # noqa: E501
     schema_version: StrictInt
     run_id: UUID
-    type: StrictStr = Field(description="run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error.")
+    type: StrictStr
     occurred_at: datetime
     data: InferenceStreamEventData
     __properties: ClassVar[List[str]] = ["schema_version", "run_id", "type", "occurred_at", "data"]
@@ -42,6 +42,13 @@ class InferenceStreamEvent(BaseModel):
         """Validates the enum"""
         if value not in set([1]):
             raise ValueError("must be one of enum values (1)")
+        return value
+
+    @field_validator('type')
+    def type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['run.accepted', 'output.delta', 'output.started', 'output.finished', 'tool.arguments.delta', 'output.refusal.delta', 'run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out', 'transport.error']):
+            raise ValueError("must be one of enum values ('run.accepted', 'output.delta', 'output.started', 'output.finished', 'tool.arguments.delta', 'output.refusal.delta', 'run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out', 'transport.error')")
         return value
 
     model_config = ConfigDict(

@@ -7,10 +7,11 @@ import type {
   DecisionResponse,
   InferenceOutputSink,
 } from '../../core/src/decision';
-import { boundedBody, boundedJSON } from '../../core/src/body';
+import { boundedBody } from '../../core/src/body';
 import { canonical } from '../../core/src/crypto';
 import { assert, AppError } from '../../core/src/errors';
-import { emptyUsage } from '../../core/src/model-protocol';
+import { DecisionProviderError, type ProviderEvidence } from '../../core/src/decision';
+import { emptyUsage, type ModelUsage } from '../../core/src/model-protocol';
 import { openRouterPriceCeiling } from './openrouter-pricing';
 import { validateModelParameters } from '../../core/src/model-parameters';
 import { decisionOnlyModel } from '../../core/src/decision-models';
@@ -33,6 +34,13 @@ const endpoints: Record<DecisionBinding['provider'], string> = {
   typesafe: 'https://api.typesafe.ai/v1/systemone',
   openrouter: 'https://openrouter.ai/api/alpha/decisions',
 };
+function responseIdentity(raw: unknown, headerRequestId: string | null) {
+  const identity = z.object({ id: z.string().optional(), model: z.string().optional() }).safeParse(raw);
+  return {
+    requestId: identity.success ? identity.data.id || headerRequestId : headerRequestId,
+    modelRevision: identity.success ? (identity.data.model ?? null) : null,
+  };
+}
 
 async function invoke(
   provider: DecisionBinding['provider'],
@@ -57,65 +65,163 @@ async function invoke(
     },
     body: canonical(body),
   });
-  // A failure response is retained as uncertain liability: no automatic retry,
-  // and no assumption that every upstream error establishes zero billable work.
+  // Retain bounded transport evidence independently from answer/usage parsing.
+  // No provider error establishes zero liability merely because it is non-2xx.
+  const headerRequestId =
+    upstream.headers.get('x-request-id') ||
+    upstream.headers.get('x-generation-id') ||
+    upstream.headers.get('request-id') ||
+    upstream.headers.get('x-typesafe-request-id');
+  let raw: unknown;
+  let completedAt: string | null = null;
+  let completedAtMonotonicMs: number | null = null;
   if (!upstream.ok) {
-    let responseBody: string;
+    let complete = false;
     try {
-      responseBody = (await boundedBody(upstream.body, 16384)).toString('utf8');
+      const text = (await boundedBody(upstream.body, 16 * 1024)).toString('utf8');
+      completedAt = new Date().toISOString();
+      completedAtMonotonicMs = performance.now();
+      complete = true;
+      try {
+        raw = JSON.parse(text);
+      } catch {
+        raw = text;
+      }
     } catch {
-      responseBody = '[Response body unavailable or exceeds 16 KiB]';
+      raw = '[Response body unavailable or exceeds 16 KiB]';
     }
-    throw new AppError(502, 'decision_provider_failed', 'The decision provider rejected the request.', {
-      provider,
-      http_status: upstream.status,
-      request_id:
-        upstream.headers.get('x-request-id') ||
-        upstream.headers.get('x-generation-id') ||
-        upstream.headers.get('request-id'),
-      response_body: responseBody,
-    });
+    throw new DecisionProviderError(
+      'decision_provider_failed',
+      'The decision provider rejected the request.',
+      {
+        response: raw,
+        httpStatus: upstream.status,
+        ...responseIdentity(raw, headerRequestId),
+        usage: independentUsage(raw, chat, provider),
+        complete,
+        completedAt,
+        completedAtMonotonicMs,
+      },
+    );
   }
   const streamed = body.stream === true ? await readInferenceStream(upstream, chat, output) : undefined;
-  const raw = streamed ? streamed.raw : await boundedJSON(upstream, 512 * 1024);
-  const cost = provider === 'openrouter'
-    ? reportedCost(z.object({ usage: z.unknown().optional() }).safeParse(raw).data?.usage)
-    : {};
-  // Preserve malformed model text for diagnostics too. Observers are never authority.
+  if (streamed) {
+    raw = streamed.raw;
+    completedAt = streamed.completedAt ?? null;
+    completedAtMonotonicMs = streamed.completedAtMonotonicMs ?? null;
+  } else {
+    // Parse after receiving the bounded body so malformed JSON is recoverable.
+    let text: string;
+    try {
+      text = (await boundedBody(upstream.body, 512 * 1024)).toString('utf8');
+    } catch {
+      throw new DecisionProviderError(
+        'incomplete_provider_response',
+        'The provider response was interrupted or exceeded its byte limit.',
+        {
+          response: null,
+          httpStatus: upstream.status,
+          requestId: headerRequestId,
+          modelRevision: null,
+          usage: emptyUsage(),
+          complete: false,
+          completedAt: null,
+          completedAtMonotonicMs: null,
+        },
+      );
+    }
+    completedAt = new Date().toISOString();
+    completedAtMonotonicMs = performance.now();
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      throw new DecisionProviderError(
+        'upstream_invalid_json',
+        'The upstream service returned invalid JSON.',
+        {
+          response: text,
+          httpStatus: upstream.status,
+          requestId: headerRequestId,
+          modelRevision: null,
+          usage: emptyUsage(),
+          complete: true,
+          completedAt,
+          completedAtMonotonicMs,
+        },
+      );
+    }
+  }
+  const evidence: ProviderEvidence = {
+    response: raw,
+    httpStatus: upstream.status,
+    ...responseIdentity(raw, headerRequestId),
+    usage: independentUsage(raw, chat, provider),
+    complete: !streamed?.incomplete,
+    completedAt,
+    completedAtMonotonicMs,
+  };
   try {
     observeResponse?.(raw);
   } catch {
-    /* Diagnostic failure cannot change a provider result. */
+    /* Diagnostics cannot change the result. */
   }
+  try {
+    const normalized = normalizeResponse(
+      provider,
+      raw,
+      upstream,
+      body,
+      chat,
+      nativeResponse,
+      streamed,
+      evidence.usage,
+    );
+    return {
+      ...normalized,
+      httpStatus: upstream.status,
+      ...(completedAt ? { completedAt } : {}),
+      ...(completedAtMonotonicMs !== null ? { completedAtMonotonicMs } : {}),
+    };
+  } catch (error) {
+    throw new DecisionProviderError(
+      error instanceof AppError ? error.code : 'invalid_provider_response',
+      error instanceof AppError ? error.message : 'The provider returned an invalid response.',
+      evidence,
+    );
+  }
+}
+
+function normalizeResponse(
+  provider: DecisionBinding['provider'],
+  raw: unknown,
+  upstream: Response,
+  body: Record<string, unknown>,
+  chat: boolean,
+  nativeResponse: boolean,
+  streamed: Awaited<ReturnType<typeof readInferenceStream>> | undefined,
+  normalizedUsage: ModelUsage,
+): DecisionResponse {
   if (streamed?.incomplete) {
-    const u = objectUsage(raw, chat);
     return {
       value: raw,
       refused: false,
       requestId: typeof streamed.raw.id === 'string' ? streamed.raw.id : null,
       modelRevision: typeof streamed.raw.model === 'string' ? streamed.raw.model : null,
-      usage: { ...u, ...cost, complete: false },
+      usage: { ...normalizedUsage, complete: false },
       incomplete: streamed.incomplete,
     };
   }
+  const suppliedUsage = z.object({ usage: z.unknown().optional() }).safeParse(raw);
+  assert(
+    !suppliedUsage.success || suppliedUsage.data.usage == null || normalizedUsage.complete,
+    502,
+    'invalid_provider_usage',
+    'The provider returned malformed usage.',
+  );
   if (nativeResponse) {
     const parsed = response.parse(
       chat ? { ...z.record(z.string(), z.unknown()).parse(raw), usage: undefined } : raw,
     );
-    const chatUsage = chat
-      ? z
-          .object({
-            usage: z
-              .object({
-                prompt_tokens: count,
-                completion_tokens: count,
-                prompt_tokens_details: z.object({ cached_tokens: count.optional() }).nullish(),
-              })
-              .nullish(),
-          })
-          .parse(raw).usage
-      : undefined;
-    const tokens = parsed.usage;
     return {
       value: raw,
       // A provider refusal is part of the native response, not a lost payload.
@@ -126,28 +232,7 @@ async function invoke(
         upstream.headers.get('x-request-id') ||
         upstream.headers.get('x-typesafe-request-id'),
       modelRevision: parsed.model || null,
-      usage: chatUsage
-        ? {
-            ...cost,
-            input: chatUsage.prompt_tokens,
-            output: chatUsage.completion_tokens,
-            cached: chatUsage.prompt_tokens_details?.cached_tokens ?? 0,
-            cacheWrite: 0,
-            complete: true,
-          }
-        : tokens
-          ? {
-              ...cost,
-              input:
-                tokens.input_tokens +
-                (tokens.cache_read_input_tokens ?? 0) +
-                (tokens.cache_creation_input_tokens ?? 0),
-              output: tokens.output_tokens,
-              cached: tokens.cache_read_input_tokens ?? 0,
-              cacheWrite: tokens.cache_creation_input_tokens ?? 0,
-              complete: true,
-            }
-          : { ...emptyUsage(), ...cost },
+      usage: normalizedUsage,
     };
   }
   if (chat) {
@@ -187,20 +272,12 @@ async function invoke(
     }
     return {
       value,
+      ...(value === undefined ? { providerResponse: raw } : {}),
       refused: !!choice.message.refusal || choice.finish_reason === 'content_filter',
       requestId: parsed.id || upstream.headers.get('x-generation-id') || upstream.headers.get('x-request-id'),
       modelRevision: parsed.model || null,
       // OpenRouter completion_tokens already includes reasoning tokens.
-      usage: parsed.usage
-        ? {
-            ...cost,
-            input: parsed.usage.prompt_tokens,
-            output: parsed.usage.completion_tokens,
-            cached: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
-            cacheWrite: 0,
-            complete: true,
-          }
-        : { ...emptyUsage(), ...cost },
+      usage: normalizedUsage,
     };
   }
   const parsed = response.parse(raw);
@@ -245,9 +322,9 @@ async function invoke(
     value = answers.decision.type === 'choice' ? answers.decision.choice : answers.decision.score;
   }
   if (provider === 'anthropic' && parsed.stop_reason === 'max_tokens') value = undefined;
-  const tokens = parsed.usage;
   return {
     value,
+    ...(value === undefined ? { providerResponse: raw } : {}),
     refused,
     evidence,
     requestId:
@@ -256,19 +333,7 @@ async function invoke(
       upstream.headers.get('x-request-id') ||
       upstream.headers.get('x-typesafe-request-id'),
     modelRevision: parsed.model || null,
-    usage: tokens
-      ? {
-          ...cost,
-          input:
-            tokens.input_tokens +
-            (tokens.cache_read_input_tokens || 0) +
-            (tokens.cache_creation_input_tokens || 0),
-          output: tokens.output_tokens,
-          cached: tokens.cache_read_input_tokens || 0,
-          cacheWrite: tokens.cache_creation_input_tokens || 0,
-          complete: true,
-        }
-      : { ...emptyUsage(), ...cost },
+    usage: normalizedUsage,
   };
 }
 
@@ -409,20 +474,53 @@ export function decisionProtocol(provider: string, model?: string): DecisionProt
   throw new Error('Unsupported decision provider.');
 }
 
-function objectUsage(raw: unknown, chat: boolean) {
-  const v = z.object({ usage: z.record(z.string(), z.unknown()).nullish() }).safeParse(raw);
-  const u = v.success ? v.data.usage : undefined;
-  const token = (key: string) => {
-    const result = count.safeParse(u?.[key]);
-    return result.success ? result.data : 0;
+/** Usage has its own trust boundary: a malformed answer must not discard valid
+ * billing facts, and one invalid count must not manufacture a complete record. */
+function independentUsage(raw: unknown, chat: boolean, provider: DecisionBinding['provider']) {
+  const parsed = z.object({ usage: z.record(z.string(), z.unknown()).nullish() }).safeParse(raw);
+  const u = parsed.success ? parsed.data.usage : undefined;
+  const costs = provider === 'openrouter' ? reportedCost(u) : {};
+  if (!u) return { ...emptyUsage(), ...costs };
+  const token = (key: string, optional = false) => {
+    if (optional && u[key] === undefined) return 0;
+    const result = count.safeParse(u[key]);
+    return result.success ? result.data : undefined;
+  };
+  let cached: number | undefined;
+  let cacheWrite: number | undefined;
+  if (chat) {
+    const details = z
+      .object({ cached_tokens: count.optional() })
+      .nullish()
+      .safeParse(u.prompt_tokens_details);
+    cached = details.success ? (details.data?.cached_tokens ?? 0) : undefined;
+    cacheWrite = 0;
+  } else {
+    cached = token('cache_read_input_tokens', true);
+    cacheWrite = token('cache_creation_input_tokens', true);
+  }
+  const baseInput = token(chat ? 'prompt_tokens' : 'input_tokens');
+  let input = baseInput;
+  if (!chat)
+    input =
+      baseInput !== undefined && cached !== undefined && cacheWrite !== undefined
+        ? baseInput + cached + cacheWrite
+        : undefined;
+  if (input !== undefined && !Number.isSafeInteger(input)) input = undefined;
+  const output = token(chat ? 'completion_tokens' : 'output_tokens');
+  const known = {
+    input: input !== undefined,
+    output: output !== undefined,
+    cached: cached !== undefined,
+    cacheWrite: cacheWrite !== undefined,
   };
   return {
-    input: chat
-      ? token('prompt_tokens')
-      : token('input_tokens') + token('cache_read_input_tokens') + token('cache_creation_input_tokens'),
-    output: token(chat ? 'completion_tokens' : 'output_tokens'),
-    cached: chat ? 0 : token('cache_read_input_tokens'),
-    cacheWrite: chat ? 0 : token('cache_creation_input_tokens'),
-    complete: false,
+    ...costs,
+    input: input ?? 0,
+    output: output ?? 0,
+    cached: cached ?? 0,
+    cacheWrite: cacheWrite ?? 0,
+    known,
+    complete: Object.values(known).every(Boolean),
   };
 }

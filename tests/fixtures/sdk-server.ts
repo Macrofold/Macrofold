@@ -5,13 +5,69 @@ import { serveObject } from '../../packages/core/src/transfers';
 import { config, isLocal } from '../../packages/core/src/config';
 
 // The actual API boundary on loopback, with a separately running simulator worker.
-if (!isLocal() || config.allowPaid || config.execution !== 'simulator')
+if (
+  !isLocal() ||
+  config.allowPaid ||
+  config.execution !== 'simulator' ||
+  !new URL(config.databaseUrl).pathname.startsWith('/platform_test_')
+)
   throw new Error('SDK acceptance requires unpaid simulation.');
+// Exercise the real immediate provider adapter without allowing external I/O.
+// This fixture process is isolated from the separately configured simulator worker.
+globalThis.fetch = async (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  if (url.href !== 'https://api.anthropic.com/v1/messages')
+    throw new Error('Unreviewed outbound request in SDK acceptance.');
+  const request = JSON.parse(String(init?.body));
+  const message = {
+    id: 'sdk-provider-fixture',
+    type: 'message',
+    role: 'assistant',
+    model: 'claude-haiku-4-5-20251001',
+    content: [{ type: 'text', text: 'Hello from the SDK fixture.' }],
+    stop_reason: 'end_turn',
+    usage: {
+      input_tokens: 100,
+      output_tokens: 10,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+    },
+  };
+  if (!request.stream) return Response.json(message);
+  const events = [
+    {
+      type: 'message_start',
+      message: { ...message, content: [], usage: { ...message.usage, output_tokens: 0 } },
+    },
+    { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: message.content[0].text } },
+    { type: 'content_block_stop', index: 0 },
+    { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 10 } },
+    { type: 'message_stop' },
+  ];
+  return new Response(
+    events.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''),
+    {
+      headers: { 'content-type': 'text/event-stream' },
+    },
+  );
+};
+config.allowPaid = true; // Safe only after installing the closed fixture transport above.
+process.env.ANTHROPIC_API_KEY = 'sdk-fixture-not-a-provider-key';
+let backgroundFailed = false;
+const background = (task: () => Promise<void>) => {
+  void Promise.resolve()
+    .then(task)
+    .catch(() => {
+      backgroundFailed = true;
+    });
+};
 createServer(async (incoming, outgoing) => {
   const abort = new AbortController();
   outgoing.on('close', () => abort.abort());
   try {
     if (incoming.url === '/health') {
+      outgoing.statusCode = backgroundFailed ? 500 : 200;
       outgoing.end('ready');
       return;
     }
@@ -30,10 +86,12 @@ createServer(async (incoming, outgoing) => {
     const object = new URL(request.url).pathname.match(/^\/objects\/([^/]+)$/);
     const response = object
       ? await serveObject(request, decodeURIComponent(object[1]))
-      : await handleApi(request);
+      : await handleApi(request, 'rest', background);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body)
-      Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).pipe(outgoing);
+      Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
+        .on('error', () => outgoing.destroy())
+        .pipe(outgoing);
     else outgoing.end();
   } catch {
     outgoing.destroy();

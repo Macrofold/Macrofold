@@ -44,6 +44,10 @@ Transient stream connection errors retry with bounded exponential delays, up to 
 
 ## Direct inference delivery
 
+Immediate inference creation and streaming make one attempt by default in all five SDKs. Explicit per-action retries are limited to two confirmed pre-admission refusals, preserve the key/body, honor Retry-After seconds or HTTP dates without shortening them, and share one absolute request deadline. Ambiguous transport, decoding, commit or stream failures retain identity without automatic resubmission. Generic operation retry defaults are unchanged. New receipt usage/billing schemas preserve null versus zero and Macrofold charges separately from overlapping provider-cost diagnostics.
+
+The pinned vendor generators lose common envelope properties when an object also declares conditional branches. The generator adapts only immediate response/event/receipt conditional constraints to retain their typed common properties. Authored OpenAPI and TypeScript keep exact terminal/recovery and event branch constraints; every language has actual transport fixtures for those variants. This avoids either dropping required Run identities or falsely requiring a terminal result on a recovery receipt.
+
 All five resource facades delegate `inferences.stream` to a maintained single-POST SSE helper and yield/dispatch generated `InferenceStreamEvent` models. Helpers own `stream: true`, retain organization and idempotency identity, and never reconnect after headers/output. Normal resource creation rejects `stream: true` locally to prevent a JSON decoder from consuming a billed stream. Low-level generated operations are escape hatches, not the streaming interface.
 
 Framing is shared with durable run streams within each transport, while recovery remains separate: direct EOF without a terminal result is an error; durable streams reconnect by sequence. Closing a reader stops delivery only. Typed terminal failures are events for direct inference; callers inspect the terminal type and receipt. HTTP/transport failures retain submission identity. Go/Rust/Java use a bounded 300-second POST lifetime; server admission limits generation to 240 seconds.

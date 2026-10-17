@@ -51,10 +51,14 @@ pub struct InferenceReceipt {
     pub reason_code: Option<String>,
     #[serde(rename = "provider_evidence", skip_serializing_if = "Option::is_none")]
     pub provider_evidence: Option<Box<models::InferenceReceiptProviderEvidence>>,
+    #[serde(rename = "usage")]
+    pub usage: Box<models::InferenceUsage>,
+    #[serde(rename = "billing")]
+    pub billing: Box<models::InferenceBilling>,
 }
 
 impl InferenceReceipt {
-    pub fn new(invocation_id: uuid::Uuid, definition_revision: String, definition_digest: String, context_digest: String, provider_request_digest: Option<String>, transformation_version: String, dependency_tokens: std::collections::HashMap<String, String>, outcome: Outcome, provider_outcome: ProviderOutcome, model: String, model_revision_status: ModelRevisionStatus, validation: models::InferenceReceiptValidation) -> InferenceReceipt {
+    pub fn new(invocation_id: uuid::Uuid, definition_revision: String, definition_digest: String, context_digest: String, provider_request_digest: Option<String>, transformation_version: String, dependency_tokens: std::collections::HashMap<String, String>, outcome: Outcome, provider_outcome: ProviderOutcome, model: String, model_revision_status: ModelRevisionStatus, validation: models::InferenceReceiptValidation, usage: models::InferenceUsage, billing: models::InferenceBilling) -> InferenceReceipt {
         InferenceReceipt {
             invocation_id,
             definition_revision,
@@ -75,6 +79,8 @@ impl InferenceReceipt {
             timings_ms: None,
             reason_code: None,
             provider_evidence: None,
+            usage: Box::new(usage),
+            billing: Box::new(billing),
         }
     }
 }

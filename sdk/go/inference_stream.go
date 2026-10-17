@@ -1,15 +1,12 @@
 package macrofold
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
-	"time"
 )
 
 // StreamInference posts once and yields transient events including the saved terminal
@@ -28,26 +25,11 @@ func (c *APIClient) StreamInference(ctx context.Context, input *InferenceCreate,
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Servers[0].URL+"/v1/inferences", bytes.NewReader(body))
+	ctx, cancel := context.WithTimeout(ctx, settings.inferenceTimeout)
+	defer cancel()
+	response, err := c.openInference(ctx, body, true, settings)
 	if err != nil {
 		return err
-	}
-	for k, v := range c.cfg.DefaultHeader {
-		req.Header.Set(k, v)
-	}
-	req.Header.Set("Idempotency-Key", settings.idempotencyKey)
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Content-Type", "application/json")
-	if settings.organization != "" {
-		req.Header.Set("X-Organization-Id", settings.organization)
-	}
-	// A direct request may run for 240 seconds; durable stream reconnect timeouts
-	// must not truncate a single POST. The caller's context can narrow this.
-	transport := *c.cfg.HTTPClient
-	transport.Timeout = 300 * time.Second
-	response, err := transport.Do(req)
-	if err != nil {
-		return requestError(err, response, settings.idempotencyKey)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != 200 {
@@ -58,7 +40,21 @@ func (c *APIClient) StreamInference(ctx context.Context, input *InferenceCreate,
 		return requestError(errors.New("expected an event stream"), response, settings.idempotencyKey)
 	}
 	terminal := false
+	var runID string
+	var urls map[string]string
 	err = readSSE(response.Body, func(data []byte) error {
+		var metadata struct {
+			RunID string `json:"run_id"`
+			Data  struct {
+				URLs map[string]string `json:"urls"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(data, &metadata) == nil {
+			runID = metadata.RunID
+			if metadata.Data.URLs != nil {
+				urls = metadata.Data.URLs
+			}
+		}
 		var event InferenceStreamEvent
 		if err := json.Unmarshal(data, &event); err != nil {
 			return err
@@ -81,5 +77,10 @@ func (c *APIClient) StreamInference(ctx context.Context, input *InferenceCreate,
 	if err == nil {
 		err = errors.New("stream ended before terminal result; retrieve the saved run result")
 	}
-	return requestError(err, response, settings.idempotencyKey)
+	wrapped := requestError(err, response, settings.idempotencyKey).(*RequestError)
+	if runID != "" {
+		wrapped.RunID = runID
+	}
+	wrapped.URLs = urls
+	return wrapped
 }

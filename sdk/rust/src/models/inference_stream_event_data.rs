@@ -11,7 +11,6 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// InferenceStreamEventData : Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InferenceStreamEventData {
     #[serde(rename = "text", skip_serializing_if = "Option::is_none")]
@@ -28,14 +27,41 @@ pub struct InferenceStreamEventData {
     pub tool_call_id: Option<String>,
     #[serde(rename = "stop_reason", skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
+    #[serde(rename = "run_id", skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<uuid::Uuid>,
+    #[serde(rename = "session_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<Option<uuid::Uuid>>,
+    #[serde(rename = "worktree_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<Option<uuid::Uuid>>,
+    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
+    pub status: Option<Status>,
+    #[serde(rename = "urls", skip_serializing_if = "Option::is_none")]
+    pub urls: Option<Box<models::InferenceUrls>>,
+    /// Submission to execution start, or elapsed wait through now/completion if never started.
+    #[serde(rename = "wait_seconds", skip_serializing_if = "Option::is_none")]
+    pub wait_seconds: Option<f64>,
+    /// Funds still held and unavailable for other jobs; released on settlement.
+    #[serde(rename = "reserved_micro_usd", skip_serializing_if = "Option::is_none")]
+    pub reserved_micro_usd: Option<String>,
+    #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
+    pub kind: Option<Kind>,
     #[serde(rename = "delivery", skip_serializing_if = "Option::is_none")]
     pub delivery: Option<Delivery>,
     #[serde(rename = "result", skip_serializing_if = "Option::is_none")]
     pub result: Option<Box<models::RunResult>>,
+    #[serde(rename = "code", skip_serializing_if = "Option::is_none")]
+    pub code: Option<Code>,
+    #[serde(rename = "message", skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(rename = "idempotency_key", skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+    #[serde(rename = "recovery_reason", skip_serializing_if = "Option::is_none")]
+    pub recovery_reason: Option<RecoveryReason>,
+    #[serde(rename = "reason", skip_serializing_if = "Option::is_none")]
+    pub reason: Option<Reason>,
 }
 
 impl InferenceStreamEventData {
-    /// Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.
     pub fn new() -> InferenceStreamEventData {
         InferenceStreamEventData {
             text: None,
@@ -45,9 +71,58 @@ impl InferenceStreamEventData {
             choice_index: None,
             tool_call_id: None,
             stop_reason: None,
+            run_id: None,
+            session_id: None,
+            worktree_id: None,
+            status: None,
+            urls: None,
+            wait_seconds: None,
+            reserved_micro_usd: None,
+            kind: None,
             delivery: None,
             result: None,
+            code: None,
+            message: None,
+            idempotency_key: None,
+            recovery_reason: None,
+            reason: None,
         }
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Status {
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "succeeded")]
+    Succeeded,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "timed_out")]
+    TimedOut,
+}
+
+impl Default for Status {
+    fn default() -> Status {
+        Self::Running
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Kind {
+    #[serde(rename = "native_agent")]
+    NativeAgent,
+    #[serde(rename = "inference")]
+    Inference,
+    #[serde(rename = "bounded_agent")]
+    BoundedAgent,
+}
+
+impl Default for Kind {
+    fn default() -> Kind {
+        Self::NativeAgent
     }
 }
 ///
@@ -62,6 +137,48 @@ pub enum Delivery {
 impl Default for Delivery {
     fn default() -> Delivery {
         Self::Live
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Code {
+    #[serde(rename = "inference_recovery_required")]
+    InferenceRecoveryRequired,
+    #[serde(rename = "stream_interrupted")]
+    StreamInterrupted,
+}
+
+impl Default for Code {
+    fn default() -> Code {
+        Self::InferenceRecoveryRequired
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum RecoveryReason {
+    #[serde(rename = "in_progress")]
+    InProgress,
+    #[serde(rename = "finalization_pending")]
+    FinalizationPending,
+    #[serde(rename = "outcome_unknown")]
+    OutcomeUnknown,
+}
+
+impl Default for RecoveryReason {
+    fn default() -> RecoveryReason {
+        Self::InProgress
+    }
+}
+///
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum Reason {
+    #[serde(rename = "result_available")]
+    ResultAvailable,
+}
+
+impl Default for Reason {
+    fn default() -> Reason {
+        Self::ResultAvailable
     }
 }
 

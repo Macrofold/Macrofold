@@ -17,7 +17,7 @@ import (
 // checks if the InferenceStreamEventData type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &InferenceStreamEventData{}
 
-// InferenceStreamEventData Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.
+// InferenceStreamEventData struct for InferenceStreamEventData
 type InferenceStreamEventData struct {
 	Text *string `json:"text,omitempty"`
 	InvocationId *string `json:"invocation_id,omitempty"`
@@ -26,8 +26,23 @@ type InferenceStreamEventData struct {
 	ChoiceIndex *int32 `json:"choice_index,omitempty"`
 	ToolCallId *string `json:"tool_call_id,omitempty"`
 	StopReason *string `json:"stop_reason,omitempty"`
+	RunId *string `json:"run_id,omitempty"`
+	SessionId NullableString `json:"session_id,omitempty"`
+	WorktreeId NullableString `json:"worktree_id,omitempty"`
+	Status *string `json:"status,omitempty"`
+	Urls *InferenceUrls `json:"urls,omitempty"`
+	// Submission to execution start, or elapsed wait through now/completion if never started.
+	WaitSeconds *float32 `json:"wait_seconds,omitempty"`
+	// Funds still held and unavailable for other jobs; released on settlement.
+	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
+	Kind *string `json:"kind,omitempty"`
 	Delivery *string `json:"delivery,omitempty"`
 	Result *RunResult `json:"result,omitempty"`
+	Code *string `json:"code,omitempty"`
+	Message *string `json:"message,omitempty"`
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	RecoveryReason *string `json:"recovery_reason,omitempty"`
+	Reason *string `json:"reason,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -274,6 +289,282 @@ func (o *InferenceStreamEventData) SetStopReason(v string) {
 	o.StopReason = &v
 }
 
+// GetRunId returns the RunId field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetRunId() string {
+	if o == nil || IsNil(o.RunId) {
+		var ret string
+		return ret
+	}
+	return *o.RunId
+}
+
+// GetRunIdOk returns a tuple with the RunId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetRunIdOk() (*string, bool) {
+	if o == nil || IsNil(o.RunId) {
+		return nil, false
+	}
+	return o.RunId, true
+}
+
+// HasRunId returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasRunId() bool {
+	if o != nil && !IsNil(o.RunId) {
+		return true
+	}
+
+	return false
+}
+
+// SetRunId gets a reference to the given string and assigns it to the RunId field.
+func (o *InferenceStreamEventData) SetRunId(v string) {
+	o.RunId = &v
+}
+
+// GetSessionId returns the SessionId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *InferenceStreamEventData) GetSessionId() string {
+	if o == nil || IsNil(o.SessionId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SessionId.Get()
+}
+
+// GetSessionIdOk returns a tuple with the SessionId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *InferenceStreamEventData) GetSessionIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SessionId.Get(), o.SessionId.IsSet()
+}
+
+// HasSessionId returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasSessionId() bool {
+	if o != nil && o.SessionId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSessionId gets a reference to the given NullableString and assigns it to the SessionId field.
+func (o *InferenceStreamEventData) SetSessionId(v string) {
+	o.SessionId.Set(&v)
+}
+// SetSessionIdNil sets the value for SessionId to be an explicit nil
+func (o *InferenceStreamEventData) SetSessionIdNil() {
+	o.SessionId.Set(nil)
+}
+
+// UnsetSessionId ensures that no value is present for SessionId, not even an explicit nil
+func (o *InferenceStreamEventData) UnsetSessionId() {
+	o.SessionId.Unset()
+}
+
+// GetWorktreeId returns the WorktreeId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *InferenceStreamEventData) GetWorktreeId() string {
+	if o == nil || IsNil(o.WorktreeId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.WorktreeId.Get()
+}
+
+// GetWorktreeIdOk returns a tuple with the WorktreeId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *InferenceStreamEventData) GetWorktreeIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.WorktreeId.Get(), o.WorktreeId.IsSet()
+}
+
+// HasWorktreeId returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasWorktreeId() bool {
+	if o != nil && o.WorktreeId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetWorktreeId gets a reference to the given NullableString and assigns it to the WorktreeId field.
+func (o *InferenceStreamEventData) SetWorktreeId(v string) {
+	o.WorktreeId.Set(&v)
+}
+// SetWorktreeIdNil sets the value for WorktreeId to be an explicit nil
+func (o *InferenceStreamEventData) SetWorktreeIdNil() {
+	o.WorktreeId.Set(nil)
+}
+
+// UnsetWorktreeId ensures that no value is present for WorktreeId, not even an explicit nil
+func (o *InferenceStreamEventData) UnsetWorktreeId() {
+	o.WorktreeId.Unset()
+}
+
+// GetStatus returns the Status field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetStatus() string {
+	if o == nil || IsNil(o.Status) {
+		var ret string
+		return ret
+	}
+	return *o.Status
+}
+
+// GetStatusOk returns a tuple with the Status field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetStatusOk() (*string, bool) {
+	if o == nil || IsNil(o.Status) {
+		return nil, false
+	}
+	return o.Status, true
+}
+
+// HasStatus returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasStatus() bool {
+	if o != nil && !IsNil(o.Status) {
+		return true
+	}
+
+	return false
+}
+
+// SetStatus gets a reference to the given string and assigns it to the Status field.
+func (o *InferenceStreamEventData) SetStatus(v string) {
+	o.Status = &v
+}
+
+// GetUrls returns the Urls field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetUrls() InferenceUrls {
+	if o == nil || IsNil(o.Urls) {
+		var ret InferenceUrls
+		return ret
+	}
+	return *o.Urls
+}
+
+// GetUrlsOk returns a tuple with the Urls field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetUrlsOk() (*InferenceUrls, bool) {
+	if o == nil || IsNil(o.Urls) {
+		return nil, false
+	}
+	return o.Urls, true
+}
+
+// HasUrls returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasUrls() bool {
+	if o != nil && !IsNil(o.Urls) {
+		return true
+	}
+
+	return false
+}
+
+// SetUrls gets a reference to the given InferenceUrls and assigns it to the Urls field.
+func (o *InferenceStreamEventData) SetUrls(v InferenceUrls) {
+	o.Urls = &v
+}
+
+// GetWaitSeconds returns the WaitSeconds field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetWaitSeconds() float32 {
+	if o == nil || IsNil(o.WaitSeconds) {
+		var ret float32
+		return ret
+	}
+	return *o.WaitSeconds
+}
+
+// GetWaitSecondsOk returns a tuple with the WaitSeconds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetWaitSecondsOk() (*float32, bool) {
+	if o == nil || IsNil(o.WaitSeconds) {
+		return nil, false
+	}
+	return o.WaitSeconds, true
+}
+
+// HasWaitSeconds returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasWaitSeconds() bool {
+	if o != nil && !IsNil(o.WaitSeconds) {
+		return true
+	}
+
+	return false
+}
+
+// SetWaitSeconds gets a reference to the given float32 and assigns it to the WaitSeconds field.
+func (o *InferenceStreamEventData) SetWaitSeconds(v float32) {
+	o.WaitSeconds = &v
+}
+
+// GetReservedMicroUsd returns the ReservedMicroUsd field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetReservedMicroUsd() string {
+	if o == nil || IsNil(o.ReservedMicroUsd) {
+		var ret string
+		return ret
+	}
+	return *o.ReservedMicroUsd
+}
+
+// GetReservedMicroUsdOk returns a tuple with the ReservedMicroUsd field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetReservedMicroUsdOk() (*string, bool) {
+	if o == nil || IsNil(o.ReservedMicroUsd) {
+		return nil, false
+	}
+	return o.ReservedMicroUsd, true
+}
+
+// HasReservedMicroUsd returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasReservedMicroUsd() bool {
+	if o != nil && !IsNil(o.ReservedMicroUsd) {
+		return true
+	}
+
+	return false
+}
+
+// SetReservedMicroUsd gets a reference to the given string and assigns it to the ReservedMicroUsd field.
+func (o *InferenceStreamEventData) SetReservedMicroUsd(v string) {
+	o.ReservedMicroUsd = &v
+}
+
+// GetKind returns the Kind field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetKind() string {
+	if o == nil || IsNil(o.Kind) {
+		var ret string
+		return ret
+	}
+	return *o.Kind
+}
+
+// GetKindOk returns a tuple with the Kind field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetKindOk() (*string, bool) {
+	if o == nil || IsNil(o.Kind) {
+		return nil, false
+	}
+	return o.Kind, true
+}
+
+// HasKind returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasKind() bool {
+	if o != nil && !IsNil(o.Kind) {
+		return true
+	}
+
+	return false
+}
+
+// SetKind gets a reference to the given string and assigns it to the Kind field.
+func (o *InferenceStreamEventData) SetKind(v string) {
+	o.Kind = &v
+}
+
 // GetDelivery returns the Delivery field value if set, zero value otherwise.
 func (o *InferenceStreamEventData) GetDelivery() string {
 	if o == nil || IsNil(o.Delivery) {
@@ -338,6 +629,166 @@ func (o *InferenceStreamEventData) SetResult(v RunResult) {
 	o.Result = &v
 }
 
+// GetCode returns the Code field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetCode() string {
+	if o == nil || IsNil(o.Code) {
+		var ret string
+		return ret
+	}
+	return *o.Code
+}
+
+// GetCodeOk returns a tuple with the Code field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetCodeOk() (*string, bool) {
+	if o == nil || IsNil(o.Code) {
+		return nil, false
+	}
+	return o.Code, true
+}
+
+// HasCode returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasCode() bool {
+	if o != nil && !IsNil(o.Code) {
+		return true
+	}
+
+	return false
+}
+
+// SetCode gets a reference to the given string and assigns it to the Code field.
+func (o *InferenceStreamEventData) SetCode(v string) {
+	o.Code = &v
+}
+
+// GetMessage returns the Message field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetMessage() string {
+	if o == nil || IsNil(o.Message) {
+		var ret string
+		return ret
+	}
+	return *o.Message
+}
+
+// GetMessageOk returns a tuple with the Message field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetMessageOk() (*string, bool) {
+	if o == nil || IsNil(o.Message) {
+		return nil, false
+	}
+	return o.Message, true
+}
+
+// HasMessage returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasMessage() bool {
+	if o != nil && !IsNil(o.Message) {
+		return true
+	}
+
+	return false
+}
+
+// SetMessage gets a reference to the given string and assigns it to the Message field.
+func (o *InferenceStreamEventData) SetMessage(v string) {
+	o.Message = &v
+}
+
+// GetIdempotencyKey returns the IdempotencyKey field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetIdempotencyKey() string {
+	if o == nil || IsNil(o.IdempotencyKey) {
+		var ret string
+		return ret
+	}
+	return *o.IdempotencyKey
+}
+
+// GetIdempotencyKeyOk returns a tuple with the IdempotencyKey field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetIdempotencyKeyOk() (*string, bool) {
+	if o == nil || IsNil(o.IdempotencyKey) {
+		return nil, false
+	}
+	return o.IdempotencyKey, true
+}
+
+// HasIdempotencyKey returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasIdempotencyKey() bool {
+	if o != nil && !IsNil(o.IdempotencyKey) {
+		return true
+	}
+
+	return false
+}
+
+// SetIdempotencyKey gets a reference to the given string and assigns it to the IdempotencyKey field.
+func (o *InferenceStreamEventData) SetIdempotencyKey(v string) {
+	o.IdempotencyKey = &v
+}
+
+// GetRecoveryReason returns the RecoveryReason field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetRecoveryReason() string {
+	if o == nil || IsNil(o.RecoveryReason) {
+		var ret string
+		return ret
+	}
+	return *o.RecoveryReason
+}
+
+// GetRecoveryReasonOk returns a tuple with the RecoveryReason field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetRecoveryReasonOk() (*string, bool) {
+	if o == nil || IsNil(o.RecoveryReason) {
+		return nil, false
+	}
+	return o.RecoveryReason, true
+}
+
+// HasRecoveryReason returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasRecoveryReason() bool {
+	if o != nil && !IsNil(o.RecoveryReason) {
+		return true
+	}
+
+	return false
+}
+
+// SetRecoveryReason gets a reference to the given string and assigns it to the RecoveryReason field.
+func (o *InferenceStreamEventData) SetRecoveryReason(v string) {
+	o.RecoveryReason = &v
+}
+
+// GetReason returns the Reason field value if set, zero value otherwise.
+func (o *InferenceStreamEventData) GetReason() string {
+	if o == nil || IsNil(o.Reason) {
+		var ret string
+		return ret
+	}
+	return *o.Reason
+}
+
+// GetReasonOk returns a tuple with the Reason field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceStreamEventData) GetReasonOk() (*string, bool) {
+	if o == nil || IsNil(o.Reason) {
+		return nil, false
+	}
+	return o.Reason, true
+}
+
+// HasReason returns a boolean if a field has been set.
+func (o *InferenceStreamEventData) HasReason() bool {
+	if o != nil && !IsNil(o.Reason) {
+		return true
+	}
+
+	return false
+}
+
+// SetReason gets a reference to the given string and assigns it to the Reason field.
+func (o *InferenceStreamEventData) SetReason(v string) {
+	o.Reason = &v
+}
+
 func (o InferenceStreamEventData) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -369,11 +820,50 @@ func (o InferenceStreamEventData) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.StopReason) {
 		toSerialize["stop_reason"] = o.StopReason
 	}
+	if !IsNil(o.RunId) {
+		toSerialize["run_id"] = o.RunId
+	}
+	if o.SessionId.IsSet() {
+		toSerialize["session_id"] = o.SessionId.Get()
+	}
+	if o.WorktreeId.IsSet() {
+		toSerialize["worktree_id"] = o.WorktreeId.Get()
+	}
+	if !IsNil(o.Status) {
+		toSerialize["status"] = o.Status
+	}
+	if !IsNil(o.Urls) {
+		toSerialize["urls"] = o.Urls
+	}
+	if !IsNil(o.WaitSeconds) {
+		toSerialize["wait_seconds"] = o.WaitSeconds
+	}
+	if !IsNil(o.ReservedMicroUsd) {
+		toSerialize["reserved_micro_usd"] = o.ReservedMicroUsd
+	}
+	if !IsNil(o.Kind) {
+		toSerialize["kind"] = o.Kind
+	}
 	if !IsNil(o.Delivery) {
 		toSerialize["delivery"] = o.Delivery
 	}
 	if !IsNil(o.Result) {
 		toSerialize["result"] = o.Result
+	}
+	if !IsNil(o.Code) {
+		toSerialize["code"] = o.Code
+	}
+	if !IsNil(o.Message) {
+		toSerialize["message"] = o.Message
+	}
+	if !IsNil(o.IdempotencyKey) {
+		toSerialize["idempotency_key"] = o.IdempotencyKey
+	}
+	if !IsNil(o.RecoveryReason) {
+		toSerialize["recovery_reason"] = o.RecoveryReason
+	}
+	if !IsNil(o.Reason) {
+		toSerialize["reason"] = o.Reason
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -404,8 +894,21 @@ func (o *InferenceStreamEventData) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "choice_index")
 		delete(additionalProperties, "tool_call_id")
 		delete(additionalProperties, "stop_reason")
+		delete(additionalProperties, "run_id")
+		delete(additionalProperties, "session_id")
+		delete(additionalProperties, "worktree_id")
+		delete(additionalProperties, "status")
+		delete(additionalProperties, "urls")
+		delete(additionalProperties, "wait_seconds")
+		delete(additionalProperties, "reserved_micro_usd")
+		delete(additionalProperties, "kind")
 		delete(additionalProperties, "delivery")
 		delete(additionalProperties, "result")
+		delete(additionalProperties, "code")
+		delete(additionalProperties, "message")
+		delete(additionalProperties, "idempotency_key")
+		delete(additionalProperties, "recovery_reason")
+		delete(additionalProperties, "reason")
 		o.AdditionalProperties = additionalProperties
 	}
 

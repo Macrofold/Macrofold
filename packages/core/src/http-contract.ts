@@ -62,7 +62,10 @@ function validate(schema: JSONSchema, data: unknown, label: string) {
     validators.set(key, check);
   }
   assert(check(data), 400, 'invalid_request', `${label} is invalid.`, {
-    issues: check.errors?.map((e) => ({ path: e.instancePath, message: e.message })).slice(0, 10),
+    issues: check.errors?.slice(0, 10).map((e) => ({
+      path: e.instancePath.slice(0, 1000),
+      message: (e.message || 'Invalid value').slice(0, 1000),
+    })),
   });
 }
 export const routes = Object.entries(root.paths).flatMap(([path, methods]) =>
@@ -155,7 +158,9 @@ export function workspaceResponse(value: unknown, schema: JSONSchema): unknown {
   return value;
 }
 export function responseFor(operation: Operation, value: unknown, status?: number) {
-  const [code, result] = Object.entries(operation.responses).find(([code]) => status === undefined ? code.startsWith('2') : code === String(status))!;
+  const [code, result] = Object.entries(operation.responses).find(([code]) =>
+    status === undefined ? code.startsWith('2') : code === String(status),
+  )!;
   const schema = result.content?.['application/json']?.schema;
   return { status: Number(code), body: schema ? workspaceResponse(value, schema) : value };
 }

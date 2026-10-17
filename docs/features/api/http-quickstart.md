@@ -4,7 +4,7 @@ Create a workspace, start a run, and read its result with cURL. Use a local simu
 
 ## Prefer an SDK?
 
-The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a workspace, and explicit harness/model configuration. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; streams reconnect automatically.
+The [TypeScript](../../../sdk/typescript/README.md) and [Python](../../../sdk/python/README.md) guides start with `Macrofold()`, a scoped `MACROFOLD_API_KEY`, a workspace, and explicit harness/model configuration. Use `runs.create` followed by plain-text streaming or `runs.wait` for the complete response. The [SDK index](sdks/README.md) includes Go, Rust, and Java. Clients default to the hosted origin and accept local or self-hosted overrides; durable agent streams reconnect automatically. Direct inference streams use one POST and recover by Run identity after interruption.
 
 ## Before you begin
 
@@ -75,6 +75,8 @@ curl --fail-with-body "$AGENT_HOST/v1/runs/$RUN_ID/result" \
 A cURL stream can end at the server's connection rotation before the run finishes. Reconnect with `Last-Event-ID` using the last event ID, or use an SDK to handle reconnection. Check the result's `final` flag before treating it as complete.
 
 ## Continue building
+
+For one model call, [immediate inference](../decisions/README.md) returns its finalized JSON result directly from `POST /v1/inferences`; it does not use the agent queue. Its exceptional HTTP 202 response identifies existing work awaiting completion/recovery.
 
 - [Stream model responses or agent output](streaming.md), including a complete direct-inference cURL example.
 

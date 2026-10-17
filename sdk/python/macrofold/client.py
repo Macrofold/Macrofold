@@ -8,6 +8,8 @@ import re
 import time
 import uuid
 import os
+import random
+from email.utils import parsedate_to_datetime
 from collections.abc import Callable, Generator, Mapping
 from importlib.resources import files
 from typing import Any
@@ -23,15 +25,17 @@ TERMINAL = {"succeeded", "failed", "cancelled", "timed_out"}
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str, request_id: str | None = None):
+    def __init__(self, status: int, code: str, message: str, request_id: str | None = None, *, idempotency_key: str | None = None, details: dict[str, Any] | None = None, retryable: bool = False):
         super().__init__(message)
         self.status, self.code, self.request_id = status, code, request_id
+        self.idempotency_key, self.details, self.retryable = idempotency_key, details if isinstance(details, dict) else {}, retryable
+        self.run_id, self.urls = self.details.get("run_id"), self.details.get("urls")
 
 
 class TransportError(Exception):
-    def __init__(self, message: str, idempotency_key: str | None = None):
+    def __init__(self, message: str, idempotency_key: str | None = None, *, run_id: str | None = None, urls: dict[str, str] | None = None, request_id: str | None = None):
         super().__init__(message)
-        self.idempotency_key = idempotency_key
+        self.idempotency_key, self.run_id, self.urls, self.request_id = idempotency_key, run_id, urls, request_id
 
 
 def _origin(value: str) -> str:
@@ -98,6 +102,8 @@ class Client(Resources):
         idempotency_key: str | None = None,
         stream: bool = False,
         _deadline: float | None = None,
+        inference_retries: int = 0,
+        timeout: float | None = None,
     ) -> httpx.Response:
         if operation not in ROUTES:
             raise ValueError(f"Unknown operation: {operation}")
@@ -105,7 +111,13 @@ class Client(Resources):
         # HTTPX read timeouts apply per chunk. An absolute deadline also bounds
         # a response that trickles bytes forever; event streams enforce their own.
         wait_deadline = _deadline
-        request_seconds = 300 if operation == 'createInference' else 70
+        immediate = operation == 'createInference'
+        request_seconds = timeout if timeout is not None else (300 if immediate else 70)
+        if not math.isfinite(request_seconds) or request_seconds <= 0:
+            raise ValueError('timeout must be finite and positive')
+        if not isinstance(inference_retries, int) or isinstance(inference_retries, bool) or not 0 <= inference_retries <= 2:
+            raise ValueError('inference_retries must be between 0 and 2')
+        retries = inference_retries if immediate else self.retries
         _deadline = min(_deadline, time.monotonic() + request_seconds) if _deadline is not None else time.monotonic() + request_seconds
 
         def parameter(match: re.Match[str]) -> str:
@@ -117,13 +129,19 @@ class Client(Resources):
         endpoint = re.sub(r"\{([^}]+)\}", parameter, route["path"])
         mutation = route["method"] not in {"GET", "HEAD"}
         identity = idempotency_key or str(uuid.uuid4()) if mutation else None
-        payload = body if isinstance(body, bytes) else json.dumps(body).encode() if body is not None else None
+        try:
+            payload = body if isinstance(body, bytes) else json.dumps(body).encode() if body is not None else None
+        except (ValueError, TypeError) as error:
+            if not immediate:
+                raise
+            raise TransportError("The inference request could not be encoded.", identity) from error
+        response: httpx.Response | None = None
         def remaining() -> float:
             value = 65 if _deadline is None else _deadline - time.monotonic()
             if value <= 0:
                 if wait_deadline is not None and time.monotonic() >= wait_deadline:
                     raise TimeoutError('Wait deadline expired')
-                raise TransportError('Request deadline expired. Inspect the resource or reuse the mutation identity.', identity)
+                raise TransportError('Request deadline expired. Inspect the resource or reuse the mutation identity.', identity, run_id=response.headers.get("x-run-id") if response is not None else None, request_id=response.headers.get("x-request-id") if response is not None else None) from TimeoutError('Request deadline expired')
             return min(request_seconds, value)
 
         def pause(seconds: float) -> None:
@@ -131,12 +149,17 @@ class Client(Resources):
             if _deadline is not None:
                 remaining()
 
-        for attempt in range(self.retries + 1):
+        for attempt in range(retries + 1):
             if _deadline is not None:
                 remaining()
-            token = self._token() if callable(self._token) else self._token
-            if not token or not token.strip():
-                raise ValueError("Missing Macrofold API key. Pass api_key or set MACROFOLD_API_KEY.")
+            try:
+                token = self._token() if callable(self._token) else self._token
+                if not token or not token.strip():
+                    raise ValueError("Missing Macrofold API key. Pass api_key or set MACROFOLD_API_KEY.")
+            except Exception as error:
+                if not immediate:
+                    raise
+                raise TransportError("The request credential could not be prepared.", identity) from error
             request_headers = {"X-Client-Type": "sdk", **(headers or {}), "Authorization": f"Bearer {token}"}
             if self.organization:
                 request_headers["X-Organization-Id"] = self.organization
@@ -151,6 +174,7 @@ class Client(Resources):
             )
             try:
                 response = self._http.send(request, stream=stream or _deadline is not None)
+                request.extensions["timeout"]["read"] = remaining()
                 if (not stream or not 200 <= response.status_code < 300) and not response.is_stream_consumed:
                     # Enforce the wait deadline while reading too, including a slowly arriving body.
                     try:
@@ -168,20 +192,13 @@ class Client(Resources):
             except httpx.TransportError as error:
                 if _deadline is not None:
                     remaining()
-                if attempt < self.retries:
+                if not immediate and attempt < retries:
                     pause(0.2 * 2**attempt)
                     continue
-                raise TransportError("Request outcome is unknown. Reuse the idempotency key for a mutation.", identity) from error
+                raise TransportError("Request outcome is unknown. Reuse the idempotency key for a mutation.", identity, run_id=response.headers.get("x-run-id") if response is not None else None, request_id=response.headers.get("x-request-id") if response is not None else None) from error
             if 200 <= response.status_code < 300:
+                response.extensions["macrofold_deadline"] = _deadline
                 return response
-            if response.status_code in {429, 502, 503, 504} and attempt < self.retries:
-                try:
-                    retry_after = min(60, max(0, float(response.headers.get("retry-after", "0"))))
-                except ValueError:
-                    retry_after = 0
-                response.close()
-                pause(max(retry_after, 0.2 * 2**attempt))
-                continue
             try:
                 response.read()
                 error_body = response.json().get("error", {})
@@ -189,7 +206,30 @@ class Client(Resources):
                 error_body = {}
             finally:
                 response.close()
-            raise ApiError(response.status_code, error_body.get("code", "http_error"), error_body.get("message", f"Request failed ({response.status_code})"), response.headers.get("x-request-id"))
+            if not isinstance(error_body, dict):
+                error_body = {}
+            error = ApiError(response.status_code, error_body.get("code", "http_error"), error_body.get("message", f"Request failed ({response.status_code})"), response.headers.get("x-request-id") or error_body.get("request_id"), idempotency_key=identity, details=error_body.get("details"), retryable=error_body.get("retryable") is True)
+            error.run_id = error.run_id or response.headers.get("x-run-id")
+            confirmed = error_body.get("retryable") is True and not error.run_id and error.code in {"rate_limited", "inference_capacity_unavailable", "streaming_capacity_unavailable", "inference_service_unavailable", "inference_admission_timeout", "inference_host_budget_exhausted"}
+            if attempt < retries and ((confirmed and response.status_code in {429, 503}) if immediate else response.status_code in {429, 502, 503, 504}):
+                hint = response.headers.get("retry-after", "0")
+                try:
+                    retry_after = float(hint)
+                except ValueError:
+                    try:
+                        retry_after = parsedate_to_datetime(hint).timestamp() - time.time()
+                    except (ValueError, TypeError, OverflowError):
+                        retry_after = 0
+                if not math.isfinite(retry_after):
+                    if immediate and retry_after > 0:
+                        raise error
+                    retry_after = 0
+                seconds = max(0, retry_after, 0.2 * 2**attempt) + random.uniform(0.001, 0.1) if immediate else max(min(60, max(0, retry_after)), 0.2 * 2**attempt)
+                if immediate and seconds >= _deadline - time.monotonic():
+                    raise error
+                pause(seconds)
+                continue
+            raise error
         raise AssertionError("Unreachable retry state")
 
     def request(self, operation: str, **kwargs: Any) -> Any:
@@ -206,7 +246,7 @@ class Client(Resources):
                 return response.content
             return response.json()
         except (ValueError, httpx.TransportError) as error:
-            raise TransportError("The service response was incomplete. Reuse the idempotency key for a mutation.", kwargs.get("idempotency_key")) from error
+            raise TransportError("The service response was incomplete. Reuse the idempotency key for a mutation.", kwargs.get("idempotency_key"), run_id=response.headers.get("x-run-id"), request_id=response.headers.get("x-request-id")) from error
         finally:
             response.close()
 
@@ -221,22 +261,26 @@ class Client(Resources):
             time.sleep(min(0.75, max(0, deadline - time.monotonic())))
         raise TransportError(f"Operation {operation_id} is still pending; inspect its ID later")
 
-    def stream_inference(self, body: Mapping[str, Any], *, idempotency_key: str | None = None, headers: Mapping[str, str] | None = None) -> Generator[dict[str, Any], None, None]:
+    def stream_inference(self, body: Mapping[str, Any], *, idempotency_key: str | None = None, headers: Mapping[str, str] | None = None, inference_retries: int = 0, timeout: float | None = None) -> Generator[dict[str, Any], None, None]:
         """Deliver a single POST stream. Closing detaches; recover using its run ID."""
         identity = idempotency_key or str(uuid.uuid4())
-        response = self._raw("createInference", body={**body, "stream": True}, idempotency_key=identity, headers={**(headers or {}), "Accept": "text/event-stream"}, stream=True)
+        response = self._raw("createInference", body={**body, "stream": True}, idempotency_key=identity, headers={**(headers or {}), "Accept": "text/event-stream"}, stream=True, inference_retries=inference_retries, timeout=timeout)
+        response.request.extensions["timeout"]["read"] = max(0.001, response.extensions.get("macrofold_deadline", time.monotonic()+300) - time.monotonic())
+        run_id, urls = response.headers.get("x-run-id"), None
         try:
             if "text/event-stream" not in response.headers.get("content-type", ""):
                 raise TransportError("Expected a direct event stream.", identity)
-            for event in _sse_events(response, lifetime=300):
+            for event in _sse_events(response, lifetime=max(0.001, response.extensions.get("macrofold_deadline", time.monotonic() + (timeout or 300)) - time.monotonic())):
+                run_id = event.get("run_id", run_id)
+                urls = event.get("data", {}).get("urls", urls)
                 yield event
                 if event.get("type") == "transport.error":
-                    raise TransportError("Stream interrupted; retrieve the saved run result.", identity)
+                    raise TransportError("Stream interrupted; retrieve the saved run result.", identity, run_id=run_id, urls=urls, request_id=response.headers.get("x-request-id"))
                 if event.get("type") in {f"run.{status}" for status in TERMINAL} | {"run.recovery_required"}:
                     return
-            raise TransportError("Stream ended before its terminal result; retrieve the saved run result.", identity)
+            raise TransportError("Stream ended before its terminal result; retrieve the saved run result.", identity, run_id=run_id, urls=urls, request_id=response.headers.get("x-request-id"))
         except (ValueError, httpx.TransportError) as error:
-            raise TransportError("Stream interrupted; retrieve the saved run result.", identity) from error
+            raise TransportError("Stream interrupted; retrieve the saved run result.", identity, run_id=run_id, urls=urls, request_id=response.headers.get("x-request-id")) from error
         finally:
             response.close()
 

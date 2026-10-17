@@ -7,6 +7,8 @@ export type RequestSettings = {
   signal?: AbortSignal;
   idempotencyKey?: string;
   headers?: Record<string, string>;
+  inferenceRetries?: number;
+  timeoutMs?: number;
 };
 type Transport = Pick<Client, 'request' | 'stream' | 'streamCustomerAgent' | 'streamInference'>;
 export type CreateDecisionTaskOptions = NonNullable<
@@ -2014,9 +2016,7 @@ export class SessionsResource {
 }
 export type CreateInferenceOptions = NonNullable<
   operations['createInference']['requestBody']
->['content']['application/json'] & {
-  prefer?: NonNullable<operations['createInference']['parameters']['header']>['Prefer'];
-};
+>['content']['application/json'];
 export type CreateBoundedAgentRunOptions = NonNullable<
   operations['createBoundedAgentRun']['requestBody']
 >['content']['application/json'];
@@ -2071,11 +2071,10 @@ export class InferencesResource {
     options: CreateInferenceOptions,
     requestOptions: RequestSettings = {},
   ): Promise<Result<'createInference'>> {
-    const { prefer, ...body } = options;
     return this.client.request('createInference', {
       ...requestOptions,
-      params: { header: { Prefer: prefer } },
-      body: body,
+
+      body: options,
     });
   }
   createBoundedAgentRun(

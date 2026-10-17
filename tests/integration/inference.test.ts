@@ -16,7 +16,7 @@ import { advanceInference } from '../../packages/core/src/inference-engine';
 import { advanceTask } from '../../packages/core/src/decision-task-engine';
 import { getRun, cancelRun } from '../../packages/core/src/runs';
 import type { InferenceCreate } from '../../packages/core/src/decision';
-import type { ResolvedInferenceCreate } from '../../packages/core/src/inferences';
+import { prepareInference, type ResolvedInferenceCreate } from '../../packages/core/src/inferences';
 import * as tracing from '../../packages/core/src/tracing';
 
 let owner: Principal, application: Principal, workspaceId: string, key: string;
@@ -135,19 +135,26 @@ function enable() {
   config.allowPaid = true;
   vi.stubEnv('ANTHROPIC_API_KEY', 'synthetic-inference-key');
 }
-it.each(['admission', 'spending'] as const)('preserves the explicit %s pause without admitting a run', async (pause) => {
-  enable();
-  if (pause === 'admission') vi.stubEnv('RUN_ADMISSION_ENABLED', 'false');
-  else config.allowPaid = false;
-  const countRuns = () => transaction(owner.organizationId, async (tx) =>
-    (await tx.query('SELECT count(*)::integer AS count FROM runs')).rows[0].count,
-  );
-  const before = await countRuns();
-  const response = await api('inferences', 'POST', input());
-  expect(response.status).toBe(503);
-  expect(await response.json()).toMatchObject({ error: { code: pause === 'admission' ? 'inference_disabled' : 'execution_disabled' } });
-  expect(await countRuns()).toBe(before);
-});
+it.each(['admission', 'spending'] as const)(
+  'preserves the explicit %s pause without admitting a run',
+  async (pause) => {
+    enable();
+    if (pause === 'admission') vi.stubEnv('RUN_ADMISSION_ENABLED', 'false');
+    else config.allowPaid = false;
+    const countRuns = () =>
+      transaction(
+        owner.organizationId,
+        async (tx) => (await tx.query('SELECT count(*)::integer AS count FROM runs')).rows[0].count,
+      );
+    const before = await countRuns();
+    const response = await api('inferences', 'POST', input());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: { code: pause === 'admission' ? 'inference_disabled' : 'execution_disabled' },
+    });
+    expect(await countRuns()).toBe(before);
+  },
+);
 async function api(path: string, method = 'GET', body?: unknown, identity = id()) {
   return handleApi(
     new Request(`${config.origin}/v1/${path}`, {
@@ -156,7 +163,6 @@ async function api(path: string, method = 'GET', body?: unknown, identity = id()
         authorization: `Bearer ${key}`,
         'content-type': 'application/json',
         'idempotency-key': identity,
-        prefer: 'respond-async',
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
@@ -164,11 +170,12 @@ async function api(path: string, method = 'GET', body?: unknown, identity = id()
 }
 async function submit(body: InferenceCreate = input()) {
   enable();
-  const response = await api('inferences', 'POST', body);
-  const result = await response.json();
-  expect(result, JSON.stringify(result)).toHaveProperty('run_id');
-  expect(response.status).toBe(202);
-  return result.run_id as string;
+  // Historical phase/recovery fixtures exercise the queued internal owner used
+  // by Tasks. Public POST /inferences now has its own immediate HTTP acceptance.
+  const prepared = await prepareInference(application, body);
+  const accepted = await transaction(application.organizationId, (tx) => prepared.commit(tx, application));
+  await prepared.dispose();
+  return accepted.run_id;
 }
 function provider(value: unknown = 'review', withUsage = true) {
   const fetch = vi.fn(async () =>
@@ -189,6 +196,120 @@ async function complete(runId: string) {
   for (let step = 0; step < 8; step++) if ((await advanceInference(owner.organizationId, runId)).done) return;
   throw new Error('Inference did not finish');
 }
+it('returns the complete settled result on the original request without a worker or billing lookup', async () => {
+  enable();
+  const call = provider();
+  const body = input(),
+    identity = id();
+  const response = await api('inferences', 'POST', body, identity);
+  expect(response.status).toBe(200);
+  const value = await response.json();
+  expect(value).toMatchObject({
+    status: 'succeeded',
+    session_id: null,
+    worktree_id: null,
+    result: {
+      run_id: value.run_id,
+      final: true,
+      inference: {
+        outcome: 'value',
+        value: 'review',
+        timings_ms: { queue_wait: 0, admission: expect.any(Number) },
+        usage: { input_tokens: '100', output_tokens: '10', completeness: 'complete' },
+        billing: {
+          billing_mode: 'managed',
+          charged_micro_usd: '150',
+          budget_cost_micro_usd: '150',
+          provisional: false,
+        },
+      },
+    },
+  });
+  expect(value.result.inference.timings_ms.admission).toBeGreaterThan(0);
+  expect(value).not.toHaveProperty('recovery_reason');
+  const saved = await (await api(`runs/${value.run_id}/result`)).json();
+  expect(saved.inference).toEqual(value.result.inference);
+  const replay = await api('inferences', 'POST', body, identity);
+  expect(replay.status).toBe(200);
+  expect(await replay.json()).toMatchObject({ run_id: value.run_id, result: { inference: saved.inference } });
+  expect(call).toHaveBeenCalledTimes(1);
+  const rows = await transaction(owner.organizationId, (tx) =>
+    tx.query("SELECT state FROM dispatch_jobs WHERE kind='run' AND resource_id=$1", [value.run_id]),
+  );
+  expect(rows.rows).toEqual([{ state: 'done' }]);
+});
+it('rejects queued delivery and a host window too short for the accepted request before dispatch', async () => {
+  enable();
+  const call = provider();
+  const headers = {
+    authorization: `Bearer ${key}`,
+    'content-type': 'application/json',
+    'idempotency-key': id(),
+  };
+  const asyncResponse = await handleApi(
+    new Request(`${config.origin}/v1/inferences`, {
+      method: 'POST',
+      headers: { ...headers, prefer: 'respond-async' },
+      body: JSON.stringify(input()),
+    }),
+  );
+  expect(asyncResponse.status).toBe(400);
+  expect(await asyncResponse.json()).toMatchObject({
+    error: {
+      code: 'async_inference_not_supported',
+      details: { idempotency_key: headers['idempotency-key'] },
+    },
+  });
+  const insufficient = await handleApi(
+    new Request(`${config.origin}/v1/inferences`, { method: 'POST', headers, body: JSON.stringify(input()) }),
+    'rest',
+    undefined,
+    { hostDeadlineAtMs: Date.now() + 1000 },
+  );
+  expect(insufficient.status).toBe(503);
+  expect(await insufficient.json()).toMatchObject({ error: { code: 'inference_host_budget_exhausted' } });
+  expect(call).not.toHaveBeenCalled();
+});
+it('serves completed identity replay while new immediate execution capacity is full', async () => {
+  enable();
+  provider();
+  const body = input(),
+    identity = id();
+  const first = await (await api('inferences', 'POST', body, identity)).json();
+  vi.stubEnv('IMMEDIATE_INFERENCE_CONCURRENCY', '1');
+  let release: () => void = () => {},
+    entered: () => void = () => {};
+  const barrier = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const dispatched = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const upstream = provider();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      entered();
+      await barrier;
+      return upstream();
+    }),
+  );
+  const running = api('inferences', 'POST', input());
+  await dispatched;
+  try {
+    const replay = await api('inferences', 'POST', body, identity);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ run_id: first.run_id, status: 'succeeded' });
+    const refused = await api('inferences', 'POST', input());
+    expect(refused.status).toBe(503);
+    expect(await refused.json()).toMatchObject({
+      error: { code: 'inference_service_unavailable', details: { reason: 'local_capacity' } },
+    });
+  } finally {
+    release();
+    await running;
+  }
+});
 it('performs one typed request with no worktree/session and shares result/events/ledger', async () => {
   const call = provider();
   const runId = await submit();
@@ -221,23 +342,43 @@ it('performs one typed request with no worktree/session and shares result/events
   expect(call).toHaveBeenCalledTimes(1);
 });
 it('traces explicit decision context, billing, actor and final receipt under one run identity', async () => {
-  const trace = vi.spyOn(tracing,'recordTrace').mockImplementation(() => {});
-  vi.spyOn(tracing,'tracingEnabled').mockReturnValue(true);
+  const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+  vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
   provider();
   const runId = await submit();
   await complete(runId);
-  const observations = trace.mock.calls.map(([o])=>o);
+  const observations = trace.mock.calls.map(([o]) => o);
   // Successful output belongs to the settled generation, not a duplicate raw-response event.
-  expect(observations.filter(o=>o.type==='generation')).toHaveLength(1);
-  const generation = observations.find(o=>o.type==='generation')!;
-  expect(generation).toMatchObject({name:'decision.generate',chargedMicroUsd:'150',context:{run_id:runId,workspace_id:workspaceId,worktree_id:null,actor_id:'actor-1',definition_revision:'triage/1'},metadata:{provider_request_id:'provider-fixture',provisional:false,provider_cost_status:'estimated_from_usage'}});
+  expect(observations.filter((o) => o.type === 'generation')).toHaveLength(1);
+  const generation = observations.find((o) => o.type === 'generation')!;
+  expect(generation).toMatchObject({
+    name: 'decision.generate',
+    chargedMicroUsd: '150',
+    context: {
+      run_id: runId,
+      workspace_id: workspaceId,
+      worktree_id: null,
+      actor_id: 'actor-1',
+      definition_revision: 'triage/1',
+    },
+    metadata: {
+      provider_request_id: 'provider-fixture',
+      provisional: false,
+      provider_cost_status: 'estimated_from_usage',
+    },
+  });
   expect(JSON.stringify(generation.input)).toContain('overdue');
-  expect(generation.output).toMatchObject({value:'review'});
-  expect(observations.find(o=>o.id==='run')).toMatchObject({type:'agent',metadata:{status:'succeeded',charged_micro_usd:'150'},output:{inference:{value:'review'}}});
-  expect(observations.every(o=>o.context.run_id===runId)).toBe(true);
+  expect(generation.output).toMatchObject({ value: 'review' });
+  expect(observations.find((o) => o.id === 'run')).toMatchObject({
+    type: 'agent',
+    metadata: { status: 'succeeded', charged_micro_usd: '150' },
+    output: { inference: { value: 'review' } },
+  });
+  expect(observations.every((o) => o.context.run_id === runId)).toBe(true);
 });
 it('deduplicates concurrent admission and rejects changed-body replay', async () => {
   enable();
+  const call = provider();
   const body = input(),
     identity = id();
   const responses = await Promise.all([
@@ -246,6 +387,7 @@ it('deduplicates concurrent admission and rejects changed-body replay', async ()
   ]);
   const values = await Promise.all(responses.map((r) => r.json()));
   expect(values[0].run_id).toBe(values[1].run_id);
+  expect(call).toHaveBeenCalledTimes(1);
   expect((await api('inferences', 'POST', { ...body, input: { case_id: 'changed' } }, identity)).status).toBe(
     409,
   );
@@ -337,48 +479,74 @@ it.each(
   },
 );
 it.each([
-  ['typesafe', 'typed'], ['typesafe', 'native'],
-  ['openrouter', 'typed'], ['openrouter', 'native'],
-] as const)('dispatches %s %s Jev requests larger in bytes than the token window', async (provider, shape) => {
-  vi.stubEnv(`${provider.toUpperCase()}_API_KEY`, 'synthetic-jev-key');
-  const model = provider === 'openrouter' ? 'typesafe/jev-1.13' : 'jev-1.13.0';
-  const body = input();
-  body.model_binding = { provider, model, billing_mode: 'managed' };
-  body.definition.allowed_models = [{ provider, model }];
-  const text = ' hello'.repeat(6000); // 36KB, not 36K tokens.
-  body.context.items[0].value = text;
-  const nativeInput = {
-    state: text,
-    questions: { decision: { type: 'choice', instructions: 'Choose review.', criteria: { review: 'Review' } } },
-  };
-  const call = vi.fn(async () => Response.json({
-    model, answers: { decision: { type: 'choice', choice: 'review' } },
-    usage: { input_tokens: 6314, output_tokens: 31 },
-  }));
-  vi.stubGlobal('fetch', call);
-  const runId = await submit(shape === 'typed' ? body : {
-    workspace_id: workspaceId, model_binding: body.model_binding,
-    input: nativeInput, limits: body.definition.limits,
-  });
-  await complete(runId);
-  expect(call).toHaveBeenCalledTimes(1);
-  expect(call).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-    body: expect.stringContaining(text),
-  }));
-  const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
-  expect(run.status).toBe('succeeded');
-  expect(run.result.inference?.outcome).toBe('value');
-  expect(run.cost_micro_usd).toBe('266'); // Actual reported input usage at $0.042/M.
-});
+  ['typesafe', 'typed'],
+  ['typesafe', 'native'],
+  ['openrouter', 'typed'],
+  ['openrouter', 'native'],
+] as const)(
+  'dispatches %s %s Jev requests larger in bytes than the token window',
+  async (provider, shape) => {
+    vi.stubEnv(`${provider.toUpperCase()}_API_KEY`, 'synthetic-jev-key');
+    const model = provider === 'openrouter' ? 'typesafe/jev-1.13' : 'jev-1.13.0';
+    const body = input();
+    body.model_binding = { provider, model, billing_mode: 'managed' };
+    body.definition.allowed_models = [{ provider, model }];
+    const text = ' hello'.repeat(6000); // 36KB, not 36K tokens.
+    body.context.items[0].value = text;
+    const nativeInput = {
+      state: text,
+      questions: {
+        decision: { type: 'choice', instructions: 'Choose review.', criteria: { review: 'Review' } },
+      },
+    };
+    const call = vi.fn(async () =>
+      Response.json({
+        model,
+        answers: { decision: { type: 'choice', choice: 'review' } },
+        usage: { input_tokens: 6314, output_tokens: 31 },
+      }),
+    );
+    vi.stubGlobal('fetch', call);
+    const runId = await submit(
+      shape === 'typed'
+        ? body
+        : {
+            workspace_id: workspaceId,
+            model_binding: body.model_binding,
+            input: nativeInput,
+            limits: body.definition.limits,
+          },
+    );
+    await complete(runId);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.stringContaining(text),
+      }),
+    );
+    const run = await transaction(owner.organizationId, (tx) => getRun(tx, runId));
+    expect(run.status).toBe('succeeded');
+    expect(run.result.inference?.outcome).toBe('value');
+    expect(run.cost_micro_usd).toBe('266'); // Actual reported input usage at $0.042/M.
+  },
+);
 
 it.each(['success', 'budget', 'provider-rejection'] as const)(
-  'keeps billing and provider authority separate from conventional context estimation: %s', async (outcome) => {
+  'keeps billing and provider authority separate from conventional context estimation: %s',
+  async (outcome) => {
     const body = input();
     body.context.items[0].value = ' hello'.repeat(22000); // Exceeds the former 128KB pseudo-token window.
     body.definition.limits.max_cost_micro_usd = outcome === 'budget' ? '1' : '500000';
-    const call = outcome === 'provider-rejection'
-      ? vi.fn(async () => Response.json({ error: { type: 'invalid_request_error', message: 'Prompt is too long' } }, { status: 400 }))
-      : provider();
+    const call =
+      outcome === 'provider-rejection'
+        ? vi.fn(async () =>
+            Response.json(
+              { error: { type: 'invalid_request_error', message: 'Prompt is too long' } },
+              { status: 400 },
+            ),
+          )
+        : provider();
     vi.stubGlobal('fetch', call);
     const runId = await submit(body);
     await complete(runId);
@@ -389,7 +557,11 @@ it.each(['success', 'budget', 'provider-rejection'] as const)(
       expect(run.cost_micro_usd).toBe('0');
     } else if (outcome === 'provider-rejection') {
       expect(run.status).toBe('failed');
-      expect(run.result.inference?.outcome).toBe('uncertain');
+      expect(run.result.inference).toMatchObject({
+        outcome: 'failed',
+        provider_outcome: 'responded',
+        reason_code: 'decision_provider_failed',
+      });
       await advanceInference(owner.organizationId, runId);
       expect(call).toHaveBeenCalledTimes(1); // No blind retry after dispatch.
     } else {
@@ -982,7 +1154,7 @@ async function killAt(runId: string, boundary: 'dispatch' | 'receipt') {
     env: { ...process.env, ANTHROPIC_API_KEY: 'synthetic-inference-key' },
   });
   try {
-    const [phase] = await once(child, 'message', { signal: AbortSignal.timeout(10000) });
+    const [phase] = await once(child, 'message', { signal: AbortSignal.timeout(30000) });
     expect(phase).toBe(boundary);
   } finally {
     const stopped = once(child, 'exit');
@@ -993,8 +1165,12 @@ async function killAt(runId: string, boundary: 'dispatch' | 'receipt') {
 it.each(['dispatch', 'receipt'] as const)(
   'recovers a real process kill after %s without repeating a provider call',
   async (boundary) => {
+    const body = input();
+    // Child module startup is fixture overhead, not provider execution. Leave
+    // enough accepted time for cold imports while other checks share the host.
+    body.definition.limits.timeout_seconds = 120;
     const call = provider(),
-      runId = await submit();
+      runId = await submit(body);
     await advanceInference(owner.organizationId, runId);
     await killAt(runId, boundary);
     if (boundary === 'dispatch')
@@ -1006,6 +1182,7 @@ it.each(['dispatch', 'receipt'] as const)(
     const result = await (await api(`runs/${runId}/result`)).json();
     expect(result.inference.outcome).toBe(boundary === 'dispatch' ? 'uncertain' : 'value');
   },
+  60000,
 );
 
 it.each([false, true])('fences late receipts, cancellation and retention (expired=%s)', async (expired) => {
@@ -1073,13 +1250,110 @@ it('submits, streams, waits, retrieves and cancels using the generated client ov
     expect(events).toContain('run.succeeded');
     expect((await client.runs.wait(accepted.run_id)).inference?.value).toBe('review');
     expect((await client.runs.getResult(accepted.run_id)).inference?.validation.status).toBe('passed');
-    const queued = await client.request('createInference', { body: input(), headers: { Prefer: 'respond-async' } });
-    await client.runs.cancel(queued.run_id);
-    expect((await client.runs.get(queued.run_id)).status).toBe('cancelled');
+    await expect(
+      client.request('createInference', { body: input(), headers: { Prefer: 'respond-async' } }),
+    ).rejects.toMatchObject({ status: 400, code: 'async_inference_not_supported' });
+    const pending = await submit();
+    await client.runs.cancel(pending);
+    expect((await client.runs.get(pending)).status).toBe('cancelled');
   } finally {
     await server.close();
   }
 });
+
+it('streams early deltas and the same settled receipt over HTTP, then replays without new deltas', async () => {
+  enable();
+  const networkFetch = globalThis.fetch;
+  const server = await fixtureHttpApi({ retainBackground: true });
+  let finish: () => void = () => {};
+  const completion = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const encoder = new TextEncoder();
+  const frame = (type: string, value: unknown) =>
+    encoder.encode(`event: ${type}\ndata: ${JSON.stringify(value)}\n\n`);
+  const call = vi.fn(
+    async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              frame('message_start', {
+                type: 'message_start',
+                message: {
+                  id: 'stream-fixture',
+                  model: 'claude-haiku-4-5-20251001',
+                  role: 'assistant',
+                  content: [],
+                  usage: { input_tokens: 100, output_tokens: 0 },
+                },
+              }),
+            );
+            controller.enqueue(
+              frame('content_block_start', {
+                type: 'content_block_start',
+                index: 0,
+                content_block: { type: 'text', text: '' },
+              }),
+            );
+            controller.enqueue(
+              frame('content_block_delta', {
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text: '"review"' },
+              }),
+            );
+            void completion.then(() => {
+              controller.enqueue(frame('content_block_stop', { type: 'content_block_stop', index: 0 }));
+              controller.enqueue(
+                frame('message_delta', {
+                  type: 'message_delta',
+                  delta: { stop_reason: 'end_turn' },
+                  usage: { output_tokens: 10 },
+                }),
+              );
+              controller.enqueue(frame('message_stop', { type: 'message_stop' }));
+              controller.close();
+            });
+          },
+        }),
+        { headers: { 'content-type': 'text/event-stream' } },
+      ),
+  );
+  vi.stubGlobal('fetch', call);
+  const client = new Client({ baseURL: server.origin, apiKey: key, fetch: networkFetch });
+  const identity = id(),
+    body = { ...input(), stream: true },
+    events = [];
+  try {
+    for await (const event of client.inferences.stream(body, { idempotencyKey: identity })) {
+      events.push(event);
+      if (event.type === 'output.delta') {
+        expect(event.data.text).toBe('"review"');
+        const current = await transaction(owner.organizationId, (tx) => getRun(tx, event.run_id));
+        expect(current.status).toBe('running');
+        expect(current.result.inference).toBeUndefined();
+        finish();
+      }
+    }
+    const terminalEvent = events.find((event) => event.type === 'run.succeeded');
+    expect(terminalEvent?.data.result?.inference).toMatchObject({
+      value: 'review',
+      billing: { charged_micro_usd: '150' },
+      usage: { completeness: 'complete' },
+    });
+    expect(events[0]).toMatchObject({ type: 'run.accepted', data: { delivery: 'live' } });
+    const replay = [];
+    for await (const event of client.inferences.stream(body, { idempotencyKey: identity }))
+      replay.push(event);
+    expect(replay.map((event) => event.type)).toEqual(['run.accepted', 'run.succeeded']);
+    expect(replay[0]).toMatchObject({ data: { delivery: 'result_replay' } });
+    expect(call).toHaveBeenCalledTimes(1);
+  } finally {
+    finish();
+    await server.close();
+  }
+}, 60000);
 
 it.each(['triage', 'actor'] as const)(
   '%s preserves abstention, stale context and application dependency tokens',

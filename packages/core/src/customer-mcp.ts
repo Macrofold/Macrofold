@@ -9,12 +9,18 @@ import { identify } from './auth';
 import { boundedBody } from './body';
 import { config } from './config';
 import { id } from './crypto';
-import { assert, errorBody } from './errors';
+import { assert, errorBody, AppError } from './errors';
 import { handleApi } from './http';
+import { runUrls } from './runs';
 import { customerMcpCatalog, customerMcpInstructions, mcpApiRequest } from './customer-mcp-catalog';
 
 /** Stateless Streamable HTTP; all domain policy and auditing stay in the REST application pipeline. */
-export async function handleCustomerMcp(request: Request, onMutation?: () => void) {
+export async function handleCustomerMcp(
+  request: Request,
+  onMutation?: () => void,
+  background?: (task: () => Promise<void>) => void,
+  hostDeadlineAtMs?: number,
+) {
   const headers = new Headers({ 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
   try {
     assert(
@@ -63,15 +69,27 @@ export async function handleCustomerMcp(request: Request, onMutation?: () => voi
       };
     });
     server.setRequestHandler(CallToolRequestSchema, async ({ params }): Promise<CallToolResult> => {
+      let inferenceIdentity:
+        { idempotency_key?: string; run_id?: string; urls?: Record<string, string> } | undefined;
       try {
         const entry = customerMcpCatalog.find((item) => item.tool.name === params.name);
         assert(entry, 404, 'unknown_tool', 'Unknown customer API tool. Use tools/list.');
         const response = await handleApi(
           mcpApiRequest(entry, params.arguments || {}, request, config.origin),
           'mcp',
+          background,
+          { hostDeadlineAtMs, onMutation },
         );
+        if (entry.route.operation.operationId === 'createInference') {
+          const key = params.arguments?.idempotency_key;
+          const runId = response.headers.get('x-run-id');
+          inferenceIdentity = {
+            ...(typeof key === 'string' ? { idempotency_key: key } : {}),
+            ...(runId ? { run_id: runId, urls: runUrls(runId) } : {}),
+          };
+        }
         // Hosting owns dispatch scheduling; discovery/read calls must never trigger it.
-        if (response.ok && !entry.tool.annotations?.readOnlyHint) onMutation?.();
+        // The shared HTTP operation owner schedules queued mutations/recovery;
         let data: unknown;
         const download = response.status === 302 && response.headers.get('location');
         if (download) data = { download_url: download };
@@ -108,7 +126,15 @@ export async function handleCustomerMcp(request: Request, onMutation?: () => voi
           structuredContent: output,
         };
       } catch (error) {
+        if (inferenceIdentity)
+          error = new AppError(
+            502,
+            'inference_delivery_failed',
+            'The inference response could not be delivered. Recover the saved result using the original identity.',
+            inferenceIdentity,
+          );
         const result = errorBody(error, id());
+        if (inferenceIdentity) result.body.error.retryable = false;
         const output = { status: result.status, data: result.body };
         return {
           isError: true,

@@ -18,6 +18,8 @@ OMIT = Omit()
 class RequestOptions:
     idempotency_key: str | None = None
     headers: dict[str, str] = field(default_factory=dict)
+    inference_retries: int = 0
+    timeout: float | None = None
 
     def identity(self, mutation: bool) -> str | None:
         return (self.idempotency_key or str(uuid4())) if mutation else None
@@ -40,4 +42,4 @@ def decode(model: type[Model], value: object, identity: str | None) -> Model:
     except ValidationError as error:
         # Success may already have committed a mutation, even when its response has the wrong shape.
         from .client import TransportError
-        raise TransportError('The service response did not match the API contract. Inspect remote state before retrying.', identity) from error
+        raise TransportError('The service response did not match the API contract. Inspect remote state before retrying.', identity, run_id=value.get('run_id') if isinstance(value, dict) else None, urls=(value.get('urls') or value.get('data', {}).get('urls')) if isinstance(value, dict) else None) from error

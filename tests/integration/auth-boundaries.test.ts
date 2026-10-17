@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { auth, identify } from '../../packages/core/src/auth';
-import { authPool, pool, transaction } from '../../packages/db';
+import { authPool, pool, transaction, DatabaseBudgetError } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import { createKey } from '../../packages/core/src/keys';
 import { id, sha256 } from '../../packages/core/src/crypto';
@@ -82,6 +82,81 @@ describe('authenticated principals and session boundaries', () => {
       account.p.userId,
     ]);
     await expect(identify(api(account.key))).rejects.toMatchObject({ status: 403 });
+  });
+  it('retains current role, resource restrictions and operator identity in the bounded API-key path', async () => {
+    const account = await fixtureAccount('Bounded key identity');
+    const workspace = id(),
+      worker = id();
+    const key = await transaction(account.p.organizationId, (tx) =>
+      createKey(tx, account.p, {
+        name: 'Restricted identity',
+        scopes: ['identity:read'],
+        workspace_id: workspace,
+      }),
+    );
+    await pool.query('UPDATE api_keys SET worker_ids=$2 WHERE id=$1', [key.id, [worker]]);
+    await pool.query("UPDATE memberships SET role='member' WHERE organization_id=$1 AND user_id=$2", [
+      account.p.organizationId,
+      account.p.userId,
+    ]);
+    const operators = config.operatorEmails;
+    config.operatorEmails = [account.p.email!];
+    try {
+      expect(await identify(api(key.secret), undefined, { databaseDeadlineAtMs: Date.now() + 2000 })).toEqual(
+        {
+          id: key.id,
+          userId: account.p.userId,
+          email: account.p.email,
+          organizationId: account.p.organizationId,
+          role: 'member',
+          kind: 'api_key',
+          scopes: ['identity:read'],
+          workspaceIds: [workspace],
+          workerIds: [worker],
+          operator: true,
+        },
+      );
+    } finally {
+      config.operatorEmails = operators;
+    }
+  });
+  it('samples last use once per minute while retaining successful repeated authentication', async () => {
+    const key = await transaction(a.p.organizationId, (tx) =>
+      createKey(tx, a.p, { name: 'Sampled last use', scopes: ['identity:read'] }),
+    );
+    const lastUsed = async () =>
+      (await pool.query<{ last_used_at: Date }>('SELECT last_used_at FROM api_keys WHERE id=$1', [key.id]))
+        .rows[0].last_used_at;
+    await identify(api(key.secret));
+    const first = await lastUsed();
+    await identify(api(key.secret));
+    expect(await lastUsed()).toEqual(first);
+    await pool.query("UPDATE api_keys SET last_used_at=now()-interval '2 minutes' WHERE id=$1", [key.id]);
+    await identify(api(key.secret));
+    expect((await lastUsed()).getTime()).toBeGreaterThanOrEqual(first.getTime());
+  });
+  it('bounds a blocked usage refresh and avoids waiting for a recently used key row', async () => {
+    const key = await transaction(a.p.organizationId, (tx) =>
+      createKey(tx, a.p, { name: 'Contended last use', scopes: ['identity:read'] }),
+    );
+    const blocker = await pool.connect();
+    try {
+      await blocker.query('BEGIN');
+      await blocker.query('UPDATE api_keys SET name=name WHERE id=$1', [key.id]);
+      await expect(
+        identify(api(key.secret), undefined, { databaseDeadlineAtMs: Date.now() + 1000 }),
+      ).rejects.toBeInstanceOf(DatabaseBudgetError);
+      await blocker.query('ROLLBACK');
+      await identify(api(key.secret));
+      await blocker.query('BEGIN');
+      await blocker.query('UPDATE api_keys SET name=name WHERE id=$1', [key.id]);
+      expect(
+        (await identify(api(key.secret), undefined, { databaseDeadlineAtMs: Date.now() + 1000 })).id,
+      ).toBe(key.id);
+    } finally {
+      await blocker.query('ROLLBACK');
+      blocker.release();
+    }
   });
 });
 

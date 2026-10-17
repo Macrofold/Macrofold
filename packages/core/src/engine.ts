@@ -48,13 +48,12 @@ export async function claimRun(org: string, runId: string) {
   });
 }
 
-/** Direct inference claims capacity in its admission transaction: no queued worker hop. */
-export async function claimRunInTransaction(tx: Tx, org: string, runId: string, direct = false) {
+/** Queued execution adds weighted ordering and native placement to shared caps. */
+export async function claimRunInTransaction(tx: Tx, org: string, runId: string) {
   let run = await getRun(tx, runId);
   await lock(tx, `organization:${org}`);
   const contextLock = run.kind === 'native_agent' ? `worktree:${run.worktree_id}` : `run:${run.id}`;
-  if (direct) await lock(tx, contextLock);
-  else if (!(await tryLock(tx, contextLock))) return null;
+  if (!(await tryLock(tx, contextLock))) return null;
   run = await getRun(tx, runId);
   const blocked = await tx.query(
     "SELECT 1 FROM dispatch_jobs WHERE kind='run' AND resource_id=$1 AND state='blocked'",
@@ -157,8 +156,7 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
   if (workerState === 'worker_paused') return null;
   // Capacity and weighted turns commit together under the existing global lock.
   // A Workflow retry for a specific run must obey the same scheduler as a poller.
-  if (direct) await lock(tx, 'capacity:global');
-  else if (!(await tryLock(tx, 'capacity:global'))) return null;
+  if (!(await tryLock(tx, 'capacity:global'))) return null;
   // Separate resource classes have independent turns. A native head whose
   // dispatcher pool is full cannot prevent an eligible inference from starting.
   const turn = await schedulerTurn(tx, run.kind === 'native_agent' ? 'native' : 'inference');
@@ -176,11 +174,6 @@ export async function claimRunInTransaction(tx: Tx, org: string, runId: string, 
     "UPDATE dispatch_jobs SET state='running',lease_until=now()+interval '90 seconds',attempts=attempts+1 WHERE resource_id=$1",
     [runId],
   );
-  if (direct)
-    await tx.query(
-      "UPDATE dispatch_jobs SET available_at=(SELECT deadline + interval '5 seconds' FROM runs WHERE id=$1) WHERE kind='run' AND resource_id=$1",
-      [runId],
-    );
   return getRun(tx, runId);
 }
 

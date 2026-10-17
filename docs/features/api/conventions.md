@@ -31,13 +31,21 @@ The table shows route families; use OpenAPI for exact parameter names, required 
 
 Supply a unique `Idempotency-Key` for each intended mutation. Reuse it with the identical request when recovering a lost response. The server retains fingerprints and results for 30 days. Reusing a key with a different body returns `409 idempotency_conflict`.
 
-Run creation, session messages, checkout, file mutations, restore, sync, transfer planning/apply, and exports require idempotency. All five SDKs generate mutation keys through their resource methods. TypeScript and Python preserve them across bounded retries; Go, Rust, and Java make single-attempt REST requests and retain uncertain mutation keys in errors. Supply and store your own key to recover across process restarts. cURL and low-level Go/Rust/Java operations require an explicit key.
+Run creation, session messages, checkout, file mutations, restore, sync, transfer planning/apply, exports, and immediate inference require idempotency. All five SDKs generate mutation keys through their resource methods. Other operations retain TypeScript/Python bounded retries and Go/Rust/Java single-attempt REST behavior. Immediate inference makes one attempt by default in every SDK; its explicit retries apply only to confirmed pre-admission refusals and preserve the same key/body under one total deadline. All clients retain uncertain mutation identities in errors. Supply and store your own key to recover across process restarts. cURL and low-level Go/Rust/Java operations require an explicit key.
 
 ## Asynchronous work
 
 A run request returns 202 with `run_id`, related resource IDs, and URLs for status, events, result, and cancellation. File and worktree maintenance may return an operation ID instead. Poll `/v1/operations/{id}` and inspect its final status before using its result.
 
 Result retrieval reports `final=true` after terminalization. Available partial output can be returned earlier. A canceled stream is not a canceled run; use the run cancellation endpoint explicitly.
+
+## Immediate model calls
+
+`POST /v1/inferences` executes one provider request directly and returns HTTP 200 with the finalized result, including terminal execution failures. Inspect `status` and `result.inference.outcome`; only `value` carries usable output. Exceptional HTTP 202 means that the same admitted invocation is still running or recovering, identified by `recovery_reason` and its five receipt URLs. It is never queued acceptance. Its input, usage and billing use the same durable Run identity.
+
+`Prefer: respond-async` is rejected with `async_inference_not_supported`; `queue_timeout_seconds` belongs to queued agent/task APIs. Native/bounded execution keeps its existing queue behavior. For direct SSE use `inferences.stream`; HTTP 200 starts delivery and its committed terminal event determines execution outcome.
+
+Busy capacity/dependencies return a prompt HTTP 429/503 refusal. Only confirmed pre-admission refusals marked `retryable:true` are safe for automatic same-key retry after `Retry-After`. `inference_admission_unknown` is explicitly non-retryable automatically because a Run may exist. Resolve the same identity deliberately; never create a replacement automatically. See the full [delivery/recovery contract](../decisions/README.md#immediate-delivery-and-recovery).
 
 ## Pagination and rate limits
 

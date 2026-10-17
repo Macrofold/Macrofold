@@ -23,6 +23,7 @@ export type Context = {
   idempotencyKey: string;
   headers: Headers;
   requestId: string;
+  hostDeadlineAtMs?: number;
 };
 /** Each operation's result is checked against the generated public contract. */
 export type HandlerMap = {
@@ -34,6 +35,7 @@ export type RequestContext = Omit<Context, 'tx'>;
 export type PreparedHandler<K extends ApiOperation = ApiOperation> = (context: RequestContext) => Promise<{
   commit(tx: Tx, principal: Principal): Promise<ApiResult<K>>;
   dispose(): Promise<void>;
+  inferencePermit?: () => import('./direct-inference').InvocationPermit | undefined;
 }>;
 export type PreparationMap = { [K in ApiOperation]?: PreparedHandler<K> };
 export const input = <K extends keyof components['schemas']>(context: Pick<Context, 'body'>) =>

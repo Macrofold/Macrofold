@@ -5392,7 +5392,7 @@
         "tags": [
           "inferences"
         ],
-        "description": "Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.",
+        "description": "Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -5411,28 +5411,80 @@
               "format": "uuid"
             },
             "description": "Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context."
-          },
-          {
-            "name": "Prefer",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "respond-async"
-              ]
-            },
-            "description": "Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds."
           }
         ],
         "responses": {
           "202": {
-            "description": "Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery.",
+            "description": "Existing admitted invocation is still running or recovering; inspect recovery_reason and retrieve the same Run.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InferenceResponse"
+                },
+                "examples": {
+                  "in_progress": {
+                    "value": {
+                      "run_id": "01900000-0000-7000-8000-000000000001",
+                      "session_id": null,
+                      "worktree_id": null,
+                      "urls": {
+                        "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+                        "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+                        "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+                        "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+                        "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+                      },
+                      "kind": "inference",
+                      "reserved_micro_usd": "0",
+                      "status": "running",
+                      "recovery_reason": "in_progress"
+                    }
+                  },
+                  "finalization_pending": {
+                    "value": {
+                      "run_id": "01900000-0000-7000-8000-000000000001",
+                      "session_id": null,
+                      "worktree_id": null,
+                      "urls": {
+                        "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+                        "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+                        "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+                        "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+                        "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+                      },
+                      "kind": "inference",
+                      "reserved_micro_usd": "0",
+                      "status": "running",
+                      "recovery_reason": "finalization_pending"
+                    }
+                  },
+                  "outcome_unknown": {
+                    "value": {
+                      "run_id": "01900000-0000-7000-8000-000000000001",
+                      "session_id": null,
+                      "worktree_id": null,
+                      "urls": {
+                        "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+                        "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+                        "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+                        "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+                        "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+                      },
+                      "kind": "inference",
+                      "reserved_micro_usd": "0",
+                      "status": "running",
+                      "recovery_reason": "outcome_unknown"
+                    }
+                  }
                 }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "1 second, a retrieval hint rather than a completion estimate."
               }
             }
           },
@@ -5441,7 +5493,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/InferenceError"
                 }
               }
             }
@@ -5452,6 +5504,140 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InferenceResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "run_id": "01900000-0000-7000-8000-000000000001",
+                      "session_id": null,
+                      "worktree_id": null,
+                      "urls": {
+                        "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+                        "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+                        "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+                        "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+                        "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+                      },
+                      "kind": "inference",
+                      "reserved_micro_usd": "0",
+                      "status": "succeeded",
+                      "result": {
+                        "run_id": "01900000-0000-7000-8000-000000000001",
+                        "final": true,
+                        "execution_outcome": "success",
+                        "persistence_status": "not_required",
+                        "inference": {
+                          "invocation_id": "01900000-0000-7000-8000-000000000001",
+                          "definition_revision": "inline-v1",
+                          "definition_digest": "fixture-definition",
+                          "context_digest": "fixture-context",
+                          "provider_request_digest": "fixture-request",
+                          "transformation_version": "v1",
+                          "dependency_tokens": {},
+                          "outcome": "value",
+                          "value": {
+                            "answer": "yes"
+                          },
+                          "provider_outcome": "responded",
+                          "provider_request_id": "upstream-request",
+                          "model": "fixture-model",
+                          "model_revision": null,
+                          "model_revision_status": "unavailable",
+                          "validation": {
+                            "schema_digest": "fixture-schema",
+                            "status": "passed"
+                          },
+                          "usage_request_id": "01900000-0000-7000-8000-000000000001",
+                          "usage": {
+                            "input_tokens": "100",
+                            "output_tokens": "2",
+                            "cached_input_tokens": "0",
+                            "cache_write_input_tokens": "0",
+                            "completeness": "complete"
+                          },
+                          "billing": {
+                            "billing_mode": "byok",
+                            "charged_micro_usd": "0",
+                            "budget_cost_micro_usd": "5",
+                            "reserved_micro_usd": "1000",
+                            "reported_micro_usd": "5",
+                            "provisional": false,
+                            "bound_breached": false,
+                            "provider_cost_micro_usd": "5",
+                            "provider_cost_status": "estimated_from_usage",
+                            "provider_reported_cost_usd": 4.2e-06,
+                            "provider_reported_cost_status": "reported",
+                            "upstream_inference_cost_usd": null
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "uncertain": {
+                    "value": {
+                      "run_id": "01900000-0000-7000-8000-000000000001",
+                      "session_id": null,
+                      "worktree_id": null,
+                      "urls": {
+                        "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+                        "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+                        "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+                        "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+                        "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+                      },
+                      "kind": "inference",
+                      "reserved_micro_usd": "0",
+                      "status": "failed",
+                      "result": {
+                        "run_id": "01900000-0000-7000-8000-000000000001",
+                        "final": true,
+                        "execution_outcome": "failure",
+                        "persistence_status": "not_required",
+                        "inference": {
+                          "invocation_id": "01900000-0000-7000-8000-000000000001",
+                          "definition_revision": "inline-v1",
+                          "definition_digest": "fixture-definition",
+                          "context_digest": "fixture-context",
+                          "provider_request_digest": "fixture-request",
+                          "transformation_version": "v1",
+                          "dependency_tokens": {},
+                          "outcome": "uncertain",
+                          "provider_outcome": "uncertain",
+                          "provider_request_id": "upstream-request",
+                          "model": "fixture-model",
+                          "model_revision": null,
+                          "model_revision_status": "unavailable",
+                          "validation": {
+                            "schema_digest": "fixture-schema",
+                            "status": "not_run"
+                          },
+                          "usage_request_id": "01900000-0000-7000-8000-000000000001",
+                          "usage": {
+                            "input_tokens": null,
+                            "output_tokens": null,
+                            "cached_input_tokens": null,
+                            "cache_write_input_tokens": null,
+                            "completeness": "missing"
+                          },
+                          "billing": {
+                            "billing_mode": "byok",
+                            "charged_micro_usd": "0",
+                            "budget_cost_micro_usd": "1000",
+                            "reserved_micro_usd": "1000",
+                            "reported_micro_usd": null,
+                            "provisional": true,
+                            "bound_breached": false,
+                            "provider_cost_micro_usd": null,
+                            "provider_cost_status": "unavailable",
+                            "provider_reported_cost_usd": null,
+                            "provider_reported_cost_status": "unavailable",
+                            "upstream_inference_cost_usd": null
+                          },
+                          "reason_code": "provider_outcome_unknown"
+                        }
+                      }
+                    }
+                  }
                 }
               },
               "text/event-stream": {
@@ -17181,6 +17367,12 @@
               }
             },
             "additionalProperties": false
+          },
+          "usage": {
+            "$ref": "#/components/schemas/InferenceUsage"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/InferenceBilling"
           }
         },
         "required": [
@@ -17195,9 +17387,34 @@
           "provider_outcome",
           "model",
           "model_revision_status",
-          "validation"
+          "validation",
+          "usage",
+          "billing"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "const": "value"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "value"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ]
       },
       "BoundedAgentPolicy": {
         "type": "object",
@@ -17869,8 +18086,6 @@
           "status": {
             "type": "string",
             "enum": [
-              "queued",
-              "provisioning",
               "running",
               "succeeded",
               "failed",
@@ -17879,88 +18094,17 @@
             ]
           },
           "urls": {
-            "type": "object",
-            "properties": {
-              "status": {
-                "type": "string",
-                "format": "uri"
-              },
-              "events": {
-                "type": "string",
-                "format": "uri"
-              },
-              "stream": {
-                "type": "string",
-                "format": "uri"
-              },
-              "result": {
-                "type": "string",
-                "format": "uri"
-              },
-              "cancel": {
-                "type": "string",
-                "format": "uri",
-                "description": "POST to request cancellation."
-              }
-            },
-            "required": [
-              "status",
-              "events",
-              "stream",
-              "result"
-            ],
-            "additionalProperties": false
-          },
-          "queue_expires_at": {
-            "type": "string",
-            "format": "date-time"
+            "$ref": "#/components/schemas/InferenceUrls"
           },
           "wait_seconds": {
             "type": "number",
             "minimum": 0,
             "description": "Submission to execution start, or elapsed wait through now/completion if never started."
           },
-          "waiting_reason": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "global_capacity",
-              "account_concurrency",
-              "earlier_worktree_work",
-              "scheduler_turn",
-              "cancellation_requested",
-              "deadline_expired",
-              "worktree_unavailable",
-              null,
-              "lightweight_capacity",
-              "reserved_lightweight_capacity",
-              "worker_paused",
-              "worker_destroyed",
-              "worker_expired",
-              "worker_concurrency",
-              "worker_cost_limit",
-              "worker_instance_limit",
-              "worker_starting",
-              "worker_capacity",
-              "worker_lifetime",
-              "compute_unavailable",
-              "insufficient_credits"
-            ],
-            "description": "Snapshot, not a queue position or start-time estimate. Null when no longer queued."
-          },
           "reserved_micro_usd": {
             "type": "string",
             "pattern": "^[0-9]+$",
             "description": "Funds still held and unavailable for other jobs; released on settlement."
-          },
-          "scheduling_class": {
-            "type": "string",
-            "enum": [
-              "background",
-              "interactive"
-            ]
           },
           "kind": {
             "type": "string",
@@ -17972,6 +18116,14 @@
           },
           "result": {
             "$ref": "#/components/schemas/RunResult"
+          },
+          "recovery_reason": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "finalization_pending",
+              "outcome_unknown"
+            ]
           }
         },
         "required": [
@@ -17981,7 +18133,518 @@
           "status",
           "urls"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.",
+        "oneOf": [
+          {
+            "properties": {
+              "status": {
+                "enum": [
+                  "succeeded",
+                  "failed",
+                  "cancelled",
+                  "timed_out"
+                ]
+              },
+              "result": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RunResult"
+                  },
+                  {
+                    "required": [
+                      "inference"
+                    ],
+                    "properties": {
+                      "final": {
+                        "const": true
+                      },
+                      "persistence_status": {
+                        "const": "not_required"
+                      }
+                    }
+                  }
+                ]
+              },
+              "recovery_reason": false
+            },
+            "required": [
+              "status",
+              "result"
+            ],
+            "not": {
+              "required": [
+                "recovery_reason"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "status": {
+                "const": "running"
+              },
+              "recovery_reason": {
+                "type": "string",
+                "enum": [
+                  "in_progress",
+                  "finalization_pending",
+                  "outcome_unknown"
+                ]
+              },
+              "result": false
+            },
+            "required": [
+              "status",
+              "recovery_reason"
+            ],
+            "not": {
+              "required": [
+                "result"
+              ]
+            }
+          }
+        ],
+        "examples": [
+          {
+            "run_id": "01900000-0000-7000-8000-000000000001",
+            "session_id": null,
+            "worktree_id": null,
+            "urls": {
+              "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+              "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+              "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+              "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+              "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+            },
+            "kind": "inference",
+            "reserved_micro_usd": "0",
+            "status": "succeeded",
+            "result": {
+              "run_id": "01900000-0000-7000-8000-000000000001",
+              "final": true,
+              "execution_outcome": "success",
+              "persistence_status": "not_required",
+              "inference": {
+                "invocation_id": "01900000-0000-7000-8000-000000000001",
+                "definition_revision": "inline-v1",
+                "definition_digest": "fixture-definition",
+                "context_digest": "fixture-context",
+                "provider_request_digest": "fixture-request",
+                "transformation_version": "v1",
+                "dependency_tokens": {},
+                "outcome": "value",
+                "value": {
+                  "answer": "yes"
+                },
+                "provider_outcome": "responded",
+                "provider_request_id": "upstream-request",
+                "model": "fixture-model",
+                "model_revision": null,
+                "model_revision_status": "unavailable",
+                "validation": {
+                  "schema_digest": "fixture-schema",
+                  "status": "passed"
+                },
+                "usage_request_id": "01900000-0000-7000-8000-000000000001",
+                "usage": {
+                  "input_tokens": "100",
+                  "output_tokens": "2",
+                  "cached_input_tokens": "0",
+                  "cache_write_input_tokens": "0",
+                  "completeness": "complete"
+                },
+                "billing": {
+                  "billing_mode": "byok",
+                  "charged_micro_usd": "0",
+                  "budget_cost_micro_usd": "5",
+                  "reserved_micro_usd": "1000",
+                  "reported_micro_usd": "5",
+                  "provisional": false,
+                  "bound_breached": false,
+                  "provider_cost_micro_usd": "5",
+                  "provider_cost_status": "estimated_from_usage",
+                  "provider_reported_cost_usd": 4.2e-06,
+                  "provider_reported_cost_status": "reported",
+                  "upstream_inference_cost_usd": null
+                }
+              }
+            }
+          },
+          {
+            "run_id": "01900000-0000-7000-8000-000000000001",
+            "session_id": null,
+            "worktree_id": null,
+            "urls": {
+              "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+              "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+              "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+              "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+              "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+            },
+            "kind": "inference",
+            "reserved_micro_usd": "0",
+            "status": "failed",
+            "result": {
+              "run_id": "01900000-0000-7000-8000-000000000001",
+              "final": true,
+              "execution_outcome": "failure",
+              "persistence_status": "not_required",
+              "inference": {
+                "invocation_id": "01900000-0000-7000-8000-000000000001",
+                "definition_revision": "inline-v1",
+                "definition_digest": "fixture-definition",
+                "context_digest": "fixture-context",
+                "provider_request_digest": "fixture-request",
+                "transformation_version": "v1",
+                "dependency_tokens": {},
+                "outcome": "uncertain",
+                "provider_outcome": "uncertain",
+                "provider_request_id": "upstream-request",
+                "model": "fixture-model",
+                "model_revision": null,
+                "model_revision_status": "unavailable",
+                "validation": {
+                  "schema_digest": "fixture-schema",
+                  "status": "not_run"
+                },
+                "usage_request_id": "01900000-0000-7000-8000-000000000001",
+                "usage": {
+                  "input_tokens": null,
+                  "output_tokens": null,
+                  "cached_input_tokens": null,
+                  "cache_write_input_tokens": null,
+                  "completeness": "missing"
+                },
+                "billing": {
+                  "billing_mode": "byok",
+                  "charged_micro_usd": "0",
+                  "budget_cost_micro_usd": "1000",
+                  "reserved_micro_usd": "1000",
+                  "reported_micro_usd": null,
+                  "provisional": true,
+                  "bound_breached": false,
+                  "provider_cost_micro_usd": null,
+                  "provider_cost_status": "unavailable",
+                  "provider_reported_cost_usd": null,
+                  "provider_reported_cost_status": "unavailable",
+                  "upstream_inference_cost_usd": null
+                },
+                "reason_code": "provider_outcome_unknown"
+              }
+            }
+          },
+          {
+            "run_id": "01900000-0000-7000-8000-000000000001",
+            "session_id": null,
+            "worktree_id": null,
+            "urls": {
+              "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+              "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+              "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+              "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+              "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+            },
+            "kind": "inference",
+            "reserved_micro_usd": "0",
+            "status": "running",
+            "recovery_reason": "in_progress"
+          },
+          {
+            "run_id": "01900000-0000-7000-8000-000000000001",
+            "session_id": null,
+            "worktree_id": null,
+            "urls": {
+              "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+              "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+              "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+              "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+              "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+            },
+            "kind": "inference",
+            "reserved_micro_usd": "0",
+            "status": "running",
+            "recovery_reason": "finalization_pending"
+          },
+          {
+            "run_id": "01900000-0000-7000-8000-000000000001",
+            "session_id": null,
+            "worktree_id": null,
+            "urls": {
+              "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+              "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+              "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+              "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+              "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+            },
+            "kind": "inference",
+            "reserved_micro_usd": "0",
+            "status": "running",
+            "recovery_reason": "outcome_unknown"
+          }
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "succeeded"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "succeeded"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "success"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "value",
+                                "unknown",
+                                "refused",
+                                "stale_input"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "failed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "failed"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "failure"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "invalid_output",
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "cancelled"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "cancelled"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "cancelled"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason_code"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "timed_out"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "timed_out"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "timed_out"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason_code"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          }
+        ]
       },
       "ExecutionPolicy": {
         "type": "object",
@@ -21762,7 +22425,19 @@
           },
           "type": {
             "type": "string",
-            "description": "run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error."
+            "enum": [
+              "run.accepted",
+              "output.delta",
+              "output.started",
+              "output.finished",
+              "tool.arguments.delta",
+              "output.refusal.delta",
+              "run.succeeded",
+              "run.failed",
+              "run.cancelled",
+              "run.timed_out",
+              "transport.error"
+            ]
           },
           "occurred_at": {
             "type": "string",
@@ -21770,8 +22445,6 @@
           },
           "data": {
             "type": "object",
-            "additionalProperties": true,
-            "description": "Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.",
             "properties": {
               "text": {
                 "type": "string"
@@ -21794,6 +22467,55 @@
               "stop_reason": {
                 "type": "string"
               },
+              "run_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "session_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "worktree_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancelled",
+                  "timed_out"
+                ]
+              },
+              "urls": {
+                "$ref": "#/components/schemas/InferenceUrls"
+              },
+              "wait_seconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Submission to execution start, or elapsed wait through now/completion if never started."
+              },
+              "reserved_micro_usd": {
+                "type": "string",
+                "pattern": "^[0-9]+$",
+                "description": "Funds still held and unavailable for other jobs; released on settlement."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "native_agent",
+                  "inference",
+                  "bounded_agent"
+                ]
+              },
               "delivery": {
                 "type": "string",
                 "enum": [
@@ -21803,10 +22525,266 @@
               },
               "result": {
                 "$ref": "#/components/schemas/RunResult"
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "inference_recovery_required",
+                  "stream_interrupted"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "idempotency_key": {
+                "type": "string"
+              },
+              "recovery_reason": {
+                "type": "string",
+                "enum": [
+                  "in_progress",
+                  "finalization_pending",
+                  "outcome_unknown"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "result_available"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "const": "run.accepted"
+              },
+              "data": {
+                "$ref": "#/components/schemas/InferenceStreamAccepted"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "output.delta",
+                  "output.started",
+                  "output.finished",
+                  "tool.arguments.delta",
+                  "output.refusal.delta"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/InferenceStreamOutput"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "run.succeeded",
+                  "run.failed",
+                  "run.cancelled",
+                  "run.timed_out"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/InferenceStreamTerminal"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "transport.error"
+              },
+              "data": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/InferenceStreamRecovery"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InferenceStreamResultAvailable"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ]
+          }
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "run.succeeded"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "run.succeeded"
+                },
+                "data": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/InferenceStreamTerminal"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "succeeded"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "run.failed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "run.failed"
+                },
+                "data": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/InferenceStreamTerminal"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "failed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "run.cancelled"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "run.cancelled"
+                },
+                "data": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/InferenceStreamTerminal"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "cancelled"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "run.timed_out"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "run.timed_out"
+                },
+                "data": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/InferenceStreamTerminal"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "timed_out"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "output.delta",
+                    "output.refusal.delta",
+                    "tool.arguments.delta"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "data": {
+                  "required": [
+                    "text"
+                  ]
+                }
               }
             }
           }
-        }
+        ]
       },
       "ConnectionAccessRuleInput": {
         "oneOf": [
@@ -22058,11 +23036,6 @@
           },
           "limits": {
             "$ref": "#/components/schemas/InferenceLimits"
-          },
-          "queue_timeout_seconds": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 86400
           },
           "model_parameters": {
             "$ref": "#/components/schemas/ModelParameters"
@@ -22634,6 +23607,786 @@
         },
         "required": [
           "reasoning_id"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceUsage": {
+        "type": "object",
+        "properties": {
+          "input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Total input, including cached reads and writes once."
+          },
+          "output_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Output includes reasoning subsets when reported."
+          },
+          "cached_input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Subset of input tokens; null when unavailable."
+          },
+          "cache_write_input_tokens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Subset of input tokens; null when unavailable."
+          },
+          "completeness": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "missing"
+            ]
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "cache_write_input_tokens",
+          "completeness"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceBilling": {
+        "type": "object",
+        "properties": {
+          "billing_mode": {
+            "type": "string",
+            "enum": [
+              "managed",
+              "byok"
+            ]
+          },
+          "charged_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Macrofold customer model charge; zero for BYOK."
+          },
+          "budget_cost_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Consumes the run budget even for BYOK; not an additional charge."
+          },
+          "reserved_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Original model-call ceiling."
+          },
+          "reported_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Usage at accepted retail rates, before the authorized ceiling."
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "bound_breached": {
+            "type": "boolean"
+          },
+          "provider_cost_micro_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+$",
+            "description": "Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge."
+          },
+          "provider_cost_status": {
+            "type": "string",
+            "enum": [
+              "estimated_from_usage",
+              "unavailable"
+            ]
+          },
+          "provider_reported_cost_usd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Provider-reported account cost in USD; separate from Macrofold customer charge."
+          },
+          "provider_reported_cost_status": {
+            "type": "string",
+            "enum": [
+              "reported",
+              "unavailable"
+            ]
+          },
+          "upstream_inference_cost_usd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Overlapping provider diagnostic; never add this to the reported/estimated provider costs."
+          }
+        },
+        "required": [
+          "billing_mode",
+          "charged_micro_usd",
+          "budget_cost_micro_usd",
+          "reserved_micro_usd",
+          "reported_micro_usd",
+          "provisional",
+          "bound_breached",
+          "provider_cost_micro_usd",
+          "provider_cost_status",
+          "provider_reported_cost_usd",
+          "provider_reported_cost_status",
+          "upstream_inference_cost_usd"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceUrls": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "format": "uri"
+          },
+          "events": {
+            "type": "string",
+            "format": "uri"
+          },
+          "stream": {
+            "type": "string",
+            "format": "uri"
+          },
+          "result": {
+            "type": "string",
+            "format": "uri"
+          },
+          "cancel": {
+            "type": "string",
+            "format": "uri",
+            "description": "POST to request cancellation."
+          }
+        },
+        "required": [
+          "status",
+          "events",
+          "stream",
+          "result",
+          "cancel"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceErrorDetails": {
+        "type": "object",
+        "properties": {
+          "idempotency_key": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "urls": {
+            "$ref": "#/components/schemas/InferenceUrls"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "path",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "retry_after_seconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true,
+        "description": "Known inference identity and recovery fields plus bounded safe error metadata such as missing_scopes. Secrets and raw provider/customer content are prohibited."
+      },
+      "InferenceErrorDetail": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {
+            "$ref": "#/components/schemas/InferenceErrorDetails"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id",
+          "retryable"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/InferenceErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceStreamAccepted": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "timed_out"
+            ]
+          },
+          "urls": {
+            "$ref": "#/components/schemas/InferenceUrls"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Submission to execution start, or elapsed wait through now/completion if never started."
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Funds still held and unavailable for other jobs; released on settlement."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent",
+              "inference",
+              "bounded_agent"
+            ]
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "live",
+              "result_replay"
+            ]
+          }
+        },
+        "required": [
+          "run_id",
+          "session_id",
+          "worktree_id",
+          "status",
+          "urls",
+          "delivery"
+        ],
+        "additionalProperties": false,
+        "description": "Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run."
+      },
+      "InferenceStreamTerminal": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "worktree_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "timed_out"
+            ]
+          },
+          "urls": {
+            "$ref": "#/components/schemas/InferenceUrls"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Submission to execution start, or elapsed wait through now/completion if never started."
+          },
+          "reserved_micro_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Funds still held and unavailable for other jobs; released on settlement."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "native_agent",
+              "inference",
+              "bounded_agent"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/RunResult"
+          }
+        },
+        "required": [
+          "run_id",
+          "session_id",
+          "worktree_id",
+          "status",
+          "urls",
+          "result"
+        ],
+        "additionalProperties": false,
+        "description": "Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "succeeded"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "succeeded"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "success"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "value",
+                                "unknown",
+                                "refused",
+                                "stale_input"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "failed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "failed"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "failure"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "invalid_output",
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "cancelled"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "cancelled"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "cancelled"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason_code"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "timed_out"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "timed_out"
+                  ]
+                },
+                "result": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RunResult"
+                    },
+                    {
+                      "required": [
+                        "inference"
+                      ],
+                      "properties": {
+                        "final": {
+                          "const": true
+                        },
+                        "persistence_status": {
+                          "const": "not_required"
+                        },
+                        "execution_outcome": {
+                          "enum": [
+                            "timed_out"
+                          ]
+                        },
+                        "inference": {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "failed",
+                                "uncertain"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason_code"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "recovery_reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "InferenceStreamOutput": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Transient provider output; content indexes identify blocks. Deltas have text. No replay sequence.",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "invocation_id": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "content_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "choice_index": {
+            "type": "integer"
+          },
+          "tool_call_id": {
+            "type": "string"
+          },
+          "stop_reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "content_index"
+        ]
+      },
+      "InferenceStreamRecovery": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "inference_recovery_required",
+              "stream_interrupted"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "urls": {
+            "$ref": "#/components/schemas/InferenceUrls"
+          },
+          "recovery_reason": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "finalization_pending",
+              "outcome_unknown"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "idempotency_key",
+          "urls",
+          "recovery_reason"
+        ],
+        "additionalProperties": false
+      },
+      "InferenceStreamResultAvailable": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "inference_recovery_required",
+              "stream_interrupted"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "urls": {
+            "$ref": "#/components/schemas/InferenceUrls"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "result_available"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "idempotency_key",
+          "urls",
+          "reason"
         ],
         "additionalProperties": false
       }

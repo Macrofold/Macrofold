@@ -17,7 +17,9 @@ import { getRun } from '../../packages/core/src/runs';
 import { id } from '../../packages/core/src/crypto';
 import { Client as ApiClient } from '../../sdk/typescript/src/client';
 import { handleApi } from '../../packages/core/src/http';
+import * as apiHttp from '../../packages/core/src/http';
 import * as network from '../../packages/providers/src/network';
+import { credit } from '../../packages/core/src/ledger';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 const clients: Client[] = [];
@@ -65,10 +67,104 @@ it('notifies the host to dispatch only after accepted mutations', async () => {
   await call(client, 'createWorkspace', { idempotency_key: id(), body: { name: 'Dispatch accepted' } });
   expect(dispatch).toHaveBeenCalledTimes(1);
 });
+it('returns settled immediate inference through MCP without a dispatch nudge and rejects embedded streams', async () => {
+  const paid = config.allowPaid;
+  config.allowPaid = true;
+  vi.stubEnv('ANTHROPIC_API_KEY', 'synthetic-mcp-inference-key');
+  const provider = vi.fn(async () =>
+    Response.json({
+      model: 'claude-haiku-4-5-20251001',
+      content: [{ type: 'text', text: 'Ready' }],
+      usage: { input_tokens: 10, output_tokens: 2 },
+    }),
+  );
+  vi.stubGlobal('fetch', provider);
+  const body = {
+    model_binding: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', billing_mode: 'managed' },
+    input: { messages: [{ role: 'user', content: 'Reply Ready' }], max_tokens: 32 },
+    limits: { timeout_seconds: 20, max_output_tokens: 32, max_cost_micro_usd: '10000' },
+  };
+  try {
+    await transaction(account.p.organizationId, (tx) =>
+      credit(tx, account.p.organizationId, 100000n, `mcp-inference:${id()}`),
+    );
+    const dispatch = vi.fn(),
+      client = await connect(account.key, dispatch),
+      identity = id();
+    const result = await call(client, 'createInference', { body, idempotency_key: identity });
+    expect(result).toMatchObject({
+      status: 200,
+      data: {
+        status: 'succeeded',
+        result: {
+          final: true,
+          inference: {
+            outcome: 'value',
+            usage: { input_tokens: '10', output_tokens: '2' },
+            billing: { charged_micro_usd: '20' },
+          },
+        },
+      },
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await call(client, 'createInference', { body, idempotency_key: identity })).data).toMatchObject({
+      run_id: result.data.run_id,
+      status: 'succeeded',
+    });
+    expect(
+      (await call(client, 'createInference', { body: { ...body, stream: true }, idempotency_key: id() }))
+        .status,
+    ).toBe(400);
+    expect(provider).toHaveBeenCalledTimes(1);
+  } finally {
+    config.allowPaid = paid;
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  }
+});
 async function call<K extends ApiOperation>(client: Client, name: K, args: Record<string, unknown> = {}) {
   const result = await client.callTool({ name, arguments: args });
   return result.structuredContent as { status: number; data: ApiResult<K>; request_id: string };
 }
+it('preserves inference recovery identity when a saved response exceeds MCP delivery bounds', async () => {
+  const runId = id(),
+    identity = id();
+  const delivery = vi
+    .spyOn(apiHttp, 'handleApi')
+    .mockResolvedValueOnce(
+      Response.json(
+        { result: { value: 'x'.repeat(2 * 1024 * 1024) } },
+        { headers: { 'x-run-id': runId, 'x-request-id': id() } },
+      ),
+    );
+  try {
+    const result = await call(await connect(), 'createInference', {
+      idempotency_key: identity,
+      body: {
+        model_binding: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', billing_mode: 'managed' },
+        input: { messages: [{ role: 'user', content: 'Reply Ready' }], max_tokens: 32 },
+        limits: { timeout_seconds: 20, max_output_tokens: 32, max_cost_micro_usd: '10000' },
+      },
+    });
+    expect(result).toMatchObject({
+      status: 502,
+      data: {
+        error: {
+          code: 'inference_delivery_failed',
+          retryable: false,
+          details: {
+            idempotency_key: identity,
+            run_id: runId,
+            urls: { result: `${config.origin}/v1/runs/${runId}/result` },
+          },
+        },
+      },
+    });
+    expect(delivery).toHaveBeenCalledOnce();
+  } finally {
+    delivery.mockRestore();
+  }
+});
 it('negotiates with the official SDK, paginates every authorized tool and rejects malformed requests', async () => {
   const client = await connect();
   expect(client.getInstructions()).toContain('idempotency_key');

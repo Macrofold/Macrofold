@@ -21,19 +21,70 @@ await withFixtureDatabase(async (env) => {
     PYTHONPATH: path.resolve('sdk/python'),
     MACROFOLD_FIXTURE_ORIGIN: env.APP_ORIGIN,
     MACROFOLD_FIXTURE_KEY: seed.api_key,
+    MACROFOLD_FIXTURE_INFERENCE_INPUT: path.resolve('tests/fixtures/sdk-immediate-input.json'),
   };
   const server = background(
     ['--import', 'tsx', 'tests/fixtures/sdk-server.ts'],
     env,
     path.join(env.DATA_DIR!, 'sdk-server.log'),
   );
-  const worker = background(
-    ['--import', 'tsx', 'scripts/worker.ts'],
-    env,
-    path.join(env.DATA_DIR!, 'sdk-worker.log'),
-  );
+  const immediateOnly = process.env.SDK_IMMEDIATE_ONLY === 'true';
+  const worker = immediateOnly
+    ? undefined
+    : background(['--import', 'tsx', 'scripts/worker.ts'], env, path.join(env.DATA_DIR!, 'sdk-worker.log'));
   try {
     await ready(env.APP_ORIGIN!, server.child);
+    await command(['exec', 'tsx', 'tests/fixtures/sdk-immediate-journey.ts'], fixture);
+    if (immediateOnly) {
+      await command(
+        [
+          'exec',
+          'python',
+          '-m',
+          'pytest',
+          'sdk/python/tests/test_immediate_inference.py',
+          '-k',
+          'application',
+          '-q',
+        ],
+        fixture,
+      );
+      await command(
+        ['exec', 'go', '-C', 'sdk/go', 'test', './...', '-run', 'TestImmediateInferenceApplication'],
+        fixture,
+      );
+      await command(
+        [
+          'exec',
+          'cargo',
+          'test',
+          '--locked',
+          '--manifest-path',
+          'sdk/rust/Cargo.toml',
+          '--test',
+          'immediate_inference',
+          'application_immediate',
+          '--',
+          '--include-ignored',
+        ],
+        fixture,
+      );
+      await command(
+        [
+          'exec',
+          'mvn',
+          '-B',
+          '-q',
+          '-f',
+          'sdk/java/pom.xml',
+          '-Dtest=ImmediateInferenceTest#applicationImmediate',
+          'test',
+        ],
+        fixture,
+      );
+      assert((await fetch(env.APP_ORIGIN! + '/health')).ok, 'Fixture background work failed.');
+      return;
+    }
     const client = new Client({ baseURL: env.APP_ORIGIN!, apiKey: seed.api_key });
     const workspace = await client.workspaces.create({ name: 'Shared file-read fixture' });
     const worktree = workspace.default_worktree_id;
@@ -108,6 +159,6 @@ await withFixtureDatabase(async (env) => {
     }
     throw error;
   } finally {
-    await Promise.all([server.stop(), worker.stop()]);
+    await Promise.all([server.stop(), worker?.stop()]);
   }
 });

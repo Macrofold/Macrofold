@@ -361,7 +361,7 @@
     "source": "docs/features/api/streaming.md",
     "title": "Model and agent streaming",
     "section": "Reference",
-    "description": "Understand current agent streams and the planned direct-model delta interface and support limits."
+    "description": "Stream model and agent output, understand support limits, and recover saved results."
   },
   {
     "slug": "api/http-quickstart",

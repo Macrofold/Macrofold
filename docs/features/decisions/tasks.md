@@ -1,6 +1,6 @@
 # Bounded agents and decision tasks
 
-Start with [one inference](README.md). Add a bounded agent when the model needs to inspect granted evidence; add a task when your application needs several runs separated by waits and review.
+Start with [one immediate inference](README.md). Bounded agents and Tasks retain queued Run admission and dispatcher-driven execution; removing queued delivery from `POST /v1/inferences` does not change these APIs. Add a bounded agent when the model needs to inspect granted evidence; add a task when your application needs several runs separated by waits and review.
 
 ## A finite evidence investigation
 

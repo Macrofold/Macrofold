@@ -24,6 +24,7 @@ class TasksResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DecisionTask, result, identity)
@@ -36,6 +37,7 @@ class TasksResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"workspace_id": workspace_id,"objective": objective,"decide": decide,"investigate": investigate,"investigate_when": investigate_when,"max_cost_micro_usd": max_cost_micro_usd,"max_runs": max_runs,"evidence_horizon_seconds": evidence_horizon_seconds}),
         )
         return decode(models.DecisionTask, result, identity)
@@ -48,6 +50,7 @@ class TasksResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DecisionTask, result, identity)
@@ -60,6 +63,7 @@ class TasksResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"event_id": event_id,"wake_id": wake_id,"outcome": outcome,"evidence": evidence,"note": note}),
         )
         return decode(models.DecisionTask, result, identity)
@@ -72,6 +76,7 @@ class TasksResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"event_id": event_id,"input": input,"context": context}),
         )
         return decode(models.DecisionTask, result, identity)
@@ -88,6 +93,7 @@ class WebhookDeliveriesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListWebhookDeliveries200Response, result, identity)
@@ -100,6 +106,7 @@ class WebhookDeliveriesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.Operation, result, identity)
@@ -116,6 +123,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.Run, result, identity)
@@ -128,6 +136,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"webhook_endpoint_ids": webhook_endpoint_ids,"connection_access_overrides": connection_access_overrides,"stream": stream,"prompt": prompt,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"harness": harness,"memory_mib": memory_mib,"cpu_millis": cpu_millis,"agent_id": agent_id,"harness_prompt_mode": harness_prompt_mode,"session_id": session_id,"connection_grants": connection_grants,"worker_id": worker_id,"scheduling_class": scheduling_class,"model": model,"billing_mode": billing_mode,"limits": limits,"worktree_id": worktree_id,"queue_if_busy": queue_if_busy,"provider_connection_id": provider_connection_id,"permissions": permissions,"attachments": attachments,"workspace_id": workspace_id}),
         )
         return decode(models.NativeRunAccepted, result, identity)
@@ -140,6 +149,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Run, result, identity)
@@ -152,6 +162,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.RunResult, result, identity)
@@ -164,6 +175,7 @@ class RunsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListArtifacts200Response, result, identity)
@@ -176,6 +188,7 @@ class RunsResource:
             query=parameters({"after": after,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListCustomerAgentRunEvents200Response, result, identity)
@@ -188,6 +201,7 @@ class RunsResource:
             query=parameters({"status": status,"workspace_id": workspace_id,"from": from_,"to": to,"cursor": cursor,"limit": limit,"worktree_id": worktree_id,"session_id": session_id,"worker_id": worker_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListRuns200Response, result, identity)
@@ -217,6 +231,7 @@ class RunsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"input_request_id": input_request_id,"answer": answer}),
         )
         return decode(models.Run, result, identity)
@@ -233,6 +248,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"email": email,"role": role}),
         )
         return decode(models.Invitation, result, identity)
@@ -245,6 +261,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name}),
         )
         return decode(models.Organization, result, identity)
@@ -257,6 +274,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ExecutionPolicy, result, identity)
@@ -269,6 +287,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListInvitations200Response, result, identity)
@@ -281,6 +300,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListMembers200Response, result, identity)
@@ -293,6 +313,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListOrganizationAudit200Response, result, identity)
@@ -305,6 +326,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -317,6 +339,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -329,6 +352,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"concurrency_limit": concurrency_limit,"max_timeout_seconds": max_timeout_seconds}),
         )
         return decode(models.ExecutionPolicy, result, identity)
@@ -341,6 +365,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"role": role}),
         )
         return None
@@ -353,6 +378,7 @@ class OrganizationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name}),
         )
         return decode(models.Organization, result, identity)
@@ -369,6 +395,7 @@ class CheckpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"format": format}),
         )
         return decode(models.ExportOperation, result, identity)
@@ -381,6 +408,7 @@ class CheckpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"pinned": pinned}),
         )
         return decode(models.Checkpoint, result, identity)
@@ -397,6 +425,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"return_to": return_to}),
         )
         return decode(models.AuthorizationLink, result, identity)
@@ -409,6 +438,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
         )
         return decode(models.Connection, result, identity)
@@ -421,6 +451,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload(input),
         )
         return decode(models.ConnectionAccessRuleMutation, result, identity)
@@ -433,6 +464,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -445,6 +477,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ConnectionAccessRuleDeleted, result, identity)
@@ -457,6 +490,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Connection, result, identity)
@@ -469,6 +503,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ConnectionAccess, result, identity)
@@ -481,6 +516,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id,"sort": sort,"direction": direction}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ConnectionAccessRulePage, result, identity)
@@ -493,6 +529,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit,"workspace_id": workspace_id,"agent_id": agent_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ContextualConnectionPage, result, identity)
@@ -505,6 +542,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListConnectionTools200Response, result, identity)
@@ -517,6 +555,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ConnectorCatalog, result, identity)
@@ -529,6 +568,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.StdioPackagePage, result, identity)
@@ -541,6 +581,7 @@ class ConnectionsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"workspace_id": workspace_id,"worktree_id": worktree_id,"session_id": session_id,"agent_id": agent_id,"connection_grants": connection_grants,"connection_access_overrides": connection_access_overrides,"permissions": permissions}),
         )
         return decode(models.ConnectionAccessResolutionPage, result, identity)
@@ -553,6 +594,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.ConnectionTest, result, identity)
@@ -565,6 +607,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"kind": kind,"provider": provider,"url": url,"auth_method": auth_method,"secret": secret,"secret_headers": secret_headers,"package": package,"package_version": package_version,"args": args,"secret_env": secret_env,"api_fallback": api_fallback}),
         )
         return decode(models.Connection, result, identity)
@@ -577,6 +620,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"organization_wide": organization_wide,"tools": tools}),
         )
         return decode(models.ConnectionAccess, result, identity)
@@ -589,6 +633,7 @@ class ConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload(input),
         )
         return decode(models.ConnectionAccessRuleMutation, result, identity)
@@ -605,6 +650,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"kind": kind,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
         )
         return decode(models.NewTrigger, result, identity)
@@ -617,6 +663,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DeleteSlackConnection200Response, result, identity)
@@ -629,6 +676,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Trigger, result, identity)
@@ -641,6 +689,7 @@ class TriggersResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListTriggerDeliveries200Response, result, identity)
@@ -653,6 +702,7 @@ class TriggersResource:
             query=parameters({"cursor": cursor,"limit": limit,"kind": kind}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListTriggers200Response, result, identity)
@@ -665,6 +715,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.TriggerDelivery, result, identity)
@@ -677,6 +728,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.TriggerSecret, result, identity)
@@ -689,6 +741,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.TriggerDelivery, result, identity)
@@ -701,6 +754,7 @@ class TriggersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"workspace_id": workspace_id,"agent_id": agent_id,"prompt": prompt,"enabled": enabled,"max_runs_per_day": max_runs_per_day,"cron": cron,"timezone": timezone,"slack_connection_id": slack_connection_id,"channel_id": channel_id}),
         )
         return decode(models.Trigger, result, identity)
@@ -717,6 +771,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"return_url": return_url}),
         )
         return decode(models.CustomerConnectionAuthorization, result, identity)
@@ -729,6 +784,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.Run, result, identity)
@@ -741,6 +797,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"code": code}),
         )
         return decode(models.CustomerAgentConnection, result, identity)
@@ -753,6 +810,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"provider": provider,"capabilities": capabilities}),
         )
         return decode(models.CustomerAgentConnection, result, identity)
@@ -765,6 +823,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -777,6 +836,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"key": key,"name": name,"configuration": configuration}),
         )
         return decode(models.CustomerAgentBinding, result, identity)
@@ -789,6 +849,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.CustomerAgentBinding, result, identity)
@@ -801,6 +862,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Run, result, identity)
@@ -813,6 +875,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.RunResult, result, identity)
@@ -825,6 +888,7 @@ class CustomerAgentsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.CustomerAgentConnectionPage, result, identity)
@@ -837,6 +901,7 @@ class CustomerAgentsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListSessions200Response, result, identity)
@@ -849,6 +914,7 @@ class CustomerAgentsResource:
             query=parameters({"path": path,"query": query,"recursive": recursive,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.FileListing, result, identity)
@@ -861,6 +927,7 @@ class CustomerAgentsResource:
             query=parameters({"after": after,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListCustomerAgentRunEvents200Response, result, identity)
@@ -873,6 +940,7 @@ class CustomerAgentsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.CustomerAgentPage, result, identity)
@@ -885,6 +953,7 @@ class CustomerAgentsResource:
             query=parameters({"download": download,"path": path}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return result
@@ -897,6 +966,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"prompt": prompt,"conversation_id": conversation_id,"limits": limits,"queue_if_busy": queue_if_busy,"attachments": attachments,"stream": stream}),
         )
         return decode(models.NativeRunAccepted, result, identity)
@@ -917,6 +987,7 @@ class CustomerAgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"capability_ids": capability_ids}),
         )
         return decode(models.CustomerAgentConnection, result, identity)
@@ -933,6 +1004,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"pinned": pinned}),
         )
         return decode(models.Operation, result, identity)
@@ -945,6 +1017,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"path": path}),
         )
         return decode(models.Operation, result, identity)
@@ -957,6 +1030,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"direction": direction,"base_revision": base_revision,"manifest": manifest,"paths": paths,"include_ignored": include_ignored,"delete": delete,"dry_run": dry_run}),
         )
         return decode(models.Transfer, result, identity)
@@ -969,6 +1043,7 @@ class WorktreesResource:
             query=parameters({"path": path}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Operation, result, identity)
@@ -981,6 +1056,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Operation, result, identity)
@@ -993,6 +1069,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"path": path,"new_path": new_path}),
         )
         return decode(models.Operation, result, identity)
@@ -1005,6 +1082,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.GitSync, result, identity)
@@ -1017,6 +1095,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Worktree, result, identity)
@@ -1029,6 +1108,7 @@ class WorktreesResource:
             query=parameters({"base_checkpoint_id": base_checkpoint_id,"path": path,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.WorktreeDiff, result, identity)
@@ -1041,6 +1121,7 @@ class WorktreesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListCheckpoints200Response, result, identity)
@@ -1053,6 +1134,7 @@ class WorktreesResource:
             query=parameters({"path": path,"cursor": cursor,"limit": limit,"query": query,"recursive": recursive}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.FileListing, result, identity)
@@ -1065,6 +1147,7 @@ class WorktreesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListTransfers200Response, result, identity)
@@ -1077,6 +1160,7 @@ class WorktreesResource:
             query=parameters({"path": path,"download": download}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return result
@@ -1089,6 +1173,7 @@ class WorktreesResource:
             query=parameters({"path": path}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"new_path": new_path}),
         )
         return decode(models.Operation, result, identity)
@@ -1101,6 +1186,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"checkpoint_id": checkpoint_id}),
         )
         return decode(models.Operation, result, identity)
@@ -1113,6 +1199,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"mode": mode}),
         )
         return decode(models.Operation, result, identity)
@@ -1125,6 +1212,7 @@ class WorktreesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"permissions": permissions}),
         )
         return decode(models.Worktree, result, identity)
@@ -1137,6 +1225,7 @@ class WorktreesResource:
             query=parameters({"path": path,"create_only": create_only}),
             headers={**options.headers, **parameters({"If-Match": if_match})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=content,
         )
         return decode(models.Operation, result, identity)
@@ -1153,6 +1242,7 @@ class SlackConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"bot_token": bot_token,"signing_secret": signing_secret}),
         )
         return decode(models.SlackConnection, result, identity)
@@ -1165,6 +1255,7 @@ class SlackConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DeleteSlackConnection200Response, result, identity)
@@ -1177,6 +1268,7 @@ class SlackConnectionsResource:
             query=parameters({"cursor": cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListSlackConnectionChannels200Response, result, identity)
@@ -1189,6 +1281,7 @@ class SlackConnectionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListSlackConnections200Response, result, identity)
@@ -1205,6 +1298,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Workspace, result, identity)
@@ -1217,6 +1311,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"persistence": persistence,"github": github,"permissions": permissions}),
         )
         return decode(models.Workspace, result, identity)
@@ -1229,6 +1324,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"checkpoint_id": checkpoint_id,"branch": branch,"source": source,"branch_mode": branch_mode,"permissions": permissions}),
         )
         return decode(models.Operation, result, identity)
@@ -1241,6 +1337,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Operation, result, identity)
@@ -1253,6 +1350,7 @@ class WorkspacesResource:
             query=parameters({"include_connections": include_connections,"agent_id": agent_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Workspace, result, identity)
@@ -1265,6 +1363,7 @@ class WorkspacesResource:
             query=parameters({"name": name,"branch": branch}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.WorktreeOptions, result, identity)
@@ -1277,6 +1376,7 @@ class WorkspacesResource:
             query=parameters({"cursor": cursor,"limit": limit,"query": query,"archived": archived}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListWorkspaces200Response, result, identity)
@@ -1289,6 +1389,7 @@ class WorkspacesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListWorktrees200Response, result, identity)
@@ -1301,6 +1402,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"confirmation": confirmation,"password": password}),
         )
         return decode(models.Workspace, result, identity)
@@ -1313,6 +1415,7 @@ class WorkspacesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"github": github,"archived": archived,"permissions": permissions}),
         )
         return decode(models.Workspace, result, identity)
@@ -1329,6 +1432,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd}),
         )
         return decode(models.Worker, result, identity)
@@ -1341,6 +1445,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"force": force}),
         )
         return decode(models.Worker, result, identity)
@@ -1353,6 +1458,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Worker, result, identity)
@@ -1365,6 +1471,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.WorkerOfferings, result, identity)
@@ -1377,6 +1484,7 @@ class WorkersResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.WorkerPage, result, identity)
@@ -1389,6 +1497,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"compute": compute,"dedicated": dedicated,"isolate_runs": isolate_runs,"region": region,"runtime": runtime,"size": size,"min_instances": min_instances,"max_instances": max_instances,"max_concurrency": max_concurrency,"idle_timeout_seconds": idle_timeout_seconds,"expires_at": expires_at,"max_hourly_compute_cost_micro_usd": max_hourly_compute_cost_micro_usd,"expected_revision": expected_revision}),
         )
         return decode(models.Worker, result, identity)
@@ -1401,6 +1510,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"force": force}),
         )
         return decode(models.Worker, result, identity)
@@ -1413,6 +1523,7 @@ class WorkersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Worker, result, identity)
@@ -1429,6 +1540,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"include_contact": include_contact}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.AccountSummary, result, identity)
@@ -1441,6 +1553,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -1453,6 +1566,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by,"organization_id": organization_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -1465,6 +1579,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"service_id": service_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -1477,6 +1592,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -1489,6 +1605,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by,"organization_id": organization_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -1501,6 +1618,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Diagnostics, result, identity)
@@ -1513,6 +1631,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"query": query,"include_contact": include_contact,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListAccounts200Response, result, identity)
@@ -1525,6 +1644,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"organization_id": organization_id,"status_code": status_code,"route": route,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListRequests200Response, result, identity)
@@ -1537,6 +1657,7 @@ class OperatorResource:
             query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ReportSnapshotPage, result, identity)
@@ -1553,6 +1674,7 @@ class IntegrationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Workspace, result, identity)
@@ -1565,6 +1687,7 @@ class IntegrationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.GithubInstallations, result, identity)
@@ -1577,6 +1700,7 @@ class IntegrationsResource:
             query=parameters({"installation_id": installation_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.GithubRepositories, result, identity)
@@ -1593,6 +1717,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.Redirect, result, identity)
@@ -1605,6 +1730,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"kind": kind,"amount_micro_usd": amount_micro_usd,"plan": plan}),
         )
         return decode(models.Redirect, result, identity)
@@ -1617,6 +1743,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Billing, result, identity)
@@ -1629,6 +1756,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Storage, result, identity)
@@ -1641,6 +1769,7 @@ class BillingResource:
             query=parameters({"from": from_,"to": to,"workspace_id": workspace_id,"worktree_id": worktree_id,"run_id": run_id,"session_id": session_id,"customer_id": customer_id,"agent_key": agent_key,"provider": provider,"model": model,"kind": kind,"billing_mode": billing_mode,"cursor": cursor,"limit": limit,"worker_id": worker_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.BillingUsagePage, result, identity)
@@ -1653,6 +1782,7 @@ class BillingResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"overage_enabled": overage_enabled,"monthly_budget_micro_usd": monthly_budget_micro_usd}),
         )
         return decode(models.Storage, result, identity)
@@ -1669,6 +1799,7 @@ class ApiKeysResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"scopes": scopes,"workspace_id": workspace_id,"expires_at": expires_at,"worker_ids": worker_ids}),
         )
         return decode(models.NewApiKey, result, identity)
@@ -1681,6 +1812,7 @@ class ApiKeysResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListApiKeys200Response, result, identity)
@@ -1693,6 +1825,7 @@ class ApiKeysResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -1709,6 +1842,7 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"webhook_endpoint_ids": webhook_endpoint_ids,"connection_access_overrides": connection_access_overrides,"stream": stream,"prompt": prompt,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"memory_mib": memory_mib,"cpu_millis": cpu_millis,"worker_id": worker_id,"connection_grants": connection_grants,"scheduling_class": scheduling_class,"limits": limits,"model": model,"permissions": permissions,"queue_if_busy": queue_if_busy,"attachments": attachments}),
         )
         return decode(models.NativeRunAccepted, result, identity)
@@ -1721,6 +1855,7 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"worktree_id": worktree_id,"harness": harness,"model": model,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits,"model_parameters": model_parameters}),
         )
         return decode(models.Session, result, identity)
@@ -1733,6 +1868,7 @@ class SessionsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Session, result, identity)
@@ -1745,6 +1881,7 @@ class SessionsResource:
             query=parameters({"cursor": cursor,"limit": limit,"worktree_id": worktree_id}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListSessions200Response, result, identity)
@@ -1761,6 +1898,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"stream": stream}),
         )
         return decode(models.RunAccepted, result, identity)
@@ -1773,6 +1911,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"workspace_id": workspace_id,"name": name,"context": context,"source_run_id": source_run_id}),
         )
         return decode(models.ContextArtifact, result, identity)
@@ -1785,28 +1924,31 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"workspace_id": workspace_id,"name": name,"definition": definition}),
         )
         return decode(models.DecisionDefinition, result, identity)
 
     def stream(self, request: params.InferenceCreateParams, *, request_options: RequestOptions | None = None) -> Generator[models.InferenceStreamEvent, None, None]:
         options = request_options or RequestOptions()
-        stream = self._client.stream_inference(payload(request), idempotency_key=options.idempotency_key, headers=options.headers)
+        identity = options.identity(True)
+        stream = self._client.stream_inference(payload(request), idempotency_key=identity, headers=options.headers, inference_retries=options.inference_retries, timeout=options.timeout)
         try:
             for event in stream:
-                yield models.InferenceStreamEvent.model_validate(event)
+                yield decode(models.InferenceStreamEvent, event, identity)
         finally:
             stream.close()
 
-    def create(self, *, prefer: Literal["respond-async"] | Omit = OMIT, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, queue_timeout_seconds: int | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
+    def create(self, *, workspace_id: str | UUID | Omit = OMIT, definition: params.InferenceDefinitionParams | params.DefinitionReferenceParams | Omit = OMIT, input: object, context: params.ExplicitContextParams | params.ContextReferenceParams | Omit = OMIT, model_binding: params.DecisionBindingParams, limits: params.InferenceLimitsParams | Omit = OMIT, model_parameters: params.ModelParametersParams | Omit = OMIT, stream: bool | Omit = OMIT, request_options: RequestOptions | None = None) -> models.InferenceResponse:
         options = request_options or RequestOptions()
         identity = options.identity(True)
         result = self._client.request("createInference",
             path=parameters({}),
             query=parameters({}),
-            headers={**options.headers, **parameters({"Prefer": prefer})},
+            headers={**options.headers, **parameters({})},
             idempotency_key=identity,
-            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"queue_timeout_seconds": queue_timeout_seconds,"model_parameters": model_parameters,"stream": stream}),
+            inference_retries=options.inference_retries, timeout=options.timeout,
+            body=payload({"workspace_id": workspace_id,"definition": definition,"input": input,"context": context,"model_binding": model_binding,"limits": limits,"model_parameters": model_parameters,"stream": stream}),
         )
         return decode(models.InferenceResponse, result, identity)
 
@@ -1818,6 +1960,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ContextArtifact, result, identity)
@@ -1830,6 +1973,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DecisionDefinition, result, identity)
@@ -1842,6 +1986,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ContextArtifact, result, identity)
@@ -1854,6 +1999,7 @@ class InferencesResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.DecisionDefinition, result, identity)
@@ -1870,6 +2016,7 @@ class WebhookEndpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"url": url,"events": events}),
         )
         return decode(models.NewWebhook, result, identity)
@@ -1882,6 +2029,7 @@ class WebhookEndpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -1894,6 +2042,7 @@ class WebhookEndpointsResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListWebhookEndpoints200Response, result, identity)
@@ -1906,6 +2055,7 @@ class WebhookEndpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({}),
         )
         return decode(models.NewWebhook, result, identity)
@@ -1918,6 +2068,7 @@ class WebhookEndpointsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"url": url,"events": events,"enabled": enabled}),
         )
         return decode(models.Webhook, result, identity)
@@ -1934,6 +2085,7 @@ class ArtifactsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -1946,6 +2098,7 @@ class ArtifactsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Download, result, identity)
@@ -1962,6 +2115,7 @@ class TransfersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"expected_revision": expected_revision,"completed_paths": completed_paths}),
         )
         return decode(models.Operation, result, identity)
@@ -1974,6 +2128,7 @@ class TransfersResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Transfer, result, identity)
@@ -1990,6 +2145,7 @@ class UsageResource:
             query=parameters({"from": from_,"to": to,"group_by": group_by}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Report, result, identity)
@@ -2006,6 +2162,7 @@ class OperationsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Operation, result, identity)
@@ -2022,6 +2179,7 @@ class ModelsResource:
             query=parameters({"harness": harness,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListModels200Response, result, identity)
@@ -2038,6 +2196,7 @@ class AgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
         )
         return decode(models.Agent, result, identity)
@@ -2050,6 +2209,7 @@ class AgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return None
@@ -2062,6 +2222,7 @@ class AgentsResource:
             query=parameters({"include_connections": include_connections,"workspace_id": workspace_id,"connections_limit": connections_limit,"connections_cursor": connections_cursor}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Agent, result, identity)
@@ -2074,6 +2235,7 @@ class AgentsResource:
             query=parameters({"cursor": cursor,"limit": limit,"query": query}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListAgents200Response, result, identity)
@@ -2086,6 +2248,7 @@ class AgentsResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             body=payload({"name": name,"harness": harness,"model": model,"instructions": instructions,"billing_mode": billing_mode,"provider_connection_id": provider_connection_id,"connection_grants": connection_grants,"limits": limits}),
         )
         return decode(models.Agent, result, identity)
@@ -2102,6 +2265,7 @@ class MeResource:
             query=parameters({}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.Identity, result, identity)
@@ -2118,6 +2282,7 @@ class RequestsResource:
             query=parameters({"from": from_,"to": to,"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListRequests200Response, result, identity)
@@ -2134,6 +2299,7 @@ class HarnessesResource:
             query=parameters({"cursor": cursor,"limit": limit}),
             headers={**options.headers, **parameters({})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
 
         )
         return decode(models.ListHarnesses200Response, result, identity)

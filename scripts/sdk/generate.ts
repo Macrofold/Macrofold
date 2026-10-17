@@ -53,6 +53,26 @@ try {
         files: { 'metadata.mustache': { templateType: 'API', destinationFilename: '.sdkmeta.json' } },
       }),
     );
+    // The pinned vendor generators cannot retain common envelope fields when a schema has
+    // both properties and conditional branches. Keep the common typed properties; the authored
+    // OpenAPI and TypeScript retain the exact branch constraints and transport tests
+    // cover terminal/recovery variants in every language.
+    let inputSpecification = path.resolve('docs/api/openapi.json');
+    if (['python', 'go', 'rust', 'java'].includes(language)) {
+      const specification = JSON.parse(await readFile(inputSpecification, 'utf8'));
+      for (const name of [
+        'InferenceResponse',
+        'InferenceStreamEvent',
+        'InferenceStreamTerminal',
+        'InferenceReceipt',
+      ]) {
+        delete specification.components.schemas[name].oneOf;
+        delete specification.components.schemas[name].allOf;
+      }
+      delete specification.components.schemas.InferenceStreamEvent.properties.data.oneOf;
+      inputSpecification = path.join(temporary, language + '-openapi.json');
+      await writeFile(inputSpecification, JSON.stringify(specification));
+    }
     try {
       await exec(
         java,
@@ -63,7 +83,7 @@ try {
           '-g',
           language,
           '-i',
-          path.resolve('docs/api/openapi.json'),
+          inputSpecification,
           '-o',
           output,
           '-c',

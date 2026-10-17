@@ -85,9 +85,62 @@ public class InferenceStreamEvent {
   @javax.annotation.Nonnull
   private UUID runId;
 
+  /**
+   * Gets or Sets type
+   */
+  public enum TypeEnum {
+    RUN_ACCEPTED(String.valueOf("run.accepted")),
+
+    OUTPUT_DELTA(String.valueOf("output.delta")),
+
+    OUTPUT_STARTED(String.valueOf("output.started")),
+
+    OUTPUT_FINISHED(String.valueOf("output.finished")),
+
+    TOOL_ARGUMENTS_DELTA(String.valueOf("tool.arguments.delta")),
+
+    OUTPUT_REFUSAL_DELTA(String.valueOf("output.refusal.delta")),
+
+    RUN_SUCCEEDED(String.valueOf("run.succeeded")),
+
+    RUN_FAILED(String.valueOf("run.failed")),
+
+    RUN_CANCELLED(String.valueOf("run.cancelled")),
+
+    RUN_TIMED_OUT(String.valueOf("run.timed_out")),
+
+    TRANSPORT_ERROR(String.valueOf("transport.error"));
+
+    private String value;
+
+    TypeEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static TypeEnum fromValue(String value) {
+      for (TypeEnum b : TypeEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
   public static final String JSON_PROPERTY_TYPE = "type";
   @javax.annotation.Nonnull
-  private String type;
+  private TypeEnum type;
 
   public static final String JSON_PROPERTY_OCCURRED_AT = "occurred_at";
   @javax.annotation.Nonnull
@@ -148,26 +201,26 @@ public class InferenceStreamEvent {
   }
 
 
-  public InferenceStreamEvent type(@javax.annotation.Nonnull String type) {
+  public InferenceStreamEvent type(@javax.annotation.Nonnull TypeEnum type) {
     this.type = type;
     return this;
   }
 
   /**
-   * run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error.
+   * Get type
    * @return type
    */
   @javax.annotation.Nonnull
   @JsonProperty(value = JSON_PROPERTY_TYPE, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public String getType() {
+  public TypeEnum getType() {
     return type;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_TYPE, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setType(@javax.annotation.Nonnull String type) {
+  public void setType(@javax.annotation.Nonnull TypeEnum type) {
     this.type = type;
   }
 
@@ -319,7 +372,7 @@ public class InferenceStreamEvent {
 
     // add `data` to the URL query string
     if (getData() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sdata%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getData()))));
+      joiner.add(getData().toUrlQueryString(prefix + "data" + suffix));
     }
 
     return joiner.toString();

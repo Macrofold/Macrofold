@@ -19,7 +19,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
 from uuid import UUID
 from macrofold.models.decision_binding import DecisionBinding
 from macrofold.models.decision_task_wake_context import DecisionTaskWakeContext
@@ -40,10 +39,9 @@ class InferenceCreate(BaseModel):
     context: Optional[DecisionTaskWakeContext] = None
     model_binding: DecisionBinding
     limits: Optional[InferenceLimits] = None
-    queue_timeout_seconds: Optional[Annotated[int, Field(le=86400, strict=True, ge=1)]] = None
     model_parameters: Optional[ModelParameters] = None
     stream: Optional[StrictBool] = Field(default=None, description="Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.")
-    __properties: ClassVar[List[str]] = ["workspace_id", "definition", "input", "context", "model_binding", "limits", "queue_timeout_seconds", "model_parameters", "stream"]
+    __properties: ClassVar[List[str]] = ["workspace_id", "definition", "input", "context", "model_binding", "limits", "model_parameters", "stream"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -122,7 +120,6 @@ class InferenceCreate(BaseModel):
             "context": DecisionTaskWakeContext.from_dict(obj["context"]) if obj.get("context") is not None else None,
             "model_binding": DecisionBinding.from_dict(obj["model_binding"]) if obj.get("model_binding") is not None else None,
             "limits": InferenceLimits.from_dict(obj["limits"]) if obj.get("limits") is not None else None,
-            "queue_timeout_seconds": obj.get("queue_timeout_seconds"),
             "model_parameters": ModelParameters.from_dict(obj["model_parameters"]) if obj.get("model_parameters") is not None else None,
             "stream": obj.get("stream")
         })

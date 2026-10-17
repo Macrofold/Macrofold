@@ -25,8 +25,6 @@ pub struct InferenceCreate {
     pub model_binding: Box<models::DecisionBinding>,
     #[serde(rename = "limits", skip_serializing_if = "Option::is_none")]
     pub limits: Option<Box<models::InferenceLimits>>,
-    #[serde(rename = "queue_timeout_seconds", skip_serializing_if = "Option::is_none")]
-    pub queue_timeout_seconds: Option<i32>,
     #[serde(rename = "model_parameters", skip_serializing_if = "Option::is_none")]
     pub model_parameters: Option<Box<models::ModelParameters>>,
     /// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
@@ -43,7 +41,6 @@ impl InferenceCreate {
             context: None,
             model_binding: Box::new(model_binding),
             limits: None,
-            queue_timeout_seconds: None,
             model_parameters: None,
             stream: None,
         }

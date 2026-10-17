@@ -32,6 +32,9 @@ export type RequestOptions<O extends Operation> = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   idempotencyKey?: string;
+  /** Immediate inference only: explicit confirmed pre-admission retries, 0–2. */
+  inferenceRetries?: number;
+  timeoutMs?: number;
 };
 export class ApiError extends Error {
   constructor(
@@ -40,6 +43,10 @@ export class ApiError extends Error {
     message: string,
     public requestId?: string,
     public details?: unknown,
+    public idempotencyKey?: string,
+    public runId?: string,
+    public urls?: Schema['InferenceUrls'],
+    public retryable = false,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -49,9 +56,16 @@ export class TransportError extends Error {
   constructor(
     message: string,
     public idempotencyKey?: string,
+    public runId?: string,
+    public urls?: Schema['InferenceUrls'],
+    cause?: unknown,
+    public requestId?: string,
   ) {
-    super(message);
-    this.name = 'TransportError';
+    super(message, { cause });
+    this.name =
+      cause instanceof Error && ['AbortError', 'TimeoutError'].includes(cause.name)
+        ? cause.name
+        : 'TransportError';
   }
 }
 export type ClientOptions = {
@@ -92,6 +106,29 @@ const delay = (ms: number, signal?: AbortSignal) =>
     };
     signal?.addEventListener('abort', abort, { once: true });
   });
+/** Credential suppliers cannot be cancelled, but cannot extend request lifetime.
+ * Both settlement paths stay observed after abort, without retaining a listener. */
+function abortable<T>(pending: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return pending;
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener('abort', abort);
+      reject(signal.reason);
+    };
+    pending.then(
+      (value) => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      (cause: unknown) => {
+        signal.removeEventListener('abort', abort);
+        reject(cause);
+      },
+    );
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+  });
+}
 /** Build the encoded relative URL from the generated contract. Shared by browser
  * query keys and SDK transport; callers never maintain another route registry. */
 export function requestPath<O extends Operation>(operation: O, params?: RequestOptions<O>['params']): string {
@@ -138,23 +175,62 @@ export class Client extends Resources {
     this.fetcher = options.fetch || ((...args) => globalThis.fetch(...args));
   }
   async raw<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Response> {
-    const timeout = AbortSignal.timeout(operation === 'createInference' ? 300_000 : 70_000);
+    const immediate = operation === 'createInference';
+    const timeoutMs = options.timeoutMs ?? (immediate ? 300_000 : 70_000);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+      throw new RangeError('timeoutMs must be a positive timer duration');
+    const retries = immediate ? (options.inferenceRetries ?? 0) : (this.options.retries ?? 2);
+    if (immediate && (!Number.isSafeInteger(retries) || retries < 0 || retries > 2))
+      throw new RangeError('inferenceRetries must be between 0 and 2');
+    const deadline = Date.now() + timeoutMs;
+    const timeout = AbortSignal.timeout(timeoutMs);
     options = { ...options, signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout };
     const route = routes[operation];
     const url = new URL(requestPath(operation, options.params), this.baseURL);
     const mutation = !['GET', 'HEAD'].includes(route.method);
     const idempotencyKey = mutation ? options.idempotencyKey || crypto.randomUUID() : undefined;
-    const body =
-      options.body === undefined
-        ? undefined
-        : options.body instanceof Uint8Array
-          ? options.body
-          : JSON.stringify(options.body);
+    let body: Uint8Array | string | undefined;
+    try {
+      body =
+        options.body === undefined
+          ? undefined
+          : options.body instanceof Uint8Array
+            ? options.body
+            : JSON.stringify(options.body);
+    } catch (cause) {
+      if (!immediate) throw cause;
+      throw new TransportError(
+        'The inference request could not be encoded.',
+        idempotencyKey,
+        undefined,
+        undefined,
+        cause,
+      );
+    }
     for (let attempt = 0; ; attempt++) {
-      options.signal?.throwIfAborted();
-      const token = typeof this.token === 'function' ? await this.token() : this.token;
-      if (!this.options.sessionAuth && !token.trim())
-        throw new Error('Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.');
+      if (options.signal?.aborted)
+        throw new TransportError(
+          'Request aborted; inspect the saved inference identity.',
+          idempotencyKey,
+          undefined,
+          undefined,
+          options.signal.reason,
+        );
+      let token: string;
+      try {
+        token = typeof this.token === 'function' ? await abortable(this.token(), options.signal) : this.token;
+        if (!this.options.sessionAuth && !token.trim())
+          throw new Error('Missing Macrofold API key. Pass apiKey or set MACROFOLD_API_KEY.');
+      } catch (cause) {
+        if (!immediate) throw cause;
+        throw new TransportError(
+          'The request credential could not be prepared.',
+          idempotencyKey,
+          undefined,
+          undefined,
+          cause,
+        );
+      }
       const headers = new Headers({
         ...(this.options.sessionAuth ? {} : { Authorization: `Bearer ${token}` }),
         'X-Client-Type': this.options.clientType || 'sdk',
@@ -169,6 +245,14 @@ export class Client extends Resources {
           'Content-Type',
           body instanceof Uint8Array ? 'application/octet-stream' : 'application/json',
         );
+      if (options.signal?.aborted || Date.now() >= deadline)
+        throw new TransportError(
+          'Request aborted before dispatch.',
+          idempotencyKey,
+          undefined,
+          undefined,
+          options.signal?.reason ?? new DOMException('Request deadline exceeded', 'TimeoutError'),
+        );
       let response: Response;
       try {
         response = await this.fetcher(url, {
@@ -180,33 +264,102 @@ export class Client extends Resources {
           ...(this.options.sessionAuth ? { credentials: 'same-origin' as const } : {}),
         });
       } catch (error) {
-        if (options.signal?.aborted) throw options.signal.reason;
-        if (attempt < (this.options.retries ?? 2)) {
+        if (options.signal?.aborted)
+          throw new TransportError(
+            'Request aborted; inspect the saved mutation identity.',
+            idempotencyKey,
+            undefined,
+            undefined,
+            options.signal.reason,
+          );
+        if (!immediate && attempt < retries) {
           await delay(200 * 2 ** attempt, options.signal);
           continue;
         }
         throw new TransportError(
           'The service could not confirm the request. Reuse the same idempotency key to check a mutation safely.',
           idempotencyKey,
+          undefined,
+          undefined,
+          error,
         );
       }
       if (response.ok) return response;
-      if ([429, 502, 503, 504].includes(response.status) && attempt < (this.options.retries ?? 2)) {
+      if (!immediate && [429, 502, 503, 504].includes(response.status) && attempt < retries) {
         const retryAfter = Math.min(60, Math.max(0, Number(response.headers.get('retry-after')) || 0)) * 1000;
         void response.body?.cancel().catch(() => {});
         await delay(Math.max(retryAfter, 200 * 2 ** attempt), options.signal);
         continue;
       }
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: { code?: string; message?: string; request_id?: string; details?: unknown };
+      const payload = ((await response.json().catch((cause: unknown) => {
+        if (immediate)
+          throw new TransportError(
+            'The error response was incomplete. Recover with the same identity.',
+            idempotencyKey,
+            response.headers.get('x-run-id') ?? undefined,
+            undefined,
+            cause,
+            response.headers.get('x-request-id') ?? undefined,
+          );
+        return {};
+      })) ?? {}) as {
+        error?: {
+          code?: string;
+          message?: string;
+          request_id?: string;
+          retryable?: boolean;
+          details?: { run_id?: string; urls?: Schema['InferenceUrls'] };
+        };
       };
-      throw new ApiError(
+      const error = new ApiError(
         response.status,
         payload.error?.code || 'http_error',
         payload.error?.message || `Request failed (${response.status})`,
         response.headers.get('x-request-id') || payload.error?.request_id,
         payload.error?.details,
+        idempotencyKey,
+        payload.error?.details?.run_id ?? response.headers.get('x-run-id') ?? undefined,
+        payload.error?.details?.urls,
+        payload.error?.retryable === true,
       );
+      const confirmed =
+        payload.error?.retryable === true &&
+        !error.runId &&
+        [
+          'rate_limited',
+          'inference_capacity_unavailable',
+          'streaming_capacity_unavailable',
+          'inference_service_unavailable',
+          'inference_admission_timeout',
+          'inference_host_budget_exhausted',
+        ].includes(error.code);
+      if (immediate && attempt < retries && confirmed && [429, 503].includes(response.status)) {
+        const hint = response.headers.get('retry-after');
+        const seconds =
+          hint && /^\d+(?:\.\d+)?$/.test(hint.trim())
+            ? Number(hint) * 1000
+            : hint
+              ? Math.max(0, Date.parse(hint) - Date.now())
+              : 0;
+        const wait =
+          Math.max(Number.isNaN(seconds) ? 0 : seconds, 200 * 2 ** attempt) +
+          (Math.floor(Math.random() * 100) + 1);
+        // A retry never shortens the server hint or starts a fresh timeout window.
+        if (Date.now() + wait >= deadline) throw error;
+        try {
+          await delay(wait, options.signal);
+        } catch (cause) {
+          throw new TransportError(
+            'Request aborted while waiting to retry.',
+            idempotencyKey,
+            undefined,
+            undefined,
+            cause,
+          );
+        }
+        continue;
+      }
+      throw error;
     }
   }
   async request<O extends Operation>(operation: O, options: RequestOptions<O> = {}): Promise<Result<O>> {
@@ -226,13 +379,16 @@ export class Client extends Resources {
       if (operation === 'readFile' || operation === 'readCustomerAgentFile')
         return new Uint8Array(await response.arrayBuffer()) as Result<O>;
       return (await response.json()) as Result<O>;
-    } catch {
-      if (options.signal?.aborted) throw options.signal.reason;
+    } catch (cause) {
       // Receiving success headers does not guarantee the response body arrived.
       // Preserve the mutation identity without repeating a possibly committed action.
       throw new TransportError(
         'The service response was incomplete. Reuse the same idempotency key to check a mutation safely.',
         requestOptions.idempotencyKey,
+        response.headers.get('x-run-id') ?? undefined,
+        undefined,
+        cause,
+        response.headers.get('x-request-id') ?? undefined,
       );
     }
   }
@@ -240,9 +396,10 @@ export class Client extends Resources {
    * use the accepted run ID to recover the final result, never replay deltas. */
   async *streamInference(
     body: Schema['InferenceCreate'],
-    options: { signal?: AbortSignal; idempotencyKey?: string; headers?: Record<string, string> } = {},
+    options: RequestOptions<'createInference'> = {},
   ): AsyncGenerator<Schema['InferenceStreamEvent']> {
     const idempotencyKey = options.idempotencyKey ?? crypto.randomUUID();
+    const deadline = Date.now() + (options.timeoutMs ?? 300_000);
     const response = await this.raw('createInference', {
       ...options,
       idempotencyKey,
@@ -251,14 +408,50 @@ export class Client extends Resources {
     });
     if (!response.headers.get('content-type')?.includes('text/event-stream')) {
       void response.body?.cancel().catch(() => {});
-      throw new TransportError('Expected a direct event stream.', idempotencyKey);
+      throw new TransportError(
+        'Expected a direct event stream.',
+        idempotencyKey,
+        response.headers.get('x-run-id') ?? undefined,
+        undefined,
+        undefined,
+        response.headers.get('x-request-id') ?? undefined,
+      );
     }
+    let runId: string | undefined = response.headers.get('x-run-id') ?? undefined;
+    let urls: Schema['InferenceUrls'] | undefined;
+    const failure = (message: string, cause?: unknown) =>
+      new TransportError(
+        message,
+        idempotencyKey,
+        runId,
+        urls,
+        cause,
+        response.headers.get('x-request-id') ?? undefined,
+      );
     try {
-      for await (const frame of sseFrames(response, options.signal, 300_000)) {
-        const event: Schema['InferenceStreamEvent'] = JSON.parse(frame.data);
+      for await (const frame of sseFrames(response, options.signal, Math.max(1, deadline - Date.now()))) {
+        const parsed: unknown = JSON.parse(frame.data);
+        if (
+          !parsed ||
+          typeof parsed !== 'object' ||
+          !('schema_version' in parsed) ||
+          parsed.schema_version !== 1 ||
+          !('run_id' in parsed) ||
+          typeof parsed.run_id !== 'string' ||
+          !('type' in parsed) ||
+          typeof parsed.type !== 'string' ||
+          !('data' in parsed) ||
+          !parsed.data ||
+          typeof parsed.data !== 'object'
+        )
+          throw new SyntaxError('Invalid inference stream frame');
+        // Generated types describe the remaining server-owned payload fields.
+        const event = parsed as Schema['InferenceStreamEvent'];
+        runId = event.run_id;
+        if ('urls' in event.data) urls = event.data.urls;
         yield event;
         if (event.type === 'transport.error')
-          throw new TransportError('Stream interrupted. Retrieve the saved run result.', idempotencyKey);
+          throw failure('Stream interrupted. Retrieve the saved run result.');
         if (
           ['run.succeeded', 'run.failed', 'run.cancelled', 'run.timed_out', 'run.recovery_required'].includes(
             event.type,
@@ -268,12 +461,9 @@ export class Client extends Resources {
       }
     } catch (error) {
       if (error instanceof TransportError) throw error;
-      throw new TransportError('Stream interrupted. Retrieve the saved run result.', idempotencyKey);
+      throw failure('Stream interrupted. Retrieve the saved run result.', error);
     }
-    throw new TransportError(
-      'Stream ended before its terminal result. Retrieve the saved run result.',
-      idempotencyKey,
-    );
+    throw failure('Stream ended before its terminal result. Retrieve the saved run result.');
   }
   stream(runId: string, options: { after?: string; signal?: AbortSignal } = {}) {
     return this.streamFrom(

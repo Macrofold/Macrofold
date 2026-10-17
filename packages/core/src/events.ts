@@ -15,32 +15,23 @@ export async function emit(
   data: Record<string, unknown>,
   producer?: { id: string; sequence: number },
 ) {
-  await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
   if (producer) {
+    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
     const old = await tx.query<RunEventRow>(
       'SELECT * FROM run_events WHERE run_id=$1 AND producer_id=$2 AND producer_sequence=$3',
       [runId, producer.id, producer.sequence],
     );
     if (old.rowCount) return publicEvent(old.rows[0]);
   }
-  const row = await tx.query<Pick<RunRow, 'event_sequence'>>(
-    'UPDATE runs SET event_sequence=event_sequence+1 WHERE id=$1 RETURNING event_sequence',
-    [runId],
-  );
-  assert(row.rowCount, 404, 'not_found', 'Run not found.');
+  // UPDATE acquires the Run row first. Allocate the sequence and insert its
+  // event in one statement; producer deduplication retains its earlier lock.
   const result = await tx.query<RunEventRow>(
-    'INSERT INTO run_events(id,organization_id,run_id,sequence,type,data,producer_id,producer_sequence) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-    [
-      id(),
-      org,
-      runId,
-      row.rows[0].event_sequence,
-      type,
-      JSON.stringify(data),
-      producer?.id || null,
-      producer?.sequence || null,
-    ],
+    `WITH next AS (UPDATE runs SET event_sequence=event_sequence+1 WHERE id=$3 RETURNING event_sequence)
+     INSERT INTO run_events(id,organization_id,run_id,sequence,type,data,producer_id,producer_sequence)
+     SELECT $1,$2,$3,next.event_sequence,$4,$5,$6,$7 FROM next RETURNING *`,
+    [id(), org, runId, type, JSON.stringify(data), producer?.id || null, producer?.sequence || null],
   );
+  assert(result.rowCount, 404, 'not_found', 'Run not found.');
   if (tracingEnabled() && tracedRunEvent(type)) {
     const run = (await tx.query<RunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
     await traceRunEvent(tx, run, result.rows[0]);

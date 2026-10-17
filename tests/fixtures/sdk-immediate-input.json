@@ -1,0 +1,9 @@
+{
+  "model_binding": {
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5-20251001",
+    "billing_mode": "managed"
+  },
+  "input": { "messages": [{ "role": "user", "content": "Reply with a greeting." }] },
+  "limits": { "max_cost_micro_usd": "50000", "max_output_tokens": 32, "timeout_seconds": 20 }
+}

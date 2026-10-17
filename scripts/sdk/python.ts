@@ -81,14 +81,17 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
       if (op.originalId === 'createInference') {
         if (!op.contract.body || op.contract.body.binary)
           throw new Error('Inference streaming requires a structured request schema');
-        const requestType = type(op.contract.body.schema, 'InferenceCreate')
-          .replace(/\b(\w+Params)\b/g, 'params.$1');
+        const requestType = type(op.contract.body.schema, 'InferenceCreate').replace(
+          /\b(\w+Params)\b/g,
+          'params.$1',
+        );
         content.push(`    def stream(self, request: ${requestType}, *, request_options: RequestOptions | None = None) -> Generator[models.InferenceStreamEvent, None, None]:
         options = request_options or RequestOptions()
-        stream = self._client.stream_inference(payload(request), idempotency_key=options.idempotency_key, headers=options.headers)
+        identity = options.identity(True)
+        stream = self._client.stream_inference(payload(request), idempotency_key=identity, headers=options.headers, inference_retries=options.inference_retries, timeout=options.timeout)
         try:
             for event in stream:
-                yield models.InferenceStreamEvent.model_validate(event)
+                yield decode(models.InferenceStreamEvent, event, identity)
         finally:
             stream.close()
 `);
@@ -197,6 +200,7 @@ DEFAULT_ORIGIN = ${JSON.stringify(configuration.defaultOrigin)}
               .map((f) => `${JSON.stringify(f.wire)}: ${f.name}`)
               .join(',')}})},
             idempotency_key=identity,
+            inference_retries=options.inference_retries, timeout=options.timeout,
             ${
               contract.body
                 ? `body=${

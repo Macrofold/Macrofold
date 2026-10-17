@@ -36,3 +36,18 @@ export function fleetLimits() {
     total: capacitySetting('GLOBAL_CONCURRENT_RUN_LIMIT', native + inference, 200_000),
   };
 }
+
+/** Per-serving-process pressure, separate from fleet/plan entitlement. The
+ * calibrated 256-advance ceiling is a conservative starting point; admissions
+ * use at most one quarter of the domain pool so completions keep headroom. */
+export function immediateInferenceLimits() {
+  const domainPool = capacitySetting('DATABASE_POOL_SIZE', 80, 1000);
+  return {
+    inFlight: capacitySetting('IMMEDIATE_INFERENCE_CONCURRENCY', 256),
+    admission: capacitySetting(
+      'IMMEDIATE_INFERENCE_ADMISSION_CONCURRENCY',
+      Math.max(1, Math.min(16, Math.floor(domainPool / 4))),
+      Math.max(1, domainPool - 1),
+    ),
+  };
+}

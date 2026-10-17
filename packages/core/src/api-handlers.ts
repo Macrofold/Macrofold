@@ -1,4 +1,5 @@
-import { respondAsync } from './direct-inference';
+import { cancelApiKeyRuns } from './actor-authorization';
+import { lock } from '../../db';
 import * as workers from './workers';
 import { workerOfferings, workerPolicyLimits, publicOffering } from './worker-catalog';
 import * as decisionTasks from './decision-tasks';
@@ -74,10 +75,11 @@ export const capabilities = {
   max_file_bytes: 26214400 as const,
 };
 const primitiveHandlers = {
-  createDecisionTask: c=>decisionTasks.createTask(c.tx,c.p,input<'DecisionTaskCreate'>(c)),
-  getDecisionTask: c=>decisionTasks.getTask(c.tx,c.p,c.params.task_id),
-  recordTaskOutcome: c=>decisionTasks.recordOutcome(c.tx,c.p,c.params.task_id,input<'ApplicationOutcome'>(c)),
-  closeDecisionTask: c=>decisionTasks.closeTask(c.tx,c.p,c.params.task_id),
+  createDecisionTask: (c) => decisionTasks.createTask(c.tx, c.p, input<'DecisionTaskCreate'>(c)),
+  getDecisionTask: (c) => decisionTasks.getTask(c.tx, c.p, c.params.task_id),
+  recordTaskOutcome: (c) =>
+    decisionTasks.recordOutcome(c.tx, c.p, c.params.task_id, input<'ApplicationOutcome'>(c)),
+  closeDecisionTask: (c) => decisionTasks.closeTask(c.tx, c.p, c.params.task_id),
   listTriggers: (c) => triggers.listTriggers(c.tx, c.p, c.query),
   createTrigger: (c) => triggers.saveTrigger(c.tx, c.p, input<'TriggerCreate'>(c)),
   getTrigger: async (c) => triggers.presentTrigger(await triggers.getTrigger(c.tx, c.p, c.params.trigger_id)),
@@ -257,6 +259,7 @@ const primitiveHandlers = {
   },
   createWorkspace: (c) => createWorkspace(c.tx, c.p, input<'WorkspaceCreate'>(c)),
   deleteWorkspace: async (c) => {
+    await lock(c.tx, `workspace-deletion:${c.params.workspace_id}`);
     const workspace = await r.get(c.tx, 'workspaces', c.params.workspace_id, c.p);
     const active = await c.tx.query(
       "SELECT id FROM runs WHERE workspace_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
@@ -455,22 +458,29 @@ const primitiveHandlers = {
       { ...input<'MessageCreate'>(c), session_id: c.params.session_id },
       runs.requestClientType(c.request),
     ),
-  createDecisionDefinition: c=>decisionDefinitions.createDefinition(c.tx,c.p,input<'DecisionDefinitionCreate'>(c)),
-  getDecisionDefinition: c=>decisionDefinitions.getDefinition(c.tx,c.p,c.params.definition_id),
-  deleteDecisionDefinition: c=>decisionDefinitions.withdrawDefinition(c.tx,c.p,c.params.definition_id),
-  getContextArtifact: async c=>contextArtifacts.presentContext(await contextArtifacts.contextArtifact(c.tx,c.p,c.params.artifact_id)),
-  deleteContextArtifact: c=>contextArtifacts.releaseContext(c.tx,c.p,c.params.artifact_id),
-  createWorker: c => workers.createWorker(c.tx,c.p,input<'WorkerCreate'>(c)),
-  getWorker: async c => workers.presentWorker(c.tx,await workers.getWorker(c.tx,c.params.worker_id,c.p)),
-  listWorkers: c => workers.listWorkers(c.tx,c.p,c.query),
-  patchWorker: c => workers.patchWorker(c.tx,c.p,c.params.worker_id,input<'WorkerPatch'>(c)),
-  pauseWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'pause',input<'WorkerAction'>(c)?.force ?? false),
-  resumeWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'resume'),
-  destroyWorker: c => workers.changeWorker(c.tx,c.p,c.params.worker_id,'destroy',input<'WorkerAction'>(c)?.force ?? false),
-  listWorkerOfferings: async c => {
-    workers.authorizeWorker(c.p,'workers:read');
-    const offerings=await workerOfferings(c.tx);
-    return {data:offerings.map(publicOffering),limits:await workerPolicyLimits(c.tx,c.p.organizationId,offerings)};
+  createDecisionDefinition: (c) =>
+    decisionDefinitions.createDefinition(c.tx, c.p, input<'DecisionDefinitionCreate'>(c)),
+  getDecisionDefinition: (c) => decisionDefinitions.getDefinition(c.tx, c.p, c.params.definition_id),
+  deleteDecisionDefinition: (c) => decisionDefinitions.withdrawDefinition(c.tx, c.p, c.params.definition_id),
+  getContextArtifact: async (c) =>
+    contextArtifacts.presentContext(await contextArtifacts.contextArtifact(c.tx, c.p, c.params.artifact_id)),
+  deleteContextArtifact: (c) => contextArtifacts.releaseContext(c.tx, c.p, c.params.artifact_id),
+  createWorker: (c) => workers.createWorker(c.tx, c.p, input<'WorkerCreate'>(c)),
+  getWorker: async (c) => workers.presentWorker(c.tx, await workers.getWorker(c.tx, c.params.worker_id, c.p)),
+  listWorkers: (c) => workers.listWorkers(c.tx, c.p, c.query),
+  patchWorker: (c) => workers.patchWorker(c.tx, c.p, c.params.worker_id, input<'WorkerPatch'>(c)),
+  pauseWorker: (c) =>
+    workers.changeWorker(c.tx, c.p, c.params.worker_id, 'pause', input<'WorkerAction'>(c)?.force ?? false),
+  resumeWorker: (c) => workers.changeWorker(c.tx, c.p, c.params.worker_id, 'resume'),
+  destroyWorker: (c) =>
+    workers.changeWorker(c.tx, c.p, c.params.worker_id, 'destroy', input<'WorkerAction'>(c)?.force ?? false),
+  listWorkerOfferings: async (c) => {
+    workers.authorizeWorker(c.p, 'workers:read');
+    const offerings = await workerOfferings(c.tx);
+    return {
+      data: offerings.map(publicOffering),
+      limits: await workerPolicyLimits(c.tx, c.p.organizationId, offerings),
+    };
   },
   createRun: async (c) => runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), runs.requestClientType(c.request)),
   getRun: async (c) => (await runs.presentRuns(c.tx, [await runs.getRun(c.tx, c.params.run_id, c.p)]))[0],
@@ -548,7 +558,9 @@ const primitiveHandlers = {
       String(artifact.name),
     );
   },
-  deleteArtifact: async (c) => { await releasePublishedArtifact(c.tx,c.p,c.params.artifact_id); },
+  deleteArtifact: async (c) => {
+    await releasePublishedArtifact(c.tx, c.p, c.params.artifact_id);
+  },
   listConnections: (c) => access.listContextConnections(c.tx, c.p, c.query),
   getConnection: async (c) =>
     access.safeConnection(await r.get(c.tx, 'connections', c.params.connection_id, c.p), c.p),
@@ -643,11 +655,13 @@ const primitiveHandlers = {
   },
   createApiKey: async (c) => createKey(c.tx, c.p, input<'KeyCreate'>(c)),
   revokeApiKey: async (c) => {
+    await lock(c.tx, `organization:${c.p.organizationId}`);
     const result = await c.tx.query(
       'UPDATE api_keys SET revoked_at=now() WHERE id=$1 AND organization_id=$2 AND user_id=$3 RETURNING id',
       [c.params.key_id, c.p.organizationId, c.p.userId],
     );
     assert(result.rowCount, 404, 'not_found', 'API key not found.');
+    await cancelApiKeyRuns(c.tx, c.params.key_id);
   },
   listWebhookEndpoints: list('webhooks'),
   createWebhookEndpoint: async (c) => {
@@ -720,7 +734,9 @@ const primitiveHandlers = {
           ? 'simulation'
           : process.env[`${h.id.replace('-', '_').toUpperCase()}_VERSION`] || 'configured',
         enabled: true,
-        capabilities: Object.entries(h.capabilities).filter(([, enabled]) => enabled).map(([name]) => name),
+        capabilities: Object.entries(h.capabilities)
+          .filter(([, enabled]) => enabled)
+          .map(([name]) => name),
       })),
     ),
   listModels: async (c) =>
@@ -822,10 +838,12 @@ const prepareFile = (c: RequestContext, mutation: files.FileMutation) =>
   );
 /** Expensive immutable preparation is separate from the final idempotent SQL commit. */
 export const preparations: PreparationMap = {
-  wakeDecisionTask: c=>decisionTasks.prepareTaskWake(c.p,c.params.task_id,input<'DecisionTaskWake'>(c)),
-  createBoundedAgentRun: c=>prepareInference(c.p,input<'BoundedAgentCreate'>(c),'bounded_agent'),
-  createInference: c=>prepareInference(c.p,input<'InferenceCreate'>(c), 'inference', !respondAsync(c.request)),
-  createContextArtifact: c=>contextArtifacts.prepareContextArtifact(c.p,input<'ContextArtifactCreate'>(c)),
+  wakeDecisionTask: (c) => decisionTasks.prepareTaskWake(c.p, c.params.task_id, input<'DecisionTaskWake'>(c)),
+  createBoundedAgentRun: (c) => prepareInference(c.p, input<'BoundedAgentCreate'>(c), 'bounded_agent'),
+  createInference: (c) =>
+    prepareInference(c.p, input<'InferenceCreate'>(c), 'inference', true, c.hostDeadlineAtMs),
+  createContextArtifact: (c) =>
+    contextArtifacts.prepareContextArtifact(c.p, input<'ContextArtifactCreate'>(c)),
   ...customerAgentPreparations(composioCustomerConsent),
   writeFile: (c) =>
     prepareFile(c, {

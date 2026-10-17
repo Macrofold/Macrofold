@@ -1,6 +1,6 @@
 # Immediate inference: feature specification
 
-Status: proposed design, not an implementation or performance claim. The user requested review and an implementable plan. [Technical design and ordered checklist](immediate-inference-tech-design.md) owns mechanism; [central TODO](../maintainers/TODO.md#direct-inference-latency-follow-up) tracks delivery. Current behavior remains in the [decision implementation](../features/decisions/implementation.md) and [streaming implementation](../features/api/streaming-implementation.md).
+Status: approved implementation in progress. [Technical design and ordered checklist](immediate-inference-tech-design.md) owns mechanism; [central TODO](../maintainers/TODO.md#direct-inference-latency-follow-up) tracks delivery and remaining acceptance. Current source behavior belongs in the [decision implementation](../features/decisions/implementation.md) and [streaming implementation](../features/api/streaming-implementation.md); local verification does not establish hosted throughput.
 
 ## Outcome
 
@@ -26,7 +26,8 @@ These are local observations, not a controlled production benchmark. The worker 
 6. Preserve the existing completed-envelope behavior: HTTP 200 carries a terminal Run result, including terminal failed/cancelled/timed-out outcomes. Callers inspect `status` and `result.inference.outcome`. Pre-admission errors remain HTTP errors. SSE failures after headers are terminal/error events. Do not change these three cases into indistinguishable exceptions.
 7. Include that invocation's authorized usage, Macrofold model charge, separate provider cost information, and timings in the completed receipt. Routine callers must not need organization-wide `usage:read` or a second request for their own invocation's accounting.
 8. Make latency a release criterion with measured success rates and capacity. Do not claim literal zero overhead: network travel, validation, encryption, authorization and durable commits take time.
-9. **Proposed scheduling-policy change:** immediate admission checks current capacity and account entitlements directly; it does not wait for a particular queued Run to take its turn. Weighted ordering remains within queued execution. Shared caps, reservations and execution fencing remain authoritative. This removes a queue dependency, but does not promise weighted start opportunities between immediate and queued traffic under saturation; see the [policy tradeoff](immediate-inference-tech-design.md#shared-policy-specialized-work).
+9. **Selected scheduling target:** immediate admission checks current capacity and account entitlements directly; it does not wait for a particular queued Run to take its turn. Weighted ordering remains within queued execution. Shared caps, reservations and execution fencing remain authoritative. This version reserves no capacity per mode and makes no cross-mode starvation guarantee; see the [policy tradeoff and review trigger](immediate-inference-tech-design.md#shared-policy-specialized-work).
+10. SDK inference submission makes one transport attempt by default. Optional retries share one caller deadline and the original identity; every error retains that identity even if the response never arrived. Existing accepted work is recovered, never automatically replaced with a fresh paid request.
 
 This is a coordinated pre-launch contract change, not a new compatibility mode. Update maintained clients and examples together. Existing local developer state must still be preserved, and already accepted work must finish or recover safely.
 
@@ -49,13 +50,23 @@ The backend uses the existing SDK stream helper. It receives `run.accepted`, the
 
 The caller reuses its saved idempotency key and identical request. Macrofold returns the original completed result or an in-progress/recovery receipt; it never starts another paid request to reconstruct a lost response. Active stream replay retains the existing `stream_already_started` contract. Requests with a changed execution payload still conflict.
 
+For JSON, a 202 receipt has `status: running`, no `result`, and exactly one `recovery_reason`: `in_progress`, `finalization_pending`, or `outcome_unknown`. Use the returned result URL after its `Retry-After` hint; do not create a new key. Result GET keeps the existing `final:false` pending contract. A normal completed call never needs this extra request. Same-key replay after content expiry returns 410 `content_expired`; keeping its identity does not make erased content recoverable. The [wire contract](immediate-inference-tech-design.md#terminal-and-recovery-envelopes) specifies fields, types and examples.
+
 ### Busy deployment
 
 Before dispatch, Macrofold returns a documented HTTP 429 for a real rate/account/capacity constraint or HTTP 503 for unavailable local serving capacity/dependencies. An older queued job alone is not a refusal reason for immediate inference. Include a safe reason and actionable retry information. Neither creates a Run nor reserves money permanently. Applications may retry within their own finite deadline with the same key; SDKs must not disguise repeated rejections with minutes of automatic retries. A completed replay needs no new execution slot, even when new admissions are saturated.
 
+The initial cumulative admission budget is one second, distinct from the model timeout and completion allowance. Reject a request before admission if its requested execution window cannot fit the host lifetime. If admission's commit acknowledgment is lost, report `inference_admission_unknown` and preserve identity; that exceptional 503 does **not** prove no Run or charge exists. The [HTTP matrix](immediate-inference-tech-design.md#http-refusal-and-recovery-matrix) defines the distinction.
+
+### Timely answer, delayed bookkeeping
+
+If the provider finishes before the accepted execution deadline, slow Macrofold settlement alone does not turn that answer into a model timeout. Preserve response evidence and return `finalization_pending` if necessary. Recovery settles the same invocation and publishes its result when authorized. Cancellation, retention and actual provider timeout remain independently enforced; incurred or uncertain usage remains accounted for even when a value cannot be returned.
+
 ### Multiple customers and mixed agents
 
-Independent immediate calls execute concurrently across API replicas. Native machine restoration and bounded-agent steps do not occupy direct request dispatch slots. Shared account/fleet funding and capacity safeguards still apply. Queued work keeps weighted ordering among queued candidates. Immediate overload is controlled by account/rate/capacity limits, not a queue turn. Sustained immediate traffic can compete with bounded work for the lightweight ceiling; mixed-load acceptance must disclose that tradeoff rather than claim starvation freedom. Guaranteed capacity for each mode would require an explicitly approved allocation policy.
+Independent immediate calls execute concurrently across API replicas. Native machine restoration and bounded-agent steps do not occupy direct request dispatch slots. Shared account/fleet funding and capacity safeguards still apply. Queued work keeps weighted ordering among queued candidates. Immediate overload is controlled by account/rate/capacity limits, not a queue turn. Sustained immediate traffic can compete with bounded work for the lightweight ceiling; mixed-load acceptance must disclose that tradeoff rather than claim starvation freedom. Guaranteed capacity for each mode is deferred until a service guarantee or measured contention justifies reservations.
+
+Cancellation and initiating-actor revocation are observed across replicas using bounded batches. The target is at most one-second-old authorization observations at supported load; a failed check aborts affected transports immediately, and a check more than two seconds old also aborts them. Abort is best effort and cannot retract transmitted provider work. Context expiry retains the existing `stale_input` meaning; it is not another automatic cancellation trigger.
 
 ## Scope
 
@@ -87,6 +98,8 @@ Excluded:
 | Accounting | One usage record and idempotent balanced settlement; BYOK Macrofold model charge remains zero, provider cost remains separate, unknown remains unknown |
 | Streaming | Early deltas, bounded memory, complete final receipt, explicit interrupted result, unchanged detach/cancel semantics |
 | Current authority | Revoked/wrong-tenant/wrong-scope credentials fail; context grants and explicit stop controls remain enforced |
+| Explicit client recovery | Schema-validated success/failure/202/410 examples, active-stream 409, and all-five-SDK identity preservation on abort, HTTP, decode and stream failures; one transport attempt by default |
+| Independent clocks | Prompt bounded admission; execution timeout is unchanged by retries; timely provider completion can finalize after its deadline; lost commit acknowledgment never claims a confirmed rollback |
 | Mixed execution | Native/bounded execution, shared limits, queued fairness, cancellation and recovery regressions pass; an unstarted queue head does not block free immediate capacity |
 | Low overhead | Warm small inline requests target added server overhead p50 ≤10 ms, p95 ≤25 ms, p99 ≤50 ms under a declared sustainable load; no deliberate scheduling/polling wait |
 | Scale | Multi-replica sustained/burst results include latency, accepted/completed/rejected counts, active calls, pool/lock waits, memory and recovery lag; the 10,000-in-flight target is tested separately from requests/second |
@@ -94,8 +107,10 @@ Excluded:
 
 The percentile numbers are engineering targets, not measured achievements or a promise that every topology can meet them. Do not lower them or report low latency by rejecting normal offered traffic. Report the measured sustainable envelope, identify the bottleneck, and optimize that owner.
 
+The [acceptance workload table](immediate-inference-tech-design.md#reproducible-acceptance-envelope) fixes workload duration/distribution, payload classes, success/refusal thresholds, observer freshness, overload recovery, resource headroom and exact accounting invariants. I0 calibrates release budgets before implementation of the new lifecycle. A 10,000-connection result alone cannot establish requests-per-second capacity or a production SLA.
+
 Delivery and recovery have separate clocks. Both JSON and SSE producers must remain owned after client disconnect within the supported host lifetime. A deployment restart or hard host termination can still interrupt execution; the same accepted identity recovers without repeating the paid call.
 
 ## Delivery sequence
 
-The [technical checklist](immediate-inference-tech-design.md#implementation-checklist) delivers observation, shared lifecycle extraction, immediate execution, scalable controls, complete clients/docs, then fault/load/live acceptance. All stages are part of this proposal; partial completion does not satisfy the overall requirement. This document does not authorize application implementation or changes to a different checkout.
+The [technical checklist](immediate-inference-tech-design.md#implementation-checklist) delivers observation, shared lifecycle extraction, immediate execution, scalable controls, complete clients/docs, then fault/load/live acceptance. All stages are part of the target; partial completion does not satisfy the overall requirement. This revision completes the requested design updates; application implementation and changes to another checkout are outside this documentation task. Capability discovery for decision-only models remains a [separate future improvement](decision-model-routing.md#future-capability-discovery).

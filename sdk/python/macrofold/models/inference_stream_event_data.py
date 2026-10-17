@@ -17,8 +17,11 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing_extensions import Annotated
+from uuid import UUID
+from macrofold.models.inference_urls import InferenceUrls
 from macrofold.models.run_result import RunResult
 from typing import Optional, Set
 from typing_extensions import Self
@@ -26,7 +29,7 @@ from pydantic_core import to_jsonable_python
 
 class InferenceStreamEventData(BaseModel):
     """
-    Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence.
+    InferenceStreamEventData
     """ # noqa: E501
     text: Optional[StrictStr] = None
     invocation_id: Optional[StrictStr] = None
@@ -35,10 +38,53 @@ class InferenceStreamEventData(BaseModel):
     choice_index: Optional[StrictInt] = None
     tool_call_id: Optional[StrictStr] = None
     stop_reason: Optional[StrictStr] = None
+    run_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
+    worktree_id: Optional[UUID] = None
+    status: Optional[StrictStr] = None
+    urls: Optional[InferenceUrls] = None
+    wait_seconds: Optional[Union[Annotated[float, Field(strict=True, ge=0)], Annotated[int, Field(strict=True, ge=0)]]] = Field(default=None, description="Submission to execution start, or elapsed wait through now/completion if never started.")
+    reserved_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Funds still held and unavailable for other jobs; released on settlement.")
+    kind: Optional[StrictStr] = None
     delivery: Optional[StrictStr] = None
     result: Optional[RunResult] = None
+    code: Optional[StrictStr] = None
+    message: Optional[StrictStr] = None
+    idempotency_key: Optional[StrictStr] = None
+    recovery_reason: Optional[StrictStr] = None
+    reason: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["text", "invocation_id", "message_id", "content_index", "choice_index", "tool_call_id", "stop_reason", "delivery", "result"]
+    __properties: ClassVar[List[str]] = ["text", "invocation_id", "message_id", "content_index", "choice_index", "tool_call_id", "stop_reason", "run_id", "session_id", "worktree_id", "status", "urls", "wait_seconds", "reserved_micro_usd", "kind", "delivery", "result", "code", "message", "idempotency_key", "recovery_reason", "reason"]
+
+    @field_validator('status')
+    def status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['running', 'succeeded', 'failed', 'cancelled', 'timed_out']):
+            raise ValueError("must be one of enum values ('running', 'succeeded', 'failed', 'cancelled', 'timed_out')")
+        return value
+
+    @field_validator('reserved_micro_usd', mode="before")
+    def reserved_micro_usd_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if isinstance(value, str) and not re.match(r"^[0-9]+$", value):
+            raise ValueError(r"must validate the regular expression /^[0-9]+$/")
+        return value
+
+    @field_validator('kind')
+    def kind_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['native_agent', 'inference', 'bounded_agent']):
+            raise ValueError("must be one of enum values ('native_agent', 'inference', 'bounded_agent')")
+        return value
 
     @field_validator('delivery')
     def delivery_validate_enum(cls, value):
@@ -48,6 +94,36 @@ class InferenceStreamEventData(BaseModel):
 
         if value not in set(['live', 'result_replay']):
             raise ValueError("must be one of enum values ('live', 'result_replay')")
+        return value
+
+    @field_validator('code')
+    def code_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['inference_recovery_required', 'stream_interrupted']):
+            raise ValueError("must be one of enum values ('inference_recovery_required', 'stream_interrupted')")
+        return value
+
+    @field_validator('recovery_reason')
+    def recovery_reason_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['in_progress', 'finalization_pending', 'outcome_unknown']):
+            raise ValueError("must be one of enum values ('in_progress', 'finalization_pending', 'outcome_unknown')")
+        return value
+
+    @field_validator('reason')
+    def reason_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['result_available']):
+            raise ValueError("must be one of enum values ('result_available')")
         return value
 
     model_config = ConfigDict(
@@ -91,6 +167,9 @@ class InferenceStreamEventData(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of urls
+        if self.urls:
+            _dict['urls'] = self.urls.to_dict()
         # override the default output from pydantic by calling `to_dict()` of result
         if self.result:
             _dict['result'] = self.result.to_dict()
@@ -98,6 +177,16 @@ class InferenceStreamEventData(BaseModel):
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
+
+        # set to None if session_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.session_id is None and "session_id" in self.model_fields_set:
+            _dict['session_id'] = None
+
+        # set to None if worktree_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.worktree_id is None and "worktree_id" in self.model_fields_set:
+            _dict['worktree_id'] = None
 
         return _dict
 
@@ -118,8 +207,21 @@ class InferenceStreamEventData(BaseModel):
             "choice_index": obj.get("choice_index"),
             "tool_call_id": obj.get("tool_call_id"),
             "stop_reason": obj.get("stop_reason"),
+            "run_id": obj.get("run_id"),
+            "session_id": obj.get("session_id"),
+            "worktree_id": obj.get("worktree_id"),
+            "status": obj.get("status"),
+            "urls": InferenceUrls.from_dict(obj["urls"]) if obj.get("urls") is not None else None,
+            "wait_seconds": obj.get("wait_seconds"),
+            "reserved_micro_usd": obj.get("reserved_micro_usd"),
+            "kind": obj.get("kind"),
             "delivery": obj.get("delivery"),
-            "result": RunResult.from_dict(obj["result"]) if obj.get("result") is not None else None
+            "result": RunResult.from_dict(obj["result"]) if obj.get("result") is not None else None,
+            "code": obj.get("code"),
+            "message": obj.get("message"),
+            "idempotency_key": obj.get("idempotency_key"),
+            "recovery_reason": obj.get("recovery_reason"),
+            "reason": obj.get("reason")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

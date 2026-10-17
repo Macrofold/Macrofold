@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // ClientOption configures the SDK without changing the generated HTTP transport.
@@ -18,7 +19,11 @@ func WithAPIKey(key string) ClientOption {
 	return func(o *clientOptions) { o.apiKey = key; o.keySet = true }
 }
 
-type requestSettings struct{ idempotencyKey, organization string }
+type requestSettings struct {
+	idempotencyKey, organization string
+	inferenceRetries             int
+	inferenceTimeout             time.Duration
+}
 type RequestOption func(*requestSettings)
 
 func WithIdempotencyKey(key string) RequestOption {
@@ -28,9 +33,12 @@ func WithRequestOrganization(id string) RequestOption {
 	return func(o *requestSettings) { o.organization = id }
 }
 func requestOptions(options []RequestOption, mutation bool) (requestSettings, error) {
-	settings := requestSettings{}
+	settings := requestSettings{inferenceTimeout: 300 * time.Second}
 	for _, option := range options {
 		option(&settings)
+	}
+	if settings.inferenceRetries < 0 || settings.inferenceRetries > 2 || settings.inferenceTimeout <= 0 {
+		return settings, fmt.Errorf("inference retries must be 0–2 and timeout must be positive")
 	}
 	if mutation && settings.idempotencyKey == "" {
 		var bytes [16]byte
@@ -50,6 +58,11 @@ type RequestError struct {
 	Err            error
 	Response       *http.Response
 	IdempotencyKey string
+	RunID          string
+	URLs           map[string]string
+	RequestID      string
+	Code           string
+	Retryable      bool
 }
 
 func (e *RequestError) Error() string { return e.Err.Error() }
@@ -58,5 +71,18 @@ func requestError(err error, response *http.Response, key string) error {
 	if err == nil {
 		return nil
 	}
-	return &RequestError{Err: err, Response: response, IdempotencyKey: key}
+	value := &RequestError{Err: err, Response: response, IdempotencyKey: key}
+	if response != nil {
+		value.RequestID = response.Header.Get("X-Request-Id")
+		value.RunID = response.Header.Get("X-Run-Id")
+	}
+	return value
+}
+
+// WithInferenceRetries opts into confirmed pre-admission retries only (0–2).
+func WithInferenceRetries(count int) RequestOption {
+	return func(o *requestSettings) { o.inferenceRetries = count }
+}
+func WithInferenceTimeout(timeout time.Duration) RequestOption {
+	return func(o *requestSettings) { o.inferenceTimeout = timeout }
 }

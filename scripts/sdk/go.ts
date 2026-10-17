@@ -7,7 +7,7 @@ export async function generateGoResources(ops: VendorOperation[], destination: s
   const lines = [
     `// Code generated from OpenAPI by pnpm sdk:generate:all; DO NOT EDIT.
 package macrofold
-import ("context"; "os"; "time"; "errors")
+import ("context"; "os"; "time")
 const DefaultOrigin = ${JSON.stringify(configuration.defaultOrigin)}
 type Client struct { *APIClient; ${groups.map((g) => `${pascal(g)} *${pascal(g)}Resource`).join(';')} }
 func resources(api *APIClient) *Client { return &Client{APIClient:api, ${groups.map((g) => `${pascal(g)}:&${pascal(g)}Resource{api},`).join('')}} }
@@ -16,10 +16,15 @@ func resources(api *APIClient) *Client { return &Client{APIClient:api, ${groups.
   for (const group of groups) {
     lines.push(`type ${pascal(group)}Resource struct {client *APIClient}`);
     for (const op of ops.filter((o) => o.contract.group === group)) {
-      if (op.originalId === 'createInference')
+      if (op.originalId === 'createInference') {
         lines.push(
           `func (r *InferencesResource) Stream(ctx context.Context, input *InferenceCreate, receive func(InferenceStreamEvent) error, options ...RequestOption) error { return r.client.StreamInference(ctx,input,receive,options...) }`,
         );
+        lines.push(
+          `func (r *InferencesResource) Create(ctx context.Context,input *InferenceCreate,options ...RequestOption)(*InferenceResponse,error){return r.client.createImmediateInference(ctx,input,options...)}`,
+        );
+        continue;
+      }
       if (op.originalId === 'streamCustomerAgentRun') {
         lines.push(
           `func (r *CustomerAgentsResource) StreamRun(ctx context.Context, customerID, customerAgentID, runID, after string, receive func(Event) error, options ...RequestOption) error { return r.client.streamTarget(ctx,runID,after,customerID,customerAgentID,receive,options...) }`,

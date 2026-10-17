@@ -49,6 +49,8 @@ OpenRouter discovery can admit new text/tool models under verified pricing and p
 
 Direct inference and bounded read-only agents share run identity, authorization, ledger, events and capacity with native agents while keeping distinct payloads and mode dispatch. Decision-model eligibility does not weaken native harness floors. An immutable context snapshot is explicit evidence, never application authority. A small task coordinator composes admitted runs; its allocations constrain the same wallet rather than reserve funds twice. Provider and context ports remain typed, with no general workflow engine or customer-code execution in the service process. See [implementation and rollout](../features/decisions/implementation.md).
 
+Single-call inference executes immediately in its retained request owner. It shares aggregate capacity and accounting with queued work while skipping fair-turn selection and native placement. Three short commits preserve dispatch intent, bounded encrypted response evidence, then atomic accounting/result settlement. Only a confirmed original admission grants dispatch permission; ambiguous acknowledgments and recovery never grant another provider call. A finite completion fence preserves timely results and available metering after transport cancellation. Shared capacity is work-conserving but does not guarantee per-mode progress under saturation. Native, bounded and Task-child orchestration stays queued.
+
 ## Changelog
 
 - [Worker architecture evolution](changelog/workers.md) records the previous compute model, the intermediate proposal, and the reasons for the implemented autoscaling contract. Deployment and provider acceptance remain separate from design history.

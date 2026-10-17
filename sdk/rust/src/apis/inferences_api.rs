@@ -43,7 +43,7 @@ pub enum CreateDecisionDefinitionError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CreateInferenceError {
-    DefaultResponse(models::Error),
+    DefaultResponse(models::InferenceError),
     UnknownValue(serde_json::Value),
 }
 
@@ -216,13 +216,12 @@ pub async fn create_decision_definition(configuration: &configuration::Configura
     }
 }
 
-/// Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
-pub async fn create_inference(configuration: &configuration::Configuration, idempotency_key: &str, inference_create: Option<models::InferenceCreate>, x_organization_id: Option<&str>, prefer: Option<&str>) -> Result<models::InferenceResponse, Error<CreateInferenceError>> {
+/// Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
+pub async fn create_inference(configuration: &configuration::Configuration, idempotency_key: &str, inference_create: Option<models::InferenceCreate>, x_organization_id: Option<&str>) -> Result<models::InferenceResponse, Error<CreateInferenceError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_header_idempotency_key = idempotency_key;
     let p_body_inference_create = inference_create;
     let p_header_x_organization_id = x_organization_id;
-    let p_header_prefer = prefer;
 
     let uri_str = format!("{}/v1/inferences", configuration.base_path);
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
@@ -233,9 +232,6 @@ pub async fn create_inference(configuration: &configuration::Configuration, idem
     req_builder = req_builder.header("Idempotency-Key", p_header_idempotency_key.to_string());
     if let Some(param_value) = p_header_x_organization_id {
         req_builder = req_builder.header("X-Organization-Id", param_value.to_string());
-    }
-    if let Some(param_value) = p_header_prefer {
-        req_builder = req_builder.header("Prefer", param_value.to_string());
     }
     if let Some(ref token) = configuration.bearer_access_token {
         req_builder = req_builder.bearer_auth(token.to_owned());

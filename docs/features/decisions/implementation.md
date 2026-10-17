@@ -2,7 +2,7 @@
 
 Contributor reference. Start with the [public contract](README.md), [context semantics](context.md), and [task behavior](tasks.md). [Verification](verification.md) separates local evidence from release acceptance.
 
-Proposed next work: [immediate-inference behavior](../../projects/immediate-inference-feature-spec.md) and [technical design/TODO](../../projects/immediate-inference-tech-design.md) review direct execution, shared accounting/recovery and multi-replica latency. These are unimplemented targets; this guide continues to describe current source behavior.
+The [immediate-inference plan](../../projects/immediate-inference-tech-design.md) owns the implementation checklist and performance acceptance. Direct requests now execute within their HTTP owner; native agents, bounded agents and Task children retain queued execution. Hosted capacity and lifetime acceptance are separate from source implementation.
 
 ## Validation and admission capacity
 
@@ -10,7 +10,9 @@ Proposed next work: [immediate-inference behavior](../../projects/immediate-infe
 
 Workspace admission takes a shared `workspace-deletion` advisory transaction lock. Concurrent admissions may proceed together; deletion takes the same lock exclusively and waits for admissions to commit before archiving/cancelling. Wallet reservations and scheduler admission retain their own exclusive financial/capacity locks.
 
-Cancellation and native heartbeat checks allow only one outstanding check per Run. A slow database cannot accumulate another query every timer tick. Stopping a timer drains its in-flight check; authorization, cancellation, deadlines and final settlement are still checked at their existing boundaries. See the [capacity calibration](../../engineering/capacity/upper-bounds.md) for measured workloads and deployment limitations.
+Native and bounded cancellation/heartbeat checks allow only one outstanding check per Run. Immediate requests instead share a process observer over the content-free `reporting.inference_control` view: pages of 256, two concurrent reads, 500 ms cadence, admission backpressure before healthy freshness exceeds one second, and abort after the first failed page or two seconds without fresh evidence. Registration cleanup is synchronous and never delays response persistence. A local monotonic timer owns the provider deadline; the observer checks current principal, generation and cancellation. See [capacity calibration](../../engineering/capacity/upper-bounds.md) for measured workloads and deployment limitations.
+
+Immediate request-body/replay readers and active producers have independent process counters, each bounded by `IMMEDIATE_INFERENCE_CONCURRENCY`. A new request transfers to its producer permit before context preparation; a completed replay never needs that permit. This bounds concurrent buffered bodies without letting busy provider calls prevent retrieval of existing results. SQL preflight/admission has a separate smaller gate, released during upload and external preparation; no database client is held for either. Per-request byte limits still apply, and the combined memory envelope needs calibration on the intended deployment.
 
 ## Ownership and entry points
 
@@ -23,7 +25,9 @@ Cancellation and native heartbeat checks allow only one outstanding check per Ru
 | Workspace-bound application authority          | `decision-authority.ts`                                                     |
 | Shared credential resolution                 | `model-credentials.ts`; native gateway and direct executor reuse it         |
 | Admission and immutable configuration        | `inferences.ts`, `decision-definitions.ts`                                  |
-| Durable provider invocation and settlement   | `inference-engine.ts`, existing `model-gateway.ts` and `ledger.ts`          |
+| Immediate execution and evidence recovery     | `direct-inference.ts`, `inference-invocations.ts`                           |
+| Queued/bounded invocation and shared settlement | `inference-engine.ts`, `model-gateway.ts` and `ledger.ts`                |
+| Shared execution capacity and current controls | `execution-admission.ts`, `inference-control.ts`, `actor-authorization.ts` |
 | Trusted evidence tool loop                   | `bounded-decisions.ts`                                                      |
 | Sequential task allocations and coordination | `decision-tasks.ts`, `decision-task-engine.ts`                              |
 | Vendor HTTP and response parsing             | `packages/providers/src/decision-protocols.ts`                              |
@@ -31,7 +35,7 @@ Cancellation and native heartbeat checks allow only one outstanding check per Ru
 | Retention and reachability                   | `artifacts.ts`, `deletion.ts`, existing storage preparation/collection      |
 | Presentation                                 | `inference-result.tsx`, `task-lineage.tsx`, existing run page               |
 
-There is one run identity, wallet, event stream and scheduler. Internal native/lightweight run variants prevent nullable native resources from entering harness code. Lightweight dispatch occurs before machine-provider construction. Providers own wire formats; core owns authorization, context, limits, receipts and accounting. The native runtime receives no new shared-process execution responsibility.
+There is one Run identity, wallet and accounting owner. Internal native/lightweight variants prevent nullable native resources from entering harness code. Immediate capacity checks share aggregate caps with queued execution but do not consult queue ordering, record scheduler turns or construct native compute. Weighted ordering remains for queued work; shared capacity does not guarantee per-mode progress during sustained saturation. Providers own wire formats; core owns authority, context, budgets and receipts.
 
 ## Provider routing
 
@@ -43,7 +47,17 @@ OpenRouter routes are `typesafe/jev-1.13` and `microsoft/microsoft-decision-1`; 
 
 ## Durable request boundary
 
-Admission freezes the resolved definition/context, exact provider/model/credential selection, effective limits, transformation identity and customer/provider cost terms. The initial implementation derives application namespace from a backend key restricted to exactly one workspace. Audience semantics remain the application's responsibility. Object reads happen outside SQL; commit and each subsequent disclosure reauthorize the reference.
+Admission freezes resolved definition/context, exact provider/model/credential selection, limits, transformation identity and customer/provider terms. API keys can make stateless inline calls without a workspace; restricted keys must identify an authorized workspace. Saved references require a workspace. Audience semantics remain the application's responsibility. Object reads happen outside SQL; commit and final disclosure reauthorize references.
+
+`POST /v1/inferences` has three short transactions around provider I/O. A commits the Run, funding reservation, gateway request, sealed dispatch intent, idempotency receipt and bounded recovery fence. Only its confirmed original owner receives an in-memory dispatch permit. B preserves bounded encrypted response evidence, validated usage facts and trusted completion time. C settles model usage and the Run reservation, saves the final result and emits terminal events atomically. No transaction or SQL connection remains checked out while the provider runs. Lost commit acknowledgments cause identity readback, never provider redispatch.
+
+The host supplies an absolute lifetime budget (300 seconds in the web adapter). Provider execution supports at most 240 seconds, admission has a cumulative one-second database budget, completion has 30 seconds and delivery reserves five seconds. Evidence persistence retries only transient local database failures, at most three attempts of ten seconds within the remaining completion window. SQL checkout and statements share a deadline; only an attempted COMMIT with unknown acknowledgment is classified as ambiguous admission. These are infrastructure safety bounds, not throughput claims.
+
+Authentication/rate/replay SQL shares bounded process admission headroom; body upload and catalog/context preparation do not retain that permit. Replay reads and A start separate database budgets. Preparation propagates its latest-start deadline and cancellation through catalog, context and object reads, leaving the accepted execution/completion/delivery window intact. Current API-key facts are read together, with `last_used_at` sampled at most once per minute to avoid serializing every call on a diagnostic timestamp. This does not cache authority. Best-effort request-summary writes have bounded concurrency and a 500 ms deadline and may drop under pressure; durable billing, events and actor journals do not.
+
+Provider completion uses a monotonic transport marker translated onto the accepted database deadline. A timely response can settle after its execution deadline without becoming timed out merely because Macrofold was slow. The existing recovery job is fenced through execution plus completion allowance. A failed C explicitly advances the generation and makes evidence-only recovery due; a missing B after the fence is settled provisionally without another provider call. Cancellation aborts transport through the observer but does not let maintenance discard metering during the live owner's completion allowance.
+
+Direct output bypasses replay storage. JSON returns a terminal 200 with embedded usage/billing; exceptional 202 receipts contain identity and a recovery reason. SSE starts with a receipt, forwards transient deltas and ends with the same settled result. Async preference and queue-only input are rejected for this endpoint. The private `execution_owner` field distinguishes the request owner from actual queued Task children; it is not a customer delivery mode.
 
 Each invocation records a shared gateway request and a decision receipt. `prepared` commits a credential-free request body and digest. `dispatch_started` commits before HTTP. `responded` commits sealed response and usage before validation/publication. Unfinished dispatched calls become `uncertain`; no worker repeats them. A committed response is replayed locally after restart. Cancellation/deadline fences publication and additional steps, with HTTP abort as best effort. A late response is retained as invocation evidence without reviving or settling a terminal run twice.
 

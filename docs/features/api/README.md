@@ -20,6 +20,10 @@ SDKs default to `https://app.macrofold.ai`. For a self-hosted, local, or staging
 
 Method spelling follows each language's conventions. Use `streamText` / `stream_text` when you want text as it arrives, or `events` for tool activity and structured progress. [Choose a language](sdks/README.md).
 
+## One model call without an agent
+
+Use [immediate inference](../decisions/README.md) for a single model-native LLM request, classification or score. `inferences.create` returns the finalized result directly; `inferences.stream` delivers output deltas followed by the same saved result. Both preserve a Run for accounting and recovery, without a workspace file tree, sandbox or worker queue. HTTP 202 is an exceptional recovery receipt, not ordinary queued delivery.
+
 ## Optional integration paths
 
 The core API exposes reusable workspaces, worktrees, presets, sessions, runs and connections. **Integration paths** package those capabilities for a particular use case without replacing them. [Customer agents](../customer-agents/README.md) adds customer ownership resolution, atomic setup and embedded connection consent under `/v1/integration-paths/customer-agents`. Choose it when each app customer needs an assistant; use the core API directly for a different resource layout. OpenAPI marks these operations with `x-platform-layer: integration-path` and the `customerAgents` tag.

@@ -5,8 +5,14 @@ import { scheduleTraceFlush } from '@/lib/trace-flush';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 const route = (request: Request) => {
+  const hostDeadlineAtMs = Date.now() + maxDuration * 1000;
   scheduleTraceFlush();
-  return handleCustomerMcp(request, () => after(dispatchRuns));
+  return handleCustomerMcp(
+    request,
+    () => after(dispatchRuns),
+    (task) => after(task),
+    hostDeadlineAtMs,
+  );
 };
 export const GET = route,
   POST = route,

@@ -4,6 +4,7 @@ export async function boundedBody(
   body: ReadableStream<Uint8Array> | null,
   maximum: number,
   timeoutMs = 60_000,
+  signal?: AbortSignal,
 ) {
   assert(
     Number.isSafeInteger(maximum) && maximum >= 0 && Number.isFinite(timeoutMs) && timeoutMs > 0,
@@ -11,20 +12,28 @@ export async function boundedBody(
     'invalid_body_limit',
     'Body limits must be finite and non-negative, with a positive read deadline.',
   );
+  if (signal?.aborted) {
+    if (body) void body.cancel(signal.reason).catch(() => {});
+    signal.throwIfAborted();
+  }
   if (!body) return Buffer.alloc(0);
   const reader = body.getReader(),
     chunks: Uint8Array[] = [];
   let size = 0;
   let emptyChunks = 0;
   const controller = new AbortController();
+  const interruption = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
   const timeout = setTimeout(() => controller.abort(new Error('body_read_timeout')), timeoutMs);
   const abort = () => {
-    void reader.cancel(controller.signal.reason).catch(() => {});
+    void reader.cancel(interruption.reason).catch(() => {});
   };
-  controller.signal.addEventListener('abort', abort, { once: true });
+  interruption.addEventListener('abort', abort, { once: true });
   try {
+    if (interruption.aborted) abort();
     while (true) {
+      signal?.throwIfAborted();
       const { done, value } = await reader.read();
+      signal?.throwIfAborted();
       assert(
         !controller.signal.aborted,
         408,
@@ -41,7 +50,7 @@ export async function boundedBody(
     return Buffer.concat(chunks);
   } finally {
     clearTimeout(timeout);
-    controller.signal.removeEventListener('abort', abort);
+    interruption.removeEventListener('abort', abort);
     // Cancellation closes pending reads immediately; remote cleanup must not
     // turn the read deadline into another unbounded wait.
     void reader.cancel().catch(() => {});
@@ -49,8 +58,12 @@ export async function boundedBody(
   }
 }
 
-export async function boundedJSON(response: Response, maximum: number): Promise<unknown> {
-  const bytes = await boundedBody(response.body, maximum);
+export async function boundedJSON(
+  response: Response,
+  maximum: number,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const bytes = await boundedBody(response.body, maximum, 60_000, signal);
   try {
     return JSON.parse(bytes.toString('utf8'));
   } catch {

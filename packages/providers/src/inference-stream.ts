@@ -21,6 +21,8 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   >();
   const argumentsByBlock = new Map<number, string>();
   let complete = false;
+  let completedAt: string | undefined;
+  let completedAtMonotonicMs: number | undefined;
   let incomplete: string | undefined;
   let bytes = 0;
   let checkedAt = 0;
@@ -46,6 +48,8 @@ export async function readInferenceStream(response: Response, chat: boolean, out
           'The provider ended before completing its choices.',
         );
         complete = true;
+        completedAt = new Date().toISOString();
+        completedAtMonotonicMs = performance.now();
         return;
       }
       const frame = object.parse(JSON.parse(event.data));
@@ -140,6 +144,8 @@ export async function readInferenceStream(response: Response, chat: boolean, out
           'The provider omitted its stop reason.',
         );
         complete = true;
+        completedAt = new Date().toISOString();
+        completedAtMonotonicMs = performance.now();
       }
     },
   });
@@ -197,5 +203,10 @@ export async function readInferenceStream(response: Response, chat: boolean, out
   }
   if (incomplete && argumentsByBlock.size)
     raw.incomplete_tool_arguments = Object.fromEntries(argumentsByBlock);
-  return { raw, incomplete };
+  return {
+    raw,
+    incomplete,
+    completedAt: incomplete ? undefined : completedAt,
+    completedAtMonotonicMs: incomplete ? undefined : completedAtMonotonicMs,
+  };
 }

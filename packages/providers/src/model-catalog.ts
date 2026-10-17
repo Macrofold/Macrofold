@@ -11,10 +11,12 @@ const pageSchema = z.object({
         name: z.string().optional(),
         display_name: z.string().optional(),
         context_length: z.number().int().positive().nullish(),
-        top_provider: z.object({
-          context_length: z.number().int().positive().nullish(),
-          max_completion_tokens: z.number().int().positive().nullish(),
-        }).nullish(),
+        top_provider: z
+          .object({
+            context_length: z.number().int().positive().nullish(),
+            max_completion_tokens: z.number().int().positive().nullish(),
+          })
+          .nullish(),
         pricing: z.record(z.string(), z.unknown()).optional(),
         supported_parameters: z.array(z.string()).optional(),
         architecture: z
@@ -29,7 +31,8 @@ const pageSchema = z.object({
 
 /** Fixed metadata endpoints only: no inference, customer keys, retries, or redirects. */
 export function providerModelCatalog(transport: typeof fetch = fetch): ModelCatalogSource {
-  return async (provider) => {
+  return async (provider, options = {}) => {
+    options.signal?.throwIfAborted();
     const key = process.env[`${provider.toUpperCase()}_API_KEY`];
     if (provider !== 'openrouter' && !key) return undefined;
     const base =
@@ -44,11 +47,13 @@ export function providerModelCatalog(transport: typeof fetch = fetch): ModelCata
         : provider === 'openai'
           ? { Authorization: `Bearer ${key}` }
           : {};
-    const signal = AbortSignal.timeout(15000);
+    const timeout = AbortSignal.timeout(15000);
+    const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
     const entries: DiscoveredModel[] = [];
     const seen = new Set<string>();
     let cursor: string | undefined;
     do {
+      signal.throwIfAborted();
       const url = new URL(base);
       if (cursor) url.searchParams.set('after_id', cursor);
       const response = await transport(url, { headers, signal, redirect: 'error' });
@@ -56,7 +61,8 @@ export function providerModelCatalog(transport: typeof fetch = fetch): ModelCata
         await response.body?.cancel();
         throw new Error('Model discovery failed.');
       }
-      const page = pageSchema.parse(await boundedJSON(response, 8 * 1024 * 1024));
+      const page = pageSchema.parse(await boundedJSON(response, 8 * 1024 * 1024, signal));
+      signal.throwIfAborted();
       entries.push(
         ...page.data.map((entry) => ({
           id: entry.id,
@@ -64,9 +70,10 @@ export function providerModelCatalog(transport: typeof fetch = fetch): ModelCata
           ...(provider === 'openrouter'
             ? {
                 pricing: entry.pricing,
-                context_tokens: entry.context_length && entry.top_provider?.context_length
-                  ? Math.min(entry.context_length, entry.top_provider.context_length)
-                  : entry.context_length || undefined,
+                context_tokens:
+                  entry.context_length && entry.top_provider?.context_length
+                    ? Math.min(entry.context_length, entry.top_provider.context_length)
+                    : entry.context_length || undefined,
                 output_tokens: entry.top_provider?.max_completion_tokens || undefined,
                 tools: entry.supported_parameters?.includes('tools') || false,
                 text:

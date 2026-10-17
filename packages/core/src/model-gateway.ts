@@ -1,7 +1,8 @@
 import { modelInputBound } from './model-content';
 import { modelTransport } from '../../contracts/model-transport';
 import { prepareModelUpload, readModelBody } from './model-request-upload';
-import { transaction } from '../../db';
+import { transaction, type Tx } from '../../db';
+import type { components } from '../../contracts/api';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
 import { ModelOutputCapture } from '../../providers/src/model-output-capture';
@@ -23,6 +24,72 @@ import {
   modelResponseMaximumBytes,
   observeModelStream,
 } from '../../providers/src/model-stream';
+
+type ModelBillingMode = NonNullable<components['schemas']['RunCreate']['billing_mode']>;
+type GatewaySettlementRequest = {
+  id: string;
+  run_id: string;
+  billing_mode: ModelBillingMode;
+  status: string;
+  reserved_micro_usd: string;
+  actual_micro_usd: string | null;
+};
+export type ModelBillingReceipt = Omit<
+  components['schemas']['InferenceBilling'],
+  'billing_mode' | 'charged_micro_usd' | 'budget_cost_micro_usd' | 'reserved_micro_usd'
+> & {
+  billing_mode: ModelBillingMode;
+  charged_micro_usd: string;
+  budget_cost_micro_usd: string;
+  reserved_micro_usd: string;
+  upstream_rejected: boolean;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cached_tokens: number;
+  cache_write_tokens: number;
+  retail_rate_card: Model;
+  provider_cost_rate_card: Model | undefined;
+  input_micro_usd_per_million: string;
+  output_micro_usd_per_million: string;
+};
+
+/** Shared wire projection; unknown counts remain null rather than apparent zero. */
+export function inferenceUsage(
+  usage: Usage,
+  provenUninvoked = false,
+): components['schemas']['InferenceUsage'] {
+  const tokens = (key: 'input' | 'output' | 'cached' | 'cacheWrite') =>
+    provenUninvoked ? '0' : usage.complete || usage.known?.[key] ? String(usage[key]) : null;
+  return {
+    input_tokens: tokens('input'),
+    output_tokens: tokens('output'),
+    cached_input_tokens: tokens('cached'),
+    cache_write_input_tokens: tokens('cacheWrite'),
+    completeness: provenUninvoked || usage.complete ? 'complete' : 'missing',
+  };
+}
+
+/** This only projects committed settlement; it never estimates charges. */
+export function inferenceBilling(
+  billing: ModelBillingReceipt | undefined,
+  billingMode: 'managed' | 'byok',
+  provenUninvoked = false,
+): components['schemas']['InferenceBilling'] {
+  return {
+    billing_mode: billingMode,
+    charged_micro_usd: billing?.charged_micro_usd ?? (billingMode === 'byok' || provenUninvoked ? '0' : null),
+    budget_cost_micro_usd: billing?.budget_cost_micro_usd ?? (provenUninvoked ? '0' : null),
+    reserved_micro_usd: billing?.reserved_micro_usd ?? (provenUninvoked ? '0' : null),
+    reported_micro_usd: billing?.reported_micro_usd ?? (provenUninvoked ? '0' : null),
+    provisional: billing?.provisional ?? !provenUninvoked,
+    bound_breached: billing?.bound_breached ?? false,
+    provider_cost_micro_usd: billing?.provider_cost_micro_usd ?? null,
+    provider_cost_status: billing?.provider_cost_status ?? 'unavailable',
+    provider_reported_cost_usd: billing?.provider_reported_cost_usd ?? null,
+    provider_reported_cost_status: billing?.provider_reported_cost_status ?? 'unavailable',
+    upstream_inference_cost_usd: billing?.upstream_inference_cost_usd ?? null,
+  };
+}
 
 /** Commit the spending fence before settlement or returning an upstream failure.
  * Settlement may need recovery; that must never reopen model admission. */
@@ -198,139 +265,187 @@ export async function settleModelRequest(
   upstreamRejected = false,
   providerCostModel?: Model,
 ) {
-  return transaction(cap.organization, async (tx) => {
-    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
-    const request = (await tx.query('SELECT * FROM gateway_requests WHERE id=$1 FOR UPDATE', [requestId]))
-      .rows[0];
-    if (!request) return undefined;
-    if (request.status !== 'in_flight') {
-      const prior = (
-        await tx.query<{ usage_details: Record<string, unknown> }>(
-          'SELECT usage_details FROM model_usage WHERE request_id=$1',
-          [requestId],
-        )
-      ).rows[0];
-      return {
-        charged_micro_usd: request.billing_mode === 'managed' ? String(request.actual_micro_usd) : '0',
-        budget_cost_micro_usd: String(request.actual_micro_usd),
-        reserved_micro_usd: String(request.reserved_micro_usd),
-        billing_mode: String(request.billing_mode),
-        retail_rate_card: model,
-        provider_cost_rate_card: providerCostModel,
-        ...(prior?.usage_details || {}),
-      };
-    }
-    // Provider-reported cost is observability, independent of token completeness,
-    // reservations and the retail rate estimate used for customer settlement.
-    const reportedCost = {
-      provider_reported_cost_usd: usage.providerReportedCostUsd ?? null,
-      provider_reported_cost_status: usage.providerReportedCostUsd === undefined ? 'unavailable' : 'reported',
-      upstream_inference_cost_usd: usage.upstreamInferenceCostUsd ?? null,
-    };
-    if (
-      ![usage.input, usage.output, usage.cached, usage.cacheWrite].every(
-        (value) => Number.isSafeInteger(value) && value >= 0,
-      )
+  return transaction(cap.organization, (tx) =>
+    settleModelRequestInTransaction(tx, cap, requestId, model, usage, upstreamRejected, providerCostModel),
+  );
+}
+
+/** Compose model accounting with Run completion without opening a nested
+ * transaction. Native callers keep the wrapper and their own Run lifecycle. */
+export async function settleModelRequestInTransaction(
+  tx: Tx,
+  cap: RuntimeCapability,
+  requestId: string,
+  model: Model,
+  usage: Usage,
+  upstreamRejected = false,
+  providerCostModel?: Model,
+): Promise<ModelBillingReceipt | undefined> {
+  await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
+  const request = (
+    await tx.query<GatewaySettlementRequest>(
+      'SELECT * FROM gateway_requests WHERE id=$1 AND run_id=$2 FOR UPDATE',
+      [requestId, cap.run],
     )
-      usage = emptyUsage();
-    const reported = upstreamRejected
-      ? 0n
-      : usage.complete
-        ? costForUsage(model, usage)
-        : BigInt(request.reserved_micro_usd);
-    const breached = reported > BigInt(request.reserved_micro_usd);
-    // Never transfer an underestimated provider bill onto a customer's authorized ceiling.
-    const actual = breached ? BigInt(request.reserved_micro_usd) : reported;
-    if (breached) {
-      await tx.query(
-        `INSERT INTO provider_circuit_breakers(key,reason) VALUES($1,'usage_bound_exceeded') ON CONFLICT(key) DO UPDATE SET last_seen_at=now(),occurrences=provider_circuit_breakers.occurrences+1,resolved_at=NULL`,
-        [`model:${model.provider}:${model.id}`],
-      );
-      await tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [cap.run]);
-      await emit(tx, cap.organization, cap.run, 'metering.review_required', {
-        request_id: requestId,
-        charged_micro_usd: actual.toString(),
-        reported_micro_usd: reported.toString(),
-      });
-    }
-    await tx.query(
-      'UPDATE gateway_requests SET status=$2,actual_micro_usd=$3,completed_at=now() WHERE id=$1',
-      [requestId, usage.complete || upstreamRejected ? 'complete' : 'unknown', actual.toString()],
+  ).rows[0];
+  if (!request) return undefined;
+  if (request.status !== 'in_flight') {
+    assert(
+      request.actual_micro_usd !== null,
+      503,
+      'billing_unavailable',
+      'The settled model cost is unavailable.',
     );
-    await tx.query(
-      'UPDATE runs SET model_reserved_micro_usd=model_reserved_micro_usd-$2::bigint,budget_used_micro_usd=budget_used_micro_usd+$3::bigint,cost_micro_usd=cost_micro_usd+$4::bigint WHERE id=$1',
-      [
-        cap.run,
-        request.reserved_micro_usd,
-        actual.toString(),
-        request.billing_mode === 'managed' ? actual.toString() : '0',
-      ],
-    );
-    await tx.query(
-      'INSERT INTO model_usage(id,organization_id,run_id,request_id,provider,model,billing_mode,input_tokens,output_tokens,cost_micro_usd,completeness,usage_details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(request_id) DO NOTHING',
-      [
-        id(),
-        cap.organization,
-        cap.run,
-        requestId,
-        model.provider,
-        model.id,
-        request.billing_mode,
-        upstreamRejected ? 0 : usage.complete ? usage.input : null,
-        upstreamRejected ? 0 : usage.complete ? usage.output : null,
-        actual.toString(),
-        usage.complete || upstreamRejected ? 'complete' : 'missing',
-        JSON.stringify({
-          ...reportedCost,
-          cached_tokens: usage.cached,
-          cache_write_tokens: usage.cacheWrite,
-          provisional: !usage.complete && !upstreamRejected,
-          ...(providerCostModel
-            ? {
-                provider_cost_micro_usd: upstreamRejected
-                  ? '0'
-                  : usage.complete
-                    ? costForUsage(providerCostModel, usage).toString()
-                    : null,
-                provider_cost_status:
-                  usage.complete || upstreamRejected ? 'estimated_from_usage' : 'unavailable',
-              }
-            : {}),
-          reported_micro_usd: reported.toString(),
-          bound_breached: breached,
-        }),
-      ],
-    );
-    await emit(tx, cap.organization, cap.run, 'usage.updated', {
-      request_id: requestId,
-      cost_micro_usd: actual.toString(),
+    const prior = (
+      await tx.query<{
+        input_tokens: string | null;
+        output_tokens: string | null;
+        usage_details: Partial<ModelBillingReceipt>;
+      }>('SELECT input_tokens,output_tokens,usage_details FROM model_usage WHERE request_id=$1', [requestId])
+    ).rows[0];
+    const details = prior?.usage_details;
+    return {
+      charged_micro_usd: request.billing_mode === 'managed' ? request.actual_micro_usd : '0',
+      budget_cost_micro_usd: request.actual_micro_usd,
+      reserved_micro_usd: request.reserved_micro_usd,
       billing_mode: request.billing_mode,
-      complete: usage.complete || upstreamRejected,
-    });
-    const billing = {
-      ...reportedCost,
-      charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
-      budget_cost_micro_usd: actual.toString(),
-      reserved_micro_usd: String(request.reserved_micro_usd),
-      billing_mode: String(request.billing_mode),
-      reported_micro_usd: reported.toString(),
-      provisional: !usage.complete && !upstreamRejected,
-      bound_breached: breached,
-      provider_cost_micro_usd:
-        providerCostModel && usage.complete ? costForUsage(providerCostModel, usage).toString() : null,
-      provider_cost_status: providerCostModel && usage.complete ? 'estimated_from_usage' : 'unavailable',
-      upstream_rejected: upstreamRejected,
-      input_tokens: upstreamRejected ? 0 : usage.complete ? usage.input : null,
-      output_tokens: upstreamRejected ? 0 : usage.complete ? usage.output : null,
-      cached_tokens: usage.cached,
-      cache_write_tokens: usage.cacheWrite,
+      reported_micro_usd: details?.reported_micro_usd ?? null,
+      provisional: details?.provisional ?? request.status === 'unknown',
+      bound_breached: details?.bound_breached ?? false,
+      provider_cost_micro_usd: details?.provider_cost_micro_usd ?? null,
+      provider_cost_status: details?.provider_cost_status ?? 'unavailable',
+      provider_reported_cost_usd: details?.provider_reported_cost_usd ?? null,
+      provider_reported_cost_status: details?.provider_reported_cost_status ?? 'unavailable',
+      upstream_inference_cost_usd: details?.upstream_inference_cost_usd ?? null,
+      upstream_rejected: details?.upstream_rejected ?? false,
+      input_tokens: prior?.input_tokens === null || !prior ? null : Number(prior.input_tokens),
+      output_tokens: prior?.output_tokens === null || !prior ? null : Number(prior.output_tokens),
+      cached_tokens: details?.cached_tokens ?? 0,
+      cache_write_tokens: details?.cache_write_tokens ?? 0,
       retail_rate_card: model,
       provider_cost_rate_card: providerCostModel,
       input_micro_usd_per_million: model.input_micro_usd_per_million,
       output_micro_usd_per_million: model.output_micro_usd_per_million,
     };
-    return billing;
+  }
+  // Provider-reported cost is observability, independent of token completeness,
+  // reservations and the retail rate estimate used for customer settlement.
+  const reportedCost = {
+    provider_reported_cost_usd: usage.providerReportedCostUsd ?? null,
+    provider_reported_cost_status:
+      usage.providerReportedCostUsd === undefined ? ('unavailable' as const) : ('reported' as const),
+    upstream_inference_cost_usd: usage.upstreamInferenceCostUsd ?? null,
+  };
+  if (
+    ![usage.input, usage.output, usage.cached, usage.cacheWrite].every(
+      (value) => Number.isSafeInteger(value) && value >= 0,
+    )
+  )
+    usage = emptyUsage();
+  const reported = upstreamRejected
+    ? 0n
+    : usage.complete
+      ? costForUsage(model, usage)
+      : BigInt(request.reserved_micro_usd);
+  const breached = reported > BigInt(request.reserved_micro_usd);
+  // Never transfer an underestimated provider bill onto a customer's authorized ceiling.
+  const actual = breached ? BigInt(request.reserved_micro_usd) : reported;
+  if (breached) {
+    await tx.query(
+      `INSERT INTO provider_circuit_breakers(key,reason) VALUES($1,'usage_bound_exceeded') ON CONFLICT(key) DO UPDATE SET last_seen_at=now(),occurrences=provider_circuit_breakers.occurrences+1,resolved_at=NULL`,
+      [`model:${model.provider}:${model.id}`],
+    );
+    await tx.query('UPDATE runs SET cancel_requested=true WHERE id=$1', [cap.run]);
+    await emit(tx, cap.organization, cap.run, 'metering.review_required', {
+      request_id: requestId,
+      charged_micro_usd: actual.toString(),
+      reported_micro_usd: reported.toString(),
+    });
+  }
+  await tx.query('UPDATE gateway_requests SET status=$2,actual_micro_usd=$3,completed_at=now() WHERE id=$1', [
+    requestId,
+    usage.complete || upstreamRejected ? 'complete' : 'unknown',
+    actual.toString(),
+  ]);
+  await tx.query(
+    'UPDATE runs SET model_reserved_micro_usd=model_reserved_micro_usd-$2::bigint,budget_used_micro_usd=budget_used_micro_usd+$3::bigint,cost_micro_usd=cost_micro_usd+$4::bigint WHERE id=$1',
+    [
+      cap.run,
+      request.reserved_micro_usd,
+      actual.toString(),
+      request.billing_mode === 'managed' ? actual.toString() : '0',
+    ],
+  );
+  await tx.query(
+    'INSERT INTO model_usage(id,organization_id,run_id,request_id,provider,model,billing_mode,input_tokens,output_tokens,cost_micro_usd,completeness,usage_details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(request_id) DO NOTHING',
+    [
+      id(),
+      cap.organization,
+      cap.run,
+      requestId,
+      model.provider,
+      model.id,
+      request.billing_mode,
+      upstreamRejected ? 0 : usage.complete || usage.known?.input ? usage.input : null,
+      upstreamRejected ? 0 : usage.complete || usage.known?.output ? usage.output : null,
+      actual.toString(),
+      usage.complete || upstreamRejected ? 'complete' : 'missing',
+      JSON.stringify({
+        ...reportedCost,
+        cached_tokens: usage.cached,
+        cache_write_tokens: usage.cacheWrite,
+        provisional: !usage.complete && !upstreamRejected,
+        upstream_rejected: upstreamRejected,
+        ...(providerCostModel
+          ? {
+              provider_cost_micro_usd: upstreamRejected
+                ? '0'
+                : usage.complete
+                  ? costForUsage(providerCostModel, usage).toString()
+                  : null,
+              provider_cost_status:
+                usage.complete || upstreamRejected ? 'estimated_from_usage' : 'unavailable',
+            }
+          : {}),
+        reported_micro_usd: reported.toString(),
+        bound_breached: breached,
+      }),
+    ],
+  );
+  await emit(tx, cap.organization, cap.run, 'usage.updated', {
+    request_id: requestId,
+    cost_micro_usd: actual.toString(),
+    billing_mode: request.billing_mode,
+    complete: usage.complete || upstreamRejected,
   });
+  const billing: ModelBillingReceipt = {
+    ...reportedCost,
+    charged_micro_usd: request.billing_mode === 'managed' ? actual.toString() : '0',
+    budget_cost_micro_usd: actual.toString(),
+    reserved_micro_usd: String(request.reserved_micro_usd),
+    billing_mode: request.billing_mode,
+    reported_micro_usd: reported.toString(),
+    provisional: !usage.complete && !upstreamRejected,
+    bound_breached: breached,
+    provider_cost_micro_usd:
+      providerCostModel && (usage.complete || upstreamRejected)
+        ? upstreamRejected
+          ? '0'
+          : costForUsage(providerCostModel, usage).toString()
+        : null,
+    provider_cost_status:
+      providerCostModel && (usage.complete || upstreamRejected) ? 'estimated_from_usage' : 'unavailable',
+    upstream_rejected: upstreamRejected,
+    input_tokens: upstreamRejected ? 0 : usage.complete || usage.known?.input ? usage.input : null,
+    output_tokens: upstreamRejected ? 0 : usage.complete || usage.known?.output ? usage.output : null,
+    cached_tokens: usage.cached,
+    cache_write_tokens: usage.cacheWrite,
+    retail_rate_card: model,
+    provider_cost_rate_card: providerCostModel,
+    input_micro_usd_per_million: model.input_micro_usd_per_million,
+    output_micro_usd_per_million: model.output_micro_usd_per_million,
+  };
+  return billing;
 }
 export async function settleOrphanModelRequests(org: string, runId: string) {
   const requests = await transaction(

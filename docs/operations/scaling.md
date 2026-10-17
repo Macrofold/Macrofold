@@ -37,7 +37,7 @@ Dashboard / CLI / public API clients
       private object storage / optional GitHub sync
 ```
 
-API handlers submit durable work and return run identifiers; they do not keep an HTTP request open for the whole agent execution. Workflow advances bounded phases. Files and run history outlive an individual function or sandbox.
+Native/bounded API handlers submit durable work and return identifiers; they do not hold HTTP for an entire agent execution. Single-call `/v1/inferences` instead invokes the provider within its retained HTTP owner and returns the settled result, using no Worker or normal scheduler hop. Both use shared authority, funding, occupancy and recovery records. Workflow advances queued agent phases. Files and history outlive individual functions and sandboxes.
 
 The standalone alternative runs the same domain and provider code with Node web/worker processes. PostgreSQL dispatch leases allow multiple workers. This is an alternative deployment topology, not another scheduler to activate alongside Workflow without a migration procedure.
 
@@ -75,6 +75,8 @@ Authoritative settings for the October 2026 capacity audit. Defaults are deploym
 | `LIGHTWEIGHT_CONCURRENT_RUN_LIMIT` | 2,000 | Fleet direct LLM/Jev/bounded-agent occupancy; independent of native compute |
 | `GLOBAL_CONCURRENT_RUN_LIMIT` | Sum of both | Optional emergency total ceiling; explicitly lowering it can intentionally couple classes |
 | `DISPATCH_INFERENCE_CONCURRENCY` | 256 | Active lightweight advances per standalone process; max 1,024 |
+| `IMMEDIATE_INFERENCE_CONCURRENCY` | 256 | Independent ceilings for buffered request-body/replay readers and active immediate producers per serving process; independent of fleet occupancy and queued dispatch slots |
+| `IMMEDIATE_INFERENCE_ADMISSION_CONCURRENCY` | min(16, floor(domain pool / 4)), at least 1 | Concurrent immediate A transactions; below domain pool size except a one-connection deployment; leaves B/C/control headroom |
 | `DISPATCH_PROVISION_CONCURRENCY` | 16 | Native provision steps/process; max 256 |
 | `DISPATCH_TRANSFER_CONCURRENCY` | 8 | Restore/checkpoint steps/process; max 256; each step has bounded object fan-out |
 | `DISPATCH_CONTROL_CONCURRENCY` | 64 | Lifecycle, probe, stop and cleanup steps/process; max 1,024; simulator native executions use this pool |
@@ -92,6 +94,8 @@ Authoritative settings for the October 2026 capacity audit. Defaults are deploym
 Native and lightweight fleet capacities each accept 1–100,000; the optional total ceiling accepts 1–200,000. HTTP buckets accept 1–1,000,000. `API_RATE_LIMIT_PER_MINUTE` is an optional fallback for each HTTP bucket; it does not merge them. `LIGHTWEIGHT_RESERVED_SLOTS_PER_ORG` remains zero by default and can reserve part of the existing account entitlement for lightweight work. Account caps are entitlements, not proxies for process I/O capacity. `WORKER_CONCURRENCY` is removed; use the four dispatch settings.
 
 The application/auth/credential pools can allocate **132 connections per process** by default. Count every API replica, standalone worker and overlapping deployment against the database or pooler's budget, leaving room for administration and maintenance. Open connections are not concurrent model calls: model HTTP runs outside SQL transactions. The local read workload favored 40 application connections, while the real hosted pooled endpoint benefited from 80 and larger values at high latency. The default 80 leaves room below the tested larger configurations; identity 20 and credential 32 similarly reserve capacity for other processes and workloads. Colocate the application/database, and override each deployment role independently from observed pressure. Valid numeric maxima are not tested safe operating targets.
+
+Immediate requests use a one-second cumulative admission SQL budget and finite process backpressure; they are refused rather than secretly queued. B/C have their own completion allowance. Their shared observer reads 256 identities per page with two concurrent pages, 500 ms cadence and a two-second stale abort. A busy pool or stale observer can therefore refuse work even below fleet caps. Increase process replicas and capacity only from measured latency, freshness, memory, sockets and database headroom. A 1,200-write/minute key bucket still bounds one key to 20 submissions/second over that window; configure it deliberately for a higher measured caller workload. Async I/O and a configurable maximum do not establish 10,000 concurrent-call support.
 
 ### Background work and transfers
 

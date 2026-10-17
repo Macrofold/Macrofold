@@ -24,7 +24,6 @@ var _ MappedNullable = &InferenceStreamEvent{}
 type InferenceStreamEvent struct {
 	SchemaVersion int32 `json:"schema_version"`
 	RunId string `json:"run_id"`
-	// run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error.
 	Type string `json:"type"`
 	OccurredAt time.Time `json:"occurred_at"`
 	Data InferenceStreamEventData `json:"data"`

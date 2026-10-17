@@ -53,6 +53,8 @@ A BYOK model's `charged_micro_usd` is `"0"`; `budget_cost_micro_usd` still measu
 
 Full prompts, responses, file contents and credentials are excluded. Use authorized run history or your operator's [tracing backend](../observability/README.md) for content. Financial records survive detailed-history expiry; customer labels depend on the retained integration binding.
 
+For one immediate inference, use the returned `result.inference.usage` and `.billing` without a separate billing request. That receipt carries only its invocation's metering and charges and needs no organization-wide `usage:read` scope. Null counts remain unknown; BYOK charges remain zero with separate provider estimates/reported costs. Use this endpoint for itemized reconciliation across calls, not to finish an otherwise completed inference.
+
 ## Brief for a coding agent
 
 > Integrate `GET /v1/billing/usage` using a server-held Bearer key with `usage:read` and no workspace restrictions. Supply `from` inclusive and `to` exclusive as RFC 3339 timestamps. Optional AND filters: `worker_id`, `workspace_id`, `worktree_id`, `run_id`, `session_id`, `customer_id`, `agent_key`, `provider`, `model`, `billing_mode`, `kind`. Page with `limit` (1–100) and `next_cursor`, preserving the filters. Entries itemize model/tool/compute/storage charges and model input/output/cache token counts. Sum decimal-string `charged_micro_usd` using integer arithmetic; divide by 1,000,000 for USD. Preserve null/unknown usage, distinguish provisional settlements, and never add BYOK provider estimates or budget consumption to Macrofold charges. Reread completed windows for late settlement, deduplicating by entry ID. Read the deployment's `/openapi.json` for the exact schema.

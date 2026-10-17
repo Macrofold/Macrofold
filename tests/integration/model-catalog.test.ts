@@ -176,6 +176,36 @@ it('leaves fresh pricing and the free simulator independent of metadata requests
   expect(source).not.toHaveBeenCalled();
 });
 
+it('cancels request-owned discovery without retaining its full maintenance lease or saving a late snapshot', async () => {
+  config.execution = 'docker';
+  const entered = barrier();
+  const abort = new AbortController();
+  const deadlineAtMs = Date.now() + 2000;
+  const reason = new Error('Synthetic catalog preparation deadline');
+  const source: ModelCatalogSource = async (_provider, options) => {
+    if (!options?.signal) throw new Error('Discovery must receive its request signal.');
+    const signal = options.signal;
+    entered.release();
+    return new Promise<DiscoveredModel[]>((_resolve, reject) => {
+      const stop = () => reject(signal.reason);
+      signal.addEventListener('abort', stop, { once: true });
+      if (signal.aborted) stop();
+    });
+  };
+  const pending = refreshExpiredOpenRouterCatalog(source, { deadlineAtMs, signal: abort.signal });
+  const rejected = expect(pending).rejects.toBe(reason);
+  await entered.promise;
+  abort.abort(reason);
+  await rejected;
+  const row = (
+    await pool.query<CatalogCacheRow>("SELECT * FROM model_catalog_cache WHERE provider='openrouter'")
+  ).rows[0];
+  expect(row.fetched_at).toBeNull();
+  expect(row.models).toBeNull();
+  expect(row.refresh_after.getTime()).toBeLessThanOrEqual(deadlineAtMs);
+  expect(row.last_error).toBeNull();
+});
+
 it.each(['missing', 'expired', 'failed'] as const)(
   'repairs %s inference pricing without a worker, preserving failure backoff and admission checks',
   async (state) => {
@@ -214,7 +244,25 @@ it.each(['missing', 'expired', 'failed'] as const)(
         })),
       });
     });
-    vi.stubGlobal('fetch', metadata);
+    const inference = vi.fn<typeof fetch>(async (url, init) => {
+      expect(String(url)).toBe('https://openrouter.ai/api/v1/chat/completions');
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer fixture-only');
+      return Response.json({
+        id: 'catalog-inference-fixture',
+        model: routed()[0].id,
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: 'Synthetic catalog reply.' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 10 },
+      });
+    });
+    vi.stubGlobal('fetch', (url: Parameters<typeof fetch>[0], init?: RequestInit) =>
+      String(url) === 'https://openrouter.ai/api/v1/models' ? metadata(url, init) : inference(url, init),
+    );
     const submit = () =>
       handleApi(
         new Request(`${config.origin}/v1/inferences`, {
@@ -223,7 +271,6 @@ it.each(['missing', 'expired', 'failed'] as const)(
             authorization: `Bearer ${account.key}`,
             'content-type': 'application/json',
             'idempotency-key': id(),
-            prefer: 'respond-async',
           },
           body: JSON.stringify({
             model_binding: {
@@ -244,21 +291,20 @@ it.each(['missing', 'expired', 'failed'] as const)(
       for (let attempt = 0; attempt < 2; attempt++) {
         const response = await submit();
         const body = await response.json();
-        expect(response.status, JSON.stringify(body)).toBe(state === 'failed' ? 400 : 202);
+        expect(response.status, JSON.stringify(body)).toBe(state === 'failed' ? 400 : 200);
         if (state === 'failed') {
           expect(body).toMatchObject({ error: { code: 'decision_model_unavailable' } });
         } else {
           const run = await transaction(account.p.organizationId, (tx) => getRun(tx, body.run_id));
+          expect(body).toMatchObject({ status: 'succeeded', result: { inference: { outcome: 'value' } } });
           expect(run.config.rate_card).toMatchObject({ input_micro_usd_per_million: '2000000' });
-          await client.runs.cancel(body.run_id);
         }
       }
       expect(metadata).toHaveBeenCalledTimes(1);
+      expect(inference).toHaveBeenCalledTimes(state === 'failed' ? 0 : 2);
       expect((await client.billing.get()).reserved_micro_usd).toBe('0');
       if (state === 'failed') {
-        const count = await transaction(account.p.organizationId, (tx) =>
-          tx.query('SELECT id FROM runs'),
-        );
+        const count = await transaction(account.p.organizationId, (tx) => tx.query('SELECT id FROM runs'));
         expect(count.rows).toHaveLength(0);
       }
     } finally {

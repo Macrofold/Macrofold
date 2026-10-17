@@ -6,6 +6,7 @@ pub mod resources;
 mod run_helpers;
 mod streaming;
 mod inference_stream;
+pub use inference_stream::InferenceHttpError;
 pub(crate) use options::request_error;
 pub use options::{ClientBuilder, RequestError, RequestOptions};
 pub use resources::DEFAULT_ORIGIN;

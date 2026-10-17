@@ -17,12 +17,11 @@ import pprint
 import re  # noqa: F401
 import json
 
-from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
 from uuid import UUID
-from macrofold.models.run_accepted_urls import RunAcceptedUrls
+from macrofold.models.inference_urls import InferenceUrls
 from macrofold.models.run_result import RunResult
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,38 +29,25 @@ from pydantic_core import to_jsonable_python
 
 class InferenceResponse(BaseModel):
     """
-    InferenceResponse
+    Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
     """ # noqa: E501
     run_id: UUID
     session_id: Optional[UUID]
     worktree_id: Optional[UUID]
     status: StrictStr
-    urls: RunAcceptedUrls
-    queue_expires_at: Optional[datetime] = None
+    urls: InferenceUrls
     wait_seconds: Optional[Union[Annotated[float, Field(strict=True, ge=0)], Annotated[int, Field(strict=True, ge=0)]]] = Field(default=None, description="Submission to execution start, or elapsed wait through now/completion if never started.")
-    waiting_reason: Optional[StrictStr] = Field(default=None, description="Snapshot, not a queue position or start-time estimate. Null when no longer queued.")
     reserved_micro_usd: Optional[Annotated[str, Field(strict=True)]] = Field(default=None, description="Funds still held and unavailable for other jobs; released on settlement.")
-    scheduling_class: Optional[StrictStr] = None
     kind: Optional[StrictStr] = None
     result: Optional[RunResult] = None
-    additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "queue_expires_at", "wait_seconds", "waiting_reason", "reserved_micro_usd", "scheduling_class", "kind", "result"]
+    recovery_reason: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["run_id", "session_id", "worktree_id", "status", "urls", "wait_seconds", "reserved_micro_usd", "kind", "result", "recovery_reason"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['queued', 'provisioning', 'running', 'succeeded', 'failed', 'cancelled', 'timed_out']):
-            raise ValueError("must be one of enum values ('queued', 'provisioning', 'running', 'succeeded', 'failed', 'cancelled', 'timed_out')")
-        return value
-
-    @field_validator('waiting_reason')
-    def waiting_reason_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits']):
-            raise ValueError("must be one of enum values ('global_capacity', 'account_concurrency', 'earlier_worktree_work', 'scheduler_turn', 'cancellation_requested', 'deadline_expired', 'worktree_unavailable', 'lightweight_capacity', 'reserved_lightweight_capacity', 'worker_paused', 'worker_destroyed', 'worker_expired', 'worker_concurrency', 'worker_cost_limit', 'worker_instance_limit', 'worker_starting', 'worker_capacity', 'worker_lifetime', 'compute_unavailable', 'insufficient_credits')")
+        if value not in set(['running', 'succeeded', 'failed', 'cancelled', 'timed_out']):
+            raise ValueError("must be one of enum values ('running', 'succeeded', 'failed', 'cancelled', 'timed_out')")
         return value
 
     @field_validator('reserved_micro_usd', mode="before")
@@ -74,16 +60,6 @@ class InferenceResponse(BaseModel):
             raise ValueError(r"must validate the regular expression /^[0-9]+$/")
         return value
 
-    @field_validator('scheduling_class')
-    def scheduling_class_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['background', 'interactive']):
-            raise ValueError("must be one of enum values ('background', 'interactive')")
-        return value
-
     @field_validator('kind')
     def kind_validate_enum(cls, value):
         """Validates the enum"""
@@ -92,6 +68,16 @@ class InferenceResponse(BaseModel):
 
         if value not in set(['native_agent', 'inference', 'bounded_agent']):
             raise ValueError("must be one of enum values ('native_agent', 'inference', 'bounded_agent')")
+        return value
+
+    @field_validator('recovery_reason')
+    def recovery_reason_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['in_progress', 'finalization_pending', 'outcome_unknown']):
+            raise ValueError("must be one of enum values ('in_progress', 'finalization_pending', 'outcome_unknown')")
         return value
 
     model_config = ConfigDict(
@@ -124,10 +110,8 @@ class InferenceResponse(BaseModel):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         excluded_fields: Set[str] = set([
-            "additional_properties",
         ])
 
         _dict = self.model_dump(
@@ -141,11 +125,6 @@ class InferenceResponse(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of result
         if self.result:
             _dict['result'] = self.result.to_dict()
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         # set to None if session_id (nullable) is None
         # and model_fields_set contains the field
         if self.session_id is None and "session_id" in self.model_fields_set:
@@ -155,11 +134,6 @@ class InferenceResponse(BaseModel):
         # and model_fields_set contains the field
         if self.worktree_id is None and "worktree_id" in self.model_fields_set:
             _dict['worktree_id'] = None
-
-        # set to None if waiting_reason (nullable) is None
-        # and model_fields_set contains the field
-        if self.waiting_reason is None and "waiting_reason" in self.model_fields_set:
-            _dict['waiting_reason'] = None
 
         return _dict
 
@@ -177,20 +151,13 @@ class InferenceResponse(BaseModel):
             "session_id": obj.get("session_id"),
             "worktree_id": obj.get("worktree_id"),
             "status": obj.get("status"),
-            "urls": RunAcceptedUrls.from_dict(obj["urls"]) if obj.get("urls") is not None else None,
-            "queue_expires_at": obj.get("queue_expires_at"),
+            "urls": InferenceUrls.from_dict(obj["urls"]) if obj.get("urls") is not None else None,
             "wait_seconds": obj.get("wait_seconds"),
-            "waiting_reason": obj.get("waiting_reason"),
             "reserved_micro_usd": obj.get("reserved_micro_usd"),
-            "scheduling_class": obj.get("scheduling_class"),
             "kind": obj.get("kind"),
-            "result": RunResult.from_dict(obj["result"]) if obj.get("result") is not None else None
+            "result": RunResult.from_dict(obj["result"]) if obj.get("result") is not None else None,
+            "recovery_reason": obj.get("recovery_reason")
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

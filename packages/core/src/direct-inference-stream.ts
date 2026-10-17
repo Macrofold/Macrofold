@@ -3,17 +3,20 @@ import { transaction } from '../../db';
 import type { Principal } from './auth';
 import { assert } from './errors';
 import { getRun, terminal } from './runs';
-import { completeDirectInference } from './direct-inference';
+import { completeDirectInference, type InvocationPermit } from './direct-inference';
 
 /** One transient reader, one durably identified invocation. Register the producer
  * with the host lifetime before returning headers; reader detachment never aborts it. */
 export async function directInferenceStream(
   principal: Principal,
   accepted: unknown,
-  execute: boolean,
+  permit: InvocationPermit | undefined,
   headers: Headers,
   background: (task: () => Promise<void>) => void,
   signal: AbortSignal,
+  idempotencyKey: string,
+  release?: () => void,
+  onRecovery?: () => void,
 ) {
   assert(
     accepted && typeof accepted === 'object' && 'run_id' in accepted && typeof accepted.run_id === 'string',
@@ -22,13 +25,24 @@ export async function directInferenceStream(
     'The inference receipt is unavailable.',
   );
   const runId = accepted.run_id;
-  const run = await transaction(principal.organizationId, (tx) => getRun(tx, runId, principal));
+  const run =
+    permit?.run ?? (await transaction(principal.organizationId, (tx) => getRun(tx, runId, principal)));
   assert(
-    execute || terminal(run.status),
+    !run.result.content_expired,
+    410,
+    'content_expired',
+    'The referenced content was deleted or expired.',
+  );
+  assert(
+    permit || terminal(run.status),
     409,
     'stream_already_started',
     'This request already has a producer. Retrieve its saved result using the original run ID.',
-    accepted,
+    {
+      idempotency_key: idempotencyKey,
+      run_id: runId,
+      ...('urls' in accepted ? { urls: accepted.urls } : {}),
+    },
   );
   const encoder = new TextEncoder();
   let detached = false;
@@ -60,7 +74,15 @@ export async function directInferenceStream(
     {
       start(value) {
         controller = value;
-        send('run.accepted', { ...accepted, delivery: execute ? 'live' : 'result_replay' });
+        send('run.accepted', {
+          run_id: runId,
+          session_id: null,
+          worktree_id: null,
+          status: run.status,
+          kind: run.kind,
+          ...('urls' in accepted ? { urls: accepted.urls } : {}),
+          delivery: permit ? 'live' : 'result_replay',
+        });
         heartbeat = setInterval(() => {
           if (!detached && (controller.desiredSize ?? 0) > 32)
             controller.enqueue(encoder.encode(': heartbeat\n\n'));
@@ -76,28 +98,38 @@ export async function directInferenceStream(
     },
     { highWaterMark: 2 * 1024 * 1024, size: (chunk) => chunk.byteLength },
   );
-  const producer = (async () => {
+  let resultAvailable = false;
+  const producer = Promise.resolve().then(async () => {
     try {
-      const completed = await completeDirectInference(principal, accepted, execute, background, (event) =>
+      const completed = await completeDirectInference(principal, accepted, permit, background, (event) =>
         send(event.type, event.data),
       );
-      if (completed.status === 200) send(`run.${completed.body.status}`, completed.body);
-      else
+      if (completed.status === 200) {
+        resultAvailable = true;
+        send(`run.${completed.body.status}`, completed.body);
+      } else {
+        onRecovery?.();
         send('transport.error', {
-          code: 'finalization_pending',
+          code: 'inference_recovery_required',
+          idempotency_key: idempotencyKey,
+          urls: completed.body.urls,
+          ...('recovery_reason' in completed.body ? { recovery_reason: completed.body.recovery_reason } : {}),
           message: 'Execution is recovering. Retrieve the result using the run ID.',
-          run_id: runId,
         });
+      }
     } catch {
       send('transport.error', {
         code: 'stream_interrupted',
+        idempotency_key: idempotencyKey,
+        ...('urls' in accepted ? { urls: accepted.urls } : {}),
+        ...(resultAvailable ? { reason: 'result_available' } : { recovery_reason: 'outcome_unknown' }),
         message: 'Retrieve the saved result using the run ID.',
-        run_id: runId,
       });
     } finally {
       detach();
+      release?.();
     }
-  })();
+  });
   background(async () => {
     await producer;
     await flushTraces();

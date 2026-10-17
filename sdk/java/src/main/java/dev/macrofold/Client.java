@@ -16,6 +16,22 @@ import java.util.function.Predicate;
 /** Authenticated typed API client. Redirects never forward its credential. */
 public class Client extends Resources {
   private final String token;
+  // One bounded daemon timer serves all callers; cancelled tasks release response bodies.
+  private static final java.util.concurrent.ScheduledThreadPoolExecutor INFERENCE_DEADLINES =
+      inferenceDeadlines();
+
+  private static java.util.concurrent.ScheduledThreadPoolExecutor inferenceDeadlines() {
+    var executor =
+        new java.util.concurrent.ScheduledThreadPoolExecutor(
+            2,
+            task -> {
+              var thread = new Thread(task, "macrofold-inference-deadline");
+              thread.setDaemon(true);
+              return thread;
+            });
+    executor.setRemoveOnCancelPolicy(true);
+    return executor;
+  }
 
   public Client() {
     this(DEFAULT_ORIGIN, environmentKey());
@@ -113,36 +129,236 @@ public class Client extends Resources {
     streamTarget(customerId, customerAgentId, runId, after, organization, receive);
   }
 
+  private HttpResponse<InputStream> openInference(
+      dev.macrofold.model.InferenceCreate input,
+      RequestOptions options,
+      String key,
+      boolean stream,
+      long deadline,
+      java.util.concurrent.ScheduledExecutorService deadlines)
+      throws IOException, InterruptedException, ApiException {
+    var payload = getObjectMapper().valueToTree(input);
+    if (stream) ((com.fasterxml.jackson.databind.node.ObjectNode) payload).put("stream", true);
+    String body = getObjectMapper().writeValueAsString(payload);
+    for (int attempt = 0; ; attempt++) {
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0)
+        throw new java.net.http.HttpTimeoutException("Inference deadline expired");
+      var request =
+          HttpRequest.newBuilder(URI.create(getBaseUri() + "/v1/inferences"))
+              .header("Authorization", "Bearer " + token)
+              .header("X-Client-Type", "sdk")
+              .header("Idempotency-Key", key)
+              .header("Content-Type", "application/json")
+              .timeout(Duration.ofNanos(remaining))
+              .POST(HttpRequest.BodyPublishers.ofString(body));
+      if (stream) request.header("Accept", "text/event-stream");
+      if (options.organization() != null)
+        request.header("X-Organization-Id", options.organization().toString());
+      var response =
+          getHttpClient().send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+      if (response.statusCode() >= 200 && response.statusCode() < 300) return response;
+      String responseBody;
+      var bodyTimer =
+          deadlines.schedule(
+              () -> {
+                try {
+                  response.body().close();
+                } catch (IOException ignored) {
+                }
+              },
+              Math.max(0, deadline - System.nanoTime()),
+              java.util.concurrent.TimeUnit.NANOSECONDS);
+      try (var inputBody = response.body()) {
+        responseBody = new String(inputBody.readNBytes(65536), StandardCharsets.UTF_8);
+      } catch (IOException error) {
+        throw new ApiException(error.getMessage(), error, response.statusCode(), response.headers(), null);
+      } finally {
+        bodyTimer.cancel(false);
+      }
+      var error =
+          new ApiException(
+              response.statusCode(),
+              "Inference request rejected",
+              response.headers(),
+              responseBody);
+      com.fasterxml.jackson.databind.JsonNode detail;
+      try {
+        var node = getObjectMapper().readTree(responseBody);
+        detail =
+            node == null
+                ? com.fasterxml.jackson.databind.node.MissingNode.getInstance()
+                : node.path("error");
+      } catch (IOException malformed) {
+        throw error;
+      }
+      boolean safe =
+          detail.path("retryable").asBoolean(false)
+              && !detail.path("details").hasNonNull("run_id")
+              && response.headers().firstValue("x-run-id").isEmpty()
+              && java.util.Set.of(
+                      "rate_limited",
+                      "inference_capacity_unavailable",
+                      "streaming_capacity_unavailable",
+                      "inference_service_unavailable",
+                      "inference_admission_timeout",
+                      "inference_host_budget_exhausted")
+                  .contains(detail.path("code").asText());
+      if (attempt >= options.inferenceRetries()
+          || !java.util.Set.of(429, 503).contains(response.statusCode())
+          || !safe) throw error;
+      String hint = response.headers().firstValue("retry-after").orElse("0");
+      double seconds;
+      try {
+        seconds = Double.parseDouble(hint);
+      } catch (NumberFormatException invalid) {
+        try {
+          seconds =
+              Math.max(
+                  0,
+                  Duration.between(
+                              java.time.Instant.now(),
+                              java.time.ZonedDateTime.parse(
+                                      hint, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+                                  .toInstant())
+                          .toMillis()
+                      / 1000.0);
+        } catch (java.time.format.DateTimeParseException malformed) {
+          seconds = 0;
+        }
+      }
+      if (Double.isInfinite(seconds) && seconds > 0) throw error;
+      if (!Double.isFinite(seconds)) seconds = 0;
+      double wait =
+          Math.max(seconds, 0.2 * Math.pow(2, attempt)) * 1000
+              + java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 101);
+      if (wait >= (deadline - System.nanoTime()) / 1000000.0) throw error;
+      Thread.sleep((long) Math.ceil(wait));
+    }
+  }
+
   @Override
-  protected void streamInference(dev.macrofold.model.InferenceCreate input, RequestOptions options, Predicate<dev.macrofold.model.InferenceStreamEvent> receive)
+  protected dev.macrofold.model.InferenceResponse createImmediateInference(
+      dev.macrofold.model.InferenceCreate input, RequestOptions options) throws ApiException {
+    String key = options.identity();
+    long deadline = System.nanoTime() + options.inferenceTimeout().toNanos();
+    var deadlines = INFERENCE_DEADLINES;
+    HttpHeaders responseHeaders = null;
+    try {
+      if (Boolean.TRUE.equals(input.getStream()))
+        throw new IllegalArgumentException("use inferences().stream for incremental output");
+      var response = openInference(input, options, key, false, deadline, deadlines);
+      responseHeaders = response.headers();
+      var timer =
+          deadlines.schedule(
+              () -> {
+                try {
+                  response.body().close();
+                } catch (IOException ignored) {
+                }
+              },
+              Math.max(0, deadline - System.nanoTime()),
+              java.util.concurrent.TimeUnit.NANOSECONDS);
+      try (var body = response.body()) {
+        return getObjectMapper().readValue(body, dev.macrofold.model.InferenceResponse.class);
+      } finally {
+        timer.cancel(false);
+      }
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new RequestException(
+          new ApiException(error.getMessage(), error, 0, responseHeaders, null), key);
+    } catch (IOException error) {
+      throw new RequestException(
+          new ApiException(error.getMessage(), error, 0, responseHeaders, null), key);
+    } catch (ApiException error) {
+      throw new RequestException(error, key);
+    }
+  }
+
+  @Override
+  protected void streamInference(
+      dev.macrofold.model.InferenceCreate input,
+      RequestOptions options,
+      Predicate<dev.macrofold.model.InferenceStreamEvent> receive)
       throws IOException, InterruptedException, ApiException {
     String key = options.identity();
-    var payload = getObjectMapper().valueToTree(input);
-    ((com.fasterxml.jackson.databind.node.ObjectNode) payload).put("stream", true);
-    var request = HttpRequest.newBuilder(URI.create(getBaseUri()+"/v1/inferences"))
-        .header("Authorization", "Bearer "+token).header("X-Client-Type", "sdk")
-        .header("Idempotency-Key", key).header("Content-Type", "application/json")
-        .header("Accept", "text/event-stream").timeout(Duration.ofSeconds(300))
-        .POST(HttpRequest.BodyPublishers.ofString(getObjectMapper().writeValueAsString(payload)));
-    if (options.organization() != null) request.header("X-Organization-Id", options.organization().toString());
-    var deadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+    long deadline = System.nanoTime() + options.inferenceTimeout().toNanos();
+    var deadlines = INFERENCE_DEADLINES;
+    HttpHeaders responseHeaders = null;
+    var identity =
+        new java.util.concurrent.atomic.AtomicReference<com.fasterxml.jackson.databind.JsonNode>();
     try {
-      var response = getHttpClient().send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
-      var deadline = deadlines.schedule(() -> { try { response.body().close(); } catch (IOException ignored) {} }, 300, java.util.concurrent.TimeUnit.SECONDS);
+      var response = openInference(input, options, key, true, deadline, deadlines);
+      responseHeaders = response.headers();
+      if (response.headers().firstValue("x-run-id").isPresent()) {
+        var initial = getObjectMapper().createObjectNode();
+        initial.put("run_id", response.headers().firstValue("x-run-id").orElseThrow());
+        identity.set(initial);
+      }
+      var timer =
+          deadlines.schedule(
+              () -> {
+                try {
+                  response.body().close();
+                } catch (IOException ignored) {
+                }
+              },
+              Math.max(0, deadline - System.nanoTime()),
+              java.util.concurrent.TimeUnit.NANOSECONDS);
       try (var body = response.body()) {
-        if (response.statusCode() != 200) throw new ApiException(response.statusCode(), "Inference stream rejected", response.headers(), new String(body.readNBytes(65536), StandardCharsets.UTF_8));
-        if (!response.headers().firstValue("content-type").orElse("").contains("text/event-stream")) throw new IOException("Expected an event stream");
-        boolean ended = SseReader.read(body, data -> {
-          var event = getObjectMapper().readValue(data, dev.macrofold.model.InferenceStreamEvent.class);
-          if (!receive.test(event)) return true;
-          if ("transport.error".equals(event.getType())) throw new IOException("Stream interrupted; retrieve the saved run result");
-          return java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out", "run.recovery_required").contains(event.getType());
-        });
-        if (!ended) throw new IOException("Stream ended before terminal result; retrieve the saved run result");
-      } finally { deadline.cancel(false); }
-    } catch (ApiException error) { throw new RequestException(error, key); }
-      catch (IOException error) { throw new IOException("Inference stream interrupted; idempotency key: "+key, error); }
-    finally { deadlines.shutdownNow(); }
+        if (!response.headers().firstValue("content-type").orElse("").contains("text/event-stream"))
+          throw new IOException("Expected an event stream");
+        boolean ended =
+            SseReader.read(
+                body,
+                data -> {
+                  var raw = getObjectMapper().readTree(data);
+                  if (raw == null
+                      || !raw.isObject()
+                      || raw.path("schema_version").asInt() != 1
+                      || !raw.path("run_id").isTextual()
+                      || !raw.path("type").isTextual()
+                      || !raw.path("data").isObject())
+                    throw new IOException("Invalid inference stream frame");
+                  var event =
+                      getObjectMapper()
+                          .treeToValue(raw, dev.macrofold.model.InferenceStreamEvent.class);
+                  var known = identity.get();
+                  if (known != null
+                      && !raw.path("data").has("urls")
+                      && known.path("data").has("urls"))
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) raw.path("data"))
+                        .set("urls", known.path("data").path("urls"));
+                  identity.set(raw);
+                  if (!receive.test(event)) return true;
+                  String type = raw.path("type").asText();
+                  if ("transport.error".equals(type))
+                    throw new IOException("Stream interrupted; retrieve the saved run result");
+                  return java.util.Set.of(
+                          "run.succeeded", "run.failed", "run.cancelled", "run.timed_out")
+                      .contains(type);
+                });
+        if (!ended)
+          throw new IOException(
+              "Stream ended before terminal result; retrieve the saved run result");
+      } finally {
+        timer.cancel(false);
+      }
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new RequestException(
+          new ApiException(error.getMessage(), error, 0, responseHeaders, null),
+          key,
+          identity.get());
+    } catch (IOException error) {
+      throw new RequestException(
+          new ApiException(error.getMessage(), error, 0, responseHeaders, null),
+          key,
+          identity.get());
+    } catch (ApiException error) {
+      throw new RequestException(error, key, identity.get());
+    }
   }
 
   private void streamTarget(
@@ -203,16 +419,32 @@ public class Client extends Resources {
             final BigInteger current = cursor;
             final BigInteger[] delivered = {cursor};
             boolean ended;
-            try { ended = SseReader.read(body, data -> {
-              Event event;
-              try { event = getObjectMapper().readValue(data, Event.class); }
-              catch (com.fasterxml.jackson.core.JsonProcessingException ignored) { return false; }
-              if (event.getSequence() == null || !event.getSequence().matches("[0-9]+")) return false;
-              BigInteger sequence = new BigInteger(event.getSequence());
-              if (sequence.compareTo(delivered[0]) <= 0) return false;
-              delivered[0] = sequence;
-              return !receive.test(event) || java.util.Set.of("run.succeeded", "run.failed", "run.cancelled", "run.timed_out", "run.recovery_required").contains(event.getType());
-            }); } finally {
+            try {
+              ended =
+                  SseReader.read(
+                      body,
+                      data -> {
+                        Event event;
+                        try {
+                          event = getObjectMapper().readValue(data, Event.class);
+                        } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
+                          return false;
+                        }
+                        if (event.getSequence() == null || !event.getSequence().matches("[0-9]+"))
+                          return false;
+                        BigInteger sequence = new BigInteger(event.getSequence());
+                        if (sequence.compareTo(delivered[0]) <= 0) return false;
+                        delivered[0] = sequence;
+                        return !receive.test(event)
+                            || java.util.Set.of(
+                                    "run.succeeded",
+                                    "run.failed",
+                                    "run.cancelled",
+                                    "run.timed_out",
+                                    "run.recovery_required")
+                                .contains(event.getType());
+                      });
+            } finally {
               // Preserve delivered identity even if the next network read fails.
               cursor = delivered[0];
               if (cursor.compareTo(current) > 0) failures = 0;
@@ -247,7 +479,10 @@ public class Client extends Resources {
                 .isEmpty()) return;
         Thread.sleep(250);
       }
-      throw new IOException("Stream attachment limit reached. Reattach after " + cursor + "; the run has not been cancelled.");
+      throw new IOException(
+          "Stream attachment limit reached. Reattach after "
+              + cursor
+              + "; the run has not been cancelled.");
     } finally {
       deadlines.shutdownNow();
     }

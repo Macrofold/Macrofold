@@ -45,7 +45,6 @@ import dev.macrofold.ApiClient;
   InferenceCreate.JSON_PROPERTY_CONTEXT,
   InferenceCreate.JSON_PROPERTY_MODEL_BINDING,
   InferenceCreate.JSON_PROPERTY_LIMITS,
-  InferenceCreate.JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS,
   InferenceCreate.JSON_PROPERTY_MODEL_PARAMETERS,
   InferenceCreate.JSON_PROPERTY_STREAM
 })
@@ -74,10 +73,6 @@ public class InferenceCreate {
   public static final String JSON_PROPERTY_LIMITS = "limits";
   @javax.annotation.Nullable
   private InferenceLimits limits;
-
-  public static final String JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS = "queue_timeout_seconds";
-  @javax.annotation.Nullable
-  private Integer queueTimeoutSeconds;
 
   public static final String JSON_PROPERTY_MODEL_PARAMETERS = "model_parameters";
   @javax.annotation.Nullable
@@ -234,32 +229,6 @@ public class InferenceCreate {
   }
 
 
-  public InferenceCreate queueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-    return this;
-  }
-
-  /**
-   * Get queueTimeoutSeconds
-   * minimum: 1
-   * maximum: 86400
-   * @return queueTimeoutSeconds
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public Integer getQueueTimeoutSeconds() {
-    return queueTimeoutSeconds;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_TIMEOUT_SECONDS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueTimeoutSeconds(@javax.annotation.Nullable Integer queueTimeoutSeconds) {
-    this.queueTimeoutSeconds = queueTimeoutSeconds;
-  }
-
-
   public InferenceCreate modelParameters(@javax.annotation.Nullable ModelParameters modelParameters) {
     this.modelParameters = modelParameters;
     return this;
@@ -326,14 +295,13 @@ public class InferenceCreate {
         Objects.equals(this.context, inferenceCreate.context) &&
         Objects.equals(this.modelBinding, inferenceCreate.modelBinding) &&
         Objects.equals(this.limits, inferenceCreate.limits) &&
-        Objects.equals(this.queueTimeoutSeconds, inferenceCreate.queueTimeoutSeconds) &&
         Objects.equals(this.modelParameters, inferenceCreate.modelParameters) &&
         Objects.equals(this.stream, inferenceCreate.stream);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, queueTimeoutSeconds, modelParameters, stream);
+    return Objects.hash(workspaceId, definition, input, context, modelBinding, limits, modelParameters, stream);
   }
 
   @Override
@@ -346,7 +314,6 @@ public class InferenceCreate {
     sb.append("    context: ").append(toIndentedString(context)).append("\n");
     sb.append("    modelBinding: ").append(toIndentedString(modelBinding)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
-    sb.append("    queueTimeoutSeconds: ").append(toIndentedString(queueTimeoutSeconds)).append("\n");
     sb.append("    modelParameters: ").append(toIndentedString(modelParameters)).append("\n");
     sb.append("    stream: ").append(toIndentedString(stream)).append("\n");
     sb.append("}");

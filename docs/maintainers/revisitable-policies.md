@@ -32,6 +32,16 @@ This register tracks accepted decisions likely to change, not unresolved choices
 
 **Decision authority:** Maintainer through the agreed architecture/migration scope. Current authorization, durable state and money safeguards survive the transition.
 
+## RP04 — Immediate and queued capacity
+
+**Implemented policy; hosted capacity acceptance remains open:** [Immediate inference shared-capacity policy](../projects/immediate-inference-tech-design.md#shared-policy-specialized-work). Immediate calls use available shared capacity without queue-turn selection or reserved capacity per mode. Queued execution retains weighted ordering among queued candidates. Aggregate/account/funding limits remain authoritative.
+
+**Why revisit:** This avoids an idle-capacity queue dependency and keeps resources usable, but sustained immediate traffic can delay bounded work and the reverse can fill capacity. Shared caps do not guarantee progress for each mode.
+
+**Review trigger:** An offered service requires a minimum progress guarantee, or measured competition repeatedly delays bounded work inside the published sustainable envelope. Evaluate finite per-mode reservations and their utilization cost; do not silently add a queue or weaken caps.
+
+**Decision authority:** Maintainer through an explicit scheduling-policy change. [Central TODO](TODO.md#direct-inference-latency-follow-up) owns remaining acceptance; keep the canonical scheduling owner synchronized with policy changes.
+
 ## Maintaining this register
 
 Keep stable IDs, a canonical policy link, the reason to revisit, a concrete trigger and decision authority. Add only known revisitable decisions, not every constant or hypothetical concern. When a trigger is relevant, raise it in the task/PR; put resulting work or unresolved choices in their existing owners. An accepted change updates the policy, affected summaries and this entry together; significant decisions go in the owning document's bottom Changelog. Retire superseded entries with a link to their replacement or recorded decision, not another copy of the contract.

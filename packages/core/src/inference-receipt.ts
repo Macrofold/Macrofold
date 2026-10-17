@@ -1,6 +1,8 @@
 import type { InferenceConfig } from './runs';
 import type { InferenceReceipt } from './decision';
 import { digest } from './explicit-context';
+import { inferenceUsage, inferenceBilling } from './model-gateway';
+import { emptyUsage } from './model-protocol';
 
 export function initialReceipt(configuration: InferenceConfig, invocationId: string): InferenceReceipt {
   return {
@@ -17,5 +19,7 @@ export function initialReceipt(configuration: InferenceConfig, invocationId: str
     model_revision: null,
     model_revision_status: 'unavailable',
     validation: { schema_digest: digest(configuration.definition.output_schema), status: 'not_run' },
+    usage: inferenceUsage(emptyUsage(), true),
+    billing: inferenceBilling(undefined, configuration.billing_mode, true),
   };
 }

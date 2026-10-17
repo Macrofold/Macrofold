@@ -25,7 +25,7 @@ const reference = {
   revision: snapshot.revision,
   audience: snapshot.audience,
 };
-const accepted = await client.inferences.create({
+const response = await client.inferences.create({
   workspace_id: workspaceId,
   definition,
   input,
@@ -33,6 +33,8 @@ const accepted = await client.inferences.create({
   model_binding,
 });
 ```
+
+As with inline context, submission returns a finalized result or an explicit recovery receipt; inspect `response.status` before using `response.result`. No worker queue is introduced by a stored reference.
 
 References require `files:read`; publishing requires `files:write`. Content is encrypted in existing object storage and verified against its digest on read. Reference authorization runs at submission, commit and dispatch. Same-workspace audience substitution is denied. Identical actor IDs in different workspace namespaces do not share evidence. A narrower audience needs a new snapshot, not a relabelled history.
 
@@ -46,7 +48,7 @@ const published = await client.inferences.createDecisionDefinition({
   name: 'Exception triage',
   definition,
 });
-const accepted = await client.inferences.create({
+const response = await client.inferences.create({
   workspace_id: workspaceId,
   definition: { definition_id: published.id, revision: definition.revision },
   input,

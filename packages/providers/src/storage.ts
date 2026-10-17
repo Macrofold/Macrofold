@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { sha256, seal, unseal } from '../../core/src/crypto';
 export interface ObjectStore {
   put(key: string, bytes: Buffer): Promise<void>;
-  get(key: string): Promise<Buffer>;
+  get(key: string, options?: { signal?: AbortSignal }): Promise<Buffer>;
   delete(key: string): Promise<void>;
   uploadURL?(
     key: string,
@@ -72,8 +72,8 @@ export class LocalStore implements ObjectStore {
     await writeFile(tmp, bytes, { mode: 0o600 });
     await rename(tmp, dest);
   }
-  get(key: string) {
-    return readFile(path.join(this.directory, 'objects', safeKey(key)));
+  get(key: string, options?: { signal?: AbortSignal }) {
+    return readFile(path.join(this.directory, 'objects', safeKey(key)), { signal: options?.signal });
   }
   async delete(key: string) {
     await unlink(path.join(this.directory, 'objects', safeKey(key))).catch((e) => {
@@ -126,8 +126,8 @@ export class R2Store implements ObjectStore {
       { abortSignal: AbortSignal.timeout(60_000) },
     );
   }
-  async get(key: string) {
-    return this.readObject(key);
+  async get(key: string, options?: { signal?: AbortSignal }) {
+    return this.readObject(key, undefined, options?.signal);
   }
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }), {
@@ -159,27 +159,31 @@ export class R2Store implements ObjectStore {
       throw new Error('Invalid upload plan');
     return this.readObject(key, expectedSize);
   }
-  private async readObject(key: string, expectedSize?: number) {
+  private async readObject(key: string, expectedSize?: number, requestedSignal?: AbortSignal) {
     // The SDK request deadline must cover body consumption as well as headers.
     // Keep explicit cleanup for adapters whose HTTP request closes before its body.
-    const signal = AbortSignal.timeout(60_000),
+    const timeout = AbortSignal.timeout(60_000),
+      signal = requestedSignal ? AbortSignal.any([timeout, requestedSignal]) : timeout,
       deadline = Date.now() + 60_000;
+    signal.throwIfAborted();
     const response = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucket, Key: safeKey(key) }),
       { abortSignal: signal },
     );
     const body = response.Body as AsyncIterable<Uint8Array> & { destroy(error?: Error): void };
-    const abort = () => body.destroy(new Error('Object read timed out'));
+    const abort = () =>
+      body.destroy(new Error(requestedSignal?.aborted ? 'Object read interrupted' : 'Object read timed out'));
     signal.addEventListener('abort', abort, { once: true });
     const parts: Buffer[] = [];
     let total = 0,
       emptyChunks = 0;
     try {
-      if (signal.aborted) throw new Error('Object read timed out');
+      signal.throwIfAborted();
       if (expectedSize !== undefined && response.ContentLength !== expectedSize)
         throw new Error('Upload size mismatch');
       for await (const part of body) {
-        if (signal.aborted || Date.now() >= deadline) throw new Error('Object read timed out');
+        signal.throwIfAborted();
+        if (Date.now() >= deadline) throw new Error('Object read timed out');
         emptyChunks = part.byteLength ? 0 : emptyChunks + 1;
         if (emptyChunks >= 16) throw new Error('Object stream did not make progress');
         total += part.byteLength;
@@ -187,6 +191,7 @@ export class R2Store implements ObjectStore {
           throw new Error('Upload exceeds planned size');
         parts.push(Buffer.from(part));
       }
+      signal.throwIfAborted();
       if (expectedSize !== undefined && total !== expectedSize) throw new Error('Upload incomplete');
       return Buffer.concat(parts);
     } finally {
@@ -202,9 +207,9 @@ export async function saveContent(org: string, bytes: Buffer) {
   await storage.put(key, Buffer.from(seal({ bytes: bytes.toString('base64') })));
   return { key, sha256: hash, size_bytes: String(bytes.length) };
 }
-export async function readContent(key: string, hash?: string) {
+export async function readContent(key: string, hash?: string, signal?: AbortSignal) {
   const parts: Buffer[] = [];
-  for await (const part of contentChunks(key, hash)) parts.push(part);
+  for await (const part of contentChunks(key, hash, storage, signal)) parts.push(part);
   return Buffer.concat(parts);
 }
 export type StoredChunk = { key: string; sha256: string; size: number };
@@ -213,8 +218,11 @@ export async function* contentChunks(
   key: string,
   expectedHash?: string,
   store: Pick<ObjectStore, 'get'> = storage,
+  signal?: AbortSignal,
 ): AsyncGenerator<Buffer> {
-  const value = unseal<StoredValue>((await store.get(key)).toString());
+  signal?.throwIfAborted();
+  const value = unseal<StoredValue>((await store.get(key, { signal })).toString());
+  signal?.throwIfAborted();
   const hasher = createHash('sha256');
   let size = 0;
   if ('bytes' in value) {
@@ -226,7 +234,9 @@ export async function* contentChunks(
     for (const chunk of value.chunks) {
       // One level only: a malicious/corrupt manifest cannot recurse forever or leave its tenant prefix.
       if (!chunk.key.startsWith(`${key.split('/')[0]}/content/`)) throw new Error('Invalid content manifest');
-      const item = unseal<{ bytes: string }>((await store.get(chunk.key)).toString());
+      signal?.throwIfAborted();
+      const item = unseal<{ bytes: string }>((await store.get(chunk.key, { signal })).toString());
+      signal?.throwIfAborted();
       const bytes = Buffer.from(item.bytes, 'base64');
       if (sha256(bytes) !== chunk.sha256 || bytes.length !== chunk.size)
         throw new Error('Content chunk integrity failure');

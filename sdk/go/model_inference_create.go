@@ -27,7 +27,6 @@ type InferenceCreate struct {
 	Context *DecisionTaskWakeContext `json:"context,omitempty"`
 	ModelBinding DecisionBinding `json:"model_binding"`
 	Limits *InferenceLimits `json:"limits,omitempty"`
-	QueueTimeoutSeconds *int32 `json:"queue_timeout_seconds,omitempty"`
 	ModelParameters *ModelParameters `json:"model_parameters,omitempty"`
 	// Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream.
 	Stream *bool `json:"stream,omitempty"`
@@ -232,38 +231,6 @@ func (o *InferenceCreate) SetLimits(v InferenceLimits) {
 	o.Limits = &v
 }
 
-// GetQueueTimeoutSeconds returns the QueueTimeoutSeconds field value if set, zero value otherwise.
-func (o *InferenceCreate) GetQueueTimeoutSeconds() int32 {
-	if o == nil || IsNil(o.QueueTimeoutSeconds) {
-		var ret int32
-		return ret
-	}
-	return *o.QueueTimeoutSeconds
-}
-
-// GetQueueTimeoutSecondsOk returns a tuple with the QueueTimeoutSeconds field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *InferenceCreate) GetQueueTimeoutSecondsOk() (*int32, bool) {
-	if o == nil || IsNil(o.QueueTimeoutSeconds) {
-		return nil, false
-	}
-	return o.QueueTimeoutSeconds, true
-}
-
-// HasQueueTimeoutSeconds returns a boolean if a field has been set.
-func (o *InferenceCreate) HasQueueTimeoutSeconds() bool {
-	if o != nil && !IsNil(o.QueueTimeoutSeconds) {
-		return true
-	}
-
-	return false
-}
-
-// SetQueueTimeoutSeconds gets a reference to the given int32 and assigns it to the QueueTimeoutSeconds field.
-func (o *InferenceCreate) SetQueueTimeoutSeconds(v int32) {
-	o.QueueTimeoutSeconds = &v
-}
-
 // GetModelParameters returns the ModelParameters field value if set, zero value otherwise.
 func (o *InferenceCreate) GetModelParameters() ModelParameters {
 	if o == nil || IsNil(o.ModelParameters) {
@@ -353,9 +320,6 @@ func (o InferenceCreate) ToMap() (map[string]interface{}, error) {
 	toSerialize["model_binding"] = o.ModelBinding
 	if !IsNil(o.Limits) {
 		toSerialize["limits"] = o.Limits
-	}
-	if !IsNil(o.QueueTimeoutSeconds) {
-		toSerialize["queue_timeout_seconds"] = o.QueueTimeoutSeconds
 	}
 	if !IsNil(o.ModelParameters) {
 		toSerialize["model_parameters"] = o.ModelParameters

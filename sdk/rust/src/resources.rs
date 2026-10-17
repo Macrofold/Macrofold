@@ -974,7 +974,6 @@ pub async fn list(&self, params: ListSessionsParams) -> Result<models::ListSessi
           .map_err(|error|crate::request_error(error,None))
       }
     }
-#[derive(Debug,Clone,Default)] pub struct CreateInferenceParams {pub prefer: Option<String>}
 pub struct InferencesResource<'a> {client:&'a Client,options:RequestOptions}
     impl<'a> InferencesResource<'a> {
       pub fn with_options(mut self, options:RequestOptions) -> Self {self.options=options;self}
@@ -997,12 +996,7 @@ pub async fn create_decision_definition(&self, input: models::DecisionDefinition
           .map_err(|error|crate::request_error(error,Some(key)))
       }
 pub async fn stream(&self, input: models::InferenceCreate, receive: impl FnMut(models::InferenceStreamEvent)->bool) -> Result<(),ClientError> { self.client.stream_inference(input, &self.options, receive).await }
-pub async fn create(&self, input: models::InferenceCreate, params: CreateInferenceParams) -> Result<models::InferenceResponse,ClientError> {
-        if input.stream == Some(true) { return Err("use inferences().stream for incremental output".into()); }
-        let key = self.options.idempotency_key.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string());
-        crate::apis::inferences_api::create_inference(self.client.configuration(), &key, Some(input), self.options.organization.as_deref(), params.prefer.as_deref()).await
-          .map_err(|error|crate::request_error(error,Some(key)))
-      }
+pub async fn create(&self,input:models::InferenceCreate)->Result<models::InferenceResponse,ClientError>{self.client.create_immediate_inference(input,&self.options).await}
 pub async fn delete_context_artifact(&self, artifact_id: &str) -> Result<models::ContextArtifact,ClientError> {
 
 

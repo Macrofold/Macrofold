@@ -15,10 +15,16 @@ import { releasePublishedArtifact } from './artifacts';
 
 type Schema = components['schemas'];
 type Reference = Schema['ContextReference'];
+export type ContextReadOptions = { deadlineAtMs?: number; signal?: AbortSignal };
 /** Typed, read-only boundary. Remote registration is intentionally absent until
  * a consumer needs it; credentials and arbitrary URLs never enter context. */
 export interface ContextReader {
-  read(p: Principal, workspaceId: string | null | undefined, reference: Reference): Promise<ExplicitContext>;
+  read(
+    p: Principal,
+    workspaceId: string | null | undefined,
+    reference: Reference,
+    options?: ContextReadOptions,
+  ): Promise<ExplicitContext>;
 }
 export async function contextArtifact(tx: Tx, p: Principal, artifactId: string) {
   requireScopes(p, ['files:read']);
@@ -39,7 +45,12 @@ export function presentContext(artifact: resources.Document<'artifacts'>): Schem
     created_at: artifact.created_at,
   };
 }
-export async function authorizeContext(tx: Tx, p: Principal, workspaceId: string | null | undefined, reference: Reference) {
+export async function authorizeContext(
+  tx: Tx,
+  p: Principal,
+  workspaceId: string | null | undefined,
+  reference: Reference,
+) {
   assert(workspaceId, 400, 'workspace_required', 'Stored context requires a workspace.');
   requireApplication(p, workspaceId);
   const artifact = await contextArtifact(tx, p, reference.artifact_id);
@@ -60,11 +71,16 @@ export async function authorizeContext(tx: Tx, p: Principal, workspaceId: string
   return artifact;
 }
 export const storedContextReader: ContextReader = {
-  async read(p, workspaceId, reference) {
-    const artifact = await transaction(p.organizationId, (tx) =>
-      authorizeContext(tx, p, workspaceId, reference),
+  async read(p, workspaceId, reference, options = {}) {
+    options.signal?.throwIfAborted();
+    const artifact = await transaction(
+      p.organizationId,
+      (tx) => authorizeContext(tx, p, workspaceId, reference),
+      { deadlineAtMs: options.deadlineAtMs },
     );
-    const bytes = await readContent(artifact.key, artifact.sha256);
+    options.signal?.throwIfAborted();
+    const bytes = await readContent(artifact.key, artifact.sha256, options.signal);
+    options.signal?.throwIfAborted();
     // Only createContextArtifact publishes this bounded, validated format.
     return JSON.parse(bytes.toString()) as ExplicitContext;
   },

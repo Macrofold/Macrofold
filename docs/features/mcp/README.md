@@ -38,6 +38,14 @@ is slow or times out.
 
 The agent should begin with `getIdentity`, then `listWorkspaces` and `listAgents`. Starting a run returns an ID immediately. `getRun`, `getRunResult`, and `listRunEvents` show progress; `continueSession` reuses the conversation and files. A shared preset supplies its configured instructions, harness, model, and permitted connections. Discover available models and harnesses rather than guessing names.
 
+## Make one immediate model call
+
+The `createInference` tool uses the same [immediate inference API](../decisions/README.md), with JSON fields inside `body` and a stable top-level `idempotency_key`. It returns the finalized result directly or an explicit recovery receipt for that existing Run; it does not silently enqueue work or poll. Inspect the tool's `structuredContent.status` (HTTP status) and `structuredContent.data.status`/`result.inference.outcome` (execution result). An HTTP 200 tool result can contain a terminal model failure.
+
+Direct inference submission requires a backend API key; an OAuth login alone cannot submit it. Use the environment-backed key configuration below with `runs:write`, plus `runs:read` for retrieval. Exact model/BYOK requirements are the same as REST. `stream:true` is unsupported through MCP; choose REST/SDK for direct SSE. Queued native/bounded agents and Tasks remain separate available APIs.
+
+If the tool times out or returns an uncertain outcome, retain its original key and Run ID. Retrieve that same Run or deliberately resolve the same key/body; never generate a new identity automatically. Confirmed pre-admission refusals expose retryability and a Retry-After hint. See [delivery and recovery](../decisions/README.md#immediate-delivery-and-recovery) before configuring client retries.
+
 ## Scope access when needed
 
 OAuth still applies your current organization role. Add the required customer scopes when signing in for additional account, schedule, key-management or billing operations; the [API reference](../../api/openapi.json) lists each operation’s requirements. A restricted API key is useful for an automated client or access limited to specific workspaces. Create it in **API keys**, select the smallest useful preset, and keep it in the client's secret/environment store—not in a prompt or source file.

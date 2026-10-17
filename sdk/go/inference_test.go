@@ -1,0 +1,169 @@
+package macrofold
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+)
+
+func TestImmediateInferenceApplication(t *testing.T) {
+	origin := os.Getenv("MACROFOLD_FIXTURE_ORIGIN")
+	if origin == "" {
+		t.Skip("Run pnpm test:sdks for isolated application acceptance")
+	}
+	bytes, err := os.ReadFile(os.Getenv("MACROFOLD_FIXTURE_INFERENCE_INPUT"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input InferenceCreate
+	if err = json.Unmarshal(bytes, &input); err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewClient(WithBaseURL(origin), WithAPIKey(os.Getenv("MACROFOLD_FIXTURE_KEY")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := func(result *RunResult) {
+		t.Helper()
+		if result == nil || !result.Final || result.PersistenceStatus != "not_required" || result.Inference == nil {
+			t.Fatalf("missing finalized receipt: %#v", result)
+		}
+		value := result.Inference
+		if value.Outcome != "value" || value.Usage.GetInputTokens() != "100" || value.Usage.GetOutputTokens() != "10" || value.Usage.Completeness != "complete" || value.Billing.BillingMode != "managed" || value.Billing.Provisional || value.Billing.GetChargedMicroUsd() == "" || value.Billing.GetChargedMicroUsd() == "0" {
+			t.Fatalf("incorrect receipt: %#v", value)
+		}
+	}
+	options := []RequestOption{WithIdempotencyKey(fmt.Sprintf("go-immediate-%d", time.Now().UnixNano()))}
+	response, err := client.Inferences.Create(context.Background(), &input, options...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Status != "succeeded" {
+		t.Fatalf("not terminal: %#v", response)
+	}
+	receipt(response.Result)
+	replay, err := client.Inferences.Create(context.Background(), &input, options...)
+	if err != nil || replay.RunId != response.RunId {
+		t.Fatalf("invalid replay: %#v %v", replay, err)
+	}
+	text, terminal := "", false
+	err = client.Inferences.Stream(context.Background(), &input, func(event InferenceStreamEvent) error {
+		if event.Type == "output.delta" && event.Data.Text != nil {
+			text += *event.Data.Text
+		}
+		if event.Type == "run.succeeded" {
+			receipt(event.Data.Result)
+			terminal = true
+		}
+		return nil
+	})
+	if err != nil || text != "Hello from the SDK fixture." || !terminal {
+		t.Fatalf("stream failed: %q %v %v", text, terminal, err)
+	}
+}
+
+const inferenceID = "01900000-0000-7000-8000-000000000001"
+const inferenceURLs = `{"status":"http://example.test/status","result":"http://example.test/result","events":"http://example.test/events","stream":"http://example.test/stream","cancel":"http://example.test/cancel"}`
+const inferenceRecovery = `{"run_id":"` + inferenceID + `","session_id":null,"worktree_id":null,"status":"running","recovery_reason":"finalization_pending","urls":` + inferenceURLs + `}`
+const inferenceBusy = `{"error":{"code":"inference_service_unavailable","message":"Busy","retryable":true,"request_id":"` + inferenceID + `","details":{"reason":"local_capacity"}}}`
+
+func inferenceInput() *InferenceCreate {
+	input := NewInferenceCreate(map[string]interface{}{}, *NewDecisionBinding("openrouter", "fixture", "managed"))
+	input.SetLimits(*NewInferenceLimits("1000", 10, 10))
+	return input
+}
+
+func TestImmediateInferenceDefaultAndExplicitRetry(t *testing.T) {
+	for _, retries := range []int{0, 1} {
+		t.Run(fmt.Sprint(retries), func(t *testing.T) {
+			keys := []string{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				keys = append(keys, r.Header.Get("Idempotency-Key"))
+				w.Header().Set("Content-Type", "application/json")
+				if len(keys) == 1 {
+					if retries == 0 {
+						w.Header().Set("X-Run-Id", inferenceID)
+					}
+					w.WriteHeader(503)
+					fmt.Fprint(w, inferenceBusy)
+				} else {
+					w.WriteHeader(202)
+					fmt.Fprint(w, inferenceRecovery)
+				}
+			}))
+			defer server.Close()
+			client, err := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := client.Inferences.Create(context.Background(), inferenceInput(), WithIdempotencyKey("saved-key"), WithInferenceRetries(retries))
+			if retries == 0 {
+				var failure *RequestError
+				if !errors.As(err, &failure) || failure.IdempotencyKey != "saved-key" || failure.RunID != inferenceID {
+					t.Fatalf("missing identity: %v", err)
+				}
+			} else if err != nil || result.GetRecoveryReason() != "finalization_pending" {
+				t.Fatalf("unexpected recovery: %v %v", result, err)
+			}
+			if len(keys) != retries+1 {
+				t.Fatalf("attempts: %v", keys)
+			}
+			for _, key := range keys {
+				if key != "saved-key" {
+					t.Fatal(keys)
+				}
+			}
+		})
+	}
+}
+func TestImmediateInferenceHonorsFullRetryHintWithinDeadline(t *testing.T) {
+	count := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+		w.Header().Set("Retry-After", time.Now().Add(time.Hour).UTC().Format(http.TimeFormat))
+		w.WriteHeader(503)
+		fmt.Fprint(w, inferenceBusy)
+	}))
+	defer server.Close()
+	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
+	_, err := client.Inferences.Create(context.Background(), inferenceInput(), WithInferenceRetries(2), WithInferenceTimeout(time.Second))
+	if err == nil || count != 1 {
+		t.Fatalf("hint shortened/retried: %v %d", err, count)
+	}
+}
+func TestImmediateInferenceDoesNotRetryAmbiguousFailure(t *testing.T) {
+	count := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+		connection, _, _ := w.(http.Hijacker).Hijack()
+		connection.Close()
+	}))
+	defer server.Close()
+	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
+	_, err := client.Inferences.Create(context.Background(), inferenceInput(), WithIdempotencyKey("saved"), WithInferenceRetries(2))
+	var failure *RequestError
+	if count != 1 || !errors.As(err, &failure) || failure.IdempotencyKey != "saved" {
+		t.Fatalf("ambiguous retry/identity: %d %v", count, err)
+	}
+}
+func TestImmediateInferenceInterruptedStreamKeepsReceipt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("X-Request-Id", inferenceID)
+		fmt.Fprintf(w, "data: {\"schema_version\":1,\"run_id\":\"%s\",\"type\":\"run.accepted\",\"occurred_at\":\"2026-10-16T00:00:00Z\",\"data\":{\"run_id\":\"%s\",\"session_id\":null,\"worktree_id\":null,\"status\":\"running\",\"urls\":%s,\"delivery\":\"live\"}}\n\n", inferenceID, inferenceID, inferenceURLs)
+	}))
+	defer server.Close()
+	client, _ := NewClient(WithBaseURL(server.URL), WithAPIKey("fixture"))
+	events := 0
+	err := client.Inferences.Stream(context.Background(), inferenceInput(), func(event InferenceStreamEvent) error { events++; return nil }, WithIdempotencyKey("saved"))
+	var failure *RequestError
+	if !errors.As(err, &failure) || failure.RunID != inferenceID || failure.RequestID != inferenceID || failure.URLs["result"] == "" || events != 1 {
+		t.Fatalf("missing receipt: %#v %d", err, events)
+	}
+}

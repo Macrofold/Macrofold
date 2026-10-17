@@ -17,7 +17,7 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 - [ ] Neon's production history window meets the seven-day recovery target on a supporting plan; production branch protection is enabled. Isolated root-branch PITR is rehearsed, with actual retained history and recovery time recorded.
 - [ ] Serving processes use restricted database roles. Owner credentials are available only to administrative commands.
 - [ ] All forward SQL and auth migrations and OAuth registration match the release. Existing deadlines, terminal records, and reservations are preserved.
-- [ ] `pnpm db:migrate` installs the runtime-role/database statement and idle-transaction defaults; reconnect backends and verify `SHOW statement_timeout` = `1min` and `SHOW idle_in_transaction_session_timeout` = `2min` through pooled domain/credential and direct identity connections. Migration 053 is present.
+- [ ] `pnpm db:migrate` installs runtime-role/database deadlines; reconnect and verify statement timeout `1min` and idle-transaction timeout `2min`. Migration 054 adds the restricted immediate-control view and nullable provider-completion timestamp; verify runtime grants/RLS through pooled domain connections and rehearse with populated data.
 - [ ] Auth/vault/cron keys match existing encrypted records. Retained decrypt keys and recovery copies are available.
 - [ ] HTTPS origin, domain, email sender, edge abuse controls, and public signup policy are configured.
 - [ ] Signup, verification, reset, MFA/recovery, invitations, session expiry, and OAuth/device refresh/revocation work with synthetic accounts.
@@ -38,6 +38,8 @@ Use a saved preset to verify plain-text streaming and `wait()` through deployed 
 - [ ] Database + encrypted objects + retained keys restore independently; recovery objectives are measured.
 
 ## Integrations and payments
+
+- [ ] Deploy matching immediate-inference API, recovery worker/Workflow, MCP and SDK revisions. Confirm retained JSON/SSE request lifetime, 240-second provider window, post-response hooks, completed/active/purged replay, cancellation and evidence-only recovery. Old callers must remove `Prefer: respond-async` and consume embedded usage/billing. Run measured same-region capacity acceptance before publishing throughput promises; source/local fixtures do not certify 10,000 concurrent requests.
 
 - [ ] GitHub App installation, user repository access, signed webhook reception, clean sync, conflicts, branch protection, and revocation work on a disposable repository.
 - [ ] Composio private-account authorization and public HTTPS callback verification bind the returning user, attempt, toolkit, and account. A granted action succeeds and revoked access is rejected.

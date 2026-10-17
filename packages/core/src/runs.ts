@@ -92,6 +92,7 @@ export type InferenceConfig = Pick<
 > & {
   stream?: boolean;
   executor_version: '1';
+  execution_owner?: 'request' | 'dispatcher';
   task_id?: string;
   context_reference?: Schema['ContextReference'];
   definition_reference?: Schema['DefinitionReference'];
@@ -154,6 +155,16 @@ export function requestClientType(request: Request): NonNullable<Schema['Run']['
 }
 export const terminal = (status: string) =>
   ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(status);
+export function runUrls(runId: string) {
+  const status = `${config.origin}/v1/runs/${runId}`;
+  return {
+    status,
+    result: `${status}/result`,
+    events: `${status}/events`,
+    stream: `${status}/stream`,
+    cancel: `${status}/cancel`,
+  };
+}
 export function presentRun(row: RunRow, waitingReason: WaitingReason | null = null) {
   return {
     id: row.id,
@@ -616,13 +627,7 @@ export async function admitRun(
     status: 'queued' as const,
     ...waitingFields(row, reasons.get(runId)),
     queue_expires_at: row.queue_expires_at.toISOString(),
-    urls: {
-      status: `${config.origin}/v1/runs/${runId}`,
-      events: `${config.origin}/v1/runs/${runId}/events`,
-      stream: `${config.origin}/v1/runs/${runId}/stream`,
-      result: `${config.origin}/v1/runs/${runId}/result`,
-      cancel: `${config.origin}/v1/runs/${runId}/cancel`,
-    },
+    urls: runUrls(runId),
   };
 }
 export async function cancelRun(tx: Tx, p: Principal, runId: string) {

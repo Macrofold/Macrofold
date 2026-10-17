@@ -958,7 +958,7 @@ export interface paths {
         put?: never;
         /**
          * Request a typed decision with explicit context
-         * @description Executes one authorized model invocation directly in the API request, without a worker or sandbox. Returns its durable run identity and result. Capacity exhaustion returns 429 without creating a run. Prefer: respond-async opts into queued execution. Direct requests support timeouts up to 240 seconds. Interrupted or already-running idempotent requests return 202 with status URLs; ambiguous provider dispatches are never retried automatically. Requires a backend API key; workspace is optional for inline inputs. Results are proposals: validate dependency tokens and application policy before committing effects.
+         * @description Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
          */
         post: operations["createInference"];
         delete?: never;
@@ -3404,7 +3404,9 @@ export interface components {
                     [key: string]: number;
                 };
             };
-        };
+            usage: components["schemas"]["InferenceUsage"];
+            billing: components["schemas"]["InferenceBilling"];
+        } & unknown;
         /** @description Trusted read_context tool only. References are scoped to this application and audience. No shell, customer code, or mutating tools. */
         BoundedAgentPolicy: {
             max_model_calls: number;
@@ -3571,7 +3573,186 @@ export interface components {
             include?: string[];
             exclude?: string[];
         };
-        InferenceResponse: {
+        /**
+         * @description Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
+         * @example {
+         *       "run_id": "01900000-0000-7000-8000-000000000001",
+         *       "session_id": null,
+         *       "worktree_id": null,
+         *       "urls": {
+         *         "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+         *         "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+         *         "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+         *         "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+         *         "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+         *       },
+         *       "kind": "inference",
+         *       "reserved_micro_usd": "0",
+         *       "status": "succeeded",
+         *       "result": {
+         *         "run_id": "01900000-0000-7000-8000-000000000001",
+         *         "final": true,
+         *         "execution_outcome": "success",
+         *         "persistence_status": "not_required",
+         *         "inference": {
+         *           "invocation_id": "01900000-0000-7000-8000-000000000001",
+         *           "definition_revision": "inline-v1",
+         *           "definition_digest": "fixture-definition",
+         *           "context_digest": "fixture-context",
+         *           "provider_request_digest": "fixture-request",
+         *           "transformation_version": "v1",
+         *           "dependency_tokens": {},
+         *           "outcome": "value",
+         *           "value": {
+         *             "answer": "yes"
+         *           },
+         *           "provider_outcome": "responded",
+         *           "provider_request_id": "upstream-request",
+         *           "model": "fixture-model",
+         *           "model_revision": null,
+         *           "model_revision_status": "unavailable",
+         *           "validation": {
+         *             "schema_digest": "fixture-schema",
+         *             "status": "passed"
+         *           },
+         *           "usage_request_id": "01900000-0000-7000-8000-000000000001",
+         *           "usage": {
+         *             "input_tokens": "100",
+         *             "output_tokens": "2",
+         *             "cached_input_tokens": "0",
+         *             "cache_write_input_tokens": "0",
+         *             "completeness": "complete"
+         *           },
+         *           "billing": {
+         *             "billing_mode": "byok",
+         *             "charged_micro_usd": "0",
+         *             "budget_cost_micro_usd": "5",
+         *             "reserved_micro_usd": "1000",
+         *             "reported_micro_usd": "5",
+         *             "provisional": false,
+         *             "bound_breached": false,
+         *             "provider_cost_micro_usd": "5",
+         *             "provider_cost_status": "estimated_from_usage",
+         *             "provider_reported_cost_usd": 0.0000042,
+         *             "provider_reported_cost_status": "reported",
+         *             "upstream_inference_cost_usd": null
+         *           }
+         *         }
+         *       }
+         *     }
+         * @example {
+         *       "run_id": "01900000-0000-7000-8000-000000000001",
+         *       "session_id": null,
+         *       "worktree_id": null,
+         *       "urls": {
+         *         "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+         *         "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+         *         "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+         *         "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+         *         "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+         *       },
+         *       "kind": "inference",
+         *       "reserved_micro_usd": "0",
+         *       "status": "failed",
+         *       "result": {
+         *         "run_id": "01900000-0000-7000-8000-000000000001",
+         *         "final": true,
+         *         "execution_outcome": "failure",
+         *         "persistence_status": "not_required",
+         *         "inference": {
+         *           "invocation_id": "01900000-0000-7000-8000-000000000001",
+         *           "definition_revision": "inline-v1",
+         *           "definition_digest": "fixture-definition",
+         *           "context_digest": "fixture-context",
+         *           "provider_request_digest": "fixture-request",
+         *           "transformation_version": "v1",
+         *           "dependency_tokens": {},
+         *           "outcome": "uncertain",
+         *           "provider_outcome": "uncertain",
+         *           "provider_request_id": "upstream-request",
+         *           "model": "fixture-model",
+         *           "model_revision": null,
+         *           "model_revision_status": "unavailable",
+         *           "validation": {
+         *             "schema_digest": "fixture-schema",
+         *             "status": "not_run"
+         *           },
+         *           "usage_request_id": "01900000-0000-7000-8000-000000000001",
+         *           "usage": {
+         *             "input_tokens": null,
+         *             "output_tokens": null,
+         *             "cached_input_tokens": null,
+         *             "cache_write_input_tokens": null,
+         *             "completeness": "missing"
+         *           },
+         *           "billing": {
+         *             "billing_mode": "byok",
+         *             "charged_micro_usd": "0",
+         *             "budget_cost_micro_usd": "1000",
+         *             "reserved_micro_usd": "1000",
+         *             "reported_micro_usd": null,
+         *             "provisional": true,
+         *             "bound_breached": false,
+         *             "provider_cost_micro_usd": null,
+         *             "provider_cost_status": "unavailable",
+         *             "provider_reported_cost_usd": null,
+         *             "provider_reported_cost_status": "unavailable",
+         *             "upstream_inference_cost_usd": null
+         *           },
+         *           "reason_code": "provider_outcome_unknown"
+         *         }
+         *       }
+         *     }
+         * @example {
+         *       "run_id": "01900000-0000-7000-8000-000000000001",
+         *       "session_id": null,
+         *       "worktree_id": null,
+         *       "urls": {
+         *         "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+         *         "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+         *         "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+         *         "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+         *         "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+         *       },
+         *       "kind": "inference",
+         *       "reserved_micro_usd": "0",
+         *       "status": "running",
+         *       "recovery_reason": "in_progress"
+         *     }
+         * @example {
+         *       "run_id": "01900000-0000-7000-8000-000000000001",
+         *       "session_id": null,
+         *       "worktree_id": null,
+         *       "urls": {
+         *         "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+         *         "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+         *         "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+         *         "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+         *         "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+         *       },
+         *       "kind": "inference",
+         *       "reserved_micro_usd": "0",
+         *       "status": "running",
+         *       "recovery_reason": "finalization_pending"
+         *     }
+         * @example {
+         *       "run_id": "01900000-0000-7000-8000-000000000001",
+         *       "session_id": null,
+         *       "worktree_id": null,
+         *       "urls": {
+         *         "status": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001",
+         *         "result": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/result",
+         *         "events": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/events",
+         *         "stream": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/stream",
+         *         "cancel": "https://app.example.test/v1/runs/01900000-0000-7000-8000-000000000001/cancel"
+         *       },
+         *       "kind": "inference",
+         *       "reserved_micro_usd": "0",
+         *       "status": "running",
+         *       "recovery_reason": "outcome_unknown"
+         *     }
+         */
+        InferenceResponse: ({
             /** Format: uuid */
             run_id: string;
             /** Format: uuid */
@@ -3579,39 +3760,34 @@ export interface components {
             /** Format: uuid */
             worktree_id: string | null;
             /** @enum {string} */
-            status: "queued" | "provisioning" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
-            urls: {
-                /** Format: uri */
-                status: string;
-                /** Format: uri */
-                events: string;
-                /** Format: uri */
-                stream: string;
-                /** Format: uri */
-                result: string;
-                /**
-                 * Format: uri
-                 * @description POST to request cancellation.
-                 */
-                cancel?: string;
-            };
-            /** Format: date-time */
-            queue_expires_at?: string;
+            status: "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+            urls: components["schemas"]["InferenceUrls"];
             /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
             wait_seconds?: number;
-            /**
-             * @description Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-             * @enum {string|null}
-             */
-            waiting_reason?: "global_capacity" | "account_concurrency" | "earlier_worktree_work" | "scheduler_turn" | "cancellation_requested" | "deadline_expired" | "worktree_unavailable" | null | "lightweight_capacity" | "reserved_lightweight_capacity" | "worker_paused" | "worker_destroyed" | "worker_expired" | "worker_concurrency" | "worker_cost_limit" | "worker_instance_limit" | "worker_starting" | "worker_capacity" | "worker_lifetime" | "compute_unavailable" | "insufficient_credits";
             /** @description Funds still held and unavailable for other jobs; released on settlement. */
             reserved_micro_usd?: string;
             /** @enum {string} */
-            scheduling_class?: "background" | "interactive";
-            /** @enum {string} */
             kind?: "native_agent" | "inference" | "bounded_agent";
             result?: components["schemas"]["RunResult"];
-        };
+            /** @enum {string} */
+            recovery_reason?: "in_progress" | "finalization_pending" | "outcome_unknown";
+        } & (unknown & unknown & unknown & unknown)) & ({
+            /** @enum {unknown} */
+            status: "succeeded" | "failed" | "cancelled" | "timed_out";
+            result: components["schemas"]["RunResult"] & {
+                /** @constant */
+                final?: true;
+                /** @constant */
+                persistence_status?: "not_required";
+            };
+            recovery_reason?: never;
+        } | {
+            /** @constant */
+            status: "running";
+            /** @enum {string} */
+            recovery_reason: "in_progress" | "finalization_pending" | "outcome_unknown";
+            result?: never;
+        });
         ExecutionPolicy: {
             /** @enum {string} */
             plan: "payg" | "pro" | "scale";
@@ -4665,16 +4841,15 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
-        InferenceStreamEvent: {
+        InferenceStreamEvent: ({
             /** @constant */
             schema_version: 1;
             /** Format: uuid */
             run_id: string;
-            /** @description run.accepted, output.delta, output.started, output.finished, tool.arguments.delta, output.refusal.delta, run.succeeded, run.failed, run.cancelled, run.timed_out, or transport.error. */
-            type: string;
+            /** @enum {string} */
+            type: "run.accepted" | "output.delta" | "output.started" | "output.finished" | "tool.arguments.delta" | "output.refusal.delta" | "run.succeeded" | "run.failed" | "run.cancelled" | "run.timed_out" | "transport.error";
             /** Format: date-time */
             occurred_at: string;
-            /** @description Text deltas carry text, invocation_id, message_id, content_index and optional choice_index/tool_call_id. Terminal events include the finalized result. Direct streams have no replay sequence. */
             data: {
                 text?: string;
                 invocation_id?: string;
@@ -4683,13 +4858,50 @@ export interface components {
                 choice_index?: number;
                 tool_call_id?: string;
                 stop_reason?: string;
+                /** Format: uuid */
+                run_id?: string;
+                /** Format: uuid */
+                session_id?: string | null;
+                /** Format: uuid */
+                worktree_id?: string | null;
+                /** @enum {string} */
+                status?: "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+                urls?: components["schemas"]["InferenceUrls"];
+                /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+                wait_seconds?: number;
+                /** @description Funds still held and unavailable for other jobs; released on settlement. */
+                reserved_micro_usd?: string;
+                /** @enum {string} */
+                kind?: "native_agent" | "inference" | "bounded_agent";
                 /** @enum {string} */
                 delivery?: "live" | "result_replay";
                 result?: components["schemas"]["RunResult"];
-            } & {
-                [key: string]: unknown;
+                /** @enum {string} */
+                code?: "inference_recovery_required" | "stream_interrupted";
+                message?: string;
+                idempotency_key?: string;
+                /** @enum {string} */
+                recovery_reason?: "in_progress" | "finalization_pending" | "outcome_unknown";
+                /** @enum {string} */
+                reason?: "result_available";
             };
-        };
+        } & (unknown & unknown & unknown & unknown & unknown)) & ({
+            /** @constant */
+            type: "run.accepted";
+            data: components["schemas"]["InferenceStreamAccepted"];
+        } | {
+            /** @enum {unknown} */
+            type: "output.delta" | "output.started" | "output.finished" | "tool.arguments.delta" | "output.refusal.delta";
+            data: components["schemas"]["InferenceStreamOutput"];
+        } | {
+            /** @enum {unknown} */
+            type: "run.succeeded" | "run.failed" | "run.cancelled" | "run.timed_out";
+            data: components["schemas"]["InferenceStreamTerminal"];
+        } | {
+            /** @constant */
+            type: "transport.error";
+            data: components["schemas"]["InferenceStreamRecovery"] | components["schemas"]["InferenceStreamResultAvailable"];
+        });
         ConnectionAccessRuleInput: {
             /** @enum {string} */
             scope: "workspace";
@@ -4750,7 +4962,6 @@ export interface components {
             context?: components["schemas"]["ExplicitContext"] | components["schemas"]["ContextReference"];
             model_binding: components["schemas"]["DecisionBinding"];
             limits?: components["schemas"]["InferenceLimits"];
-            queue_timeout_seconds?: number;
             model_parameters?: components["schemas"]["ModelParameters"];
             /** @description Require incremental output. Unsupported combinations fail before admission. Direct inference returns SSE; agents return a run receipt to observe through the run stream. */
             stream?: boolean;
@@ -4903,6 +5114,150 @@ export interface components {
              * @enum {string}
              */
             status?: "completed" | "interrupted";
+        };
+        InferenceUsage: {
+            /** @description Total input, including cached reads and writes once. */
+            input_tokens: string | null;
+            /** @description Output includes reasoning subsets when reported. */
+            output_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cached_input_tokens: string | null;
+            /** @description Subset of input tokens; null when unavailable. */
+            cache_write_input_tokens: string | null;
+            /** @enum {string} */
+            completeness: "complete" | "missing";
+        };
+        InferenceBilling: {
+            /** @enum {string} */
+            billing_mode: "managed" | "byok";
+            /** @description Macrofold customer model charge; zero for BYOK. */
+            charged_micro_usd: string | null;
+            /** @description Consumes the run budget even for BYOK; not an additional charge. */
+            budget_cost_micro_usd: string | null;
+            /** @description Original model-call ceiling. */
+            reserved_micro_usd: string | null;
+            /** @description Usage at accepted retail rates, before the authorized ceiling. */
+            reported_micro_usd: string | null;
+            provisional: boolean;
+            bound_breached: boolean;
+            /** @description Known provider-rate estimate, never a reconciled invoice or extra Macrofold charge. */
+            provider_cost_micro_usd: string | null;
+            /** @enum {string} */
+            provider_cost_status: "estimated_from_usage" | "unavailable";
+            /** @description Provider-reported account cost in USD; separate from Macrofold customer charge. */
+            provider_reported_cost_usd: number | null;
+            /** @enum {string} */
+            provider_reported_cost_status: "reported" | "unavailable";
+            /** @description Overlapping provider diagnostic; never add this to the reported/estimated provider costs. */
+            upstream_inference_cost_usd: number | null;
+        };
+        InferenceUrls: {
+            /** Format: uri */
+            status: string;
+            /** Format: uri */
+            events: string;
+            /** Format: uri */
+            stream: string;
+            /** Format: uri */
+            result: string;
+            /**
+             * Format: uri
+             * @description POST to request cancellation.
+             */
+            cancel: string;
+        };
+        /** @description Known inference identity and recovery fields plus bounded safe error metadata such as missing_scopes. Secrets and raw provider/customer content are prohibited. */
+        InferenceErrorDetails: {
+            idempotency_key?: string;
+            /** Format: uuid */
+            run_id?: string;
+            urls?: components["schemas"]["InferenceUrls"];
+            reason?: string;
+            issues?: {
+                path: string;
+                message: string;
+            }[];
+            retry_after_seconds?: number;
+        } & {
+            [key: string]: unknown;
+        };
+        InferenceErrorDetail: {
+            code: string;
+            message: string;
+            /** Format: uuid */
+            request_id: string;
+            retryable: boolean;
+            details?: components["schemas"]["InferenceErrorDetails"];
+        };
+        InferenceError: {
+            error: components["schemas"]["InferenceErrorDetail"];
+        };
+        /** @description Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run. */
+        InferenceStreamAccepted: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            session_id: string | null;
+            /** Format: uuid */
+            worktree_id: string | null;
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "cancelled" | "timed_out";
+            urls: components["schemas"]["InferenceUrls"];
+            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+            wait_seconds?: number;
+            /** @description Funds still held and unavailable for other jobs; released on settlement. */
+            reserved_micro_usd?: string;
+            /** @enum {string} */
+            kind?: "native_agent" | "inference" | "bounded_agent";
+            /** @enum {string} */
+            delivery: "live" | "result_replay";
+        };
+        /** @description Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run. */
+        InferenceStreamTerminal: {
+            /** Format: uuid */
+            run_id: string;
+            /** Format: uuid */
+            session_id: string | null;
+            /** Format: uuid */
+            worktree_id: string | null;
+            /** @enum {string} */
+            status: "succeeded" | "failed" | "cancelled" | "timed_out";
+            urls: components["schemas"]["InferenceUrls"];
+            /** @description Submission to execution start, or elapsed wait through now/completion if never started. */
+            wait_seconds?: number;
+            /** @description Funds still held and unavailable for other jobs; released on settlement. */
+            reserved_micro_usd?: string;
+            /** @enum {string} */
+            kind?: "native_agent" | "inference" | "bounded_agent";
+            result: components["schemas"]["RunResult"];
+        } & (unknown & unknown & unknown & unknown);
+        /** @description Transient provider output; content indexes identify blocks. Deltas have text. No replay sequence. */
+        InferenceStreamOutput: {
+            text?: string;
+            invocation_id?: string;
+            message_id: string;
+            content_index: number;
+            choice_index?: number;
+            tool_call_id?: string;
+            stop_reason?: string;
+        };
+        InferenceStreamRecovery: {
+            /** @enum {string} */
+            code: "inference_recovery_required" | "stream_interrupted";
+            message: string;
+            idempotency_key: string;
+            urls: components["schemas"]["InferenceUrls"];
+            /** @enum {string} */
+            recovery_reason: "in_progress" | "finalization_pending" | "outcome_unknown";
+        };
+        InferenceStreamResultAvailable: {
+            /** @enum {string} */
+            code: "inference_recovery_required" | "stream_interrupted";
+            message: string;
+            idempotency_key: string;
+            urls: components["schemas"]["InferenceUrls"];
+            /** @enum {string} */
+            reason: "result_available";
         };
     };
     responses: never;
@@ -7453,8 +7808,6 @@ export interface operations {
                 "Idempotency-Key": components["parameters"]["Idempotency"];
                 /** @description Authorized membership selector for user tokens/sessions; cannot override API-key organization binding. Required when identity has multiple memberships and no selected grant context. */
                 "X-Organization-Id"?: string;
-                /** @description Queue this request instead of executing directly. Required for timeouts exceeding 240 seconds. */
-                Prefer?: "respond-async";
             };
             path?: never;
             cookie?: never;
@@ -7475,9 +7828,11 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
-            /** @description Explicit asynchronous submission, in-flight idempotency replay, or interrupted execution awaiting recovery. */
+            /** @description Existing admitted invocation is still running or recovering; inspect recovery_reason and retrieve the same Run. */
             202: {
                 headers: {
+                    /** @description 1 second, a retrieval hint rather than a completion estimate. */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7490,7 +7845,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["InferenceError"];
                 };
             };
         };

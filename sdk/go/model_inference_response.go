@@ -12,31 +12,27 @@ package macrofold
 
 import (
 	"encoding/json"
-	"time"
+	"bytes"
 	"fmt"
 )
 
 // checks if the InferenceResponse type satisfies the MappedNullable interface at compile time
 var _ MappedNullable = &InferenceResponse{}
 
-// InferenceResponse struct for InferenceResponse
+// InferenceResponse Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
 type InferenceResponse struct {
 	RunId string `json:"run_id"`
 	SessionId NullableString `json:"session_id"`
 	WorktreeId NullableString `json:"worktree_id"`
 	Status string `json:"status"`
-	Urls RunAcceptedUrls `json:"urls"`
-	QueueExpiresAt *time.Time `json:"queue_expires_at,omitempty"`
+	Urls InferenceUrls `json:"urls"`
 	// Submission to execution start, or elapsed wait through now/completion if never started.
 	WaitSeconds *float32 `json:"wait_seconds,omitempty"`
-	// Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-	WaitingReason NullableString `json:"waiting_reason,omitempty"`
 	// Funds still held and unavailable for other jobs; released on settlement.
 	ReservedMicroUsd *string `json:"reserved_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
-	SchedulingClass *string `json:"scheduling_class,omitempty"`
 	Kind *string `json:"kind,omitempty"`
 	Result *RunResult `json:"result,omitempty"`
-	AdditionalProperties map[string]interface{}
+	RecoveryReason *string `json:"recovery_reason,omitempty"`
 }
 
 type _InferenceResponse InferenceResponse
@@ -45,7 +41,7 @@ type _InferenceResponse InferenceResponse
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewInferenceResponse(runId string, sessionId NullableString, worktreeId NullableString, status string, urls RunAcceptedUrls) *InferenceResponse {
+func NewInferenceResponse(runId string, sessionId NullableString, worktreeId NullableString, status string, urls InferenceUrls) *InferenceResponse {
 	this := InferenceResponse{}
 	this.RunId = runId
 	this.SessionId = sessionId
@@ -164,9 +160,9 @@ func (o *InferenceResponse) SetStatus(v string) {
 }
 
 // GetUrls returns the Urls field value
-func (o *InferenceResponse) GetUrls() RunAcceptedUrls {
+func (o *InferenceResponse) GetUrls() InferenceUrls {
 	if o == nil {
-		var ret RunAcceptedUrls
+		var ret InferenceUrls
 		return ret
 	}
 
@@ -175,7 +171,7 @@ func (o *InferenceResponse) GetUrls() RunAcceptedUrls {
 
 // GetUrlsOk returns a tuple with the Urls field value
 // and a boolean to check if the value has been set.
-func (o *InferenceResponse) GetUrlsOk() (*RunAcceptedUrls, bool) {
+func (o *InferenceResponse) GetUrlsOk() (*InferenceUrls, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -183,40 +179,8 @@ func (o *InferenceResponse) GetUrlsOk() (*RunAcceptedUrls, bool) {
 }
 
 // SetUrls sets field value
-func (o *InferenceResponse) SetUrls(v RunAcceptedUrls) {
+func (o *InferenceResponse) SetUrls(v InferenceUrls) {
 	o.Urls = v
-}
-
-// GetQueueExpiresAt returns the QueueExpiresAt field value if set, zero value otherwise.
-func (o *InferenceResponse) GetQueueExpiresAt() time.Time {
-	if o == nil || IsNil(o.QueueExpiresAt) {
-		var ret time.Time
-		return ret
-	}
-	return *o.QueueExpiresAt
-}
-
-// GetQueueExpiresAtOk returns a tuple with the QueueExpiresAt field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *InferenceResponse) GetQueueExpiresAtOk() (*time.Time, bool) {
-	if o == nil || IsNil(o.QueueExpiresAt) {
-		return nil, false
-	}
-	return o.QueueExpiresAt, true
-}
-
-// HasQueueExpiresAt returns a boolean if a field has been set.
-func (o *InferenceResponse) HasQueueExpiresAt() bool {
-	if o != nil && !IsNil(o.QueueExpiresAt) {
-		return true
-	}
-
-	return false
-}
-
-// SetQueueExpiresAt gets a reference to the given time.Time and assigns it to the QueueExpiresAt field.
-func (o *InferenceResponse) SetQueueExpiresAt(v time.Time) {
-	o.QueueExpiresAt = &v
 }
 
 // GetWaitSeconds returns the WaitSeconds field value if set, zero value otherwise.
@@ -251,48 +215,6 @@ func (o *InferenceResponse) SetWaitSeconds(v float32) {
 	o.WaitSeconds = &v
 }
 
-// GetWaitingReason returns the WaitingReason field value if set, zero value otherwise (both if not set or set to explicit null).
-func (o *InferenceResponse) GetWaitingReason() string {
-	if o == nil || IsNil(o.WaitingReason.Get()) {
-		var ret string
-		return ret
-	}
-	return *o.WaitingReason.Get()
-}
-
-// GetWaitingReasonOk returns a tuple with the WaitingReason field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-// NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *InferenceResponse) GetWaitingReasonOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return o.WaitingReason.Get(), o.WaitingReason.IsSet()
-}
-
-// HasWaitingReason returns a boolean if a field has been set.
-func (o *InferenceResponse) HasWaitingReason() bool {
-	if o != nil && o.WaitingReason.IsSet() {
-		return true
-	}
-
-	return false
-}
-
-// SetWaitingReason gets a reference to the given NullableString and assigns it to the WaitingReason field.
-func (o *InferenceResponse) SetWaitingReason(v string) {
-	o.WaitingReason.Set(&v)
-}
-// SetWaitingReasonNil sets the value for WaitingReason to be an explicit nil
-func (o *InferenceResponse) SetWaitingReasonNil() {
-	o.WaitingReason.Set(nil)
-}
-
-// UnsetWaitingReason ensures that no value is present for WaitingReason, not even an explicit nil
-func (o *InferenceResponse) UnsetWaitingReason() {
-	o.WaitingReason.Unset()
-}
-
 // GetReservedMicroUsd returns the ReservedMicroUsd field value if set, zero value otherwise.
 func (o *InferenceResponse) GetReservedMicroUsd() string {
 	if o == nil || IsNil(o.ReservedMicroUsd) {
@@ -323,38 +245,6 @@ func (o *InferenceResponse) HasReservedMicroUsd() bool {
 // SetReservedMicroUsd gets a reference to the given string and assigns it to the ReservedMicroUsd field.
 func (o *InferenceResponse) SetReservedMicroUsd(v string) {
 	o.ReservedMicroUsd = &v
-}
-
-// GetSchedulingClass returns the SchedulingClass field value if set, zero value otherwise.
-func (o *InferenceResponse) GetSchedulingClass() string {
-	if o == nil || IsNil(o.SchedulingClass) {
-		var ret string
-		return ret
-	}
-	return *o.SchedulingClass
-}
-
-// GetSchedulingClassOk returns a tuple with the SchedulingClass field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *InferenceResponse) GetSchedulingClassOk() (*string, bool) {
-	if o == nil || IsNil(o.SchedulingClass) {
-		return nil, false
-	}
-	return o.SchedulingClass, true
-}
-
-// HasSchedulingClass returns a boolean if a field has been set.
-func (o *InferenceResponse) HasSchedulingClass() bool {
-	if o != nil && !IsNil(o.SchedulingClass) {
-		return true
-	}
-
-	return false
-}
-
-// SetSchedulingClass gets a reference to the given string and assigns it to the SchedulingClass field.
-func (o *InferenceResponse) SetSchedulingClass(v string) {
-	o.SchedulingClass = &v
 }
 
 // GetKind returns the Kind field value if set, zero value otherwise.
@@ -421,6 +311,38 @@ func (o *InferenceResponse) SetResult(v RunResult) {
 	o.Result = &v
 }
 
+// GetRecoveryReason returns the RecoveryReason field value if set, zero value otherwise.
+func (o *InferenceResponse) GetRecoveryReason() string {
+	if o == nil || IsNil(o.RecoveryReason) {
+		var ret string
+		return ret
+	}
+	return *o.RecoveryReason
+}
+
+// GetRecoveryReasonOk returns a tuple with the RecoveryReason field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InferenceResponse) GetRecoveryReasonOk() (*string, bool) {
+	if o == nil || IsNil(o.RecoveryReason) {
+		return nil, false
+	}
+	return o.RecoveryReason, true
+}
+
+// HasRecoveryReason returns a boolean if a field has been set.
+func (o *InferenceResponse) HasRecoveryReason() bool {
+	if o != nil && !IsNil(o.RecoveryReason) {
+		return true
+	}
+
+	return false
+}
+
+// SetRecoveryReason gets a reference to the given string and assigns it to the RecoveryReason field.
+func (o *InferenceResponse) SetRecoveryReason(v string) {
+	o.RecoveryReason = &v
+}
+
 func (o InferenceResponse) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -436,20 +358,11 @@ func (o InferenceResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize["worktree_id"] = o.WorktreeId.Get()
 	toSerialize["status"] = o.Status
 	toSerialize["urls"] = o.Urls
-	if !IsNil(o.QueueExpiresAt) {
-		toSerialize["queue_expires_at"] = o.QueueExpiresAt
-	}
 	if !IsNil(o.WaitSeconds) {
 		toSerialize["wait_seconds"] = o.WaitSeconds
 	}
-	if o.WaitingReason.IsSet() {
-		toSerialize["waiting_reason"] = o.WaitingReason.Get()
-	}
 	if !IsNil(o.ReservedMicroUsd) {
 		toSerialize["reserved_micro_usd"] = o.ReservedMicroUsd
-	}
-	if !IsNil(o.SchedulingClass) {
-		toSerialize["scheduling_class"] = o.SchedulingClass
 	}
 	if !IsNil(o.Kind) {
 		toSerialize["kind"] = o.Kind
@@ -457,11 +370,9 @@ func (o InferenceResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Result) {
 		toSerialize["result"] = o.Result
 	}
-
-	for key, value := range o.AdditionalProperties {
-		toSerialize[key] = value
+	if !IsNil(o.RecoveryReason) {
+		toSerialize["recovery_reason"] = o.RecoveryReason
 	}
-
 	return toSerialize, nil
 }
 
@@ -493,31 +404,15 @@ func (o *InferenceResponse) UnmarshalJSON(data []byte) (err error) {
 
 	varInferenceResponse := _InferenceResponse{}
 
-	err = json.Unmarshal(data, &varInferenceResponse)
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varInferenceResponse)
 
 	if err != nil {
 		return err
 	}
 
 	*o = InferenceResponse(varInferenceResponse)
-
-	additionalProperties := make(map[string]interface{})
-
-	if err = json.Unmarshal(data, &additionalProperties); err == nil {
-		delete(additionalProperties, "run_id")
-		delete(additionalProperties, "session_id")
-		delete(additionalProperties, "worktree_id")
-		delete(additionalProperties, "status")
-		delete(additionalProperties, "urls")
-		delete(additionalProperties, "queue_expires_at")
-		delete(additionalProperties, "wait_seconds")
-		delete(additionalProperties, "waiting_reason")
-		delete(additionalProperties, "reserved_micro_usd")
-		delete(additionalProperties, "scheduling_class")
-		delete(additionalProperties, "kind")
-		delete(additionalProperties, "result")
-		o.AdditionalProperties = additionalProperties
-	}
 
 	return err
 }

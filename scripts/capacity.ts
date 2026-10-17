@@ -247,9 +247,10 @@ async function workload(scenario: Scenario) {
             body.definition.limits.max_cost_micro_usd = '500000';
           }
           body.definition.limits.timeout_seconds = 180;
-          body.queue_timeout_seconds = 600;
           return (
-            await transaction(account.p.organizationId, (tx) => admitInference(tx, account.principal, body))
+            await transaction(account.p.organizationId, (tx) =>
+              admitInference(tx, account.principal, { ...body, queue_timeout_seconds: 600 }),
+            )
           ).run_id;
         },
       );

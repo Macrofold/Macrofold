@@ -51,7 +51,12 @@ export async function createOrganization(tx: Tx, p: Principal, name: string) {
   return { id: org, name, role: 'owner' as const };
 }
 export async function listMembers(tx: Tx, p: Principal) {
-  assert(!p.workspaceIds.length, 403, 'forbidden', 'Use an unrestricted credential to view the organization.');
+  assert(
+    !p.workspaceIds.length,
+    403,
+    'forbidden',
+    'Use an unrestricted credential to view the organization.',
+  );
   return {
     data: (
       await tx.query(
@@ -64,6 +69,9 @@ export async function listMembers(tx: Tx, p: Principal) {
 }
 export async function changeMember(tx: Tx, p: Principal, user: string, role?: string) {
   organizationManager(p);
+  // Admission holds this lock through its current-actor check and Run commit.
+  // A removal/demotion must not miss an uncommitted newly admitted Run.
+  await lock(tx, `organization:${p.organizationId}`);
   // Serialize membership changes and invitation acceptance. Concurrent owner demotions
   // must never leave an organization with no owner.
   await lock(tx, `memberships:${p.organizationId}`);
@@ -121,7 +129,7 @@ export async function changeMember(tx: Tx, p: Principal, user: string, role?: st
       [p.organizationId, user],
     );
     await tx.query(
-      "UPDATE runs SET cancel_requested=true WHERE config->>'user_id'=$1 AND status IN ('queued','provisioning','running','waiting_for_input')",
+      "UPDATE runs SET cancel_requested=true WHERE config->>'user_id'=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
       [user],
     );
   }

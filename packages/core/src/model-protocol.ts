@@ -6,6 +6,9 @@ export type ModelUsage = {
   cached: number;
   cacheWrite: number;
   complete: boolean;
+  /** Independently verified counts when the full usage record is incomplete.
+   * An absent count remains unknown, including when its placeholder is zero. */
+  known?: Partial<Record<'input' | 'output' | 'cached' | 'cacheWrite', boolean>>;
   /** Diagnostic USD amounts reported by the provider, never customer settlement.
    * Omitted means unknown; retain sub-micro-dollar precision and genuine zero. */
   providerReportedCostUsd?: number;

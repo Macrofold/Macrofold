@@ -2,7 +2,11 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { decisionExample } from '../../examples/decisions/contracts';
 import { decisionProtocol } from '../../packages/providers/src/decision-protocols';
 import { validateContext, schemaValidator, digest } from '../../packages/core/src/explicit-context';
-import { inferenceInputBound, type DecisionRequest } from '../../packages/core/src/decision';
+import {
+  DecisionProviderError,
+  inferenceInputBound,
+  type DecisionRequest,
+} from '../../packages/core/src/decision';
 import { decisionModel } from '../../packages/core/src/decision-models';
 import { validateModelParameters } from '../../packages/core/src/model-parameters';
 
@@ -181,6 +185,7 @@ it('preserves native Decision 1 questions and complete responses without applyin
   const call = vi.fn(async () => Response.json(raw));
   vi.stubGlobal('fetch', call);
   const result = await protocol.invoke(body, 'fixture', AbortSignal.timeout(1000), undefined, true);
+  expect(result.httpStatus).toBe(200);
   expect(result.value).toEqual(raw);
   expect(result.usage).toMatchObject({
     input: 1000,
@@ -336,7 +341,7 @@ it('shadow comparison records disagreement without choosing or applying a provid
   expect(comparisons.every((row) => row.accepted === false)).toBe(true);
 });
 
-it('offers raw responses to transient diagnostics before validation without persisting or trusting observers', async () => {
+it('retains malformed output as private recovery evidence without trusting diagnostic observers', async () => {
   const raw = { content: [{ type: 'text', text: 'invalid json, preserved for diagnosis' }] };
   vi.stubGlobal('fetch', async () => Response.json(raw));
   const observe = vi.fn();
@@ -348,7 +353,7 @@ it('offers raw responses to transient diagnostics before validation without pers
   );
   expect(observe).toHaveBeenCalledWith(raw);
   expect(result.value).toBeUndefined();
-  expect(JSON.stringify(result)).not.toContain('preserved for diagnosis');
+  expect(result.providerResponse).toEqual(raw);
   await expect(
     decisionProtocol('anthropic').invoke({}, 'fixture', AbortSignal.timeout(1000), () => {
       throw new Error('unavailable');
@@ -395,3 +400,173 @@ it.each([false, true])(
     });
   },
 );
+
+it.each(['typesafe', 'anthropic', 'openrouter'] as const)(
+  'retains independently valid usage after %s response normalization fails',
+  async (provider) => {
+    const raw = {
+      id: 'normalization-fixture',
+      model: 'fixture-revision',
+      content: 'invalid',
+      answers: 'invalid',
+      usage: { input_tokens: 17, output_tokens: 3, cost: 0.000004 },
+    };
+    const call = vi.fn(async () => Response.json(raw));
+    vi.stubGlobal('fetch', call);
+    let failure: unknown;
+    try {
+      await decisionProtocol(provider).invoke({}, 'fixture-secret', AbortSignal.timeout(1000));
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(DecisionProviderError);
+    if (!(failure instanceof DecisionProviderError)) throw new Error('Expected private provider evidence');
+    expect(failure.evidence).toMatchObject({
+      response: raw,
+      httpStatus: 200,
+      requestId: 'normalization-fixture',
+      modelRevision: 'fixture-revision',
+      complete: true,
+      usage: { input: 17, output: 3, complete: true },
+    });
+    expect(failure.evidence.completedAt).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+    expect(failure.details).toEqual({});
+    expect(JSON.stringify(failure)).not.toContain('normalization-fixture');
+    expect(call).toHaveBeenCalledOnce();
+  },
+);
+it('preserves known zero/output counts and provider cost when one usage count is malformed', async () => {
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      choices: [],
+      usage: { prompt_tokens: 'wrong', completion_tokens: 0, cost: 0 },
+    }),
+  );
+  await expect(
+    decisionProtocol('openrouter', 'fixture/chat').invoke({}, 'fixture', AbortSignal.timeout(1000)),
+  ).rejects.toMatchObject({
+    code: 'invalid_provider_usage',
+    evidence: {
+      complete: true,
+      usage: {
+        input: 0,
+        output: 0,
+        complete: false,
+        known: { input: false, output: true },
+        providerReportedCostUsd: 0,
+      },
+    },
+  });
+});
+it.each([401, 429, 503])(
+  'preserves bounded rejection body and its valid usage for HTTP %s',
+  async (status) => {
+    const raw = {
+      error: { message: 'private provider detail' },
+      usage: { input_tokens: 5, output_tokens: 1 },
+    };
+    const call = vi.fn(async () =>
+      Response.json(raw, { status, headers: { 'x-request-id': 'rejected-fixture' } }),
+    );
+    vi.stubGlobal('fetch', call);
+    await expect(
+      decisionProtocol('typesafe').invoke({}, 'fixture', AbortSignal.timeout(1000)),
+    ).rejects.toMatchObject({
+      code: 'decision_provider_failed',
+      details: {},
+      evidence: {
+        httpStatus: status,
+        response: raw,
+        complete: true,
+        requestId: 'rejected-fixture',
+        usage: { input: 5, output: 1, complete: true },
+      },
+    });
+    expect(call).toHaveBeenCalledOnce();
+  },
+);
+it('retains malformed JSON privately and does not invent billable counts', async () => {
+  vi.stubGlobal(
+    'fetch',
+    async () => new Response('{private malformed json', { headers: { 'request-id': 'malformed-fixture' } }),
+  );
+  await expect(
+    decisionProtocol('anthropic').invoke({}, 'fixture', AbortSignal.timeout(1000)),
+  ).rejects.toMatchObject({
+    code: 'upstream_invalid_json',
+    details: {},
+    evidence: {
+      response: '{private malformed json',
+      httpStatus: 200,
+      requestId: 'malformed-fixture',
+      complete: true,
+      usage: { complete: false },
+    },
+  });
+});
+it.each([200, 503])(
+  'bounds oversized HTTP %s evidence and keeps transport uncertainty explicit',
+  async (status) => {
+    vi.stubGlobal('fetch', async () => new Response('x'.repeat(513 * 1024), { status }));
+    await expect(
+      decisionProtocol('anthropic').invoke({}, 'fixture', AbortSignal.timeout(1000)),
+    ).rejects.toMatchObject({ evidence: { complete: false, completedAt: null, usage: { complete: false } } });
+  },
+);
+it('does not duplicate successful native response data in evidence fields', async () => {
+  const raw = {
+    content: [{ type: 'text', text: 'plain native answer' }],
+    usage: { input_tokens: 2, output_tokens: 3 },
+  };
+  vi.stubGlobal('fetch', async () => Response.json(raw));
+  const result = await decisionProtocol('anthropic').invoke(
+    {},
+    'fixture',
+    AbortSignal.timeout(1000),
+    undefined,
+    true,
+  );
+  expect(result.value).toEqual(raw);
+  expect(result).not.toHaveProperty('providerResponse');
+  expect(result.completedAt).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+});
+
+it('records stream completion before slow output delivery changes the local clock', async () => {
+  vi.useFakeTimers();
+  const completedAt = '2026-10-16T23:00:00.000Z';
+  vi.setSystemTime(new Date(completedAt));
+  const frames = [
+    {
+      type: 'message_start',
+      message: { id: 'stream-time', content: [], usage: { input_tokens: 3, output_tokens: 0 } },
+    },
+    { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: '"ok"' } },
+    { type: 'content_block_stop', index: 0 },
+    { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 4 } },
+    { type: 'message_stop' },
+  ];
+  vi.stubGlobal(
+    'fetch',
+    async () =>
+      new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(''), {
+        headers: { 'content-type': 'text/event-stream' },
+      }),
+  );
+  try {
+    const result = await decisionProtocol('anthropic').invoke(
+      { stream: true },
+      'fixture',
+      new AbortController().signal,
+      undefined,
+      true,
+      () => {
+        vi.setSystemTime(new Date('2026-10-16T23:00:10.000Z'));
+      },
+    );
+    expect(result.completedAt).toBe(completedAt);
+    expect(result.usage.complete).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});

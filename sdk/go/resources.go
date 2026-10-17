@@ -1,6 +1,6 @@
 // Code generated from OpenAPI by pnpm sdk:generate:all; DO NOT EDIT.
 package macrofold
-import ("context"; "os"; "time"; "errors")
+import ("context"; "os"; "time")
 const DefaultOrigin = "https://app.macrofold.ai"
 type Client struct { *APIClient; Tasks *TasksResource;WebhookDeliveries *WebhookDeliveriesResource;Runs *RunsResource;Organizations *OrganizationsResource;Checkpoints *CheckpointsResource;Connections *ConnectionsResource;Triggers *TriggersResource;CustomerAgents *CustomerAgentsResource;Worktrees *WorktreesResource;SlackConnections *SlackConnectionsResource;Workspaces *WorkspacesResource;Workers *WorkersResource;Operator *OperatorResource;Integrations *IntegrationsResource;Billing *BillingResource;ApiKeys *ApiKeysResource;Sessions *SessionsResource;Inferences *InferencesResource;WebhookEndpoints *WebhookEndpointsResource;Artifacts *ArtifactsResource;Transfers *TransfersResource;Usage *UsageResource;Operations *OperationsResource;Models *ModelsResource;Agents *AgentsResource;Me *MeResource;Requests *RequestsResource;Harnesses *HarnessesResource }
 func resources(api *APIClient) *Client { return &Client{APIClient:api, Tasks:&TasksResource{api},WebhookDeliveries:&WebhookDeliveriesResource{api},Runs:&RunsResource{api},Organizations:&OrganizationsResource{api},Checkpoints:&CheckpointsResource{api},Connections:&ConnectionsResource{api},Triggers:&TriggersResource{api},CustomerAgents:&CustomerAgentsResource{api},Worktrees:&WorktreesResource{api},SlackConnections:&SlackConnectionsResource{api},Workspaces:&WorkspacesResource{api},Workers:&WorkersResource{api},Operator:&OperatorResource{api},Integrations:&IntegrationsResource{api},Billing:&BillingResource{api},ApiKeys:&ApiKeysResource{api},Sessions:&SessionsResource{api},Inferences:&InferencesResource{api},WebhookEndpoints:&WebhookEndpointsResource{api},Artifacts:&ArtifactsResource{api},Transfers:&TransfersResource{api},Usage:&UsageResource{api},Operations:&OperationsResource{api},Models:&ModelsResource{api},Agents:&AgentsResource{api},Me:&MeResource{api},Requests:&RequestsResource{api},Harnesses:&HarnessesResource{api},} }
@@ -2001,20 +2001,7 @@ func (r *InferencesResource) CreateDecisionDefinition(ctx context.Context, input
         return result, requestError(callError, response, settings.idempotencyKey)
       }
 func (r *InferencesResource) Stream(ctx context.Context, input *InferenceCreate, receive func(InferenceStreamEvent) error, options ...RequestOption) error { return r.client.StreamInference(ctx,input,receive,options...) }
-type CreateInferenceParams struct {Prefer *string}
-func (r *InferencesResource) Create(ctx context.Context, input *InferenceCreate, params *CreateInferenceParams, options ...RequestOption) (*InferenceResponse, error) {
-        if input != nil && input.GetStream() { return nil, errors.New("use Inferences.Stream for incremental output") }
-        settings, err := requestOptions(options, true); if err != nil {return nil, err}
-        if input == nil {return nil, missingParameter("input")}
-        if params == nil {params = &CreateInferenceParams{}}
-        call := r.client.InferencesAPI.CreateInference(ctx)
-        if input != nil {call = call.InferenceCreate(*input)}
-        call = call.IdempotencyKey(settings.idempotencyKey)
-        if settings.organization != "" {call = call.XOrganizationId(settings.organization)}
-        if params.Prefer != nil {call = call.Prefer(*params.Prefer)}
-        result, response, callError := call.Execute()
-        return result, requestError(callError, response, settings.idempotencyKey)
-      }
+func (r *InferencesResource) Create(ctx context.Context,input *InferenceCreate,options ...RequestOption)(*InferenceResponse,error){return r.client.createImmediateInference(ctx,input,options...)}
 func (r *InferencesResource) DeleteContextArtifact(ctx context.Context, artifactId string, options ...RequestOption) (*ContextArtifact, error) {
 
 

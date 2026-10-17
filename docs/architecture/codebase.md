@@ -81,7 +81,7 @@ The pure connection-access-policy module defines exact matching and selection pr
 
 ## Explicit-context execution
 
-`decision.ts` owns the typed protocol contract; `inferences.ts` owns admission and `inference-engine.ts` durable provider steps. `bounded-decisions.ts` brokers immutable evidence reads. `decision-definitions.ts` and `context-artifacts.ts` own reusable inputs; `decision-tasks.ts` and `decision-task-engine.ts` own allocation, wake receipts and sequential coordination. Provider HTTP stays in `packages/providers/src/decision-protocols.ts`. [The ownership map](../features/decisions/implementation.md) covers migrations 035–038, scheduling, retention, presentation and rollout.
+`decision.ts` owns typed protocol/evidence ports; `inferences.ts` owns preparation/admission. `direct-inference.ts` owns immediate dispatch, response evidence, atomic completion and evidence-only recovery; `inference-invocations.ts` shares immutable invocation preparation and receipt validation. `inference-engine.ts` retains queued/bounded steps. `execution-admission.ts` shares active-capacity policy with the scheduler; `inference-control.ts` batches content-free current-authority observation through migration 054's restricted view. `bounded-decisions.ts` brokers immutable evidence reads. `decision-definitions.ts` and `context-artifacts.ts` own reusable inputs; `decision-tasks.ts` and `decision-task-engine.ts` own allocation, wake receipts and sequential coordination. Provider HTTP stays in `packages/providers/src/decision-protocols.ts`. [The ownership map](../features/decisions/implementation.md) covers recovery, accounting, retention and rollout.
 
 ## Execution observability
 

@@ -1,6 +1,6 @@
 # Explicit-context execution verification
 
-Local acceptance record, September 19, 2026. The feature is gated off by default. The original application acceptance used synthetic provider responses; the separate OpenRouter check below exercised two real, budgeted Jev requests. No production deployment or preview-data mutation was performed.
+Verification records distinguish the original September acceptance, later provider checks and the immediate-inference implementation below. Earlier test counts and feature-flag statements describe their recorded revisions, not current deployment readiness. Synthetic fixtures establish application behavior; only explicitly identified provider checks made paid calls. No preview data is used by these disposable fixtures.
 
 ## Test workload
 
@@ -23,7 +23,7 @@ The original fixtures in `examples/decisions/contracts.ts` model customer-except
 | `TEST_POSTGRES_CONTAINER=none pnpm exec tsx scripts/test-install.ts` | Fresh installation, migration, vault rotation and paired encrypted database/object backup/restore passed using local PostgreSQL client tools. Restored 45 encrypted objects, native files/session continuation, decision receipt, task allocation, active evidence pin and proposal. The restore used an independent database/store; measured restore phase was 0.321 seconds for this fixture. |
 | `pnpm sdk:generate:all`, `pnpm check`, `pnpm docs:generate`, `pnpm docs:check`, `git diff --check` | Passed. All five clients regenerated; 60 public pages and local documentation targets verified. |
 
-The table above records the original broader feature acceptance using synthetic identities, credentials and provider responses. No paid request, production migration or preview-data mutation was required for that pass. The feature remains disabled by default. Local backup tooling also received a connection fix discovered by this rehearsal: native PostgreSQL clients use dedicated libpq environment fields and an explicit database name, keeping passwords out of command arguments.
+The table records the original broader feature acceptance using synthetic identities, credentials and responses. No paid request, production migration or preview-data mutation was required for that pass; current admission follows normal paid-execution policy rather than that revision's opt-in flag. Local backup tooling also received a connection fix: native PostgreSQL clients use dedicated libpq environment fields and an explicit database name, keeping passwords out of command arguments.
 
 ### OpenRouter Jev acceptance
 
@@ -61,7 +61,7 @@ The base revision `49617906` already has failed CI acceptance/coverage, install/
 
 The local correction removes byte-as-token context rejection at both admission and invocation preparation, including bounded-agent follow-ups. Billing reservations and request byte limits remain unchanged. Regression cases exercise typed and native-payload Jev through both providers above the old 32KB boundary, conventional inference above the old 128KB boundary, insufficient budgets before dispatch, actual-usage settlement and provider rejection without retries.
 
-The focused disposable-database run passed all eight selected cases (seven new regressions and the existing bounded-evidence loop); `pnpm check`, documentation generation/checks and whitespace validation passed. The broader inference/protocol run passed 66 of 69 tests. The remaining failures concern an expected `decision.response` trace event, a generated-client cancellation test that does not request asynchronous execution, and an exact error-message assertion for unsupported OpenRouter models. Those behaviors were not changed by this correction. The asynchronous test helper now explicitly sends `Prefer: respond-async` so admission and executor phases can be exercised separately.
+That revision's focused run passed eight selected cases; the broader inference/protocol run passed 66 of 69. Its remaining failures concerned obsolete duplicate tracing, a client cancellation fixture and exact model-error wording. Current phase fixtures use actual internal queued admission; public `/v1/inferences` no longer supports an async preference. Current acceptance is recorded separately below rather than presenting those old failures as current source behavior.
 
 An explicitly authorized direct OpenRouter probe used only synthetic repeated greetings, fixed `typesafe/jev-1.13`, no retries or fallback, and price ceilings of $0.042/M input and zero output/request fees. Five attempts reserved a combined $0.10 test ceiling:
 
@@ -94,6 +94,30 @@ One synthetic Anthropic choice with one inline evidence item and one provider ca
 | Response persistence | 0.71 |
 
 This is a single local sample, not a percentile, hosted capacity claim or model latency measurement. Stage clocks have different boundaries and are not an additive profiler; admission preparation excludes the final admission commit. Reproduce with `DECISION_MEASUREMENT_FILE=/tmp/decision-measurement.json pnpm test:domain tests/integration/inference.test.ts`, using the documented disposable test-database setup. The JSON contains timings/counts/bytes, not customer content.
+
+## Immediate inference
+
+The implementation replaces the direct phase loop with immediate A/provider/B/C ownership and evidence-only recovery. It retains native/bounded dispatch and shared financial rules. Tests exercise the real API, restricted-role PostgreSQL, all five SDK transports and controlled upstreams. No native image change is required.
+
+Focused evidence includes shared gateway/accounting/provider regressions, independent nullable usage, bounded normalization-failure evidence, current-key authorization, same-key duplicate suppression, unknown COMMIT acknowledgment, cancellation before response persistence, timely response settlement after the execution deadline, C failure with actual poller recovery, generation fencing and real retention tombstones. An actual HTTP stream delivers an early delta before the provider finishes, then the settled receipt; completed replay emits no new deltas. The full five-language SDK workflow passed with paid execution disabled. A 276-check run passed 272 and exposed four outdated fixtures; corrected catalog/HTTP checks pass 17 checks, and the final financial/fault cohort passes 56 checks. `pnpm check` passes.
+
+The separate process-loss fixture passes both actual SIGKILL boundaries: after provider dispatch and after B has durably saved a timely response. It preserves the original execution deadline, waits the real completion allowance, recovers from another process lifetime and replays the same identity without a second provider call. Dispatch loss ends uncertain; saved response loss completes with the original value. Final occupancy and reservations drain to zero. This is one focused process-loss test with two boundaries; the separate arrival-ramp and waiting-cohort load tests were not rerun as part of that pass.
+
+All five SDKs also pass immediate JSON, identical replay and SSE against the actual API with no worker, in addition to their ordinary file/native/customer journeys. The final complete SDK run passes Python's 217 checks, Rust's 21 checks, Java's 18 checks and the TypeScript/Go journeys; Python type checking is clean. A subsequent TypeScript-only credential-deadline fix passes its build and 28 focused transport tests.
+
+Cross-replica revocation uses two held upstream calls and directly revokes their shared API key without cancellation flags. Both sockets close within 505 ms, and failed terminal receipts return within 569 ms. Restored-key replay on the opposite replicas does not redispatch; active occupancy, reservations, duplicate usage and unbalanced journals all remain zero. A separate unread-reader fixture overflows the bounded SSE delivery queue while preserving the successful final result and its one settlement. These are bounded correctness fixtures, not a sustained freshness or capacity certification.
+
+Migration 054 passes a rollback-only rehearsal on populated disposable data: prior Run/gateway/invocation fields remain unchanged, historical `provider_completed_at` stays NULL, and the actual runtime role can read only the intended cross-tenant control projection while ordinary Run RLS and secret-column restrictions remain enforced. Fresh installation is also exercised by every isolated suite. The optimized application build passes; existing runtime filesystem tracing warnings remain outside this control-plane change.
+
+The existing loopback local Docker profile was migrated from 052 through 054 after verifying zero active Runs. Its web process was preserved; health remains ready and the new API rejects async inference as specified. Existing standalone pollers still need coordinated replacement with this source before local recovery acceptance: two older processes were discovered, including Node 22. No claim is made that migration alone updates their already-loaded recovery code. Hosted activation remains separate.
+
+Two isolated live OpenRouter Microsoft Decision 1 calls completed on the original HTTP request on October 17. Native managed choice returned complete usage of 89 input/3 output tokens and a 4-micro-USD Macrofold charge. Typed BYOK score returned 327 input/1 output tokens, zero Macrofold charge and 14 micro-USD of metered budget usage. Each dispatched once, and its embedded receipt matched the saved result. The fixture reserved at most 4,000 micro-USD in total and used a disposable database; it did not change the running preview or hosting. This establishes selected provider behavior, not throughput or a hosted SLA.
+
+Load tooling in `tests/load/immediate-inference.test.ts` uses independent API processes, real HTTP/SQL, open-loop arrivals, bounded synthetic providers and controlled process termination. It records offered/completed/refused rates, latency, pool/SQL/lock timings, memory, event-loop lag, host load and reservation reconciliation. Set `IMMEDIATE_REPORT_PATH` to retain a private JSON report; environment parameters are documented in that test. It does not bypass account/fleet caps or call paid models.
+
+A separate HEAD `f7cf9f5` export measured the old async submission plus polling path at 2 arrivals/second: four completed calls, p50 1,078 ms and p95 1,330 ms, approximately 197 SQL commands and 18 commits per call. A preliminary immediate profile after event batching measured 77 commands per call, but subsequent source optimizations changed the tree. Do not treat these as a matched final latency improvement or certified throughput.
+
+The final local calibration was stopped with host load above 366 on ten CPUs and only 59 MiB reported free memory. Earlier overload fixtures reconciled all accepted reservations and occupancy, but had refusals and missed the latency target. No 10,000-concurrent, 15-minute, hosted-lifetime or production-capacity pass is claimed. Repeat the declared workload on a quiet provisioned topology, freeze measured release headroom and retain the target as an open release gate.
 
 ## Remaining release gates
 

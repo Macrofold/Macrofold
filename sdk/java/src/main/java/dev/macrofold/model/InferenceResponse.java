@@ -24,22 +24,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import dev.macrofold.model.RunAcceptedUrls;
+import dev.macrofold.model.InferenceUrls;
 import dev.macrofold.model.RunResult;
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.UUID;
-import org.openapitools.jackson.nullable.JsonNullable;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.openapitools.jackson.nullable.JsonNullable;
-import java.util.NoSuchElementException;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 import dev.macrofold.ApiClient;
 /**
- * InferenceResponse
+ * Immediate inference terminal or recovery receipt. HTTP 200 has a finalized result; HTTP 202 has running status and a recovery_reason. URLs always refer to the same authorized Run.
  */
 @JsonPropertyOrder({
   InferenceResponse.JSON_PROPERTY_RUN_ID,
@@ -47,13 +42,11 @@ import dev.macrofold.ApiClient;
   InferenceResponse.JSON_PROPERTY_WORKTREE_ID,
   InferenceResponse.JSON_PROPERTY_STATUS,
   InferenceResponse.JSON_PROPERTY_URLS,
-  InferenceResponse.JSON_PROPERTY_QUEUE_EXPIRES_AT,
   InferenceResponse.JSON_PROPERTY_WAIT_SECONDS,
-  InferenceResponse.JSON_PROPERTY_WAITING_REASON,
   InferenceResponse.JSON_PROPERTY_RESERVED_MICRO_USD,
-  InferenceResponse.JSON_PROPERTY_SCHEDULING_CLASS,
   InferenceResponse.JSON_PROPERTY_KIND,
-  InferenceResponse.JSON_PROPERTY_RESULT
+  InferenceResponse.JSON_PROPERTY_RESULT,
+  InferenceResponse.JSON_PROPERTY_RECOVERY_REASON
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.24.0")
 public class InferenceResponse {
@@ -73,10 +66,6 @@ public class InferenceResponse {
    * Gets or Sets status
    */
   public enum StatusEnum {
-    QUEUED(String.valueOf("queued")),
-
-    PROVISIONING(String.valueOf("provisioning")),
-
     RUNNING(String.valueOf("running")),
 
     SUCCEEDED(String.valueOf("succeeded")),
@@ -120,132 +109,15 @@ public class InferenceResponse {
 
   public static final String JSON_PROPERTY_URLS = "urls";
   @javax.annotation.Nonnull
-  private RunAcceptedUrls urls;
-
-  public static final String JSON_PROPERTY_QUEUE_EXPIRES_AT = "queue_expires_at";
-  @javax.annotation.Nullable
-  private OffsetDateTime queueExpiresAt;
+  private InferenceUrls urls;
 
   public static final String JSON_PROPERTY_WAIT_SECONDS = "wait_seconds";
   @javax.annotation.Nullable
   private BigDecimal waitSeconds;
 
-  /**
-   * Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-   */
-  public enum WaitingReasonEnum {
-    GLOBAL_CAPACITY(String.valueOf("global_capacity")),
-
-    ACCOUNT_CONCURRENCY(String.valueOf("account_concurrency")),
-
-    EARLIER_WORKTREE_WORK(String.valueOf("earlier_worktree_work")),
-
-    SCHEDULER_TURN(String.valueOf("scheduler_turn")),
-
-    CANCELLATION_REQUESTED(String.valueOf("cancellation_requested")),
-
-    DEADLINE_EXPIRED(String.valueOf("deadline_expired")),
-
-    WORKTREE_UNAVAILABLE(String.valueOf("worktree_unavailable")),
-
-    LIGHTWEIGHT_CAPACITY(String.valueOf("lightweight_capacity")),
-
-    RESERVED_LIGHTWEIGHT_CAPACITY(String.valueOf("reserved_lightweight_capacity")),
-
-    WORKER_PAUSED(String.valueOf("worker_paused")),
-
-    WORKER_DESTROYED(String.valueOf("worker_destroyed")),
-
-    WORKER_EXPIRED(String.valueOf("worker_expired")),
-
-    WORKER_CONCURRENCY(String.valueOf("worker_concurrency")),
-
-    WORKER_COST_LIMIT(String.valueOf("worker_cost_limit")),
-
-    WORKER_INSTANCE_LIMIT(String.valueOf("worker_instance_limit")),
-
-    WORKER_STARTING(String.valueOf("worker_starting")),
-
-    WORKER_CAPACITY(String.valueOf("worker_capacity")),
-
-    WORKER_LIFETIME(String.valueOf("worker_lifetime")),
-
-    COMPUTE_UNAVAILABLE(String.valueOf("compute_unavailable")),
-
-    INSUFFICIENT_CREDITS(String.valueOf("insufficient_credits"));
-
-    private String value;
-
-    WaitingReasonEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static WaitingReasonEnum fromValue(String value) {
-      for (WaitingReasonEnum b : WaitingReasonEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      return null;
-    }
-  }
-
-  public static final String JSON_PROPERTY_WAITING_REASON = "waiting_reason";
-  private JsonNullable<WaitingReasonEnum> waitingReason = JsonNullable.<WaitingReasonEnum>undefined();
-
   public static final String JSON_PROPERTY_RESERVED_MICRO_USD = "reserved_micro_usd";
   @javax.annotation.Nullable
   private String reservedMicroUsd;
-
-  /**
-   * Gets or Sets schedulingClass
-   */
-  public enum SchedulingClassEnum {
-    BACKGROUND(String.valueOf("background")),
-
-    INTERACTIVE(String.valueOf("interactive"));
-
-    private String value;
-
-    SchedulingClassEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static SchedulingClassEnum fromValue(String value) {
-      for (SchedulingClassEnum b : SchedulingClassEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
-    }
-  }
-
-  public static final String JSON_PROPERTY_SCHEDULING_CLASS = "scheduling_class";
-  @javax.annotation.Nullable
-  private SchedulingClassEnum schedulingClass;
 
   /**
    * Gets or Sets kind
@@ -291,6 +163,47 @@ public class InferenceResponse {
   public static final String JSON_PROPERTY_RESULT = "result";
   @javax.annotation.Nullable
   private RunResult result;
+
+  /**
+   * Gets or Sets recoveryReason
+   */
+  public enum RecoveryReasonEnum {
+    IN_PROGRESS(String.valueOf("in_progress")),
+
+    FINALIZATION_PENDING(String.valueOf("finalization_pending")),
+
+    OUTCOME_UNKNOWN(String.valueOf("outcome_unknown"));
+
+    private String value;
+
+    RecoveryReasonEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static RecoveryReasonEnum fromValue(String value) {
+      for (RecoveryReasonEnum b : RecoveryReasonEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  public static final String JSON_PROPERTY_RECOVERY_REASON = "recovery_reason";
+  @javax.annotation.Nullable
+  private RecoveryReasonEnum recoveryReason;
 
   public InferenceResponse() { 
   }
@@ -391,7 +304,7 @@ public class InferenceResponse {
   }
 
 
-  public InferenceResponse urls(@javax.annotation.Nonnull RunAcceptedUrls urls) {
+  public InferenceResponse urls(@javax.annotation.Nonnull InferenceUrls urls) {
     this.urls = urls;
     return this;
   }
@@ -403,39 +316,15 @@ public class InferenceResponse {
   @javax.annotation.Nonnull
   @JsonProperty(value = JSON_PROPERTY_URLS, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public RunAcceptedUrls getUrls() {
+  public InferenceUrls getUrls() {
     return urls;
   }
 
 
   @JsonProperty(value = JSON_PROPERTY_URLS, required = true)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setUrls(@javax.annotation.Nonnull RunAcceptedUrls urls) {
+  public void setUrls(@javax.annotation.Nonnull InferenceUrls urls) {
     this.urls = urls;
-  }
-
-
-  public InferenceResponse queueExpiresAt(@javax.annotation.Nullable OffsetDateTime queueExpiresAt) {
-    this.queueExpiresAt = queueExpiresAt;
-    return this;
-  }
-
-  /**
-   * Get queueExpiresAt
-   * @return queueExpiresAt
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_EXPIRES_AT, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public OffsetDateTime getQueueExpiresAt() {
-    return queueExpiresAt;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_QUEUE_EXPIRES_AT, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setQueueExpiresAt(@javax.annotation.Nullable OffsetDateTime queueExpiresAt) {
-    this.queueExpiresAt = queueExpiresAt;
   }
 
 
@@ -464,38 +353,6 @@ public class InferenceResponse {
   }
 
 
-  public InferenceResponse waitingReason(@javax.annotation.Nullable WaitingReasonEnum waitingReason) {
-    this.waitingReason = JsonNullable.<WaitingReasonEnum>of(waitingReason);
-    return this;
-  }
-
-  /**
-   * Snapshot, not a queue position or start-time estimate. Null when no longer queued.
-   * @return waitingReason
-   */
-  @javax.annotation.Nullable
-  @JsonIgnore
-  public WaitingReasonEnum getWaitingReason() {
-        return waitingReason.orElse(null);
-  }
-
-  @JsonProperty(value = JSON_PROPERTY_WAITING_REASON, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public JsonNullable<WaitingReasonEnum> getWaitingReason_JsonNullable() {
-    return waitingReason;
-  }
-
-  @JsonProperty(JSON_PROPERTY_WAITING_REASON)
-  public void setWaitingReason_JsonNullable(JsonNullable<WaitingReasonEnum> waitingReason) {
-    this.waitingReason = waitingReason;
-  }
-
-  public void setWaitingReason(@javax.annotation.Nullable WaitingReasonEnum waitingReason) {
-    this.waitingReason = JsonNullable.<WaitingReasonEnum>of(waitingReason);
-  }
-
-
   public InferenceResponse reservedMicroUsd(@javax.annotation.Nullable String reservedMicroUsd) {
     this.reservedMicroUsd = reservedMicroUsd;
     return this;
@@ -517,30 +374,6 @@ public class InferenceResponse {
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
   public void setReservedMicroUsd(@javax.annotation.Nullable String reservedMicroUsd) {
     this.reservedMicroUsd = reservedMicroUsd;
-  }
-
-
-  public InferenceResponse schedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
-    return this;
-  }
-
-  /**
-   * Get schedulingClass
-   * @return schedulingClass
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public SchedulingClassEnum getSchedulingClass() {
-    return schedulingClass;
-  }
-
-
-  @JsonProperty(value = JSON_PROPERTY_SCHEDULING_CLASS, required = false)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSchedulingClass(@javax.annotation.Nullable SchedulingClassEnum schedulingClass) {
-    this.schedulingClass = schedulingClass;
   }
 
 
@@ -592,6 +425,30 @@ public class InferenceResponse {
   }
 
 
+  public InferenceResponse recoveryReason(@javax.annotation.Nullable RecoveryReasonEnum recoveryReason) {
+    this.recoveryReason = recoveryReason;
+    return this;
+  }
+
+  /**
+   * Get recoveryReason
+   * @return recoveryReason
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(value = JSON_PROPERTY_RECOVERY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public RecoveryReasonEnum getRecoveryReason() {
+    return recoveryReason;
+  }
+
+
+  @JsonProperty(value = JSON_PROPERTY_RECOVERY_REASON, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setRecoveryReason(@javax.annotation.Nullable RecoveryReasonEnum recoveryReason) {
+    this.recoveryReason = recoveryReason;
+  }
+
+
   /**
    * Return true if this InferenceResponse object is equal to o.
    */
@@ -609,29 +466,16 @@ public class InferenceResponse {
         Objects.equals(this.worktreeId, inferenceResponse.worktreeId) &&
         Objects.equals(this.status, inferenceResponse.status) &&
         Objects.equals(this.urls, inferenceResponse.urls) &&
-        Objects.equals(this.queueExpiresAt, inferenceResponse.queueExpiresAt) &&
         Objects.equals(this.waitSeconds, inferenceResponse.waitSeconds) &&
-        equalsNullable(this.waitingReason, inferenceResponse.waitingReason) &&
         Objects.equals(this.reservedMicroUsd, inferenceResponse.reservedMicroUsd) &&
-        Objects.equals(this.schedulingClass, inferenceResponse.schedulingClass) &&
         Objects.equals(this.kind, inferenceResponse.kind) &&
-        Objects.equals(this.result, inferenceResponse.result);
-  }
-
-  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
-    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+        Objects.equals(this.result, inferenceResponse.result) &&
+        Objects.equals(this.recoveryReason, inferenceResponse.recoveryReason);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(runId, sessionId, worktreeId, status, urls, queueExpiresAt, waitSeconds, hashCodeNullable(waitingReason), reservedMicroUsd, schedulingClass, kind, result);
-  }
-
-  private static <T> int hashCodeNullable(JsonNullable<T> a) {
-    if (a == null) {
-      return 1;
-    }
-    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
+    return Objects.hash(runId, sessionId, worktreeId, status, urls, waitSeconds, reservedMicroUsd, kind, result, recoveryReason);
   }
 
   @Override
@@ -643,13 +487,11 @@ public class InferenceResponse {
     sb.append("    worktreeId: ").append(toIndentedString(worktreeId)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    urls: ").append(toIndentedString(urls)).append("\n");
-    sb.append("    queueExpiresAt: ").append(toIndentedString(queueExpiresAt)).append("\n");
     sb.append("    waitSeconds: ").append(toIndentedString(waitSeconds)).append("\n");
-    sb.append("    waitingReason: ").append(toIndentedString(waitingReason)).append("\n");
     sb.append("    reservedMicroUsd: ").append(toIndentedString(reservedMicroUsd)).append("\n");
-    sb.append("    schedulingClass: ").append(toIndentedString(schedulingClass)).append("\n");
     sb.append("    kind: ").append(toIndentedString(kind)).append("\n");
     sb.append("    result: ").append(toIndentedString(result)).append("\n");
+    sb.append("    recoveryReason: ").append(toIndentedString(recoveryReason)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -719,29 +561,14 @@ public class InferenceResponse {
       joiner.add(getUrls().toUrlQueryString(prefix + "urls" + suffix));
     }
 
-    // add `queue_expires_at` to the URL query string
-    if (getQueueExpiresAt() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%squeue_expires_at%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getQueueExpiresAt()))));
-    }
-
     // add `wait_seconds` to the URL query string
     if (getWaitSeconds() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%swait_seconds%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWaitSeconds()))));
     }
 
-    // add `waiting_reason` to the URL query string
-    if (getWaitingReason() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%swaiting_reason%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getWaitingReason()))));
-    }
-
     // add `reserved_micro_usd` to the URL query string
     if (getReservedMicroUsd() != null) {
       joiner.add(String.format(java.util.Locale.ROOT, "%sreserved_micro_usd%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getReservedMicroUsd()))));
-    }
-
-    // add `scheduling_class` to the URL query string
-    if (getSchedulingClass() != null) {
-      joiner.add(String.format(java.util.Locale.ROOT, "%sscheduling_class%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getSchedulingClass()))));
     }
 
     // add `kind` to the URL query string
@@ -752,6 +579,11 @@ public class InferenceResponse {
     // add `result` to the URL query string
     if (getResult() != null) {
       joiner.add(getResult().toUrlQueryString(prefix + "result" + suffix));
+    }
+
+    // add `recovery_reason` to the URL query string
+    if (getRecoveryReason() != null) {
+      joiner.add(String.format(java.util.Locale.ROOT, "%srecovery_reason%s=%s", prefix, suffix, ApiClient.urlEncode(ApiClient.valueToString(getRecoveryReason()))));
     }
 
     return joiner.toString();

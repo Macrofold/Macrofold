@@ -15,10 +15,15 @@ impl Client { ${groups.map((g) => `pub fn ${snake(g)}(&self) -> ${pascal(g)}Reso
   for (const group of groups) {
     const methods: string[] = [];
     for (const op of ops.filter((o) => o.contract.group === group)) {
-      if (op.originalId === 'createInference')
+      if (op.originalId === 'createInference') {
         methods.push(
           `pub async fn stream(&self, input: models::InferenceCreate, receive: impl FnMut(models::InferenceStreamEvent)->bool) -> Result<(),ClientError> { self.client.stream_inference(input, &self.options, receive).await }`,
         );
+        methods.push(
+          `pub async fn create(&self,input:models::InferenceCreate)->Result<models::InferenceResponse,ClientError>{self.client.create_immediate_inference(input,&self.options).await}`,
+        );
+        continue;
+      }
       if (op.originalId === 'streamCustomerAgentRun') {
         methods.push(
           `pub async fn stream_run(&self, customer_id:&str, customer_agent_id:&str, run_id:&str, after:&str, receive:impl FnMut(models::Event)->bool) -> Result<(),ClientError> {self.client.stream_target(run_id,after,self.options.organization.as_deref(),Some((customer_id,customer_agent_id)),receive).await}`,

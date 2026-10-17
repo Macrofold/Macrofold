@@ -1,8 +1,11 @@
+import { selectedModel } from './model-catalog';
 import { capacitySetting } from './capacity';
 import { harnesses } from '../../contracts/harnesses';
 import { workerForRun } from './workers';
 import { validateWorkerResources } from './worker-pricing';
 import { initialReceipt } from './inference-receipt';
+import { hydrateTaskRunPayloads, type StoredTaskRunRow } from './task-run-payload';
+import { hydrateInferenceResults } from './inference-results';
 import { defaultRunBudgetMicroUsd } from '../../contracts/run-defaults';
 import { resolveRunAttachments } from './run-attachments';
 import type { RunAttachment } from '../../contracts/media';
@@ -18,7 +21,7 @@ import { validateModelParameters, type ModelParameters } from './model-parameter
 import { config, isLocal, isSimulated, realExecutionEnabled } from './config';
 import { getExecutionPolicy, QUEUE_TIMEOUT_SECONDS } from './plans';
 import { queueObservations, type WaitingReason } from './scheduling';
-import { models, computeRate, computeMaximum, type Model } from './catalog';
+import { computeRate, computeMaximum, type Model } from './catalog';
 import { emit } from './events';
 import * as resources from './resources';
 import { reserve, settle } from './ledger';
@@ -62,6 +65,8 @@ type RunEnvelope = {
   result: Partial<Omit<Schema['RunResult'], 'execution_outcome' | 'persistence_status'>> &
     Pick<Schema['Run'], 'execution_outcome' | 'persistence_status' | 'sync_status' | 'failure_code'> & {
       last_verified_checkpoint_id?: string;
+      inference_output_id?: string;
+      inference_output_path?: 'bounded_finish';
     };
   created_at: Date;
   started_at: Date | null;
@@ -75,6 +80,8 @@ type RunEnvelope = {
   event_sequence: string;
   reservation_micro_usd: string;
   cost_micro_usd: string;
+  budget_used_micro_usd: string;
+  model_reserved_micro_usd: string;
   execution_binding: ExecutionState | null;
   input_request: { id: string; answer?: Record<string, unknown> } | null;
 };
@@ -119,12 +126,33 @@ export type NativeRunRow = RunEnvelope & {
   session_id: string;
   config: RunConfig;
 };
-export type InferenceRunRow = RunEnvelope & {
+export type ExecutableInferenceRunRow = RunEnvelope & {
   kind: 'inference' | 'bounded_agent';
   worktree_id: null;
   session_id: null;
   config: InferenceConfig;
 };
+/** Immediate recovery needs accepted terms and publication identity, not executable input.
+ * See docs/projects/execution-efficiency-tech-design.md#compact-recovery-contract. */
+export type ImmediateInferenceConfig = Omit<
+  InferenceConfig,
+  'definition' | 'input' | 'context' | 'model_parameters'
+> & {
+  payload_kind: 'compact';
+  definition_revision: string;
+  schema_digest: string;
+  dependency_tokens: Record<string, string>;
+  context_audience: InferenceConfig['context']['audience'];
+  application_namespace: string;
+};
+export type CompactInferenceRunRow = Omit<ExecutableInferenceRunRow, 'kind' | 'config'> & {
+  kind: 'inference';
+  config: ImmediateInferenceConfig;
+};
+export type InferenceRunRow = ExecutableInferenceRunRow | CompactInferenceRunRow;
+export function compactInference(run: InferenceRunRow): run is CompactInferenceRunRow {
+  return 'payload_kind' in run.config && run.config.payload_kind === 'compact';
+}
 export type RunRow = NativeRunRow | InferenceRunRow;
 export function requireNativeRun(run: RunRow): asserts run is NativeRunRow {
   assert(
@@ -165,7 +193,41 @@ export function runUrls(runId: string) {
     cancel: `${status}/cancel`,
   };
 }
-export function presentRun(row: RunRow, waitingReason: WaitingReason | null = null) {
+type SummaryFields = 'model' | 'limits' | 'client_type' | 'scheduling_class';
+type SummaryState = Pick<
+  RunEnvelope,
+  | 'id'
+  | 'organization_id'
+  | 'workspace_id'
+  | 'status'
+  | 'created_at'
+  | 'started_at'
+  | 'completed_at'
+  | 'queue_expires_at'
+  | 'deadline'
+  | 'reservation_micro_usd'
+  | 'cost_micro_usd'
+> & {
+  result: Pick<
+    RunEnvelope['result'],
+    'execution_outcome' | 'persistence_status' | 'sync_status' | 'failure_code'
+  >;
+};
+/** Status and authorization readers cannot accidentally hydrate executable
+ * input or canonical output. Result consumers explicitly use getRun. */
+export type RunSummary =
+  | (SummaryState &
+      Pick<NativeRunRow, 'kind' | 'worktree_id' | 'session_id'> & {
+        config: Pick<
+          RunConfig,
+          SummaryFields | 'harness' | 'worker_id' | 'agent_id' | 'agent_version' | 'permission_layers'
+        >;
+      })
+  | (SummaryState &
+      Pick<InferenceRunRow, 'kind' | 'worktree_id' | 'session_id'> & {
+        config: Pick<InferenceConfig, SummaryFields | 'task_id'>;
+      });
+export function presentRun(row: RunRow | RunSummary, waitingReason: WaitingReason | null = null) {
   return {
     id: row.id,
     kind: row.kind,
@@ -196,7 +258,7 @@ export function presentRun(row: RunRow, waitingReason: WaitingReason | null = nu
     permission_layers: row.kind === 'native_agent' ? row.config.permission_layers || [] : [],
   };
 }
-export function waitingFields(row: RunRow, reason: WaitingReason | null = null) {
+export function waitingFields(row: RunRow | RunSummary, reason: WaitingReason | null = null) {
   return {
     wait_seconds:
       Math.max(
@@ -208,18 +270,67 @@ export function waitingFields(row: RunRow, reason: WaitingReason | null = null) 
     reserved_micro_usd: terminal(row.status) ? '0' : row.reservation_micro_usd,
   };
 }
-export async function presentRuns(tx: Tx, rows: RunRow[]) {
+export async function presentRuns(tx: Tx, rows: (RunRow | RunSummary)[]) {
   const reasons = await queueObservations(
     tx,
     rows.filter((r) => r.status === 'queued').map((r) => r.id),
   );
   return rows.map((row) => presentRun(row, reasons.get(row.id) || null));
 }
-export async function getRun(tx: Tx, runId: string, p?: Principal): Promise<RunRow> {
-  const row = (await tx.query<RunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
+/** Hot lifecycle state excludes executable input. Accepted immutable configuration
+ * stays with its confirmed owner; current policy/credential checks remain separate. */
+export const runControlColumns = `id,organization_id,workspace_id,worktree_id,session_id,
+ kind,status,result,created_at,started_at,completed_at,queue_expires_at,deadline,
+ lease_generation,heartbeat_at,cancel_requested,model_error_request_id,event_sequence,
+ reservation_micro_usd,cost_micro_usd,budget_used_micro_usd,model_reserved_micro_usd,execution_binding,input_request`;
+export const runSummaryColumns = `id,organization_id,workspace_id,worktree_id,session_id,kind,status,
+ created_at,started_at,completed_at,queue_expires_at,deadline,reservation_micro_usd,cost_micro_usd,
+ jsonb_build_object('execution_outcome',result->'execution_outcome','persistence_status',result->'persistence_status',
+   'sync_status',result->'sync_status','failure_code',result->'failure_code') AS result,
+ jsonb_build_object('model',config->'model','limits',config->'limits','client_type',config->'client_type',
+   'scheduling_class',config->'scheduling_class','harness',config->'harness','worker_id',config->'worker_id',
+   'agent_id',config->'agent_id','agent_version',config->'agent_version','permission_layers',config->'permission_layers',
+   'task_id',config->'task_id') AS config`;
+export async function getRunSummary(tx: Tx, runId: string, p?: Principal): Promise<RunSummary> {
+  const row = (await tx.query<RunSummary>(`SELECT ${runSummaryColumns} FROM runs WHERE id=$1`, [runId]))
+    .rows[0];
   assert(row, 404, 'not_found', 'Run not found.');
   if (p) requireWorkspace(p, row.workspace_id);
   return row;
+}
+export type RunControl = Omit<RunRow, 'config'> & { deadline_passed: boolean | null };
+export function currentRunControlQuery(runId: string) {
+  return {
+    text: `SELECT ${runControlColumns},deadline<=clock_timestamp() AS deadline_passed FROM runs WHERE id=$1 FOR UPDATE`,
+    values: [runId],
+  };
+}
+export function mergeCurrentRunControl<R extends Pick<RunRow, 'id' | 'organization_id' | 'kind'>>(
+  admitted: R,
+  row: RunControl | undefined,
+) {
+  assert(row, 404, 'not_found', 'Run not found.');
+  const { kind, ...current } = row;
+  assert(
+    row.id === admitted.id && kind === admitted.kind && row.organization_id === admitted.organization_id,
+    409,
+    'run_kind_mismatch',
+    'The execution identity changed.',
+  );
+  return { ...admitted, ...current };
+}
+export async function currentRunControl<R extends Pick<RunRow, 'id' | 'organization_id' | 'kind'>>(
+  tx: Tx,
+  admitted: R,
+) {
+  const row = (await tx.query<RunControl>(currentRunControlQuery(admitted.id))).rows[0];
+  return mergeCurrentRunControl(admitted, row);
+}
+export async function getRun(tx: Tx, runId: string, p?: Principal): Promise<RunRow> {
+  const row = (await tx.query<RunRow | StoredTaskRunRow>('SELECT * FROM runs WHERE id=$1', [runId])).rows[0];
+  assert(row, 404, 'not_found', 'Run not found.');
+  if (p) requireWorkspace(p, row.workspace_id);
+  return (await hydrateInferenceResults(tx, await hydrateTaskRunPayloads(tx, [row])))[0];
 }
 export async function validateConfiguration(
   tx: Tx,
@@ -227,10 +338,13 @@ export async function validateConfiguration(
   configuration: Omit<Schema['SessionCreate'], 'worktree_id'>,
   purpose: 'execution' | 'preset' = 'execution',
 ) {
-  const model = (await models(tx)).find(
-    (m) => m.id === configuration.model && m.enabled && m.harnesses.includes(configuration.harness),
+  const model = (await selectedModel(tx, configuration.model))?.model;
+  assert(
+    model?.enabled && model.harnesses.includes(configuration.harness),
+    400,
+    'model_unavailable',
+    'Choose an enabled model compatible with the harness.',
   );
-  assert(model, 400, 'model_unavailable', 'Choose an enabled model compatible with the harness.');
   validateModelParameters(configuration.model_parameters, model.provider, model.id);
   assert(
     ['byok', 'managed', 'subscription'].includes(configuration.billing_mode),
@@ -342,6 +456,7 @@ export async function admitRun(
   input: Schema['RunCreate'] & { queue_if_busy?: boolean },
   clientType: NonNullable<Schema['Run']['client_type']> = 'api',
   recordActivity = true,
+  source?: { trigger_id: string; trigger_delivery_id: string },
 ) {
   assert(
     process.env.RUN_ADMISSION_ENABLED !== 'false',
@@ -372,6 +487,13 @@ export async function admitRun(
     'Choose background or interactive scheduling.',
   );
   let session: resources.Document<'sessions'>;
+  let preparedConfiguration: Awaited<ReturnType<typeof validateConfiguration>> | undefined;
+  let preparedResources:
+    | {
+        worktree: resources.Document<'worktrees'>;
+        workspace: resources.Document<'workspaces'>;
+      }
+    | undefined;
   if (input.session_id) {
     session = await resources.get(tx, 'sessions', input.session_id, p);
     assert(
@@ -424,12 +546,18 @@ export async function admitRun(
     );
     // Run selections/exceptions must never become future session defaults. Only
     // a verified preset's saved default is copied into this conversation.
+    const worktree = await resources.get(tx, 'worktrees', worktreeId, p);
+    const workspace = await resources.get(tx, 'workspaces', String(worktree.workspace_id), p);
+    await lock(tx, `workspace-permissions:${workspace.id}`);
+    await lock(tx, `workspace-worktrees:${workspace.id}`);
+    await lock(tx, `worktree:${worktree.id}`);
     const checked = await validateConfiguration(
       tx,
       p,
       configuration as Omit<Schema['SessionCreate'], 'worktree_id'>,
     );
-    const worktree = await resources.get(tx, 'worktrees', worktreeId, p);
+    preparedConfiguration = checked;
+    preparedResources = { worktree, workspace };
     const { rate_card: _rateCard, ...saved } = checked;
     session = await resources.create(tx, 'sessions', p.organizationId, {
       ...saved,
@@ -441,17 +569,21 @@ export async function admitRun(
       agent_version: preset.version || null,
     });
   }
-  const worktree = await resources.get(tx, 'worktrees', String(session.worktree_id), p);
-  const workspace = await resources.get(tx, 'workspaces', String(worktree.workspace_id), p);
+  const worktree =
+    preparedResources?.worktree ?? (await resources.get(tx, 'worktrees', String(session.worktree_id), p));
+  const workspace =
+    preparedResources?.workspace ?? (await resources.get(tx, 'workspaces', String(worktree.workspace_id), p));
   assert(
     !workspace.archived && !['deleting', 'degraded', 'restoring'].includes(String(worktree.status)),
     409,
     'workspace_archived',
     'This worktree is unavailable.',
   );
-  await lock(tx, `workspace-permissions:${workspace.id}`);
-  await lock(tx, `workspace-worktrees:${worktree.workspace_id}`);
-  await lock(tx, `worktree:${worktree.id}`);
+  if (!preparedResources) {
+    await lock(tx, `workspace-permissions:${workspace.id}`);
+    await lock(tx, `workspace-worktrees:${worktree.workspace_id}`);
+    await lock(tx, `worktree:${worktree.id}`);
+  }
   const pending = await tx.query(
     "SELECT id,session_id,status FROM runs WHERE worktree_id=$1 AND status IN ('queued','provisioning','running','waiting_for_input','persisting')",
     [worktree.id],
@@ -469,12 +601,16 @@ export async function admitRun(
     'queue_full',
     `This session already has ${queueLimit} queued runs. Wait for work to finish or cancel queued runs.`,
   );
-  const configured = await validateConfiguration(tx, p, {
-    ...session,
-    connection_grants: undefined,
-    ...(input.model ? { model: input.model } : {}),
-    limits: { ...(session.limits as Schema['Limits']), ...input.limits },
-  } as unknown as Schema['SessionCreate']);
+  // Fresh Sessions were validated under these same admission guards. Reusing
+  // their immutable preparation avoids repeating model/credential/policy reads.
+  const configured =
+    preparedConfiguration ??
+    (await validateConfiguration(tx, p, {
+      ...session,
+      connection_grants: undefined,
+      ...(input.model ? { model: input.model } : {}),
+      limits: { ...(session.limits as Schema['Limits']), ...input.limits },
+    } as unknown as Schema['SessionCreate']));
   if (input.stream) {
     requireScopes(p, ['runs:read']);
     assert(
@@ -586,28 +722,39 @@ export async function admitRun(
     execution_provider: config.execution,
     worker_id: worker?.id,
     worker_resources: workerResources,
+    ...source,
   };
-  await tx.query(
-    "INSERT INTO runs(id,organization_id,worktree_id,session_id,workspace_id,status,config,reservation_micro_usd,queue_expires_at) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,now()+($8::integer*interval '1 second'))",
-    [
-      runId,
-      p.organizationId,
-      worktree.id,
-      session.id,
-      worktree.workspace_id,
-      JSON.stringify(runConfig),
-      reservation.toString(),
-      queueTimeout,
-    ],
+  const saved = (
+    await tx.query<Omit<NativeRunRow, 'config'>>(
+      `INSERT INTO runs(id,organization_id,worktree_id,session_id,workspace_id,status,config,reservation_micro_usd,queue_expires_at) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,now()+($8::integer*interval '1 second')) RETURNING ${runControlColumns}`,
+      [
+        runId,
+        p.organizationId,
+        worktree.id,
+        session.id,
+        worktree.workspace_id,
+        JSON.stringify(runConfig),
+        reservation.toString(),
+        queueTimeout,
+      ],
+    )
+  ).rows[0];
+  const row: NativeRunRow = { ...saved, config: runConfig };
+  await emit(
+    tx,
+    p.organizationId,
+    runId,
+    'run.queued',
+    {
+      queue_expires_at: row.queue_expires_at.toISOString(),
+      reserved_micro_usd: row.reservation_micro_usd,
+      scheduling_class: runConfig.scheduling_class,
+      status: 'queued',
+      simulated: isLocal() && config.execution === 'simulator',
+    },
+    undefined,
+    row,
   );
-  const row = await getRun(tx, runId);
-  await emit(tx, p.organizationId, runId, 'run.queued', {
-    queue_expires_at: row.queue_expires_at.toISOString(),
-    reserved_micro_usd: row.reservation_micro_usd,
-    scheduling_class: runConfig.scheduling_class,
-    status: 'queued',
-    simulated: isLocal() && config.execution === 'simulator',
-  });
   await tx.query("INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id) VALUES($1,$2,'run',$3)", [
     id(),
     p.organizationId,
@@ -618,14 +765,15 @@ export async function admitRun(
       "INSERT INTO actor_activity(id,organization_id,user_id,action) VALUES($1,$2,$3,'run.created')",
       [id(), p.organizationId, p.userId],
     );
-  const reasons = await queueObservations(tx, [runId]);
   return {
     run_id: runId,
     worker_id: worker?.id || null,
     session_id: session.id,
     worktree_id: worktree.id,
     status: 'queued' as const,
-    ...waitingFields(row, reasons.get(runId)),
+    // Detailed queue observations belong to the subsequent status read. They
+    // are advisory and must not add fleet scans to successful admission.
+    ...waitingFields(row),
     queue_expires_at: row.queue_expires_at.toISOString(),
     urls: runUrls(runId),
   };

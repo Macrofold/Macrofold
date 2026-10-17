@@ -1,4 +1,4 @@
-import { transaction, type Tx } from '../../db';
+import { transaction, queryGroup, type Tx } from '../../db';
 import { canonical, id, sealJSON, sha256 } from './crypto';
 import { assert } from './errors';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
@@ -6,51 +6,47 @@ import { boundedRequest } from './bounded-decisions';
 import { inferenceInputBound } from './decision';
 import { emptyUsage } from './model-protocol';
 import { costForUsage } from './model-gateway';
-import { emit } from './events';
-import { getRun, terminal, type InferenceRunRow } from './runs';
+import { emit, emitBatch, type EventInput } from './events';
+import {
+  getRun,
+  currentRunControl,
+  runControlColumns,
+  currentRunControlQuery,
+  mergeCurrentRunControl,
+  type RunControl,
+  terminal,
+  type InferenceRunRow,
+  type ExecutableInferenceRunRow,
+  type InferenceConfig,
+} from './runs';
 import { initialReceipt } from './inference-receipt';
 import { digest, schemaValidator } from './explicit-context';
 import { settle } from './ledger';
 import type { DecisionResponse, InferenceReceipt } from './decision';
+import { inferencePublicationReceipt } from './inference-publication';
 
 /** Private evidence envelope. Provider failures retain metering independently
  * from public diagnostics and never imply that no upstream work occurred. */
 export type StoredDecisionResponse = DecisionResponse & {
   failure_code?: string;
   transport_complete?: boolean;
+  /** Validation is performed before publication; recovery needs no original prompt/schema. */
+  validated_receipt?: Omit<InferenceReceipt, 'value'>;
 };
 
 // Live owners already hold the admitted immutable configuration. Fetch current
 // lifecycle/accounting facts without repeatedly transferring its large context.
-export const inferenceRunStateColumns = `id,organization_id,workspace_id,worktree_id,session_id,
- kind,status,result,created_at,started_at,completed_at,queue_expires_at,deadline,
- lease_generation,heartbeat_at,cancel_requested,model_error_request_id,event_sequence,
- reservation_micro_usd,cost_micro_usd,execution_binding,input_request`;
-
-export async function currentInferenceRun(tx: Tx, admitted: InferenceRunRow) {
-  const row = (
-    await tx.query<Omit<InferenceRunRow, 'config'> & { deadline_passed: boolean | null }>(
-      `SELECT ${inferenceRunStateColumns},deadline<=clock_timestamp() AS deadline_passed
-       FROM runs WHERE id=$1 FOR UPDATE`,
-      [admitted.id],
-    )
-  ).rows[0];
-  assert(row, 404, 'not_found', 'Run not found.');
-  assert(
-    ['inference', 'bounded_agent'].includes(row.kind),
-    409,
-    'run_kind_mismatch',
-    'This is not an inference.',
-  );
-  // Retention may erase stored config; these immutable in-memory terms are only
-  // used for accounting. Current result/generation still fence publication.
-  return { ...row, config: admitted.config };
+export const inferenceRunStateColumns = runControlColumns;
+export async function currentInferenceRun<R extends InferenceRunRow>(tx: Tx, admitted: R) {
+  return currentRunControl(tx, admitted);
 }
 
 export type PreparedInvocation = {
   id: string;
   step: number;
   body: Record<string, unknown>;
+  bytes: number;
+  serialized: string;
   ciphertext: string;
   digest: string;
   bound: string;
@@ -62,7 +58,7 @@ export type PreparedInvocation = {
 
 /** Pure preparation and encryption happen before admission locks. */
 export function prepareInvocation(
-  configuration: InferenceRunRow['config'],
+  configuration: InferenceConfig,
   step = 0,
   steps: { artifact_id: string; context: import('./decision').ExplicitContext }[] = [],
   outputBound = configuration.limits.max_output_tokens,
@@ -126,7 +122,9 @@ export function prepareInvocation(
     id: id(),
     step,
     body,
-    ciphertext: sealJSON(serialized),
+    bytes: Buffer.byteLength(serialized),
+    serialized,
+    ciphertext: configuration.execution_owner === 'request' ? '' : sealJSON(serialized),
     digest: sha256(serialized),
     bound: bound.toString(),
     outputBound,
@@ -138,20 +136,18 @@ export function prepareInvocation(
   };
 }
 
-/** Shared gateway/decision intent; only a confirmed immediate A commit dispatches it. */
+/** Shared gateway/decision intent. The caller supplies a newly inserted Run or
+ * currentRunControl under this transaction's Run lock, including current budget.
+ * Only a confirmed immediate A commit dispatches that request-owned intent. */
 export async function insertInvocation(
   tx: Tx,
-  run: InferenceRunRow,
+  run: ExecutableInferenceRunRow,
   prepared: PreparedInvocation,
-  dispatchStarted = false,
+  options: { dispatchStarted?: boolean; admission?: EventInput } = {},
 ) {
-  const current = (
-    await tx.query<{ budget_used_micro_usd: string }>('SELECT budget_used_micro_usd FROM runs WHERE id=$1', [
-      run.id,
-    ])
-  ).rows[0];
+  const dispatchStarted = options.dispatchStarted ?? false;
   assert(
-    BigInt(prepared.bound) + BigInt(current.budget_used_micro_usd) <=
+    BigInt(prepared.bound) + BigInt(run.budget_used_micro_usd) <=
       BigInt(run.config.limits.max_cost_micro_usd),
     402,
     'run_budget_exhausted',
@@ -163,28 +159,28 @@ export async function insertInvocation(
     'stale_input',
     'Context expired before dispatch.',
   );
-  await tx.query(
-    "INSERT INTO gateway_requests(id,organization_id,run_id,lease_generation,model,provider,billing_mode,status,reserved_micro_usd) VALUES($1,$2,$3,$4,$5,$6,$7,'in_flight',$8)",
-    [
-      prepared.id,
-      run.organization_id,
-      run.id,
-      run.lease_generation,
-      run.config.model,
-      run.config.rate_card.provider,
-      run.config.billing_mode,
-      prepared.bound,
-    ],
-  );
-  await tx.query("UPDATE runs SET model_reserved_micro_usd=$2,status='running' WHERE id=$1", [
-    run.id,
-    prepared.bound,
-  ]);
-  const saved = (
-    await tx.query<InvocationEvidence>(
-      `INSERT INTO decision_invocations(id,organization_id,run_id,step,state,provider_request_digest,body_ciphertext,context_digest,output_token_bound,dependency_tokens,context_expires_at,dispatch_started_at)
+  const writes = await queryGroup<InvocationEvidence>(tx, [
+    {
+      text: "INSERT INTO gateway_requests(id,organization_id,run_id,lease_generation,model,provider,billing_mode,status,reserved_micro_usd) VALUES($1,$2,$3,$4,$5,$6,$7,'in_flight',$8)",
+      values: [
+        prepared.id,
+        run.organization_id,
+        run.id,
+        run.lease_generation,
+        run.config.model,
+        run.config.rate_card.provider,
+        run.config.billing_mode,
+        prepared.bound,
+      ],
+    },
+    {
+      text: "UPDATE runs SET model_reserved_micro_usd=$2,status='running' WHERE id=$1",
+      values: [run.id, prepared.bound],
+    },
+    {
+      text: `INSERT INTO decision_invocations(id,organization_id,run_id,step,state,provider_request_digest,body_ciphertext,context_digest,output_token_bound,dependency_tokens,context_expires_at,dispatch_started_at)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $5='dispatch_started' THEN clock_timestamp() ELSE NULL END) RETURNING ${invocationEvidenceColumns}`,
-      [
+      values: [
         prepared.id,
         run.organization_id,
         run.id,
@@ -197,10 +193,26 @@ export async function insertInvocation(
         JSON.stringify(prepared.dependencyTokens),
         prepared.expiresAt,
       ],
-    )
-  ).rows[0];
+    },
+  ]);
+  const saved = writes[2].rows[0];
+  assert(
+    writes[0].rowCount === 1 && writes[1].rowCount === 1 && saved,
+    409,
+    'inference_owner_changed',
+    'The invocation could not be admitted.',
+  );
   const call = { ...saved, body_ciphertext: prepared.ciphertext };
-  await emit(tx, run.organization_id, run.id, 'inference.prepared', { invocation_id: call.id });
+  await emitBatch(
+    tx,
+    run.organization_id,
+    run.id,
+    [
+      ...(options.admission ? [options.admission] : []),
+      { type: 'inference.prepared', data: { invocation_id: call.id } },
+    ],
+    { currentRun: run },
+  );
   return call;
 }
 
@@ -221,19 +233,39 @@ export type Invocation = {
   timings_ms: Record<string, number>;
 };
 export type InvocationEvidence = Omit<Invocation, 'body_ciphertext'> & { body_available: boolean };
-const invocationEvidenceColumns = `id,run_id,step,context_digest,context_expires_at,dependency_tokens,
+const invocationControlColumns = `id,run_id,step,context_digest,context_expires_at,dependency_tokens,
  dispatch_started_at,responded_at,provider_completed_at,state,provider_request_digest,
- response_ciphertext,timings_ms,body_ciphertext<>'' AS body_available`;
+ timings_ms,(body_ciphertext<>'') AS body_available`;
+const invocationEvidenceColumns = `${invocationControlColumns},response_ciphertext`;
 
+function invocationEvidenceQuery(runId: string) {
+  return {
+    text: `SELECT ${invocationEvidenceColumns} FROM decision_invocations
+       WHERE run_id=$1 AND handled_at IS NULL ORDER BY step DESC LIMIT 1`,
+    values: [runId],
+  };
+}
 /** Response publication needs only body presence, never the encrypted request. */
 export async function invocationEvidence(tx: Tx, runId: string) {
-  return (
-    await tx.query<InvocationEvidence>(
-      `SELECT ${invocationEvidenceColumns} FROM decision_invocations
-       WHERE run_id=$1 AND handled_at IS NULL ORDER BY step DESC LIMIT 1`,
-      [runId],
-    )
-  ).rows[0];
+  return (await tx.query<InvocationEvidence>(invocationEvidenceQuery(runId))).rows[0];
+}
+/** Ordered Run lock and current invocation read share one wire wait. Both
+ * statements use known identity; decisions still consume their actual rows. */
+export async function currentInferenceState<R extends InferenceRunRow>(tx: Tx, admitted: R) {
+  const [runs, calls] = await queryGroup<RunControl | InvocationEvidence>(tx, [
+    currentRunControlQuery(admitted.id),
+    invocationEvidenceQuery(admitted.id),
+  ]);
+  const control = runs.rows[0],
+    call = calls.rows[0];
+  assert(control && 'organization_id' in control, 404, 'not_found', 'Run not found.');
+  assert(
+    !call || 'provider_request_digest' in call,
+    500,
+    'inference_intent_missing',
+    'The invocation identity is unavailable.',
+  );
+  return { run: mergeCurrentRunControl(admitted, control), call };
 }
 
 export async function recordInvocationResponse(
@@ -243,15 +275,19 @@ export async function recordInvocationResponse(
   completedAt: Date | null,
   timings: Record<string, number>,
 ) {
-  return (
-    await tx.query<InvocationEvidence>(
+  const saved = (
+    await tx.query<Omit<InvocationEvidence, 'response_ciphertext'>>(
       `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,
        responded_at=clock_timestamp(),provider_completed_at=$3,timings_ms=$4
-       WHERE id=$1 AND state='dispatch_started' AND body_ciphertext<>''
-       RETURNING ${invocationEvidenceColumns}`,
+       WHERE id=$1 AND state='dispatch_started'
+       RETURNING ${invocationControlColumns}`,
       [invocationId, ciphertext, completedAt, JSON.stringify(timings)],
     )
   ).rows[0];
+  assert(saved, 409, 'inference_owner_changed', 'The invocation is no longer dispatching.');
+  // The caller already owns these exact immutable bytes. Returning them again
+  // from SQL doubles response traffic for large outputs without new evidence.
+  return { ...saved, response_ciphertext: ciphertext };
 }
 export async function invocation(tx: Tx, runId: string) {
   return (
@@ -261,8 +297,32 @@ export async function invocation(tx: Tx, runId: string) {
     )
   ).rows[0];
 }
-export async function finish(org: string, runId: string, receipt: InferenceReceipt, failureCode?: string) {
-  return transaction(org, (tx) => finishInferenceInTransaction(tx, org, runId, receipt, failureCode));
+export async function finish(
+  admitted: ExecutableInferenceRunRow,
+  receipt: InferenceReceipt,
+  failureCode?: string,
+  contextExpiresAt?: Date | null,
+) {
+  return transaction(admitted.organization_id, async (tx) => {
+    const current = await currentInferenceRun(tx, admitted);
+    if (terminal(current.status)) return current;
+    const publishable = await inferencePublicationReceipt(
+      tx,
+      current,
+      admitted.lease_generation,
+      receipt,
+      contextExpiresAt,
+    );
+    return finishInferenceInTransaction(
+      tx,
+      admitted.organization_id,
+      admitted.id,
+      publishable,
+      failureCode,
+      undefined,
+      current,
+    );
+  });
 }
 
 /** The caller may compose model settlement with Run completion in this transaction.
@@ -314,27 +374,40 @@ export async function finishInferenceInTransaction(
       reason_code: status,
     };
   }
-  const updatedRow = (
-    await tx.query<Omit<InferenceRunRow, 'config'>>(
-      `UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING ${inferenceRunStateColumns}`,
-      [
+  const { value: _value, ...receiptMetadata } = receipt;
+  const [finished] = await queryGroup<Omit<InferenceRunRow, 'config'>>(tx, [
+    {
+      text: `UPDATE runs SET status=$2,completed_at=now(),result=$3 WHERE id=$1 RETURNING ${inferenceRunStateColumns}`,
+      values: [
         runId,
         status,
         JSON.stringify({
-          inference: receipt,
+          ...(run.result.content_expired ? run.result : { inference: receiptMetadata }),
+          ...(!run.result.content_expired && receipt.outcome === 'value'
+            ? {
+                inference_output_id: receipt.invocation_id,
+                ...(run.kind === 'bounded_agent' ? { inference_output_path: 'bounded_finish' } : {}),
+              }
+            : {}),
           execution_outcome: status === 'succeeded' ? 'success' : status === 'failed' ? 'failure' : status,
           persistence_status: 'not_required',
           ...(failureCode ? { failure_code: failureCode } : {}),
         }),
       ],
-    )
-  ).rows[0];
-  const updated: InferenceRunRow = { ...updatedRow, config: run.config };
+    },
+    {
+      text: "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
+      values: [runId],
+    },
+  ]);
+  const updatedRow = finished.rows[0];
+  const { kind: _kind, ...currentFields } = updatedRow;
+  const updated = {
+    ...run,
+    ...currentFields,
+    result: run.result.content_expired ? updatedRow.result : { ...updatedRow.result, inference: receipt },
+  };
   await settle(tx, org, runId, BigInt(run.reservation_micro_usd), BigInt(run.cost_micro_usd));
-  await tx.query(
-    "UPDATE dispatch_jobs SET state='done',lease_until=NULL WHERE kind='run' AND resource_id=$1",
-    [runId],
-  );
   await emit(tx, org, runId, `run.${status}`, { status, outcome: receipt.outcome }, undefined, updated);
   return updated;
 }
@@ -348,7 +421,7 @@ export function capability(run: InferenceRunRow) {
   };
 }
 export function checkedReceipt(
-  run: InferenceRunRow,
+  run: ExecutableInferenceRunRow,
   call: Omit<Invocation, 'body_ciphertext'>,
   response: StoredDecisionResponse,
 ): InferenceReceipt {

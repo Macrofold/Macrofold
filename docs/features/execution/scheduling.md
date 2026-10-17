@@ -4,21 +4,21 @@ This document describes the current scheduling policy. The implementation retain
 
 ## Product policy
 
-| Plan | Subscription + metered usage | Included monthly credit | Maximum active jobs | Maximum execution lifecycle | Scheduling weight |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Starter (`payg`) | $0/month | $0 | 20 | 30 minutes | 1 |
-| Pro (`pro`) | $29/month | $10 | 100 | 60 minutes | 2 |
-| Scale (`scale`) | $199/month | $50 | 500 | 120 minutes | 4 |
+| Plan             | Subscription + metered usage | Included monthly credit | Maximum active jobs | Maximum execution lifecycle | Scheduling weight |
+| ---------------- | ---------------------------: | ----------------------: | ------------------: | --------------------------: | ----------------: |
+| Starter (`payg`) |                     $0/month |                      $0 |                  20 |                  30 minutes |                 1 |
+| Pro (`pro`)      |                    $29/month |                     $10 |                 100 |                  60 minutes |                 2 |
+| Scale (`scale`)  |                   $199/month |                     $50 |                 500 |                 120 minutes |                 4 |
 
 The catalog is [plans.ts](../../../packages/core/src/plans.ts). Starter suits individual interactive work, Pro several independent repositories/a small team, and Scale a large power user running dozens of worktrees or batch agents. Plan access and usage pricing are separate: Worker compute uses its accepted offering; model/tool charges use their quoted rates. A subscription is not unlimited execution. See [cost model and pricing rationale](../billing/README.md). Fleet limits default to 200 native Runs and 2,000 lightweight Runs, independently configurable, with an optional total ceiling defaulting to their sum (2,200). A plan entitlement is not an immediate-start guarantee or a throughput measurement. Size each resource pool for measured provider/database capacity; [operator settings](../../operations/scaling.md#resource-capacity-settings) document ownership and units.
 
 A customer means an **organization**, shared by all members, API keys, sessions and workspaces. Creating another credential does not evade its cap. Worktree caps remain one active writer; use independent Worktrees for actual parallel edits. Account policy is owner/admin-configurable downward, up to the paid plan's limits. Null means inherit the plan. Runtime and concurrency are independently configurable. A smaller concurrency cap drains existing jobs naturally; it never cancels them. A queued job above a newly lowered execution cap fails explicitly with `execution_limit_changed`; its requested execution window is not silently truncated. An operator can use the same authorized customer API for account assistance; the read-only operator MCP does not acquire mutation tools.
 
-| Clock | Default / maximum | Begins | Expiry behavior |
-| --- | --- | --- | --- |
-| Queue deadline | 86,400 seconds; request may choose 1–86,400 | Submission transaction | Failed run, `queue_expired`, terminal failure event, reservation released |
-| Execution timeout | 900 seconds, or lower account cap; plan/account maximum enforced | Claim into provisioning | Existing timeout/cancellation/persistence recovery path |
-| Detailed history | Starter 30 days; Pro/Scale 90 days | Existing completion-based retention policy | Detailed content pruned by retention maintenance, independent of queue deadline |
+| Clock             | Default / maximum                                                | Begins                                     | Expiry behavior                                                                 |
+| ----------------- | ---------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Queue deadline    | 86,400 seconds; request may choose 1–86,400                      | Submission transaction                     | Failed run, `queue_expired`, terminal failure event, reservation released       |
+| Execution timeout | 900 seconds, or lower account cap; plan/account maximum enforced | Claim into provisioning                    | Existing timeout/cancellation/persistence recovery path                         |
+| Detailed history  | Starter 30 days; Pro/Scale 90 days                               | Existing completion-based retention policy | Detailed content pruned by retention maintenance, independent of queue deadline |
 
 Queue expiry never deletes the request/status/history. Queued work occupies no execution slot; an explicitly retained Worker baseline can still incur compute cost while that Run waits, but its full maximum-cost budget remains reserved. Those funds are unavailable for other runs for up to the queue deadline, including during an outage. Cancelling a queued job settles it immediately with zero execution cost. Expiry/cancellation processing is transactional and idempotent; duplicate workers cannot release the same funds twice. A maintenance outage can delay settlement until the next successful sweep, so the API can briefly show `deadline_expired` before final failure.
 
@@ -83,6 +83,8 @@ macrofold run cancel RUN_ID
 ```
 
 Run/acceptance payloads expose `wait_seconds`, `waiting_reason`, `queue_expires_at`, `reserved_micro_usd`, and `scheduling_class`. Run status also exposes `execution_deadline`, null until claimed. Wait is submission-to-start; if never started it freezes at completion. Remaining held funds are zero after settlement. Reasons include `earlier_worktree_work`, `account_concurrency`, `global_capacity`, `scheduler_turn`, Worker lifecycle/capacity/funding reasons, and explicit cancellation/expiry/unavailable transitions; OpenAPI owns the complete enum. These are observations of mutable state, not a global queue position or ETA. The legacy advisory `queue_position` is no longer emitted.
+
+Native acceptance initially reports `scheduler_turn`; the next Run status/list read calculates the detailed current reason. Admission does not scan the fleet to construct an advisory answer that may already change before delivery. A fresh Session's model/credential/limit configuration is validated once under its workspace/worktree admission guards and reused for its first Run; later Session messages revalidate their current configuration normally.
 
 `GET /v1/organization/execution-policy` reports plan/effective caps. `PATCH` requires an unrestricted owner/admin with organization-write scope. Supply `concurrency_limit` and/or `max_timeout_seconds`; null resets a value to the plan. Responses include both effective and plan limits. API errors reject larger values rather than upgrading a subscription. The Billing API supplies all three plan cards and the effective policy. Public API documentation and both generated SDKs include these operations.
 

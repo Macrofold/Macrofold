@@ -414,7 +414,11 @@ export async function admitConnections(
 }
 /** Re-evaluate current policy against the accepted maximum, including account binding.
  * Callers own run/connection lock order at the final dispatch boundary. */
-export async function runtimeConnectionTools(tx: Tx, run: NativeRunRow, c: Connection): Promise<string[]> {
+export async function runtimeConnectionTools(
+  tx: Tx,
+  run: RuntimeConnectionRun,
+  c: Connection,
+): Promise<string[]> {
   const frozen = run.config.connection_access?.find((snapshot) => snapshot.connection_id === c.id);
   const selection = run.config.connection_grants?.find((grant) => grant.connection_id === c.id);
   if (
@@ -453,3 +457,21 @@ export async function runtimeConnectionTools(tx: Tx, run: NativeRunRow, c: Conne
       (match.scopes.length || (exception && frozen.override!.tools.includes(tool))),
   );
 }
+
+/** Tool authorization needs accepted access/actor terms, never model input. */
+export type RuntimeConnectionRun = Pick<NativeRunRow, 'organization_id' | 'workspace_id'> & {
+  config: Pick<
+    NativeRunRow['config'],
+    | 'connection_access'
+    | 'connection_grants'
+    | 'permission_layers'
+    | 'principal_id'
+    | 'principal_kind'
+    | 'user_id'
+    | 'workspace_ids'
+    | 'oauth_token_id'
+    | 'oauth_audience'
+    | 'worker_id'
+    | 'agent_id'
+  >;
+};

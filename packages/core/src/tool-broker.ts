@@ -1,12 +1,12 @@
 import { enabledConnector } from './connector-enablement';
-import { runtimeConnectionTools } from './connection-access-resolution';
+import { runtimeConnectionTools, type RuntimeConnectionRun } from './connection-access-resolution';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { validateToolArguments } from './tool-arguments';
-import { transaction } from '../../db';
+import { transaction, type Tx } from '../../db';
 import { verifyRuntime, type RuntimeCapability } from './runtime-auth';
-import { getNativeRun as getRun } from './runs';
+import { getNativeRun, currentRunControl, runControlColumns, type NativeRunRow } from './runs';
 import { realExecutionEnabled } from './config';
 import { assert, errorBody } from './errors';
 import { id, seal, unseal, sha256, canonical } from './crypto';
@@ -22,12 +22,50 @@ import { approvedStdio } from './stdio-catalog';
 import type { MachineTools, MachineBinding } from './ports';
 import { searchWeb, searchKey } from './search';
 type Tool = components['schemas']['Tool'];
+type ToolRunConfig = RuntimeConnectionRun['config'] &
+  Pick<NativeRunRow['config'], 'limits' | 'compute_rate_micro_usd_per_minute'>;
+type ToolRun = Omit<NativeRunRow, 'config'> & { config: ToolRunConfig };
+const toolConfigKeys = [
+  'connection_access',
+  'connection_grants',
+  'permission_layers',
+  'principal_id',
+  'principal_kind',
+  'user_id',
+  'workspace_ids',
+  'oauth_token_id',
+  'oauth_audience',
+  'worker_id',
+  'agent_id',
+  'limits',
+  'compute_rate_micro_usd_per_minute',
+] as const satisfies readonly (keyof ToolRunConfig)[];
+/** Native prompts/attachments are executable payload, not tool authority. Keep
+ * this projection explicit so adding a large config field cannot slow each call. */
+async function getToolRun(tx: Tx, runId: string): Promise<ToolRun> {
+  const row = (
+    await tx.query<ToolRun>(
+      `SELECT ${runControlColumns},jsonb_build_object(${toolConfigKeys
+        .map((key) => `'${key}',config->'${key}'`)
+        .join(',')}) AS config FROM runs WHERE id=$1 AND kind='native_agent'`,
+      [runId],
+    )
+  ).rows[0];
+  assert(row, 404, 'not_found', 'Run not found.');
+  return row;
+}
 export const exposedToolName = (connectionId: string, name: string) =>
   `c_${connectionId.replaceAll('-', '').slice(0, 16)}_${sha256(name).slice(0, 16)}`;
-async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: string) {
+async function authorize(
+  cap: RuntimeCapability,
+  connectionId?: string,
+  tool?: string,
+  exposedPrefix?: string,
+  preparedRun?: ToolRun,
+) {
   return transaction(cap.organization, async (tx) => {
-    const run = await getRun(tx, cap.run);
-    await requireRunActor(tx, run);
+    const run = preparedRun ?? (await getToolRun(tx, cap.run));
+    if (!preparedRun) await requireRunActor(tx, run);
     assert(
       run.lease_generation === cap.lease &&
         ['running', 'waiting_for_input'].includes(run.status) &&
@@ -40,12 +78,13 @@ async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: s
     const connections: (resources.Document<'connections'> & { run_tools: string[] })[] = [];
     for (const grant of run.config.connection_grants || []) {
       if (connectionId && connectionId !== grant.connection_id) continue;
+      if (exposedPrefix && grant.connection_id.replaceAll('-', '').slice(0, 16) !== exposedPrefix) continue;
       const connection = await resources.get(tx, 'connections', grant.connection_id);
       const allowed = await runtimeConnectionTools(tx, run, connection);
       if (!allowed.length || (tool && !allowed.includes(tool))) continue;
       connections.push({ ...connection, run_tools: allowed });
     }
-    if (connectionId)
+    if (connectionId || exposedPrefix)
       assert(
         connections.length === 1,
         403,
@@ -55,8 +94,11 @@ async function authorize(cap: RuntimeCapability, connectionId?: string, tool?: s
     return { run, connections };
   });
 }
-export async function runtimeTools(cap: RuntimeCapability) {
-  const { connections } = await authorize(cap);
+export function runtimeTools(cap: RuntimeCapability) {
+  return runtimeToolCatalog(cap);
+}
+async function runtimeToolCatalog(cap: RuntimeCapability, preparedRun?: ToolRun) {
+  const { connections } = await authorize(cap, undefined, undefined, undefined, preparedRun);
   const tools: { connection: resources.Document<'connections'> & { run_tools: string[] }; tool: Tool }[] = [];
   for (const connection of connections) {
     const catalog = await connectionTools(connection);
@@ -64,6 +106,19 @@ export async function runtimeTools(cap: RuntimeCapability) {
       if ((connection.run_tools as string[]).includes(tool.name)) tools.push({ connection, tool });
   }
   return tools;
+}
+/** The exposed connection prefix narrows discovery to one authorized account.
+ * The hash is a selector only; current grants still authorize the actual tool. */
+async function selectedRuntimeTool(cap: RuntimeCapability, name: string, preparedRun: ToolRun) {
+  const prefix = /^c_([a-f0-9]{16})_[a-f0-9]{16}$/.exec(name)?.[1];
+  assert(prefix, 403, 'tool_not_granted', 'This tool is not granted to the run.');
+  const prepared = await authorize(cap, undefined, undefined, prefix, preparedRun);
+  const connection = prepared.connections[0];
+  const tool = (await connectionTools(connection)).find(
+    (tool) => connection.run_tools.includes(tool.name) && exposedToolName(connection.id, tool.name) === name,
+  );
+  assert(tool, 403, 'tool_not_granted', 'This tool is not granted to the run.');
+  return { ...prepared, tool };
 }
 export async function executeGrantedTool(
   cap: RuntimeCapability,
@@ -73,6 +128,17 @@ export async function executeGrantedTool(
   callKey: string,
   machineTools?: MachineTools,
 ) {
+  return executePreparedTool(cap, connectionId, tool, args, callKey, machineTools);
+}
+async function executePreparedTool(
+  cap: RuntimeCapability,
+  connectionId: string,
+  tool: Tool,
+  args: Record<string, unknown>,
+  callKey: string,
+  machineTools?: MachineTools,
+  prepared?: Awaited<ReturnType<typeof authorize>>,
+) {
   assert(
     realExecutionEnabled(),
     503,
@@ -80,8 +146,9 @@ export async function executeGrantedTool(
     'External connector actions are disabled in local simulation.',
   );
   validateToolArguments(tool.input_schema, args);
-  const { run, connections } = await authorize(cap, connectionId, tool.name);
+  const { run, connections } = prepared ?? (await authorize(cap, connectionId, tool.name));
   let connection: resources.Document<'connections'> = connections[0];
+  const preparedRevision = connection.revision;
   const rate =
     connection.kind === 'composio'
       ? process.env.COMPOSIO_MICRO_USD_PER_CALL
@@ -109,8 +176,7 @@ export async function executeGrantedTool(
     );
   }
   const admission = await transaction(cap.organization, async (tx) => {
-    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [cap.run]);
-    const current = await getRun(tx, cap.run);
+    const current = await currentRunControl(tx, run);
     await requireRunActor(tx, current);
     await tx.query('SELECT id FROM connections WHERE id=$1 FOR SHARE', [connectionId]);
     connection = await resources.get(tx, 'connections', connectionId);
@@ -147,9 +213,13 @@ export async function executeGrantedTool(
       );
       return { prior: unseal<Record<string, unknown>>(prior.result_ciphertext), id: prior.id };
     }
-    const budget = (
-      await tx.query('SELECT budget_used_micro_usd,model_reserved_micro_usd FROM runs WHERE id=$1', [cap.run])
-    ).rows[0];
+    assert(
+      connection.revision === preparedRevision,
+      409,
+      'connection_changed',
+      'This connection changed during tool preparation. Reload its tools before retrying.',
+    );
+    const budget = current;
     assert(
       BigInt(budget.budget_used_micro_usd) +
         BigInt(budget.model_reserved_micro_usd) +
@@ -167,7 +237,8 @@ export async function executeGrantedTool(
     if (additional > 0n) {
       await reserve(tx, cap.organization, additional);
       await tx.query('UPDATE runs SET reservation_micro_usd=reservation_micro_usd+$2::bigint WHERE id=$1', [
-        cap.run, additional.toString(),
+        cap.run,
+        additional.toString(),
       ]);
     }
     // Tool action costs are fixed retail fees, charged at dispatch, including ambiguous outcomes.
@@ -200,7 +271,13 @@ export async function executeGrantedTool(
       const entry = approvedStdio(connection.package, connection.package_version);
       const binding = (run.execution_binding as { machine?: MachineBinding } | null)?.machine;
       assert(binding, 409, 'execution_unavailable', 'The running sandbox is unavailable.');
-      const executor = machineTools || (await import('../../providers/src/machines')).machines(run);
+      // Machine provider construction needs its execution configuration. Remote
+      // tools never download the native prompt merely to authorize a call.
+      const executor =
+        machineTools ||
+        (await import('../../providers/src/machines')).machines(
+          await transaction(cap.organization, (tx) => getNativeRun(tx, cap.run)),
+        );
       result = await executor.invokeStdio(binding, {
         id: admission.id,
         runId: run.id,
@@ -270,7 +347,24 @@ export async function handleRuntimeMcp(request: Request, runId: string) {
   try {
     assert(request.method === 'POST', 405, 'method_not_allowed', 'This stateless MCP accepts POST requests.');
     const cap = verifyRuntime(request, runId);
-    await authorize(cap);
+    // Authenticate at the transport boundary, preserving HTTP denial semantics
+    // for expired/revoked actors. Catalog projection reuses this preparation;
+    // effect admission independently rechecks current authority after discovery.
+    const preparedRun = await transaction(cap.organization, async (tx) => {
+      const run = await getToolRun(tx, cap.run);
+      await requireRunActor(tx, run);
+      assert(
+        run.lease_generation === cap.lease &&
+          !run.cancel_requested &&
+          ['running', 'waiting_for_input'].includes(run.status) &&
+          run.deadline &&
+          run.deadline.getTime() > Date.now(),
+        403,
+        'run_unavailable',
+        'This run can no longer invoke tools.',
+      );
+      return run;
+    });
     const bytes = await boundedBody(request.body, 1024 * 1024);
     let body: Record<string, unknown> = {};
     try {
@@ -293,7 +387,7 @@ export async function handleRuntimeMcp(request: Request, runId: string) {
       );
     const server = new Server({ name: 'platform-tools', version: '0.1.0' }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: (await runtimeTools(cap)).map(({ connection, tool }) => ({
+      tools: (await runtimeToolCatalog(cap, preparedRun)).map(({ connection, tool }) => ({
         name: exposedToolName(connection.id, tool.name),
         description: `${connection.name}: ${tool.name}. ${tool.description || ''}`,
         inputSchema: tool.input_schema as { type: 'object'; properties?: Record<string, unknown> },
@@ -302,17 +396,15 @@ export async function handleRuntimeMcp(request: Request, runId: string) {
     }));
     server.setRequestHandler(CallToolRequestSchema, async (call) => {
       try {
-        const available = await runtimeTools(cap);
-        const selected = available.find(
-          (t) => exposedToolName(t.connection.id, t.tool.name) === call.params.name,
-        );
-        assert(selected, 403, 'tool_not_granted', 'This tool is not granted to the run.');
-        const result = await executeGrantedTool(
+        const selected = await selectedRuntimeTool(cap, call.params.name, preparedRun);
+        const result = await executePreparedTool(
           cap,
-          selected.connection.id,
+          selected.connections[0].id,
           selected.tool,
           call.params.arguments || {},
           String(body.id),
+          undefined,
+          selected,
         );
         return result as { content: { type: 'text'; text: string }[] };
       } catch (error) {

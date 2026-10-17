@@ -15,7 +15,7 @@ export interface MachineTools {
   invokeStdio(binding: MachineBinding, input: StdioInvocation): Promise<Record<string, unknown>>;
 }
 export type RuntimeProbe = {
-  events: { sequence: number; type: string; data: Record<string, unknown> }[];
+  events: { sequence: number; type: string; data: Record<string, unknown>; emitted_at?: number }[];
   nextOffset: number;
   status: { state: string } | null;
   result:
@@ -28,12 +28,17 @@ export interface MachineProvider {
   /** Close a named pre-launch allocation after an uncertain provisioning acknowledgement. */
   cleanupUnbound?(): Promise<void>;
   provision(name: string, timeoutSeconds: number): Promise<MachineBinding>;
-  prepare(binding: MachineBinding, configuration: NativeConfiguration): Promise<void | { reused: boolean; restoreNamespaces?: ('workspace' | 'home')[] }>;
+  prepare(
+    binding: MachineBinding,
+    configuration: NativeConfiguration,
+  ): Promise<void | { reused: boolean; restoreNamespaces?: ('workspace' | 'home')[] }>;
   stage(binding: MachineBinding, files: { path: string; content: Buffer }[]): Promise<void>;
   restore(binding: MachineBinding): Promise<string>;
   restored(binding: MachineBinding): Promise<'pending' | 'success' | 'failure'>;
   launch(binding: MachineBinding): Promise<string>;
   probe(binding: MachineBinding, offset: number): Promise<RuntimeProbe>;
+  /** Bounded active-output wait. Unsupported adapters retain ordinary probes. */
+  waitForEvents?(binding: MachineBinding, offset: number): Promise<RuntimeProbe>;
   answer(binding: MachineBinding, id: string, answer: Record<string, unknown>): Promise<void>;
   cancel(binding: MachineBinding): Promise<void>;
   snapshotPage(

@@ -19,6 +19,7 @@ import { createWorktree } from '../../packages/core/src/files';
 import * as resources from '../../packages/core/src/resources';
 import * as network from '../../packages/providers/src/network';
 import * as connections from '../../packages/core/src/connections';
+import { connectionToolCatalog } from '../../packages/core/src/connection-tool-catalog';
 import { searchTool } from '../../packages/contracts/search';
 import type { SearchProviderId } from '../../packages/contracts/search';
 import { searchFixtures } from '../fixtures/search';
@@ -32,8 +33,9 @@ beforeAll(async () => {
   await fixtureConnector();
   account = await fixtureAccount('Broker fixtures');
   // A simulated admission holds no credit; priced platform tools still require funding.
-  await transaction(account.p.organizationId, tx =>
-    credit(tx, account.p.organizationId, 10000000n, `broker-fixture:${account.p.organizationId}`));
+  await transaction(account.p.organizationId, (tx) =>
+    credit(tx, account.p.organizationId, 10000000n, `broker-fixture:${account.p.organizationId}`),
+  );
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -343,18 +345,15 @@ it('discovers and calls a 2020-12 MCP tool while rejecting invalid arguments and
     }
   });
   const client = new Client({ name: 'schema-client', version: '1' });
-  await client.connect(new StreamableHTTPClientTransport(
-    new URL(config.origin + '/runtime/runs/' + a.runId + '/mcp'),
-    {
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(config.origin + '/runtime/runs/' + a.runId + '/mcp'), {
       requestInit: { headers: { Authorization: 'Bearer ' + runtimeToken(a.cap) } },
       fetch: async (input, init) => handleRuntimeMcp(new Request(input, init), a.runId),
-    },
-  ));
+    }),
+  );
   try {
     const name = exposedToolName(a.connection.id, a.tool.name);
-    expect((await client.listTools()).tools).toEqual([
-      expect.objectContaining({ name, inputSchema }),
-    ]);
+    expect((await client.listTools()).tools).toEqual([expect.objectContaining({ name, inputSchema })]);
     for (const args of [{ contextHandle: 'short' }, { unexpected: true }]) {
       expect(await client.callTool({ name, arguments: args })).toMatchObject({
         isError: true,
@@ -362,17 +361,20 @@ it('discovers and calls a 2020-12 MCP tool while rejecting invalid arguments and
       });
     }
     advertisedSchema = { ...inputSchema, $schema: 'https://fixture.invalid/unsupported' };
+    connectionToolCatalog.invalidate();
     expect(await client.callTool({ name, arguments: {} })).toMatchObject({
       isError: true,
       content: [{ type: 'text', text: expect.stringContaining('"invalid_tool_schema"') }],
     });
     expect(invoke).not.toHaveBeenCalled();
     const saved = await transaction(a.p.organizationId, async (tx) => ({
-      run: (await tx.query('SELECT cost_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [a.runId])).rows[0],
+      run: (await tx.query('SELECT cost_micro_usd,budget_used_micro_usd FROM runs WHERE id=$1', [a.runId]))
+        .rows[0],
       invocations: (await tx.query('SELECT id FROM tool_invocations WHERE run_id=$1', [a.runId])).rows,
     }));
     expect(saved).toEqual({ run: { cost_micro_usd: '0', budget_used_micro_usd: '0' }, invocations: [] });
     advertisedSchema = inputSchema;
+    connectionToolCatalog.invalidate();
     const args = { contextHandle: 'a'.repeat(32) };
     expect(await client.callTool({ name, arguments: args })).toMatchObject({
       content: [{ type: 'text', text: JSON.stringify(args) }],
@@ -409,6 +411,47 @@ it('ambiguous external actions are never automatically replayed and revoked gran
     executeGrantedTool(a.cap, a.connection.id, a.tool, { message: 'Again' }, 'action-2'),
   ).rejects.toMatchObject({ code: 'tool_not_granted' });
   expect(effects).toBe(1);
+});
+it('calls the selected connection without discovering unrelated granted accounts', async () => {
+  const a = await prepared('mcp_remote');
+  await transaction(a.p.organizationId, async (tx) => {
+    const other = await resources.create(tx, 'connections', a.p.organizationId, {
+      ...a.connection,
+      name: 'Unrelated unavailable catalog',
+      url: 'https://unrelated.invalid/mcp',
+    });
+    await tx.query(
+      "UPDATE runs SET config=config||jsonb_build_object('connection_grants',config->'connection_grants'||$2::jsonb) WHERE id=$1",
+      [a.runId, JSON.stringify([{ connection_id: other.id, tools: ['unrelated'] }])],
+    );
+  });
+  const discover = vi.spyOn(connections, 'connectionTools').mockImplementation(async (connection) => {
+    if (connection.id !== a.connection.id) throw new Error('Unrelated discovery must not run');
+    return [{ ...a.tool, granted: true }];
+  });
+  vi.spyOn(connections, 'withMcp').mockImplementation(async (_connection, operation) => {
+    const client = new Client({ name: 'effect-fixture', version: '1' });
+    vi.spyOn(client, 'callTool').mockResolvedValue({ content: [{ type: 'text', text: 'selected' }] });
+    return operation(client);
+  });
+  const client = new Client({ name: 'selected-tool-fixture', version: '1' });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(config.origin + '/runtime/runs/' + a.runId + '/mcp'), {
+      requestInit: { headers: { Authorization: 'Bearer ' + runtimeToken(a.cap) } },
+      fetch: async (input, init) => handleRuntimeMcp(new Request(input, init), a.runId),
+    }),
+  );
+  try {
+    expect(
+      await client.callTool({
+        name: exposedToolName(a.connection.id, a.tool.name),
+        arguments: { message: 'Once' },
+      }),
+    ).toMatchObject({ content: [{ type: 'text', text: 'selected' }] });
+    expect(discover).toHaveBeenCalledOnce();
+  } finally {
+    await client.close();
+  }
 });
 it('official MCP client discovers only granted tools, preserves BYOK and rejects a revoked runtime actor', async () => {
   const a = await prepared('search', true);

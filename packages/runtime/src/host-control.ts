@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { hostControlRequest, type HostControlRequest } from '../../contracts/host-control';
 import { runtimeConfiguration, supervise, discardHarness, type LiveHarness } from './supervisor';
 import { agentProcesses, agentMemoryMiB } from './agent-processes';
-import { atomicJSON, probeRuntime } from './manifest';
+import { atomicJSON, probeRuntime, waitForRuntimeEvents } from './manifest';
 import { hostRunPaths, KeyedCommands, type HostRunContext } from './host-paths';
 import { HostMeter, type HostResourceMeters } from './host-meter';
 import type { NativeConfiguration } from './types';
@@ -90,6 +90,22 @@ export class HostController {
         resource_meter: this.metered,
       },
       meters,
+      host_id: this.configuration?.host_id,
+      generation: this.configuration?.generation,
+      // This is a bounded placement hint, never authorization. allocate checks
+      // live process health, file revisions and compatibility again before reuse.
+      warm_harnesses: [...this.handles.values()]
+        .filter((handle) => !handle.active && handle.session && handle.runtime.child?.exitCode === null)
+        .slice(0, 128)
+        .map((handle) => ({
+          session_id: handle.session,
+          session_revision: handle.sessionRevision,
+          compatibility_key: handle.compatibility,
+          permission_view: handle.permission,
+          worktree_id: handle.worktree,
+          worktree_revision: handle.checkpoint ?? 'empty',
+          reserved_memory_mib: handle.memoryMiB,
+        })),
     };
   }
   private async evict(handle: Handle, releasingAssignment?: string) {
@@ -444,7 +460,10 @@ export class HostController {
     if (value.released && !['probe', 'snapshot', 'chunk', 'release'].includes(request.action))
       throw new Error('assignment_released');
     // Probes/cancellation never wait behind restores or capture commands for another Run.
-    if (request.action === 'probe') return probeRuntime(value.directory, request.offset);
+    if (request.action === 'probe')
+      return request.wait_ms
+        ? waitForRuntimeEvents(value.directory, request.offset, request.wait_ms)
+        : probeRuntime(value.directory, request.offset);
     if (request.action === 'cancel') {
       await mkdir(value.directory, { recursive: true, mode: 0o700 });
       await writeFile(`${value.directory}/cancel`, 'cancel', { mode: 0o600 });

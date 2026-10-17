@@ -3,6 +3,7 @@ const fixture = vi.hoisted(() => ({ listMcp: vi.fn(), listComposio: vi.fn(), clo
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class {
     connect = vi.fn();
+    setNotificationHandler = vi.fn();
     close = fixture.close;
     listTools = fixture.listMcp;
   },
@@ -30,6 +31,10 @@ vi.mock('../../packages/core/src/mcp-oauth', () => ({
   },
 }));
 import { connectionTools } from '../../packages/core/src/connections';
+import {
+  connectionToolCatalog,
+  ConnectionToolCatalog,
+} from '../../packages/core/src/connection-tool-catalog';
 const connection = {
   id: 'fixture',
   organization_id: 'fixture',
@@ -43,8 +48,55 @@ const connection = {
   access_tools: ['second'],
 };
 afterEach(() => {
+  connectionToolCatalog.invalidate();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
+});
+
+it('reuses raw schema objects while projecting current grants and invalidating credential revisions', async () => {
+  fixture.listMcp.mockResolvedValue({ tools: [{ name: 'second', inputSchema: { type: 'object' } }] });
+  const selected = { ...connection, kind: 'mcp_remote' as const, url: 'https://example.test/mcp' };
+  const first = await connectionTools(selected);
+  const revoked = await connectionTools({ ...selected, access_tools: [] });
+  expect(revoked[0].granted).toBe(false);
+  expect(revoked[0].input_schema).toBe(first[0].input_schema);
+  expect(fixture.listMcp).toHaveBeenCalledOnce();
+  await connectionTools({ ...selected, revision: '2' });
+  expect(fixture.listMcp).toHaveBeenCalledTimes(2);
+  await connectionTools(selected, { refresh: true });
+  expect(fixture.listMcp).toHaveBeenCalledTimes(3);
+});
+
+it('single-flights cold discovery and bounds entries, expiry and failed loads', async () => {
+  let now = 0;
+  const cache = new ConnectionToolCatalog({ entries: 1, bytes: 1024, pending: 1, ttlMs: 10 }, () => now);
+  let complete!: (tools: { name: string; input_schema: { type: string } }[]) => void;
+  const load = vi.fn(
+    () =>
+      new Promise<{ name: string; input_schema: { type: string } }[]>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const a = cache.read('first', load);
+  const b = cache.read('first', load);
+  await expect(cache.read('second', load)).rejects.toMatchObject({ code: 'tool_catalog_busy' });
+  await Promise.resolve();
+  complete([{ name: 'fixture', input_schema: { type: 'object' } }]);
+  expect(await b).toBe(await a);
+  expect(load).toHaveBeenCalledOnce();
+  const discover = vi.fn(async () => [{ name: 'fresh', input_schema: { type: 'object' } }]);
+  await cache.read('second', discover);
+  await cache.read('first', discover);
+  expect(discover).toHaveBeenCalledTimes(2);
+  now = 11;
+  await cache.read('first', discover);
+  expect(discover).toHaveBeenCalledTimes(3);
+  const failed = vi.fn(async () => {
+    throw new Error('discovery failed');
+  });
+  await expect(cache.read('error', failed)).rejects.toThrow('discovery failed');
+  await expect(cache.read('error', failed)).rejects.toThrow('discovery failed');
+  expect(failed).toHaveBeenCalledTimes(2);
 });
 it('discovers and preserves approved tools on later MCP pages', async () => {
   fixture.listMcp

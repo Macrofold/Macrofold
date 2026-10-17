@@ -91,19 +91,22 @@ export async function supervise(configurationPath: string, workerPath: string, r
   const event = async (type: string, data: Record<string, unknown>) => {
     if (truncated) return;
     let safe = data;
-    let line = JSON.stringify({ sequence: ++sequence, type, data: safe });
+    // Private transport timing only; public ingestion copies type/data and its
+    // producer identity, never this supervisor metadata into the public payload.
+    const source = { sequence: ++sequence, emitted_at: Date.now() };
+    let line = JSON.stringify({ ...source, type, data: safe });
     if (Buffer.byteLength(line) > 64 * 1024) {
       safe = {
         truncated: true,
         message: 'Tool payload exceeded 64 KiB; inspect persisted files for full output.',
       };
-      line = JSON.stringify({ sequence, type, data: safe });
+      line = JSON.stringify({ ...source, type, data: safe });
     }
     written += Buffer.byteLength(line);
     if (written > 64 * 1024 * 1024) {
       truncated = true;
       line = JSON.stringify({
-        sequence,
+        ...source,
         type: 'runtime.trace_truncated',
         data: { limit_bytes: 64 * 1024 * 1024 },
       });

@@ -152,10 +152,7 @@ export async function dispatchTriggerDelivery(
           },
           t.kind === 'schedule' ? 'scheduled' : t.kind,
           false,
-        );
-        await tx.query(
-          "UPDATE runs SET config=config||jsonb_build_object('trigger_id',$2::text,'trigger_delivery_id',$3::text) WHERE id=$1",
-          [accepted.run_id, t.id, d.id],
+          { trigger_id: t.id, trigger_delivery_id: d.id },
         );
         await tx.query(
           "UPDATE trigger_deliveries SET status='accepted',run_id=$2,error_code=NULL WHERE id=$1",
@@ -251,17 +248,25 @@ export async function dispatchTriggerDelivery(
   });
 }
 
-export async function dispatchTriggers(provider = new SlackClient(), now = new Date()) {
+async function dispatchTriggerJobs(mode: 'admission' | 'reply', provider: SlackClient, now: Date) {
   const jobs = (
     await pool.query(
-      `SELECT organization_id,resource_id,kind FROM dispatch_jobs
-    WHERE kind IN ('trigger','trigger_schedule') AND state IN ('pending','running') AND available_at<=$1 AND (lease_until IS NULL OR lease_until<=$1)
-    ORDER BY available_at,id LIMIT 100`,
+      `SELECT j.organization_id,j.resource_id,j.kind FROM dispatch_jobs j
+       LEFT JOIN reporting.trigger_dispatch d ON j.kind='trigger' AND d.id=j.resource_id
+       WHERE j.kind IN ('trigger','trigger_schedule') AND j.state IN ('pending','running')
+         AND j.available_at<=$1 AND (j.lease_until IS NULL OR j.lease_until<=$1)
+         AND ${
+           mode === 'admission'
+             ? "(j.kind='trigger_schedule' OR NOT coalesce(d.reply_phase,false))"
+             : "(j.kind='trigger' AND d.reply_phase)"
+         }
+       ORDER BY j.available_at,j.id LIMIT 100`,
       [now],
     )
   ).rows;
   let failed = 0;
-  // Bound the maintenance invocation even when Slack is slow. Remaining work stays durable in SQL.
+  // Admission and delivery have different resource pools and maintenance
+  // lifetimes. Slow Slack endpoints cannot occupy schedule/admission slots.
   const deadline = Date.now() + 20000;
   let processed = 0;
   await mapConcurrent(jobs, 4, async (job) => {
@@ -276,5 +281,23 @@ export async function dispatchTriggers(provider = new SlackClient(), now = new D
     }
     processed++;
   });
-  return { triggers_processed: processed, triggers_failed: failed };
+  return { [`trigger_${mode}_processed`]: processed, [`trigger_${mode}_failed`]: failed };
+}
+
+export function dispatchTriggerAdmissions(now = new Date()) {
+  return dispatchTriggerJobs('admission', new SlackClient(), now);
+}
+export function dispatchTriggerReplies(provider = new SlackClient(), now = new Date()) {
+  return dispatchTriggerJobs('reply', provider, now);
+}
+
+/** One-shot maintenance/acceptance convenience. Serving composition registers
+ * the two owners separately so either can make progress while its sibling waits. */
+export async function dispatchTriggers(provider = new SlackClient(), now = new Date()) {
+  const admission = await dispatchTriggerJobs('admission', provider, now);
+  const replies = await dispatchTriggerJobs('reply', provider, now);
+  return {
+    triggers_processed: admission.trigger_admission_processed + replies.trigger_reply_processed,
+    triggers_failed: admission.trigger_admission_failed + replies.trigger_reply_failed,
+  };
 }

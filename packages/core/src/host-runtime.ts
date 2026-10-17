@@ -8,7 +8,7 @@ import { actorAuthorized } from './actor-authorization';
 import { getNativeRun, type NativeRunRow } from './runs';
 
 const probeSchema = z.object({
-  events: z.array(z.object({ sequence: z.number(), type: z.string(), data: z.record(z.string(),z.unknown()) })),
+  events: z.array(z.object({ sequence: z.number(), type: z.string(), data: z.record(z.string(),z.unknown()), emitted_at: z.number().int().nonnegative().optional() })),
   nextOffset: z.number(), status: z.object({ state: z.string() }).nullable(),
   result: z.object({ output: z.string(), outcome: z.enum(['success','failure','cancelled','timed_out']),
     resumeId: z.string().optional(), failureCode: z.string().optional(), persistence: z.enum(['captured','failed']),
@@ -43,6 +43,15 @@ export abstract class HostRuntime implements MachineProvider, MachineTools {
   }
   async probe(binding:MachineBinding,offset:number) {
     return probeSchema.parse(await this.call(binding,{action:'probe',run_id:this.run.id,assignment_id:binding.sessionId,offset},true));
+  }
+  async waitForEvents(binding: MachineBinding, offset: number) {
+    return probeSchema.parse(
+      await this.call(
+        binding,
+        { action: 'probe', run_id: this.run.id, assignment_id: binding.sessionId, offset, wait_ms: 1000 },
+        true,
+      ),
+    );
   }
   async snapshotPage(binding:MachineBinding,offset:number) {
     return snapshotSchema.parse(await this.call(binding,{action:'snapshot',run_id:this.run.id,assignment_id:binding.sessionId,offset},true));

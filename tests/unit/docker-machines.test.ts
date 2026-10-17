@@ -28,6 +28,7 @@ function fixture() {
         Id: string;
         State: { Running: boolean; Status: string; StartedAt: string };
         Config: { Labels: Record<string, string> };
+        NetworkSettings: { Ports: Record<string, { HostIp: string; HostPort: string }[]> };
       }
     | undefined;
   let loseCreate = false;
@@ -43,6 +44,11 @@ function fixture() {
         Id: 'a'.repeat(64),
         State: { Running: false, Status: 'created', StartedAt: '' },
         Config: { Labels: Object.fromEntries(labels) },
+        NetworkSettings: {
+          Ports: args.includes('--publish=127.0.0.1::10000')
+            ? { '10000/tcp': [{ HostIp: '127.0.0.1', HostPort: '49152' }] }
+            : {},
+        },
       };
       if (loseCreate) throw new Error('lost create response');
     }
@@ -57,10 +63,12 @@ function fixture() {
     if (args[0] === 'rm') container = undefined;
     return Buffer.from('{}');
   });
-  const provider = new DockerMachines(command);
+  const request = vi.fn<typeof fetch>(async () => Response.json({ value: { ready: true } }));
+  const provider = new DockerMachines(command, request);
   return {
     provider,
     command,
+    request,
     inputs,
     name: 'run-11111111-1111-4111-8111-111111111111',
     current: () => container!,
@@ -71,6 +79,101 @@ function fixture() {
   };
 }
 describe('local Docker execution boundary', () => {
+  it('publishes only to loopback and authenticates Host HTTP without per-request Docker subprocesses', async () => {
+    const f = fixture();
+    const binding = {
+      ...(await f.provider.provisionHost(f.name, 120, { memory_mib: 4096, cpu_millis: 2000 })),
+      controlBootId: 'fixture-boot',
+    };
+    expect(f.command.mock.calls.find(([args]) => args[0] === 'create')?.[0]).toContain(
+      '--publish=127.0.0.1::10000',
+    );
+    f.command.mockClear();
+    const request = { action: 'health' as const };
+    const secret = 'synthetic-private-host-secret-32-characters';
+    expect(await f.provider.hostControl(binding, secret, request)).toEqual({ ready: true });
+    expect(binding.url).toBe('http://127.0.0.1:49152');
+    expect(f.command).not.toHaveBeenCalled();
+    expect(f.request.mock.calls[0]).toEqual([
+      `${binding.url}/control`,
+      expect.objectContaining({
+        method: 'POST',
+        redirect: 'error',
+        headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ boot_id: 'fixture-boot', request }),
+      }),
+    ]);
+    expect(JSON.stringify(f.command.mock.calls)).not.toContain(secret);
+    f.request.mockClear();
+    await expect(
+      f.provider.hostControl(binding, secret, {
+        action: 'stage',
+        run_id: f.name.slice(4),
+        assignment_id: f.name.slice(4),
+        files: [{ path: 'chunks/fixture', content: 'x'.repeat(8 * 1024 * 1024) }],
+      }),
+    ).rejects.toMatchObject({ code: 'stage_too_large' });
+    expect(f.command).not.toHaveBeenCalled();
+    await expect(
+      f.provider.hostControl({ ...binding, sessionId: 'unsafe-id' }, secret, request),
+    ).rejects.toMatchObject({ code: 'invalid_execution' });
+    await expect(f.provider.hostControl(binding, '', request)).rejects.toMatchObject({
+      code: 'invalid_control_secret',
+    });
+    expect(f.command).not.toHaveBeenCalled();
+    expect(f.request).not.toHaveBeenCalled();
+    f.request.mockRejectedValueOnce(new Error('Original controller unavailable'));
+    await expect(f.provider.hostControl(binding, secret, request)).rejects.toThrow(
+      'Original controller unavailable',
+    );
+    expect(f.command).not.toHaveBeenCalled();
+  });
+  it.each([
+    undefined,
+    'http://localhost:49152',
+    'http://0.0.0.0:49152',
+    'https://127.0.0.1:49152',
+    'http://127.0.0.2:49152',
+    'http://2130706433:49152',
+    'http://user:secret@127.0.0.1:49152',
+    'http://127.0.0.1:49152/path',
+    'http://127.0.0.1:49152?secret',
+    'http://127.0.0.1:49152#secret',
+    'http://127.0.0.1:0',
+    'http://127.0.0.1:65536',
+  ])('rejects an invalid Host origin %s before credentials leave the process', async (url) => {
+    const f = fixture();
+    await expect(
+      f.provider.hostControl(
+        { name: f.name, sessionId: 'a'.repeat(64), createdAt: '', url },
+        'fixture-secret-thirty-two-characters',
+        { action: 'health' },
+      ),
+    ).rejects.toMatchObject({ code: 'invalid_runtime_origin' });
+    expect(f.request).not.toHaveBeenCalled();
+    expect(f.command).not.toHaveBeenCalled();
+  });
+  it('rejects non-loopback or ambiguous inspected port mappings and leaves legacy machines unpublished', async () => {
+    const f = fixture();
+    const legacy = await f.provider.provision(f.name, 120);
+    expect(legacy.url).toBeUndefined();
+    expect(
+      f.command.mock.calls
+        .find(([args]) => args[0] === 'create')?.[0]
+        .some((arg) => arg.startsWith('--publish')),
+    ).toBe(false);
+    f.current().NetworkSettings.Ports['10000/tcp'] = [{ HostIp: '0.0.0.0', HostPort: '49152' }];
+    await expect(
+      f.provider.provisionHost(f.name, 120, { memory_mib: 4096, cpu_millis: 2000 }),
+    ).rejects.toMatchObject({ code: 'invalid_runtime_origin' });
+    f.current().NetworkSettings.Ports['10000/tcp'] = [
+      { HostIp: '127.0.0.1', HostPort: '49152' },
+      { HostIp: '::', HostPort: '49152' },
+    ];
+    await expect(
+      f.provider.provisionHost(f.name, 120, { memory_mib: 4096, cpu_millis: 2000 }),
+    ).rejects.toMatchObject({ code: 'invalid_runtime_origin' });
+  });
   it.each([
     { lifetime: null, command: 'infinity' },
     { lifetime: 3600, command: '5400' },

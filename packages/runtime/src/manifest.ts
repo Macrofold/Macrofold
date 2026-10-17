@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { constants } from 'node:fs';
+import { constants, watch } from 'node:fs';
 import { lstat, mkdir, open, readdir, readFile, readlink, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -190,4 +190,28 @@ export async function probeRuntime(directory: string, offset: number, maxBytes =
     result: await optionalJSON('result.json'),
     input: await optionalJSON('input.json'),
   };
+}
+
+/** Watch before reading so a write between the initial probe and registration
+ * cannot be missed. The deadline is repair, not a delay added to ready output. */
+export async function waitForRuntimeEvents(directory: string, offset: number, waitMs: number) {
+  if (!Number.isSafeInteger(waitMs) || waitMs < 0 || waitMs > 1000) throw new Error('invalid_probe_wait');
+  let resolveChange: (() => void) | undefined;
+  const changed = new Promise<void>((resolve) => {
+    resolveChange = resolve;
+  });
+  const wake = () => resolveChange?.();
+  const watcher = watch(directory, { persistent: false }, wake);
+  watcher.once('error', wake);
+  const timeout = setTimeout(wake, waitMs);
+  timeout.unref();
+  try {
+    const initial = await probeRuntime(directory, offset);
+    if (initial.events.length || initial.result || !waitMs) return initial;
+    await changed;
+    return await probeRuntime(directory, offset);
+  } finally {
+    clearTimeout(timeout);
+    watcher.close();
+  }
 }

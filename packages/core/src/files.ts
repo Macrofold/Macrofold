@@ -3,7 +3,7 @@ import { assert } from './errors';
 import { worktreeIdentity, assertWorktreeName, workspaceBranches } from './worktree-names';
 import * as resources from './resources';
 import { lock, type Tx } from '../../db';
-import { storagePreparation } from './storage-preparation';
+import { storagePreparation, type ContentVerification } from './storage-preparation';
 import { saveContent, verifyContent } from '../../providers/src/storage';
 import type { Principal } from './auth';
 import { gitRevision, withRepository } from '../../providers/src/git-repository';
@@ -100,7 +100,7 @@ export async function ensureWritable(tx: Tx, worktreeId: string, completedRunId?
   await lock(tx, `worktree:${worktreeId}`);
   const active = await tx.query(
     "SELECT id FROM runs WHERE worktree_id=$1 AND status IN ('provisioning','running','waiting_for_input','persisting') UNION ALL SELECT run_id AS id FROM host_runs WHERE worktree_id=$1 AND released_at IS NULL AND ($2::uuid IS NULL OR run_id<>$2)",
-    [worktreeId,completedRunId || null],
+    [worktreeId, completedRunId || null],
   );
   assert(
     !active.rowCount,
@@ -137,12 +137,16 @@ export async function prepareCheckpoint(
   label: string,
   gitOverride?: FileRecord[],
   baseline: FileRecord[] = [],
+  verification?: ContentVerification,
 ) {
   const next = files;
   assertFileTree(next);
   const trusted = new Set(baseline.map((file) => `${file.key}:${file.sha256}`));
   for (const file of next)
-    if (!trusted.has(`${file.key}:${file.sha256}`)) await verifyContent(file.key, file.sha256);
+    if (!trusted.has(`${file.key}:${file.sha256}`)) {
+      if (verification) await verification.verify(file);
+      else await verifyContent(file.key, file.sha256);
+    }
   let gitState: import('./resource-models').GitState;
   try {
     gitState = await gitRevision(
@@ -180,7 +184,11 @@ export async function prepareCheckpoint(
 
 /** Publish already-prepared immutable bytes. The caller owns the storage guard,
  * authorization, writer/lease fence and source-revision check. No object I/O here. */
-export async function saveCheckpoint(tx: Tx, p: Principal, data: Awaited<ReturnType<typeof prepareCheckpoint>>) {
+export async function saveCheckpoint(
+  tx: Tx,
+  p: Principal,
+  data: Awaited<ReturnType<typeof prepareCheckpoint>>,
+) {
   const snapshot = await resources.create(tx, 'checkpoints', p.organizationId, { ...data, created_by: p.id });
   await tx.query('UPDATE organizations SET storage_due_at=least(storage_due_at,now()) WHERE id=$1', [
     p.organizationId,
@@ -349,7 +357,12 @@ export async function createWorktree(
   const checkpointId = source?.checkpoint_id;
   if (checkpointId) {
     const cp = await resources.get(tx, 'checkpoints', String(checkpointId), p);
-    assert(cp.workspace_id === workspaceId, 400, 'invalid_request', 'Checkpoint belongs to another workspace.');
+    assert(
+      cp.workspace_id === workspaceId,
+      400,
+      'invalid_request',
+      'Checkpoint belongs to another workspace.',
+    );
     files = cp.files as FileRecord[];
     gitFiles = (cp.git_files || []) as FileRecord[];
   } else if (workspace.default_worktree_id) {

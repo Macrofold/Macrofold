@@ -466,7 +466,7 @@ func (r ApiCreateInferenceRequest) Execute() (*InferenceResponse, *http.Response
 /*
 CreateInference Request a typed decision with explicit context
 
-Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
+Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value. Final results and billing commit together before HTTP 200. Full original-input history and trace content are best effort after delivery. A crash before durable completion or an exceptional response checkpoint can lose the answer; recovery reports uncertainty and never invokes the provider again.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiCreateInferenceRequest

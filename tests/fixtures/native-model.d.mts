@@ -8,6 +8,8 @@ export function nativeModelFixture(options?: {
   failureMode?: boolean;
   permissionMode?: boolean;
   onBlocked?: () => Promise<void>;
+  /** Optional synthetic streamed chunks for end-to-end transport profiling. */
+  streamText?: () => AsyncIterable<string>;
 }): {
   handler: RequestListener;
   observed: {

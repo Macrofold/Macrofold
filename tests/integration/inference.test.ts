@@ -14,10 +14,15 @@ import * as resources from '../../packages/core/src/resources';
 import { handleApi } from '../../packages/core/src/http';
 import { advanceInference } from '../../packages/core/src/inference-engine';
 import { advanceTask } from '../../packages/core/src/decision-task-engine';
-import { getRun, cancelRun } from '../../packages/core/src/runs';
+import { drainTaskProgress } from '../../packages/core/src/decision-task-wakes';
+import { getRun, cancelRun, compactInference, currentRunControl } from '../../packages/core/src/runs';
+import { claimRun } from '../../packages/core/src/engine';
+import { insertInvocation, prepareInvocation } from '../../packages/core/src/inference-invocations';
 import type { InferenceCreate } from '../../packages/core/src/decision';
 import { prepareInference, type ResolvedInferenceCreate } from '../../packages/core/src/inferences';
 import * as tracing from '../../packages/core/src/tracing';
+import * as bounded from '../../packages/core/src/bounded-decisions';
+import * as runs from '../../packages/core/src/runs';
 
 let owner: Principal, application: Principal, workspaceId: string, key: string;
 const originalPaid = config.allowPaid;
@@ -63,6 +68,7 @@ beforeAll(async () => {
   });
 });
 afterEach(async () => {
+  await drainTaskProgress();
   try {
     // Retire only this suite's admitted work. Leftover interactive jobs must not
     // compete with another suite's scheduler turns in the shared disposable DB.
@@ -83,6 +89,7 @@ afterEach(async () => {
   }
 });
 afterAll(async () => {
+  await drainTaskProgress();
   await pool.end();
   await authPool.end();
 });
@@ -195,6 +202,18 @@ function provider(value: unknown = 'review', withUsage = true) {
 async function complete(runId: string) {
   for (let step = 0; step < 8; step++) if ((await advanceInference(owner.organizationId, runId)).done) return;
   throw new Error('Inference did not finish');
+}
+/** Establish the durable pre-dispatch boundary explicitly. The execution owner
+ * now continues ready work instead of exposing one poller tick per phase. */
+async function prepareCall(runId: string) {
+  const run = await claimRun(owner.organizationId, runId);
+  if (!run || run.kind === 'native_agent' || compactInference(run))
+    throw new Error('Expected queued executable inference fixture');
+  const prepared = prepareInvocation(run.config);
+  await transaction(owner.organizationId, async (tx) => {
+    const current = await currentRunControl(tx, run);
+    await insertInvocation(tx, current, prepared);
+  });
 }
 it('returns the complete settled result on the original request without a worker or billing lookup', async () => {
   enable();
@@ -369,11 +388,15 @@ it('traces explicit decision context, billing, actor and final receipt under one
   });
   expect(JSON.stringify(generation.input)).toContain('overdue');
   expect(generation.output).toMatchObject({ value: 'review' });
-  expect(observations.find((o) => o.id === 'run')).toMatchObject({
+  const lifecycle = observations.find((o) => o.id === 'run');
+  expect(lifecycle).toMatchObject({
     type: 'agent',
     metadata: { status: 'succeeded', charged_micro_usd: '150' },
-    output: { inference: { value: 'review' } },
+    output: { inference: { outcome: 'value', invocation_id: generation.id } },
   });
+  // The settled generation owns full output; lifecycle trace receipts avoid
+  // another copy of that potentially large response.
+  expect(lifecycle?.output).not.toHaveProperty('inference.value');
   expect(observations.every((o) => o.context.run_id === runId)).toBe(true);
 });
 it('deduplicates concurrent admission and rejects changed-body replay', async () => {
@@ -620,7 +643,7 @@ it.each(['typesafe/jev-1.13', 'microsoft/microsoft-decision-1'])(
     expect(budget.rows[0].budget_used_micro_usd).toBe('42');
     expect(run.result.inference).toMatchObject({ outcome: 'value', value: 'review' });
     const revoked = await submit(body);
-    await advanceInference(owner.organizationId, revoked);
+    await prepareCall(revoked);
     await transaction(owner.organizationId, (tx) =>
       resources.update(tx, 'connections', connection.id, { status: 'error' }),
     );
@@ -758,7 +781,7 @@ it('keeps missing usage provisional and consumes the bound instead of zero', asy
 it('fences ambiguous dispatch without replay and accounts for cancellation', async () => {
   const call = provider();
   const runId = await submit();
-  await advanceInference(owner.organizationId, runId);
+  await prepareCall(runId);
   await transaction(owner.organizationId, async (tx) => {
     await tx.query(
       "UPDATE decision_invocations SET state='dispatch_started',dispatch_started_at=now() WHERE run_id=$1",
@@ -776,7 +799,7 @@ it('fences ambiguous dispatch without replay and accounts for cancellation', asy
 it('rechecks initiating key revocation before billable dispatch', async () => {
   const call = provider();
   const runId = await submit();
-  await advanceInference(owner.organizationId, runId);
+  await prepareCall(runId);
   await transaction(owner.organizationId, (tx) =>
     tx.query('UPDATE api_keys SET revoked_at=now() WHERE id=$1', [application.id]),
   );
@@ -871,7 +894,7 @@ it('inspects granted evidence through a finite loop and rejects ungranted reads'
   vi.stubGlobal('fetch', call);
   const accepted = await (await api('bounded-agent-runs', 'POST', body)).json();
   expect(accepted).toHaveProperty('run_id');
-  await complete(accepted.run_id);
+  expect(await advanceInference(owner.organizationId, accepted.run_id)).toMatchObject({ done: true });
   const result = await (await api(`runs/${accepted.run_id}/result`)).json();
   expect(result.inference).toMatchObject({ outcome: 'value', value: 'review' });
   expect(call).toHaveBeenCalledTimes(2);
@@ -887,6 +910,130 @@ it('inspects granted evidence through a finite loop and rejects ungranted reads'
   const denied = await (await api('bounded-agent-runs', 'POST', body)).json();
   await complete(denied.run_id);
   expect((await (await api(`runs/${denied.run_id}`)).json()).failure_code).toBe('tool_not_granted');
+});
+
+it('does not adopt a replacement generation or dispatch another model step after losing its owner fence', async () => {
+  enable();
+  const body = input();
+  body.definition.question = { kind: 'json' };
+  body.definition.bounded_agent = { max_model_calls: 2, max_tool_calls: 0, context_artifacts: [] };
+  const accepted = await (await api('bounded-agent-runs', 'POST', body)).json();
+  const call = vi.fn(async () => {
+    await transaction(owner.organizationId, (tx) =>
+      tx.query('UPDATE runs SET lease_generation=lease_generation+1 WHERE id=$1', [accepted.run_id]),
+    );
+    return Response.json({
+      content: [{ type: 'text', text: JSON.stringify({ action: 'finish', value: 'review' }) }],
+      usage: { input_tokens: 100, output_tokens: 10 },
+    });
+  });
+  vi.stubGlobal('fetch', call);
+  expect(await advanceInference(owner.organizationId, accepted.run_id)).toMatchObject({ done: false });
+  await complete(accepted.run_id);
+  expect(call).toHaveBeenCalledOnce();
+  expect((await (await api(`runs/${accepted.run_id}/result`)).json()).inference).toMatchObject({
+    outcome: 'uncertain',
+    billing: { provisional: true },
+  });
+});
+
+it.each(['revocation', 'generation'] as const)(
+  'rechecks publication %s after a durable queued response without repeating its model call',
+  async (change) => {
+    enable();
+    const upstream = provider();
+    const runId = await submit(input());
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve)),
+      responded = new Promise<void>((resolve) => (entered = resolve));
+    const apply = bounded.applyBoundedResponse;
+    vi.spyOn(bounded, 'applyBoundedResponse').mockImplementationOnce(async (...args) => {
+      entered();
+      await gate;
+      return apply(...args);
+    });
+    const advancing = advanceInference(owner.organizationId, runId);
+    void advancing.catch(() => {}); // Observe rejection while arranging the race.
+    try {
+      await Promise.race([
+        responded,
+        advancing.then(() => {
+          throw new Error('The fixture must pause after durable response settlement');
+        }),
+      ]);
+      const before = await transaction(owner.organizationId, async (tx) => {
+        const call = (await tx.query('SELECT state FROM decision_invocations WHERE run_id=$1', [runId]))
+          .rows[0];
+        const usage = (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [runId])).rows[0];
+        return { call, usage };
+      });
+      expect(before.call.state).toBe('responded');
+      expect(before.usage.completeness).toBe('complete');
+      expect(BigInt(before.usage.cost_micro_usd)).toBeGreaterThan(0n);
+      await transaction(owner.organizationId, (tx) =>
+        change === 'revocation'
+          ? tx.query('UPDATE api_keys SET revoked_at=now() WHERE id=$1', [application.id])
+          : tx.query('UPDATE runs SET lease_generation=lease_generation+1 WHERE id=$1', [runId]),
+      );
+      release();
+      if (change === 'generation') {
+        await expect(advancing).resolves.toMatchObject({ done: false });
+        expect((await transaction(owner.organizationId, (tx) => getRun(tx, runId))).status).toBe('running');
+        // The new owner may finalize existing evidence, never redispatch it.
+        await complete(runId);
+      } else await expect(advancing).resolves.toMatchObject({ done: true });
+      const result = await transaction(owner.organizationId, async (tx) => ({
+        run: await getRun(tx, runId),
+        usage: (await tx.query('SELECT * FROM model_usage WHERE run_id=$1', [runId])).rows,
+      }));
+      expect(upstream).toHaveBeenCalledOnce();
+      expect(result.usage).toHaveLength(1);
+      expect(result.usage[0].cost_micro_usd).toBe(before.usage.cost_micro_usd);
+      expect(result.run.result.inference).toMatchObject(
+        change === 'revocation'
+          ? { outcome: 'failed', reason_code: 'authorization_revoked' }
+          : { outcome: 'value', value: 'review' },
+      );
+      if (change === 'revocation') expect(result.run.result.inference).not.toHaveProperty('value');
+    } finally {
+      release();
+      await advancing.catch(() => {});
+      if (change === 'revocation')
+        await transaction(owner.organizationId, (tx) =>
+          tx.query('UPDATE api_keys SET revoked_at=NULL WHERE id=$1', [application.id]),
+        );
+    }
+  },
+);
+
+it('does not release a prepared request after its queued owner loses the generation', async () => {
+  enable();
+  const upstream = provider();
+  const runId = await submit(input());
+  await prepareCall(runId);
+  const read = runs.getRun;
+  vi.spyOn(runs, 'getRun').mockImplementationOnce(async (tx, id, principal) => {
+    const admitted = await read(tx, id, principal);
+    // Commit the replacement immediately after the old owner's input read,
+    // before its independently locked dispatch authorization.
+    await tx.query('UPDATE runs SET lease_generation=lease_generation+1 WHERE id=$1', [id]);
+    return admitted;
+  });
+  try {
+    expect(await advanceInference(owner.organizationId, runId)).toMatchObject({ done: false });
+    const state = await transaction(owner.organizationId, async (tx) => ({
+      call: (await tx.query('SELECT state FROM decision_invocations WHERE run_id=$1', [runId])).rows[0],
+      request: (await tx.query('SELECT status FROM gateway_requests WHERE run_id=$1', [runId])).rows[0],
+    }));
+    expect(state.call.state).toBe('prepared');
+    expect(state.request.status).toBe('in_flight');
+    expect(upstream).not.toHaveBeenCalled();
+  } finally {
+    // Restore this artificial generation mutation for normal fixture cleanup.
+    await transaction(owner.organizationId, (tx) =>
+      tx.query('UPDATE runs SET lease_generation=lease_generation-1 WHERE id=$1', [runId]),
+    );
+  }
 });
 
 it('coordinates duplicate-safe task wakes, one conditional child and application rejection', async () => {
@@ -915,15 +1062,21 @@ it('coordinates duplicate-safe task wakes, one conditional child and application
   const receipts = await Promise.all(admitted.map((response) => response.json()));
   expect(receipts[0].runs).toHaveLength(1);
   expect(receipts[0].runs[0].run_id).toBe(receipts[1].runs[0].run_id);
+  const queued = await transaction(owner.organizationId, (tx) =>
+    tx.query('SELECT config FROM runs WHERE id=$1', [receipts[0].runs[0].run_id]),
+  );
+  expect(queued.rows[0].config).toMatchObject({ payload_kind: 'task_wake', task_id: task.id });
+  expect(queued.rows[0].config).not.toHaveProperty('input');
+  expect(queued.rows[0].config).not.toHaveProperty('context');
   provider('review');
   await complete(receipts[0].runs[0].run_id);
-  await advanceTask(owner.organizationId, task.id);
+  await drainTaskProgress();
   const investigating = await (await api(`tasks/${task.id}`)).json();
   expect(investigating.runs).toHaveLength(2);
   expect(investigating.outstanding_micro_usd).toBe('50000');
   provider({ action: 'finish', value: 'review' });
   await complete(investigating.runs[1].run_id);
-  await advanceTask(owner.organizationId, task.id);
+  await drainTaskProgress();
   const proposal = await (await api(`tasks/${task.id}`)).json();
   expect(proposal).toMatchObject({
     status: 'proposal',
@@ -950,6 +1103,16 @@ it('coordinates duplicate-safe task wakes, one conditional child and application
   await api(`tasks/${task.id}/close`, 'POST');
   await advanceTask(owner.organizationId, task.id);
   expect((await (await api(`tasks/${task.id}`)).json()).status).toBe('closed');
+  const retained = await transaction(owner.organizationId, (tx) =>
+    tx.query('SELECT input_ciphertext FROM decision_task_wakes WHERE task_id=$1', [task.id]),
+  );
+  expect(retained.rows[0].input_ciphertext).not.toBe('');
+  const child = await transaction(owner.organizationId, (tx) => getRun(tx, investigating.runs[1].run_id));
+  if (child.kind === 'native_agent' || compactInference(child)) throw new Error('Expected Task child');
+  expect(child.config.input).toEqual(wake.input);
+  expect(child.config.context.items).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: 'task_decision', value: 'review' })]),
+  );
 });
 
 it('permits a task mutation receipt with runs:write while denying separate reads', async () => {
@@ -1065,19 +1228,22 @@ it.each(['run_bound', 'revoked', 'invalid_output', 'horizon'] as const)(
       })
     ).json();
     const call = provider(boundary === 'invalid_output' ? 'invalid-choice' : 'review');
-    await complete(active.runs[0].run_id);
     try {
-      if (boundary === 'revoked')
-        await transaction(owner.organizationId, (tx) =>
-          tx.query('UPDATE api_keys SET revoked_at=now() WHERE id=$1', [application.id]),
-        );
-      if (boundary === 'horizon')
-        await transaction(owner.organizationId, (tx) =>
-          tx.query("UPDATE decision_tasks SET evidence_expires_at=now()-interval '1 second' WHERE id=$1", [
-            task.id,
-          ]),
-        );
+      // Hold coordinator progress until the already-admitted child completes
+      // and the test boundary commits. Terminal-child wakeups now run promptly.
+      await transaction(owner.organizationId, async (tx) => {
+        await tx.query('SELECT id FROM decision_tasks WHERE id=$1 FOR UPDATE', [task.id]);
+        await complete(active.runs[0].run_id);
+        if (boundary === 'revoked')
+          await tx.query('UPDATE api_keys SET revoked_at=now() WHERE id=$1', [application.id]);
+        if (boundary === 'horizon')
+          await tx.query(
+            "UPDATE decision_tasks SET evidence_expires_at=now()-interval '1 second' WHERE id=$1",
+            [task.id],
+          );
+      });
       await advanceTask(owner.organizationId, task.id);
+      await drainTaskProgress();
     } finally {
       if (boundary === 'revoked')
         await transaction(owner.organizationId, (tx) =>
@@ -1130,7 +1296,7 @@ it('keeps an active task allocation until cancellation settles the child', async
     })
   ).json();
   const call = provider();
-  await advanceInference(owner.organizationId, active.runs[0].run_id);
+  await prepareCall(active.runs[0].run_id);
   expect((await api(`tasks/${task.id}/close`, 'POST')).status).toBe(200);
   await advanceTask(owner.organizationId, task.id);
   expect(await (await api(`tasks/${task.id}`)).json()).toMatchObject({
@@ -1148,19 +1314,29 @@ it('keeps an active task allocation until cancellation settles the child', async
 });
 
 async function killAt(runId: string, boundary: 'dispatch' | 'receipt') {
-  const child = fork('tests/fixtures/inference-worker.ts', [owner.organizationId, runId, boundary], {
-    execArgv: ['--import', 'tsx'],
-    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-    env: { ...process.env, ANTHROPIC_API_KEY: 'synthetic-inference-key' },
-  });
-  try {
-    const [phase] = await once(child, 'message', { signal: AbortSignal.timeout(30000) });
-    expect(phase).toBe(boundary);
-  } finally {
-    const stopped = once(child, 'exit');
-    child.kill('SIGKILL');
-    await stopped;
-  }
+  const kill = async () => {
+    const child = fork('tests/fixtures/inference-worker.ts', [owner.organizationId, runId, boundary], {
+      execArgv: ['--import', 'tsx'],
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      env: { ...process.env, ANTHROPIC_API_KEY: 'synthetic-inference-key' },
+    });
+    try {
+      const [phase] = await once(child, 'message', { signal: AbortSignal.timeout(30000) });
+      expect(phase).toBe(boundary);
+    } finally {
+      const stopped = once(child, 'exit');
+      child.kill('SIGKILL');
+      await stopped;
+    }
+  };
+  if (boundary === 'receipt') {
+    await transaction(owner.organizationId, async (tx) => {
+      // Hold final Run publication at its existing durable outbox update. The
+      // provider evidence/usage commit remains independent and observable.
+      await tx.query("SELECT id FROM dispatch_jobs WHERE kind='run' AND resource_id=$1 FOR UPDATE", [runId]);
+      await kill();
+    });
+  } else await kill();
 }
 it.each(['dispatch', 'receipt'] as const)(
   'recovers a real process kill after %s without repeating a provider call',
@@ -1171,7 +1347,7 @@ it.each(['dispatch', 'receipt'] as const)(
     body.definition.limits.timeout_seconds = 120;
     const call = provider(),
       runId = await submit(body);
-    await advanceInference(owner.organizationId, runId);
+    await prepareCall(runId);
     await killAt(runId, boundary);
     if (boundary === 'dispatch')
       await transaction(owner.organizationId, (tx) =>
@@ -1195,7 +1371,7 @@ it.each([false, true])('fences late receipts, cancellation and retention (expire
   );
   vi.stubGlobal('fetch', fetch);
   const runId = await submit();
-  await advanceInference(owner.organizationId, runId);
+  await prepareCall(runId);
   const dispatch = advanceInference(owner.organizationId, runId);
   await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
   await api(`runs/${runId}/cancel`, 'POST', {});
@@ -1369,7 +1545,7 @@ it.each(['triage', 'actor'] as const)(
       dependency_tokens: body.context.dependency_tokens,
     });
     const pending = await submit(body);
-    await advanceInference(owner.organizationId, pending);
+    await prepareCall(pending);
     await transaction(owner.organizationId, (tx) =>
       tx.query(
         "UPDATE decision_invocations SET context_expires_at=now()-interval '1 second' WHERE run_id=$1",
@@ -1401,7 +1577,7 @@ it('requires exact BYOK credentials and stops a prepared call when its artifact 
     ...ordinary,
     context: { artifact_id: snapshot.id, revision: snapshot.revision, audience: ordinary.context.audience },
   });
-  await advanceInference(owner.organizationId, runId);
+  await prepareCall(runId);
   expect((await api(`artifacts/${snapshot.id}`, 'DELETE')).status).toBe(204);
   await complete(runId);
   expect(call).not.toHaveBeenCalled();
@@ -1417,7 +1593,7 @@ it('serializes competing dispatchers around one external request', async () => {
   );
   vi.stubGlobal('fetch', call);
   const runId = await submit();
-  await advanceInference(owner.organizationId, runId);
+  await prepareCall(runId);
   const first = advanceInference(owner.organizationId, runId);
   await vi.waitFor(() => expect(call).toHaveBeenCalledOnce());
   expect(await advanceInference(owner.organizationId, runId)).toMatchObject({ done: false });
@@ -1487,7 +1663,6 @@ it('measures platform stages and persisted footprint for the small inline fixtur
     provider: expect.any(Number),
     validation: expect.any(Number),
     context_resolution: expect.any(Number),
-    response_persistence: expect.any(Number),
   });
   const footprint = await transaction(owner.organizationId, async (tx) => ({
     run: (await tx.query('SELECT pg_column_size(r) AS bytes FROM runs r WHERE id=$1', [runId])).rows[0].bytes,

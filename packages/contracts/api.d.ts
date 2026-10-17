@@ -958,7 +958,7 @@ export interface paths {
         put?: never;
         /**
          * Request a typed decision with explicit context
-         * @description Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value.
+         * @description Executes one authorized model invocation immediately without a worker, sandbox or queue. Direct requests support timeouts up to 240 seconds. Returns HTTP 200 with a finalized result, or HTTP 202 for an existing admitted invocation awaiting completion or recovery. Capacity refusals create no Run. Prefer: respond-async is rejected. Requires a backend API key; workspace is optional for inline inputs. Preserve the idempotency key after any interruption; never automatically repeat ambiguous execution. Inspect result.inference.outcome before applying a value. Final results and billing commit together before HTTP 200. Full original-input history and trace content are best effort after delivery. A crash before durable completion or an exceptional response checkpoint can lose the answer; recovery reports uncertainty and never invokes the provider again.
          */
         post: operations["createInference"];
         delete?: never;
@@ -4126,7 +4126,7 @@ export interface components {
              * @default 2000000
              */
             max_cost_micro_usd: string;
-            /** @description Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. */
+            /** @description Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior. */
             stop_on_model_error?: boolean;
         };
         Agent: {

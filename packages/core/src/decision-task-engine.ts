@@ -207,11 +207,19 @@ export async function advanceTask(org: string, taskId: string) {
       (['waiting', 'proposal', 'stopped', 'closed'].includes(task.status) && !task.close_requested) ||
       task.status === 'closed';
     await tx.query(
-      "UPDATE dispatch_jobs SET state=$2,available_at=$3,lease_until=NULL WHERE kind='decision_task' AND resource_id=$1",
+      `UPDATE dispatch_jobs SET state=$2,
+       available_at=CASE WHEN NOT $4 AND EXISTS(
+         SELECT 1 FROM runs r WHERE r.id=(
+           SELECT t.run_id FROM decision_task_runs t WHERE t.task_id=$1 AND t.wake_id=$5 ORDER BY t.step DESC LIMIT 1
+         ) AND r.status IN ('succeeded','failed','cancelled','timed_out')
+       ) THEN now() ELSE $3 END,lease_until=NULL
+       WHERE kind='decision_task' AND resource_id=$1`,
       [
         taskId,
         task.status === 'closed' ? 'done' : 'pending',
         done ? task.evidence_expires_at : new Date(Date.now() + 5000),
+        done,
+        task.latest_wake_id,
       ],
     );
     return { done };

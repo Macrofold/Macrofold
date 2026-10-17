@@ -19,7 +19,9 @@ import type { AgentPermissions } from '../../packages/contracts/permissions';
 import { AppError } from '../../packages/core/src/errors';
 import { streamEvents } from '../../packages/core/src/events';
 import { dispatchFailed, MAX_DISPATCH_FAILURES } from '../../packages/core/src/dispatch-failures';
+import { retireFixtureRuns } from '../fixtures/account';
 
+const organizations = new Set<string>();
 async function scenario(attachments?: string[], permissions?: AgentPermissions) {
   const user = (
     await auth.api.signUpEmail({
@@ -33,6 +35,7 @@ async function scenario(attachments?: string[], permissions?: AgentPermissions) 
   await pool.query('UPDATE auth."user" SET "emailVerified"=true WHERE id=$1', [user.id]);
   const org = (await pool.query('SELECT organization_id FROM memberships WHERE user_id=$1', [user.id]))
     .rows[0].organization_id;
+  organizations.add(org);
   const p: Principal = {
     id: user.id,
     userId: user.id,
@@ -74,10 +77,14 @@ afterAll(async () => {
   await pool.end();
   await authPool.end();
 });
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.useRealTimers();
+  // Recovery tests intentionally stop at live/blocked phases. Release only
+  // their fixture occupancy so later global-fairness tests see no orphan work.
+  for (const organization of organizations) await retireFixtureRuns(organization);
+  organizations.clear();
 });
 async function advanceTo(s: Awaited<ReturnType<typeof scenario>>, provider: FaultMachine, phase: string) {
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -530,7 +537,7 @@ describe('durable cloud lifecycle with fault injection', () => {
       await write(binding, files.slice(0, 1));
       throw new Error('Lost batch acknowledgement');
     });
-    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 2 });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toMatchObject({ done: false, delaySeconds: 2 });
     const processed = await transaction(s.org, (tx) =>
       tx.query("SELECT id FROM execution_objects WHERE run_id=$1 AND kind LIKE 'input_%' AND processed", [
         s.runId,
@@ -581,7 +588,7 @@ describe('durable cloud lifecycle with fault injection', () => {
       if (run.execution_binding?.phase === 'restore_wait') break;
       expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
     }
-    expect(await advanceCloudRun(s.org, s.runId, provider)).toEqual({ done: false, delaySeconds: 3 });
+    expect(await advanceCloudRun(s.org, s.runId, provider)).toMatchObject({ done: false, delaySeconds: 3 });
     expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
     expect((await advanceCloudRun(s.org, s.runId, provider)).delaySeconds).toBe(0);
     provider.pendingPolls = 1;

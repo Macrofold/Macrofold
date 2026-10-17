@@ -23,7 +23,7 @@ type Limits struct {
 	TimeoutSeconds *int32 `json:"timeout_seconds,omitempty"`
 	// Integer micro-USD as a decimal string.
 	MaxCostMicroUsd *string `json:"max_cost_micro_usd,omitempty" validate:"regexp=^[0-9]+$"`
-	// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. The first failure durably blocks later model admissions, including harness retries and reconnects. Already admitted calls retain incurred or uncertain usage. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
+	// Stop this native Run after an upstream model rejection, transport/protocol failure or interrupted stream. When enabled, model admissions for this Run are serialized: an unsettled earlier call returns HTTP 409 model_request_pending. The first failure durably blocks later admissions, including harness retries and reconnects. An unresolved failure remains blocked during recovery; incurred or uncertain usage is preserved. Checkpoint and accounting finalization continue; the Run fails with model_request_failed. Omission preserves harness retry behavior.
 	StopOnModelError *bool `json:"stop_on_model_error,omitempty"`
 }
 

@@ -71,6 +71,11 @@ export async function waitForRun(runs: Runs, runId: string, options: WaitOptions
         signal.addEventListener('abort', abort, { once: true });
       });
     }
+  } catch (error) {
+    // The HTTP transport wraps aborts with request identity. Waiting still owns
+    // its deadline/user signal and must expose that original reason to callers.
+    signal.throwIfAborted();
+    throw error;
   } finally {
     clearTimeout(timer);
   }

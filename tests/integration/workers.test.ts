@@ -19,6 +19,7 @@ import {
   activeHostRun,
   releaseHostRun,
   settleHostSample,
+  observeHostWarmth,
 } from '../../packages/core/src/host-allocations';
 import { reconcileWorker, advanceHost, MAX_HOST_FAILURES } from '../../packages/core/src/worker-reconciler';
 import { admitRun, cancelRun, getNativeRun } from '../../packages/core/src/runs';
@@ -623,6 +624,22 @@ describe('immutable quote and resource billing boundaries', () => {
 });
 
 describe('fenced Host assignments through the Worker machine port', () => {
+  it('uses only fresh generation and boot-matched bounded warm observations for placement',async()=>{
+    const created=await worker({min_instances:1,max_instances:1});
+    const hosts=await ensureBaseline(created.id);
+    const host=await tx(t=>getHost(t,hosts[0].id));
+    if(!host.binding?.controlBootId)throw new Error('Missing boot identity');
+    const handle={session_id:id(),session_revision:'3',compatibility_key:'a'.repeat(64),permission_view:'b'.repeat(64),
+      worktree_id:id(),worktree_revision:'checkpoint',reserved_memory_mib:128};
+    const health={boot_id:host.binding.controlBootId,host_id:host.id,generation:host.generation,started_at:new Date().toISOString(),configured:true,
+      active_assignments:0,capabilities:{scoped_processes:true,sibling_isolation:true,resource_meter:true},meters:null,warm_harnesses:[handle]};
+    await tx(t=>observeHostWarmth(t,host,health));
+    expect((await tx(t=>hostSnapshots(t,created.id)))[0]).toMatchObject({retained_memory_mib:128,warm_harnesses:[{...handle,state:'idle'}]});
+    await tx(t=>observeHostWarmth(t,host,{...health,boot_id:id(),warm_harnesses:[]}));
+    expect((await tx(t=>hostSnapshots(t,created.id)))[0].warm_harnesses).toHaveLength(1);
+    await tx(t=>t.query("UPDATE hosts SET binding=jsonb_set(binding,'{warmObservation,observedAt}',to_jsonb($2::bigint)) WHERE id=$1",[host.id,Date.now()-61_000]));
+    expect((await tx(t=>hostSnapshots(t,created.id)))[0]).toMatchObject({retained_memory_mib:0,warm_harnesses:[]});
+  });
   it('sends only the claimed assignment identity and refuses stale bindings, generations and releases without Host I/O', async () => {
     const created = await worker({ min_instances: 1, max_instances: 1 });
     await ensureBaseline(created.id);
@@ -707,7 +724,7 @@ describe('fenced Host assignments through the Worker machine port', () => {
     expect(requests).toHaveLength(before);
 
     expect(await machines.close(binding, false)).toEqual({});
-    expect(requests.at(-1)).toMatchObject({
+    expect([...requests].reverse().find(request => request.action === 'release')).toMatchObject({
       action: 'release',
       assignment_id: assignment.id,
       persisted: false,

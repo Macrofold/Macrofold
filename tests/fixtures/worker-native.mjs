@@ -121,7 +121,7 @@ async function start(value,expectWarm=false) {
   return run;
 }
 async function finish(run,outcome='success',expectWarm=false) {
-  const result=await until(async()=>(await request(scoped(run,'probe',{offset:0}))).result,'native completion');
+  const result=await until(async()=>(await request(scoped(run,'probe',{offset:0,wait_ms:1000}))).result,'native completion');
   const probe=await request(scoped(run,'probe',{offset:0}));
   assert.equal(result.outcome,outcome,JSON.stringify({result,events:probe.events}));
   assert.equal(result.persistence,'captured',JSON.stringify(result));
@@ -148,6 +148,14 @@ async function finish(run,outcome='success',expectWarm=false) {
     catch(error){if(!String(error).includes('runtime_not_quiescent'))throw error;return false;}
   },'quiescent release');
   await request(scoped(run,'release',{checkpoint_id:value.checkpoint,session_revision:value.revision,persisted:true}));
+  if(outcome==='success') {
+    const health=await request({action:'health'});
+    const warm=health.warm_harnesses.find(handle=>handle.session_id===value.session);
+    assert(warm,'released live conversation is observable for warm placement');
+    assert.equal(warm.worktree_revision,value.checkpoint);
+    assert.equal(warm.session_revision,value.revision);
+    assert(warm.reserved_memory_mib>0,'retained memory is observed instead of assumed free');
+  }
   await request(scoped(run,'launch'),409);
   tokens.delete(value.token);
   return result;

@@ -2,7 +2,7 @@ import { transaction } from '../../db';
 import { input, type Context, type HandlerMap, type PreparationMap } from './api-types';
 import {
   customerConversation,
-  customerRun,
+  customerRunSummary,
   ensureCustomerAgent,
   getCustomerBinding,
   listCustomerAgents,
@@ -31,7 +31,7 @@ export function customerAgentHandlers(core: Primitives): HandlerMap {
   const run =
     <T>(handler: (c: Context) => Promise<T>) =>
     async (c: Context) => {
-      await customerRun(c.tx, c.p, await binding(c), c.params.run_id);
+      await customerRunSummary(c.tx, c.p, await binding(c), c.params.run_id);
       return handler(c);
     };
   const file =

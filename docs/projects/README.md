@@ -10,7 +10,11 @@ Project documents retain proposal-specific context. Current feature behavior sta
 
 ## Plans
 
-- Execution efficiency: [feature specification](execution-efficiency-feature-spec.md) and [technical design](execution-efficiency-tech-design.md). Proposed compact two-commit immediate execution, bounded background administration, versioned caches and batched SQL; includes native/tool/queue/storage/event paths. Records the measured excessive round trips/payload transfers and the deliberate response-checkpoint tradeoff. Implementation has not started.
+- Execution efficiency: [feature specification](execution-efficiency-feature-spec.md), [technical design](execution-efficiency-tech-design.md) and [verification](execution-efficiency-verification.md). Compact two-commit immediate execution, bounded background administration, versioned caches and batched SQL are implemented locally across native/tool/queue/storage/event paths. Local capture/runtime refinement and activation are complete; six co-located Linux cohorts meet the server-overhead p95 target. The record preserves macOS misses, the open SQL/CI/hosted gates and the deliberate response-checkpoint tradeoff.
+
+- Execution-efficiency follow-up: [implementation-ready optimization annex](execution-efficiency/remaining-optimizations.md), paired with the existing execution-efficiency feature specification above. Proposed SQL batching, payload reuse and explicit diagnostic tradeoffs; no application implementation is authorized by these documents.
+
+- Opt-in performance profiling: [feature specification](performance-profiling-feature-spec.md) and [technical design](performance-profiling-tech-design.md). Proposed default-off operator flag, bounded content-free profiles, concurrent foreground/background attribution and observer-overhead qualification.
 
 - Immediate inference: [feature specification](immediate-inference-feature-spec.md) and [technical design/TODO](immediate-inference-tech-design.md). Implementation and verification in progress: immediate request ownership, shared accounting, batched authorization observation, typed recovery and all five SDKs. Hosted lifetime and measured deployment capacity remain acceptance gates.
 

@@ -21,13 +21,16 @@ async function claimJobs(
   organization?: string,
   active: string[] = [],
   resource?: DispatchClass,
+  observedPending?: Awaited<ReturnType<typeof pendingRunCandidates>>,
 ) {
-  const pending = await observeWorkerStep('candidates', {}, () =>
-    pendingRunCandidates(
-      Math.max(100, concurrency),
-      resource === 'inference' ? 'inference' : resource ? 'native' : undefined,
-    ),
-  );
+  const pending =
+    observedPending ??
+    (await observeWorkerStep('candidates', {}, () =>
+      pendingRunCandidates(
+        Math.max(100, concurrency),
+        resource === 'inference' ? 'inference' : resource ? 'native' : undefined,
+      ),
+    ));
   // Eligibility hints already account for capacity and cleanup. Provider/phase
   // retries still honor available_at; a capacity wait may wake when capacity frees.
   const claims = await observeWorkerStep('claim', {}, () =>
@@ -56,23 +59,43 @@ async function failedJob(job: DispatchJob): Promise<never> {
 /** Serialize only short SQL admissions in fair order. Concurrent contenders for
  * the same organization/global lock can repeatedly beat the eligible head and
  * then reject themselves. Provider work remains independently concurrent. */
-async function startJob(provider: Provider, job: DispatchJob) {
+async function startJob(provider: Provider, job: DispatchJob, resource?: DispatchClass) {
   try {
     if (job.state === 'pending') await claimRun(job.organization_id, job.resource_id);
   } catch {
     return { completion: failedJob(job) };
   }
-  return { completion: advanceJob(provider, job) };
+  return { completion: advanceJob(provider, job, resource) };
 }
 
-/** Advance once and retain the SQL state machine's execution identity and retry policy. */
-async function advanceJob(provider: Provider, job: DispatchJob) {
+/** A short native quantum retains only the current resource slot. Each advance
+ * still claims its phase and rereads cancellation. Yield before crossing pools
+ * or a real wait, and regularly let other jobs compete through SQL admission. */
+async function advanceJob(provider: Provider, job: DispatchJob, resource?: DispatchClass) {
   try {
     const fields = { organization_id: job.organization_id, run_id: job.resource_id };
-    const result = await observeWorkerStep('advance', fields, () =>
-      advanceCloudRun(job.organization_id, job.resource_id, provider),
-    );
-    await dispatchSucceeded(job.organization_id, 'run', job.resource_id);
+    const started = performance.now();
+    let result: Awaited<ReturnType<typeof advanceCloudRun>>;
+    for (let steps = 1; ; steps++) {
+      result = await observeWorkerStep('advance', fields, () =>
+        advanceCloudRun(job.organization_id, job.resource_id, provider),
+      );
+      if (
+        !resource ||
+        resource === 'inference' ||
+        !result.canContinue ||
+        result.nextDispatchClass !== resource ||
+        result.done ||
+        result.queued ||
+        result.delaySeconds !== 0 ||
+        steps >= 16 ||
+        performance.now() - started >= 5000
+      )
+        break;
+    }
+    // Native phase publication resets the failure budget atomically. Other
+    // owners and early-return paths still use the shared dispatcher reset.
+    if (!result.nextDispatchClass) await dispatchSucceeded(job.organization_id, 'run', job.resource_id);
     // The exact DB timestamp fences release of the short pending dispatcher lease.
     if (result.queued)
       await pool.query(
@@ -139,13 +162,29 @@ export class CloudDispatcher {
         throw new RangeError('Dispatch concurrency must be between 1 and 1024.');
   }
   async tick() {
+    // Provision/transfer/control share the same fair native queue observation.
+    // It is a hint only; every claim still checks current capacity and ordering.
+    let nativeCandidates: Awaited<ReturnType<typeof pendingRunCandidates>> | undefined;
     for (const resource of dispatchClasses) {
       const used = [...this.active.values()].filter((value) => value.resource === resource).length;
       const slots = this.limits[resource] - used;
       if (slots <= 0) continue;
-      const claims = await claimJobs(slots, this.organization, [...this.active.keys()], resource);
+      if (resource !== 'inference' && !nativeCandidates)
+        nativeCandidates = await observeWorkerStep('candidates', {}, () =>
+          pendingRunCandidates(
+            Math.max(100, this.limits.provision, this.limits.transfer, this.limits.control),
+            'native',
+          ),
+        );
+      const claims = await claimJobs(
+        slots,
+        this.organization,
+        [...this.active.keys()],
+        resource,
+        resource === 'inference' ? undefined : nativeCandidates,
+      );
       for (const job of claims) {
-        const { completion } = await startJob(this.provider, job);
+        const { completion } = await startJob(this.provider, job, resource);
         const task = completion
           .then((ready) => {
             this.ready ||= ready;

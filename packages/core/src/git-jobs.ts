@@ -278,7 +278,8 @@ export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
     ],
     ['runs', async () => (await import('./engine')).maintainRuns()],
     ['decision_tasks', async () => (await import('./decision-task-engine')).dispatchDecisionTasks()],
-    ['triggers', async () => (await import('./trigger-dispatch')).dispatchTriggers()],
+    ['trigger_admission', async () => (await import('./trigger-dispatch')).dispatchTriggerAdmissions()],
+    ['trigger_replies', async () => (await import('./trigger-dispatch')).dispatchTriggerReplies()],
     ['webhooks', dispatchWebhooks],
     ['analytics', async () => (await import('./analytics-export')).forwardProductEvents()],
     ['connections', dispatchConnectionCleanup],
@@ -300,7 +301,15 @@ export function maintenanceTasks(host?: RepositoryHost): MaintenanceTask[] {
   return tasks.map(([name, run]) => ({
     name,
     run,
-    intervalMs: ['workers', 'runs', 'decision_tasks', 'triggers'].includes(name) ? 2000 : 15000,
+    intervalMs: ['workers', 'runs', 'decision_tasks', 'trigger_admission', 'trigger_replies'].includes(name)
+      ? 2000
+      : 15000,
+    ...(name === 'decision_tasks'
+      ? { drain: async () => (await import('./decision-task-wakes')).drainTaskProgress() }
+      : {}),
+    ...(name === 'transfers'
+      ? { drain: async () => (await import('./model-staging-cleanup')).drainModelStagingCleanup() }
+      : {}),
   }));
 }
 const maintenance = new MaintenanceDispatcher(maintenanceTasks());

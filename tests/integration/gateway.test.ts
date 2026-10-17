@@ -139,6 +139,80 @@ async function prepared(stopOnModelError = false) {
   return { runId, token, fetch, call };
 }
 describe('model gateway metering without provider calls', () => {
+  it('forwards answer deltas but withholds native completion until accounting commits', async () => {
+    const s = await prepared();
+    let release!: () => void;
+    let locked!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const acquired = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    let blocker: Promise<void> | undefined;
+    const delta = 'data: ' + JSON.stringify({ type: 'response.output_text.delta', delta: 'Hello' }) + '\n\n';
+    const terminal =
+      'data: ' +
+      JSON.stringify({
+        type: 'response.completed',
+        response: { usage: { input_tokens: 4, output_tokens: 2 } },
+      }) +
+      '\n\n';
+    s.fetch.mockImplementationOnce(async () => {
+      blocker = transaction(p.organizationId, async (tx) => {
+        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [s.runId]);
+        locked();
+        await barrier;
+      });
+      await acquired;
+      return new Response(delta + terminal);
+    });
+    const response = await s.call();
+    const reader = response.body!.getReader();
+    const decode = new TextDecoder();
+    try {
+      expect(decode.decode((await reader.read()).value)).toBe(delta);
+      let completed = false;
+      const finishing = reader.read().then((part) => {
+        completed = true;
+        return part;
+      });
+      await expect
+        .poll(async () =>
+          Number(
+            (
+              await pool.query(
+                "SELECT count(*) AS n FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%SELECT id FROM runs%'",
+              )
+            ).rows[0].n,
+          ),
+        )
+        .toBeGreaterThan(0);
+      expect(completed).toBe(false);
+      expect(
+        (
+          await transaction(p.organizationId, (tx) =>
+            tx.query('SELECT request_id FROM model_usage WHERE run_id=$1', [s.runId]),
+          )
+        ).rowCount,
+      ).toBe(0);
+      release();
+      await blocker;
+      expect(decode.decode((await finishing).value)).toBe(terminal);
+      expect(
+        (
+          await transaction(p.organizationId, (tx) =>
+            tx.query('SELECT input_tokens,output_tokens FROM model_usage WHERE run_id=$1', [s.runId]),
+          )
+        ).rows,
+      ).toEqual([{ input_tokens: '4', output_tokens: '2' }]);
+      expect((await reader.read()).done).toBe(true);
+    } finally {
+      release();
+      await blocker;
+      await reader.cancel();
+    }
+  });
   it('retains unsettled liability when the failure fence write is unavailable, then fences on reconciliation', async () => {
     const s = await prepared(true);
     let fault: { mockRestore(): void } | undefined;
@@ -155,6 +229,10 @@ describe('model gateway metering without provider calls', () => {
       tx.query('SELECT status FROM gateway_requests WHERE run_id=$1', [s.runId]),
     );
     expect(pending.rows).toEqual([{ status: 'in_flight' }]);
+    const retry = await s.call({ stream: false });
+    expect(retry.status).toBe(409);
+    expect(await retry.json()).toMatchObject({ error: { code: 'model_request_pending' } });
+    expect(s.fetch).toHaveBeenCalledOnce();
     await settleOrphanModelRequests(p.organizationId, s.runId);
     expect((await s.call()).status).toBe(409);
     expect(s.fetch).toHaveBeenCalledOnce();
@@ -248,7 +326,7 @@ describe('model gateway metering without provider calls', () => {
     expect((await s.call({ stream: false })).status).toBe(200);
     expect(s.fetch).toHaveBeenCalledTimes(4);
   });
-  it('settles an already admitted concurrent response after the failure fence without reopening admission', async () => {
+  it('serializes strict-stop requests and blocks new calls after failure without losing earlier usage', async () => {
     const s = await prepared(true);
     let entered!: () => void, release!: () => void;
     const started = new Promise<void>((resolve) => {
@@ -267,12 +345,16 @@ describe('model gateway metering without provider calls', () => {
     const active = s.call({ stream: false });
     try {
       await started;
-      expect((await s.call({ stream: false })).status).toBe(429);
-      expect((await s.call({ stream: false })).status).toBe(409);
+      const pending = await s.call({ stream: false });
+      expect(pending.status).toBe(409);
+      expect(await pending.json()).toMatchObject({ error: { code: 'model_request_pending' } });
+      expect(s.fetch).toHaveBeenCalledOnce();
     } finally {
       release();
     }
     expect((await active).status).toBe(200);
+    expect((await s.call({ stream: false })).status).toBe(429);
+    expect((await s.call({ stream: false })).status).toBe(409);
     await settleOrphanModelRequests(p.organizationId, s.runId);
     const run = await transaction(p.organizationId, (tx) => getRun(tx, s.runId));
     expect(run.cost_micro_usd).toBe('17');

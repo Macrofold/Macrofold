@@ -1,6 +1,6 @@
 # Efficient execution: feature specification
 
-Status: proposed design, not implemented. [Technical design](execution-efficiency-tech-design.md) owns mechanisms, failure handling and delivery stages. [Maintainer work](../maintainers/TODO.md#execution-efficiency-redesign) tracks implementation. This extends the implemented [immediate inference design](immediate-inference-feature-spec.md) across native and queued work; it does not describe changes already deployed.
+Status: shared application changes, capture/runtime refinement and local activation are implemented. Six co-located Linux cohorts meet the server-overhead p95 target; the sequential SQL budget, full CI and hosted qualification remain open. The [verification record](execution-efficiency-verification.md) distinguishes passing modules from unmet acceptance. [Technical design](execution-efficiency-tech-design.md) owns mechanisms and delivery stages; [maintainer work](../maintainers/TODO.md#execution-efficiency-redesign) retains the open gates. This extends the [immediate inference design](immediate-inference-feature-spec.md) across native and queued work; hosted deployment is not established.
 
 ## Outcome
 
@@ -22,7 +22,7 @@ The final result, financial facts and duplicate-request identity are durable bef
 
 For immediate calls, retain compact execution metadata, input digests, relevant context identities and frozen terms synchronously. Keep the full request in the live owner's memory; do not require both full context in `runs.config` and an encrypted provider-body copy merely for recovery. Recovery must never resend an ambiguous paid request, so those copies are not needed to restart execution.
 
-Full immediate input capture becomes bounded asynchronous diagnostic history under the existing content-capture/retention policy. It may be missing after process loss or overload; a digest cannot reconstruct it. The dashboard must say input history is unavailable when absent, rather than show an empty prompt as the actual input. This does not remove saved definitions, published artifacts, native conversation history or required queued input. No new customer capture-policy control is required for this project.
+Full immediate input capture becomes bounded asynchronous export to the configured tracing backend under the existing content-capture/retention policy, rather than a second unused history store. It may be missing after process loss or overload; a digest cannot reconstruct it. The current dashboard renders results/events and has no original-input viewer; this project adds no input-history API or UI. Consumers must not fabricate an empty prompt to represent missing captured input. This does not remove saved definitions, published artifacts, native conversation history or required queued input. No new customer capture-policy control is required for this project.
 
 Combining response saving and settlement deliberately changes one guarantee: if the process dies after receiving an answer but before the combined commit, that answer may be lost. The current separate evidence commit narrows that window. The new owner attempts an evidence-only checkpoint when ordinary completion fails and the process survives. An unrecorded answer remains explicitly uncertain; it is never reconstructed by another paid call. This tradeoff must be documented before activation.
 
@@ -71,6 +71,12 @@ Do not add Redis, a new queue platform, a generic repository/cache framework, cr
 ## Delivery
 
 The [ordered implementation stages](execution-efficiency-tech-design.md#implementation-stages) first preserve the measured baseline, then remove payload duplication and query round trips, implement compact completion, and apply the same discipline to agent/tool/storage/event paths. Correctness and performance evidence are both required; stages do not silently exclude the latter paths.
+
+## Remaining optimization proposal
+
+A design-only follow-up specifies [shared SQL batching, request-local payload reuse, producer-aware trace capture and optional HTTP observations](execution-efficiency/remaining-optimizations.md). The distinct [profiling specification](performance-profiling-feature-spec.md) and [profiling technical design](performance-profiling-tech-design.md) define an easy default-off operator switch and accurate concurrent attribution. These proposals do not change the implemented durability contract or close the original SQL/CI/hosted gates.
+
+Additional acceptance: behavior-preserving optimizations must improve measured work through shared owners; full tracing remains the default; metadata-only tracing must avoid producer-side content capture; explicitly disabled HTTP observations must be represented as incomplete diagnostics in reporting, never as authoritative zero traffic. Financial facts, current authorization, durable output/replay and required execution input remain mandatory. No optional diagnostic setting may change them.
 
 ## Changelog
 

@@ -10,6 +10,7 @@ import { assert } from './errors';
 import { getRun } from './runs';
 import { requireRunActor } from './actor-authorization';
 import type { RuntimeCapability } from './runtime-auth';
+import { cleanupModelStaging } from './model-staging-cleanup';
 
 const inputSchema = z
   .object({
@@ -166,6 +167,6 @@ export async function readModelBody(request: Request, cap: RuntimeCapability, pa
     );
   } finally {
     // Lifecycle expiration of staging/ is the crash/failed-delete backstop, never a durable content store.
-    await storage.delete(claim.key).catch(() => {});
+    cleanupModelStaging(claim.key);
   }
 }

@@ -483,7 +483,8 @@ const primitiveHandlers = {
     };
   },
   createRun: async (c) => runs.admitRun(c.tx, c.p, input<'RunCreate'>(c), runs.requestClientType(c.request)),
-  getRun: async (c) => (await runs.presentRuns(c.tx, [await runs.getRun(c.tx, c.params.run_id, c.p)]))[0],
+  getRun: async (c) =>
+    (await runs.presentRuns(c.tx, [await runs.getRunSummary(c.tx, c.params.run_id, c.p)]))[0],
   listRuns: async (c) => {
     const args: unknown[] = [];
     const where = ['true'];
@@ -507,8 +508,8 @@ const primitiveHandlers = {
     const limit = Math.min(100, Number(c.query.get('limit')) || 25);
     args.push(limit + 1);
     const rows = (
-      await c.tx.query<runs.RunRow>(
-        `SELECT * FROM runs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT $${args.length}`,
+      await c.tx.query<runs.RunSummary>(
+        `SELECT ${runs.runSummaryColumns} FROM runs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT $${args.length}`,
         args,
       )
     ).rows;
@@ -530,7 +531,7 @@ const primitiveHandlers = {
     };
   },
   listRunEvents: async (c) => {
-    await runs.getRun(c.tx, c.params.run_id, c.p);
+    await runs.getRunSummary(c.tx, c.params.run_id, c.p);
     const after = c.query.get('after') || c.query.get('cursor') || '0';
     assert(/^\d+$/.test(after), 400, 'invalid_cursor', 'Use the last event sequence as cursor.');
     const limit = Math.min(100, Number(c.query.get('limit')) || 100);
@@ -546,7 +547,7 @@ const primitiveHandlers = {
     };
   },
   listArtifacts: async (c) => {
-    await runs.getRun(c.tx, c.params.run_id, c.p);
+    await runs.getRunSummary(c.tx, c.params.run_id, c.p);
     return r.list(c.tx, 'artifacts', c.p, c.query, { run_id: c.params.run_id });
   },
   downloadArtifact: async (c) => {

@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { channel } from 'node:diagnostics_channel';
 import { config } from '../core/src/config';
 import { capacitySetting } from '../core/src/capacity';
 import { queryTimeoutMs, statementTimeoutMs as defaultStatementTimeoutMs } from './timeouts';
@@ -13,6 +14,52 @@ import {
 export { DatabaseBudgetError, TransactionCommitUnknownError, TransactionRolledBackError } from './budget';
 export type Tx = pg.PoolClient;
 const commitObservers = new WeakMap<Tx, (() => void)[]>();
+const activeGroups = new WeakSet<Tx>();
+const groupedQueries = channel('macrofold.database.group');
+/** Submit a bounded, already ordered group on the transaction's assigned client.
+ * This is for statements whose results need no intervening domain decision.
+ * pg preserves submission order; every result drains before rollback or COMMIT.
+ * See the execution-efficiency design's database round-trip contract. */
+export async function queryGroup<Row extends pg.QueryResultRow = pg.QueryResultRow>(
+  tx: Tx,
+  statements: readonly pg.QueryConfig[],
+): Promise<pg.QueryResult<Row>[]> {
+  if (
+    statements.some(({ text }) =>
+      /^\s*(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|PREPARE\s+TRANSACTION)\b/i.test(text),
+    )
+  )
+    throw new Error('Transaction boundaries belong to the managed transaction.');
+  return submitQueryGroup<Row>(tx, statements);
+}
+async function submitQueryGroup<Row extends pg.QueryResultRow = pg.QueryResultRow>(
+  tx: Tx,
+  statements: readonly pg.QueryConfig[],
+): Promise<pg.QueryResult<Row>[]> {
+  if (!commitObservers.has(tx)) throw new Error('Query groups require a managed transaction.');
+  if (statements.length > 64) throw new RangeError('A query group is limited to 64 statements.');
+  if (activeGroups.has(tx)) throw new Error('Query groups cannot overlap on one transaction.');
+  // pg@8.23 exposes this public option; @types/pg has not declared it yet.
+  const client = tx as Tx & { pipeline: boolean };
+  const previous = client.pipeline;
+  activeGroups.add(tx);
+  client.pipeline = true;
+  const started = groupedQueries.hasSubscribers ? performance.now() : undefined;
+  try {
+    const results = await Promise.allSettled(statements.map(async (statement) => tx.query<Row>(statement)));
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') throw failure.reason;
+    return results.map((result) => {
+      if (result.status === 'rejected') throw result.reason;
+      return result.value;
+    });
+  } finally {
+    client.pipeline = previous;
+    activeGroups.delete(tx);
+    if (started !== undefined)
+      groupedQueries.publish({ statements: statements.length, started, ended: performance.now() });
+  }
+}
 /** Non-authoritative, synchronous notifications only. External I/O belongs in
  * the observer's bounded exporter, never inside the SQL transaction. */
 export function afterCommit(tx: Tx, callback: () => void) {
@@ -97,27 +144,40 @@ async function transact<T>(
   let committed = false;
   let committing = false;
   let releaseError: Error | undefined;
+  // pg destroys a timed-out pipeline and emits a client error after rejecting
+  // its queries. The checked-out client has no pool idle listener at that point.
+  // Own that event until release so the failure cannot escape as an uncaught
+  // exception, and never return the broken socket to the pool.
+  const onClientError = (error: Error) => {
+    releaseError = error;
+  };
+  client.on('error', onClientError);
   try {
-    await tx.query('BEGIN');
     // Apply before lock acquisition too, so bounded metadata readers cannot wait
     // indefinitely behind storage maintenance while their streams expire.
+    const setup: pg.QueryConfig[] = [{ text: 'BEGIN' }];
     if (statementTimeoutMs !== undefined || deadlineAtMs !== undefined) {
       const serverCeiling = Math.min(
         statementTimeoutMs ?? defaultStatementTimeoutMs,
         deadlineAtMs === undefined ? defaultStatementTimeoutMs : remainingDatabaseMs(deadlineAtMs),
       );
-      await tx.query(
-        "SELECT set_config('statement_timeout',$1,true),set_config('app.organization_id',$2,true)",
-        [String(serverCeiling), organization || ''],
-      );
-    } else await tx.query("SELECT set_config('app.organization_id', $1, true)", [organization || '']);
+      setup.push({
+        text: "SELECT set_config('statement_timeout',$1,true),set_config('app.organization_id',$2,true)",
+        values: [String(serverCeiling), organization || ''],
+      });
+    } else
+      setup.push({
+        text: "SELECT set_config('app.organization_id', $1, true)",
+        values: [organization || ''],
+      });
     // Destructive storage maintenance excludes all tenant resource transactions. Ordinary
     // reads/writes share this lock; long-lived agent execution is also protected by its active run row.
     if (organization && storageLock)
-      await tx.query(
-        `SELECT ${storageLock === 'exclusive' ? 'pg_advisory_xact_lock' : 'pg_advisory_xact_lock_shared'}(hashtextextended($1,0))`,
-        [`storage:${organization}`],
-      );
+      setup.push({
+        text: `SELECT ${storageLock === 'exclusive' ? 'pg_advisory_xact_lock' : 'pg_advisory_xact_lock_shared'}(hashtextextended($1,0))`,
+        values: [`storage:${organization}`],
+      });
+    await submitQueryGroup(tx, setup);
     const result = await fn(tx);
     // Expiry before issuing COMMIT is a known rollback path. Only failures
     // after the actual commit attempt create an ambiguous admission outcome.
@@ -150,6 +210,7 @@ async function transact<T>(
   } finally {
     commitObservers.delete(tx);
     client.release(releaseError);
+    client.removeListener('error', onClientError);
     if (committed)
       for (const observer of observers) {
         try {

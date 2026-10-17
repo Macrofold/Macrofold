@@ -34,6 +34,10 @@ Editor saves, accepted transfers and completed runs publish verified checkpoints
 
 Capture also bounds visited filesystem nodes, including empty directories. Object I/O and snapshot recovery have deadlines and finite failure budgets; incomplete capture cannot publish an empty or partial checkpoint as success. See [bounded automatic work](../execution/runtime.md#bounded-automatic-work) for recovery limits and retained ownership.
 
+Native upload progress is set-based and independent of the four concurrent transfer slots. Manifests are verified under the existing five-minute storage preparation guard at publication, then checkpoint preparation reuses only that guard's private tenant/key/hash/size proof. Duplicate file content shares manifest preparation within the guard. Proofs are neither persisted nor accepted from the runtime; disposal, expiry or recovery requires verification again. The final short transaction checks the guard, execution ownership and unchanged Worktree revision before publishing files and native Session state.
+
+Manifest candidates are fully verified before their content-addressed key is written. A malformed candidate cannot overwrite an older verified checkpoint manifest and only then fail integrity checking. Small stored objects already fitting one chunk retain their existing verified chunk identity during restore preparation.
+
 Editing or uploading replacement content preserves an existing regular file's mode, including its executable bit in Git. Replacing a symlink with an ordinary file does not inherit the symlink's permissions.
 
 There is no promise of a periodic live application-consistent filesystem snapshot. While a run writes, the dashboard reads the last published file revision; native events show activity. The final checkpoint is quiescent. Catastrophic VM loss can lose changes since the last published checkpoint, and the run reports that recovery condition. An unreadable VM is not automatically resumed to populate a UI table.

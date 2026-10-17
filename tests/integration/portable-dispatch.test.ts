@@ -5,7 +5,7 @@ import { FaultMachine } from '../fixtures/cloud-machine';
 import { CloudDispatcher } from '../../packages/core/src/portable-dispatch';
 import { advanceCloudRun } from '../../packages/core/src/cloud-engine';
 import * as cloudEngine from '../../packages/core/src/cloud-engine';
-import { admitRun, getRun } from '../../packages/core/src/runs';
+import { admitRun, getRun, cancelRun } from '../../packages/core/src/runs';
 import { admitInference } from '../../packages/core/src/inferences';
 import { createWorktree } from '../../packages/core/src/files';
 import { createKey } from '../../packages/core/src/keys';
@@ -271,6 +271,31 @@ it('records a failed step once, contains its rejection, and honors retry backoff
   expect(advance).toHaveBeenCalledOnce();
   expect(log).toHaveBeenCalledOnce();
   expect(log.mock.calls.flat().join(' ')).not.toContain('private failure');
+});
+
+it('rereads cancellation during retained native work and yields before changing resource pools', async () => {
+  const f = await fixture(),
+    run = await f.native(),
+    provider = new FaultMachine();
+  for (let steps = 0; steps < 20 && (await f.get(run.run_id)).execution_binding?.phase !== 'poll'; steps++)
+    await advanceCloudRun(f.p.organizationId, run.run_id, provider);
+  expect((await f.get(run.run_id)).execution_binding?.phase).toBe('poll');
+  const probe = provider.probe.bind(provider);
+  vi.spyOn(provider, 'probe').mockImplementationOnce(async (binding, offset) => {
+    await transaction(f.p.organizationId, (tx) => cancelRun(tx, f.p, run.run_id));
+    return probe(binding, offset);
+  });
+  const dispatcher = new CloudDispatcher(provider, 1, f.p.organizationId);
+  await pool.query('UPDATE dispatch_jobs SET available_at=now() WHERE resource_id=$1', [run.run_id]);
+  await dispatcher.tick();
+  await dispatcher.drain();
+  expect(provider.cancellations).toBe(1);
+  expect((await f.get(run.run_id)).execution_binding?.phase).toBe('index');
+  expect(
+    (await pool.query('SELECT dispatch_class FROM reporting.scheduling_runs WHERE id=$1', [run.run_id]))
+      .rows[0]?.dispatch_class,
+  ).toBe('transfer');
+  expect(provider.closes).toHaveLength(0);
 });
 
 it('can fill more than twenty phase slots without exceeding the configured pool', async () => {

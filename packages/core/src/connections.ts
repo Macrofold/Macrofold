@@ -7,7 +7,7 @@ import { enabledConnector } from './connector-enablement';
 import type { Tx } from '../../db';
 import type { Principal } from './auth';
 import { assert, AppError } from './errors';
-import { seal, unseal } from './crypto';
+import { seal, unseal, canonical, sha256 } from './crypto';
 import { config } from './config';
 import * as resources from './resources';
 import { mcpFetch, validateMcpURL, validatePublicURL } from '../../providers/src/network';
@@ -18,6 +18,8 @@ import { searchKey, searchIdentity } from './search';
 import { searchTool, searchProviders } from '../../contracts/search';
 import { collectToolPages } from '../../providers/src/tool-catalog';
 import { requireClaudeSubscriptionExecution, validateClaudeFallback } from './claude-connections';
+import { connectionToolCatalog, type RawConnectionTool } from './connection-tool-catalog';
+import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 type Schema = components['schemas'];
 export function assertConnectionOwner(p: Principal, c: resources.Document<'connections'>) {
   assert(
@@ -203,35 +205,62 @@ export async function withMcp<T>(
   };
   return connection.auth_method === 'oauth' ? withConnectionOAuth(connection, execute) : execute();
 }
-export async function connectionTools(c: resources.Document<'connections'>): Promise<Schema['Tool'][]> {
-  const grants = c.access_tools;
+export async function connectionTools(
+  c: resources.Document<'connections'>,
+  options: { refresh?: boolean } = {},
+): Promise<Schema['Tool'][]> {
+  const raw = await rawConnectionTools(c, options.refresh);
+  return raw.map((tool) => ({ ...tool, granted: c.access_tools.includes(tool.name) }));
+}
+
+async function rawConnectionTools(
+  c: resources.Document<'connections'>,
+  refresh = false,
+): Promise<RawConnectionTool[]> {
   if (c.kind === 'model' || c.kind === 'claude_subscription') return [];
-  if (c.kind === 'search') return [{ ...searchTool, granted: grants.includes(searchTool.name) }];
-  if (c.kind === 'mcp_stdio')
-    return approvedStdio(c.package, c.package_version).tools.map((t) => ({
-      ...t,
-      granted: grants.includes(t.name),
-    }));
-  if (c.kind === 'composio') {
-    const setup = await enabledConnector(String(c.provider));
-    return (await composioTools(setup.toolkit, setup.toolkit_version)).map((t) => ({
-      ...t,
-      granted: grants.includes(t.name),
-    }));
-  }
-  return withMcp(c, (client) =>
-    collectToolPages(async (cursor, signal) => {
-      const result = await client.listTools(cursor ? { cursor } : undefined, { signal });
-      return {
-        items: result.tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          input_schema: t.inputSchema,
-          granted: grants.includes(t.name),
-        })),
-        nextCursor: result.nextCursor,
-      };
+  if (c.kind === 'search') return [searchTool];
+  if (c.kind === 'mcp_stdio') return approvedStdio(c.package, c.package_version).tools;
+  const setup = c.kind === 'composio' ? await enabledConnector(String(c.provider)) : undefined;
+  // Include tenant, configuration and encrypted credential revisions, never
+  // decrypted secrets or mutable grants. Local network policy changes also
+  // invalidate discovery immediately in a running development process.
+  const key = sha256(
+    canonical({
+      organization: c.organization_id,
+      connection: c.id,
+      revision: c.revision,
+      kind: c.kind,
+      url: c.url,
+      provider: c.provider,
+      account: c.external_account_id,
+      auth: c.auth_method,
+      credentials: [c.secret_ciphertext, c.headers_ciphertext, c.oauth_ciphertext],
+      toolkit: setup?.toolkit_version,
+      localOrigins: process.env.LOCAL_MCP_ALLOWED_ORIGINS,
     }),
+  );
+  return connectionToolCatalog.read(
+    key,
+    async () => {
+      if (setup) return composioTools(setup.toolkit, setup.toolkit_version);
+      return withMcp(c, (client) => {
+        client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+          connectionToolCatalog.invalidate(key);
+        });
+        return collectToolPages(async (cursor, signal) => {
+          const result = await client.listTools(cursor ? { cursor } : undefined, { signal });
+          return {
+            items: result.tools.map((tool) => ({
+              name: tool.name,
+              description: tool.description,
+              input_schema: tool.inputSchema,
+            })),
+            nextCursor: result.nextCursor,
+          };
+        });
+      });
+    },
+    refresh,
   );
 }
 export async function authorizeConnection(_tx: Tx, p: Principal, c: resources.Document<'connections'>) {
@@ -295,7 +324,7 @@ export async function testConnection(tx: Tx, p: Principal, c: resources.Document
         'authorization_required',
         'Authorization is incomplete or expired.',
       );
-    } else await connectionTools(c);
+    } else await connectionTools(c, { refresh: true });
   } catch (error) {
     status = 'error';
     message =

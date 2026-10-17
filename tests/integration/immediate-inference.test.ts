@@ -10,11 +10,14 @@ import { dispatchCloudPoller } from '../../packages/core/src/portable-dispatch';
 import { cancelRun, getRun } from '../../packages/core/src/runs';
 import { expireDetailedHistory } from '../../packages/core/src/deletion';
 import * as gateway from '../../packages/core/src/model-gateway';
+import * as tracing from '../../packages/core/src/tracing';
 import { AppError } from '../../packages/core/src/errors';
 import { storedContextReader } from '../../packages/core/src/context-artifacts';
 import type { ExplicitContext } from '../../packages/core/src/decision';
 import { fixtureAccount, retireFixtureRuns } from '../fixtures/account';
 import { fixtureHttpApi } from '../fixtures/http-api';
+import { inferenceCaptureStats, scheduleInferenceCapture } from '../../packages/core/src/inference-capture';
+import { storage } from '../../packages/providers/src/storage';
 
 let account: Awaited<ReturnType<typeof fixtureAccount>>;
 const originalPaid = config.allowPaid;
@@ -47,6 +50,7 @@ afterEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+    vi.useRealTimers();
     config.allowPaid = originalPaid;
     await retireFixtureRuns(account.p.organizationId);
   }
@@ -216,8 +220,8 @@ it('publishes a timely complete response when settlement crosses the execution d
   const delayed = vi
     .spyOn(gateway, 'settleModelRequestInTransaction')
     .mockImplementation(async (tx, ...args) => {
-      // B has already committed its completion timestamp. Make E just after that
-      // timestamp, then cross E in PostgreSQL rather than faking the JS clock.
+      // F has recorded the transport completion inside this same transaction.
+      // Cross E in PostgreSQL rather than faking the JS clock.
       await tx.query(
         `UPDATE runs SET deadline=i.provider_completed_at+interval '1 millisecond'
       FROM decision_invocations i WHERE runs.id=i.run_id AND i.id=$1`,
@@ -271,7 +275,7 @@ it('lets a cancelled live owner preserve known usage before recovery finalizes i
   }
 });
 
-it.each(['admission', 'response', 'completion'] as const)(
+it.each(['admission', 'completion'] as const)(
   'recovers a lost %s commit acknowledgment with the original identity',
   async (boundary) => {
     const fetch = vi.fn(async () => providerResponse());
@@ -288,14 +292,12 @@ it.each(['admission', 'response', 'completion'] as const)(
         const matches =
           boundary === 'admission'
             ? 'body' in result && result.body && typeof result.body === 'object' && 'run_id' in result.body
-            : boundary === 'response'
-              ? 'state' in result && result.state === 'responded' && 'response_ciphertext' in result
-              : 'run' in result &&
-                'receipt' in result &&
-                result.run &&
-                typeof result.run === 'object' &&
-                'status' in result.run &&
-                result.run.status === 'succeeded';
+            : 'run' in result &&
+              'receipt' in result &&
+              result.run &&
+              typeof result.run === 'object' &&
+              'status' in result.run &&
+              result.run.status === 'succeeded';
         if (matches) {
           injected = true;
           throw new database.TransactionCommitUnknownError(new Error('Synthetic lost acknowledgment'));
@@ -576,4 +578,291 @@ it('aborts stalled context preparation before admission while preserving the ful
       )
     ).rows,
   ).toEqual(before.rows);
+});
+
+it('keeps immediate input off admission and stores one response before optional capture', async () => {
+  enable();
+  const fetch = vi.fn(async () => providerResponse());
+  vi.stubGlobal('fetch', fetch);
+  const tasks: (() => Promise<void>)[] = [];
+  const identity = id();
+  const response = await handleApi(
+    new Request(`${config.origin}/v1/inferences`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${account.key}`,
+        'content-type': 'application/json',
+        'idempotency-key': identity,
+      },
+      body: JSON.stringify(input()),
+    }),
+    'rest',
+    (task) => {
+      tasks.push(task);
+    },
+  );
+  try {
+    expect(response.status, await response.clone().text()).toBe(200);
+    const receipt = await response.json();
+    const stored = await database.transaction(account.p.organizationId, async (tx) => ({
+      run: (
+        await tx.query<{ config: Record<string, unknown>; result: Record<string, unknown> }>(
+          'SELECT config,result FROM runs WHERE id=$1',
+          [receipt.run_id],
+        )
+      ).rows[0],
+      call: (
+        await tx.query<{ body_ciphertext: string; response_ciphertext: string }>(
+          'SELECT body_ciphertext,response_ciphertext FROM decision_invocations WHERE run_id=$1',
+          [receipt.run_id],
+        )
+      ).rows[0],
+    }));
+    expect(stored.run.config).toMatchObject({ payload_kind: 'compact', execution_owner: 'request' });
+    for (const field of ['input', 'context', 'definition', 'model_parameters'])
+      expect(stored.run.config).not.toHaveProperty(field);
+    expect(stored.call.body_ciphertext).toBe('');
+    expect(stored.call.response_ciphertext).toEqual(expect.any(String));
+    expect(stored.run.result).toHaveProperty('inference_output_id');
+    expect(stored.run.result).not.toHaveProperty('inference.value');
+    const saved = await facts(receipt.run_id);
+    expect(saved.run.result.inference?.value).toEqual(receipt.result.inference.value);
+    const replay = await post(identity);
+    expect((await replay.json()).result.inference.value).toEqual(receipt.result.inference.value);
+    expect(fetch).toHaveBeenCalledOnce();
+  } finally {
+    await Promise.all(tasks.map((task) => task()));
+  }
+});
+
+it('recovers an exceptional checkpoint with no original input or provider credentials', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const fault = vi
+    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .mockRejectedValueOnce(new AppError(503, 'fixture_settlement_unavailable', 'Synthetic outage'));
+  const response = await post();
+  fault.mockRestore();
+  const receipt = await response.json();
+  expect(receipt.recovery_reason).toBe('finalization_pending');
+  vi.stubEnv('ANTHROPIC_API_KEY', '');
+  await recoverThroughCloudPoller(receipt.run_id);
+  const stored = await facts(receipt.run_id);
+  expect(stored.run.status).toBe('succeeded');
+  expect(stored.run.config).toHaveProperty('payload_kind', 'compact');
+  expect(stored.run.result.inference?.value).toBeDefined();
+  expect(globalThis.fetch).toHaveBeenCalledOnce();
+});
+
+it('keeps only compact trace metadata after retention erases content', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const response = await post();
+  const receipt = await response.json();
+  await Promise.allSettled(backgroundTasks);
+  await database.transaction(account.p.organizationId, async (tx) => {
+    await tx.query("UPDATE runs SET completed_at=now()-interval '400 days' WHERE id=$1", [receipt.run_id]);
+    await expireDetailedHistory(tx, 'payg', new Date());
+  });
+  const write = vi.spyOn(storage, 'put');
+  const trace = vi.fn();
+  const tasks: (() => Promise<void>)[] = [];
+  expect(
+    scheduleInferenceCapture(
+      { organizationId: account.p.organizationId, runId: receipt.run_id, bytes: 21 },
+      (task) => {
+        tasks.push(task);
+      },
+      trace,
+    ),
+  ).toBe(true);
+  await Promise.all(tasks.map((task) => task()));
+  expect(write).not.toHaveBeenCalled();
+  expect(trace).toHaveBeenCalledExactlyOnceWith(false);
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 0, retainedBytes: 0 });
+  const saved = await facts(receipt.run_id);
+  expect(saved.run.result.content_expired).toBe(true);
+  expect(saved.invocations[0].body_ciphertext).toBe('');
+});
+
+it('emits one compact observation when the captured Run no longer exists', async () => {
+  const trace = vi.fn();
+  const tasks: (() => Promise<void>)[] = [];
+  scheduleInferenceCapture(
+    { organizationId: account.p.organizationId, runId: id(), bytes: 1 },
+    (task) => {
+      tasks.push(task);
+    },
+    trace,
+  );
+  await Promise.all(tasks.map((task) => task()));
+  expect(trace).toHaveBeenCalledExactlyOnceWith(false);
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 0, retainedBytes: 0 });
+});
+
+it('enqueues full content under its checked Run lock and never duplicates export after guard rollback', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const receipt = await (await post()).json();
+  await Promise.allSettled(backgroundTasks);
+  const trace = vi.fn();
+  const original = database.transaction;
+  vi.spyOn(database, 'transaction').mockImplementation(
+    async <T>(
+      organization: string | null,
+      operation: (tx: Tx) => Promise<T>,
+      options?: TransactionOptions,
+    ): Promise<T> =>
+      original(
+        organization,
+        async (tx) => {
+          await operation(tx);
+          // The callback must already have enqueued while FOR SHARE is held,
+          // before COMMIT releases the lock to a competing purge.
+          expect(trace).toHaveBeenCalledExactlyOnceWith(true);
+          throw new Error('Synthetic read-guard rollback after enqueue');
+        },
+        options,
+      ),
+  );
+  const tasks: (() => Promise<void>)[] = [];
+  scheduleInferenceCapture(
+    { organizationId: account.p.organizationId, runId: receipt.run_id, bytes: 1 },
+    (task) => {
+      tasks.push(task);
+    },
+    trace,
+  );
+  await Promise.all(tasks.map((task) => task()));
+  expect(trace).toHaveBeenCalledExactlyOnceWith(true);
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 0, retainedBytes: 0 });
+});
+
+it('routes recovery through compact trace capture when no retained host owns content export', async () => {
+  vi.spyOn(tracing, 'tracingEnabled').mockReturnValue(true);
+  const trace = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const fault = vi
+    .spyOn(gateway, 'settleModelRequestInTransaction')
+    .mockRejectedValueOnce(new AppError(503, 'fixture_settlement_unavailable', 'Synthetic outage'));
+  const receipt = await (await post()).json();
+  fault.mockRestore();
+  expect(receipt.recovery_reason).toBe('finalization_pending');
+  await recoverThroughCloudPoller(receipt.run_id);
+  expect(trace).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: 'decision.generate',
+      input: undefined,
+      output: undefined,
+      usage: expect.objectContaining({ complete: true }),
+      metadata: expect.objectContaining({ content_capture: 'omitted' }),
+    }),
+  );
+});
+
+it('bounds full trace retention and keeps compact cost/usage export when capture cannot run', async () => {
+  const compact = vi.fn();
+  const schedule = vi.fn();
+  expect(
+    scheduleInferenceCapture(
+      { organizationId: account.p.organizationId, runId: id(), bytes: 1 },
+      undefined,
+      compact,
+    ),
+  ).toBe(false);
+  expect(compact).toHaveBeenLastCalledWith(false);
+  expect(
+    scheduleInferenceCapture(
+      { organizationId: account.p.organizationId, runId: id(), bytes: 33 * 1024 * 1024 },
+      schedule,
+      compact,
+    ),
+  ).toBe(false);
+  expect(schedule).not.toHaveBeenCalled();
+  const tasks: (() => Promise<void>)[] = [];
+  for (let count = 0; count < 16; count++)
+    expect(
+      scheduleInferenceCapture(
+        { organizationId: account.p.organizationId, runId: id(), bytes: 2 * 1024 * 1024 },
+        (task) => {
+          tasks.push(task);
+        },
+        compact,
+      ),
+    ).toBe(true);
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 16, retainedBytes: 32 * 1024 * 1024 });
+  expect(
+    scheduleInferenceCapture(
+      { organizationId: account.p.organizationId, runId: id(), bytes: 1 },
+      schedule,
+      compact,
+    ),
+  ).toBe(false);
+  await Promise.all(tasks.map((task) => task()));
+  expect(inferenceCaptureStats()).toMatchObject({ captures: 0, retainedBytes: 0 });
+});
+
+it('rejects missing canonical response content rather than returning a successful empty value', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const receipt = await (await post()).json();
+  await database.transaction(account.p.organizationId, (tx) =>
+    tx.query('UPDATE decision_invocations SET response_ciphertext=NULL WHERE run_id=$1', [receipt.run_id]),
+  );
+  await expect(facts(receipt.run_id)).rejects.toMatchObject({ code: 'inference_output_missing' });
+});
+
+it('does not count delayed background capture as provider generation time', async () => {
+  enable();
+  vi.stubEnv('TRACING_ENABLED', 'true');
+  vi.stubEnv('LANGFUSE_PUBLIC_KEY', 'synthetic');
+  vi.stubEnv('LANGFUSE_SECRET_KEY', 'synthetic');
+  vi.stubEnv('LANGFUSE_BASE_URL', 'https://example.invalid');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => providerResponse()),
+  );
+  const exported = vi.spyOn(tracing, 'recordTrace').mockImplementation(() => {});
+  const tasks: (() => Promise<void>)[] = [];
+  const response = await handleApi(
+    new Request(`${config.origin}/v1/inferences`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${account.key}`,
+        'content-type': 'application/json',
+        'idempotency-key': id(),
+      },
+      body: JSON.stringify(input()),
+    }),
+    'rest',
+    (task) => {
+      tasks.push(task);
+    },
+  );
+  expect(response.status).toBe(200);
+  const receipt = await response.json();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + 60_000);
+  await Promise.all(tasks.map((task) => task()));
+  const generation = exported.mock.calls.map(([value]) => value).find((value) => value.type === 'generation');
+  if (!generation) throw new Error('The generation trace was not exported.');
+  // Date timestamps have integer milliseconds; receipt timing is monotonic/fractional.
+  expect(
+    Math.abs(
+      generation.endedAt.getTime() -
+        generation.startedAt.getTime() -
+        receipt.result.inference.timings_ms.provider,
+    ),
+  ).toBeLessThanOrEqual(1);
 });

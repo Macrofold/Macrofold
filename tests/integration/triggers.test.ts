@@ -12,6 +12,8 @@ import {
   dispatchTriggerDelivery,
   fireSchedule,
   dispatchTriggers,
+  dispatchTriggerAdmissions,
+  dispatchTriggerReplies,
 } from '../../packages/core/src/trigger-dispatch';
 import { claimRun, executeRun } from '../../packages/core/src/engine';
 import { cancelRun, getNativeRun as getRun } from '../../packages/core/src/runs';
@@ -141,6 +143,46 @@ async function dispatch(f: Fixture, deliveryId: string, provider?: SlackClient) 
 }
 
 describe('complete trigger admission and simulation journeys', () => {
+  it('admits new work while a separate Slack reply pool waits on its destination', async () => {
+    const slack = await setup('slack');
+    await slackEvent(slack);
+    const delivery = (await slack.client.triggers.listDeliveries(slack.trigger.id)).data[0];
+    await dispatch(slack, delivery.id);
+    const accepted = (await slack.client.triggers.listDeliveries(slack.trigger.id)).data[0];
+    await slack.client.runs.cancel(accepted.run_id!);
+    await slack.query(
+      "UPDATE dispatch_jobs SET available_at=now()-interval '1 second',lease_until=NULL WHERE kind='trigger' AND resource_id=$1",
+      [delivery.id],
+    );
+    let release: (value: string) => void = (_value) => {
+      throw new Error('Reply fixture is not ready');
+    };
+    const response = new Promise<string>((resolve) => {
+      release = resolve;
+    });
+    const reply = vi.spyOn(SlackClient.prototype, 'reply').mockImplementation(() => response);
+    const sending = dispatchTriggerReplies();
+    try {
+      await vi.waitFor(() => expect(reply).toHaveBeenCalledOnce());
+      const webhook = await setup();
+      const incomingDelivery = await (await incoming(webhook)).json();
+      await webhook.query(
+        "UPDATE dispatch_jobs SET available_at=now()-interval '1 second' WHERE kind='trigger' AND resource_id=$1",
+        [incomingDelivery.id],
+      );
+      await dispatchTriggerAdmissions();
+      expect((await webhook.client.triggers.listDeliveries(webhook.trigger.id)).data[0]).toMatchObject({
+        status: 'accepted',
+        run_id: expect.any(String),
+      });
+      expect((await slack.client.triggers.listDeliveries(slack.trigger.id)).data[0].reply_state).toBe(
+        'sending',
+      );
+    } finally {
+      release('fixture.123');
+      await sending;
+    }
+  });
   it('resolves the saved preset in its real workspace and never accepts inbound access exceptions', async () => {
     const f = await setup();
     const connection = await f.client.connections.create({
@@ -170,7 +212,10 @@ describe('complete trigger admission and simulation journeys', () => {
       expect(run.config.agent_id).toBe(f.agent.id);
       expect(run.config.agent_version).toBe(f.agent.version);
       expect(run.config.connection_grants).toEqual([{ connection_id: connection.id, tools: ['web_search'] }]);
-      expect(run.config.connection_access[0]).toMatchObject({ source: 'workspace_agent', access_version: '3' });
+      expect(run.config.connection_access[0]).toMatchObject({
+        source: 'workspace_agent',
+        access_version: '3',
+      });
       expect(run.config.connection_access[0].override).toBeUndefined();
     });
   });
@@ -677,23 +722,35 @@ describe('trigger authorization, limits and recovery', () => {
   });
 });
 
-
 it('reports account capacity, serializes the last slot, and preserves definitions after lowering', async () => {
   const f = await setup('schedule');
   const other = await setup('schedule');
   expect((await f.client.triggers.list()).quota).toEqual({ limit: 100, used: 1, remaining: 99 });
-  await fixtureOperator((db) => db.query('UPDATE organizations SET trigger_definition_limit=2 WHERE id=$1', [f.account.p.organizationId]));
-  const body = { name: 'Another', kind: 'schedule' as const, workspace_id: f.workspace.id,
-    agent_id: f.agent.id, prompt: 'Fixture', cron: '0 9 * * *', timezone: 'UTC' };
+  await fixtureOperator((db) =>
+    db.query('UPDATE organizations SET trigger_definition_limit=2 WHERE id=$1', [f.account.p.organizationId]),
+  );
+  const body = {
+    name: 'Another',
+    kind: 'schedule' as const,
+    workspace_id: f.workspace.id,
+    agent_id: f.agent.id,
+    prompt: 'Fixture',
+    cron: '0 9 * * *',
+    timezone: 'UTC',
+  };
   const outcomes = await Promise.allSettled([f.client.triggers.create(body), f.client.triggers.create(body)]);
   expect(outcomes.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
   expect(outcomes.find((r) => r.status === 'rejected')).toMatchObject({ reason: { code: 'trigger_limit' } });
-  await fixtureOperator((db) => db.query('UPDATE organizations SET trigger_definition_limit=0 WHERE id=$1', [f.account.p.organizationId]));
+  await fixtureOperator((db) =>
+    db.query('UPDATE organizations SET trigger_definition_limit=0 WHERE id=$1', [f.account.p.organizationId]),
+  );
   const page = await f.client.triggers.list();
   expect(page.quota).toEqual({ limit: 0, used: 2, remaining: 0 });
   expect(page.data.every((trigger) => trigger.enabled)).toBe(true);
   await f.client.triggers.update(f.trigger.id, { enabled: false });
   expect((await f.client.triggers.list()).quota.used).toBe(2);
   expect((await other.client.triggers.list()).quota).toEqual({ limit: 100, used: 1, remaining: 99 });
-  await expect(pool.query('UPDATE trigger_policy SET definition_limit=900')).rejects.toMatchObject({ code: '42501' });
+  await expect(pool.query('UPDATE trigger_policy SET definition_limit=900')).rejects.toMatchObject({
+    code: '42501',
+  });
 });

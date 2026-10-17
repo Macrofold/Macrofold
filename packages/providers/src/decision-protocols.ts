@@ -51,6 +51,7 @@ async function invoke(
   chat = false,
   nativeResponse = false,
   output?: InferenceOutputSink,
+  preparedJSON?: string,
 ): Promise<DecisionResponse> {
   // Fixed endpoints, no SDK retry defaults, no credential-bearing redirects.
   const upstream = await fetch(chat ? 'https://openrouter.ai/api/v1/chat/completions' : endpoints[provider], {
@@ -63,7 +64,7 @@ async function invoke(
         ? { 'x-api-key': secret, 'anthropic-version': '2023-06-01' }
         : { authorization: `Bearer ${secret}` }),
     },
-    body: canonical(body),
+    body: preparedJSON ?? canonical(body),
   });
   // Retain bounded transport evidence independently from answer/usage parsing.
   // No provider error establishes zero liability merely because it is non-2xx.
@@ -370,8 +371,8 @@ const anthropic: DecisionProtocol = {
       ],
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
-    invoke('anthropic', body, secret, signal, observeResponse, false, nativeResponse, output),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output, preparedJSON) =>
+    invoke('anthropic', body, secret, signal, observeResponse, false, nativeResponse, output, preparedJSON),
 };
 const typesafe: DecisionProtocol = {
   version: 'typesafe-systemone/1',
@@ -405,8 +406,8 @@ const typesafe: DecisionProtocol = {
       },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
-    invoke('typesafe', body, secret, signal, observeResponse, false, nativeResponse, output),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output, preparedJSON) =>
+    invoke('typesafe', body, secret, signal, observeResponse, false, nativeResponse, output, preparedJSON),
 };
 const openrouter: DecisionProtocol = {
   ...typesafe,
@@ -419,8 +420,8 @@ const openrouter: DecisionProtocol = {
       provider: { allow_fallbacks: false, max_price: openRouterPriceCeiling(request.rates) },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
-    invoke('openrouter', body, secret, signal, observeResponse, false, nativeResponse, output),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output, preparedJSON) =>
+    invoke('openrouter', body, secret, signal, observeResponse, false, nativeResponse, output, preparedJSON),
 };
 
 const openrouterChat: DecisionProtocol = {
@@ -462,8 +463,8 @@ const openrouterChat: DecisionProtocol = {
       },
     };
   },
-  invoke: (body, secret, signal, observeResponse, nativeResponse, output) =>
-    invoke('openrouter', body, secret, signal, observeResponse, true, nativeResponse, output),
+  invoke: (body, secret, signal, observeResponse, nativeResponse, output, preparedJSON) =>
+    invoke('openrouter', body, secret, signal, observeResponse, true, nativeResponse, output, preparedJSON),
 };
 
 export function decisionProtocol(provider: string, model?: string): DecisionProtocol {

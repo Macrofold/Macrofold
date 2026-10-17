@@ -7,14 +7,14 @@ import { queueAutomaticSync } from './git-jobs';
 import { transaction, afterCommit, lock, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
-import { observeWorkerStep } from './worker-diagnostics';
+import { observeWorkerStep, observeRuntimeEvents } from './worker-diagnostics';
 import { id, sha256 } from './crypto';
 import { assert, AppError } from './errors';
 import { config } from './config';
 import { claimRun, principalFor } from './engine';
 import type { NativeRunRow } from './runs';
 import { getRun, getNativeRun, requireNativeRun, terminal } from './runs';
-import { emit } from './events';
+import { emit, emitBatch } from './events';
 import { settle } from './ledger';
 import { computeMaximum } from './catalog';
 import { runtimeToken } from './runtime-auth';
@@ -25,11 +25,17 @@ import type { MachineBinding, MachineProvider, RuntimeProbe } from './ports';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { isPersistentPath } from '../../runtime/src/persistence-paths';
-import { describeContent, saveChunkManifest, saveContent } from '../../providers/src/storage';
-import { stageRestoreObjects, RESTORE_BATCH_OBJECTS, type RestoreObject } from './execution-hydration';
+import { describeContent, saveContent } from '../../providers/src/storage';
+import {
+  readRestoreInventoryPage,
+  stageRestoreObjects,
+  RESTORE_BATCH_OBJECTS,
+  type RestoreObject,
+} from './execution-hydration';
 import { settleOrphanModelRequests } from './model-gateway';
 import { queueRetryAt } from './queue-wait';
 import { mapConcurrent } from './concurrent';
+import type { DispatchClass } from './capacity';
 
 type Phase =
   | 'input'
@@ -44,11 +50,28 @@ type Phase =
   | 'publish'
   | 'close'
   | 'done';
+// Mirrors the content-free scheduling view in 051_dispatch_resources.sql. The
+// hint retains an existing slot only; every resource change returns to SQL claim.
+const phaseDispatchClass: Record<Phase, Exclude<DispatchClass, 'inference'>> = {
+  provision: 'provision',
+  input: 'transfer',
+  hydrate: 'transfer',
+  restore: 'transfer',
+  restore_wait: 'control',
+  launch: 'control',
+  poll: 'control',
+  index: 'transfer',
+  upload: 'transfer',
+  publish: 'transfer',
+  close: 'control',
+  done: 'control',
+};
 export type ExecutionState = {
   provider: 'vercel' | 'docker';
   phase: Phase;
   machine?: MachineBinding;
   inputOffset?: number;
+  inputRevision?: { worktree: string; session: string };
   restoreNamespaces?: ('workspace' | 'home')[];
   indexOffset?: number;
   eventOffset?: number;
@@ -77,11 +100,21 @@ export const MAX_RUN_ADVANCES = 250_000;
 export const RUN_RECOVERY_MS = 30 * 60_000;
 export const MAX_RECOVERY_FAILURES = 8;
 type ExecutionObject = { id: string; kind: string; name: string; data: Record<string, unknown> };
-const object = async (tx: Tx, org: string, run: string, kind: string, name: string, data: unknown) =>
-  tx.query(
-    'INSERT INTO execution_objects(id,organization_id,run_id,kind,name,data) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(run_id,kind,name) DO NOTHING',
-    [id(), org, run, kind, name, JSON.stringify(data)],
+async function objects(
+  tx: Tx,
+  org: string,
+  run: string,
+  entries: { kind: string; name: string; data: unknown }[],
+) {
+  if (!entries.length) return;
+  await tx.query(
+    `INSERT INTO execution_objects(id,organization_id,run_id,kind,name,data)
+     SELECT item.id,$1,$2,item.kind,item.name,item.data
+     FROM jsonb_to_recordset($3::jsonb) AS item(id uuid,kind text,name text,data jsonb)
+     ON CONFLICT(run_id,kind,name) DO NOTHING`,
+    [org, run, JSON.stringify(entries.map((entry) => ({ ...entry, id: id() })))],
   );
+}
 async function pending<T extends ExecutionObject = ExecutionObject>(
   org: string,
   run: string,
@@ -114,7 +147,13 @@ export async function advanceCloudRun(
   org: string,
   runId: string,
   machineProvider: MachineProvider | ((run: NativeRunRow) => MachineProvider),
-): Promise<{ done: boolean; delaySeconds: number; queued?: boolean }> {
+): Promise<{
+  done: boolean;
+  delaySeconds: number;
+  queued?: boolean;
+  nextDispatchClass?: DispatchClass;
+  canContinue?: boolean;
+}> {
   let run = await transaction(org, (tx) => getRun(tx, runId));
   if (run.kind !== 'native_agent') {
     const { advanceInference } = await import('./inference-engine');
@@ -145,8 +184,27 @@ export async function advanceCloudRun(
     return { done: true, delaySeconds: 0 };
   const claim = id();
   const owns = await transaction(org, async (tx) => {
-    await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-    const current = await getNativeRun(tx, runId);
+    // Admission froze configuration; the phase claim needs fresh controls, not
+    // another download/hydration of the accepted prompt and attachments.
+    const current = (
+      await tx.query<
+        Pick<
+          NativeRunRow,
+          | 'execution_binding'
+          | 'status'
+          | 'cancel_requested'
+          | 'deadline'
+          | 'model_error_request_id'
+          | 'input_request'
+          | 'lease_generation'
+        >
+      >(
+        'SELECT execution_binding,status,cancel_requested,deadline,model_error_request_id,input_request,lease_generation FROM runs WHERE id=$1 FOR UPDATE',
+        [runId],
+      )
+    ).rows[0];
+    assert(current, 404, 'not_found', 'Run not found.');
+    Object.assign(run, current);
     state = (current.execution_binding || state) as ExecutionState;
     if (state.lock && (state.lockExpires || 0) > Date.now()) return false;
     state = { ...state, lock: claim, lockExpires: Date.now() + 120_000 };
@@ -163,6 +221,8 @@ export async function advanceCloudRun(
   const timing = (timings[phase] ??= { startedAt: Date.now(), activeMs: 0, attempts: 0 });
   // Ready work needs another durable step, not a timer. Only actual waits opt in below.
   let delaySeconds = 0;
+  let committed = false;
+  let canContinue = true;
   try {
     state.advances = (state.advances || 0) + 1;
     // Deadline/counter ceilings survive restarts and successful-but-stalled polls.
@@ -191,50 +251,62 @@ export async function advanceCloudRun(
         'The run stopped before the native agent started.',
       );
     if (state.phase === 'input') {
-      const source = await transaction(org, async (tx) => {
-        const ws = await resources.get(tx, 'worktrees', run.worktree_id),
-          session = await resources.get(tx, 'sessions', run.session_id);
-        return [
-          ...((ws.files || []) as FileRecord[])
-            .filter(
-              (f) =>
-                !guardedToolsRequired(run.config.permission_layers || []) ||
-                (f.type === 'file' && fileAllowed(run.config.permission_layers || [], 'read', f.path)),
-            )
-            .map((f) => ({ ...f, namespace: 'workspace' as const })),
-          ...(
-            (guardedToolsRequired(run.config.permission_layers || [])
-              ? []
-              : ws.git_files || []) as FileRecord[]
-          ).map((f) => ({ ...f, namespace: 'workspace' as const })),
-          ...((session.state_files || []) as FileRecord[]).map((f) => ({ ...f, namespace: 'home' as const })),
-        ].filter(
-          (file) =>
-            isPersistentPath(run.config.harness, file.namespace, file.path) &&
-            (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)),
-        );
-      });
       const offset = state.inputOffset || 0;
-      const entries: SnapshotEntry[] = [];
-      for (const file of source.slice(offset, offset + 16)) {
+      const source = await transaction(org, (tx) =>
+        readRestoreInventoryPage(
+          tx,
+          { organization: org, run: runId, worktree: run.worktree_id, session: run.session_id },
+          offset,
+          state.inputRevision,
+        ),
+      );
+      state.inputRevision = source.revision;
+      const guarded = guardedToolsRequired(run.config.permission_layers || []);
+      const selected = source.files.filter(
+        (file) =>
+          isPersistentPath(run.config.harness, file.namespace, file.path) &&
+          (!state.restoreNamespaces || state.restoreNamespaces.includes(file.namespace)) &&
+          (file.namespace === 'home' ||
+            !guarded ||
+            (!file.git &&
+              file.type === 'file' &&
+              fileAllowed(run.config.permission_layers || [], 'read', file.path))),
+      );
+      const descriptions = await mapConcurrent(selected, 4, async (file) => {
         const chunks = await describeContent(file.key, file.sha256);
-        for (const chunk of chunks)
-          await transaction(org, (tx) => object(tx, org, runId, 'input_chunk', chunk.sha256, chunk));
-        entries.push({
-          namespace: file.namespace,
-          path: file.path,
-          type: file.type,
-          size: Number(file.size_bytes),
-          sha256: file.sha256,
-          mode: file.mode || 0o644,
-          modifiedAt: file.modified_at,
-          chunks: chunks.map((c) => ({ hash: c.sha256, size: c.size })),
-        });
-      }
-      if (entries.length)
-        await transaction(org, (tx) => object(tx, org, runId, 'input_page', String(offset), { entries }));
-      state.inputOffset = offset + entries.length;
-      if (state.inputOffset >= source.length) state.phase = 'hydrate';
+        return {
+          chunks,
+          entry: {
+            namespace: file.namespace,
+            path: file.path,
+            type: file.type,
+            size: Number(file.size_bytes),
+            sha256: file.sha256,
+            mode: file.mode ?? 0o644,
+            modifiedAt: file.modified_at,
+            chunks: chunks.map((c) => ({ hash: c.sha256, size: c.size })),
+          } satisfies SnapshotEntry,
+        };
+      });
+      const entries = descriptions.map((item) => item.entry);
+      state.inputOffset = source.nextOffset;
+      if (source.complete) state.phase = 'hydrate';
+      await transaction(org, async (tx) => {
+        const owned = await tx.query(
+          `SELECT id FROM runs WHERE id=$1 AND execution_binding->>'lock'=$2 FOR UPDATE`,
+          [runId, claim],
+        );
+        assert(owned.rowCount, 409, 'lease_lost', 'Restore preparation belongs to another controller step.');
+        await objects(tx, org, runId, [
+          ...descriptions.flatMap((item) =>
+            item.chunks.map((chunk) => ({ kind: 'input_chunk', name: chunk.sha256, data: chunk })),
+          ),
+          ...(entries.length ? [{ kind: 'input_page', name: String(offset), data: { entries } }] : []),
+        ]);
+        if (source.complete)
+          await tx.query("DELETE FROM execution_objects WHERE run_id=$1 AND kind='input_source'", [runId]);
+        await tx.query(`UPDATE runs SET execution_binding=$2 WHERE id=$1`, [runId, JSON.stringify(state)]);
+      });
     } else if (state.phase === 'provision') {
       assert(
         !run.cancel_requested && run.deadline!.getTime() > Date.now(),
@@ -342,7 +414,16 @@ export async function advanceCloudRun(
           tx.query("UPDATE runs SET status='running' WHERE id=$1 AND status='waiting_for_input'", [runId]),
         );
       }
-      const result = await provider.probe(state.machine!, state.eventOffset || 0);
+      const result = await observeWorkerStep('native_probe', { organization_id: org, run_id: runId }, () =>
+        (provider.waitForEvents ?? provider.probe).call(provider, state.machine!, state.eventOffset || 0),
+      );
+      // A quiet native wait yields its slot so a large active population does
+      // not hold every control slot for the entire continuation quantum.
+      canContinue = Boolean(result.events.length || result.result) && !result.input;
+      observeRuntimeEvents(
+        { organization_id: org, run_id: runId, lease_generation: run.lease_generation },
+        result.events,
+      );
       if (result.input && !questionsAllowed(run.config.permission_layers || [])) {
         state.questionDenied = true;
         await provider.cancel(state.machine!);
@@ -356,8 +437,8 @@ export async function advanceCloudRun(
         'The runtime event cursor did not advance.',
       );
       await transaction(org, async (tx) => {
-        for (const e of result.events)
-          if (
+        const events = result.events
+          .filter((e) =>
             [
               'output.delta',
               'reasoning.summary',
@@ -369,12 +450,17 @@ export async function advanceCloudRun(
               'runtime.started',
               'runtime.failed',
               'runtime.trace_truncated',
-            ].includes(e.type)
+            ].includes(e.type),
           )
-            await emit(tx, org, runId, e.type, e.data, {
-              id: `runtime:${run.lease_generation}`,
-              sequence: e.sequence,
-            });
+          .map((e) => ({
+            type: e.type,
+            data: e.data,
+            producer: { id: `runtime:${run.lease_generation}`, sequence: e.sequence },
+          }));
+        await emitBatch(tx, org, runId, events, {
+          currentRun: run,
+          execution: { claim, offset: result.nextOffset },
+        });
         if (
           result.input &&
           !state.questionDenied &&
@@ -383,7 +469,8 @@ export async function advanceCloudRun(
         ) {
           // The gateway can fence spending while a native probe is in flight.
           const waiting = await tx.query(
-            `UPDATE runs SET status='waiting_for_input',input_request=$2 WHERE id=$1
+            `UPDATE runs SET status='waiting_for_input',input_request=$2,
+             execution_binding=jsonb_set(execution_binding,'{inputId}',to_jsonb($2::jsonb->>'id')) WHERE id=$1
              AND model_error_request_id IS NULL AND NOT cancel_requested RETURNING id`,
             [runId, JSON.stringify(result.input)],
           );
@@ -409,7 +496,7 @@ export async function advanceCloudRun(
           await tx.query("UPDATE runs SET status='persisting' WHERE id=$1", [runId]);
           await emit(tx, org, runId, 'run.persisting', {}, { id: 'lifecycle', sequence: 2 });
         });
-      } else if (!result.result) delaySeconds = 2;
+      } else if (!result.result && !provider.waitForEvents) delaySeconds = 2;
     } else if (state.phase === 'index') {
       const page = await provider.snapshotPage(state.machine!, state.indexOffset || 0);
       assert(
@@ -431,16 +518,21 @@ export async function advanceCloudRun(
         'The runtime checkpoint page did not advance.',
       );
       await transaction(org, async (tx) => {
+        const indexed: { kind: string; name: string; data: unknown }[] = [];
         for (const entry of page.entries) {
           if (!isPersistentPath(run.config.harness, entry.namespace, entry.path)) continue;
-          await object(tx, org, runId, 'output_entry', `${entry.namespace}/${entry.path}`, entry);
-          for (const chunk of entry.chunks) await object(tx, org, runId, 'output_chunk', chunk.hash, chunk);
+          indexed.push({ kind: 'output_entry', name: `${entry.namespace}/${entry.path}`, data: entry });
+          for (const chunk of entry.chunks)
+            indexed.push({ kind: 'output_chunk', name: chunk.hash, data: chunk });
         }
+        await objects(tx, org, runId, indexed);
       });
       state.indexOffset = (state.indexOffset || 0) + page.entries.length;
       if (state.indexOffset >= page.total) state.phase = 'upload';
     } else if (state.phase === 'upload') {
-      const chunks = await pending(org, runId, ['output_chunk'], 4);
+      // The page controls SQL progress, while four refillable transfer slots
+      // bound live chunk bytes (at most sixteen MiB). They are distinct limits.
+      const chunks = await pending(org, runId, ['output_chunk'], 32);
       // Drain bounded concurrent transfers before releasing the phase lease, even on failure.
       await mapConcurrent(chunks, 4, async (item) => {
         const bytes = await observeWorkerStep(
@@ -457,36 +549,9 @@ export async function advanceCloudRun(
         await observeWorkerStep('checkpoint_store', { organization_id: org, run_id: runId }, () =>
           saveContent(org, bytes),
         );
-        await processed(org, [item]);
       });
-      if (!chunks.length) {
-        const entries = await pending(org, runId, ['output_entry'], 8);
-        await mapConcurrent(entries, 8, async (item) => {
-          const entry = item.data as unknown as SnapshotEntry;
-          const saved = await saveChunkManifest(
-            org,
-            entry.sha256,
-            entry.size,
-            entry.chunks.map((c) => ({ key: `${org}/content/${c.hash}`, sha256: c.hash, size: c.size })),
-          );
-          await transaction(org, (tx) =>
-            tx.query('UPDATE execution_objects SET data=data||$2::jsonb,processed=true WHERE id=$1', [
-              item.id,
-              JSON.stringify({
-                record: {
-                  ...saved,
-                  path: entry.path,
-                  type: entry.type,
-                  mode: entry.mode,
-                  modified_at: entry.modifiedAt,
-                  git_ignored: entry.path.startsWith('.'),
-                },
-              }),
-            ]),
-          );
-        });
-        if (!entries.length) state.phase = 'publish';
-      }
+      await processed(org, chunks);
+      if (!chunks.length) state.phase = 'publish';
     } else if (state.phase === 'publish') {
       await publishCloudRun(org, runId, state);
       state.phase = 'close';
@@ -549,21 +614,33 @@ export async function advanceCloudRun(
     if (state.phase !== phase) timing.completedAt = Date.now();
     delete state.lock;
     delete state.lockExpires;
-    await transaction(org, (tx) =>
-      tx.query(
-        "UPDATE runs SET execution_binding=$2,heartbeat_at=now() WHERE id=$1 AND execution_binding->>'lock'=$3",
-        [runId, JSON.stringify(state), claim],
+    // Reset successful-step recovery and renew the job in the same fenced commit.
+    // A ready same-class continuation need not rediscover/reclaim this job.
+    committed = await transaction(org, async (tx) =>
+      Boolean(
+        (
+          await tx.query(
+            `WITH updated AS (
+          UPDATE runs SET execution_binding=$2::jsonb||jsonb_build_object('eventOffset',greatest(coalesce((execution_binding->>'eventOffset')::bigint,0),coalesce(($2::jsonb->>'eventOffset')::bigint,0))),heartbeat_at=now()
+          WHERE id=$1 AND execution_binding->>'lock'=$3 RETURNING id
+        ), renewed AS (
+          UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes',failure_attempts=0,error=NULL
+          WHERE kind='run' AND resource_id IN(SELECT id FROM updated) AND state IN('pending','running') AND $4::boolean
+          RETURNING id
+        ) SELECT id FROM updated`,
+            [runId, JSON.stringify(state), claim, state.phase !== 'done' && !state.recoveryBlocked],
+          )
+        ).rowCount,
       ),
     );
-    if (state.phase !== 'done' && !state.recoveryBlocked)
-      await transaction(org, (tx) =>
-        tx.query(
-          "UPDATE dispatch_jobs SET lease_until=now()+interval '5 minutes' WHERE kind='run' AND resource_id=$1",
-          [runId],
-        ),
-      );
   }
-  return { done: state.phase === 'done' || Boolean(state.recoveryBlocked), delaySeconds };
+  if (!committed) return { done: false, delaySeconds: 5 };
+  return {
+    done: state.phase === 'done' || Boolean(state.recoveryBlocked),
+    delaySeconds,
+    nextDispatchClass: phaseDispatchClass[state.phase],
+    canContinue,
+  };
 }
 
 async function publishCloudRun(org: string, runId: string, state: ExecutionState) {
@@ -583,8 +660,8 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
     const worktree = await resources.get(tx, 'worktrees', run.worktree_id);
     const objects = verified
       ? (
-          await tx.query<{ data: SnapshotEntry & { record: FileRecord } }>(
-            "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' AND processed",
+          await tx.query<{ data: SnapshotEntry }>(
+            "SELECT data FROM execution_objects WHERE run_id=$1 AND kind='output_entry' ORDER BY name",
             [runId],
           )
         ).rows
@@ -594,8 +671,31 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
   });
   try {
     if (!publication.value) return;
-    const { run: expectedRun, worktree: baseline, objects } = publication.value;
-    let files = objects
+    const { run: expectedRun, worktree: baseline } = publication.value;
+    // Verification belongs to this GC-protected publication, not an earlier
+    // upload phase. Its proof is reused only until this preparation expires.
+    const objects = await mapConcurrent(publication.value.objects, 8, async ({ data }) => ({
+      data: {
+        ...data,
+        record: {
+          ...(await publication.verification.manifest(
+            data.sha256,
+            data.size,
+            data.chunks.map((chunk) => ({
+              key: `${org}/content/${chunk.hash}`,
+              sha256: chunk.hash,
+              size: chunk.size,
+            })),
+          )),
+          path: data.path,
+          type: data.type,
+          mode: data.mode,
+          modified_at: data.modifiedAt,
+          git_ignored: data.path.startsWith('.'),
+        } satisfies FileRecord,
+      },
+    }));
+    let files: FileRecord[] = objects
       .filter((o) => o.data.namespace === 'workspace' && !o.data.path.split('/').includes('.git'))
       .map((o) => o.data.record);
     const gitFiles = objects
@@ -612,7 +712,15 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
     // Verified object bytes and Git preparation are independent from the short SQL
     // publication. The storage guard protects them while no connection is held.
     const preparedCheckpoint = verified
-      ? await prepareCheckpoint(org, baseline, files, 'Agent run', guarded ? baseline.git_files : gitFiles)
+      ? await prepareCheckpoint(
+          org,
+          baseline,
+          files,
+          'Agent run',
+          guarded ? baseline.git_files : gitFiles,
+          [],
+          publication.verification,
+        )
       : null;
     state.publicationStep = 'billing';
     await settleOrphanModelRequests(org, runId);
@@ -698,7 +806,7 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
           ? 'questions_denied'
           : undefined;
       if (controlFailure) status = 'failed';
-      const value = {
+      const value: NativeRunRow['result'] = {
         output_text: state.result?.output || '',
         execution_outcome: controlFailure ? 'failure' : state.result?.outcome || 'failure',
         persistence_status: verified ? 'verified' : state.machine ? 'failed' : 'not_required',
@@ -737,7 +845,13 @@ async function publishCloudRun(org: string, runId: string, state: ExecutionState
         );
       if (verified && (await queueAutomaticSync(tx, principalFor(run), run.worktree_id, runId)))
         value.sync_status = 'pending';
-      await emit(tx, org, runId, `run.${status}`, { ...value, status });
+      await emit(tx, org, runId, `run.${status}`, { ...value, status }, undefined, {
+        ...run,
+        status,
+        result: value,
+        completed_at: new Date(),
+        cost_micro_usd: cost.toString(),
+      });
       await tx.query(
         "INSERT INTO product_events(id,organization_id,user_id,name) VALUES($1,$2,$3,'run.completed')",
         [id(), org, run.config.user_id],

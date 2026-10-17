@@ -16,6 +16,7 @@ import type { HostOffering } from './worker-catalog';
 import type { HostSnapshot, RunDemand, ResourceAllocation } from './worker-types';
 import type { NativeRunRow } from './runs';
 import type { MachineBinding } from './ports';
+import type { HostHealth } from '../../contracts/host-control';
 
 export type HostBinding = MachineBinding & { controlBootId?: string; providerId?: string; url?: string };
 export type HostRow = {
@@ -53,6 +54,32 @@ export async function getHost(tx: Tx, hostId: string): Promise<HostRow> {
   assert(row, 404, 'host_not_found', 'Execution allocation not found.');
   return row;
 }
+/** Content-free hints expire quickly and can never grant a claim. SQL generation
+ * and boot identity fence them; the Host rechecks actual compatibility at prepare. */
+export async function observeHostWarmth(tx: Tx, host: HostRow, health: HostHealth) {
+  if (
+    !host.binding ||
+    health.boot_id !== host.binding.controlBootId ||
+    health.host_id !== host.id ||
+    health.generation !== host.generation
+  )
+    return;
+  await tx.query(
+    `UPDATE hosts SET binding=jsonb_set(binding,'{warmObservation}',$3::jsonb)
+    WHERE id=$1 AND generation=$2 AND binding->>'controlBootId'=$4 AND stopped_at IS NULL`,
+    [
+      host.id,
+      host.generation,
+      JSON.stringify({
+        generation: host.generation,
+        bootId: health.boot_id,
+        observedAt: Date.now(),
+        handles: health.warm_harnesses ?? [],
+      }),
+      health.boot_id,
+    ],
+  );
+}
 export async function hostSnapshots(tx: Tx, workerId: string): Promise<HostSnapshot[]> {
   const rows = (await tx.query<HostRow & { occupied_slots: number; allocated_memory: number; allocated_cpu: number }>(
     `SELECT h.*,coalesce(a.slots,0)::integer AS occupied_slots,coalesce(a.memory,0)::integer AS allocated_memory,
@@ -82,13 +109,32 @@ export async function hostSnapshots(tx: Tx, workerId: string): Promise<HostSnaps
     });
     byHost.set(cache.host_id, entries);
   }
-  return rows.map((row) => ({
-    id: row.id, worker_id: row.worker_id, organization_id: row.organization_id, generation: row.generation,
-    status: row.status, billable: row.started_at !== null, offering: row.offering,
-    occupied_slots: row.occupied_slots, allocated: { memory_mib: row.allocated_memory, cpu_millis: row.allocated_cpu },
-    retained_memory_mib: 0, expires_at_ms: row.expires_at?.getTime() ?? null,
-    worktrees: byHost.get(row.id) || [], warm_harnesses: [],
-  }));
+  return rows.map((row) => {
+    const observation = row.binding?.warmObservation;
+    const warm =
+      observation &&
+      observation.generation === row.generation &&
+      observation.bootId === row.binding?.controlBootId &&
+      observation.observedAt <= Date.now() &&
+      observation.observedAt > Date.now() - 60_000
+        ? observation.handles
+        : [];
+    return {
+      id: row.id,
+      worker_id: row.worker_id,
+      organization_id: row.organization_id,
+      generation: row.generation,
+      status: row.status,
+      billable: row.started_at !== null,
+      offering: row.offering,
+      occupied_slots: row.occupied_slots,
+      allocated: { memory_mib: row.allocated_memory, cpu_millis: row.allocated_cpu },
+      retained_memory_mib: warm.reduce((sum, handle) => sum + handle.reserved_memory_mib, 0),
+      expires_at_ms: row.expires_at?.getTime() ?? null,
+      worktrees: byHost.get(row.id) || [],
+      warm_harnesses: warm.map((handle) => ({ ...handle, state: 'idle' as const })),
+    };
+  });
 }
 export async function runDemand(tx: Tx, run: NativeRunRow): Promise<RunDemand> {
   const worktree = (

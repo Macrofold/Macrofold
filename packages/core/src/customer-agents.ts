@@ -7,7 +7,7 @@ import { id } from './crypto';
 import { assert } from './errors';
 import { createWorkspace } from './workspaces';
 import * as resources from './resources';
-import { validateConfiguration, getRun } from './runs';
+import { validateConfiguration, getRunSummary } from './runs';
 
 type Schema = components['schemas'];
 export type CustomerBinding = {
@@ -121,10 +121,10 @@ export async function customerConversation(tx: Tx, p: Principal, b: CustomerBind
   );
   return session;
 }
-export async function customerRun(tx: Tx, p: Principal, b: CustomerBinding, runId: string) {
-  const run = await getRun(tx, runId, p);
+export async function customerRunSummary(tx: Tx, p: Principal, b: CustomerBinding, runId: string) {
+  const run = await getRunSummary(tx, runId, p);
   assert(
-    run.worktree_id === b.worktree_id && run.config.agent_id === b.agent_id,
+    run.kind === 'native_agent' && run.worktree_id === b.worktree_id && run.config.agent_id === b.agent_id,
     404,
     'not_found',
     'Run not found.',

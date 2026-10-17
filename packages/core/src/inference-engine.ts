@@ -5,28 +5,38 @@ import { evidenceSteps, applyBoundedResponse } from './bounded-decisions';
 import { transaction } from '../../db';
 import { seal, unseal } from './crypto';
 import { assert, AppError } from './errors';
-import { getRun, terminal } from './runs';
+import { getRun, terminal, compactInference, type ExecutableInferenceRunRow } from './runs';
 import { initialReceipt } from './inference-receipt';
 import { claimRun, principalFor } from './engine';
 import { authorizeContext } from './context-artifacts';
 import { actorAuthorized } from './actor-authorization';
 import { modelCredential } from './model-credentials';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
-import { settleModelRequest, inferenceUsage, inferenceBilling } from './model-gateway';
+import {
+  settleModelRequest,
+  settleModelRequestInTransaction,
+  inferenceUsage,
+  inferenceBilling,
+  type ModelBillingReceipt,
+} from './model-gateway';
 import { emptyUsage } from './model-protocol';
 import { runTraceContext } from './run-tracing';
 import { recordTrace, tracingEnabled } from './tracing';
 import { providerErrorDetails } from './provider-diagnostics';
 import { observeWorkerStep } from './worker-diagnostics';
 import { recoverImmediateInference } from './direct-inference';
-import { repeatWithoutOverlap } from './concurrent';
+import { observeInference, inferenceControl } from './inference-control';
+import { inferencePublicationReceipt } from './inference-publication';
 import {
   invocation,
   finish,
+  finishInferenceInTransaction,
   checkedReceipt,
   capability,
   prepareInvocation,
   insertInvocation,
+  currentInferenceRun,
+  type PreparedInvocation,
   type StoredDecisionResponse,
 } from './inference-invocations';
 
@@ -40,48 +50,86 @@ export async function advanceInference(
   background?: (task: () => Promise<void>) => void,
   output?: InferenceOutputSink,
 ): Promise<Advance> {
-  let run = await transaction(org, (tx) => getRun(tx, runId));
+  const initial = await transaction(org, (tx) => getRun(tx, runId));
   assert(
-    run.kind !== 'native_agent',
+    initial.kind !== 'native_agent',
     409,
     'unsupported_run_kind',
     'This executor supports single-request inference.',
   );
-  if (terminal(run.status)) return { done: true, delaySeconds: 0 };
-  if (run.status === 'queued') {
+  if (initial.kind === 'inference' && initial.config.execution_owner === 'request') {
+    // Request-owned recovery consumes evidence, never queued paid dispatch.
+    const recovered = await recoverImmediateInference(initial, background);
+    return { done: recovered ? terminal(recovered.status) : false, delaySeconds: recovered ? 0 : 1 };
+  }
+  assert(
+    !compactInference(initial),
+    409,
+    'inference_input_unavailable',
+    'Queued execution input is unavailable.',
+  );
+  let owner: ExecutableInferenceRunRow = initial;
+  if (terminal(owner.status)) return { done: true, delaySeconds: 0 };
+  if (owner.status === 'queued') {
     const claimed = await claimRun(org, runId);
     if (!claimed) {
-      const current = await transaction(org, (tx) => getRun(tx, runId));
+      const current = await transaction(org, (tx) => currentInferenceRun(tx, owner));
       return { done: terminal(current.status), queued: current.status === 'queued', delaySeconds: 1 };
     }
     assert(
-      claimed.kind !== 'native_agent',
+      claimed.kind !== 'native_agent' && !compactInference(claimed),
       409,
       'run_kind_mismatch',
-      'The claimed execution has an incompatible kind.',
+      'The claimed execution has an incompatible input.',
     );
-    run = claimed;
+    owner = claimed;
   }
+  const settled = new Map<string, ModelBillingReceipt>();
+  const preparedBodies = new Map<string, PreparedInvocation>();
+  const quantumStarted = performance.now();
+  // Continue ready transitions under one retained owner while preserving each
+  // invocation's durable prepared -> dispatch_started compare-and-swap. Yield
+  // after finite work so unrelated Runs and cancellation retain headroom.
+  for (let transition = 0; transition < 16; transition++) {
+    const result = await advanceInferenceStep(org, runId, owner, settled, preparedBodies, background, output);
+    if (result.done || result.delaySeconds > 0 || result.queued) return result;
+    if (performance.now() - quantumStarted >= 5000) return result;
+    const current = await transaction(org, (tx) => currentInferenceRun(tx, owner));
+    if (terminal(current.status)) return { done: true, delaySeconds: 0 };
+    if (current.lease_generation !== owner.lease_generation) return { done: false, delaySeconds: 1 };
+    owner = current;
+  }
+  return { done: false, delaySeconds: 0 };
+}
+
+async function advanceInferenceStep(
+  org: string,
+  runId: string,
+  admitted: ExecutableInferenceRunRow,
+  settled: Map<string, ModelBillingReceipt>,
+  preparedBodies: Map<string, PreparedInvocation>,
+  background?: (task: () => Promise<void>) => void,
+  output?: InferenceOutputSink,
+): Promise<Advance> {
+  const run = admitted;
+  if (terminal(run.status)) return { done: true, delaySeconds: 0 };
   const currentRun = run;
   let call = await transaction(org, (tx) => invocation(tx, runId));
   const baseReceipt = () => initialReceipt(currentRun.config, call?.id || runId);
-  if (run.kind === 'inference' && run.config.execution_owner === 'request') {
-    // Request-owned recovery consumes saved evidence or classifies uncertainty;
-    // it can never enter the queued/bounded provider dispatch path below.
-    const recovered = await recoverImmediateInference(run);
-    return { done: recovered ? terminal(recovered.status) : false, delaySeconds: recovered ? 0 : 1 };
-  }
   const stopped = run.cancel_requested || (run.deadline && run.deadline.getTime() <= Date.now());
   if (call?.state === 'responded' && call.response_ciphertext) {
     const response = unseal<StoredDecisionResponse>(call.response_ciphertext);
-    const settlement = await settleModelRequest(
-      capability(run),
-      call.id,
-      run.config.rate_card,
-      response.usage,
-      false,
-      run.config.provider_cost_rate_card,
-    );
+    const settlement =
+      settled.get(call.id) ??
+      (await settleModelRequest(
+        capability(run),
+        call.id,
+        run.config.rate_card,
+        response.usage,
+        false,
+        run.config.provider_cost_rate_card,
+      ));
+    settled.delete(call.id);
     const billing = settlement;
     const context = tracingEnabled() ? await transaction(org, (tx) => runTraceContext(tx, run)) : undefined;
     if (context)
@@ -123,16 +171,22 @@ export async function advanceInference(
           ? response
           : await applyBoundedResponse(run, call, response);
       if (!result) return { done: false, delaySeconds: 0 };
-      await finish(org, runId, {
-        ...checkedReceipt(run, call, result),
-        usage: inferenceUsage(response.usage),
-        billing: inferenceBilling(settlement, run.config.billing_mode),
-      });
+      await finish(
+        run,
+        {
+          ...checkedReceipt(run, call, result),
+          usage: inferenceUsage(response.usage),
+          billing: inferenceBilling(settlement, run.config.billing_mode),
+        },
+        undefined,
+        call.context_expires_at,
+      );
     } catch (error) {
+      if (error instanceof AppError && error.code === 'inference_owner_changed')
+        return { done: false, delaySeconds: 1 };
       const code = error instanceof AppError ? error.code : 'tool_read_failed';
       await finish(
-        org,
-        runId,
+        run,
         {
           ...baseReceipt(),
           provider_request_digest: call.provider_request_digest,
@@ -190,7 +244,7 @@ export async function advanceInference(
           [call.id],
         ),
       );
-    await finish(org, runId, {
+    await finish(run, {
       ...baseReceipt(),
       outcome: sent ? 'uncertain' : 'failed',
       provider_outcome: sent ? 'uncertain' : 'not_invoked',
@@ -204,12 +258,53 @@ export async function advanceInference(
   if (call?.state === 'dispatch_started') return { done: false, delaySeconds: 1 };
   try {
     if (!call) {
-      await transaction(org, async (tx) => {
-        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-        if (await invocation(tx, runId)) return;
-        const latest = await getRun(tx, runId);
+      const preparation = await transaction(org, async (tx) => {
         assert(
-          !latest.cancel_requested && !terminal(latest.status),
+          await actorAuthorized(tx, run),
+          403,
+          'authorization_revoked',
+          'The initiating credential is no longer authorized.',
+        );
+        const steps = await evidenceSteps(tx, runId);
+        const history = (
+          await tx.query<{ count: string; output: string }>(
+            `SELECT count(*)::text AS count,
+             coalesce(sum(CASE WHEN u.completeness='complete' THEN u.output_tokens ELSE i.output_token_bound END),0)::text AS output
+             FROM decision_invocations i LEFT JOIN model_usage u ON u.request_id=i.id::text WHERE i.run_id=$1`,
+            [runId],
+          )
+        ).rows[0];
+        return { steps, history };
+      });
+      const step = Number(preparation.history.count);
+      assert(
+        step < (run.config.definition.bounded_agent?.max_model_calls || 1),
+        409,
+        'model_call_limit_exceeded',
+        'The model-call limit was reached.',
+      );
+      // Missing usage keeps the original output bound. Complete metering frees
+      // unused output allowance; body construction/encryption holds no SQL lock.
+      const maxOutputTokens = run.config.limits.max_output_tokens - Number(preparation.history.output);
+      assert(
+        maxOutputTokens > 0,
+        409,
+        'output_limit_exceeded',
+        'The aggregate output-token limit was reached.',
+      );
+      const preparedInvocation = prepareInvocation(
+        run.config,
+        step,
+        run.kind === 'bounded_agent' ? preparation.steps : [],
+        maxOutputTokens,
+      );
+      const inserted = await transaction(org, async (tx) => {
+        const latest = await currentInferenceRun(tx, run);
+        if (await invocation(tx, runId)) return;
+        assert(
+          latest.lease_generation === run.lease_generation &&
+            !latest.cancel_requested &&
+            !terminal(latest.status),
           409,
           'run_stopped',
           'Execution has stopped.',
@@ -220,52 +315,31 @@ export async function advanceInference(
           'authorization_revoked',
           'The initiating credential is no longer authorized.',
         );
-        const steps = await evidenceSteps(tx, runId);
-        const history = (
-          await tx.query<{ count: string; output: string }>(
-            'SELECT count(*)::text AS count,coalesce(sum(output_token_bound),0)::text AS output FROM decision_invocations WHERE run_id=$1',
+        const current = (
+          await tx.query<{ count: string; tools: string }>(
+            `SELECT count(*)::text AS count,
+           (SELECT count(*)::text FROM decision_tool_steps WHERE run_id=$1) AS tools
+           FROM decision_invocations WHERE run_id=$1`,
             [runId],
           )
         ).rows[0];
-        const step = Number(history.count);
-        assert(
-          step < (run.config.definition.bounded_agent?.max_model_calls || 1),
-          409,
-          'model_call_limit_exceeded',
-          'The model-call limit was reached.',
-        );
-        // Reserve output tokens conservatively across calls even if a provider
-        // cannot meter them. Complete usage releases the unused token allowance.
-        const used = (
-          await tx.query<{ output: string }>(
-            `SELECT coalesce(sum(CASE WHEN u.completeness='complete' THEN u.output_tokens ELSE i.output_token_bound END),0)::text AS output
-          FROM decision_invocations i LEFT JOIN model_usage u ON u.request_id=i.id::text WHERE i.run_id=$1`,
-            [runId],
-          )
-        ).rows[0];
-        const maxOutputTokens = run.config.limits.max_output_tokens - Number(used.output);
-        assert(
-          maxOutputTokens > 0,
-          409,
-          'output_limit_exceeded',
-          'The aggregate output-token limit was reached.',
-        );
-        const preparedInvocation = prepareInvocation(
-          run.config,
-          step,
-          run.kind === 'bounded_agent' ? steps : [],
-          maxOutputTokens,
-        );
-        await insertInvocation(tx, run, preparedInvocation);
+        // Another retained owner can advance between preparation and this lock.
+        // Discard stale preparation; the next ready transition reloads evidence.
+        if (current.count !== preparation.history.count || Number(current.tools) !== preparation.steps.length)
+          return;
+        await insertInvocation(tx, latest, preparedInvocation);
+        return true;
       });
+      if (inserted) preparedBodies.set(preparedInvocation.id, preparedInvocation);
       return { done: false, delaySeconds: 0 };
     }
     const prepared = call;
+    if (!inferenceControl.available()) return { done: false, delaySeconds: 1 };
     const authorization = await transaction(org, async (tx) => {
-      await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-      const latest = await getRun(tx, runId);
+      const latest = await currentInferenceRun(tx, run);
       assert(
-        !latest.cancel_requested &&
+        latest.lease_generation === run.lease_generation &&
+          !latest.cancel_requested &&
           !terminal(latest.status) &&
           latest.deadline &&
           latest.deadline.getTime() > Date.now(),
@@ -347,17 +421,12 @@ export async function advanceInference(
       () => controller.abort(),
       Math.max(1, authorization.deadline.getTime() - Date.now()),
     );
-    const stopCancellationChecks = repeatWithoutOverlap(
-      500,
-      async () => {
-        const { latest, authorized } = await transaction(org, async (tx) => {
-          const latest = await getRun(tx, runId);
-          return { latest, authorized: await actorAuthorized(tx, latest) };
-        });
-        if (!authorized || latest.cancel_requested || terminal(latest.status)) controller.abort();
-      },
-      () => controller.abort(),
-    );
+    const stopCancellationChecks = observeInference({
+      runId,
+      organizationId: org,
+      generation: run.lease_generation,
+      abort: controller,
+    });
     const durable =
       run.kind === 'bounded_agent' && run.config.stream ? durableInferenceOutput(org, runId) : undefined;
     let firstOutputMs: number | undefined;
@@ -368,7 +437,8 @@ export async function advanceInference(
     try {
       const protocol = decisionProtocol(run.config.rate_card.provider, run.config.model);
       const providerStarted = performance.now();
-      const requestBody = unseal<Record<string, unknown>>(call.body_ciphertext);
+      const preparedBody = preparedBodies.get(call.id);
+      const requestBody = preparedBody?.body ?? unseal<Record<string, unknown>>(call.body_ciphertext);
       let response: StoredDecisionResponse;
       try {
         response = await observeWorkerStep(
@@ -395,6 +465,7 @@ export async function advanceInference(
                 const fragment = { ...event, data: { ...event.data, invocation_id: prepared.id } };
                 await (output ?? durable?.write)?.(fragment);
               },
+              preparedBody?.serialized,
             ),
         );
       } catch (error) {
@@ -425,17 +496,16 @@ export async function advanceInference(
       )
         response.providerResponse = rawResponse;
       failureStage = 'response_persistence';
-      // Commit evidence before attempting financial settlement or publication.
+      // Intermediate evidence and model settlement share one publication.
       const persistenceStarted = performance.now();
       const ciphertext = seal(response);
       const completedAt =
         response.completedAt && (response.transport_complete ?? !response.incomplete)
           ? new Date(response.completedAt)
           : null;
-      await transaction(org, async (tx) => {
+      const settlement = await transaction(org, async (tx) => {
         // Cancellation and purge share Run-first ordering even without SSE.
-        await tx.query('SELECT id FROM runs WHERE id=$1 FOR UPDATE', [runId]);
-        const latest = await getRun(tx, runId);
+        const latest = await currentInferenceRun(tx, run);
         assert(
           latest.lease_generation === run.lease_generation,
           409,
@@ -443,10 +513,10 @@ export async function advanceInference(
           'The invocation owner changed.',
         );
         if (latest.result.content_expired) return;
-        await tx.query(
+        const saved = await tx.query(
           // A purged or already-preserved response cannot be overwritten by a late owner.
           `UPDATE decision_invocations SET state='responded',response_ciphertext=$2,responded_at=now(),timings_ms=$3,provider_completed_at=$4
-           WHERE id=$1 AND body_ciphertext<>'' AND state IN ('dispatch_started','uncertain')`,
+           WHERE id=$1 AND body_ciphertext<>'' AND state IN ('dispatch_started','uncertain') RETURNING id`,
           [
             prepared.id,
             ciphertext,
@@ -454,12 +524,26 @@ export async function advanceInference(
             completedAt,
           ],
         );
+        if (!saved.rowCount) return;
+        // Intermediate evidence is required for continuation. Compose it with
+        // the shared accounting owner rather than opening another transaction.
+        const billing = await settleModelRequestInTransaction(
+          tx,
+          capability(run),
+          prepared.id,
+          run.config.rate_card,
+          response.usage,
+          false,
+          run.config.provider_cost_rate_card,
+        );
         // Publish the final replay batch atomically with its response evidence.
         await durable?.flush(tx);
+        return billing;
       });
+      if (settlement) settled.set(prepared.id, settlement);
       const persistenceMs = performance.now() - persistenceStarted;
-      // Measurement is non-authoritative. The request host owns it after the
-      // response; worker callers retain the existing awaited behavior.
+      // Optional timing enrichment must not add a transaction between ready
+      // model steps. Without a retained host callback, omit this diagnostic.
       const recordPersistenceTiming = async () => {
         await transaction(org, (tx) =>
           tx.query('UPDATE decision_invocations SET timings_ms=timings_ms||$2::jsonb WHERE id=$1', [
@@ -469,7 +553,6 @@ export async function advanceInference(
         ).catch(() => {}); // Never turn a durable provider response into an uncertain call.
       };
       if (background) background(recordPersistenceTiming);
-      else await recordPersistenceTiming();
     } catch (error) {
       if (rawResponse !== undefined && failureStage === 'provider_request' && authorization.traceContext)
         recordTrace({
@@ -505,6 +588,7 @@ export async function advanceInference(
         ),
       );
     } finally {
+      preparedBodies.delete(prepared.id);
       clearTimeout(timeout);
       await stopCancellationChecks();
     }
@@ -512,24 +596,31 @@ export async function advanceInference(
   } catch (error) {
     // Only a pre-dispatch failure reaches here. If dispatch committed, recovery
     // must inspect its durable identity rather than declare it free or retry it.
-    call = await transaction(org, (tx) => invocation(tx, runId));
-    if (call && call.state !== 'prepared') throw error;
-    if (call)
-      await settleModelRequest(
-        capability(run),
-        call.id,
-        run.config.rate_card,
-        emptyUsage(),
-        true,
-        run.config.provider_cost_rate_card,
-      );
-    const code = error instanceof AppError ? error.code : 'inference_preparation_failed';
-    await finish(
-      org,
-      runId,
-      { ...baseReceipt(), outcome: code === 'stale_input' ? 'stale_input' : 'failed' },
-      code,
-    );
-    return { done: true, delaySeconds: 0 };
+    return transaction(org, async (tx) => {
+      const latest = await currentInferenceRun(tx, run);
+      if (latest.lease_generation !== run.lease_generation) return { done: false, delaySeconds: 1 };
+      if (terminal(latest.status)) return { done: true, delaySeconds: 0 };
+      call = await invocation(tx, runId);
+      if (call && call.state !== 'prepared') throw error;
+      // Keep this check, zero-usage settlement and terminal publication under
+      // one Run lock: another owner must not dispatch a just-released request.
+      if (call)
+        await settleModelRequestInTransaction(
+          tx,
+          capability(run),
+          call.id,
+          run.config.rate_card,
+          emptyUsage(),
+          true,
+          run.config.provider_cost_rate_card,
+        );
+      const code = error instanceof AppError ? error.code : 'inference_preparation_failed';
+      const receipt = await inferencePublicationReceipt(tx, latest, run.lease_generation, {
+        ...baseReceipt(),
+        outcome: code === 'stale_input' ? 'stale_input' : 'failed',
+      });
+      await finishInferenceInTransaction(tx, org, runId, receipt, code, undefined, latest);
+      return { done: true, delaySeconds: 0 };
+    });
   }
 }

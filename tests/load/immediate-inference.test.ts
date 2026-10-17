@@ -164,7 +164,10 @@ async function stop(child: ChildProcess, signal: NodeJS.Signals = 'SIGTERM') {
   child.kill(signal);
   await exited;
 }
-async function startReplica(sourceRoot?: string): Promise<Replica> {
+async function startReplica(
+  sourceRoot?: string,
+  options: { persistenceAttemptMs?: number } = {},
+): Promise<Replica> {
   const source = sourceRoot
     ? path.join(sourceRoot, 'tests/fixtures/immediate-inference-api.ts')
     : new URL('../fixtures/immediate-inference-api.ts', import.meta.url);
@@ -195,6 +198,9 @@ async function startReplica(sourceRoot?: string): Promise<Replica> {
       GLOBAL_CONCURRENT_RUN_LIMIT: String(cohortSize + 712),
       API_WRITE_RATE_LIMIT_PER_MINUTE: '1000000',
       API_READ_RATE_LIMIT_PER_MINUTE: '1000000',
+      ...(options.persistenceAttemptMs === undefined
+        ? {}
+        : { IMMEDIATE_FIXTURE_PERSISTENCE_ATTEMPT_MS: String(options.persistenceAttemptMs) }),
     },
   });
   child.stderr?.on('data', (chunk) => {
@@ -735,12 +741,15 @@ it.skipIf(!!baselineRoot)(
 );
 
 it.skipIf(!!baselineRoot)(
-  'recovers after actual API process death at dispatch and after durable response preservation without redispatch',
+  'recovers after actual API process death at dispatch and after an exceptional response checkpoint without redispatch',
   async () => {
     const tenant = tenants[0],
       faults: unknown[] = [];
-    for (const boundary of ['dispatch', 'response'] as const) {
-      const replica = await startReplica(),
+    for (const boundary of ['dispatch', 'checkpoint'] as const) {
+      const replica = await startReplica(
+          undefined,
+          boundary === 'checkpoint' ? { persistenceAttemptMs: 200 } : {},
+        ),
         subject = `crash-${id()}`,
         identity = id(),
         body = input(subject);
@@ -751,82 +760,102 @@ it.skipIf(!!baselineRoot)(
       const pending = submit(0, body, identity, replica)
         .then((result) => (admission = result))
         .catch(() => undefined);
-      await until(() => providerCalls === before + 1 || admission !== undefined);
-      if (admission)
-        throw new Error(`Crash fixture was not admitted: ${admission.status} ${admission.value.error?.code}`);
-      const call = await transaction(
-        tenant.organization,
-        async (tx) =>
-          (
-            await tx.query<{ id: string; run_id: string; deadline: Date }>(
-              `SELECT i.id,i.run_id,r.deadline FROM decision_invocations i JOIN runs r ON r.id=i.run_id WHERE r.config->'input'->>'subject_id'=$1`,
-              [subject],
-            )
-          ).rows[0],
-      );
-      expect(call).toBeDefined();
       let release = () => {};
       let locked: Promise<unknown> | undefined;
-      if (boundary === 'response') {
-        let acquired = () => {};
-        const ready = new Promise<void>((resolve) => {
-          acquired = resolve;
-        });
-        const gate = new Promise<void>((resolve) => {
-          release = resolve;
-        });
-        locked = transaction(tenant.organization, async (tx) => {
-          await tx.query('SELECT id FROM gateway_requests WHERE id=$1 FOR UPDATE', [call.id]);
-          acquired();
-          await gate;
-        });
-        await ready;
-        holdProviders = false;
-        for (const response of held) answer(response);
-        held.clear();
-        await until(async () =>
-          Boolean(
+      try {
+        await until(() => providerCalls === before + 1 || admission !== undefined);
+        if (admission)
+          throw new Error(
+            `Crash fixture was not admitted: ${admission.status} ${admission.value.error?.code}`,
+          );
+        // Compact admission deliberately saves no prompt to query by. Resolve
+        // the existing identity through the same public replay a caller uses.
+        const replayed = await submit(0, body, identity, replicas[0]);
+        expect(replayed.status).toBe(202);
+        expect(replayed.value.run_id).toBeTruthy();
+        const call = await transaction(
+          tenant.organization,
+          async (tx) =>
             (
-              await transaction(tenant.organization, (tx) =>
-                tx.query(
-                  "SELECT 1 FROM decision_invocations WHERE id=$1 AND state='responded' AND response_ciphertext IS NOT NULL",
-                  [call.id],
-                ),
+              await tx.query<{ id: string; run_id: string; deadline: Date }>(
+                `SELECT i.id,i.run_id,r.deadline FROM decision_invocations i JOIN runs r ON r.id=i.run_id WHERE r.id=$1`,
+                [replayed.value.run_id],
               )
-            ).rowCount,
-          ),
+            ).rows[0],
         );
+        expect(call).toBeDefined();
+        if (boundary === 'checkpoint') {
+          let acquired = () => {};
+          const ready = new Promise<void>((resolve) => {
+            acquired = resolve;
+          });
+          const gate = new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          // Hold the actual settlement row: F must roll back after its bounded
+          // attempts, then save the same validated evidence exceptionally.
+          locked = transaction(tenant.organization, async (tx) => {
+            await tx.query('SELECT id FROM gateway_requests WHERE id=$1 FOR UPDATE', [call.id]);
+            acquired();
+            await gate;
+          });
+          await ready;
+          holdProviders = false;
+          for (const response of held) answer(response);
+          held.clear();
+          await until(async () =>
+            Boolean(
+              (
+                await transaction(tenant.organization, (tx) =>
+                  tx.query(
+                    "SELECT 1 FROM decision_invocations WHERE id=$1 AND state='responded' AND response_ciphertext IS NOT NULL",
+                    [call.id],
+                  ),
+                )
+              ).rowCount,
+            ),
+          );
+        }
+        await stop(replica.process, 'SIGKILL');
+        release();
+        await locked;
+        await pending;
+        holdProviders = false;
+        for (const response of held) response.destroy();
+        held.clear();
+        // Keep both the real completion timestamp and deadline intact. Recovery
+        // must wait E+C after process loss unless the live owner handed off.
+        await pause(
+          Math.max(0, call.deadline.getTime() + immediateInferencePolicy.completionMs + 100 - Date.now()),
+        );
+        // Same domain recovery owner in a different process lifetime; closed parent
+        // transport rejects any accidental attempt to invoke a provider again.
+        await advanceInference(tenant.organization, call.run_id);
+        const recovered = await transaction(tenant.organization, (tx) => getRun(tx, call.run_id));
+        expect(recovered.completed_at).toBeTruthy();
+        expect(recovered.result.inference?.outcome).toBe(boundary === 'checkpoint' ? 'value' : 'uncertain');
+        if (boundary === 'checkpoint') expect(recovered.result.inference?.value).toBe('wait');
+        expect(providerCalls).toBe(before + 1);
+        const replay = await submit(0, body, identity, replicas[0]);
+        expect(replay.status).toBe(200);
+        expect(replay.value.run_id).toBe(call.run_id);
+        expect(providerCalls).toBe(before + 1);
+        faults.push({
+          boundary,
+          terminal_status: recovered.status,
+          outcome: recovered.result.inference?.outcome,
+          provider_calls: 1,
+        });
+        report.crashes = faults;
+      } finally {
+        release();
+        await locked?.catch(() => {});
+        await stop(replica.process, 'SIGKILL');
+        holdProviders = false;
+        for (const response of held) response.destroy();
+        held.clear();
+        await pending;
       }
-      await stop(replica.process, 'SIGKILL');
-      release();
-      await locked;
-      await pending;
-      holdProviders = false;
-      for (const response of held) response.destroy();
-      held.clear();
-      // Keep both the real completion timestamp and deadline intact. Recovery
-      // must wait E+C after process loss, even when B saved timely evidence.
-      await pause(
-        Math.max(0, call.deadline.getTime() + immediateInferencePolicy.completionMs + 100 - Date.now()),
-      );
-      // Same domain recovery owner in a different process lifetime; closed parent
-      // transport rejects any accidental attempt to invoke a provider again.
-      await advanceInference(tenant.organization, call.run_id);
-      const recovered = await transaction(tenant.organization, (tx) => getRun(tx, call.run_id));
-      expect(recovered.completed_at).toBeTruthy();
-      expect(recovered.result.inference?.outcome).toBe(boundary === 'response' ? 'value' : 'uncertain');
-      expect(providerCalls).toBe(before + 1);
-      const replay = await submit(0, body, identity, replicas[0]);
-      expect(replay.status).toBe(200);
-      expect(replay.value.run_id).toBe(call.run_id);
-      expect(providerCalls).toBe(before + 1);
-      faults.push({
-        boundary,
-        terminal_status: recovered.status,
-        outcome: recovered.result.inference?.outcome,
-        provider_calls: 1,
-      });
-      report.crashes = faults;
     }
     report.crashes = faults;
     expect((await accounting()).every((value) => value.active === 0 && value.held === '0')).toBe(true);

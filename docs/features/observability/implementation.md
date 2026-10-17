@@ -4,21 +4,21 @@ The domain emits completed, vendor-neutral observations. A single composition mo
 
 ## Ownership
 
-| Source | Responsibility |
-| --- | --- |
-| [trace.ts](../../../packages/core/src/trace.ts) | `TraceContext`, `TraceObservation`, `TraceSink` port |
-| [tracing.ts](../../../packages/core/src/tracing.ts) | Optional configuration, backend composition, content-free application logs and failure isolation |
-| [run-tracing.ts](../../../packages/core/src/run-tracing.ts) | Tenant-scoped identity lookup, lifecycle/tool observations and terminal run root |
-| [langfuse.ts](../../../packages/providers/src/langfuse.ts) | Official SDK mapping, deterministic IDs, private OTel provider and OTLP export |
-| [trace-content.ts](../../../packages/providers/src/trace-content.ts) | Shared export redaction, binary omission and payload bounds |
-| [model-output-capture.ts](../../../packages/providers/src/model-output-capture.ts) | Bounded streaming capture independent of metering/delivery |
-| [model-gateway.ts](../../../packages/core/src/model-gateway.ts) | One generation per authorized native model request; committed billing diagnostics |
-| [direct-inference.ts](../../../packages/core/src/direct-inference.ts), [inference-engine.ts](../../../packages/core/src/inference-engine.ts), [bounded-decisions.ts](../../../packages/core/src/bounded-decisions.ts) | Immediate/queued decision generations and explicit context retrieval |
-| [events.ts](../../../packages/core/src/events.ts), [cloud-engine.ts](../../../packages/core/src/cloud-engine.ts) | Run/tool hooks and separate compute charges |
-| [database transactions](../../../packages/db/index.ts) | Synchronous `afterCommit` notifications after releasing SQL connections; discard on rollback |
-| [trace-flush.ts](../../../apps/web/lib/trace-flush.ts), [trace-background.ts](../../../apps/web/lib/trace-background.ts), [dispatch.ts](../../../apps/web/lib/dispatch.ts), [Workflow](../../../apps/web/workflows/run.ts), [worker](../../../scripts/worker.ts) | Request/step completion flushing and worker shutdown |
+| Source                                                                                                                                                                                                                                                           | Responsibility                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [trace.ts](../../../packages/core/src/trace.ts)                                                                                                                                                                                                                  | `TraceContext`, `TraceObservation`, `TraceSink` port                                             |
+| [tracing.ts](../../../packages/core/src/tracing.ts)                                                                                                                                                                                                              | Optional configuration, backend composition, content-free application logs and failure isolation |
+| [run-tracing.ts](../../../packages/core/src/run-tracing.ts)                                                                                                                                                                                                      | Tenant-scoped identity lookup, lifecycle/tool observations and terminal run root                 |
+| [langfuse.ts](../../../packages/providers/src/langfuse.ts)                                                                                                                                                                                                       | Official SDK mapping, deterministic IDs, private OTel provider and OTLP export                   |
+| [trace-content.ts](../../../packages/providers/src/trace-content.ts)                                                                                                                                                                                             | Shared export redaction, binary omission and payload bounds                                      |
+| [model-output-capture.ts](../../../packages/providers/src/model-output-capture.ts)                                                                                                                                                                               | Bounded streaming capture independent of metering/delivery                                       |
+| [model-gateway.ts](../../../packages/core/src/model-gateway.ts)                                                                                                                                                                                                  | One generation per authorized native model request; committed billing diagnostics                |
+| [direct-inference.ts](../../../packages/core/src/direct-inference.ts), [inference-engine.ts](../../../packages/core/src/inference-engine.ts), [bounded-decisions.ts](../../../packages/core/src/bounded-decisions.ts)                                            | Immediate/queued decision generations and explicit context retrieval                             |
+| [events.ts](../../../packages/core/src/events.ts), [cloud-engine.ts](../../../packages/core/src/cloud-engine.ts)                                                                                                                                                 | Run/tool hooks and separate compute charges                                                      |
+| [database transactions](../../../packages/db/index.ts)                                                                                                                                                                                                           | Synchronous `afterCommit` notifications after releasing SQL connections; discard on rollback     |
+| [trace-flush.ts](../../../apps/web/lib/trace-flush.ts), [trace-background.ts](../../../apps/web/lib/trace-background.ts), [dispatch.ts](../../../apps/web/lib/dispatch.ts), [Workflow](../../../apps/web/workflows/run.ts), [worker](../../../scripts/worker.ts) | Request/step completion flushing and worker shutdown                                             |
 
-To replace Langfuse, implement `TraceSink` and change its selection in `tracing.ts`; leave execution hooks and domain data unchanged. New model transports should use the existing gateway/decision protocol ports, not add another independent tracing or billing calculation. A provider invoked outside these paths needs an explicit observation hook.
+To replace Langfuse, implement `TraceSink` and call `configureTraceSink` once at process composition before serving requests (the default remains Langfuse); leave execution hooks and domain data unchanged. New model transports should use the existing gateway/decision protocol ports, not add another independent tracing or billing calculation. A provider invoked outside these paths needs an explicit observation hook.
 
 ## Trace structure and identity
 
@@ -26,8 +26,12 @@ One run is one trace. SHA-256-derived OTel trace/span IDs incorporate the organi
 
 Generations, tools, context retrievers and lifecycle events are siblings beneath a single `agent` observation. Cross-process child spans carry an explicit parent and Langfuse trace baggage, preventing each serverless process from becoming another logical root. Only the terminal root covers the entire run. No active in-memory span must survive a durable wait. A killed process or unfinished run can leave an incomplete tree.
 
-Decision generations own provider request content under the existing capture
-limits. Their terminal root links definition/context digests instead of
+Decision generations own provider request/response content under the existing capture
+limits. Immediate full-content export is admitted before retaining its host callback,
+bounded by 16 jobs and 32 MiB of encoded input plus sealed response. A current
+retention check suppresses delayed content after purge; unavailable capacity or
+dependency failure emits compact usage/cost metadata with `content_capture:omitted`.
+There is no unused second SQL/object input-history store. Their terminal root links definition/context digests instead of
 duplicating that potentially large input. Completion reuses its already locked,
 current Run for root tracing; enabling tracing does not download the accepted
 context again. Native roots retain their prompt/instructions. Export network I/O
@@ -55,6 +59,10 @@ Serverless routes register Next `after()` before streaming starts, so flushing o
 The SDK batches 16 observations or one second. HTTP export has a three-second timeout, and at most 64 observations may be outstanding. Input/output/metadata capture each has a 1 MiB limit. Queue overflow, truncation and outage loss are intentional bounds, not durable retry guarantees. Future durable export should be justified by diagnostic-loss requirements rather than putting full customer payloads back into SQL.
 
 Fixed diagnostic codes include `tracing_configuration_failed`, `trace_record_failed`, `trace_export_failed`, `trace_queue_full`, `trace_flush_failed`, `trace_shutdown_failed`, `trace_flush_schedule_failed`, and `commit_observer_failed`. Exceptions are not printed because upstream errors can embed authorization headers or content. Capture removes known credential fields/text tokens, signed URL authentication, opaque reasoning/signatures and inline binary media. It does not promise to discover arbitrary secrets or PII in prose.
+
+## Performance profiling proposal
+
+Execution tracing and performance profiling are separate. Current inference/database timing channels are subscriber-gated; detailed SQL/CPU collection is installed by the disposable profiling script, not by a single normal-application flag. The proposed [profiling feature](../../projects/performance-profiling-feature-spec.md) and [technical design](../../projects/performance-profiling-tech-design.md) specify a default-off, bounded, content-free operator profiler. The [execution follow-up](../../projects/execution-efficiency/remaining-optimizations.md) separately proposes applying the existing trace-content policy before producer-side capture. These settings/changes are not implemented by the design documents; current tracing configuration and accounting behavior above remain authoritative.
 
 ## Verification and deferred work
 

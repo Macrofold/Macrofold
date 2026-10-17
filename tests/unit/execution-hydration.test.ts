@@ -46,7 +46,7 @@ it('caps decoded batch bytes at four MiB including a full-size checkpoint chunk'
     .mockResolvedValue(Buffer.from(seal({ bytes: full.toString('base64') })));
   const stage = vi.spyOn(provider, 'stage');
   expect(await stageRestoreObjects(provider, machine, objects)).toEqual([objects[0]]);
-  expect(read).toHaveBeenCalledExactlyOnceWith('full');
+  expect(read).toHaveBeenCalledExactlyOnceWith('full', { signal: undefined });
   expect(stage.mock.calls[0][1]).toEqual([
     { path: `/platform-control/restore/chunks/${sha256(full)}`, content: full },
   ]);

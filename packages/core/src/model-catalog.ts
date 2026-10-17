@@ -3,8 +3,10 @@ import { pool, transaction, type Tx } from '../../db';
 import type { QueryResultRow } from 'pg';
 import { isSimulated } from './config';
 import { id } from './crypto';
+import { assert } from './errors';
 import {
   applyModelPolicy,
+  modelPolicy,
   discoveredModelsSchema,
   modelProviders,
   type DiscoveredModel,
@@ -30,22 +32,145 @@ function pricesExpired(row: Pick<CatalogCacheRow, 'fetched_at'> | undefined, now
   return !row?.fetched_at || now - row.fetched_at.getTime() >= dynamicPriceMaxAgeMs;
 }
 
+type CatalogVersion = Pick<CatalogCacheRow, 'provider' | 'fetched_at'> & { revision: string };
+export type ModelSelection = { model: Model; revision: string | null };
+type ParsedCatalog = { revision: string; models: readonly Model[] };
+// One immutable version per provider, bounded by the three supported catalogs.
+// SQL still supplies current identity and expiry on every selection; this cache
+// saves transferring/parsing unchanged public metadata, never current authority.
+const parsedCatalogs = new Map<ModelProvider, ParsedCatalog>();
+
+function available(model: Model, row?: Pick<CatalogVersion, 'provider' | 'fetched_at'>): Model {
+  return {
+    ...model,
+    harnesses: [...model.harnesses],
+    enabled: model.enabled && !(row?.provider === 'openrouter' && pricesExpired(row)),
+  };
+}
+function simulationModel(): Model {
+  return {
+    id: 'fixture-model',
+    name: 'Simulation · no model charges',
+    provider: 'fixture',
+    harnesses: [...harnessNames],
+    input_micro_usd_per_million: '0',
+    output_micro_usd_per_million: '0',
+    enabled: true,
+    simulated: true,
+  };
+}
+
+async function catalogs(tx: Pick<Tx, 'query'>, providers: readonly ModelProvider[]) {
+  // Keep the exact snapshots referenced by this SQL query even if another
+  // request refreshes the process cache before this response arrives.
+  const snapshots = new Map(parsedCatalogs);
+  const revisions = [...snapshots.values()].map((entry) => entry.revision);
+  const rows = (
+    await tx.query<CatalogVersion & { models: unknown }>(
+      `SELECT provider,revision,fetched_at,
+         CASE WHEN revision=ANY($2::uuid[]) THEN NULL ELSE models END AS models
+       FROM model_catalog_cache WHERE provider=ANY($1::text[])`,
+      [providers, revisions],
+    )
+  ).rows;
+  return rows.map((row) => {
+    let parsed = snapshots.get(row.provider);
+    if (parsed?.revision !== row.revision) {
+      parsed = {
+        revision: row.revision,
+        models: applyModelPolicy(
+          row.provider,
+          row.models === null ? undefined : discoveredModelsSchema.parse(row.models),
+        ),
+      };
+      parsedCatalogs.set(row.provider, parsed);
+    }
+    return { ...row, models: parsed.models };
+  });
+}
+
 export async function models(tx: Pick<Tx, 'query'> = pool): Promise<Model[]> {
+  if (isSimulated()) return [simulationModel()];
+  const rows = await catalogs(tx, modelProviders);
+  return modelProviders.flatMap((provider) => {
+    const row = rows.find((entry) => entry.provider === provider);
+    return (row?.models ?? applyModelPolicy(provider)).map((model) => available(model, row));
+  });
+}
+
+function selectFromCatalog(
+  modelId: string,
+  provider: ModelProvider,
+  row?: CatalogVersion & { models: readonly Model[] },
+): ModelSelection | undefined {
+  const model = (row?.models ?? applyModelPolicy(provider)).find((entry) => entry.id === modelId);
+  if (model) return { model: available(model, row), revision: row?.revision ?? null };
+}
+
+/** Prepare dynamic selection and freshness together. Discovery, when needed,
+ * runs only after releasing the metadata transaction; warm requests read once. */
+export async function prepareOpenRouterModel(
+  modelId: string,
+  source: ModelCatalogSource,
+  options: CatalogRefreshOptions = {},
+): Promise<ModelSelection | undefined> {
+  options.signal?.throwIfAborted();
+  if (isSimulated()) return;
+  const read = async () => {
+    options.signal?.throwIfAborted();
+    const rows =
+      options.deadlineAtMs === undefined
+        ? await catalogs(pool, ['openrouter'])
+        : await transaction(null, (tx) => catalogs(tx, ['openrouter']), {
+            deadlineAtMs: options.deadlineAtMs,
+          });
+    options.signal?.throwIfAborted();
+    return rows[0];
+  };
+  let row = await read();
+  if (pricesExpired(row)) {
+    await refreshModelCatalog(source, ['openrouter'], options);
+    // Also observe a concurrent refresher's committed snapshot. Claims/backoff
+    // still prevent duplicate provider discovery; no stale prices are trusted.
+    row = await read();
+  }
+  return selectFromCatalog(modelId, 'openrouter', row);
+}
+
+/** Resolve only one provider's immutable catalog. Unknown dynamic identifiers
+ * can only belong to OpenRouter; direct-provider models use reviewed policy. */
+export async function selectedModel(
+  tx: Pick<Tx, 'query'>,
+  modelId: string,
+  provider?: ModelProvider,
+): Promise<ModelSelection | undefined> {
   if (isSimulated())
-    return [
-      {
-        id: 'fixture-model',
-        name: 'Simulation · no model charges',
-        provider: 'fixture',
-        harnesses: [...harnessNames],
-        input_micro_usd_per_million: '0',
-        output_micro_usd_per_million: '0',
-        enabled: true,
-        simulated: true,
-      },
-    ];
-  const rows = (await tx.query<CatalogCacheRow>('SELECT * FROM model_catalog_cache')).rows;
-  return cachedModels(rows);
+    return modelId === 'fixture-model' ? { model: simulationModel(), revision: null } : undefined;
+  const owner =
+    provider ??
+    modelProviders.find((provider) =>
+      modelPolicy.some((model) => model.id === modelId && model.provider === provider),
+    ) ??
+    'openrouter';
+  return selectFromCatalog(modelId, owner, (await catalogs(tx, [owner]))[0]);
+}
+
+/** Admission rechecks current terms without loading a replacement catalog under
+ * locks. Preparation must be repeated when the immutable source changed. */
+export async function currentSelectedModel(tx: Pick<Tx, 'query'>, selection: ModelSelection): Promise<Model> {
+  const row = (
+    await tx.query<CatalogVersion>(
+      'SELECT provider,revision,fetched_at FROM model_catalog_cache WHERE provider=$1',
+      [selection.model.provider],
+    )
+  ).rows[0];
+  assert(
+    (row?.revision ?? null) === selection.revision,
+    409,
+    'model_terms_changed',
+    'Model terms changed during preparation. Submit the same intended request again.',
+  );
+  return available(selection.model, row);
 }
 
 export function cachedModels(rows: CatalogCacheRow[], now = Date.now()): Model[] {

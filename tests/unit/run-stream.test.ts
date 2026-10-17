@@ -15,7 +15,8 @@ it('bounds prefetch for a stalled reader and resumes ordered historical output',
   vi.useFakeTimers();
   let pages = 0;
   query.mockImplementation(async (sql: string, args: unknown[]) => {
-    if (sql.startsWith('SELECT status')) return { rows: [{ status: 'succeeded', event_sequence: '300' }] };
+    if (sql.startsWith('SELECT id,event_sequence'))
+      return { rows: [{ id: 'run', status: 'succeeded', event_sequence: '300', failure_code: null }] };
     pages++;
     const after = Number(args[1]);
     return {
@@ -64,5 +65,36 @@ it.each(['abort', 'timeout', 'cancel'] as const)('releases an idle stream on %s'
   const count = query.mock.calls.length;
   await vi.advanceTimersByTimeAsync(60000);
   expect(query).toHaveBeenCalledTimes(count);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('does not fetch another history page when a stalled reader resumes after stream expiry', async () => {
+  vi.useFakeTimers();
+  let pages = 0;
+  query.mockImplementation(async (sql: string, args: unknown[]) => {
+    if (sql.startsWith('SELECT id,event_sequence'))
+      return { rows: [{ id: 'run', status: 'running', event_sequence: '300', failure_code: null }] };
+    pages++;
+    const after = Number(args[1]);
+    return {
+      rows: Array.from({ length: 100 }, (_, index) => ({
+        id: `event-${after + index + 1}`,
+        run_id: 'run',
+        sequence: after + index + 1,
+        type: 'output.delta',
+        occurred_at: new Date(0),
+        ingested_at: new Date(0),
+        data: {},
+      })),
+    };
+  });
+  const stream = await streamEvents('org', 'run', '0', new AbortController().signal);
+  await vi.advanceTimersByTimeAsync(55_001);
+  expect(pages).toBe(1);
+  const reader = stream.getReader();
+  let buffered = 0;
+  while (!(await reader.read()).done) buffered++;
+  expect(buffered).toBe(100);
+  expect(pages).toBe(1);
   expect(vi.getTimerCount()).toBe(0);
 });

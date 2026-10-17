@@ -1,9 +1,13 @@
+import pg from 'pg';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { authPool, credentialPool, pool, transaction } from '../../packages/db';
 import { config } from '../../packages/core/src/config';
 import {
   cachedModels,
   models,
+  selectedModel,
+  prepareOpenRouterModel,
+  currentSelectedModel,
   refreshModelCatalog,
   refreshExpiredOpenRouterCatalog,
   type CatalogCacheRow,
@@ -408,4 +412,95 @@ it('freezes admitted prices through refresh, gateway settlement, cancellation, a
   await expect(settleOrphanModelRequests(account.p.organizationId, run.id)).rejects.toMatchObject({
     code: 'rate_card_unavailable',
   });
+});
+
+it('reuses unchanged discovery payloads while current revisions and expiry govern every selection', async () => {
+  config.execution = 'docker';
+  await refreshModelCatalog(async () => routed(), ['openrouter']);
+  const selected = await selectedModel(pool, routed()[0].id, 'openrouter');
+  expect(selected?.model).toMatchObject({ enabled: true, input_micro_usd_per_million: '750000' });
+  if (!selected) throw new Error('Expected selected fixture model.');
+  // A caller may change its own projection without mutating shared cached data.
+  const changed = await selectedModel(pool, routed()[0].id, 'openrouter');
+  changed!.model.harnesses.length = 0;
+  changed!.model.enabled = false;
+  expect((await selectedModel(pool, routed()[0].id, 'openrouter'))?.model).toMatchObject({
+    enabled: true,
+    harnesses: ['opencode', 'hermes', 'deepseek', 'pi'],
+  });
+  await pool.query(
+    "UPDATE model_catalog_cache SET fetched_at=now()-interval '25 hours' WHERE provider='openrouter'",
+  );
+  // Expiry is mutable authority; it cannot be cached with immutable prices.
+  expect((await currentSelectedModel(pool, selected)).enabled).toBe(false);
+  expect((await selectedModel(pool, routed()[0].id, 'openrouter'))?.model.enabled).toBe(false);
+  await pool.query("UPDATE model_catalog_cache SET fetched_at=now() WHERE provider='openrouter'");
+  expect((await currentSelectedModel(pool, selected)).enabled).toBe(true);
+  await pool.query("UPDATE model_catalog_cache SET models=$1 WHERE provider='openrouter'", [
+    JSON.stringify(routed('0.000002')),
+  ]);
+  // Even an out-of-band catalog write rotates the version. Admission rejects
+  // rather than loading replacement terms under its financial/resource locks.
+  await expect(currentSelectedModel(pool, selected)).rejects.toMatchObject({ code: 'model_terms_changed' });
+  expect((await selectedModel(pool, routed()[0].id, 'openrouter'))?.model).toMatchObject({
+    enabled: true,
+    input_micro_usd_per_million: '2000000',
+  });
+  expect((await models()).find((entry) => entry.id === routed()[0].id)).toMatchObject({
+    enabled: true,
+    input_micro_usd_per_million: '2000000',
+  });
+  await pool.query("UPDATE model_catalog_cache SET models='[]' WHERE provider='openrouter'");
+  expect(await selectedModel(pool, routed()[0].id, 'openrouter')).toBeUndefined();
+});
+
+it('keeps immutable catalog identity across refresh claims and identical snapshots', async () => {
+  config.execution = 'docker';
+  await refreshModelCatalog(async () => routed(), ['openrouter']);
+  const selected = await selectedModel(pool, routed()[0].id, 'openrouter');
+  if (!selected) throw new Error('Expected selected fixture model.');
+  await pool.query("UPDATE model_catalog_cache SET refresh_after=now() WHERE provider='openrouter'");
+  await refreshModelCatalog(async () => routed(), ['openrouter']);
+  expect((await selectedModel(pool, routed()[0].id, 'openrouter'))?.revision).toBe(selected.revision);
+  expect((await currentSelectedModel(pool, selected)).enabled).toBe(true);
+});
+
+it('keeps reviewed direct-provider defaults consistent with public listings when discovery is absent', async () => {
+  config.execution = 'docker';
+  await pool.query("DELETE FROM model_catalog_cache WHERE provider='openai'");
+  try {
+    const selected = await selectedModel(pool, 'gpt-5.4-mini');
+    expect(selected).toMatchObject({ revision: null, model: { id: 'gpt-5.4-mini', enabled: true } });
+    if (!selected) throw new Error('Expected reviewed direct-provider default.');
+    expect(await currentSelectedModel(pool, selected)).toEqual(
+      (await models()).find((entry) => entry.id === 'gpt-5.4-mini'),
+    );
+    await pool.query("INSERT INTO model_catalog_cache(provider) VALUES('openai')");
+    await expect(currentSelectedModel(pool, selected)).rejects.toMatchObject({ code: 'model_terms_changed' });
+  } finally {
+    await pool.query("INSERT INTO model_catalog_cache(provider) VALUES('openai') ON CONFLICT DO NOTHING");
+  }
+});
+
+it('prepares fresh OpenRouter selection with one catalog read and no discovery call', async () => {
+  config.execution = 'docker';
+  await refreshModelCatalog(async () => routed(), ['openrouter']);
+  const source = vi.fn<ModelCatalogSource>(async () => routed());
+  await prepareOpenRouterModel(routed()[0].id, source, { deadlineAtMs: Date.now() + 2000 });
+  const queries = vi.spyOn(pg.Client.prototype, 'query');
+  const selected = await prepareOpenRouterModel(routed()[0].id, source, { deadlineAtMs: Date.now() + 2000 });
+  const catalogReads = queries.mock.calls.filter(([query]) => {
+    const value: unknown = query;
+    const text =
+      typeof value === 'string'
+        ? value
+        : value && typeof value === 'object' && 'text' in value
+          ? value.text
+          : '';
+    return typeof text === 'string' && text.includes('FROM model_catalog_cache');
+  });
+  queries.mockRestore();
+  expect(selected?.model.enabled).toBe(true);
+  expect(source).not.toHaveBeenCalled();
+  expect(catalogReads).toHaveLength(1);
 });

@@ -6,6 +6,7 @@ import { pool, authPool, credentialPool, transaction } from '../../packages/db';
 import { advanceInference } from '../../packages/core/src/inference-engine';
 import { AppError } from '../../packages/core/src/errors';
 import { getRun } from '../../packages/core/src/runs';
+import { immediateInferencePolicy } from '../../packages/core/src/direct-inference';
 
 // This process runs only behind the disposable fixture database wrapper. All
 // apparent provider requests are rewritten to the parent's exact loopback server.
@@ -30,6 +31,14 @@ globalThis.fetch = (input, init) => {
 // is installed. This cannot reach a real account or Docker.
 config.allowPaid = true;
 process.env.ANTHROPIC_API_KEY = 'immediate-load-fixture-not-a-provider-key';
+// Shorten only this isolated process's local SQL retry attempt for the real
+// exceptional-checkpoint crash fixture. Production defaults remain unchanged.
+const persistenceAttempt = Number(process.env.IMMEDIATE_FIXTURE_PERSISTENCE_ATTEMPT_MS);
+if (process.env.IMMEDIATE_FIXTURE_PERSISTENCE_ATTEMPT_MS !== undefined) {
+  if (!Number.isSafeInteger(persistenceAttempt) || persistenceAttempt < 1 || persistenceAttempt > 1000)
+    throw new Error('Invalid fixture persistence attempt.');
+  Object.assign(immediateInferencePolicy, { persistenceAttemptMs: persistenceAttempt });
+}
 let sqlQueries = 0,
   sqlMilliseconds = 0,
   transactionCommits = 0;

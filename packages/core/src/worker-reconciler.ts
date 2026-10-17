@@ -2,10 +2,17 @@ import { transaction, lock, pool, type Tx } from '../../db';
 import { AppError, assert } from './errors';
 import { id, unseal } from './crypto';
 import { getWorker } from './workers';
-import { getHost, hostSnapshots, reserveHost, extendHostFunding, settleHostSample, releaseHostFunding,
+import {
+  getHost,
+  hostSnapshots,
+  reserveHost,
+  extendHostFunding,
+  settleHostSample,
+  releaseHostFunding,
   defaultRunResources,
   type HostRow,
   HOST_CLEANUP_SECONDS,
+  observeHostWarmth,
 } from './host-allocations';
 import { planWorkerCapacity } from './worker-scaling';
 import type { RunDemand, ResourceAllocation } from './worker-types';
@@ -328,6 +335,7 @@ export async function advanceHost(
           'host_generation_changed',
           'The Host controller changed; stop the old allocation before releasing claims.',
         );
+        await mutateHost(org, hostId, leaseId, (tx) => observeHostWarmth(tx, host, health));
         if (health.rotation_requested || health.quiesced) {
           await mutateHost(org, hostId, leaseId, async (tx) => {
             await tx.query("UPDATE hosts SET status='draining',next_check_at=now() WHERE id=$1", [hostId]);

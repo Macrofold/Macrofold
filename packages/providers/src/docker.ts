@@ -1,6 +1,5 @@
 import type { HostBinding, HostControlRequest } from '../../contracts/host-control';
 import { runtimeConfiguration } from '../../runtime/src/supervisor';
-import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -17,9 +16,11 @@ import type {
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { SnapshotEntry } from '../../runtime/src/manifest';
 import { dockerDiagnostic, dockerFailure } from './docker-diagnostic';
+import { hostHttpControl } from './host-http';
 
 const ownerLabel = 'io.platform.owner';
 const executionLabel = 'io.platform.execution';
+const executionName = /^(run-[a-f0-9-]{36}|env-[a-f0-9-]{36}-[1-9][0-9]*)$/;
 export type DockerCommand = (args: string[], input?: Buffer) => Promise<Buffer>;
 
 /** Never pass capabilities in argv or surface Docker's potentially sensitive stderr. */
@@ -68,13 +69,14 @@ const inspected = z.object({
   Id: z.string().regex(/^[a-f0-9]{64}$/),
   State: z.object({ Status: z.string(), Running: z.boolean(), StartedAt: z.string() }),
   Config: z.object({ Labels: z.record(z.string(), z.string()) }),
+  NetworkSettings: z.object({ Ports: z.record(z.string(), z.array(z.object({ HostIp: z.string(), HostPort: z.string() })).nullable()) }).optional(),
 });
 type Container = z.infer<typeof inspected>;
 
 /** Trusted contributor compute. No bind mounts, socket, host credentials, or automatic agent restart. */
 export class DockerMachines implements MachineProvider, MachineTools {
   private readonly owner = createHash('sha256').update(config.dataDir).digest('hex');
-  constructor(private readonly command: DockerCommand = dockerCommand) {}
+  constructor(private readonly command: DockerCommand = dockerCommand, private readonly request: typeof fetch = fetch) {}
   private check() {
     assert(
       isLocal() && config.execution === 'docker' && config.orchestration === 'poller',
@@ -85,7 +87,7 @@ export class DockerMachines implements MachineProvider, MachineTools {
   }
   private async lookup(name: string): Promise<Container | undefined> {
     this.check();
-    assert(/^(run-[a-f0-9-]{36}|env-[a-f0-9-]{36}-[1-9][0-9]*)$/.test(name), 400, 'invalid_execution', 'Invalid execution name.');
+    assert(executionName.test(name), 400, 'invalid_execution', 'Invalid execution name.');
     // A successful list distinguishes absence from daemon/transport failure.
     const found = (await this.command(['ps', '-aq', '--no-trunc', '--filter', `name=^/${name}$`]))
       .toString()
@@ -114,6 +116,12 @@ export class DockerMachines implements MachineProvider, MachineTools {
     return current.Id;
   }
   async provision(name: string, timeoutSeconds: number | null, resources?: { memory_mib: number; cpu_millis: number }): Promise<MachineBinding> {
+    return this.provisionAllocation(name, timeoutSeconds, resources, false);
+  }
+  async provisionHost(name: string, timeoutSeconds: number | null, resources: { memory_mib: number; cpu_millis: number }): Promise<HostBinding> {
+    return this.provisionAllocation(name, timeoutSeconds, resources, true);
+  }
+  private async provisionAllocation(name: string, timeoutSeconds: number | null, resources: { memory_mib: number; cpu_millis: number } | undefined, publishControl: boolean): Promise<HostBinding> {
     let current = await this.lookup(name);
     if (!current) {
       assert(
@@ -162,6 +170,7 @@ export class DockerMachines implements MachineProvider, MachineTools {
         '--log-opt=max-file=2',
         '--network',
         network,
+        ...(publishControl ? ['--publish=127.0.0.1::10000'] : []),
         `--add-host=host.docker.internal:${gateway}`,
         image,
         'sleep',
@@ -187,7 +196,14 @@ export class DockerMachines implements MachineProvider, MachineTools {
       current = await this.lookup(name);
     }
     assert(current?.State.Running, 409, 'execution_unavailable', 'The original container is not running.');
-    return { name, sessionId: current.Id, createdAt: current.State.StartedAt };
+    const binding: HostBinding = { name, sessionId: current.Id, createdAt: current.State.StartedAt };
+    if (publishControl) {
+      const ports = current.NetworkSettings?.Ports['10000/tcp'];
+      assert(ports?.length === 1 && ports[0].HostIp === '127.0.0.1' && /^[1-9][0-9]{0,4}$/.test(ports[0].HostPort) && Number(ports[0].HostPort) <= 65535,
+        503, 'invalid_runtime_origin', 'The Host controller requires one loopback-only published port.');
+      binding.url = `http://127.0.0.1:${ports[0].HostPort}`;
+    }
+    return binding;
   }
   private async exec(binding: MachineBinding, args: string[], input?: Buffer, detached = false) {
     const container = await this.session(binding);
@@ -224,8 +240,12 @@ export class DockerMachines implements MachineProvider, MachineTools {
     await this.exec(binding, ['node', '-e', "const fs=require('fs');try{fs.mkdirSync('/platform-control/server.lock')}catch(e){if(e.code==='EEXIST')process.exit(0);throw e}require('child_process').spawn('node',['/opt/platform/" + entry + ".mjs'],{detached:true,stdio:'ignore'}).unref()"]);
   }
   startHostControl(binding: MachineBinding, secret: string) { return this.startControl(binding, secret, 'host-control'); }
-  hostControl(binding: HostBinding, secret: string, request: HostControlRequest) { return this.controlRequest(binding, secret, request, 'host-control-cli'); }
-  private async controlRequest(binding: HostBinding, _secret: string, request: HostControlRequest, entry: 'host-control-cli') {
+  async hostControl(binding: HostBinding, secret: string, request: HostControlRequest) {
+    this.check();
+    assert(executionName.test(binding.name) && /^[a-f0-9]{64}$/.test(binding.sessionId), 400, 'invalid_execution', 'Invalid execution identity.');
+    assert(secret.length >= 32, 400, 'invalid_control_secret', 'Host control credentials are required.');
+    const url = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/?$/.exec(binding.url || '');
+    assert(url && Number(url[1]) <= 65535, 503, 'invalid_runtime_origin', 'The Host controller requires a loopback-only origin.');
     if (request.action === 'prepare') {
       const configuration = runtimeConfiguration.parse(request.configuration);
       for (const key of ['gatewayURL', 'toolURL'] as const) {
@@ -235,10 +255,10 @@ export class DockerMachines implements MachineProvider, MachineTools {
       }
       request = { ...request, configuration };
     }
-    const path = `/platform-control/request-${randomUUID()}.json`;
-    await this.write(binding, [{ path, content: Buffer.from(JSON.stringify({ boot_id: binding.controlBootId, request })) }], 8 * 1024 * 1024);
-    const result = await this.exec(binding, ['node', `/opt/platform/${entry}.mjs`, path]);
-    return z.object({ value: z.unknown() }).parse(JSON.parse(result.toString())).value;
+    // Docker assigns this loopback port once for the allocation. The expected
+    // secret and boot ID reject a stale port reused by another/restarted Host;
+    // lifecycle/legacy operations still inspect immutable ID and start time.
+    return hostHttpControl(this.request, `http://127.0.0.1:${url[1]}`, binding, secret, request);
   }
   async generationRunning(binding: MachineBinding) {
     const current = await this.lookup(binding.name);

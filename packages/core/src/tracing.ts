@@ -4,13 +4,21 @@ import type { TraceObservation, TraceSink } from './trace';
 
 let sink: TraceSink | undefined;
 let initialized = false;
+/** Composition may select another diagnostics backend before serving requests.
+ * This also lets qualification exercise the real SDK with an offline exporter. */
+export function configureTraceSink(target: TraceSink) {
+  if (initialized) throw new Error('Tracing has already been configured.');
+  sink = target;
+  initialized = true;
+}
 /** Explicit disable wins over credentials, especially in disposable test fixtures. */
 export function tracingEnabled() {
   return (
     process.env.TRACING_ENABLED !== 'false' &&
-    Boolean(
-      process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY && process.env.LANGFUSE_BASE_URL,
-    )
+    (Boolean(sink) ||
+      Boolean(
+        process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY && process.env.LANGFUSE_BASE_URL,
+      ))
   );
 }
 function tracing(): TraceSink | undefined {

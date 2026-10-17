@@ -10,8 +10,13 @@ import { config } from './config';
 import { validateContext, digest } from './explicit-context';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { decisionModel, decisionOnlyModel } from './decision-models';
-import { models } from './catalog';
-import { refreshExpiredOpenRouterCatalog } from './model-catalog';
+import {
+  prepareOpenRouterModel,
+  selectedModel,
+  currentSelectedModel,
+  type ModelSelection,
+} from './model-catalog';
+import type { Model } from './model-policy';
 import { providerModelCatalog } from '../../providers/src/model-catalog';
 import { validateModelParameters } from './model-parameters';
 import { modelCredential } from './model-credentials';
@@ -27,10 +32,17 @@ import { immediateInferencePolicy, inferenceEnvelope, type InvocationPermit } fr
 import { runTraceContext } from './run-tracing';
 import { tracingEnabled } from './tracing';
 import { actorAuthorized } from './actor-authorization';
-import { getExecutionPolicy } from './plans';
+import { executionPolicy } from './plans';
 import { emit } from './events';
-import { waitingFields, runUrls, type InferenceConfig, type InferenceRunRow } from './runs';
+import {
+  waitingFields,
+  runUrls,
+  type InferenceConfig,
+  type ImmediateInferenceConfig,
+  type ExecutableInferenceRunRow,
+} from './runs';
 import type { PreparedHandler, ApiResult } from './api-types';
+import { taskQueuedConfiguration, type TaskRunSource } from './task-run-payload';
 import { normalizeInferenceInput } from './inference-input';
 import type { InferenceCreate, InferenceDefinition, ExplicitContext } from './decision';
 
@@ -40,6 +52,7 @@ async function admitInferenceState(
   input: ResolvedInferenceCreate,
   kind: 'inference' | 'bounded_agent' = 'inference',
   prepared?: PreparedImmediateInference,
+  source?: TaskRunSource,
 ) {
   const admissionStarted = performance.now();
   assert(
@@ -52,7 +65,6 @@ async function admitInferenceState(
   requireScopes(p, input.stream ? ['runs:write', 'runs:read'] : ['runs:write']);
   requireInferenceCaller(p, input.workspace_id);
   if (input.workspace_id) await requireDecisionWorkspace(tx, p, input.workspace_id);
-  await (await import('./storage-maintenance')).requireStorageCapacity(tx, p.organizationId);
   if (!prepared) validateContext(input.definition, input.input, input.context);
   assert(
     kind === 'bounded_agent' ? !!input.definition.bounded_agent : !input.definition.bounded_agent,
@@ -78,13 +90,15 @@ async function admitInferenceState(
       await authorizeContext(tx, p, input.workspace_id, reference);
     }
   }
-  const model = decisionModel(
-      input.model_binding,
-      input.model_binding.provider === 'openrouter' &&
-        !decisionOnlyModel('openrouter', input.model_binding.model)
-        ? await models(tx)
-        : [],
-    ),
+  let selected: Model | undefined;
+  if (
+    input.model_binding.provider === 'openrouter' &&
+    !decisionOnlyModel('openrouter', input.model_binding.model)
+  )
+    selected = prepared?.modelSelection
+      ? await currentSelectedModel(tx, prepared.modelSelection)
+      : (await selectedModel(tx, input.model_binding.model, 'openrouter'))?.model;
+  const model = decisionModel(input.model_binding, selected ? [selected] : []),
     protocol = decisionProtocol(input.model_binding.provider, input.model_binding.model);
   assert(
     !input.stream || protocol.capabilities.streaming,
@@ -117,7 +131,10 @@ async function admitInferenceState(
     'definition_limit_exceeded',
     'Request limits may only narrow the definition’s ceilings.',
   );
-  const policy = await getExecutionPolicy(tx, p.organizationId);
+  const reservation = input.model_binding.billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
+  const account = await reserve(tx, p.organizationId, BigInt(reservation));
+  (await import('./storage-maintenance')).assertStorageCapacity(account.settings);
+  const policy = executionPolicy(account);
   assert(
     limits.timeout_seconds <= policy.max_timeout_seconds,
     400,
@@ -125,7 +142,7 @@ async function admitInferenceState(
     'The timeout exceeds the account execution policy.',
   );
   const secret = await modelCredential(tx, p.userId, input.model_binding);
-  const configuration = prepared?.configuration ?? inferenceConfiguration(p, input, model);
+  const configuration = prepared?.configuration ?? { ...inferenceConfiguration(p, input, model), ...source };
   assert(
     !prepared || digest(prepared.configuration.rate_card) === digest(model),
     409,
@@ -149,8 +166,6 @@ async function admitInferenceState(
       },
     });
   configuration.admission_ms = performance.now() - admissionStarted;
-  const reservation = configuration.billing_mode === 'byok' ? '0' : limits.max_cost_micro_usd;
-  await reserve(tx, p.organizationId, BigInt(reservation));
   if (prepared) {
     const breaker = await tx.query(
       'SELECT 1 FROM provider_circuit_breakers WHERE key=$1 AND resolved_at IS NULL',
@@ -183,50 +198,52 @@ async function admitInferenceState(
   // extend, the provider window relative to PostgreSQL's accepted deadline.
   const providerDeadlineMonotonicMs = performance.now() + limits.timeout_seconds * 1000;
   const saved = (
-    await tx.query<Omit<InferenceRunRow, 'config'>>(
-      `INSERT INTO runs(id,organization_id,workspace_id,kind,status,config,reservation_micro_usd,queue_expires_at,started_at,heartbeat_at,lease_generation,deadline)
+    await tx.query<Omit<ExecutableInferenceRunRow, 'config'>>(
+      `WITH admitted AS (INSERT INTO runs(id,organization_id,workspace_id,kind,status,config,reservation_micro_usd,queue_expires_at,started_at,heartbeat_at,lease_generation,deadline)
      VALUES($1,$2,$3,$7,$8,$4,$5,now()+($6::integer*interval '1 second'),
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
        CASE WHEN $8='running' THEN clock_timestamp() ELSE NULL END,
        CASE WHEN $8='running' THEN 1 ELSE 0 END,
-       CASE WHEN $8='running' THEN clock_timestamp()+($9::integer*interval '1 second') ELSE NULL END) RETURNING ${inferenceRunStateColumns}`,
+       CASE WHEN $8='running' THEN clock_timestamp()+($9::integer*interval '1 second') ELSE NULL END) RETURNING ${inferenceRunStateColumns}
+     ), scheduled AS (
+       INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id,available_at,lease_until,state)
+       SELECT $10,organization_id,'run',id,
+         CASE WHEN $8='running' THEN deadline+($11::integer*interval '1 millisecond') ELSE now() END,
+         CASE WHEN $8='running' THEN deadline+($11::integer*interval '1 millisecond') ELSE now() END,
+         CASE WHEN $8='running' THEN 'running' ELSE 'pending' END FROM admitted RETURNING resource_id
+     ) SELECT admitted.* FROM admitted JOIN scheduled ON scheduled.resource_id=admitted.id`,
       [
         runId,
         p.organizationId,
         input.workspace_id,
-        JSON.stringify(configuration),
+        JSON.stringify(
+          prepared
+            ? compactConfiguration(configuration)
+            : source
+              ? taskQueuedConfiguration(configuration, source)
+              : configuration,
+        ),
         reservation,
         'queue_timeout_seconds' in input ? (input.queue_timeout_seconds ?? 60) : 60,
         kind,
         prepared ? 'running' : 'queued',
         limits.timeout_seconds,
+        id(),
+        immediateInferencePolicy.completionMs,
       ],
     )
   ).rows[0];
-  const row: InferenceRunRow = { ...saved, config: configuration };
+  const row: ExecutableInferenceRunRow = { ...saved, config: configuration };
   assert(
     row.status === 'running' || row.status === 'queued',
     500,
     'invalid_inference_state',
     'Admission returned an invalid execution state.',
   );
-  await emit(tx, p.organizationId, runId, prepared ? 'run.accepted' : 'run.queued', {
-    kind,
-    status: row.status,
-  });
-  await tx.query(
-    `INSERT INTO dispatch_jobs(id,organization_id,kind,resource_id,available_at,lease_until,state)
-     VALUES($1,$2,'run',$3,$4,$4,$5)`,
-    [
-      id(),
-      p.organizationId,
-      runId,
-      prepared && row.deadline
-        ? new Date(row.deadline.getTime() + immediateInferencePolicy.completionMs)
-        : new Date(),
-      prepared ? 'running' : 'pending',
-    ],
-  );
+  // Immediate accepted/prepared events publish together after invocation
+  // identity insertion, in the same admission commit and original order.
+  if (!prepared)
+    await emit(tx, p.organizationId, runId, 'run.queued', { kind, status: row.status }, undefined, row);
   const receipt = {
     run_id: runId,
     kind,
@@ -245,14 +262,16 @@ export async function admitInference(
   p: Principal,
   input: ResolvedInferenceCreate,
   kind: 'inference' | 'bounded_agent' = 'inference',
+  source?: TaskRunSource,
 ) {
-  return (await admitInferenceState(tx, p, input, kind)).receipt;
+  return (await admitInferenceState(tx, p, input, kind, undefined, source)).receipt;
 }
 
 type PreparedImmediateInference = {
   configuration: InferenceConfig;
   invocation: PreparedInvocation;
   hostDeadline: number;
+  modelSelection?: ModelSelection;
 };
 
 export type ResolvedInferenceCreate = Omit<InferenceCreate, 'definition' | 'context'> & {
@@ -344,11 +363,13 @@ export async function prepareInference(
     'workspace_required',
     'Saved references and bounded agents require a workspace. Supply inline data for a stateless inference.',
   );
-  if (
+  const modelSelection =
     input.model_binding.provider === 'openrouter' &&
     !decisionOnlyModel('openrouter', input.model_binding.model)
-  )
-    await readPrepared(() => refreshExpiredOpenRouterCatalog(providerModelCatalog(), preparation));
+      ? await readPrepared(() =>
+          prepareOpenRouterModel(input.model_binding.model, providerModelCatalog(), preparation),
+        )
+      : undefined;
   const definition =
     'definition_id' in input.definition
       ? (
@@ -377,13 +398,7 @@ export async function prepareInference(
   let permit: InvocationPermit | undefined;
   if (direct) {
     validateContext(definition, input.input, context);
-    const model = decisionModel(
-      input.model_binding,
-      input.model_binding.provider === 'openrouter' &&
-        !decisionOnlyModel('openrouter', input.model_binding.model)
-        ? await readPrepared(() => transaction(p.organizationId, models, preparation))
-        : [],
-    );
+    const model = decisionModel(input.model_binding, modelSelection ? [modelSelection.model] : []);
     const configuration = inferenceConfiguration(p, resolved, model);
     configuration.execution_owner = 'request';
     assert(
@@ -403,7 +418,7 @@ export async function prepareInference(
       'inference_host_budget_exhausted',
       'The requested execution window cannot fit this host lifetime.',
     );
-    prepared = { configuration, invocation: prepareInvocation(configuration), hostDeadline };
+    prepared = { configuration, invocation: prepareInvocation(configuration), hostDeadline, modelSelection };
   }
   return {
     inferencePermit: () => permit,
@@ -430,11 +445,16 @@ export async function prepareInference(
             'authorization_revoked',
             'Stream read permission is no longer authorized.',
           );
-        const call = await insertInvocation(tx, admitted.run, prepared.invocation, true);
+        const call = await insertInvocation(tx, admitted.run, prepared.invocation, {
+          dispatchStarted: true,
+          admission: { type: 'run.accepted', data: { kind, status: admitted.run.status } },
+        });
         permit = {
           run: admitted.run,
           call,
           body: prepared.invocation.body,
+          bodyBytes: prepared.invocation.bytes,
+          bodyJSON: prepared.invocation.serialized,
           secret: admitted.secret,
           hostDeadline,
           providerDeadlineMonotonicMs: admitted.providerDeadlineMonotonicMs,
@@ -506,5 +526,19 @@ export function inferenceConfiguration(
     definition_reference: input.definition_reference,
     client_type: 'api',
     scheduling_class: 'interactive',
+  };
+}
+
+/** Only fields used by authority/accounting/replay survive immediate admission. */
+export function compactConfiguration(configuration: InferenceConfig): ImmediateInferenceConfig {
+  const { definition, input: _input, context, model_parameters: _parameters, ...control } = configuration;
+  return {
+    ...control,
+    payload_kind: 'compact',
+    definition_revision: definition.revision,
+    schema_digest: digest(definition.output_schema),
+    dependency_tokens: context.dependency_tokens,
+    context_audience: context.audience,
+    application_namespace: context.application_namespace,
   };
 }

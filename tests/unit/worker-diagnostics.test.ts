@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { observeWorkerStep } from '../../packages/core/src/worker-diagnostics';
+import { observeWorkerStep, observeRuntimeEvents } from '../../packages/core/src/worker-diagnostics';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -12,6 +12,25 @@ it('does not log when disabled and preserves the action result', async () => {
   const log = vi.spyOn(console, 'info').mockImplementation(() => {});
   expect(await observeWorkerStep('launch', { run_id: 'fixture-run' }, async () => 42)).toBe(42);
   expect(log).not.toHaveBeenCalled();
+});
+
+it('correlates private event timing without logging customer content and remains opt-in', () => {
+  const log = vi.spyOn(console, 'info').mockImplementation(() => {});
+  const fields = { organization_id: 'org', run_id: 'run', lease_generation: '2' };
+  const events = [{ sequence: 3, emitted_at: 100, data: { text: 'private output' } }, { sequence: 4 }];
+  vi.stubEnv('WORKER_DIAGNOSTICS', '0');
+  observeRuntimeEvents(fields, events);
+  expect(log).not.toHaveBeenCalled();
+  vi.stubEnv('WORKER_DIAGNOSTICS', '1');
+  observeRuntimeEvents(fields, events);
+  expect(log).toHaveBeenCalledOnce();
+  expect(JSON.parse(log.mock.calls[0][0])).toMatchObject({
+    ...fields,
+    observation: 'worker.native_event.observed',
+    source_sequence: 3,
+    source_emitted_at: 100,
+  });
+  expect(JSON.stringify(log.mock.calls)).not.toContain('private output');
 });
 
 it('correlates waiting and completion without logging the action output or leaking a timer', async () => {

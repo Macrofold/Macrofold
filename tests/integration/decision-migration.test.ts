@@ -46,14 +46,13 @@ it('upgrades a native row without changing its identity, context or reservation'
     await owner.query(
       'ALTER TABLE workspaces RENAME TO projects; ALTER TABLE worktrees RENAME TO workspaces; ALTER TABLE workspaces RENAME COLUMN workspace_id TO project_id; ALTER TABLE runs RENAME COLUMN workspace_id TO project_id; ALTER TABLE runs RENAME COLUMN worktree_id TO workspace_id',
     );
-    await owner.query('ALTER TABLE runs DROP CONSTRAINT run_kind_shape, DROP COLUMN kind');
+    await owner.query('ALTER TABLE runs DROP CONSTRAINT IF EXISTS run_kind_shape, DROP COLUMN kind');
     await owner.query(
       'ALTER TABLE runs ALTER COLUMN workspace_id SET NOT NULL, ALTER COLUMN session_id SET NOT NULL',
     );
-    // The historical migration replaces this view using the pre-rename column names.
-    await owner.query(
-      'ALTER VIEW reporting.scheduling_runs RENAME COLUMN workspace_id TO project_id; ALTER VIEW reporting.scheduling_runs RENAME COLUMN worktree_id TO workspace_id',
-    );
+    // Recreate the historical projection, rather than asking CREATE OR REPLACE
+    // to remove newer private columns. The outer transaction rolls this back.
+    await owner.query('DROP VIEW reporting.scheduling_runs');
     const before = (await owner.query('SELECT * FROM runs WHERE id=$1', [accepted.run_id])).rows[0];
     for (const migration of [
       '035_explicit_inference.sql',

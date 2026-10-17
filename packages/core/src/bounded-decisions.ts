@@ -1,8 +1,9 @@
 import { transaction, afterCommit, type Tx } from '../../db';
 import { runTraceContext } from './run-tracing';
 import { recordTrace } from './tracing';
-import type { InferenceRunRow } from './runs';
-import { getRun, terminal } from './runs';
+import type { ExecutableInferenceRunRow } from './runs';
+import { terminal } from './runs';
+import { currentInferenceRun } from './inference-invocations';
 import { actorAuthorized } from './actor-authorization';
 import { principalFor } from './engine';
 import { authorizeContext, storedContextReader } from './context-artifacts';
@@ -49,7 +50,7 @@ export function boundedRequest(request: DecisionRequest): DecisionRequest {
  * need a trusted implementation and authorization mapping, never a model's
  * read-only claim or an unreviewed remote server's annotations. */
 export async function applyBoundedResponse(
-  run: InferenceRunRow,
+  run: ExecutableInferenceRunRow,
   call: { id: string; step: number },
   response: DecisionResponse,
 ): Promise<DecisionResponse | null> {
@@ -79,9 +80,10 @@ export async function applyBoundedResponse(
   // The initiating key must still grant the read; principalFor is descriptive,
   // so actorAuthorized is checked independently before and after object I/O.
   async function eligible(tx: Tx) {
-    const latest = await getRun(tx, run.id);
+    const latest = await currentInferenceRun(tx, run);
     assert(
-      !terminal(latest.status) &&
+      latest.lease_generation === run.lease_generation &&
+        !terminal(latest.status) &&
         !latest.cancel_requested &&
         latest.deadline &&
         latest.deadline.getTime() > Date.now(),

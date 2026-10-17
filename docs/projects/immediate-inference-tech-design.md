@@ -4,7 +4,7 @@ Status: implementation is present; final aggregate verification, workload calibr
 
 ## Review decisions
 
-The table below records the design implemented by this project. The later [execution-efficiency design](execution-efficiency-tech-design.md) proposes two normal execution commits and exceptional evidence capture, with an explicit larger crash window and reduced immediate-input history guarantee. It owns further redesign; do not treat the older three-commit choice here as an immutable platform requirement or claim the proposed replacement already runs.
+The table below preserves the original design and its verification history. The approved [execution-efficiency design](execution-efficiency-tech-design.md) supersedes its A/B/C sequence with two normal commits (A/F), exceptional evidence capture and best-effort immediate input history. Current behavior is in the [implementation guide](../features/decisions/implementation.md#durable-request-boundary); earlier three-commit descriptions below are historical.
 
 The implementation follows these accepted ownership and recovery decisions:
 
@@ -17,7 +17,7 @@ The implementation follows these accepted ownership and recovery decisions:
 | Higher async concurrency implies huge scale                      | Measure CPU, sockets, buffering, SQL throughput, locks, fairness, provider quotas and completions across replicas. Nonblocking HTTP alone does not establish throughput.                                                                                                                                                                                                        |
 | Preserve the exact queued head check for immediate calls         | Separate immediate capacity admission from queued turn ordering. Otherwise an unstarted queue head can reject a call despite idle capacity and reintroduce poller dependence. Preserve weighted ordering for queued work; select shared capacity without per-mode reservations for this version, with the overload tradeoff documented below.                                   |
 
-Three commits are the default design, not three expensive worker handoffs. They happen consecutively in one request owner around the actual provider I/O. Do not claim the absolute physical optimum; preserve the product's durability while removing demonstrated unnecessary work.
+The original three-commit design below is superseded by A/F; it used three commits, not three expensive worker handoffs. They happen consecutively in one request owner around the actual provider I/O. Do not claim the absolute physical optimum; preserve the product's durability while removing demonstrated unnecessary work.
 
 ## Profiling and reducing request overhead
 

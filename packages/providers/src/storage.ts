@@ -250,15 +250,21 @@ export async function* contentChunks(
   if ((expectedHash && actual !== expectedHash) || (!('bytes' in value) && value.sha256 !== actual))
     throw new Error('Stored content integrity check failed');
 }
-export async function verifyContent(key: string, hash: string) {
-  for await (const _ of contentChunks(key, hash)) {
-    /* Consume to verify without buffering a large file. */
-  }
+export async function verifyContent(key: string, hash: string, store: Pick<ObjectStore, 'get'> = storage) {
+  let size = 0;
+  for await (const bytes of contentChunks(key, hash, store)) size += bytes.length;
+  return size;
 }
 export async function saveChunkManifest(org: string, hash: string, size: number, chunks: StoredChunk[]) {
   const key = `${org}/manifest/${hash}`;
-  await storage.put(key, Buffer.from(seal({ version: 2, sha256: hash, size, chunks })));
-  await verifyContent(key, hash);
+  const encoded = Buffer.from(seal({ version: 2, sha256: hash, size, chunks }));
+  // Verify the candidate before replacing a content-addressed manifest. A bad
+  // upload must never corrupt an older checkpoint using the same hash/key.
+  await verifyContent(key, hash, {
+    get: (requested, options) =>
+      requested === key ? Promise.resolve(encoded) : storage.get(requested, options),
+  });
+  await storage.put(key, encoded);
   return { key, sha256: hash, size_bytes: String(size) };
 }
 export async function describeContent(key: string, expectedHash: string): Promise<StoredChunk[]> {
@@ -269,6 +275,9 @@ export async function describeContent(key: string, expectedHash: string): Promis
   }
   const bytes = Buffer.from(value.bytes, 'base64');
   if (sha256(bytes) !== expectedHash) throw new Error('Content integrity failure');
+  // A small content object already is a verified chunk. Rewriting it adds a PUT
+  // and a second encryption pass to every restore without changing its identity.
+  if (bytes.length <= 4 * 1024 * 1024) return [{ key, sha256: expectedHash, size: bytes.length }];
   const chunks: StoredChunk[] = [];
   for (let offset = 0; offset < bytes.length; offset += 4 * 1024 * 1024) {
     const part = bytes.subarray(offset, offset + 4 * 1024 * 1024);

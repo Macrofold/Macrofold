@@ -19,7 +19,8 @@ export const hostControlRequest = z.discriminatedUnion('action', [
   z.object({ action: z.enum(['restore','restored','launch','cancel']), ...assignment }),
   z.object({ action: z.literal('release'), ...assignment, checkpoint_id: z.uuid().nullable(),
     session_revision: z.string().max(160), persisted: z.boolean() }),
-  z.object({ action: z.enum(['probe','snapshot']), ...assignment, offset: z.number().int().nonnegative() }),
+  z.object({ action: z.literal('probe'), ...assignment, offset: z.number().int().nonnegative(), wait_ms: z.number().int().min(0).max(1000).optional() }),
+  z.object({ action: z.literal('snapshot'), ...assignment, offset: z.number().int().nonnegative() }),
   z.object({ action: z.literal('chunk'), ...assignment, hash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.object({ action: z.literal('answer'), ...assignment, id: z.string().max(512), answer: z.record(z.string(), z.unknown()) }),
   z.object({ action: z.literal('stdio'), ...assignment, invocation: z.object({
@@ -32,10 +33,32 @@ export const hostHealth = z.object({
   boot_id: z.uuid(), started_at: z.string(), configured: z.boolean(), quiesced: z.boolean().optional(), rotation_requested: z.boolean().optional(), active_assignments: z.number().int().nonnegative(),
   capabilities: z.object({ scoped_processes: z.boolean(), sibling_isolation: z.boolean(), resource_meter: z.boolean() }),
   meters: z.object({ kind: z.literal('resource'), cpu_ms: z.string().regex(/^\d+$/), memory_mib_ms: z.string().regex(/^\d+$/) }).nullable(),
+  host_id: z.uuid().optional(),
+  generation: z.number().int().positive().optional(),
+  warm_harnesses: z
+    .array(
+      z.object({
+        session_id: z.uuid(),
+        session_revision: z.string().max(160),
+        compatibility_key: z.string().regex(/^[a-f0-9]{64}$/),
+        permission_view: z.string().regex(/^[a-f0-9]{64}$/),
+        worktree_id: z.uuid(),
+        worktree_revision: z.string().max(160),
+        reserved_memory_mib: z.number().int().nonnegative(),
+      }),
+    )
+    .max(128)
+    .optional(),
 });
 export type HostHealth = z.infer<typeof hostHealth>;
 export type HostBinding = {
   name: string; sessionId: string; createdAt: string; controlBootId?: string; providerId?: string; url?: string;
+  warmObservation?: {
+    generation: number;
+    bootId: string;
+    observedAt: number;
+    handles: NonNullable<HostHealth['warm_harnesses']>;
+  };
 };
 export type HostProvisionSpec = {
   id: string; generation: number; name: string; secret: string;

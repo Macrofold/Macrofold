@@ -25,16 +25,16 @@ The expected result is one trace per run, with a separate generation for each mo
 
 Every observation carries the dimensions available for that run:
 
-| Filter | Meaning |
-| --- | --- |
-| `organization_id`, `user_id` | Owning account and initiating user |
-| `workspace_id`, `workspace_name` | Workspace identity and display name |
-| `worktree_id`, `worktree_name` | Worktree identity and optional name; API/storage keys remain `worktree_*` |
-| `run_id`, `session_id` | Execution and conversation |
-| `customer_id`, `customer_binding_id`, `agent_key` | Customer-agent integration binding, when that path was used |
-| `agent_id`, `agent_version`, `harness` | Native agent preset and runtime |
-| `task_id`, `application_namespace`, `actor_id`, `definition_revision` | Explicit-context decision/task identity |
-| `provider`, `model`, `billing_mode`, `client_type` | Model route, billing and caller category |
+| Filter                                                                | Meaning                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `organization_id`, `user_id`                                          | Owning account and initiating user                                        |
+| `workspace_id`, `workspace_name`                                      | Workspace identity and display name                                       |
+| `worktree_id`, `worktree_name`                                        | Worktree identity and optional name; API/storage keys remain `worktree_*` |
+| `run_id`, `session_id`                                                | Execution and conversation                                                |
+| `customer_id`, `customer_binding_id`, `agent_key`                     | Customer-agent integration binding, when that path was used               |
+| `agent_id`, `agent_version`, `harness`                                | Native agent preset and runtime                                           |
+| `task_id`, `application_namespace`, `actor_id`, `definition_revision` | Explicit-context decision/task identity                                   |
+| `provider`, `model`, `billing_mode`, `client_type`                    | Model route, billing and caller category                                  |
 
 IDs are metadata, not a proliferation of tags. Tags group common dimensions: `kind:inference`, `provider:openrouter`, `billing:managed`, `harness:codex`, `client:api`, and `integration:customer-agents`, for example. Unknown or inapplicable dimensions are omitted. An explicit decision actor is recorded as `actor_id`; it is not assumed to be a customer-agent binding.
 
@@ -48,11 +48,11 @@ Billing metadata distinguishes `charged_micro_usd`, `budget_cost_micro_usd`, the
 
 Provider-reported amounts are separate metadata, available on each generation and in content-free application logs:
 
-| Metadata | Meaning |
-| --- | --- |
-| `provider_reported_cost_usd` | Provider-reported account charge, preserving sub-micro-dollar precision; unknown is null internally and omitted by Langfuse |
-| `provider_reported_cost_status` | `reported` or `unavailable`; a reported zero is distinct from unknown |
-| `upstream_inference_cost_usd` | OpenRouter's separately reported upstream inference cost, omitted when unknown; do not add it to the account charge |
+| Metadata                        | Meaning                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `provider_reported_cost_usd`    | Provider-reported account charge, preserving sub-micro-dollar precision; unknown is null internally and omitted by Langfuse |
+| `provider_reported_cost_status` | `reported` or `unavailable`; a reported zero is distinct from unknown                                                       |
+| `upstream_inference_cost_usd`   | OpenRouter's separately reported upstream inference cost, omitted when unknown; do not add it to the account charge         |
 
 OpenRouter's completed JSON/streaming usage supplies these values for native agents and direct inference/decision calls. Missing or invalid amounts remain unknown, including interrupted requests without reported cost. Direct OpenAI/Anthropic usage does not report a dollar amount, so rate-card estimates and reported amounts remain distinct. No additional provider request or trace-network wait is added. Historical traces are not backfilled.
 
@@ -66,6 +66,6 @@ Set `TRACING_CAPTURE_CONTENT=false` to retain metadata, timing, usage and costs 
 
 Trace export runs in background batches. Requests/streams and execution phases do not wait for Langfuse; serverless lifecycle hooks keep pending exports alive after the response, and graceful worker shutdown drains them. Export timeouts or failures do not fail an agent run. Bounded local capture and metadata lookup still have a small processing cost.
 
-Capture is bounded to 1 MiB per input, output or metadata payload, with explicit truncation markers. It does not upload images/documents or expose private model reasoning. There is no sampling, but a bounded queue may drop diagnostics during overload/outages or an abrupt process crash. Export failure never retries a model/tool action. There is no new trace database or durable trace-export queue.
+Capture is bounded to 1 MiB per input, output or metadata payload, with explicit truncation markers. It does not upload images/documents or expose private model reasoning. There is no sampling, but bounded queues may omit diagnostics during overload/outages or an abrupt process crash. Immediate inference also admits optional full-input capture before retaining its background closure (16 captures / 32 MiB encoded input plus sealed-response bytes per process); without a retained host callback it is omitted. Full content is exported only after a current retention check, with no second input-history store; compact generation cost/usage metadata is emitted when full capture is unavailable. Final results and billing never depend on this capture. Export failure never retries a model/tool action. There is no new trace database or durable trace-export queue.
 
 For implementation boundaries, replacement guidance and diagnostic codes, see [implementation](implementation.md). Contributor acceptance and unverified deployment behavior are recorded separately in [verification](verification.md).

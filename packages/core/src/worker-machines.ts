@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { transaction, lock } from '../../db';
-import type { HostControlRequest, HostProvider } from '../../contracts/host-control';
+import { hostHealth, type HostControlRequest, type HostProvider } from '../../contracts/host-control';
 import type { NativeConfiguration } from '../../runtime/src/types';
 import type { MachineBinding } from './ports';
 import { HostRuntime, requireNativeLaunch } from './host-runtime';
 import { hostProvider } from '../../providers/src/hosts';
 import { assert, AppError } from './errors';
 import { unseal } from './crypto';
-import { activeHostRun, getHost, releaseHostRun, type HostRow, type HostRunRow } from './host-allocations';
+import { activeHostRun, getHost, observeHostWarmth, releaseHostRun, type HostRow, type HostRunRow } from './host-allocations';
 import { getNativeRun, type NativeRunRow } from './runs';
 import * as resources from './resources';
 
@@ -100,6 +100,18 @@ export class WorkerMachines extends HostRuntime {
       await lock(tx,`worktree:${this.run.worktree_id}`);
       await releaseHostRun(tx,assignment,!!exists && context.persisted,context.checkpoint);
     });
+    if (exists && host.binding) {
+      // Placement acceleration is optional; a failed observation cannot undo a
+      // confirmed release or replace the controller's prepare-time checks.
+      try {
+        const health = hostHealth.parse(
+          await provider.control(host.binding, unseal<string>(host.secret_ciphertext), { action: 'health' }),
+        );
+        await transaction(this.run.organization_id, (tx) => observeHostWarmth(tx, host, health));
+      } catch {
+        console.warn(JSON.stringify({ code: 'host_warm_observation_failed', host_id: host.id }));
+      }
+    }
     return preserve?{snapshotId:assignment.id}:{};
   }
 }

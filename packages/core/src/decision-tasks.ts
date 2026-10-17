@@ -8,6 +8,7 @@ import { digest, schemaValidator, validateContext } from './explicit-context';
 import { authorizeContext, storedContextReader } from './context-artifacts';
 import { admitInference, type ResolvedInferenceCreate } from './inferences';
 import * as resources from './resources';
+import { redactReleasedTaskPayloads } from './task-run-payload';
 
 type Schema = components['schemas'];
 export type TaskRow = {
@@ -173,11 +174,12 @@ export async function admitTaskChild(
     task.principal,
     input,
     step === 'decide' ? 'inference' : 'bounded_agent',
+    {
+      task_id: task.id,
+      task_wake_id: wakeId,
+      ...(step === 'investigate' ? { context_appendix: input.context.items.slice(-1) } : {}),
+    },
   );
-  await tx.query("UPDATE runs SET config=config||jsonb_build_object('task_id',$2::text) WHERE id=$1", [
-    run.run_id,
-    task.id,
-  ]);
   await tx.query(
     'INSERT INTO decision_task_runs(organization_id,task_id,wake_id,run_id,step,allocated_micro_usd) VALUES($1,$2,$3,$4,$5,$6)',
     [task.organization_id, task.id, wakeId, run.run_id, step, allocation.toString()],
@@ -322,7 +324,7 @@ export async function releaseTaskEvidence(tx: Tx, task: TaskRow) {
   if (!task.close_requested && task.evidence_expires_at.getTime() > Date.now())
     for (const ref of task.recipe.investigate?.definition.bounded_agent?.context_artifacts || [])
       await holdEvidence(tx, task.organization_id, task.id, ref.artifact_id);
-  await tx.query("UPDATE decision_task_wakes SET input_ciphertext='' WHERE task_id=$1", [task.id]);
+  await redactReleasedTaskPayloads(tx, undefined, task.id);
 }
 export async function closeTask(tx: Tx, p: Principal, taskId: string) {
   requireScopes(p, ['runs:write']);

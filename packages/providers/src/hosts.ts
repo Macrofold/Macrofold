@@ -4,6 +4,7 @@ import { config, isLocal } from '../../core/src/config';
 import { assert } from '../../core/src/errors';
 import { DockerMachines } from './docker';
 import { VercelMachines } from './vercel';
+import { hostHttpControl } from './host-http';
 
 /** Offline simulation preserves durable allocation identity but does not claim native isolation acceptance. */
 export class SimulatedHosts implements HostProvider {
@@ -28,7 +29,7 @@ export class SimulatedHosts implements HostProvider {
 export class DockerHosts implements HostProvider {
   constructor(private readonly machines = new DockerMachines()) {}
   async provision(spec: HostProvisionSpec) {
-    const binding = await this.machines.provision(spec.name, spec.lifetime_seconds, spec.resources);
+    const binding = await this.machines.provisionHost(spec.name, spec.lifetime_seconds, spec.resources);
     return binding;
   }
   start(binding: HostBinding, secret: string) { return this.machines.startHostControl(binding, secret); }
@@ -133,13 +134,7 @@ export class RenderHosts implements HostProvider {
     const url = new URL(binding.url || 'https://invalid.invalid');
     assert(url.protocol === 'https:' && url.hostname.endsWith('.onrender.com') && !url.username && !url.password && !url.port,
       503, 'invalid_runtime_origin', 'Unexpected server control origin.');
-    const response = await this.request(`${url.origin}/control`, {
-      method: 'POST', redirect: 'error', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ boot_id: binding.controlBootId, request }),
-      signal: AbortSignal.timeout(request.action === 'health' ? 5000 : 60000),
-    });
-    assert(response.ok, 503, 'host_control_failed', 'The Host did not confirm this operation.');
-    return z.object({ value: z.unknown() }).parse(await response.json()).value;
+    return hostHttpControl(this.request, url.origin, binding, secret, request);
   }
   async destroy(name: string, _binding: HostBinding | null) {
     const current = await this.find(name);

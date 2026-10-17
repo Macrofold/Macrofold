@@ -89,6 +89,8 @@ export interface DecisionProtocol {
     observeResponse?: (response: unknown) => void,
     nativeResponse?: boolean,
     output?: InferenceOutputSink,
+    /** Exact canonical bytes from trusted preparation; never caller-supplied wire text. */
+    preparedJSON?: string,
   ): Promise<DecisionResponse>;
 }
 

@@ -1,5 +1,5 @@
 import { transaction, type Tx } from '../../db';
-import { emit } from './events';
+import { emitBatch } from './events';
 import { terminal } from './runs';
 import type { InferenceOutput, InferenceOutputSink } from './decision';
 
@@ -25,7 +25,7 @@ export function durableInferenceOutput(org: string, run: string) {
         )
       ).rows[0];
       if (!row || !row.retained || terminal(row.status)) return;
-      for (const event of batch) await emit(tx, org, run, event.type, event.data);
+      await emitBatch(tx, org, run, batch);
     };
     if (tx) await publish(tx);
     else await transaction(org, publish);

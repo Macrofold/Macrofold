@@ -32,7 +32,21 @@ const model = createServer((req, res) => {
   let fixture = fixtures.get(key);
   if (!fixture) {
     // Automatic execution runs in the Host's per-Worktree root, not the image's /workspace.
-    fixture = nativeModelFixture({ journey: true, workspace: `/host-data/worktrees/${worktree}` });
+    fixture = nativeModelFixture({
+      journey: true,
+      workspace: `/host-data/worktrees/${worktree}`,
+      // Same-host epoch timestamps measure the complete provider→native→SQL→SDK
+      // transport. These synthetic markers are fixture output, never production metadata.
+      streamText:
+        process.env.NATIVE_DELTA_PROFILE === '1'
+          ? async function* () {
+              for (let index = 0; index < 40; index++) {
+                yield `fixture_delta_${Date.now()}_${index}\n`;
+                await new Promise((resolve) => setTimeout(resolve, 40));
+              }
+            }
+          : undefined,
+    });
     fixtures.set(key, fixture);
   }
   fixture.handler(req, res);
@@ -42,7 +56,16 @@ const modelPort = (model.address() as import('node:net').AddressInfo).port;
 const networkFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input));
-  if (url.origin !== config.origin && url.origin !== `http://127.0.0.1:${modelPort}`)
+  // Docker publishes the authenticated Host controller on an ephemeral loopback
+  // port; its provider validates the inspected origin before this transport.
+  const localControl =
+    url.protocol === 'http:' &&
+    url.hostname === '127.0.0.1' &&
+    Boolean(url.port) &&
+    url.pathname === '/control' &&
+    !url.search &&
+    !url.hash;
+  if (url.origin !== config.origin && url.origin !== `http://127.0.0.1:${modelPort}` && !localControl)
     throw new Error('Unexpected fixture network request');
   return networkFetch(input, init);
 };

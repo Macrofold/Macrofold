@@ -1,11 +1,29 @@
 import { afterCommit, type Tx } from '../../db';
-import type { RunRow } from './runs';
+import type { RunRow, NativeRunRow, InferenceRunRow, RunConfig } from './runs';
 import type { RunEventRow } from './events';
 import type { TraceContext } from './trace';
 import { recordTrace, tracingEnabled } from './tracing';
 
 /** Tenant-scoped lookup; external customer IDs are labels, never authority. */
-export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext | undefined> {
+type TraceSource =
+  | (Pick<NativeRunRow, 'id' | 'organization_id' | 'workspace_id' | 'worktree_id' | 'session_id' | 'kind'> & {
+      config: Pick<
+        RunConfig,
+        | 'agent_id'
+        | 'agent_version'
+        | 'user_id'
+        | 'model'
+        | 'rate_card'
+        | 'billing_mode'
+        | 'client_type'
+        | 'harness'
+      >;
+    })
+  | Pick<
+      InferenceRunRow,
+      'id' | 'organization_id' | 'workspace_id' | 'worktree_id' | 'session_id' | 'kind' | 'config'
+    >;
+export async function runTraceContext(tx: Tx, run: TraceSource): Promise<TraceContext | undefined> {
   if (!tracingEnabled()) return;
   const native = run.kind === 'native_agent';
   const row = run.workspace_id
@@ -51,9 +69,14 @@ export async function runTraceContext(tx: Tx, run: RunRow): Promise<TraceContext
         }
       : {
           task_id: run.config.task_id,
-          application_namespace: run.config.context.application_namespace,
-          actor_id: run.config.context.audience.id,
-          definition_revision: run.config.definition.revision,
+          application_namespace:
+            'payload_kind' in run.config
+              ? run.config.application_namespace
+              : run.config.context.application_namespace,
+          actor_id:
+            'payload_kind' in run.config ? run.config.context_audience.id : run.config.context.audience.id,
+          definition_revision:
+            'payload_kind' in run.config ? run.config.definition_revision : run.config.definition.revision,
         }),
   };
 }
@@ -68,13 +91,13 @@ export function tracedRunEvent(type: string) {
     type === 'metering.review_required'
   );
 }
-export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
+export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow, preparedContext?: TraceContext) {
   if (
     event.type === 'tool.started' ||
     (event.type === 'tool.completed' && event.data.name === 'read_context')
   )
     return;
-  const context = await runTraceContext(tx, run);
+  const context = preparedContext ?? (await runTraceContext(tx, run));
   if (!context) return;
   const done = ['succeeded', 'failed', 'cancelled', 'timed_out'].includes(run.status);
   if (event.type === 'tool.completed') {
@@ -120,6 +143,13 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
     return;
   }
   if (done && event.type === `run.${run.status}`) {
+    const output = { ...run.result };
+    if (run.kind !== 'native_agent' && output.inference) {
+      // The generation owns full response content; root traces retain the
+      // receipt/provenance without a second large output serialization/export.
+      const { value: _value, ...receipt } = output.inference;
+      output.inference = receipt;
+    }
     afterCommit(tx, () =>
       recordTrace({
         context,
@@ -134,11 +164,14 @@ export async function traceRunEvent(tx: Tx, run: RunRow, event: RunEventRow) {
             : {
                 // decision.generate owns request content under the capture limits.
                 // The root links its input instead of copying it again.
-                definition_revision: run.config.definition.revision,
+                definition_revision:
+                  'payload_kind' in run.config
+                    ? run.config.definition_revision
+                    : run.config.definition.revision,
                 definition_digest: run.config.definition_digest,
                 context_digest: run.config.context_digest,
               },
-        output: run.result,
+        output,
         metadata: {
           status: run.status,
           reserved_micro_usd: run.reservation_micro_usd,

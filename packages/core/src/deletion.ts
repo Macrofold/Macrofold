@@ -1,3 +1,4 @@
+import { redactReleasedTaskPayloads } from './task-run-payload';
 import { planFor } from './plans';
 import type { Tx } from '../../db';
 import { lock } from '../../db';
@@ -188,10 +189,11 @@ async function redactRuns(tx: Tx, runIds: string[], at: Date) {
     [runIds, at],
   );
   await tx.query(
-    `UPDATE runs SET config=(config-'instructions'-'attachments'-'input')||CASE WHEN kind='native_agent' THEN '{}'::jsonb ELSE '{"definition":{},"context":{}}'::jsonb END||'{"prompt":"[Detailed content expired]"}'::jsonb,
-    result=(result-'output_text'-'inference')||jsonb_build_object('content_expired',true,'content_expired_at',$2::timestamptz),input_request=NULL WHERE id=ANY($1::uuid[])`,
+    `UPDATE runs SET config=(config-'instructions'-'attachments'-'input'-'payload_kind'-'context_control'-'context_appendix'-'task_input_digest')||CASE WHEN kind='native_agent' THEN '{}'::jsonb ELSE '{"definition":{},"context":{}}'::jsonb END||'{"prompt":"[Detailed content expired]"}'::jsonb,
+    result=(result-'output_text'-'inference'-'inference_output_id'-'inference_output_path')||jsonb_build_object('content_expired',true,'content_expired_at',$2::timestamptz),input_request=NULL WHERE id=ANY($1::uuid[])`,
     [runIds, at],
   );
+  await redactReleasedTaskPayloads(tx, runIds);
 }
 export async function expireDetailedHistory(tx: Tx, plan: string, at: Date) {
   const cutoff = new Date(at.getTime() - planFor(plan).history_days * 86400000);

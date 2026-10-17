@@ -13,7 +13,11 @@ function integer(name: string, fallback: number, minimum: number, maximum: numbe
 // This profiles the real serving path, not a paid provider. The shared fixture
 // wrapper also checks the unpaid local profile before it creates any resources.
 const calls = integer('PROFILE_INFERENCE_CALLS', 20, 1, 200);
+const rate = integer('PROFILE_INFERENCE_RATE', 0, 0, 100);
 const contextBytes = integer('PROFILE_INFERENCE_CONTEXT_BYTES', 1_494_000, 0, 1_900_000);
+const model = process.env.PROFILE_INFERENCE_MODEL ?? 'jev';
+if (!['jev', 'anthropic', 'openrouter-chat'].includes(model))
+  throw new Error('PROFILE_INFERENCE_MODEL must be jev, anthropic, or openrouter-chat.');
 const parent = path.resolve('.data/inference-profile');
 await mkdir(parent, { recursive: true, mode: 0o700 });
 const output = process.env.PROFILE_INFERENCE_OUTPUT
@@ -25,7 +29,10 @@ await withFixtureDatabase((env) =>
     ...env,
     INFERENCE_PROFILE_CHILD: '1',
     OPENROUTER_API_KEY: 'synthetic-inference-profile',
+    ANTHROPIC_API_KEY: 'synthetic-inference-profile',
+    PROFILE_INFERENCE_MODEL: model,
     PROFILE_INFERENCE_CALLS: calls,
+    PROFILE_INFERENCE_RATE: rate,
     PROFILE_INFERENCE_CONTEXT_BYTES: contextBytes,
     PROFILE_INFERENCE_OUTPUT: output,
   }),

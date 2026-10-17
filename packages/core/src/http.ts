@@ -5,11 +5,11 @@ import {
   immediateInferencePolicy,
   type InvocationPermit,
 } from './direct-inference';
-import { getCustomerBinding, customerRun } from './customer-agents';
+import { getCustomerBinding, customerRunSummary } from './customer-agents';
 import {
   pool,
   transaction,
-  lock,
+  queryGroup,
   DatabaseBudgetError,
   TransactionCommitUnknownError,
   TransactionRolledBackError,
@@ -20,7 +20,7 @@ import { id, sha256, seal, unseal, canonical } from './crypto';
 import { AppError, assert, errorBody } from './errors';
 import { matchRoute, validateParameters, validateBody, responseFor, operationScopes } from './http-contract';
 import { handlers, preparations } from './api-handlers';
-import { getRun } from './runs';
+import { getRunSummary } from './runs';
 import { streamEvents } from './events';
 import { adminReport } from './reports';
 import { organizationManager } from './organizations';
@@ -50,6 +50,8 @@ export async function handleApi(
   let acceptedInference: unknown;
   let operationId = '';
   let exceptionalRecovery = false;
+  let productEvent:
+    { organizationId: string; userId?: string; principalId: string; principalType: string } | undefined;
   let inferenceAdmissionAttempted = false;
   let releasePreflight: (() => void) | undefined;
   let preflightDeadlineAtMs: number | undefined;
@@ -103,7 +105,20 @@ export async function handleApi(
     const admin = route.startsWith('/admin/');
     const audience = `${config.origin}${admin ? '/admin/v1' : surface === 'mcp' ? '/mcp' : '/v1'}`;
     const stopAuthentication = startInferenceTiming('http.authentication', operationId === 'createInference');
-    principal = await identify(request, audience, { databaseDeadlineAtMs: preflightDeadlineAtMs });
+    const rate = requestCapacity(request.method, matched.operation.operationId);
+    let identifiedRateCount: number | undefined;
+    principal = await identify(request, audience, {
+      databaseDeadlineAtMs: preflightDeadlineAtMs,
+      requestRate:
+        operationId === 'createInference'
+          ? {
+              group: rate.group,
+              observed: (count) => {
+                identifiedRateCount = count;
+              },
+            }
+          : undefined,
+    });
     stopAuthentication();
     const p = principal;
     if (!background && operationId !== 'createInference')
@@ -156,7 +171,6 @@ export async function handleApi(
         'organization_admin_required',
         'Organization webhook management requires an administrator credential without workspace restrictions.',
       );
-    const rate = requestCapacity(request.method, matched.operation.operationId);
     const rateQuery = (tx: Pick<import('../../db').Tx, 'query'>) =>
       tx.query(
         'INSERT INTO rate_limits(key,bucket,count) VALUES($1,$2,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.bucket=excluded.bucket THEN rate_limits.count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count',
@@ -164,11 +178,13 @@ export async function handleApi(
       );
     const stopRateLimit = startInferenceTiming('http.rate_limit', operationId === 'createInference');
     const count =
-      preflightDeadlineAtMs === undefined
+      identifiedRateCount ??
+      (preflightDeadlineAtMs === undefined
         ? await rateQuery(pool)
-        : await transaction(null, rateQuery, { deadlineAtMs: preflightDeadlineAtMs });
+        : await transaction(null, rateQuery, { deadlineAtMs: preflightDeadlineAtMs })
+      ).rows[0].count;
     stopRateLimit();
-    if (count.rows[0].count > rate.limit) {
+    if (count > rate.limit) {
       headers.set('Retry-After', String(Math.max(1, 60 - (Math.floor(Date.now() / 1000) % 60))));
       throw new AppError(429, 'rate_limited', 'Too many requests. Retry in one minute.');
     }
@@ -181,13 +197,13 @@ export async function handleApi(
     if (['streamRun', 'streamCustomerAgentRun'].includes(matched.operation.operationId)) {
       await transaction(p.organizationId, async (tx) => {
         if (matched.operation.operationId === 'streamCustomerAgentRun')
-          return customerRun(
+          return customerRunSummary(
             tx,
             p,
             await getCustomerBinding(tx, p, matched.params.customer_id, matched.params.customer_agent_id),
             matched.params.run_id,
           );
-        return getRun(tx, matched.params.run_id, p);
+        return getRunSummary(tx, matched.params.run_id, p);
       });
       const after = request.headers.get('last-event-id') || query.get('after') || '0';
       assert(/^\d+$/.test(after), 400, 'invalid_cursor', 'Use a numeric event sequence.');
@@ -265,17 +281,32 @@ export async function handleApi(
       `${request.method}\n${new URL(request.url).pathname}?${query.toString()}\n${request.headers.get('if-match') || ''}\n${binary ? sha256(bytes) : canonical(body)}`,
     );
     stopFingerprint();
-    const cachedResponse = async (tx: import('../../db').Tx) => {
+    const cachedResponse = async (tx: import('../../db').Tx, writing = true) => {
       if (idempotencyKey) {
-        await lock(tx, `idempotency:${p.organizationId}:${p.id}:${route}:${idempotencyKey}`);
-        const cached = (
-          await tx.query('SELECT * FROM idempotency WHERE principal_id=$1 AND route=$2 AND key=$3', [
-            p.id,
-            route,
-            idempotencyKey,
-          ])
-        ).rows[0];
+        type CachedMutation = { fingerprint: string; response_ciphertext: string; status: number };
+        const lookup = {
+          text: 'SELECT fingerprint,response_ciphertext,status FROM idempotency WHERE principal_id=$1 AND route=$2 AND key=$3',
+          values: [p.id, route, idempotencyKey],
+        };
+        const result = writing
+          ? (
+              await queryGroup<CachedMutation | { locked: unknown }>(tx, [
+                {
+                  text: 'SELECT pg_advisory_xact_lock(hashtextextended($1,0)) AS locked',
+                  values: [`idempotency:${p.organizationId}:${p.id}:${route}:${idempotencyKey}`],
+                },
+                lookup,
+              ])
+            )[1]
+          : await tx.query<CachedMutation>(lookup);
+        const cached = result.rows[0];
         if (cached) {
+          assert(
+            'fingerprint' in cached,
+            500,
+            'idempotency_unavailable',
+            'The saved request identity is unavailable.',
+          );
           assert(
             cached.fingerprint === fingerprint,
             409,
@@ -283,7 +314,7 @@ export async function handleApi(
             'This idempotency key was used for a different request.',
           );
           headers.set('Idempotency-Replayed', 'true');
-          return { status: cached.status as number, body: unseal(cached.response_ciphertext) };
+          return { status: cached.status, body: unseal(cached.response_ciphertext) };
         }
       }
       return undefined;
@@ -301,8 +332,8 @@ export async function handleApi(
       requestId,
       hostDeadlineAtMs,
     };
-    // Fast replay avoids object I/O. The final transaction checks again under the
-    // same idempotency lock, so competing preparations can publish at most once.
+    // A read-only replay needs no writer lock. Simultaneous misses may prepare
+    // twice; final admission locks/rechecks so only one can publish or dispatch.
     if (operationId === 'createInference') {
       preflightDeadlineAtMs = Math.min(
         hostDeadlineAtMs - immediateInferencePolicy.deliveryMs,
@@ -321,7 +352,7 @@ export async function handleApi(
       prepare && idempotencyKey
         ? await transaction(
             p.organizationId,
-            cachedResponse,
+            (tx) => cachedResponse(tx, false),
             preflightDeadlineAtMs === undefined ? {} : { deadlineAtMs: preflightDeadlineAtMs },
           )
         : undefined;
@@ -402,20 +433,12 @@ export async function handleApi(
                   [id(), p.organizationId, p.userId, matched.operation.operationId],
                 );
               if (!advisory && !['GET', 'HEAD'].includes(request.method))
-                await tx.query(
-                  'INSERT INTO product_events(id,organization_id,user_id,name,data) VALUES($1,$2,$3,$4,$5)',
-                  [
-                    id(),
-                    p.organizationId,
-                    p.userId || null,
-                    matched.operation.operationId,
-                    JSON.stringify({
-                      principal_type: p.kind === 'api_key' ? 'service' : 'human',
-                      source: 'public_api',
-                      principal_id: p.id,
-                    }),
-                  ],
-                );
+                productEvent = {
+                  organizationId: p.organizationId,
+                  userId: p.userId,
+                  principalId: p.id,
+                  principalType: p.kind === 'api_key' ? 'service' : 'human',
+                };
               return response;
             },
             operationId === 'createInference' ? { deadlineAtMs: admissionDeadline } : {},
@@ -423,7 +446,7 @@ export async function handleApi(
         committed = created;
         if (committed) {
           permit = prepared?.inferencePermit?.();
-          // B persists this observed A duration, including checkout/locks/COMMIT.
+          // F persists this observed A duration, including checkout/locks/COMMIT.
           // A cannot truthfully record the duration of its own future commit.
           if (permit) permit.call.timings_ms.admission = performance.now() - admissionStarted;
         }
@@ -633,9 +656,9 @@ export async function handleApi(
       requestSummariesInFlight++;
       try {
         await transaction(
-          null,
-          (tx) =>
-            tx.query(
+          productEvent?.organizationId ?? null,
+          async (tx) => {
+            await tx.query(
               'INSERT INTO api_requests(request_id,organization_id,principal_id,principal_type,user_id,method,route,status,duration_ms,client_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id) DO UPDATE SET organization_id=excluded.organization_id,principal_id=excluded.principal_id,principal_type=excluded.principal_type,user_id=excluded.user_id,route=excluded.route,status=excluded.status,duration_ms=excluded.duration_ms,client_type=excluded.client_type',
               [
                 requestId,
@@ -653,7 +676,23 @@ export async function handleApi(
                   ? request.headers.get('x-client-type')
                   : 'api',
               ],
-            ),
+            );
+            if (productEvent && status >= 200 && status < 300)
+              await tx.query(
+                'INSERT INTO product_events(id,organization_id,user_id,name,data) VALUES($1,$2,$3,$4,$5)',
+                [
+                  id(),
+                  productEvent.organizationId,
+                  productEvent.userId ?? null,
+                  operationId,
+                  JSON.stringify({
+                    principal_type: productEvent.principalType,
+                    source: 'public_api',
+                    principal_id: productEvent.principalId,
+                  }),
+                ],
+              );
+          },
           { deadlineAtMs: Date.now() + 500 },
         );
       } catch {
@@ -663,7 +702,7 @@ export async function handleApi(
       }
     };
     if (background) background(recordRequest);
-    else await recordRequest();
+    else if (operationId !== 'createInference') await recordRequest();
     stopRequestTiming();
   }
 }

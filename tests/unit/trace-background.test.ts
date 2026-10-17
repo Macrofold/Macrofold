@@ -15,6 +15,10 @@ vi.mock('../../packages/core/src/tracing', () => ({
   traceDiagnostic: vi.fn(),
 }));
 vi.mock('../../packages/core/src/cloud-engine', () => ({ advanceCloudRun: vi.fn() }));
+vi.mock('../../packages/core/src/dispatch-failures', () => ({
+  dispatchSucceeded: vi.fn(),
+  dispatchFailed: vi.fn(),
+}));
 vi.mock('../../packages/core/src/workflow-ownership', () => ({
   renewWorkflow: vi.fn(async () => true),
   releaseWorkflow: vi.fn(),

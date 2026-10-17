@@ -16,6 +16,8 @@ Applying a transfer reads staging with a strict byte bound, verifies its SHA-256
 
 Staging is protected by TLS and R2's encryption at rest, but is **not** application-encrypted until verification. Its PUT capabilities expire after thirty minutes; maintenance then deletes raw staging and clears temporary manifest references. Configure an R2 lifecycle rule to expire `staging/` objects after one day as independent cleanup if the control plane is down. R2 CORS must allow the exact application origin, PUT, Content-Type, and expose ETag if desired. Do not enable a public bucket or use wildcard credentialed origins. [R2 CORS](https://developers.cloudflare.com/r2/buckets/cors/).
 
+Native model-body staging uses its own signed, encrypted upload grant. Reading it verifies the authenticated envelope, exact byte count and SHA-256 before ordinary model admission. Deleting that temporary upload runs through a bounded cleanup owner (64 compact identities, four deletes at once) and never delays provider dispatch; graceful shutdown drains active cleanup and the staging lifecycle remains the failure/overload backstop. This does not defer file publication or financial accounting.
+
 ## Web search
 
 [Web search](web-search.md) supports Brave Search, Exa, Tavily, Parallel AI and Firecrawl through the shared broker tool. Every provider accepts encrypted customer API keys; Brave also retains managed funding and per-call budget admission. The feature reference owns setup, supported API modes, response limits, billing boundaries and verification. Native Codex search and Claude WebSearch/WebFetch remain disabled; the sandbox's ordinary network policy independently governs shell/network access.
@@ -46,6 +48,8 @@ The MCP broker makes these requests from the Macrofold control-plane process, no
 Hosted deployments, webhooks, OAuth client-metadata fetching and other unrelated outbound requests still require public HTTPS. Only list local services you trust; HTTP does not encrypt traffic. Missing/unlisted origins return `unsafe_url`; malformed allowlist configuration returns `invalid_local_mcp_origins` and must be corrected by the operator. An unreachable allowed server is a separate URL/listener/firewall issue.
 
 ## Tool input schemas
+
+Remote tool definitions are cached briefly to avoid rediscovering every account before a call. Current permissions still apply immediately. Use **Test** on the connection to refresh a changed upstream catalog; otherwise definitions refresh within one minute. A tool call contacts only its selected connection.
 
 The tool broker validates arguments before charging or invoking a connector. Input schemas may declare JSON Schema draft-7 or draft 2020-12 with `$schema`; schemas without a declaration retain draft-7 behavior. A 2020-12 declaration uses that dialect's validation rules, including `prefixItems` and `unevaluatedProperties`.
 

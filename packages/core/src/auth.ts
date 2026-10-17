@@ -198,7 +198,10 @@ export type Principal = {
   oauthTokenId?: string;
   oauthAudience?: string;
 };
-export type IdentifyOptions = { databaseDeadlineAtMs?: number };
+export type IdentifyOptions = {
+  databaseDeadlineAtMs?: number;
+  requestRate?: { group: string; observed(count: number): void };
+};
 type ApiKeyIdentity = {
   id: string;
   organization_id: string;
@@ -209,6 +212,7 @@ type ApiKeyIdentity = {
   email: string | null;
   email_verified: boolean | null;
   role: string | null;
+  rate_count?: number;
 };
 export async function identify(
   request: Request,
@@ -241,8 +245,22 @@ export async function identify(
       WHERE k.id=c.id AND ($2::text IS NULL OR c.organization_id::text=$2)
         AND c.email_verified=true AND c.role IS NOT NULL
         AND (k.last_used_at IS NULL OR k.last_used_at<now()-interval '1 minute')
-    ) SELECT * FROM credential`;
-    const values = [sha256(bearer), selector];
+    ) ${
+      options.requestRate
+        ? `, rated AS (
+      INSERT INTO rate_limits(key,bucket,count)
+      SELECT c.organization_id::text||':'||c.id::text||':'||$3,$4,1 FROM credential c
+      WHERE ($2::text IS NULL OR c.organization_id::text=$2) AND c.email_verified=true AND c.role IS NOT NULL
+      ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.bucket=excluded.bucket
+        THEN rate_limits.count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count
+    ) SELECT credential.*,(SELECT count FROM rated) AS rate_count FROM credential`
+        : 'SELECT * FROM credential'
+    }`;
+    const values = [
+      sha256(bearer),
+      selector,
+      ...(options.requestRate ? [options.requestRate.group, Math.floor(Date.now() / 60000)] : []),
+    ];
     const found =
       options.databaseDeadlineAtMs === undefined
         ? await pool.query<ApiKeyIdentity>(statement, values)
@@ -259,6 +277,7 @@ export async function identify(
     );
     assert(key.email && key.email_verified, 403, 'forbidden', 'This account is unavailable or unverified.');
     assert(key.role, 403, 'forbidden', 'You cannot access this organization.');
+    if (key.rate_count !== undefined) options.requestRate?.observed(key.rate_count);
     return {
       id: key.id,
       userId: key.user_id,

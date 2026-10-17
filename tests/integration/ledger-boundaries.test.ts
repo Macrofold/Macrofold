@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import pg from 'pg';
 import { pool, transaction } from '../../packages/db';
 import { id } from '../../packages/core/src/crypto';
 import { credit, debit, expireCredits, reserve, settle } from '../../packages/core/src/ledger';
@@ -141,6 +142,22 @@ describe('integer ledger boundaries against PostgreSQL', () => {
     await transaction(org, (tx) => settle(tx, org, run, 100n, 25n));
     expect(await state(org)).toEqual({ balance: 75n, reserved: 0n, debt: 0n });
   });
+  it('retains a zero-wallet settlement identity without empty journals or wallet mutations', async () => {
+    const org = await account(0n),
+      run = id();
+    await Promise.all(
+      Array.from({ length: 8 }, () => transaction(org, (tx) => settle(tx, org, run, 0n, 0n))),
+    );
+    expect(await state(org)).toEqual({ balance: 0n, reserved: 0n, debt: 0n });
+    const facts = await transaction(org, (tx) =>
+      tx.query(
+        `SELECT (SELECT count(*)::int FROM financial_events WHERE reference=$1) AS events,
+       (SELECT count(*)::int FROM ledger WHERE reference=$1) AS entries`,
+        [`run:${run}`],
+      ),
+    );
+    expect(facts.rows[0]).toEqual({ events: 1, entries: 0 });
+  });
   it('expires credit exactly at its deadline and makes repeated expiry a no-op', async () => {
     const org = await account(0n),
       deadline = new Date('2040-01-01T00:00:00Z');
@@ -150,6 +167,51 @@ describe('integer ledger boundaries against PostgreSQL', () => {
     expect(await transaction(org, (tx) => expireCredits(tx, org, deadline))).toBe(0n);
     expect(await state(org)).toEqual({ balance: 0n, reserved: 0n, debt: 0n });
   });
+});
+
+it('settles a thousand open credit lots without one database round trip per lot', async () => {
+  const org = await account(1000n),
+    run = id();
+  await transaction(org, async (tx) => {
+    await tx.query('DELETE FROM credit_lots WHERE organization_id=$1', [org]);
+    await tx.query(
+      `INSERT INTO credit_lots(id,organization_id,reference,kind,original_micro_usd,remaining_micro_usd,expires_at)
+      SELECT gen_random_uuid(),$1,'lot-'||value,'purchased_credits',1,1,'2040-01-01'::timestamptz+value*interval '1 second'
+      FROM generate_series(1,1000) AS value`,
+      [org],
+    );
+    await reserve(tx, org, 1000n);
+  });
+  const queries = vi.spyOn(pg.Client.prototype, 'query');
+  const started = performance.now();
+  let statements = 0;
+  try {
+    await transaction(org, (tx) => settle(tx, org, run, 1000n, 150n));
+    statements = queries.mock.calls.length;
+    // A coarse operation-level budget allows query-plan improvements while
+    // catching the former per-lot UPDATE pattern, which would exceed150 calls.
+    expect(statements).toBeLessThan(50);
+  } finally {
+    queries.mockRestore();
+  }
+  const elapsed = performance.now() - started;
+  expect(await state(org)).toEqual({ balance: 850n, reserved: 0n, debt: 0n });
+  const lots = await transaction(org, (tx) =>
+    tx.query(
+      `SELECT count(*) FILTER (WHERE remaining_micro_usd=0)::int AS spent,
+     count(*) FILTER (WHERE remaining_micro_usd=1)::int AS remaining FROM credit_lots WHERE organization_id=$1`,
+      [org],
+    ),
+  );
+  expect(lots.rows[0]).toEqual({ spent: 150, remaining: 850 });
+  console.log(
+    JSON.stringify({
+      experiment: 'ledger-settlement',
+      open_lots: 1000,
+      statements,
+      elapsed_ms: Math.round(elapsed * 100) / 100,
+    }),
+  );
 });
 
 describe('reservation serialization and protected expiring funds', () => {
@@ -189,6 +251,46 @@ describe('reservation serialization and protected expiring funds', () => {
     await owner;
     await expect(competing).rejects.toMatchObject({ code: 'insufficient_credit' });
     expect(await state(org)).toEqual({ balance: 100n, reserved: 60n, debt: 0n });
+  });
+  it('evaluates expiry after an ordered account-lock wait rather than when the reservation was submitted', async () => {
+    const org = await account(100n);
+    let release = () => {};
+    let acquired = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const ready = new Promise<void>((resolve) => {
+      acquired = resolve;
+    });
+    const owner = transaction(org, async (tx) => {
+      await tx.query('SELECT id FROM organizations WHERE id=$1 FOR NO KEY UPDATE', [org]);
+      acquired();
+      await gate;
+      await tx.query(
+        "UPDATE credit_lots SET expires_at=clock_timestamp()-interval '1 second' WHERE organization_id=$1",
+        [org],
+      );
+    });
+    await ready;
+    const contender = transaction(org, (tx) => reserve(tx, org, 100n));
+    const rejected = expect(contender).rejects.toMatchObject({ code: 'insufficient_credit' });
+    try {
+      await expect
+        .poll(
+          async () =>
+            (
+              await pool.query(
+                `SELECT count(*)::integer AS n FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%organizations%'`,
+              )
+            ).rows[0].n,
+        )
+        .toBeGreaterThan(0);
+    } finally {
+      release();
+    }
+    await owner;
+    await rejected;
+    expect((await state(org)).reserved).toBe(0n);
   });
   it('protects only reserved expiry credit and releases the unused portion after settlement', async () => {
     const org = await account(0n),

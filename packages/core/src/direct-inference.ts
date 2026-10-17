@@ -1,8 +1,15 @@
 import { transaction, TransactionCommitUnknownError, DatabaseBudgetError } from '../../db';
 import type { Principal } from './auth';
-import { actorAuthorized } from './actor-authorization';
 import { assert, AppError } from './errors';
-import { getRun, terminal, waitingFields, runUrls, type InferenceRunRow } from './runs';
+import {
+  getRun,
+  terminal,
+  waitingFields,
+  runUrls,
+  type InferenceRunRow,
+  type ExecutableInferenceRunRow,
+  compactInference,
+} from './runs';
 import { seal, unseal } from './crypto';
 import { decisionProtocol } from '../../providers/src/decision-protocols';
 import { DecisionProviderError, type InferenceOutputSink, type InferenceReceipt } from './decision';
@@ -11,7 +18,7 @@ import {
   invocation,
   invocationEvidence,
   recordInvocationResponse,
-  currentInferenceRun,
+  currentInferenceState,
   checkedReceipt,
   capability,
   finishInferenceInTransaction,
@@ -23,11 +30,11 @@ import { observeInference } from './inference-control';
 import type { TraceContext } from './trace';
 import { recordTrace, tracingEnabled } from './tracing';
 import { runTraceContext } from './run-tracing';
-import { authorizeContext } from './context-artifacts';
-import { principalFor } from './engine';
+import { inferencePublicationReceipt } from './inference-publication';
 import type { components } from '../../contracts/api';
 import { digest } from './explicit-context';
 import { initialReceipt } from './inference-receipt';
+import { scheduleInferenceCapture } from './inference-capture';
 import { startInferenceTiming } from './inference-timing';
 
 /** Infrastructure budgets are separate from the caller's accepted model deadline.
@@ -42,9 +49,11 @@ export const immediateInferencePolicy = {
 } as const;
 
 export type InvocationPermit = {
-  run: InferenceRunRow;
+  run: ExecutableInferenceRunRow;
   call: Invocation;
   body: Record<string, unknown>;
+  bodyBytes: number;
+  bodyJSON: string;
   secret: string;
   hostDeadline: number;
   providerDeadlineMonotonicMs: number;
@@ -60,25 +69,32 @@ function traceCompletedInference(
   response: StoredResponse,
   receipt: InferenceReceipt | undefined,
   input?: Record<string, unknown>,
+  captureContent = true,
 ) {
+  const endedAt = call.provider_completed_at ?? call.responded_at ?? new Date();
+  const startedAt =
+    call.timings_ms.provider === undefined
+      ? (call.dispatch_started_at ?? run.created_at)
+      : new Date(endedAt.getTime() - call.timings_ms.provider);
   recordTrace({
     context,
     id: call.id,
     name: 'decision.generate',
     type: 'generation',
-    startedAt: call.dispatch_started_at ?? run.created_at,
-    endedAt: call.responded_at ?? new Date(),
+    startedAt,
+    endedAt,
     firstOutputAt:
-      call.dispatch_started_at && call.timings_ms.first_output !== undefined
-        ? new Date(call.dispatch_started_at.getTime() + call.timings_ms.first_output)
+      call.timings_ms.first_output !== undefined
+        ? new Date(startedAt.getTime() + call.timings_ms.first_output)
         : undefined,
-    input,
-    output: response,
+    input: captureContent ? input : undefined,
+    output: captureContent ? response : undefined,
     model: run.config.model,
     usage: response.usage,
     chargedMicroUsd: receipt?.billing.charged_micro_usd ?? undefined,
     level: response.incomplete || response.failure_code ? 'ERROR' : 'DEFAULT',
     metadata: {
+      content_capture: captureContent ? 'available' : 'omitted',
       invocation_id: call.id,
       step: call.step,
       provider_request_id: response.requestId,
@@ -113,6 +129,7 @@ export function inferenceEnvelope(
     urls: runUrls(run.id),
   };
   const status = run.status;
+  const { inference_output_id: _outputId, inference_output_path: _outputPath, ...publicResult } = run.result;
   if (status === 'succeeded' || status === 'failed' || status === 'cancelled' || status === 'timed_out')
     return {
       status: 200,
@@ -120,7 +137,7 @@ export function inferenceEnvelope(
         ...base,
         status,
         result: {
-          ...run.result,
+          ...publicResult,
           run_id: run.id,
           final: true,
           execution_outcome: run.result.execution_outcome || 'pending',
@@ -191,15 +208,14 @@ export async function persistImmediateResponse(
     transaction(
       permit.run.organization_id,
       async (tx) => {
-        const run = await currentInferenceRun(tx, permit.run);
-        const current = await invocationEvidence(tx, run.id);
+        const { run, call: current } = await currentInferenceState(tx, permit.run);
         assert(
           current && run.lease_generation === permit.run.lease_generation,
           409,
           'inference_owner_changed',
           'Recovery owns this invocation.',
         );
-        if (!current.body_available || run.result.content_expired) return current;
+        if (run.result.content_expired) return current;
         if (current.state === 'responded') {
           assert(
             current.response_ciphertext && digest(unseal(current.response_ciphertext)) === digest(response),
@@ -233,7 +249,10 @@ export async function persistImmediateResponse(
 
 /** Recovery consumes evidence only. Its generation fence prevents a late live
  * owner from writing after handoff or process loss; it never creates a permit. */
-export async function recoverImmediateInference(run: InferenceRunRow) {
+export async function recoverImmediateInference(
+  run: InferenceRunRow,
+  background?: (task: () => Promise<void>) => void,
+) {
   const deadline = Date.now() + immediateInferencePolicy.completionMs;
   const claimed = await transaction(
     run.organization_id,
@@ -311,22 +330,35 @@ export async function recoverImmediateInference(run: InferenceRunRow) {
   const completed = terminal(claimed.run.status)
     ? { run: claimed.run, receipt: claimed.run.result.inference }
     : await finalizeImmediateInference(claimed.run, claimed.call, response, deadline);
-  if (tracingEnabled() && !completed.run.result.content_expired) {
+  if (tracingEnabled()) {
     try {
       const context = await transaction(run.organization_id, (tx) => runTraceContext(tx, completed.run), {
         deadlineAtMs: deadline,
       });
-      if (context)
-        traceCompletedInference(
-          context,
-          claimed.run,
-          claimed.call,
-          response,
-          completed.receipt,
-          claimed.call.body_ciphertext
-            ? unseal<Record<string, unknown>>(claimed.call.body_ciphertext)
-            : undefined,
+      if (context) {
+        const call = claimed.call;
+        scheduleInferenceCapture(
+          {
+            organizationId: run.organization_id,
+            runId: run.id,
+            bytes:
+              Buffer.byteLength(call.body_ciphertext) + Buffer.byteLength(call.response_ciphertext ?? ''),
+          },
+          background,
+          (content) =>
+            traceCompletedInference(
+              context,
+              claimed.run,
+              call,
+              response,
+              completed.receipt,
+              content && call.body_ciphertext
+                ? unseal<Record<string, unknown>>(call.body_ciphertext)
+                : undefined,
+              content,
+            ),
         );
+      }
     } catch {
       console.warn(JSON.stringify({ code: 'inference_trace_attribution_failed', run_id: run.id }));
     }
@@ -341,7 +373,19 @@ export async function finalizeImmediateInference(
   response: StoredResponse,
   deadline: number,
 ) {
-  let receipt = checkedReceipt(run, call, response);
+  const validated = response.validated_receipt;
+  let receipt: InferenceReceipt;
+  if (validated)
+    receipt = { ...validated, ...(validated.outcome === 'value' ? { value: response.value } : {}) };
+  else {
+    assert(
+      !compactInference(run),
+      409,
+      'inference_validation_missing',
+      'Saved evidence lacks its validated outcome.',
+    );
+    receipt = checkedReceipt(run, call, response);
+  }
   if (response.failure_code)
     receipt = {
       ...receipt,
@@ -350,56 +394,40 @@ export async function finalizeImmediateInference(
       provider_outcome: response.transport_complete ? 'responded' : 'uncertain',
       validation: { ...receipt.validation, status: 'not_run' },
     };
+  const { value: _value, ...validatedReceipt } = receipt;
+  response.validated_receipt = validatedReceipt;
   const preparedReceipt = receipt;
+  const ciphertext = call.response_ciphertext ?? seal(response);
+  const completedAt =
+    response.completedAt && (response.transport_complete || !response.incomplete)
+      ? new Date(response.completedAt)
+      : null;
   const write = () =>
     transaction(
       run.organization_id,
       async (tx) => {
-        const current = await currentInferenceRun(tx, run);
+        const { run: current, call: saved } = await currentInferenceState(tx, run);
         assert(current.kind === 'inference', 409, 'run_kind_mismatch', 'This is not a direct inference.');
-        const saved = await invocationEvidence(tx, run.id);
         assert(
-          saved && saved.id === call.id && saved.response_ciphertext === call.response_ciphertext,
+          saved &&
+            saved.id === call.id &&
+            (!saved.response_ciphertext || saved.response_ciphertext === call.response_ciphertext),
           409,
           'inference_evidence_changed',
           'The saved response identity changed.',
         );
+        if (!terminal(current.status) && !current.result.content_expired && !saved.response_ciphertext) {
+          await recordInvocationResponse(tx, call.id, ciphertext, completedAt, call.timings_ms);
+        }
         let finalReceipt = preparedReceipt;
         if (!terminal(current.status)) {
-          assert(
-            current.lease_generation === run.lease_generation,
-            409,
-            'inference_owner_changed',
-            'Recovery owns this invocation.',
+          finalReceipt = await inferencePublicationReceipt(
+            tx,
+            current,
+            run.lease_generation,
+            finalReceipt,
+            saved.context_expires_at,
           );
-          let allowed = await actorAuthorized(tx, current);
-          if (allowed && current.config.context_reference) {
-            try {
-              allowed = await actorAuthorized(tx, current, 'files:read');
-              if (allowed)
-                await authorizeContext(
-                  tx,
-                  principalFor(current),
-                  current.workspace_id,
-                  current.config.context_reference,
-                );
-            } catch (error) {
-              if (!(error instanceof AppError)) throw error;
-              allowed = false;
-            }
-          }
-          if (!allowed) {
-            const { value: _value, ...rest } = finalReceipt;
-            finalReceipt = { ...rest, outcome: 'failed', reason_code: 'authorization_revoked' };
-          }
-          if (
-            saved.context_expires_at &&
-            saved.context_expires_at.getTime() <= Date.now() &&
-            finalReceipt.outcome === 'value'
-          ) {
-            const { value: _value, ...rest } = finalReceipt;
-            finalReceipt = { ...rest, outcome: 'stale_input', reason_code: 'context_expired' };
-          }
         }
         const billing = await settleModelRequestInTransaction(
           tx,
@@ -424,27 +452,31 @@ export async function finalizeImmediateInference(
               run.id,
               finalReceipt,
               response.failure_code,
-              saved.provider_completed_at,
+              saved.provider_completed_at ?? completedAt,
               current,
             );
         return { run: finished, receipt: finalReceipt };
       },
       { deadlineAtMs: Math.min(deadline, Date.now() + immediateInferencePolicy.persistenceAttemptMs) },
     );
-  return persist<{ run: InferenceRunRow; receipt: InferenceReceipt | undefined }>(deadline, write, () =>
-    transaction(
-      run.organization_id,
-      async (tx) => {
-        const current = await getRun(tx, run.id);
-        assert(current.kind === 'inference', 409, 'run_kind_mismatch', 'This is not a direct inference.');
-        return terminal(current.status) ? { run: current, receipt: current.result.inference } : undefined;
-      },
-      { deadlineAtMs: deadline },
-    ),
+  const completed = await persist<{ run: InferenceRunRow; receipt: InferenceReceipt | undefined }>(
+    deadline,
+    write,
+    () =>
+      transaction(
+        run.organization_id,
+        async (tx) => {
+          const current = await getRun(tx, run.id);
+          assert(current.kind === 'inference', 409, 'run_kind_mismatch', 'This is not a direct inference.');
+          return terminal(current.status) ? { run: current, receipt: current.result.inference } : undefined;
+        },
+        { deadlineAtMs: deadline },
+      ),
   );
+  return { ...completed, captureBytes: Buffer.byteLength(ciphertext) };
 }
 
-/** One retained producer, three durable boundaries. A replay has no dispatch permit. */
+/** One retained producer, compact admission and atomic completion. A replay has no dispatch permit. */
 export async function completeDirectInference(
   p: Principal,
   accepted: unknown,
@@ -517,6 +549,7 @@ export async function completeDirectInference(
           call.timings_ms.first_output = performance.now() - started;
         await output?.({ ...event, data: { ...event.data, invocation_id: call.id } });
       },
+      permit.bodyJSON,
     );
     if (run.config.stream && run.config.definition.question.kind !== 'provider' && rawResponse !== undefined)
       response.providerResponse = rawResponse;
@@ -556,6 +589,10 @@ export async function completeDirectInference(
     ).toISOString();
   else response.completedAt = undefined;
   call.timings_ms.provider = performance.now() - started;
+  // Background capture time is not model latency. Freeze completion before F,
+  // even when optional export is delayed or the provider returned an error.
+  call.responded_at = new Date();
+  call.provider_completed_at = response.completedAt ? new Date(response.completedAt) : null;
   const deadline = Math.min(
     Date.now() + immediateInferencePolicy.completionMs,
     Date.now() +
@@ -564,25 +601,29 @@ export async function completeDirectInference(
     permit.hostDeadline - immediateInferencePolicy.deliveryMs,
   );
   try {
-    const persistenceStarted = performance.now();
-    const stopEvidenceTiming = startInferenceTiming('inference.evidence');
-    const saved = await persistImmediateResponse(permit, response, deadline).finally(stopEvidenceTiming);
-    assert(saved, 409, 'inference_evidence_unavailable', 'Response evidence is unavailable.');
-    saved.timings_ms.response_persistence = performance.now() - persistenceStarted;
     const stopFinalizationTiming = startInferenceTiming('inference.finalization');
-    const completed = await finalizeImmediateInference(run, saved, response, deadline).finally(
+    const completed = await finalizeImmediateInference(run, call, response, deadline).finally(
       stopFinalizationTiming,
     );
+    const saved = call;
     const traceContext = permit.traceContext;
-    if (traceContext) {
-      const trace = () =>
-        traceCompletedInference(traceContext, run, saved, response, completed.receipt, permit.body);
-      if (background)
-        background(async () => {
-          trace();
-        });
-      else trace();
-    }
+    if (traceContext && completed.run.result.content_expired)
+      traceCompletedInference(traceContext, run, saved, response, completed.receipt, undefined, false);
+    else if (traceContext)
+      scheduleInferenceCapture(
+        { organizationId: run.organization_id, runId, bytes: permit.bodyBytes + completed.captureBytes },
+        background,
+        (content) =>
+          traceCompletedInference(
+            traceContext,
+            run,
+            saved,
+            response,
+            completed.receipt,
+            permit.body,
+            content,
+          ),
+      );
     return inferenceEnvelope(completed.run);
   } catch (error) {
     console.error(
@@ -597,9 +638,14 @@ export async function completeDirectInference(
               : 'persistence_unavailable',
       }),
     );
-    // A durable response survives C failure. Wake evidence-only recovery without
-    // manufacturing a new provider request or erasing accepted liability.
+    // Completion normally persists evidence and money together. If it failed,
+    // preserve the same already-validated response for evidence-only recovery.
     try {
+      await persistImmediateResponse(
+        permit,
+        response,
+        Math.min(permit.hostDeadline, Date.now() + immediateInferencePolicy.deliveryMs),
+      );
       return await transaction(
         p.organizationId,
         async (tx) => {

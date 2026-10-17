@@ -10,7 +10,12 @@ export function nativeModelFixture({
   permissionMode = false,
   onBlocked,
   validateRequest,
+  streamText,
 } = {}) {
+  async function* textChunks() {
+    if (streamText) yield* streamText();
+    else yield 'Native fixture completed.';
+  }
   let calls = 0;
   let chatTurns = 0;
   let responseDiscoveries = 0;
@@ -147,10 +152,8 @@ export function nativeModelFixture({
         });
       } else {
         send('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
-        send('content_block_delta', {
-          index: 0,
-          delta: { type: 'text_delta', text: 'Native fixture completed.' },
-        });
+        for await (const text of textChunks())
+          send('content_block_delta', { index: 0, delta: { type: 'text_delta', text } });
         send('content_block_stop', { index: 0 });
         send('message_delta', {
           delta: { stop_reason: 'end_turn', stop_sequence: null },
@@ -305,7 +308,7 @@ export function nativeModelFixture({
         });
         send({}, 'tool_calls');
       } else {
-        send({ role: 'assistant', content: 'Native fixture completed.' });
+        for await (const text of textChunks()) send({ role: 'assistant', content: text });
         send({}, 'stop');
       }
       res.write(
@@ -446,7 +449,7 @@ export function nativeModelFixture({
         },
       });
     } else {
-      const content = { type: 'output_text', text: 'Native fixture completed.', annotations: [] };
+      const content = { type: 'output_text', text: '', annotations: [] };
       const item = {
         id: `msg_fixture_${calls}`,
         type: 'message',
@@ -464,12 +467,15 @@ export function nativeModelFixture({
         content_index: 0,
         part: { ...content, text: '' },
       });
-      send('response.output_text.delta', {
-        item_id: item.id,
-        output_index: 0,
-        content_index: 0,
-        delta: content.text,
-      });
+      for await (const text of textChunks()) {
+        content.text += text;
+        send('response.output_text.delta', {
+          item_id: item.id,
+          output_index: 0,
+          content_index: 0,
+          delta: text,
+        });
+      }
       send('response.output_text.done', {
         item_id: item.id,
         output_index: 0,

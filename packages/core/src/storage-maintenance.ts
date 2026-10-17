@@ -30,8 +30,11 @@ export async function storageReport(tx: Tx, org: string) {
 }
 export async function requireStorageCapacity(tx: Tx, org: string) {
   const value = (await tx.query('SELECT settings FROM organizations WHERE id=$1', [org])).rows[0];
+  assertStorageCapacity(value.settings);
+}
+export function assertStorageCapacity(settings: Record<string, unknown>) {
   assert(
-    !value.settings.storage_over_quota,
+    !settings.storage_over_quota,
     409,
     'storage_quota_exceeded',
     'Storage is over the included allowance or your overage budget. Remove old data or enable a larger storage budget in Billing. Existing files and recovery remain available.',

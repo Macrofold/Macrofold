@@ -96,7 +96,7 @@ export async function cancelApiKeyRuns(tx: Tx, keyId: string) {
     [keyId],
   );
 }
-export async function requireRunActor(tx: Tx, run: RunRow) {
+export async function requireRunActor(tx: Tx, run: Parameters<typeof actorAuthorized>[1]) {
   assert(
     await actorAuthorized(tx, run),
     403,
